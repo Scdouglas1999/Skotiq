@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/database.dart';
 import '../models/campaign_rollup.dart';
@@ -89,7 +90,7 @@ class CampaignRollupService {
       if (session != null) allSessions.add(session);
     }
     final lightFrames = imagesForTarget
-        .where((i) => i.frameType.toLowerCase() == 'light')
+        .where((i) => i.isLight)
         .toList(growable: false);
 
     final accepted = acceptedLightsByFilter(lightFrames);

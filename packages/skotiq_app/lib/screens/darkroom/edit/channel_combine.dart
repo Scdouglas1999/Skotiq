@@ -209,7 +209,7 @@ class DarkroomChannelCombiner {
       stepsJson: jsonEncode([for (final step in plan.steps) step.toJson()]),
       createdBy: RecipeAuthor.user,
       draftNotes: plan.notes,
-      schemaVersion: kDarkroomRecipeSchemaVersion,
+      schemaVersion: recipeSchemaVersion,
     );
   }
 }

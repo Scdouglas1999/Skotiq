@@ -9,6 +9,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 
 import 'pin_harness.dart';
 
@@ -165,7 +166,7 @@ void main() {
         isAccepted: false,
         producingNodeId: 'n1',
         rejectionReason: 'trailed',
-        frameType: 'dark',
+        frameType: FrameType.dark,
       ),
     );
     await pins(

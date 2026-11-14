@@ -1,3 +1,4 @@
+import '../models/imaging/session_status.dart';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -257,7 +258,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  Future<void> endSession({String status = 'completed'}) async {
+  Future<void> endSession({
+    SessionStatus status = SessionStatus.completed,
+  }) async {
     if (!state.isActive || state.dbSessionId == null) return;
 
     final sessionService = _ref.read(sessionServiceProvider);
@@ -274,7 +277,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> abortSession() async {
-    await endSession(status: 'aborted');
+    await endSession(status: SessionStatus.aborted);
   }
 
   Future<void> recoverSession(SessionRecoveryInfo recoveryInfo) async {

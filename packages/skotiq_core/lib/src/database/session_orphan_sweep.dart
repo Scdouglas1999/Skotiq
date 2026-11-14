@@ -38,14 +38,7 @@
 /// growing, which is the half that was actually in reach.
 library;
 
-/// What a session that a process abandoned reads as.
-///
-/// The same word `sequence_runs` uses for the same event, written by the sweep
-/// in the same `beforeOpen` block — a run and the night around it were
-/// interrupted by one process exit and an operator reading History should not
-/// have to learn two vocabularies for it. Deliberately NOT 'completed' (the
-/// night did not finish) and not 'aborted' (nobody asked it to stop).
-const String kInterruptedSessionStatus = 'interrupted';
+import '../models/imaging/session_status.dart';
 
 /// Closes every `imaging_sessions` row still `active`.
 ///
@@ -63,21 +56,21 @@ const String kInterruptedSessionStatus = 'interrupted';
 /// Bound values, in order: the recovery instant in unix seconds, then the note
 /// twice (the `CASE` appends it to existing notes rather than replacing them —
 /// the interrupted-integration report writes into the same column).
-const String kCloseOrphanedSessionsSql =
+final String kCloseOrphanedSessionsSql =
     'UPDATE imaging_sessions SET '
-    "status = '$kInterruptedSessionStatus', "
+    "status = '${SessionStatus.interrupted.token}', "
     'end_time = MAX(start_time, MIN(?, COALESCE('
     '(SELECT MAX(c.captured_at) FROM captured_images c '
     'WHERE c.session_id = imaging_sessions.id), start_time))), '
     "notes = CASE WHEN notes IS NULL OR notes = '' THEN ? "
     "ELSE notes || char(10) || ? END "
-    "WHERE status = 'active'";
+    "WHERE status = '${SessionStatus.active.token}'";
 
 /// Reads every row the sweep is about to close, so the caller can log which
 /// nights it touched and a test can assert on them.
-const String kSelectOrphanedSessionsSql =
+final String kSelectOrphanedSessionsSql =
     'SELECT id, name, start_time FROM imaging_sessions '
-    "WHERE status = 'active' ORDER BY id ASC";
+    "WHERE status = '${SessionStatus.active.token}' ORDER BY id ASC";
 
 /// The sentence written onto the closed session, naming what ended it.
 ///

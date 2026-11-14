@@ -7,6 +7,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/run_status/run_status_presentation.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
   test('the resumable stop reads as a stop, not as a pause', () {
@@ -27,6 +28,26 @@ void main() {
     expect(runStatusTokenLabel('half_way-there'), 'Half way there');
     expect(runStatusTokenLabel('active'), 'Active');
     expect(runStatusTokenLabel(''), 'Unknown');
+  });
+
+  test('a session a run ended reads and is toned as that run ending', () {
+    for (final status in SessionStatus.values) {
+      final run = status.runEnding;
+      if (run == null) continue;
+      expect(sessionStatusLabel(status.token), runStatusLabel(run));
+      expect(sessionStatusTone(status.token), runStatusTone(run));
+    }
+    expect(sessionStatusLabel('active'), 'Active');
+    expect(sessionStatusLabel('error'), 'Error');
+    expect(sessionStatusTone('error'), ChipTone.error);
+    expect(sessionStatusLabel('half_way'), 'Half way');
+    expect(sessionStatusTone('half_way'), ChipTone.neutral);
+  });
+
+  test('every finished run status names the session status it leaves', () {
+    for (final run in SequenceRunStatus.values.where((s) => !s.isLive)) {
+      expect(SessionStatus.endedBy(run).runEnding, run);
+    }
   });
 
   test('a paused run is live; an interrupted one is not', () {

@@ -348,7 +348,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       body: {
         'deviceId': deviceId,
         'exposureTime': exposureTime,
-        'frameType': frameType.name,
+        'frameType': frameType.record,
         if (gain != null) 'gain': gain,
         if (offset != null) 'offset': offset,
         'binX': binX,

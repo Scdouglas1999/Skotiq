@@ -321,7 +321,7 @@ class SessionHandlers implements RouteSource {
         fileSize: Value(fileSize),
         sessionId: Value(optionalInt(payload, 'sessionId')),
         targetId: Value(optionalInt(payload, 'targetId')),
-        frameType: Value(requireString(payload, 'frameType')),
+        frameType: Value(_frameTypeRecord(payload)),
         // Every numeric below is PERSISTED into captured_images and then read by
         // analytics, image grading, the dark/flat matcher and plate-solve
         // history. Unbounded, this endpoint accepted (and would have stored)
@@ -637,12 +637,10 @@ class SessionHandlers implements RouteSource {
     required String contentType,
   }) async {
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final service = SessionExportService(
-      sessionsDao: database.sessionsDao,
-      imagesDao: database.imagesDao,
+    final filePath = await exportAction(
+      container.read(sessionExportServiceProvider),
+      sid,
     );
-    final filePath = await exportAction(service, sid);
     final file = File(filePath);
 
     if (!await file.exists()) {
@@ -707,4 +705,19 @@ class SessionHandlers implements RouteSource {
       'eccentricity': thumb.eccentricity,
     };
   }
+}
+
+/// The payload's `frameType` in the spelling every image row uses; a name
+/// that is no frame type is a bad request, so a typo never files darks as
+/// lights.
+String _frameTypeRecord(Map<String, dynamic> payload) {
+  final named = requireString(payload, 'frameType');
+  final type =
+      FrameType.fromRecord(named) ??
+      (throw BadRequestError(
+        field: 'frameType',
+        expected: 'one of: ${FrameType.values.map((t) => t.record).join(', ')}',
+        message: 'Unknown frame type "$named"',
+      ));
+  return type.record;
 }

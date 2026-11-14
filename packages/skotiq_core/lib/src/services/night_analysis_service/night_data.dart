@@ -62,7 +62,7 @@ class NightSub {
     filePath: '',
     fileName: '',
     fileFormat: 'fits',
-    frameType: 'light',
+    frameType: FrameType.light.record,
     exposureDuration: 0,
     binX: 1,
     binY: 1,

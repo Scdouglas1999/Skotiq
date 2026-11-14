@@ -23,7 +23,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${report.sessionName} - ${runStatusTokenLabel(report.status)}',
+                '${report.sessionName} - ${sessionStatusLabel(report.status)}',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: colors.textPrimary),
               ),

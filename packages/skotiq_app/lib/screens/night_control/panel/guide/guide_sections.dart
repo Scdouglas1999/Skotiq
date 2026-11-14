@@ -24,7 +24,6 @@ import '../../data/session/equipment_summary_provider.dart'
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../../../widgets/guide_star_view.dart';
-import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';
@@ -150,7 +149,7 @@ class NightGuideStarSection extends ConsumerWidget {
               NightPanelNote(
                 key: const ValueKey<String>('nightGuide.stopReason'),
                 guideStopReasonLabel(l10n, stopReason),
-                tone: MetricTone.neutral,
+                tone: MetricGridTone.neutral,
               ),
             if (settleTimeout != null)
               NightPanelNote(
@@ -165,7 +164,7 @@ class NightGuideStarSection extends ConsumerWidget {
               ),
             NightPanelNote(
               lostText,
-              tone: lost.isEmpty ? null : MetricTone.warning,
+              tone: lost.isEmpty ? null : MetricGridTone.warning,
             ),
             if (settle != null)
               NightPanelNote(
@@ -233,7 +232,7 @@ class _NightGuideCalibrationSectionState
       title: l10n.text('nightScopeGuideCalibration'),
       trailing: status,
       trailingTone:
-          calibration.isCalibrated ? MetricTone.good : MetricTone.warning,
+          calibration.isCalibrated ? MetricGridTone.good : MetricGridTone.warning,
       children: [
         NightPanelValues(
           items: [

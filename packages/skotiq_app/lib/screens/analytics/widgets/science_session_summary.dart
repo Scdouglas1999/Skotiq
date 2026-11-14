@@ -261,7 +261,7 @@ class ScienceSessionSummary extends ConsumerWidget {
 
   static _SolveStats _solveStats(List<DbCapturedImage> images) {
     final lights = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .toList(growable: false);
     if (lights.isEmpty) {
       return const _SolveStats(rate: null, total: 0, solved: 0);

@@ -25,7 +25,8 @@ import '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
-import '../../services/scheduler/horizon_profile.dart' show HorizonProfile, HorizonSample;
+import '../../services/scheduler/horizon_profile.dart'
+    show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';
 import 'sequence_tree_index.dart';
@@ -267,9 +268,6 @@ abstract class SequenceOverheadConfig with _$SequenceOverheadConfig {
     /// Time for a slew operation (seconds)
     @Default(30.0) double slewSecs,
 
-    /// Time for an autofocus run (seconds)
-    @Default(180.0) double autofocusSecs,
-
     /// Time for a filter wheel change (seconds)
     @Default(10.0) double filterChangeSecs,
 
@@ -288,14 +286,8 @@ abstract class SequenceOverheadConfig with _$SequenceOverheadConfig {
     /// Time for camera cool-down (seconds)
     @Default(600.0) double coolingSecs,
 
-    /// Time for camera warm-up (seconds)
-    @Default(300.0) double warmingSecs,
-
     /// Per-exposure download overhead (seconds)
     @Default(3.0) double downloadOverheadPerExposureSecs,
-
-    /// Time for cover calibrator open/close (seconds)
-    @Default(30.0) double coverMoveSecs,
 
     /// Time for center target operation (plate solve + slew iterations) (seconds)
     @Default(45.0) double centerTargetSecs,
@@ -311,9 +303,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     /// Estimated total integration time in seconds (pure shutter-open time)
     required double estimatedSecs,
 
-    /// Estimated total overhead time in seconds (slews, AF, dithers, etc.)
-    @Default(0.0) double overheadSecs,
-
     /// Time for a single iteration (useful for unbounded loops)
     required double singleIterationSecs,
 
@@ -326,9 +315,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     /// For unbounded loops, the condition type
     LoopConditionType? conditionType,
   }) = _SequenceEstimate;
-
-  /// Total estimated wall-clock time (integration + overhead)
-  double get totalEstimatedSecs => estimatedSecs + overheadSecs;
 
   String format() {
     if (isUnbounded) {
@@ -343,17 +329,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     style: DurationStyle.coarse,
     roundToMinute: true,
   );
-
-  /// Format with overhead-aware total time display
-  /// Returns "Integration: 6h 30m | Est. total: ~9h 15m"
-  String formatWithOverhead() {
-    final integrationStr = format();
-    if (overheadSecs <= 0 || isUnbounded) {
-      return integrationStr;
-    }
-    final totalStr = '~${_coarse(totalEstimatedSecs)}';
-    return 'Integration: $integrationStr | Est. total: $totalStr';
-  }
 }
 
 enum ConditionalType {

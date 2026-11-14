@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
@@ -91,7 +92,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
         MetricVm(
           label: const NightText('nightSessionStatRejected'),
           value: '$rejected',
-          valueTone: rejected > 0 ? MetricTone.bad : MetricTone.neutral,
+          valueTone: rejected > 0 ? MetricGridTone.bad : MetricGridTone.neutral,
         ),
       if (integration != null)
         MetricVm(
@@ -123,7 +124,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
         MetricVm(
           label: const NightText('nightSessionStatDropouts'),
           value: '$dropouts',
-          valueTone: dropouts > 0 ? MetricTone.warning : MetricTone.neutral,
+          valueTone: dropouts > 0 ? MetricGridTone.warning : MetricGridTone.neutral,
         ),
     ],
     rejectStreak:

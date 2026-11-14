@@ -120,7 +120,7 @@ class _ScienceJumpNav extends ConsumerWidget {
       final folders = ref.read(localFoldersProvider);
       final file = await ref.read(analyticsExportsProvider).scienceReport(
             sessionId,
-            period: ref.read(periodAnalysisProvider).result,
+            period: ref.read(periodAnalysisProvider).result?.finding,
           );
       if (!context.mounted) return;
       messenger.clearSnackBars();

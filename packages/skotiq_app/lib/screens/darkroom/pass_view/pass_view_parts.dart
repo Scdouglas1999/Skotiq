@@ -8,7 +8,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'pass_view_charts.dart';
 
 final NumberFormat _grouped = NumberFormat('#,##0', 'en_US');
 
@@ -461,7 +460,7 @@ class PassFilterKey extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          color: passFilterColor(lane, colors),
+          color: FilterColors.forName(lane, colors: colors),
         ),
         const SizedBox(width: 5),
         Flexible(

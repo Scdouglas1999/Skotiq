@@ -11,6 +11,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
+import '../../night_tone_color.dart';
 
 /// The most log lines the tab lists where the log cannot scroll on its own.
 const int kNightPanelLogLines = 20;
@@ -169,7 +170,7 @@ class NightSessionSection extends StatelessWidget {
             semanticLabel: title,
           ),
         if (session.rejectStreak case final streak?)
-          NightPanelNote(streak.resolve(l10n), tone: MetricTone.bad),
+          NightPanelNote(streak.resolve(l10n), tone: MetricGridTone.bad),
       ],
     );
   }
@@ -305,17 +306,17 @@ class NightConditionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
-    final (String? note, MetricTone? tone) = conditions.verdictUnknown
-        ? (l10n.text('nightPanelSafetyUnknown'), MetricTone.warning)
+    final (String? note, MetricGridTone? tone) = conditions.verdictUnknown
+        ? (l10n.text('nightPanelSafetyUnknown'), MetricGridTone.warning)
         : switch (conditions.source) {
             ConditionsSource.none => (
                 l10n.text('nightPanelNoWeatherSource'),
-                MetricTone.warning,
+                MetricGridTone.warning,
               ),
             ConditionsSource.device || ConditionsSource.forecast => switch (
                   conditions.safe) {
-                true => (l10n.text('nightPanelSafe'), MetricTone.good),
-                false => (l10n.text('nightPanelUnsafe'), MetricTone.bad),
+                true => (l10n.text('nightPanelSafe'), MetricGridTone.good),
+                false => (l10n.text('nightPanelUnsafe'), MetricGridTone.bad),
                 null => conditions.source == ConditionsSource.forecast
                     ? (l10n.text('nightPanelForecastOnly'), null)
                     : (null, null),
@@ -450,7 +451,7 @@ class _NightLogSectionState extends State<NightLogSection> {
                   child: Text(
                     entry.message.resolve(l10n),
                     style: SkotiqTypography.caption.copyWith(
-                      color: entry.tone == MetricTone.neutral
+                      color: entry.tone == MetricGridTone.neutral
                           ? colors.textSecondary
                           : nightToneColor(entry.tone, colors),
                     ),
@@ -533,10 +534,10 @@ class NightChecklistSection extends StatelessWidget {
       trailingTone: items.isEmpty
           ? null
           : open == 0
-              ? MetricTone.good
+              ? MetricGridTone.good
               : blocked
-                  ? MetricTone.bad
-                  : MetricTone.warning,
+                  ? MetricGridTone.bad
+                  : MetricGridTone.warning,
       gap: SkotiqTokens.spaceXs,
       children: <Widget>[
         for (final item in items) _row(item, l10n, colors),
@@ -557,17 +558,17 @@ class NightChecklistSection extends StatelessWidget {
       ChecklistItemState.ok => (
           LucideIcons.check,
           'nightPanelCheckOk',
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       ChecklistItemState.attention => (
           LucideIcons.alertTriangle,
           'nightPanelCheckAttention',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       ChecklistItemState.blocked => (
           LucideIcons.x,
           'nightPanelCheckBlocked',
-          MetricTone.bad,
+          MetricGridTone.bad,
         ),
     };
     final title = item.title.resolve(l10n);

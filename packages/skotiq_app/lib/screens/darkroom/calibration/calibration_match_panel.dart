@@ -189,7 +189,7 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
     try {
       final db = ref.read(databaseProvider);
       final latest = await (db.select(db.capturedImages)
-            ..where((t) => t.frameType.equals('light'))
+            ..where((t) => t.frameTypeIs(FrameType.light))
             ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)])
             ..limit(1))
           .getSingleOrNull();

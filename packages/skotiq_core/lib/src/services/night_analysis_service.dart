@@ -1,3 +1,5 @@
+import '../models/imaging/imaging_models.dart' show FrameType;
+import '../models/imaging/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -231,9 +233,7 @@ class NightAnalysisService {
     List<DbCapturedImage> rows, {
     required int? sessionId,
   }) async {
-    final lights = rows
-        .where((r) => r.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights = rows.where((r) => r.isLight).toList(growable: false);
     if (lights.isEmpty) return const [];
 
     final ids = lights.map((r) => r.id).toList(growable: false);

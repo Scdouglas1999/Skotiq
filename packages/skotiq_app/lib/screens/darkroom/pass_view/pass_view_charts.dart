@@ -7,19 +7,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_core/services.dart' show PassDepth;
 
-/// The color a filter lane draws in.
-Color passFilterColor(String filter, SkotiqColors colors) =>
-    switch (filter.toUpperCase()) {
-      'R' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesRed, colors),
-      'G' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesGreen, colors),
-      'B' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesBlue, colors),
-      'HA' ||
-      'SII' ||
-      'OIII' =>
-        SkotiqChartColors.forTheme(SkotiqChartColors.seriesAmber, colors),
-      _ => colors.textSecondary,
-    };
-
 TextStyle passAxisStyle(SkotiqColors colors) =>
     SkotiqTypography.monoXs.copyWith(
         fontSize: SkotiqTypography.fontSize9,
@@ -176,7 +163,7 @@ class PassNoiseChart extends StatelessWidget {
             depths: depths,
             totalSubs: totalSubs,
             colors: colors,
-            line: passFilterColor(filter, colors),
+            line: FilterColors.forName(filter, colors: colors),
           ),
         ),
       ),

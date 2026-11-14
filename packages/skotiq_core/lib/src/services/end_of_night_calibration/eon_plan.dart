@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
@@ -148,7 +149,7 @@ EonFrameNeeds planFrameNeeds(
 }) {
   final darkCounts = <(int, int?, int?, int, int, double?), int>{};
   for (final light in lights) {
-    if (light.frameType.toLowerCase() != 'light') continue;
+    if (!light.isLight) continue;
     if (light.exposureDuration <= 0) continue;
     final key = (
       (light.exposureDuration * 1000).round(),

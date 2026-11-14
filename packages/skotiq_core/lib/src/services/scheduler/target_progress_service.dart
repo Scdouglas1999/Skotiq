@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
@@ -166,7 +167,7 @@ class TargetProgressService {
     var windowFrameCount = 0;
 
     for (final frame in images) {
-      if (frame.frameType.toLowerCase() != 'light') continue;
+      if (!frame.isLight) continue;
       if (!frame.isAccepted) continue;
 
       final filter = frame.filter ?? '';
@@ -214,8 +215,8 @@ class TargetProgressService {
     // seconds by drift's DateTimeColumn (default mapping).
     final lastRow = await _db
         .customSelect(
-          "SELECT MAX(captured_at) AS last_sec FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1",
+          'SELECT MAX(captured_at) AS last_sec FROM captured_images '
+          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1',
           variables: [Variable.withInt(targetId)],
         )
         .getSingleOrNull();
@@ -235,9 +236,9 @@ class TargetProgressService {
     // not know the local-offset rule we want).
     final windowRows = await _db
         .customSelect(
-          "SELECT captured_at AS ts FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1 "
-          "AND captured_at >= ?",
+          'SELECT captured_at AS ts FROM captured_images '
+          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1 '
+          'AND captured_at >= ?',
           variables: [
             Variable.withInt(targetId),
             Variable.withInt(windowStartSec),

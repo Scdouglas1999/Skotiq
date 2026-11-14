@@ -1,3 +1,5 @@
+import '../models/imaging/session_status.dart';
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -80,8 +82,10 @@ final class LocalImagingRecords implements ImagingRecords {
   );
 
   @override
-  Future<void> endSession(int id, {String status = 'completed'}) =>
-      _sessionsDao.endSession(id, status: status);
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) => _sessionsDao.endSession(id, status: status);
 
   /// See [SessionsDao.closeOrphanedSessions] for the rule.
   @override
@@ -292,7 +296,7 @@ SolvedFrameFoldHook solvedFrameFoldHook(
     if (image == null ||
         !image.isAccepted ||
         !image.isPlateSolved ||
-        image.frameType.toLowerCase() != 'light') {
+        !image.isLight) {
       return;
     }
     // A frame already folded had its First Light scan and co-imaging

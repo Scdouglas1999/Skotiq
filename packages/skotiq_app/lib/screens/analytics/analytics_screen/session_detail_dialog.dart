@@ -89,7 +89,7 @@ class _SessionGrading {
     var accepted = 0;
     var rejected = 0;
     for (final image in images) {
-      if (image.frameType != 'light') continue;
+      if (!image.isLight) continue;
       if (image.isAccepted) {
         accepted++;
       } else {
@@ -620,7 +620,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     List<DbCapturedImage> images,
   ) {
     final lightCount = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

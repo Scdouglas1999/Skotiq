@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -10,7 +11,8 @@ import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
-import '../models/imaging/imaging_models.dart' show frameFileFormatOf;
+import '../models/imaging/imaging_models.dart'
+    show FrameType, frameFileFormatOf;
 import '../providers/dark_library_provider.dart';
 import '../providers/database_provider.dart';
 import 'calibration_master_builder.dart';
@@ -288,7 +290,7 @@ class CalibrationBacklogService {
     final result = <CalibrationBacklogGroup>[];
     final rows = await (_db.select(
       _db.capturedImages,
-    )..where((t) => t.frameType.lower().equals('flat'))).get();
+    )..where((t) => t.frameTypeIs(FrameType.flat))).get();
     final dismissed = await dismissedKeys();
     for (final group in await groupFrames(rows)) {
       if (dismissed.contains(group.key)) continue;
@@ -301,7 +303,7 @@ class CalibrationBacklogService {
           !lights.any(
             (f) =>
                 f.isAccepted &&
-                f.frameType.toLowerCase() == 'light' &&
+                f.isLight &&
                 f.filter == group.filter &&
                 f.gain == group.gain &&
                 f.offset == group.offset &&
@@ -326,7 +328,7 @@ class CalibrationBacklogService {
           lights.any(
             (f) =>
                 f.isAccepted &&
-                f.frameType.toLowerCase() == 'light' &&
+                f.isLight &&
                 flatSetupKey(f.filter, f.gain, f.offset, f.binX, f.binY) ==
                     entry.value['setup'],
           )) {
@@ -721,7 +723,7 @@ class CalibrationBacklogService {
             filePath: filePath,
             fileName: p.basename(filePath),
             fileFormat: Value(frameFileFormatOf(filePath).recordName),
-            frameType: const Value('flat'),
+            frameType: Value(FrameType.flat.record),
             exposureDuration: exposureSeconds,
             capturedAt: capturedAt,
             filter: Value(filter),

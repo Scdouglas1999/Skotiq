@@ -129,10 +129,6 @@ enum NightSeriesId {
   focuserPosition,
 }
 
-/// Line color role on a chart. Maps one to one onto the kit's
-/// `SeriesChartTone`.
-enum SeriesTone { primary, secondary, tertiary, muted, warning, error }
-
 /// One line of a session chart.
 @immutable
 class SeriesLineVm {
@@ -150,7 +146,7 @@ class SeriesLineVm {
   /// Time ordered. Null-y points are gaps.
   final List<SeriesPoint> points;
 
-  final SeriesTone tone;
+  final SeriesChartTone tone;
 
   /// Drawn against the right axis (stars against HFR, focuser steps against
   /// temperature).
@@ -238,8 +234,8 @@ class MetricVm {
     required this.label,
     this.value,
     this.delta,
-    this.deltaTone = MetricTone.neutral,
-    this.valueTone = MetricTone.neutral,
+    this.deltaTone = MetricGridTone.neutral,
+    this.valueTone = MetricGridTone.neutral,
   });
 
   final NightText label;
@@ -249,8 +245,8 @@ class MetricVm {
 
   /// Signed and formatted ("−0.04"); null when there is nothing to compare.
   final String? delta;
-  final MetricTone deltaTone;
-  final MetricTone valueTone;
+  final MetricGridTone deltaTone;
+  final MetricGridTone valueTone;
 
   @override
   bool operator ==(Object other) =>
@@ -462,14 +458,14 @@ class NightLogEntryVm {
   const NightLogEntryVm({
     required this.at,
     required this.message,
-    this.tone = MetricTone.neutral,
+    this.tone = MetricGridTone.neutral,
   });
 
   final DateTime at;
   final NightText message;
 
-  /// [MetricTone.bad] for a rejection, [MetricTone.warning] for a lost star.
-  final MetricTone tone;
+  /// [MetricGridTone.bad] for a rejection, [MetricGridTone.warning] for a lost star.
+  final MetricGridTone tone;
 
   @override
   bool operator ==(Object other) =>

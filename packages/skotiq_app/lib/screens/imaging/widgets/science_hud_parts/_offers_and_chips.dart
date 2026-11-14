@@ -124,7 +124,7 @@ class _ContextualOffers extends ConsumerWidget {
     if (images.isEmpty) return const SizedBox.shrink();
 
     final lights = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .toList(growable: false);
 
     final filterCounts = <String, int>{};

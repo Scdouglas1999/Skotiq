@@ -96,7 +96,9 @@ class _RecordingSessionNotifier extends SessionStateNotifier {
   }
 
   @override
-  Future<void> endSession({String status = 'completed'}) async {
+  Future<void> endSession({
+    SessionStatus status = SessionStatus.completed,
+  }) async {
     final gate = endGate;
     if (gate != null) {
       await gate.future;
@@ -105,7 +107,7 @@ class _RecordingSessionNotifier extends SessionStateNotifier {
     // active. Only a genuine finalization is recorded, so `endedStatuses`
     // proves exactly-once.
     if (!state.isActive || state.dbSessionId == null) return;
-    endedStatuses.add(status);
+    endedStatuses.add(status.token);
     if (throwOnEnd) {
       throw StateError('endSession failed (injected)');
     }

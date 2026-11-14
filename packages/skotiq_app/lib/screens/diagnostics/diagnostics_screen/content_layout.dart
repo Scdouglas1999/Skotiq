@@ -12,7 +12,7 @@ class _DiagnosticsContent extends ConsumerWidget {
   /// True when this is the quick-capture bucket rather than a real session
   /// row — its science products carry a NULL session_id and are read through
   /// the `sessionless*` providers.
-  bool get _isQuickCapture => sessionId == _kQuickCaptureSessionId;
+  bool get _isQuickCapture => sessionId == kQuickCaptureSessionSelection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

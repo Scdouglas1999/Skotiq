@@ -11,8 +11,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
-    show latestScienceSessionProvider;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -58,7 +56,7 @@ void main() {
   test('a finished run becomes the session the tab opens on', () async {
     final first = await seedNight(DateTime(2026, 8, 13, 20, 53));
 
-    expect(await container.read(latestScienceSessionProvider.future), first);
+    expect(await container.read(scienceDefaultSessionProvider.future), first);
 
     // A second night runs while the app stays open. The run's completion is
     // what writes the session row's end time — the moment the answer changes.
@@ -69,7 +67,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(
-      await container.read(latestScienceSessionProvider.future),
+      await container.read(scienceDefaultSessionProvider.future),
       second,
       reason: 'the tab followed the previous night until the app restarted',
     );

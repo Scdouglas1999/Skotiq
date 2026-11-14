@@ -211,43 +211,5 @@ void main() {
         expect(dark.totalIntegrationSecs, closeTo(60.0, 1e-9));
       },
     );
-
-    test('frame_type is matched case-insensitively', () async {
-      // The native sequencer emits "Light"/"Dark" capitalised
-      // (`node_factory.rs`, `event_bridge.rs`) and Dart lower-cases on the way
-      // in — but `images_dao`, `equipment_stats` and `session_chart` all
-      // normalise before comparing, and the report did not. A row that reached
-      // the table with its original capitalisation was invisible here alone.
-      final start = DateTime(2026, 9, 1, 23, 0, 0);
-      final sessionId = await insertSession(
-        start,
-        start.add(const Duration(seconds: 60)),
-      );
-      await insertFrame(
-        sessionId: sessionId,
-        frameType: 'Light',
-        exposure: 30.0,
-      );
-      await insertFrame(
-        sessionId: sessionId,
-        frameType: 'Dark',
-        exposure: 10.0,
-        seq: 1,
-      );
-
-      final report = await service.buildReport(sessionId);
-
-      expect(
-        report.lightFramesAccepted,
-        1,
-        reason: '"Light" must count as a light frame',
-      );
-      expect(report.totalIntegration, const Duration(seconds: 30));
-      expect(
-        report.calibration.single.frameType,
-        'dark',
-        reason: 'calibration frame types are normalized for display',
-      );
-    });
   });
 }

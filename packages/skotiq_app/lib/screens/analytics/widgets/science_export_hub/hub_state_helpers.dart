@@ -341,10 +341,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
       final filePath = await ref
           .read(analyticsExportsProvider)
-          .observationReport(reportSessionId, () {
-        scope.ensureCurrent('saving the observation report');
-        return ref.read(scienceExportDirectoryProvider.future);
-      });
+          .observationReport(reportSessionId);
 
       if (scope.isStale || !mounted) return;
       setState(() {

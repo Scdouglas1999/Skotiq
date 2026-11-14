@@ -68,7 +68,7 @@ void main() {
   Future<int> frame(
     String name, {
     required int minute,
-    String frameType = 'light',
+    FrameType frameType = FrameType.light,
     int sessionId = 92,
   }) => images.insertSequenceFrame(
     filePath: '/lights/$name',
@@ -98,7 +98,7 @@ void main() {
     // Inserted out of order: the walk follows capture time, not row id.
     final last = await frame('L_0003.fits', minute: 30);
     final early = await frame('L_0001.fits', minute: 10);
-    await frame('D_0001.fits', minute: 20, frameType: 'dark');
+    await frame('D_0001.fits', minute: 20, frameType: FrameType.dark);
     final missing = await frame('L_0002.fits', minute: 20);
     await frame('L_other.fits', minute: 15, sessionId: 93);
 

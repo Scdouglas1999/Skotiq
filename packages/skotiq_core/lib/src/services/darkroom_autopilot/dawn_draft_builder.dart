@@ -36,15 +36,10 @@ library;
 
 import 'dart:convert';
 
+import '../../models/darkroom/recipe.dart';
 import 'dawn_master_resolver.dart';
 import 'dawn_photometry.dart';
 import 'darkroom_seam.dart';
-
-/// Wire schema version of the recipe envelope this build writes.
-///
-/// It matches `RECIPE_SCHEMA_VERSION` in the recipe engine; a recipe whose
-/// version differs is refused by the engine rather than reinterpreted.
-const int kRecipeSchemaVersion = 1;
 
 /// The pyramid level the draft's colour step is proved at. Level 0 is the
 /// master's own pixels.
@@ -238,13 +233,12 @@ class DawnDraft {
 
   /// The full recipe envelope the render entry points take, carrying [recipeId]
   /// as the recipe's identity.
-  String encodeRecipeJson(String recipeId) => jsonEncode({
-    'id': recipeId,
-    'schemaVersion': kRecipeSchemaVersion,
-    'baseMasterRef': baseMasterRef,
-    'createdBy': 'autopilot',
-    'steps': steps,
-  });
+  String encodeRecipeJson(String recipeId) => encodeRecipeEnvelope(
+    id: recipeId,
+    baseMasterRef: baseMasterRef,
+    author: RecipeAuthor.autopilot,
+    steps: steps,
+  );
 }
 
 /// One composition decision's result: the steps after it, and whether it left
@@ -623,7 +617,12 @@ class DawnDraftBuilder {
     final String? failure;
     try {
       final preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.path, probed),
+        recipeJson: encodeRecipeEnvelope(
+          id: recipeId,
+          baseMasterRef: master.path,
+          author: RecipeAuthor.autopilot,
+          steps: probed,
+        ),
         context: {
           'masterPath': master.path,
           'maxDimension': kDraftMeasureMaxDimension,
@@ -742,7 +741,12 @@ class DawnDraftBuilder {
     final DarkroomRenderedPreview preview;
     try {
       preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.path, proved),
+        recipeJson: encodeRecipeEnvelope(
+          id: recipeId,
+          baseMasterRef: master.path,
+          author: RecipeAuthor.autopilot,
+          steps: proved,
+        ),
         context: {
           'masterPath': master.path,
           'level': kColorProofLevel,
@@ -930,7 +934,12 @@ class DawnDraftBuilder {
     final DarkroomRenderedPreview preview;
     try {
       preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.path, steps),
+        recipeJson: encodeRecipeEnvelope(
+          id: recipeId,
+          baseMasterRef: master.path,
+          author: RecipeAuthor.autopilot,
+          steps: steps,
+        ),
         context: {
           'masterPath': master.path,
           'level': kStretchMeasureLevel,
@@ -1049,19 +1058,5 @@ class DawnDraftBuilder {
     }
     out.add(candidate);
     return out;
-  }
-
-  static String _envelope(
-    String recipeId,
-    String baseMasterRef,
-    List<Map<String, dynamic>> steps,
-  ) {
-    return jsonEncode({
-      'id': recipeId,
-      'schemaVersion': kRecipeSchemaVersion,
-      'baseMasterRef': baseMasterRef,
-      'createdBy': 'autopilot',
-      'steps': steps,
-    });
   }
 }

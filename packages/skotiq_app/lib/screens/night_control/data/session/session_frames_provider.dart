@@ -73,7 +73,7 @@ final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   return ref
       .watch(nightSessionRowsProvider)
-      .where((row) => row.frameType.toLowerCase() == 'light')
+      .where((row) => row.isLight)
       .toList(growable: false);
 });
 
@@ -81,7 +81,7 @@ final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   return ref
       .watch(nightRunRowsProvider)
-      .where((row) => row.frameType.toLowerCase() == 'light')
+      .where((row) => row.isLight)
       .toList(growable: false);
 });
 

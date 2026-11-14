@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -154,7 +156,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       ..addColumns([capturedImages.sessionId, capturedAtMax])
       ..where(
         capturedImages.sessionId.isNotNull() &
-            capturedImages.frameType.lower().equals('light'),
+            capturedImages.frameTypeIs(FrameType.light),
       )
       ..groupBy([capturedImages.sessionId])
       ..orderBy([OrderingTerm.desc(capturedAtMax)])
@@ -408,13 +410,6 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         rejectionReason: Value(null),
       ),
     );
-  }
-
-  Future<List<DbCapturedImage>> getImagesByFrameType(String frameType) {
-    return (select(capturedImages)
-          ..where((i) => i.frameType.equals(frameType))
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
-        .get();
   }
 
   /// Watch recent standalone (sessionless) images — captures taken outside
@@ -772,7 +767,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     int? sessionId,
     int? targetId,
     String? filter,
-    String frameType = 'light',
+    FrameType frameType = FrameType.light,
     double? hfr,
     int? starCount,
     double? eccentricity,
@@ -860,7 +855,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         intOrNull(fileSize),
         intOrNull(sessionId),
         intOrNull(targetId),
-        Variable<String>(frameType),
+        Variable<String>(frameType.record),
         Variable<double>(exposureDuration),
         intOrNull(gain),
         intOrNull(offset),

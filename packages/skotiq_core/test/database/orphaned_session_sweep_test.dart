@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 
 import 'recovered_database.dart';
 
@@ -88,7 +89,7 @@ void main() {
       addTearDown(second.close);
       final after = await readSession(second, sessionId);
 
-      expect(after.status, kInterruptedSessionStatus);
+      expect(after.status, SessionStatus.interrupted.token);
       // Back-dated to the last frame, NOT to the recovery clock: a night
       // abandoned on Wednesday and found on Friday used to report a 60-hour
       // duration on its History card and in every efficiency figure built on
@@ -112,7 +113,7 @@ void main() {
     addTearDown(second.close);
     final after = await readSession(second, sessionId);
 
-    expect(after.status, kInterruptedSessionStatus);
+    expect(after.status, SessionStatus.interrupted.token);
     // Zero duration rather than an invented end: the session produced nothing,
     // and stamping "now" would report three hours of imaging that never
     // happened.
@@ -269,7 +270,7 @@ void main() {
       expect(stranded.read<int>('n'), 1);
       expect(
         (await readSession(second, orphan)).status,
-        kInterruptedSessionStatus,
+        SessionStatus.interrupted.token,
       );
       expect(
         (await second.imagesDao.getImagesForSession(orphan)).length,
@@ -336,8 +337,8 @@ void main() {
       );
 
       expect(closed, [a, b]);
-      expect((await readSession(db, a)).status, kInterruptedSessionStatus);
-      expect((await readSession(db, b)).status, kInterruptedSessionStatus);
+      expect((await readSession(db, a)).status, SessionStatus.interrupted.token);
+      expect((await readSession(db, b)).status, SessionStatus.interrupted.token);
       expect(
         (await readSession(db, b)).notes,
         contains('a new sequence started'),

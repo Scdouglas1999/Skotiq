@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/imaging/imaging_models.dart' show AutofocusSettings;
+import '../../models/sequence/autofocus_run.dart';
 import '../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../services/frame_identity.dart';
 import '../../settings/app_settings_table.dart';
@@ -113,6 +114,7 @@ class RunConfigSync {
         .valueOrNull
         ?.requiredSafeDurationSeconds;
 
+    final autofocus = _ref.read(autofocusSettingsProvider);
     final config = <String, Object?>{
       'dither': <String, Object?>{
         'pixels': defaults.ditherPixels,
@@ -123,8 +125,8 @@ class RunConfigSync {
       },
       // The floor for trigger-fired refocus; an Autofocus node still wins.
       'autofocus': _serializer.autofocusRuntimeConfig(
-        _ref.read(autofocusSettingsProvider),
-        maxDurationSecs: 600,
+        autofocus,
+        AutofocusRun.fromSettings(autofocus),
       ),
       'autofocus_interval_frames': defaults.autofocusIntervalFrames,
       // No site is sent when none is configured: (0, 0) is a real place, and
