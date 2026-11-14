@@ -1,11 +1,11 @@
-# Third-Party Notices — Skotiq 5.0.0
+# Third-Party Notices — Skotiq
 
-This notice describes the components redistributed in the official 5.0.0
+This notice describes the components redistributed in the release
 artifacts produced by `.github/workflows/release.yml`:
 
-- `skotiq-5.0.0-windows-x64.zip`
-- `skotiq-5.0.0-linux-x64.tar.gz`
-- `skotiq-5.0.0-android-universal.apk`
+- `skotiq-<version>-windows-x64.zip`
+- `skotiq-<version>-linux-x64.tar.gz`
+- `skotiq-<version>-android-universal.apk`
 
 Skotiq's own code and assets are governed by `SKOTIQ-LICENSE.txt`
 (the Skotiq Source-Available License, version 1.2). Third-party components
@@ -75,7 +75,7 @@ are computed from the Astronomical Almanac low-precision series in
 
 ## Vendor device SDKs are not redistributed
 
-The official 5.0.0 workflow does **not** contain the gitignored `SDKs/`
+The release workflow does **not** contain the gitignored `SDKs/`
 directory and does not copy vendor camera or mount SDK binaries into any
 artifact. Native vendor paths work only when the user has installed a
 compatible vendor library or driver. ZWO, QHY, Player One, SVBony, Atik, FLI,
@@ -87,7 +87,7 @@ confirmed and their required notices are included.
 
 ASTAP, astrometry.net, PHD2, INDI servers/drivers, ASCOM Platform, Alpaca
 servers, and device drivers are user-installed external programs. Skotiq
-invokes or communicates with them but does not include them in the 5.0.0
+invokes or communicates with them but does not include them in the release
 artifacts.
 
 ## Reproducing the audit
