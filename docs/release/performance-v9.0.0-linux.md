@@ -4,7 +4,12 @@ Measured on 13–14 November 2026. This is an assessment of a fresh Linux deskto
 release with normal networking and simulated equipment. It is not a Windows,
 physical-telescope, or uninterrupted overnight certification. The 240 Hz target
 is **not met**: the stock Linux engine schedules at approximately 60 Hz, and
-some measured workloads also exceed either frame-stage budget.
+some measured workloads also exceed either frame-stage budget. The final
+26-megapixel capture repeat at `4736791e4` passes the bounded stall check:
+16 verified FITS saves, 2,664 unique frames, a maximum recorded pipeline span
+of 16.435 ms, and no traced main-thread syscall over 1 ms. This addresses the
+identified request-log stalls; the remaining display, image-copy, and weather
+limits below are not certified by that capture result.
 
 ## Target and method
 
@@ -205,15 +210,16 @@ passes. The rejected preview's 22 focused tests and 5,497-test app pass did not
 override its failed runtime acceptance. The reverted blur experiment's 721-test
 UI pass likewise did not override the actual panel-readability problem.
 
-Only the host-built Linux desktop bundle was rebuilt by this performance pass;
-the previously recorded portable Linux archive and Android APK are unchanged.
+This initial performance pass rebuilt only the host desktop bundle. The
+subsequent stable distribution work rebuilds all platforms at `4736791e4`; see
+[the validation record](validation-v9.0.0.md) for final package acceptance.
 
 ## Remaining work before claiming the refresh-rate target
 
 | Area | Required next evidence or change |
 | --- | --- |
 | Linux display scheduling | Integrate the display clock through the engine/embedder and validate compositor presentation. A stable SDK upgrade alone does not supply this. |
-| Large-frame pipeline | Attribute the 411 ms pre-build delay; separately remove the known full-buffer UI copy through a faithful native preview path. Retest both API saves and normal GUI capture, retaining full-resolution access and star fidelity. |
+| Large-frame pipeline | The traced request-log stall is corrected and the final bounded repeat passes; the untraced historical 411 ms event has no proven cause. Remove the separate known full-buffer UI copy through a faithful native preview path. Retest both API saves and normal GUI capture, retaining full-resolution access and star fidelity. |
 | Maximized weather | Profile raster-thread submission and tile work while retaining readable controls. Repeat matched warm/cold zoom workloads against both 4.167 and 16.667 ms budgets. |
 | Cold navigation and planetarium recentering | Account for the measured 33–53 ms outliers rather than relying on steady-state percentiles. |
 | Remote preview | Investigate the approximately 0.4-second loopback JPEG response cost; test a real companion network before extrapolating to Wi-Fi. |
@@ -244,3 +250,115 @@ The current evidence does **not** certify “display refresh rate all the time.�
 The engine ceiling, occasional cold/recenter costs, remaining map raster cost,
 full-resolution image-copy behavior and unavailable real hardware must remain
 visible in any release decision.
+
+## Request-log stall diagnosis — 2026-11-14 UTC
+
+A main-thread syscall trace reproduced a **221.990 ms** release pipeline span
+at source `f5c99a58c`, including **203.874 ms before build**. A 258-byte
+synchronous write to `skotiq-dart.log.2026-11-14` occupied **201.668 ms** across
+that delay. The record was the structured completion of `POST /api/camera/expose`.
+This directly attributes that occurrence to request logging. The earlier
+411 ms event was not traced, so its exact cause is not retroactively proven.
+
+The trace records syscall durations and descriptor numbers, not payloads.
+The descriptor was matched to the live process's Dart log file. The matched
+release run completed 16 real 6248 × 4176 simulator FITS saves with the original
+editor plan, settings, and profile preserved. Its 100 ms prebuild/pipeline
+assertion failed on the measured outlier.
+
+Commit `b59feefec` awaits ordered asynchronous request-log appends in a separate
+daily `skotiq-requests.log` file. HTTP handling waits for the start record,
+and the response waits for its completion record. The synchronous Dart logger
+retains its existing immediate-write behavior. The separate writer cannot
+interleave with either the native or synchronous Dart writer; log listing,
+download, export, retention and shutdown include the request files. Memory and
+SSE publication stay in acceptance order so a delayed write cannot reorder
+timestamp-based reconnects. Disk failures remain visible and later writes retry.
+
+The HTTP regression fails with the old middleware and passes with the fix.
+Full affected suites pass: core **8,146 passed / 14 skipped**, desktop **1,459**,
+and remote protocol **249**. Focused tests cover a deliberately blocked writer,
+ordered writes, synchronous error-log visibility, export and disposal draining,
+retention, filename safety, recovery from write refusal, and real HTTP download.
+Production analysis and all source gates passed. The release repeats below
+separate measurement interference from the final acceptance result; the tests
+alone do not establish a frame-time improvement.
+
+A preceding narrow correction (`f5c99a58c`) removed duplicate save-start logging
+and moved disk-space process startup out of the UI isolate. Matched profile
+capture runs changed maximum prebuild/pipeline spans from **57.362 / 68.869 ms**
+to **22.749 / 25.199 ms**, but the subsequent release trace above still stalled.
+Those profile results therefore were not accepted as proof of a stall-free app.
+The full-resolution image-copy and display-clock limitations remain separate.
+
+Evidence: `~/.cache/ns-untangle/notes/codex-performance-20261113/` under
+`profile-syscall1`, `profile-syscall2`, `release-syscall1`, and `diagnose-stalls`;
+regressions and source gates are under
+`~/.cache/ns-untangle/notes/codex-stable-release-20261114/request-logging/`.
+
+The next release repeat (`release-syscall2`, source `3bfbfe9ba`) still failed
+its 100 ms budget: **357.391 ms prebuild / 359.422 ms pipeline**. Two timed
+main-thread writes to stdout were the probe's five-second summary lines;
+stdout was redirected directly into a regular file. Separately, two redundant
+`DeviceHandlers` exposure-start lines held the UI thread inside synchronous
+writes for **413.657 ms** and **274.876 ms**. Those fell before exposure activity
+and did not appear as the worst recorded frames; frame timing alone therefore
+understates these idle-to-active delays.
+
+Commit `4736791e4` removes the redundant exposure-start line, preserving the
+structured start and completion records in the awaited middleware. Its full
+desktop suite (1,459 tests), analyzer, behavioral and API gates pass. The next
+measurement sends stdout through a pipe drained by a separate process so
+recording probe summaries cannot directly block the app on filesystem writes.
+Raw frame batches remain asynchronous, and the syscall trace is retained.
+The earlier contaminated run is kept as evidence, not counted as acceptance.
+
+## Final capture acceptance — source `4736791e4`
+
+The final host-built release repeats 16 actual 6248 × 4176 simulator FITS saves
+with the maximized 5120 × 1440 imaging page, histogram and stretch enabled,
+normal networking, and the same synthetic replay fixture. Phase-filtered,
+deduplicated frame records give:
+
+| Recorded stage | p95 | p99 | Maximum |
+| --- | --- | --- | --- |
+| Before build | 3.118 ms | 4.848 ms | 11.304 ms |
+| Build | 3.023 ms | 7.958 ms | 11.216 ms |
+| Raster | 1.637 ms | 2.407 ms | 9.038 ms |
+| Total pipeline | 7.803 ms | 11.670 ms | 16.435 ms |
+
+All **2,664** unique recorded frames stayed below 16.667 ms, and the explicit
+100 ms stall assertion passed. The main-thread syscall trace contains **no
+calls exceeding 1 ms**. All 16 structured save-start request records remain
+present. Because stdout now uses a pipe drained by a separate process rather
+than a directly attached file, this is not a controlled percentage speedup
+comparison against the contaminated preceding run.
+
+Across the 80-second OS sampler, including its idle tail, CPU averaged 69.2%
+of one logical core. RSS ranged from 946 to 1,480 MiB; the process high-water
+mark was 1,548 MiB. No CPU throttling, memory-high, memory-max, or OOM event
+occurred. The FITS save API took 0.103–1.599 seconds (median 0.921 seconds);
+matching handler durations place this cost inside save handling rather than
+the asynchronous completion-log drain. Responsive rendering does not imply
+instantaneous file saves.
+
+Both capture batches preserved the original unsaved editor plan, settings,
+active profile, and camera configuration. The normal app was restored to a
+1600 × 900 window with the histogram hidden, stretch enabled, replay and all
+profiling disabled, seven simulators connected, and the sequencer idle. Its
+editor-plan SHA256 still matches the original.
+
+This is acceptance of a bounded capture workload, not physical scanout, an
+overnight memory bound, or all-workload certification. FrameTiming does not
+measure every idle-to-active delay. The previously profiled 53–63 ms full-buffer
+UI copy, weather rendering costs, cold navigation, and the stock engine's
+60 Hz fallback remain separate limitations.
+
+Evidence under `release-syscall3/` includes `comparison-summary.json`,
+`capture-budget.json`, both `captures-*.log` files, `os-summary.json`, and
+`source.json`. Normal launch verification is in
+`normal-request-final/verification.json` beneath the performance evidence root.
+The final Linux release build passed in 84.392 seconds. The final desktop
+suite passed all 1,459 tests after the exposure-log removal; the full core
+8,146 / 14 skipped and protocol 249 results above cover the unchanged logging
+implementation.

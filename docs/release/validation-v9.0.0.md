@@ -1,9 +1,94 @@
 # Skotiq 9.0.0 validation
 
-This records preparation of the unpublished 9.0.0 / build 37 beta candidate.
-Hardware and Windows runtime checks remain unavailable. Commands, complete logs,
+This records preparation of the unpublished 9.0.0 / build 37 stable candidate.
+Physical hardware remains unavailable. Windows CI runtime and signed package
+verification now pass as recorded below; earlier sections retain their tested
+revisions and original limitations. Commands, complete logs,
 exit codes, and tested revisions are under
 `~/.cache/ns-untangle/notes/codex-release*-tools/`.
+
+## Stable distribution verification — 2026-11-14 UTC
+
+Final build-only CI run [43620240119](https://github.com/Scdouglas1999/Skotiq/actions/runs/43620240119)
+passed at application source `4736791e42ae073dc2ff9874323035051a350206`:
+Linux x64, Windows x64, all three Android ABIs, and the assembled artifact
+verifier. It uploaded `verified-release-assets` without creating a tag or
+publishing a release. After download, the source marker and all six archive/APK
+checksums matched, and all three production APK signatures passed independent
+verification. All five signed OTA manifests passed independent verification
+using the app's production update public key. This supersedes the successful earlier runs `43616247197`
+(`370ab7139`) and `43619483396` (`3bfbfe9ba`). The subsequent documentation-only
+commit does not change this application source or require another binary build.
+
+The Windows CI smoke executed the release binary in a fresh profile. It checked
+authentication, HTTP, a real WebSocket pong, explicit simulator connection,
+128 × 96 exposure, and the saved 16-bit FITS header and payload. It disconnected
+the simulator afterward. This is native Windows execution, but does not replace
+interactive Windows use or physical-driver testing. Windows executables have no
+Authenticode signature; OTA manifests are signed using the existing identity.
+
+The first portable Linux CI package failed on Debian Bookworm because its
+Jammy-built LibRaw required `libjpeg.so.8`. Packaging now follows the bridge's
+actual LibRaw SONAME, includes the required JPEG dependency and exact license
+notices, and checks every bundled ELF. The CI archive passed a fresh Bookworm
+container with networking disabled, dependency checks, API startup, a real
+simulator exposure, FITS save/readback, and disconnect. The original archive
+failed that same gate before correction.
+
+The Linux job at final application source `4736791e4` passed the same appliance
+gate; its archives match the final assembled downloads byte for byte. Both
+downloaded archive checksums matched, and all 73 extracted files matched
+between tar.gz and zip. The actual packaged launcher then ran on the
+owner's normal desktop with networking and seven simulators. A GUI Snapshot
+produced a 1920 × 1080 image with 45 detected stars; an explicit API save of
+that capture produced a verified 16-bit FITS header and nonempty pixel payload.
+The weather page displayed NWS attribution and its current valid time. The
+original unsaved editor plan remained unchanged and the sequencer idle.
+Profiling and synthetic replay were disabled. This GUI check is separate from
+the host-built 26 MP performance workload.
+
+Android now builds each ABI sequentially on Ubuntu 24.04 with a dedicated
+bounded Gradle environment. Two earlier Ubuntu 26.04 runners shut down during
+compilation without a compiler diagnostic; their logs do not prove an OOM.
+The final run completed all ABIs and verified their production APK signatures.
+All five OTA manifests passed against the app's update key. The earlier
+`370ab7139` signed x86_64 APK installed successfully in an isolated Android 15 /
+API 35 emulator. That app launched through its supported voice-action link and paired
+through the normal code dialog without admin scope. Tonight displayed the
+host's unchanged NGC1245 plan as ready but not started. Keyboard and scroll
+automation were unavailable; the check used on-screen keyboard clicks.
+
+That first-launch check exposed a repeated notification prompt after denial
+and a voice-action URI incorrectly entering Flutter's page router. Commit
+`3bfbfe9ba` requests notification permission once, disables Flutter page routing
+for the native voice-action handler, and queues cold-start actions before
+FlutterActivity configures its engine. The routing choice follows
+[Flutter's custom-link guidance](https://docs.flutter.dev/ui/navigation/deep-linking).
+The 227-test mobile suite and analyzer pass. The production-signed `3bfbfe9ba`
+APK then passed a fresh API 35 install: one notification prompt, denial followed
+by the disabled-notifications warning, and cold-link startup to normal pairing
+without an invalid route. Pairing without admin scope displayed the unchanged
+host plan and its captured image. The UI Reconnect action transitioned through
+reconnecting and returned to Connected. There were no fatal Android or Dart
+exceptions in the captured app log. Its Android source is identical to final
+application source `4736791e4`; the only intervening source change removes a
+duplicate desktop exposure log. The final `4736791e4` APK then installed as an
+update, launched through the same link, and reconnected with its existing
+pairing without another code. Tonight showed the captured image and unchanged
+plan. Each tested launch displayed one notification prompt and continued after
+denial with the warning visible; this removes the duplicate within a launch,
+not the existing permission request on subsequent launches. No fatal exception
+was present in the final app log. This checks Android 15 x86_64 in an emulator,
+not a physical phone or the ARM builds' runtime behavior.
+
+Evidence: `~/.cache/ns-untangle/notes/codex-stable-release-20261114/` and
+`~/.cache/ns-untangle/notes/codex-stable-artifacts/` under
+`candidate-370ab71`, `candidate-3bfbfe9`, and `final-4736791`.
+No signing identity was generated or replaced. The temporary emulator and
+local link server were stopped; the final packaged Linux desktop remains
+running with seven simulators, normal networking, no profiling or replay, and
+the original unsaved plan unchanged. Physical rig testing remains unavailable,
+and these results do not establish on-sky reliability.
 
 ## Test evidence
 
@@ -70,10 +155,11 @@ Evidence: `rt/fresh-restore-result.json` and `rt/restored-clean/integrity.json`.
 Backups preserve database metadata and image references; they do not embed the
 image files themselves.
 
-The release audit drives above use isolated profiles, loopback-only network namespaces,
-simulated/scripted devices, and separate Xvfb displays. The GUI smoke uses the
-host-built bundle. The Bookworm artifact is verified separately in its intended
-Debian runtime; this Arch host lacks the LibRaw dependency `libjpeg.so.62`.
+The original release audit drives above used isolated profiles, loopback-only
+network namespaces, simulated/scripted devices, and separate Xvfb displays.
+That GUI smoke used the host-built bundle. The later packaging correction and
+real-desktop package check are recorded in the stable distribution section;
+they supersede the original host JPEG-dependency limitation.
 
 ## Desktop location and weather follow-up — 2026-11-14 UTC
 
@@ -133,15 +219,16 @@ result are in `~/.cache/ns-untangle/notes/codex-weather-accuracy/`,
 `codex-weather-diagnosis/recheck/`, and `codex-weather-endpoint/`. Raw network
 captures contain private site coordinates and remain local evidence.
 
-These follow-ups produced a new host-built desktop bundle only. The portable
-Linux archive and Android APK listed below were not rebuilt with these changes.
-Windows runtime and physical-rig verification remain outstanding.
+At this stage, the follow-ups produced a new host-built desktop bundle only;
+the older portable Linux archive and Android APK listed below predated them.
+The stable distribution section above records the subsequent package rebuilds
+and native Windows runtime checks. Physical-rig verification remains unavailable.
 
 ## Linux desktop performance follow-up — 2026-11-14 UTC
 
 The actual Wayland/NVIDIA desktop was measured at 1600 × 900 and 5120 × 1440
 with normal networking, simulator equipment and verified 26 MP FITS captures.
-Final host source `a6ca40442` retains the exact asynchronous histogram fix and
+The first accepted performance source `a6ca40442` retains the exact asynchronous histogram fix and
 instantaneous weather tiles. Preview downscaling and blur removal were rejected
 after actual GUI checks exposed latency and readability regressions.
 
@@ -154,11 +241,16 @@ the original editor plan, and profiling/replay disabled.
 **The 240 Hz performance target is not met.** Stock Linux Flutter schedules at
 approximately 60 Hz. The repeated 41–44 ms histogram builds are eliminated, but
 maximized weather and occasional cold-frame work still exceed frame budgets.
-A separate 413 ms pipeline delay occurred during an explicit large-image save;
-low build/raster percentiles do not conceal it. See the
+A separate 413 ms pipeline delay occurred during an explicit large-image save.
+Subsequent syscall tracing found synchronous request-log stalls; final source
+`4736791e4` passes the corrected capture repeat with 16 verified 26 MP saves,
+2,664 unique recorded frames, a 16.435 ms maximum pipeline span, and no traced
+main-thread syscall over 1 ms. The original untraced event has no proven cause;
+low build/raster percentiles alone do not establish stall-free operation. See the
 [performance assessment](performance-v9.0.0-linux.md) for source revisions,
 method, raw evidence, worst cases, rejected experiments and remaining scope.
-This follow-up does not rebuild the older portable Linux or Android artifacts.
+The final distribution run rebuilds Linux, Windows, and Android from that
+application source; the stable distribution section records its acceptance.
 
 ## Audit and artifact gates
 
