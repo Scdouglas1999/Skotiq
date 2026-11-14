@@ -26,7 +26,7 @@
 //     `mobile_event_notifier_test.dart` uses the same pattern).
 //
 // `skotiq_desktop` is a test-only path dependency declared in
-// `apps/mobile/pubspec.yaml`. Production mobile builds do NOT link it.
+// `apps/mobile_e2e/pubspec.yaml`. Production mobile builds do NOT link it.
 
 import 'dart:async';
 import 'dart:io' show Platform, WebSocketException;
@@ -42,6 +42,8 @@ import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Recording double for `MobileNotificationSink`. Same shape as the one in
@@ -259,7 +261,7 @@ void main() {
             (ref) => _ServerSideBackendNotifier(ref, serverBackend),
           ),
           appVersionProvider.overrideWithValue(
-            const AppVersionInfo(version: '8.2.0', buildNumber: 1),
+            const AppVersionInfo(version: skotiqRelease, buildNumber: 1),
           ),
         ],
       );
@@ -470,15 +472,9 @@ void main() {
 
     test('invalid auth token: WebSocket is rejected; event does NOT reach '
         'the mobile notifier', () async {
-      // The HeadlessApiServer's WebSocket handler rejects bad-auth upgrades
-      // with HTTP 401. The IOWebSocketChannel's internal `_readyCompleter`
-      // (https://pub.dev/packages/web_socket_channel io.dart:97) is
-      // `completeError`d but never awaited by NetworkBackend (which only
-      // listens to the stream), so that error surfaces as an uncaught async
-      // error in the test zone — purely diagnostic, not a behavioural
-      // failure. We swallow it via `runZonedGuarded` so the test asserts on
-      // the visible behaviour (no event reaches the mobile notifier) rather
-      // than on an internal channel-library implementation detail.
+      // The client normally catches an authentication refusal itself. Keep
+      // platform-specific WebSocket errors from escaping the test zone;
+      // the assertions below still require an actual auth rejection.
       final swallowed = <Object>[];
       await runZonedGuarded(
         () async {
@@ -508,16 +504,18 @@ void main() {
           notifier.start();
           addTearDown(notifier.stop);
 
-          // Attempt the connection. NetworkBackend.connect() catches the
-          // 401 internally and schedules a reconnect timer; `await connect()`
-          // returns even when the underlying upgrade was rejected. The
-          // mobile-side `connectionState` may transiently read `connected`
-          // because IOWebSocketChannel reports the subscription as "set up"
-          // before the WS handshake completes — the rejection arrives via
-          // the stream's onError shortly after. We don't assert on that
-          // transient state; the load-bearing invariant is that no event
-          // reaches the mobile notifier when the server rejected our auth.
+          // connect() waits for the authenticated ticket and WebSocket
+          // handshake. Bad credentials must leave a terminal auth error,
+          // rather than letting an unrelated connection failure pass here.
           await mobileBackend.connect();
+
+          expect(mobileBackend.connectRefusal, isNull);
+          expect(
+            mobileBackend.isAuthTokenRejected,
+            isTrue,
+            reason: 'the matching-release host must reject the bearer token',
+          );
+          expect(mobileBackend.connectionState, BackendConnectionState.error);
 
           // Drive the server-side broadcast in a polling loop (same pattern
           // as the happy-path test). With a bad-auth client, the server's
