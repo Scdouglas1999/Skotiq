@@ -1,10 +1,6 @@
-import 'dart:async';
-import 'dart:developer' as developer;
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kProfileMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -12,23 +8,20 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../red_night_filter.dart';
-import 'preview_display_scale.dart';
-import 'preview_downscale.dart';
 
 class ImageDisplayWidget extends ConsumerStatefulWidget {
   final CapturedImageData imageData;
   final double zoomLevel;
   final Offset panOffset;
 
-  /// Optional preview dimensions in physical pixels, clamped to the source.
-  /// A missing dimension follows the source aspect ratio.
+  /// Optional decode-time downscale targets. When set, the engine decodes the
+  /// RGBA buffer straight to (at most) these dimensions instead of allocating
+  /// the full sensor-resolution texture. Used by the dashboard live-frame tile
+  /// — a ~300px panel never needs a 6000px decode. Both are clamped to the
+  /// source dimensions (no upscaling). Leave null for the full-screen Imaging
+  /// viewer, which decodes at native resolution for pixel-peeping.
   final int? targetWidth;
   final int? targetHeight;
-
-  /// Decode only the physical pixels shown by this widget's fit and zoom.
-  /// Keep false when an ancestor controls magnification, as in fullscreen's
-  /// InteractiveViewer. Native zoom still uses the original source pixels.
-  final bool downscaleToViewport;
 
   const ImageDisplayWidget({
     super.key,
@@ -37,7 +30,6 @@ class ImageDisplayWidget extends ConsumerStatefulWidget {
     required this.panOffset,
     this.targetWidth,
     this.targetHeight,
-    this.downscaleToViewport = false,
   });
 
   @override
@@ -47,9 +39,40 @@ class ImageDisplayWidget extends ConsumerStatefulWidget {
 class _ImageDisplayWidgetState extends ConsumerState<ImageDisplayWidget> {
   ui.Image? _decodedImage;
   bool _isDecoding = false;
-  bool _decodeScheduled = false;
-  _DecodeRequest? _requested;
-  _DecodeRequest? _decoded;
+  Uint8List? _lastDecodedPixels;
+  int? _lastDecodedTargetWidth;
+  int? _lastDecodedTargetHeight;
+
+  /// Pixels asked for while another decode was running.
+  Uint8List? _pendingPixels;
+
+  // Which pixels to decode is decided in [build], from the screen rendering
+  // of the frame: decoding the display data here first flashed the
+  // stretched frame before every linear one.
+
+  @override
+  void didUpdateWidget(ImageDisplayWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageData.capturedAt != oldWidget.imageData.capturedAt ||
+        !identical(
+          widget.imageData.displayData,
+          oldWidget.imageData.displayData,
+        )) {
+      // A new frame: [build] picks its pixels; the old texture stays up
+      // until they are decoded.
+      _lastDecodedPixels = null;
+    } else if (widget.targetWidth != oldWidget.targetWidth ||
+        widget.targetHeight != oldWidget.targetHeight) {
+      // The live-frame panel feeds the viewport width, which moves on resize.
+      _decodeImage(pixels: _lastDecodedPixels);
+    }
+  }
+
+  void _decodePending() {
+    final next = _pendingPixels;
+    _pendingPixels = null;
+    if (next != null && mounted) _decodeImage(pixels: next);
+  }
 
   /// The live texture, so a test can assert it is released rather than leaked.
   @visibleForTesting
@@ -58,7 +81,7 @@ class _ImageDisplayWidgetState extends ConsumerState<ImageDisplayWidget> {
   /// The pixels behind [debugDecodedImage], so a test can tell which
   /// rendering is on screen.
   @visibleForTesting
-  Uint8List? get debugDecodedPixels => _decoded?.pixels;
+  Uint8List? get debugDecodedPixels => _lastDecodedPixels;
 
   @override
   void dispose() {
@@ -66,112 +89,77 @@ class _ImageDisplayWidgetState extends ConsumerState<ImageDisplayWidget> {
     super.dispose();
   }
 
-  void _requestDecode(_DecodeRequest? request) {
-    if (request?.matches(_requested) ?? _requested == null) return;
-    _requested = request;
-    if (request == null ||
-        request.matches(_decoded) ||
-        _isDecoding ||
-        _decodeScheduled) {
+  Future<void> _decodeImage({Uint8List? pixels}) async {
+    if (_isDecoding) {
+      // The decode in flight is of older pixels; take these when it lands.
+      _pendingPixels = pixels ?? widget.imageData.displayData;
       return;
     }
-    _decodeScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _decodeScheduled = false;
-      if (mounted) unawaited(_decodeLatest());
-    });
-  }
-
-  Future<void> _decodeLatest() async {
-    if (_isDecoding) return;
     _isDecoding = true;
+
     try {
-      while (mounted) {
-        final request = _requested;
-        if (request == null || request.matches(_decoded)) return;
-        bool obsolete() => !mounted || !identical(request, _requested);
-        final trace = kProfileMode
-            ? (developer.TimelineTask()
-              ..start('Preview decode', arguments: {
-                'sourceWidth': request.width,
-                'sourceHeight': request.height,
-                'targetWidth': request.targetWidth,
-                'targetHeight': request.targetHeight,
-                'sourceBytes': request.pixels.length,
-              }))
-            : null;
-        var finishAfterPaint = false;
-        try {
-          final pixels = await downscalePreviewRgba(
-            pixels: request.pixels,
-            width: request.width,
-            height: request.height,
-            targetWidth: request.targetWidth,
-            targetHeight: request.targetHeight,
-            isCancelled: obsolete,
-          );
-          if (pixels == null || obsolete()) continue;
-          trace
-              ?.instant('Preview resized', arguments: {'bytes': pixels.length});
-          // This is decodeImageFromPixels' buffer/descriptor path, awaited so
-          // errors and obsolete results release every native allocation.
-          final buffer = await ui.ImmutableBuffer.fromUint8List(pixels);
-          trace?.instant('Preview immutable copy ready');
-          ui.ImageDescriptor? descriptor;
-          ui.Codec? codec;
-          ui.Image? image;
-          try {
-            if (obsolete()) continue;
-            descriptor = ui.ImageDescriptor.raw(
-              buffer,
-              width: request.targetWidth,
-              height: request.targetHeight,
-              pixelFormat: ui.PixelFormat.rgba8888,
-            );
-            codec = await descriptor.instantiateCodec();
-            image = (await codec.getNextFrame()).image;
-          } finally {
-            codec?.dispose();
-            descriptor?.dispose();
-            buffer.dispose();
-          }
-          if (obsolete()) {
+      final width = widget.imageData.width;
+      final height = widget.imageData.height;
+      // The screen rendering when given, else the frame's display data. Both
+      // are always RGBA (4 bytes per pixel, alpha=255): the conversion is
+      // done in Rust (for display_data) or at the provider boundary (for a
+      // rendering), so no per-pixel loop is needed here.
+      final Uint8List rgbaBytes = pixels ?? widget.imageData.displayData;
+
+      // Resolve the decode-time downscale target. Clamp to the source
+      // dimensions so we never ask the engine to upscale.
+      final int? targetW = widget.targetWidth?.clamp(1, width);
+      final int? targetH = widget.targetHeight?.clamp(1, height);
+
+      // Skip re-decoding only when both the pixels AND the decode target are
+      // unchanged — a resize that moves the target must re-decode even if the
+      // underlying buffer is identical.
+      if (_lastDecodedPixels != null &&
+          _lastDecodedPixels == rgbaBytes &&
+          _lastDecodedTargetWidth == targetW &&
+          _lastDecodedTargetHeight == targetH) {
+        _isDecoding = false;
+        _decodePending();
+        return;
+      }
+      _lastDecodedPixels = rgbaBytes;
+      _lastDecodedTargetWidth = targetW;
+      _lastDecodedTargetHeight = targetH;
+
+      ui.decodeImageFromPixels(
+        rgbaBytes,
+        width,
+        height,
+        ui.PixelFormat.rgba8888,
+        (image) {
+          // A decoded ui.Image holds its texture outside the Dart heap, so a
+          // replaced one has to be released explicitly — dropping the
+          // reference leaked a full-resolution texture (65 MB at 4656x3520)
+          // for every frame the session captured. Same on the unmounted path:
+          // nothing else will ever hold this one.
+          if (!mounted) {
             image.dispose();
-            continue;
+            _isDecoding = false;
+            return;
           }
-          trace?.instant('Preview texture ready');
           setState(() {
             _decodedImage?.dispose();
             _decodedImage = image;
-            _decoded = request;
+            _isDecoding = false;
           });
-          if (trace != null) {
-            finishAfterPaint = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final current = mounted &&
-                  identical(_requested, request) &&
-                  identical(_decoded, request);
-              if (current) trace.instant('Preview paint submitted');
-              trace.finish(arguments: {'displayed': current});
-            });
-          }
-        } catch (error, stackTrace) {
-          Log.warning('Error decoding image',
-              source: 'ImageDisplay', error: error, stackTrace: stackTrace);
-          // Keep the last successful rendering. A new request can retry, but
-          // a failing decoder must not start an unbounded retry loop here.
-          if (!obsolete()) {
-            _requested = null;
-            return;
-          }
-        } finally {
-          if (!finishAfterPaint) {
-            trace?.finish(arguments: {'obsolete': obsolete()});
-          }
-        }
-      }
-    } finally {
+          _decodePending();
+        },
+        targetWidth: targetW,
+        targetHeight: targetH,
+        allowUpscaling: false,
+      );
+    } catch (e) {
+      ref.read(loggingServiceProvider).warning(
+          '[Imaging] Error decoding image: $e',
+          source: 'ImageDisplay',
+          fields: {'error': e.toString()});
       _isDecoding = false;
+      _decodePending();
     }
   }
 
@@ -196,115 +184,67 @@ class _ImageDisplayWidgetState extends ConsumerState<ImageDisplayWidget> {
             loading: () => null,
             error: (_, __) => widget.imageData.displayData,
           );
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return LayoutBuilder(builder: (context, constraints) {
-      final width = widget.imageData.width;
-      final height = widget.imageData.height;
-      final sourceSize = Size(width.toDouble(), height.toDouble());
-      var targetW = widget.targetWidth?.clamp(1, width);
-      var targetH = widget.targetHeight?.clamp(1, height);
-      if (targetW == null && targetH != null) {
-        targetW = math.max(1, (targetH * width / height).round());
-      } else if (targetH == null && targetW != null) {
-        targetH = math.max(1, (targetW * height / width).floor());
-      } else if (targetW == null && widget.downscaleToViewport) {
-        final scale = math.min(
-          1.0,
-          previewFitScale(
-                viewportSize: constraints.biggest,
-                imageSize: sourceSize,
-              ) *
-              widget.zoomLevel *
-              dpr,
-        );
-        targetW = math.max(1, (width * scale).ceil());
-        targetH = math.max(1, (height * scale).ceil());
-      }
-      _requestDecode(wanted == null
-          ? null
-          : _DecodeRequest(
-              pixels: wanted,
-              width: width,
-              height: height,
-              targetWidth: targetW ?? width,
-              targetHeight: targetH ?? height,
-            ));
+    if (wanted != null && !identical(wanted, _lastDecodedPixels)) {
+      // Defer the decode to avoid setState during build. Turning the stretch
+      // off and back on lands here too: the frame's own display data is
+      // decoded again rather than the last rendering staying up.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _decodeImage(pixels: wanted);
+        }
+      });
+    }
 
-      if (_decodedImage == null) {
-        return const Center(
-            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
-      }
-      final decodedSize =
-          Size(_decoded!.width.toDouble(), _decoded!.height.toDouble());
-      return RedNightImage(
-        child: ClipRect(
-          child: Center(
-            child: Transform.translate(
-              offset: widget.panOffset,
-              child: Transform.scale(
-                scale: widget.zoomLevel,
-                alignment: Alignment.center,
-                child: CustomPaint(
-                  painter: _DecodedImagePainter(
-                    image: _decodedImage!,
-                    sourceSize: decodedSize,
-                  ),
-                  // Texture resolution must not change fit, zoom or the
-                  // source-coordinate geometry used by overlays.
-                  size: decodedSize,
+    if (_decodedImage == null) {
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
+    }
+
+    // The frame is image DATA: red night re-emits its luminance on the red
+    // axis rather than letting an arbitrary RGB astro frame light the room.
+    return RedNightImage(
+      child: ClipRect(
+        child: Center(
+          child: Transform.translate(
+            offset: widget.panOffset,
+            child: Transform.scale(
+              scale: widget.zoomLevel,
+              alignment: Alignment.center,
+              child: CustomPaint(
+                painter: _DecodedImagePainter(
+                  image: _decodedImage!,
+                ),
+                size: Size(
+                  _decodedImage!.width.toDouble(),
+                  _decodedImage!.height.toDouble(),
                 ),
               ),
             ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
-}
-
-class _DecodeRequest {
-  const _DecodeRequest({
-    required this.pixels,
-    required this.width,
-    required this.height,
-    required this.targetWidth,
-    required this.targetHeight,
-  });
-
-  final Uint8List pixels;
-  final int width;
-  final int height;
-  final int targetWidth;
-  final int targetHeight;
-
-  bool matches(_DecodeRequest? other) =>
-      other != null &&
-      identical(pixels, other.pixels) &&
-      width == other.width &&
-      height == other.height &&
-      targetWidth == other.targetWidth &&
-      targetHeight == other.targetHeight;
 }
 
 class _DecodedImagePainter extends CustomPainter {
   final ui.Image image;
-  final Size sourceSize;
 
-  _DecodedImagePainter({required this.image, required this.sourceSize});
+  _DecodedImagePainter({required this.image});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fitted = applyBoxFit(BoxFit.contain, sourceSize, size);
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Alignment.center.inscribe(fitted.destination, Offset.zero & size),
-      Paint()..filterQuality = FilterQuality.medium,
+    paintImage(
+      canvas: canvas,
+      rect: Rect.fromLTWH(0, 0, size.width, size.height),
+      image: image,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
     );
   }
 
   @override
   bool shouldRepaint(_DecodedImagePainter oldDelegate) {
-    return image != oldDelegate.image || sourceSize != oldDelegate.sourceSize;
+    return image != oldDelegate.image;
   }
 }
