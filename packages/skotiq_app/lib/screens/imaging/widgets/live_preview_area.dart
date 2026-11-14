@@ -391,6 +391,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                           imageData: currentImage,
                           zoomLevel: zoomLevel,
                           panOffset: panOffset,
+                          downscaleToViewport: true,
                         ),
                       )
                     else
