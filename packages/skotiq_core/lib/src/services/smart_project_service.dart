@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 
 import '../database/database.dart' as db;
+import '../models/equipment/filter_names.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/scheduler/integration_goal.dart';
 import 'scheduler/integration_goal_service.dart';
@@ -457,16 +458,19 @@ class SmartProjectService {
 
       final deltaFrames = math.max(1, (filterDeficitSeconds / exposure).ceil());
 
-      // Find an existing goal matching this (filter, exposure). Filter match is
-      // case-insensitive to mirror IntegrationGoalService.capturedFrameCount.
-      IntegrationGoal? existing;
-      for (final g in existingGoals) {
-        if (g.filter.toLowerCase() == filter.toLowerCase() &&
-            _closeEnough(g.exposureSeconds, exposure)) {
-          existing = g;
-          break;
-        }
-      }
+      // The goal for these frames: one at this exposure whose filter the
+      // filter-name rule matches ("Ha 7nm" frames raise the operator's "Ha"
+      // goal), or for unfiltered frames the unfiltered goal.
+      final atExposure = [
+        for (final g in existingGoals)
+          if (_closeEnough(g.exposureSeconds, exposure)) g,
+      ];
+      final goalFilter = matchingRecordedFilter(filter, [
+        for (final g in atExposure) g.filter,
+      ]);
+      final existing = goalFilter == null
+          ? null
+          : atExposure.firstWhere((g) => g.filter == goalFilter);
 
       // Idempotency: the deficit is a function of the master's state alone
       // (current vs target SNR, captured count), NOT of the goal's current
@@ -478,7 +482,7 @@ class SmartProjectService {
       // SNR is a no-op the second time.
       final captured = await _goals.capturedFrameCount(
         targetId: targetId,
-        filter: filter,
+        filter: existing?.filter ?? filter,
       );
       final deficitTarget = captured + deltaFrames;
       final int newFrameCount;

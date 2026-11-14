@@ -47,15 +47,20 @@ String? matchingFilterName(String requested, Iterable<String> available) {
   return index == null ? null : names[index];
 }
 
+/// The name in [recorded] (filters as frames, goals or campaigns record them,
+/// blank for none) that [requested] means: the first blank one for a blank
+/// request, otherwise [matchingFilterName]'s. Null when none.
+String? matchingRecordedFilter(String requested, Iterable<String> recorded) =>
+    requested.trim().isEmpty
+    ? recorded.where((name) => name.trim().isEmpty).firstOrNull
+    : matchingFilterName(requested, recorded);
+
 /// Every name in [available] that [requested] means at the closest step of
 /// [matchingFilterIndex]'s rule: all spellings equal ignoring case, else all
 /// with the same canonical name, else all that contain it or are contained in
 /// it. Frames filed under several spellings of one filter ("Ha", "ha") all
 /// count for it; a closer spelling hides a looser one, as on a wheel.
-List<String> matchingFilterNames(
-  String requested,
-  Iterable<String> available,
-) {
+List<String> matchingFilterNames(String requested, Iterable<String> available) {
   final names = available.toList();
   return [for (final i in _closestMatches(requested, names)) names[i]];
 }

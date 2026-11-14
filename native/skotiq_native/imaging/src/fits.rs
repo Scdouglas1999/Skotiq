@@ -1197,6 +1197,80 @@ fn write_be_samples<W: Write, const N: usize>(
 /// cards whose quoted body is shorter than 8 characters. The spec requires the
 /// quoted text to be space-padded out to at least 8 characters before the closing
 /// quote.
+/// `text` as the printable ASCII (32-126) every FITS header byte must be:
+/// a character with a clear ASCII spelling is written in it ("°" as "deg",
+/// "µ" as "u", typographic quotes and dashes as their plain forms, accented
+/// Latin letters without the accent), and any other one as `?`.
+fn fits_ascii(text: &str) -> std::borrow::Cow<'_, str> {
+    if text.bytes().all(|b| (0x20..0x7f).contains(&b)) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        let spelled: &str = match ch {
+            ' '..='~' => {
+                out.push(ch);
+                continue;
+            }
+            '\t' => " ",
+            '°' | 'º' => "deg",
+            '′' => "'",
+            '″' => "\"",
+            '‘' | '’' | '‚' => "'",
+            '“' | '”' | '„' => "\"",
+            '–' | '—' | '−' | '‐' => "-",
+            '…' => "...",
+            '·' | '•' => "-",
+            '×' => "x",
+            '±' => "+/-",
+            'µ' | 'μ' => "u",
+            'Å' => "A",
+            'å' => "a",
+            'Æ' => "AE",
+            'æ' => "ae",
+            'Ø' => "O",
+            'ø' => "o",
+            'ß' => "ss",
+            '\u{a0}' => " ",
+            _ => match unaccented(ch) {
+                Some(letter) => {
+                    out.push(letter);
+                    continue;
+                }
+                None => "?",
+            },
+        };
+        out.push_str(spelled);
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// The plain letter an accented Latin-1 letter is written on.
+fn unaccented(ch: char) -> Option<char> {
+    const LETTERS: [(&str, char); 16] = [
+        ("ÀÁÂÃÄ", 'A'),
+        ("àáâãä", 'a'),
+        ("Ç", 'C'),
+        ("ç", 'c'),
+        ("ÈÉÊË", 'E'),
+        ("èéêë", 'e'),
+        ("ÌÍÎÏ", 'I'),
+        ("ìíîï", 'i'),
+        ("Ñ", 'N'),
+        ("ñ", 'n'),
+        ("ÒÓÔÕÖ", 'O'),
+        ("òóôõö", 'o'),
+        ("ÙÚÛÜ", 'U'),
+        ("ùúûü", 'u'),
+        ("Ý", 'Y'),
+        ("ýÿ", 'y'),
+    ];
+    LETTERS
+        .iter()
+        .find(|(accented, _)| accented.contains(ch))
+        .map(|(_, plain)| *plain)
+}
+
 fn format_fits_string_value(value: &str) -> String {
     // Why: a single-quote inside the string must be escaped as `''` per FITS 4.2.1.1.
     let escaped = value.replace('\'', "''");
@@ -1281,7 +1355,7 @@ fn write_string_cards<W: Write>(
     value: &str,
     comment: Option<&str>,
 ) -> Result<(), FitsError> {
-    let pieces = string_value_pieces(value);
+    let pieces = string_value_pieces(&fits_ascii(value));
     let last = pieces.len() - 1;
     for (index, piece) in pieces.iter().enumerate() {
         let comment = if index == last { comment } else { None };
@@ -1332,7 +1406,7 @@ fn write_text_card<W: Write>(writer: &mut W, keyword: &str, text: &str) -> Resul
             keyword
         )));
     }
-    for body in commentary_cards(text) {
+    for body in commentary_cards(&fits_ascii(text)) {
         let mut record = [b' '; 80];
         let key_bytes = keyword.as_bytes();
         record[..key_bytes.len()].copy_from_slice(key_bytes);
@@ -1566,6 +1640,7 @@ fn put_inline_comment(record: &mut [u8; 80], value_end: usize, comment: Option<&
                     record[sep_start..sep_start + 2].copy_from_slice(&separator[1..3]);
                     let comment_start = sep_start + 2;
                     let available = 80 - comment_start;
+                    let trimmed = fits_ascii(trimmed);
                     let comment_bytes = trimmed.as_bytes();
                     let copy_len = comment_bytes.len().min(available);
                     record[comment_start..comment_start + copy_len]
@@ -1596,7 +1671,7 @@ fn write_foreign_name_card<W: Write>(
 ) -> Result<(), FitsError> {
     let value_text = match value {
         FitsValue::Comment(text) => return write_text_card(writer, "COMMENT", text),
-        other => value_card_text(other),
+        other => fits_ascii(&value_card_text(other)).into_owned(),
     };
     let name = name.trim();
     let card = format!("{HIERARCH_KEYWORD} {name} = {value_text}");
@@ -4224,5 +4299,50 @@ mod write_wcs_tests {
             "no staging file is left behind: {leftovers:?}"
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod ascii_header_tests {
+    use super::*;
+
+    /// Every header byte is printable ASCII, whatever text a card was given:
+    /// a mosaic name with a degree sign, an accented observer, a comment in
+    /// microns, a long HISTORY line with a dash.
+    #[test]
+    fn every_header_byte_is_printable_ascii() {
+        let path = std::env::temp_dir().join(format!("ascii-header-{}.fits", std::process::id()));
+        let mut header = FitsHeader::new();
+        header.set_string("OBJECT", "M31 Mosaic 2×2 at 41.27° · Panel 1");
+        header.set_string("OBSERVER", "Zoë Müller");
+        header.set_float("XPIXSZ", 3.76);
+        header.set_comment("XPIXSZ", "[µm] pixel size");
+        header.set_string("MOSNAME", &format!("{} 30′ steps ✓", "a".repeat(80)));
+        header.set_string("Field rotation °", "12°");
+        header.add_history("Stacked — 40 frames, σ-clipped");
+        write_fits(&path, &ImageData::from_u16(2, 2, 1, &[1, 2, 3, 4]), &header).unwrap();
+
+        let bytes = std::fs::read(&path).unwrap();
+        let end = bytes
+            .chunks(80)
+            .position(|card| card.starts_with(b"END "))
+            .unwrap();
+        assert!(
+            bytes[..(end + 1) * 80].iter().all(|b| (0x20..0x7f).contains(b)),
+            "{}",
+            String::from_utf8_lossy(&bytes[..(end + 1) * 80])
+        );
+        let (_, back) = read_fits(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(
+            back.get_string("OBJECT"),
+            Some("M31 Mosaic 2x2 at 41.27deg - Panel 1")
+        );
+        assert_eq!(back.get_string("OBSERVER"), Some("Zoe Muller"));
+        assert_eq!(back.get_comment("XPIXSZ"), Some("[um] pixel size"));
+        assert!(back
+            .get_string("MOSNAME")
+            .is_some_and(|name| name.ends_with(" 30' steps ?")));
+        assert_eq!(back.history, ["Stacked - 40 frames, ?-clipped"]);
     }
 }

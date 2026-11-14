@@ -423,8 +423,8 @@ void main() {
 
   group('horizon-aware time-to-set agreement', () {
     test(
-        'planetariumEffectiveHorizonDegProvider receives the user value '
-        'after locationSyncProvider fires', () async {
+        'planetariumEffectiveHorizonDegProvider receives the site horizon '
+        'after its sync fires', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
@@ -435,7 +435,8 @@ void main() {
           appSettingsProvider.overrideWith(
             () => _FakeAppSettingsNotifier(
               const AppSettingsState(
-                effectiveHorizonDeg: horizon,
+                horizonProfileJson: '{"N":18,"NE":18,"E":18,"SE":18,"S":18,'
+                    '"SW":18,"W":18,"NW":18}',
                 // Provide a sensible location so the sync provider's
                 // location-gated branch executes too.
                 latitude: 30.0,
@@ -449,7 +450,7 @@ void main() {
 
       // Drain the AsyncNotifier and wire the listener.
       await container.read(appSettingsProvider.future);
-      container.read(locationSyncProvider);
+      container.read(planetariumAltitudeFloorSyncProvider);
 
       // The sync provider schedules Future.microtask updates; flush them.
       await Future<void>.delayed(const Duration(milliseconds: 10));

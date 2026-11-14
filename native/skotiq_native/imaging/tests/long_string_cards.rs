@@ -103,10 +103,12 @@ fn quotes_ampersands_and_spaces_survive_any_split() {
         format!("{}&{}&", "a".repeat(66), "b".repeat(30)),
         // Spaces at a piece boundary stay; leading text of a piece is kept.
         format!("{}   {}", "c".repeat(64), "d".repeat(40)),
-        // Non-ASCII text is split on character boundaries.
+        // Non-ASCII text is written in its ASCII spelling, then split.
         "Région de la nébuleuse d'Orion — ".repeat(4),
     ];
+    let ascii = "Region de la nebuleuse d'Orion - ".repeat(4);
     for (index, value) in values.iter().enumerate() {
+        let expected = if index == 4 { &ascii } else { value };
         let path = scratch(&format!("split-{index}.fits"));
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", value);
@@ -115,7 +117,7 @@ fn quotes_ampersands_and_spaces_survive_any_split() {
         let (_, read) = read_fits(&path).unwrap();
         assert_eq!(
             read.get_string("OBJECT"),
-            Some(value.trim_end()),
+            Some(expected.trim_end()),
             "value {index}"
         );
         assert_eq!(read.get_string("FILTER"), Some("Ha"));

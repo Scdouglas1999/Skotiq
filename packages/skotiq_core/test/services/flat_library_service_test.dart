@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/models/calibration/calibration_library_models.dart';
 import 'package:skotiq_core/src/services/flat_library_service.dart';
 
 import 'post_session_integration_service_test.dart' show FakePostSessionSeam;
@@ -70,60 +71,46 @@ void main() {
     );
   });
 
-  test('findBestMatch honors filter + binning + temperature tolerance', () async {
+  test('findBestMatch requires the filter and binning, newest wins', () async {
     await dao.addEntry(
-      filePath: '/cal/flat_L_cold.fits',
+      filePath: '/cal/flat_L_old.fits',
       filter: 'L',
       gain: 100,
-      binX: 1,
-      binY: 1,
       temperature: -10.0,
+      createdAt: DateTime.utc(2026, 6, 1),
     );
     await dao.addEntry(
-      filePath: '/cal/flat_L_warm.fits',
+      filePath: '/cal/flat_L_new.fits',
       filter: 'L',
       gain: 100,
-      binX: 1,
-      binY: 1,
       temperature: -5.0,
+      createdAt: DateTime.utc(2026, 6, 5),
     );
     await dao.addEntry(
       filePath: '/cal/flat_R.fits',
       filter: 'R',
       gain: 100,
-      binX: 1,
-      binY: 1,
       temperature: -10.0,
+      createdAt: DateTime.utc(2026, 6, 9),
     );
 
-    // Closest temperature wins among the matching-filter pool.
-    final match = await service.findBestMatch(
-      filter: 'L',
+    LightFrameContext lights(String filter, {int bin = 1}) => LightFrameContext(
       gain: 100,
-      binX: 1,
-      binY: 1,
+      offset: null,
+      exposureSeconds: 300,
       temperature: -9.5,
+      filter: filter,
+      binX: bin,
+      binY: bin,
     );
-    expect(match, isNotNull);
-    expect(match!.filePath, '/cal/flat_L_cold.fits');
 
+    expect(
+      (await service.findBestMatch(lights('L')))?.filePath,
+      '/cal/flat_L_new.fits',
+    );
     // A filter with no registered flat returns null (never a wrong-filter flat).
-    final none = await service.findBestMatch(
-      filter: 'SII',
-      gain: 100,
-      binX: 1,
-      binY: 1,
-    );
-    expect(none, isNull);
-
-    // Binning mismatch excludes the L flats.
-    final binMismatch = await service.findBestMatch(
-      filter: 'L',
-      gain: 100,
-      binX: 2,
-      binY: 2,
-    );
-    expect(binMismatch, isNull);
+    expect(await service.findBestMatch(lights('SII')), isNull);
+    expect(await service.findBestMatch(lights('L', bin: 2)), isNull);
   });
 
   test('addEntry dedups by file path (rebuild overwrites)', () async {

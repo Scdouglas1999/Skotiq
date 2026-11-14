@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database.dart' as db;
 import '../models/imaging/imaging_models.dart';
+import '../models/imaging/naming_pattern.dart';
 import '../models/imaging/auto_stretch_settings.dart';
 import '../models/backend/device_capabilities.dart';
 import '../models/equipment/equipment_models.dart';

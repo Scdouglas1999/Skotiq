@@ -232,6 +232,35 @@ void main() {
       expect(a.binY, 2);
     });
 
+    test('SmartExposure finds the plan of the wheel slot by the filter-name '
+        'rule', () {
+      final seq = Sequence.create(
+        name: 'smart',
+        rootNodeId: 'smart',
+        nodes: {
+          'smart': SmartExposureNode(
+            id: 'smart',
+            plans: const [
+              FilterPlan(
+                filterName: 'Ha',
+                durationSecs: 600.0,
+                gain: 200,
+                offset: 30,
+                binning: BinningMode.two,
+              ),
+              FilterPlan(filterName: 'OIII', durationSecs: 300.0, gain: 100),
+            ],
+          ),
+        },
+      );
+
+      final a = resolveFrameAttribution(seq, 'smart', currentFilter: 'Ha 7nm');
+      expect(a.exposureSecs, 600.0);
+      expect(a.gain, 200);
+      expect(a.offset, 30);
+      expect(a.binX, 2);
+    });
+
     test('SmartExposure takes gain/offset/binning from the matching plan', () {
       final seq = Sequence.create(
         name: 'smart',

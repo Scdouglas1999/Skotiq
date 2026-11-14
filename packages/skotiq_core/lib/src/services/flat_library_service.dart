@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import '../database/daos/flat_library_dao.dart';
+import '../models/calibration/calibration_library_models.dart';
 import '../models/imaging/integrated_master.dart';
+import 'calibration/calibration_selection.dart';
 import 'frame_header.dart';
 import 'post_session_seam.dart';
 
@@ -15,8 +17,6 @@ import 'post_session_seam.dart';
 /// `divide_flat` calibration applies correctly — then registers the result in
 /// the `flat_library` table for auto-matching by filter / optics / temperature.
 ///
-/// This closes the "no master-flat / no flat auto-match" gap: before this, the
-/// app had a `dark_library` + `createMasterDark` but no flat equivalent.
 class FlatLibraryService {
   FlatLibraryService({
     required FlatLibraryDao dao,
@@ -164,28 +164,18 @@ class FlatLibraryService {
     }
   }
 
-  /// Find the best master flat for a light frame's parameters (delegates to
-  /// [FlatLibraryDao.findBestMatch]).
-  Future<FlatLibraryEntry?> findBestMatch({
-    String? filter,
-    int? gain,
-    int? offset,
-    int binX = 1,
-    int binY = 1,
-    String? opticalTrainId,
-    double? temperature,
-    double temperatureToleranceC = 5.0,
-  }) {
-    return _dao.findBestMatch(
-      filter: filter,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      opticalTrainId: opticalTrainId,
-      temperature: temperature,
-      temperatureToleranceC: temperatureToleranceC,
+  /// The master flat for lights of [context], picked by [selectFlat] at the
+  /// Darkroom's flat temperature tolerance. Null when none qualifies.
+  Future<FlatLibraryEntry?> findBestMatch(LightFrameContext context) async {
+    final rows = await _dao.getAllEntries();
+    final selection = selectFlat(
+      rows.map(flatLibraryRecord),
+      context,
+      temperatureToleranceC:
+          CalibrationMatchTolerances.defaults.flatTemperatureC,
     );
+    if (selection == null) return null;
+    return rows.firstWhere((row) => row.id == selection.record.id);
   }
 
   /// All registered master flats, newest first.

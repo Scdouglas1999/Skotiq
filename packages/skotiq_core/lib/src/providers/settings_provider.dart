@@ -117,17 +117,6 @@ final appSettingsProvider =
       return AppSettingsNotifier();
     });
 
-/// Effective horizon in degrees selected from [appSettingsProvider].
-///
-/// The same value is consumed by the Run Dashboard's "time-to-set"
-/// statistic and by the planetarium target-card so both surfaces display
-/// the same number to the second. Falls back to 0° (mathematical horizon)
-/// before settings have loaded.
-final effectiveHorizonDegProvider = Provider<double>((ref) {
-  final settings = ref.watch(appSettingsProvider).valueOrNull;
-  return settings?.effectiveHorizonDeg ?? 0.0;
-});
-
 /// Focused observer-location selector derived from [appSettingsProvider].
 ///
 /// Watching this provider avoids rebuilding weather/suggestion chains when

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'database_provider.dart';
+import 'settings_provider.dart' show appObserverLocationProvider;
 import '../services/night_analysis_service.dart';
 
 /// Riverpod provider for the Night Doctor. Constructor-injected DAOs mirror the
@@ -10,5 +11,6 @@ final nightAnalysisServiceProvider = Provider<NightAnalysisService>((ref) {
     images: ref.watch(imagesDaoProvider),
     science: ref.watch(scienceDaoProvider),
     reports: ref.watch(nightReportsDaoProvider),
+    site: () => ref.read(appObserverLocationProvider),
   );
 });

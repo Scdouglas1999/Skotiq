@@ -4,3 +4,4 @@
 library;
 
 export 'src/errors/error_text.dart';
+export 'src/errors/error_text_kind.dart';

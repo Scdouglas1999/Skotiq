@@ -1,4 +1,5 @@
 import '../../../models/equipment/equipment_models.dart';
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../equipment_provider.dart';
 import '../../profiles_provider.dart';
@@ -73,14 +74,15 @@ class SmartExposureFilterWheelMissingRule implements RefAwareSequenceValidator {
 }
 
 /// Per-row check: every SmartExposure plan whose `filterName` is non-empty
-/// must name a filter in [effectiveFiltersProvider], the list its editor
-/// offers. A row calling for "OIII" on an `L, R, G, B` rig would otherwise
-/// fail partway through the run.
+/// must mean a filter in [effectiveFiltersProvider], the list its editor
+/// offers, by the filter-name rule the run finds its slot with ("Ha" runs in
+/// "Ha 7nm"). A row calling for "OIII" on an `L, R, G, B` rig would otherwise
+/// fail partway through the run. A different spelling of a filter that is
+/// there is [FilterInWheelRule]'s warning, not an error.
 ///
 /// Pairs with [SmartExposureFilterWheelMissingRule] (no filters at all) and
 /// the per-row empty-name check inside [SmartExposureNegativeCountRule]
-/// (empty `filterName`). Comparison is case-insensitive, as in
-/// [FilterInWheelRule].
+/// (empty `filterName`).
 class SmartExposureFilterUnknownRule implements RefAwareSequenceValidator {
   @override
   String get name => 'SmartExposureFilterUnknown';
@@ -95,7 +97,6 @@ class SmartExposureFilterUnknownRule implements RefAwareSequenceValidator {
 
     final available = ctx.ref.read(effectiveFiltersProvider);
     if (available.isEmpty) return const [];
-    final availableLower = available.map((f) => f.toLowerCase()).toSet();
     final availableLabel = available.join(', ');
 
     final issues = <ValidationIssue>[];
@@ -106,7 +107,7 @@ class SmartExposureFilterUnknownRule implements RefAwareSequenceValidator {
         // Empty filter names are handled by SmartExposureNegativeCountRule's
         // per-row empty-filter check — skip to avoid double-counting.
         if (raw.trim().isEmpty) continue;
-        if (availableLower.contains(raw.toLowerCase())) continue;
+        if (matchingFilterName(raw, available) != null) continue;
         issues.add(
           ValidationIssue(
             severity: ValidationSeverity.error,

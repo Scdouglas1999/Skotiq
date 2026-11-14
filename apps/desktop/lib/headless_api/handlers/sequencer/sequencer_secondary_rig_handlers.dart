@@ -115,14 +115,16 @@ extension _SequencerSecondaryRig on SequencerHandlers {
         ditherMaxWaitSecs: ditherMaxWait,
         inFlightPolicy: inFlightPolicy,
         saveBasePath: saveBasePath,
-        saveTo: ImagingService.secondaryRigSaveTemplate(
+        saveTo: ImagingService.runFrameSaveTemplate(
           container.read(namingPatternProvider).pattern,
-          rigLabel: rigLabel,
-          gain: gain,
-          offset: offset,
-          binX: binX,
-          binY: binY,
-          sentAt: container.read(clockProvider).nowUtc(),
+          NamingStep.secondaryRig(
+            rigLabel: rigLabel,
+            gain: gain,
+            offset: offset,
+            binX: binX,
+            binY: binY,
+            session: container.read(clockProvider).nowUtc(),
+          ),
         ),
         targetName: decoded['targetName'] as String?,
         targetRaHours: optionalDouble(decoded, 'targetRaHours'),
