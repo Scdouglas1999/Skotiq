@@ -85,29 +85,7 @@ pub(crate) fn delivered_bayer(x_odd: bool, y_odd: bool) -> BayerPattern {
 /// The cell seen from a pixel `dx` columns right of and `dy` rows below one
 /// whose cell is `cell`.
 pub(crate) fn shift_bayer(cell: BayerPattern, dx: u32, dy: u32) -> BayerPattern {
-    use BayerPattern::*;
-    let cell = if dx % 2 == 1 {
-        match cell {
-            Rggb => Grbg,
-            Grbg => Rggb,
-            Gbrg => Bggr,
-            Bggr => Gbrg,
-            other => other,
-        }
-    } else {
-        cell
-    };
-    if dy % 2 == 1 {
-        match cell {
-            Rggb => Gbrg,
-            Gbrg => Rggb,
-            Grbg => Bggr,
-            Bggr => Grbg,
-            other => other,
-        }
-    } else {
-        cell
-    }
+    cell.shifted(i64::from(dx), i64::from(dy))
 }
 
 /// The cell at pixel (0, 0) of an unbinned frame as Skotiq hands it on (top

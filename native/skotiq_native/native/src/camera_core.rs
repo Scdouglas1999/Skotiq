@@ -12,9 +12,9 @@
 //! do not come from the cached state. A DSLR or mirrorless body fits with ISO
 //! as its gain, offset 0, bin 1 and no cooler.
 
+use skotiq_cfa::{BayerPattern, ColorFilterArray};
 use skotiq_device::camera::{
-    BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
-    VendorFeatures,
+    CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::{CameraFile, DriverError, ExposureAbort};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -204,7 +204,7 @@ impl CameraCore {
         height: u32,
         data: Vec<u16>,
         bits_per_pixel: u32,
-        bayer_pattern: Option<BayerPattern>,
+        bayer_pattern: Option<ColorFilterArray>,
     ) -> Frame {
         Frame {
             width,
@@ -232,7 +232,7 @@ pub(crate) struct Frame {
     pub(crate) height: u32,
     pub(crate) data: Vec<u16>,
     pub(crate) bits_per_pixel: u32,
-    pub(crate) bayer_pattern: Option<BayerPattern>,
+    pub(crate) bayer_pattern: Option<ColorFilterArray>,
     pub(crate) exposure_time: f64,
     pub(crate) gain: i32,
     pub(crate) offset: i32,
@@ -326,21 +326,6 @@ pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<
             vendor, axis, value
         ))
     })
-}
-
-/// The device layer's name for a decoded raw frame's color filter.
-pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> BayerPattern {
-    use skotiq_imaging::BayerPattern as Cell;
-    match cfa {
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::RGGB) => BayerPattern::Rggb,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GRBG) => BayerPattern::Grbg,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GBRG) => BayerPattern::Gbrg,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::BGGR) => BayerPattern::Bggr,
-        skotiq_imaging::ColorFilterArray::XTrans(_) => BayerPattern::XTrans(
-            skotiq_device::XTransCell::from_letters(&cfa.letters())
-                .expect("an X-Trans cell is 36 R, G and B letters"),
-        ),
-    }
 }
 
 /// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
@@ -616,13 +601,13 @@ mod tests {
         let image = Frame {
             gain: 121,
             temperature: Some(-9.5),
-            ..core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg))
+            ..core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg.into()))
         }
         .into_image();
         assert_eq!((image.width, image.height), (2, 1));
         assert_eq!(image.data, vec![7, 9]);
         assert_eq!(image.bits_per_pixel, 12);
-        assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg));
+        assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg.into()));
         assert_eq!(image.metadata.exposure_time, 12.5);
         assert_eq!(image.metadata.gain, 121);
         assert_eq!(image.metadata.offset, 30);
@@ -641,13 +626,13 @@ mod mosaic_pattern_tests {
     use super::*;
 
     #[test]
-    fn a_decoded_xtrans_mosaic_keeps_its_cell_in_the_device_layer() {
-        let letters = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
-        let cfa = skotiq_imaging::ColorFilterArray::parse(letters).unwrap();
-        let pattern = mosaic_bayer_pattern(&cfa);
-        assert!(matches!(pattern, BayerPattern::XTrans(_)));
-        assert_eq!(pattern.fits_name(), letters);
-        let bayer = skotiq_imaging::ColorFilterArray::parse("GBRG").unwrap();
-        assert_eq!(mosaic_bayer_pattern(&bayer), BayerPattern::Gbrg);
+    fn a_decoded_mosaic_keeps_its_cell_through_the_camera_frame() {
+        let core = CameraCore::new("test".to_string(), "Mosaic camera".to_string());
+        for letters in ["GBRG", "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG"] {
+            let cfa = ColorFilterArray::parse(letters).unwrap();
+            let frame = core.frame(6, 6, vec![123; 36], 14, Some(cfa)).into_image();
+            assert_eq!(frame.bayer_pattern, Some(cfa));
+            assert_eq!(frame.bayer_pattern.unwrap().letters(), letters);
+        }
     }
 }

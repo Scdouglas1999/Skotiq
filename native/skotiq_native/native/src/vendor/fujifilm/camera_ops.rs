@@ -463,7 +463,7 @@ impl CameraDriver for FujifilmCamera {
         }
         self.refresh_raw_depth();
 
-        let bayer_pattern = Some(crate::camera_core::mosaic_bayer_pattern(&frame.cfa));
+        let bayer_pattern = Some(frame.cfa);
 
         let metadata = ImageMetadata {
             exposure_time: self.exposure_duration.as_secs_f64(),

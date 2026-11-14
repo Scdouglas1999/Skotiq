@@ -8,6 +8,7 @@ publish.workspace = true
 build = "build.rs"
 
 [dependencies]
+skotiq_cfa = { path = "../cfa" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -40,5 +41,6 @@ sha3 = "0.10"
 cc = "1.1"
 
 [dev-dependencies]
+tempfile = "3"
 # Hashes the decoded mosaic in tests/camera_raw.rs to compare with an independent decoder.
 sha2 = "0.10"

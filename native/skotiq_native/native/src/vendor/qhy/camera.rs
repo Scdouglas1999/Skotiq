@@ -288,7 +288,7 @@ impl QhyCamera {
             max_adu: container_max_adu(container_bits, actual_bits, high_aligned),
             bit_depth: actual_bits.unwrap_or(bpp),
             color: bayer_pattern.is_some(),
-            bayer_pattern,
+            bayer_pattern: bayer_pattern.map(Into::into),
             saturation_adu: None,
         };
 
@@ -572,25 +572,7 @@ pub(crate) fn bayer_from_id(id: c_uint) -> Option<BayerPattern> {
 
 /// The 2x2 pattern seen from a pixel `dx` columns and `dy` rows further on.
 pub(crate) fn shifted_bayer(pattern: BayerPattern, dx: u32, dy: u32) -> BayerPattern {
-    let mut cells = match pattern {
-        BayerPattern::Rggb => ['R', 'G', 'G', 'B'],
-        BayerPattern::Grbg => ['G', 'R', 'B', 'G'],
-        BayerPattern::Gbrg => ['G', 'B', 'R', 'G'],
-        BayerPattern::Bggr => ['B', 'G', 'G', 'R'],
-        other => return other,
-    };
-    if dx % 2 == 1 {
-        cells = [cells[1], cells[0], cells[3], cells[2]];
-    }
-    if dy % 2 == 1 {
-        cells = [cells[2], cells[3], cells[0], cells[1]];
-    }
-    match cells {
-        ['R', 'G', 'G', 'B'] => BayerPattern::Rggb,
-        ['G', 'R', 'B', 'G'] => BayerPattern::Grbg,
-        ['G', 'B', 'R', 'G'] => BayerPattern::Gbrg,
-        _ => BayerPattern::Bggr,
-    }
+    pattern.shifted(i64::from(dx), i64::from(dy))
 }
 
 /// The color filter of a frame read at `bin` from a window starting `dx`, `dy`

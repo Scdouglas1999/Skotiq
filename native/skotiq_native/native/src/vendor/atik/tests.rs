@@ -814,7 +814,7 @@ fn the_sdk_mosaic_offset_and_an_odd_subframe_origin_move_the_bayer_cell() {
     let mut camera = connected(&sdk);
     assert_eq!(
         camera.get_sensor_info().bayer_pattern,
-        Some(BayerPattern::Grbg)
+        Some(BayerPattern::Grbg.into())
     );
 
     camera
@@ -822,7 +822,7 @@ fn the_sdk_mosaic_offset_and_an_odd_subframe_origin_move_the_bayer_cell() {
         .unwrap();
     assert_eq!(
         camera.take_frame(&sdk).unwrap().bayer_pattern,
-        Some(BayerPattern::Grbg)
+        Some(BayerPattern::Grbg.into())
     );
 
     let roi = SubFrame {
@@ -836,7 +836,7 @@ fn the_sdk_mosaic_offset_and_an_odd_subframe_origin_move_the_bayer_cell() {
         .unwrap();
     assert_eq!(
         camera.take_frame(&sdk).unwrap().bayer_pattern,
-        Some(BayerPattern::Gbrg)
+        Some(BayerPattern::Gbrg.into())
     );
 }
 

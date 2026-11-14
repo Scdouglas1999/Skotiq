@@ -335,7 +335,8 @@ impl SensorMembers {
                 sensor_type,
                 self.bayer_offset_x,
                 self.bayer_offset_y,
-            ),
+            )
+            .map(skotiq_cfa::ColorFilterArray::from),
             saturation_adu: None,
         }
     }
@@ -408,7 +409,10 @@ mod tests {
     fn a_colour_sensor_names_the_bayer_order_its_offsets_give() {
         let sensor = members(65535, Some(2), (Some(1), Some(1))).sensor_info();
         assert!(sensor.color);
-        assert_eq!(sensor.bayer_pattern, Some(crate::BayerPattern::Bggr));
+        assert_eq!(
+            sensor.bayer_pattern,
+            Some(skotiq_cfa::BayerPattern::Bggr.into())
+        );
         assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
         assert_eq!(
             (sensor.width, sensor.height, sensor.pixel_size_x),

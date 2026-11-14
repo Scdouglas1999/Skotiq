@@ -501,7 +501,7 @@ impl CameraDriver for ZwoCamera {
                 height,
                 data,
                 self.core.sensor_info.bit_depth,
-                bayer_pattern,
+                bayer_pattern.map(Into::into),
             )
         }
         .into_image())

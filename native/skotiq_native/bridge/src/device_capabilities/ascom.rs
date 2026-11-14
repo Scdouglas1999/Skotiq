@@ -22,7 +22,7 @@ pub(crate) fn camera_capabilities_from_ascom(
         pixel_size_x: ascom_caps.pixel_size_x,
         pixel_size_y: ascom_caps.pixel_size_y,
         is_color: ascom_caps.is_color,
-        bayer_pattern: ascom_caps.bayer_pattern,
+        bayer_pattern: ascom_caps.bayer_pattern.map(|cfa| cfa.letters()),
         sensor_type: ascom_caps.sensor_name,
         readout_modes: ascom_caps.readout_modes,
         can_set_gain: ascom_caps.controls.gain.is_present(),

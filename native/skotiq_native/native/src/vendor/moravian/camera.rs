@@ -254,7 +254,7 @@ impl MoravianCamera {
             bayer_pattern: self
                 .limits
                 .full_frame_cell
-                .map(|cell| frame_bayer(cell, api.bottom_up(), height, 0, 0)),
+                .map(|cell| frame_bayer(cell, api.bottom_up(), height, 0, 0).into()),
             saturation_adu: None,
         };
         let max_bin_x = max_bin_x.max(1);
@@ -538,7 +538,7 @@ impl MoravianCamera {
                 height,
                 pixels,
                 self.core.sensor_info.bit_depth,
-                bayer,
+                bayer.map(Into::into),
             )
         }
         .into_image())

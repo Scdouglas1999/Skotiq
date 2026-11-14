@@ -24,7 +24,9 @@
 //!
 //! Sites with their own `Why:` comment override the module-level reasoning.
 
-use crate::{BayerPattern, ColorFilterArray, ImageData, PixelType};
+#[cfg(test)]
+use crate::BayerPattern;
+use crate::{ColorFilterArray, ImageData, PixelType};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -1614,37 +1616,6 @@ fn write_foreign_name_card<W: Write>(
         None => format!("{name} = {value_text}"),
     };
     write_text_card(writer, "COMMENT", &line)
-}
-
-/// Compose a base Bayer pattern with subframe offsets, returning the effective
-/// pattern at the in-memory image origin (0,0).
-///
-/// Composition table — `effective_bayer_pattern(source, x % 2, y % 2)`:
-///
-/// | source | (0,0) | (1,0) | (0,1) | (1,1) |
-/// |--------|-------|-------|-------|-------|
-/// | RGGB   | RGGB  | GRBG  | GBRG  | BGGR  |
-/// | BGGR   | BGGR  | GBRG  | GRBG  | RGGB  |
-/// | GRBG   | GRBG  | RGGB  | BGGR  | GBRG  |
-/// | GBRG   | GBRG  | BGGR  | RGGB  | GRBG  |
-///
-/// Negative offsets are wrapped via Euclidean mod 2 to keep the table consistent.
-pub fn effective_bayer_pattern(source: BayerPattern, x_offset: i64, y_offset: i64) -> BayerPattern {
-    // Each pattern is the RGGB cell seen from one of its four pixels (bit 0:
-    // one column in, bit 1: one row down); an offset moves that pixel. Only
-    // the parity of an offset matters, and `rem_euclid` keeps -1 odd.
-    const BY_ORIGIN: [BayerPattern; 4] = [
-        BayerPattern::RGGB,
-        BayerPattern::GRBG,
-        BayerPattern::GBRG,
-        BayerPattern::BGGR,
-    ];
-    let origin = BY_ORIGIN
-        .iter()
-        .position(|pattern| *pattern == source)
-        .expect("every Bayer pattern is in the table");
-    let shift = x_offset.rem_euclid(2) as usize | (y_offset.rem_euclid(2) as usize) << 1;
-    BY_ORIGIN[origin ^ shift]
 }
 
 /// The color filter of a frame at its pixel (0, 0): `BAYERPAT` (4 letters for
@@ -4037,47 +4008,38 @@ mod tests {
     #[test]
     fn test_effective_bayer_pattern_zero_offset_identity() {
         for src in [
-            BayerPattern::RGGB,
-            BayerPattern::BGGR,
-            BayerPattern::GRBG,
-            BayerPattern::GBRG,
+            BayerPattern::Rggb,
+            BayerPattern::Bggr,
+            BayerPattern::Grbg,
+            BayerPattern::Gbrg,
         ] {
-            assert_eq!(effective_bayer_pattern(src, 0, 0), src);
-            assert_eq!(effective_bayer_pattern(src, 2, 4), src);
+            assert_eq!(src.shifted(0, 0), src);
+            assert_eq!(src.shifted(2, 4), src);
         }
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y0_yields_grbg() {
         //6 explicit case.
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
-            BayerPattern::GRBG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 0), BayerPattern::Grbg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x0_y1_yields_gbrg() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 0, 1),
-            BayerPattern::GBRG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(0, 1), BayerPattern::Gbrg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y1_yields_bggr() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 1),
-            BayerPattern::BGGR
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 1), BayerPattern::Bggr);
     }
 
     #[test]
     fn test_effective_bayer_pattern_negative_offset_wraps() {
         // -1 has the same parity as +1, so result must match.
         assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, -1, 0),
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
+            BayerPattern::Rggb.shifted(-1, 0),
+            BayerPattern::Rggb.shifted(1, 0),
         );
     }
 
@@ -4088,14 +4050,14 @@ mod tests {
         header.set_string("BAYERPAT", "BGGR");
         assert_eq!(
             read_color_filter_array(&header),
-            Some(ColorFilterArray::Bayer(BayerPattern::BGGR))
+            Some(ColorFilterArray::Bayer(BayerPattern::Bggr))
         );
         header.set_string("BAYERPAT", "RGGB");
         header.set_int("XBAYROFF", 1);
         header.set_int("YBAYROFF", 0);
         assert_eq!(
             read_color_filter_array(&header),
-            Some(ColorFilterArray::Bayer(BayerPattern::GRBG))
+            Some(ColorFilterArray::Bayer(BayerPattern::Grbg))
         );
     }
 

@@ -231,7 +231,7 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
             width: 8,
             height: 8,
             data: vec![1000; 64],
-            bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg),
+            bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg.into()),
             camera_file: None,
             exposure: crate::last_frame::ExposureRecord {
                 started_at: at("2026-03-14T03:21:09.250Z"),
@@ -554,7 +554,7 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
                 width: 8,
                 height: 8,
                 data: vec![1000; 64],
-                bayer_pattern: Some(skotiq_device::BayerPattern::Rggb),
+                bayer_pattern: Some(skotiq_device::BayerPattern::Rggb.into()),
                 camera_file: Some(skotiq_device::CameraFile {
                     file_name: "IMG_0042.CR3".to_string(),
                     bytes: std::sync::Arc::new(camera_bytes.clone()),
@@ -597,8 +597,13 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
         rotator_id: None,
     };
     let save = |path: String, keeper: bool| async move {
-        crate::api::imaging::api_save_fits_from_last_capture(device_id.to_string(), path, header(), keeper)
-            .await
+        crate::api::imaging::api_save_fits_from_last_capture(
+            device_id.to_string(),
+            path,
+            header(),
+            keeper,
+        )
+        .await
     };
     let saving = |choice| async move {
         skotiq_sequencer::executor_handle()
@@ -631,7 +636,9 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
     assert_eq!(std::fs::read(both.replace(".fits", ".CR3")).unwrap(), camera_bytes);
     // DATE is when the file was written; the pointing is whatever mount the
     // process has, read at each save.
-    let varying = ["DATE", "RA", "OBJCTRA", "DEC", "OBJCTDEC", "OBJCTALT", "AIRMASS", "EQUINOX", "RADESYS"];
+    let varying = [
+        "DATE", "RA", "OBJCTRA", "DEC", "OBJCTDEC", "OBJCTALT", "AIRMASS", "EQUINOX", "RADESYS",
+    ];
     let cards = |path: &str| -> Vec<String> {
         header_cards(path)
             .into_iter()

@@ -77,7 +77,10 @@ void main() {
         scienceBackendProvider.overrideWithValue(_StubScienceBackend()),
       ],
     );
-    handlers = ScienceHandlers(container);
+    handlers = ScienceHandlers(
+      container,
+      readHeader: (_) async => FrameHeader({'NAXIS1': 1024, 'NAXIS2': 768}),
+    );
   });
 
   tearDown(() async {

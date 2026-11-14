@@ -169,12 +169,18 @@ fn parse_demosaic_quality(quality: &str) -> Result<DebayerAlgorithm, String> {
 fn parse_bayer_pattern(pattern: &Option<String>) -> Result<Option<BayerPattern>, String> {
     match pattern.as_deref().map(str::trim) {
         None | Some("") => Ok(None),
-        Some(s) => BayerPattern::from_str(s).map(Some).ok_or_else(|| {
-            format!(
-                "Unknown Bayer pattern '{}' (expected one of: RGGB, BGGR, GRBG, GBRG)",
-                s
-            )
-        }),
+        Some(s) => skotiq_cfa::ColorFilterArray::parse(s)
+            .and_then(|cfa| match cfa {
+                skotiq_cfa::ColorFilterArray::Bayer(pattern) => Some(pattern),
+                _ => None,
+            })
+            .map(Some)
+            .ok_or_else(|| {
+                format!(
+                    "Unknown Bayer pattern '{}' (expected one of: RGGB, BGGR, GRBG, GBRG)",
+                    s
+                )
+            }),
     }
 }
 

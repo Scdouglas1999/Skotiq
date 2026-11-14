@@ -8,9 +8,10 @@ use crate::protocol::names::*;
 use crate::{CcdFrameType, IndiCamera, IndiClient, IndiError};
 use async_trait::async_trait;
 use skotiq_device::{
-    BayerPattern, CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState,
-    CameraStatus, DeviceDriver, DriverError, ExposureParams, FrameType, ImageData, ImageMetadata,
-    ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
+    CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState, CameraStatus,
+    ColorFilterArray, DeviceDriver, DriverError, ExposureParams, FrameType, ImageData,
+    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures,
+    UNKNOWN_CAMERA_SETTING,
 };
 
 impl std::fmt::Debug for IndiCamera {
@@ -94,7 +95,7 @@ impl IndiCamera {
             max_adu,
             bit_depth,
             color: cfa.is_some() || colour_word,
-            bayer_pattern: cfa.as_deref().and_then(BayerPattern::from_fits_name),
+            bayer_pattern: cfa.as_deref().and_then(ColorFilterArray::parse),
             saturation_adu: None,
         })
     }
@@ -371,7 +372,12 @@ impl CameraDriver for IndiCamera {
             client.clear_blob(&device, element, element).await;
         }
         client
-            .set_number(&device, CCD_EXPOSURE, CCD_EXPOSURE_VALUE, params.duration_secs)
+            .set_number(
+                &device,
+                CCD_EXPOSURE,
+                CCD_EXPOSURE_VALUE,
+                params.duration_secs,
+            )
             .await
             .map_err(own)
     }

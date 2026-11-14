@@ -257,7 +257,7 @@ impl AtikCamera {
                 height,
                 data,
                 self.core.sensor_info.bit_depth,
-                self.frame_bayer,
+                self.frame_bayer.map(Into::into),
             )
         }
         .into_image())

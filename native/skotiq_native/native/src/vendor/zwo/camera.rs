@@ -174,7 +174,7 @@ impl ZwoCamera {
             max_adu: raw16_container_max_adu(bit_depth),
             bit_depth,
             color,
-            bayer_pattern: color.then(|| bayer_from_asi_index(info.bayer_pattern)),
+            bayer_pattern: color.then(|| bayer_from_asi_index(info.bayer_pattern).into()),
             saturation_adu: None,
         };
     }
@@ -683,16 +683,7 @@ impl ZwoCamera {
 /// The pattern of a Bayer mosaic of even width and height after mirroring it
 /// left to right (`columns`) and/or top to bottom (`rows`).
 pub(crate) fn mirrored(pattern: BayerPattern, columns: bool, rows: bool) -> BayerPattern {
-    let mut cell: Vec<char> = pattern.fits_name().chars().collect();
-    if columns {
-        cell.swap(0, 1);
-        cell.swap(2, 3);
-    }
-    if rows {
-        cell.swap(0, 2);
-        cell.swap(1, 3);
-    }
-    BayerPattern::from_fits_name(&cell.into_iter().collect::<String>()).unwrap_or(pattern)
+    pattern.shifted(i64::from(columns), i64::from(rows))
 }
 
 /// A frame region in binned pixels, in the multiples the SDK takes.

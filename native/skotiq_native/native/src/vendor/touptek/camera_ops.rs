@@ -431,7 +431,7 @@ impl DeviceDriver for TouptekCamera {
             max_adu: max_adu_from_bit_depth(setup.bit_depth),
             bit_depth: setup.bit_depth,
             color: (self.model_flags & OGMACAM_FLAG_MONO) == 0,
-            bayer_pattern: setup.bayer_pattern,
+            bayer_pattern: setup.bayer_pattern.map(Into::into),
             saturation_adu: None,
         };
         self.bytes_per_sample = setup.bytes_per_sample;

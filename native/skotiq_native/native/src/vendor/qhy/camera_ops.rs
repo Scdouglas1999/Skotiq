@@ -52,10 +52,10 @@ impl DeviceDriver for QhyCamera {
             self.sensor_area.x,
             self.sensor_area.y,
             self.supported_bins,
-            self.core
-                .sensor_info
-                .bayer_pattern
-                .map_or_else(|| "mono".to_string(), |p| p.fits_name())
+            self.core.sensor_info.bayer_pattern.map_or_else(
+                || "mono".to_string(),
+                |p| skotiq_cfa::ColorFilterArray::from(p).letters()
+            )
         );
         Ok(())
     }
@@ -339,10 +339,14 @@ impl CameraDriver for QhyCamera {
                 data,
                 bpp,
                 frame_bayer(
-                    self.core.sensor_info.bayer_pattern,
+                    self.core
+                        .sensor_info
+                        .bayer_pattern
+                        .and_then(|cfa| cfa.bayer()),
                     self.core.bin_x,
                     self.core.subframe.as_ref(),
-                ),
+                )
+                .map(Into::into),
             )
         }
         .into_image())
@@ -414,7 +418,11 @@ impl CameraDriver for QhyCamera {
         if !self.has_thermometer {
             return Err(DriverError::NotSupported);
         }
-        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&Vendor::Qhy, DeviceKind::Camera, &self.camera_id) {
+        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(
+            &Vendor::Qhy,
+            DeviceKind::Camera,
+            &self.camera_id,
+        ) {
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
         let sdk = self.sdk().await?;

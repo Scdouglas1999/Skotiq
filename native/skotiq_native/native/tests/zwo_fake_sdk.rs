@@ -168,7 +168,7 @@ async fn a_color_subframe_starts_on_the_cell_its_bayer_pattern_names() {
     let mut color = connected(UNCOOLED_COLOR).await;
     let frame = take(&mut color, exposure(1.0, 1, Some(roi(3, 5, 21, 9)))).await;
     assert_eq!(sensor_origin(&frame), (2, 4));
-    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb));
+    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb.into()));
     let applied = frame.metadata.subframe.clone().expect("subframe recorded");
     assert_eq!((applied.start_x, applied.start_y), (2, 4));
     color.disconnect().await.unwrap();
@@ -184,7 +184,7 @@ async fn a_color_frame_names_the_pattern_the_camera_delivered() {
     let unbinned = take(&mut color, exposure(1.0, 1, None)).await;
     std::env::remove_var("FAKE_ASI_MONO_BIN");
     assert_eq!(mono_binned.bayer_pattern, None);
-    assert_eq!(unbinned.bayer_pattern, Some(BayerPattern::Rggb));
+    assert_eq!(unbinned.bayer_pattern, Some(BayerPattern::Rggb.into()));
 
     for (flip, pattern) in [
         ("1", BayerPattern::Grbg),
@@ -193,7 +193,7 @@ async fn a_color_frame_names_the_pattern_the_camera_delivered() {
     ] {
         std::env::set_var("FAKE_ASI_FLIP", flip);
         let frame = take(&mut color, exposure(1.0, 1, None)).await;
-        assert_eq!(frame.bayer_pattern, Some(pattern), "flip {flip}");
+        assert_eq!(frame.bayer_pattern, Some(pattern.into()), "flip {flip}");
     }
     std::env::remove_var("FAKE_ASI_FLIP");
     color.disconnect().await.unwrap();

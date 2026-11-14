@@ -400,6 +400,38 @@ impl<R: Read + Seek> FitsReader<R> {
         Ok(range)
     }
 
+    /// Read a rectangle of the first plane in physical file units, without
+    /// quantizing floats or decoding the rest of the image.
+    pub fn read_region(
+        &mut self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<f64>, FitsError> {
+        let shape = self
+            .shape
+            .ok_or_else(|| FitsError::InvalidFormat("No image data in FITS file".to_string()))?;
+        if x.checked_add(width).is_none_or(|end| end > shape.width)
+            || y.checked_add(height).is_none_or(|end| end > shape.height)
+        {
+            return Err(FitsError::InvalidFormat(
+                "cutout leaves the image".to_string(),
+            ));
+        }
+        let size = shape.encoding.bytes_per_sample();
+        let mut bytes = vec![0; width as usize * size];
+        let mut out = Vec::with_capacity(width as usize * height as usize);
+        for row in y..y + height {
+            let offset = (u64::from(row) * u64::from(shape.width) + u64::from(x)) * size as u64;
+            self.reader
+                .seek(SeekFrom::Start(self.data_offset + offset))?;
+            self.reader.read_exact(&mut bytes)?;
+            shape.encoding.decode_physical(&bytes, &mut out);
+        }
+        Ok(out)
+    }
+
     /// Decode rows `row..row + rows` of the first plane into `out` as 16-bit
     /// ADU (the physical value `stored · BSCALE + BZERO`, unclamped, taken
     /// from the file's range), replacing its contents. `scratch` is the

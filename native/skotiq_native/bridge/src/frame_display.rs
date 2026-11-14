@@ -31,9 +31,14 @@ pub(crate) fn color(
     height: u32,
     filter: skotiq_imaging::ColorFilterArray,
 ) -> DisplayImage {
-    let mut rgb = filter
-        .demosaic(mosaic, width, height, skotiq_imaging::DebayerAlgorithm::Bilinear)
-        .to_rgb16();
+    let mut rgb = skotiq_imaging::demosaic(
+        &filter,
+        mosaic,
+        width,
+        height,
+        skotiq_imaging::DebayerAlgorithm::Bilinear,
+    )
+    .to_rgb16();
     apply_auto_white_balance(&mut rgb);
     // A channel with no spread gets the identity curve, not a black frame.
     let (r, g, b) = skotiq_imaging::auto_stretch_rgb_with_mode(
@@ -52,7 +57,11 @@ pub(crate) fn color(
 /// A frame read from disk: in colour when its header names a colour filter
 /// and it is still the one-plane mosaic, else mono.
 pub(crate) fn for_file(image: &ImageData, header: &skotiq_imaging::FitsHeader) -> DisplayImage {
-    match (skotiq_imaging::read_color_filter_array(header), image.channels, image.as_u16()) {
+    match (
+        skotiq_imaging::read_color_filter_array(header),
+        image.channels,
+        image.as_u16(),
+    ) {
         (Some(filter), 1, Some(mosaic)) => color(&mosaic, image.width, image.height, filter),
         (_, 3, _) => {
             let rgb8 = image.to_display_u8();
@@ -63,12 +72,6 @@ pub(crate) fn for_file(image: &ImageData, header: &skotiq_imaging::FitsHeader) -
         }
         _ => mono(image),
     }
-}
-
-/// The imaging crate's name for a device-reported color filter.
-pub(crate) fn device_filter(pattern: skotiq_device::BayerPattern) -> skotiq_imaging::ColorFilterArray {
-    skotiq_imaging::ColorFilterArray::parse(&pattern.fits_name())
-        .expect("every device color filter has a BAYERPAT spelling the imaging crate reads")
 }
 
 fn histogram(values: &[u8]) -> Vec<u32> {

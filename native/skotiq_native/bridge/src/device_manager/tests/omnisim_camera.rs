@@ -235,7 +235,10 @@ async fn a_bias_is_taken_dark_at_zero_seconds() {
     let image = manager.camera_download_image(&id).await.expect("download");
     assert_eq!((image.width, image.height), (1200, 800));
     // RGGB moved one column right by BayerOffsetX = 1.
-    assert_eq!(image.bayer_pattern, Some(skotiq_device::BayerPattern::Grbg));
+    assert_eq!(
+        image.bayer_pattern,
+        Some(skotiq_device::BayerPattern::Grbg.into())
+    );
 }
 
 /// AbortExposure discards the frame; StopExposure keeps what was collected.

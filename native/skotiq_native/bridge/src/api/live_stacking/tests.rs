@@ -116,7 +116,7 @@ fn config_parses_sensor_modes_and_patterns() {
     };
     let native: LiveStackConfig = stacker_config(&cfg).expect("valid osc config parses");
     assert_eq!(native.sensor_mode, SensorMode::Osc);
-    assert_eq!(native.bayer_pattern, Some(BayerPattern::GRBG));
+    assert_eq!(native.bayer_pattern, Some(BayerPattern::Grbg));
 
     // "auto" is its own first-class mode (debayer only when a pattern
     // resolves), distinct from OSC (which requires one).
@@ -200,7 +200,7 @@ fn uniform_rggb_cfa(width: usize, height: usize) -> Vec<u16> {
     let mut pixels = vec![0u16; width * height];
     for y in 0..height {
         for x in 0..width {
-            pixels[y * width + x] = match BayerPattern::RGGB.color_at(x, y) {
+            pixels[y * width + x] = match BayerPattern::Rggb.color_at(x, y) {
                 skotiq_imaging::BayerColor::Red => 1000,
                 skotiq_imaging::BayerColor::Green => 500,
                 skotiq_imaging::BayerColor::Blue => 100,
@@ -239,7 +239,7 @@ fn osc_start_from_data_produces_three_channel_result() {
     // the ingest path debayers with no extra processing on the first frame.
     let reference_rgb = debayer_cfa_to_rgb(
         &ImageData::from_u16(IMG_W, IMG_H, 1, &cfa),
-        ColorFilterArray::Bayer(BayerPattern::RGGB),
+        ColorFilterArray::Bayer(BayerPattern::Rggb),
         DebayerAlgorithm::Bilinear,
     )
     .expect("reference debayer")
@@ -262,7 +262,7 @@ fn rggb_known_pixel_debayers_to_expected_rgb() {
     let cfa = uniform_rggb_cfa(8, 8);
     let rgb = debayer_cfa_to_rgb(
         &ImageData::from_u16(8, 8, 1, &cfa),
-        ColorFilterArray::Bayer(BayerPattern::RGGB),
+        ColorFilterArray::Bayer(BayerPattern::Rggb),
         DebayerAlgorithm::Bilinear,
     )
     .expect("debayer")

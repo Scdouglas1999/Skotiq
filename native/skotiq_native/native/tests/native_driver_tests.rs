@@ -1029,7 +1029,7 @@ mod fake_sdk_contract {
         );
         assert_eq!(
             sensor.bayer_pattern,
-            Some(skotiq_device::BayerPattern::Rggb)
+            Some(skotiq_device::BayerPattern::Rggb.into())
         );
         camera.set_gain(17).await.expect("Atik set gain");
         camera.set_offset(4).await.expect("Atik set offset");
@@ -1484,7 +1484,7 @@ mod fake_sdk_contract {
         assert!(guide_sensor.color);
         assert_eq!(
             guide_sensor.bayer_pattern,
-            Some(skotiq_device::BayerPattern::Bggr)
+            Some(skotiq_device::BayerPattern::Bggr.into())
         );
         guide
             .set_cooler(true, Some(-5.0))

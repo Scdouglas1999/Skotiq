@@ -436,7 +436,7 @@ impl CameraDriver for AlpacaCameraDriver {
             height,
             data: pixels,
             bits_per_pixel: 16,
-            bayer_pattern,
+            bayer_pattern: bayer_pattern.map(Into::into),
             metadata: ImageMetadata {
                 exposure_time,
                 gain,

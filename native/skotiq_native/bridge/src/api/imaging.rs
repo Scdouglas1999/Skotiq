@@ -1376,7 +1376,13 @@ pub async fn api_save_rgba_png_file(
     rgba: Vec<u8>,
 ) -> Result<(), SkotiqError> {
     tracing::info!("Saving RGBA PNG file: {} ({}x{})", file_path, width, height);
-    write_rgba(&file_path, width, height, rgba, skotiq_imaging::RasterFormat::Png)?;
+    write_rgba(
+        &file_path,
+        width,
+        height,
+        rgba,
+        skotiq_imaging::RasterFormat::Png,
+    )?;
     tracing::info!("RGBA PNG file saved: {}", file_path);
     Ok(())
 }
@@ -1486,34 +1492,14 @@ pub async fn api_read_frame_cutouts(
     half: u32,
 ) -> Result<Vec<f64>, SkotiqError> {
     tokio::task::spawn_blocking(move || {
-        let (image, _) = skotiq_imaging::read_frame(std::path::Path::new(&file_path))
-            .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {e}")))?;
-        if image.channels != 1 {
+        if centers_x.len() != centers_y.len() {
             return Err(SkotiqError::InvalidParameter(
-                "cutouts are taken from single-channel frames".to_string(),
+                "cutout coordinates must have the same length".to_string(),
             ));
         }
-        let (w, h, half) = (image.width as i64, image.height as i64, i64::from(half));
-        let size = image.pixel_type.byte_size();
-        let mut out = Vec::with_capacity(centers_x.len() * ((2 * half + 1) * (2 * half + 1)) as usize);
-        for (&cx, &cy) in centers_x.iter().zip(&centers_y) {
-            let (cx, cy) = (i64::from(cx), i64::from(cy));
-            if cx - half < 0 || cy - half < 0 || cx + half >= w || cy + half >= h {
-                return Err(SkotiqError::InvalidParameter(format!(
-                    "a cutout at ({cx}, {cy}) leaves the {w}x{h} image"
-                )));
-            }
-            for y in cy - half..=cy + half {
-                for x in cx - half..=cx + half {
-                    let at = ((y * w + x) as usize) * size;
-                    out.push(skotiq_imaging::samples::sample_from_le(
-                        &image.data[at..at + size],
-                        image.pixel_type,
-                    ));
-                }
-            }
-        }
-        Ok(out)
+        let centers: Vec<_> = centers_x.into_iter().zip(centers_y).collect();
+        skotiq_imaging::read_frame_cutouts(std::path::Path::new(&file_path), &centers, half)
+            .map_err(|e| SkotiqError::ImageError(format!("Failed to read image cutouts: {e}")))
     })
     .await
     .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
@@ -1740,8 +1726,15 @@ fn encode_preview_jpeg(
 ) -> Result<Vec<u8>, SkotiqError> {
     use image::ImageEncoder;
     let channels = preview.channels.max(1) as usize;
-    let scale = preview.width.max(preview.height).div_ceil(max_size.max(1)).max(1);
-    let (w, h) = ((preview.width / scale).max(1), (preview.height / scale).max(1));
+    let scale = preview
+        .width
+        .max(preview.height)
+        .div_ceil(max_size.max(1))
+        .max(1);
+    let (w, h) = (
+        (preview.width / scale).max(1),
+        (preview.height / scale).max(1),
+    );
     let mut gray = Vec::with_capacity((w * h) as usize);
     for y in 0..h {
         for x in 0..w {

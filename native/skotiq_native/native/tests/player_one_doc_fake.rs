@@ -182,7 +182,10 @@ async fn a_frame_is_one_single_shot_exposure_set_in_seconds() {
     );
     assert!((frame.metadata.exposure_time - 0.05).abs() < 1e-9);
     assert_eq!((frame.width, frame.height), (128, 96));
-    assert_eq!(frame.bayer_pattern, Some(skotiq_device::BayerPattern::Grbg));
+    assert_eq!(
+        frame.bayer_pattern,
+        Some(skotiq_device::BayerPattern::Grbg.into())
+    );
     assert_eq!(frame.data.len(), 128 * 96);
     assert_eq!(frame.data[0], 0);
     assert_eq!(frame.data[129], (1 << 8) | 1);

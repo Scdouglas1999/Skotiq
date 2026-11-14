@@ -137,7 +137,10 @@ async fn a_color_subframe_starts_on_the_bayer_cell_the_header_names() {
     let frame = take(&mut camera, exposure(0.5, 1, Some(roi))).await;
     let applied = frame.metadata.subframe.expect("subframe recorded");
     assert_eq!((applied.start_x, applied.start_y), (4, 2));
-    assert_eq!(frame.bayer_pattern, Some(skotiq_device::BayerPattern::Bggr));
+    assert_eq!(
+        frame.bayer_pattern,
+        Some(skotiq_device::BayerPattern::Bggr.into())
+    );
     camera.disconnect().await.unwrap();
 }
 

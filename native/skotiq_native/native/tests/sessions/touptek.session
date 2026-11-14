@@ -6,7 +6,7 @@ touptek.camera0.name = OGMA AP26CC (OGMA-COOLED-0001)
 touptek.camera0.vendor = Touptek
 touptek.camera0.serial_number = Some("OGMA-COOLED-0001")
 touptek.camera0.capabilities = CameraCapabilities { can_cool: true, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: true, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: false }
-touptek.camera0.get_sensor_info = SensorInfo { width: 80, height: 60, pixel_size_x: 3.759999990463257, pixel_size_y: 3.759999990463257, max_adu: 4095, bit_depth: 12, color: true, bayer_pattern: Some(Rggb), saturation_adu: None }
+touptek.camera0.get_sensor_info = SensorInfo { width: 80, height: 60, pixel_size_x: 3.759999990463257, pixel_size_y: 3.759999990463257, max_adu: 4095, bit_depth: 12, color: true, bayer_pattern: Some(Bayer(Rggb)), saturation_adu: None }
 touptek.camera0.get_gain_range = Ok((100, 5000))
 touptek.camera0.get_offset_range = Ok((0, 496))
 touptek.camera0.get_exposure_range = Ok(Some((1e-5, 3600.0)))
@@ -29,11 +29,11 @@ touptek.camera0.get_temperature = Ok(-12.5)
 touptek.camera0.get_cooler_power = Ok(50.0)
 touptek.camera0.start_exposure light bin2 = Ok(())
 touptek.camera0.exposure complete = Ok(true)
-touptek.camera0.download light bin2 = Ok 40x30 pixels=1200 fnv1a=cd1641e41fa240cd bits_per_pixel=12 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.00999, gain: 100, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-12.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+touptek.camera0.download light bin2 = Ok 40x30 pixels=1200 fnv1a=cd1641e41fa240cd bits_per_pixel=12 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.00999, gain: 100, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-12.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 touptek.camera0.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-12.5), cooler_power: Some(50.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 100, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
 touptek.camera0.start_exposure dark bin1 subframe = Ok(())
 touptek.camera0.exposure complete = Ok(true)
-touptek.camera0.download dark subframe = Ok 16x16 pixels=256 fnv1a=95844b23c19a162d bits_per_pixel=12 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.00999, gain: 100, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-12.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 16 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+touptek.camera0.download dark subframe = Ok 16x16 pixels=256 fnv1a=95844b23c19a162d bits_per_pixel=12 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.00999, gain: 100, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-12.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 16 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 touptek.camera0.start_exposure invalid bin = Err(SdkError("Could not bin 99x99 (at most 4x4) on OGMA AP26CC (OGMA-COOLED-0001): the camera refused the value (SDK code 0x80070057)"))
 touptek.camera0.start_exposure long = Ok(())
 touptek.camera0.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-12.5), cooler_power: Some(50.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 100, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true

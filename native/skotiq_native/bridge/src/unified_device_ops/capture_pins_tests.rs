@@ -21,7 +21,7 @@ use skotiq_sequencer::ImageData;
 struct FixedFrameCamera {
     id: String,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<BayerPattern>,
+    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
 }
 
 #[async_trait::async_trait]
@@ -219,7 +219,7 @@ fn full_sensor_frame() -> (u32, u32, Vec<u16>) {
 async fn connect_fixed_camera(
     device_id: &str,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<BayerPattern>,
+    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
 ) {
     let mgr = get_device_manager();
     mgr.register_device(
@@ -361,7 +361,7 @@ async fn a_mono_frame_publishes_the_same_measurements_from_either_entry_point() 
 async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point() {
     let frame = Arc::new(rig_crop());
     let device_id = "native:pin_color";
-    connect_fixed_camera(device_id, frame, Some(BayerPattern::Grbg)).await;
+    connect_fixed_camera(device_id, frame, Some(BayerPattern::Grbg.into())).await;
 
     manual_capture(device_id).await;
     let manual = stored_frame_digest(device_id).await;
@@ -375,7 +375,7 @@ async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point()
     ]);
     assert_eq!(
         (returned.sensor_type.as_deref(), returned.color_filter),
-        (Some("Color"), Some(BayerPattern::Grbg))
+        (Some("Color"), Some(BayerPattern::Grbg.into()))
     );
 }
 
@@ -429,7 +429,7 @@ async fn capture_time_per_full_frame() {
     let frame = Arc::new(full_sensor_frame());
     for (device_id, bayer) in [
         ("native:timing_mono", None),
-        ("native:timing_color", Some(BayerPattern::Rggb)),
+        ("native:timing_color", Some(BayerPattern::Rggb.into())),
     ] {
         connect_fixed_camera(device_id, frame.clone(), bayer).await;
         let mut manual = Vec::new();

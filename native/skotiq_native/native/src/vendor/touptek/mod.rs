@@ -10,9 +10,10 @@ use crate::camera_core::{CameraCore, SdkHandle};
 use crate::vendor::sdk_loader::{SdkLock, SdkLockHeld, SdkUnavailable};
 use async_trait::async_trait;
 use libloading::Library;
+use skotiq_cfa::BayerPattern;
 use skotiq_device::camera::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError};

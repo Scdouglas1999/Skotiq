@@ -12,8 +12,9 @@
 #[path = "fake_sdk_linux/harness.rs"]
 mod harness;
 
+use skotiq_cfa::ColorFilterArray;
 use skotiq_device::{
-    BayerPattern, CameraDriver, CameraState, DeviceDriver, ExposureParams, FrameType, ImageData,
+    CameraDriver, CameraState, DeviceDriver, ExposureParams, FrameType, ImageData,
 };
 use skotiq_native::vendor::gphoto2::{detect_gphoto2_cameras, GPhoto2Camera};
 use std::ffi::{c_char, c_int, CStr, CString};
@@ -543,12 +544,18 @@ async fn a_fujifilm_xt5_takes_timed_and_bulb_frames() {
     assert_eq!(made[0], "timed 0.004");
     assert!((bulb_seconds(&made[1]) - 1.5).abs() < 0.2, "{made:?}");
     assert_eq!(fake.value(FUJI_PORT, "imagequality"), "RAW");
-    assert!(matches!(frame.bayer_pattern, Some(BayerPattern::XTrans(_))));
+    assert!(matches!(
+        frame.bayer_pattern,
+        Some(ColorFilterArray::XTrans(_))
+    ));
     let info = fuji.get_sensor_info();
     assert_eq!(
         (info.width, info.height),
         (frame.width, frame.height),
         "the frame's own size"
     );
-    assert!(matches!(info.bayer_pattern, Some(BayerPattern::XTrans(_))));
+    assert!(matches!(
+        info.bayer_pattern,
+        Some(ColorFilterArray::XTrans(_))
+    ));
 }

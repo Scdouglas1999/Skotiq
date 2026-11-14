@@ -19,7 +19,7 @@ pub struct ImageData {
     /// Sensor type: "Monochrome" or "Color"
     pub sensor_type: Option<String>,
     /// The color filter at the frame's pixel (0, 0); `None` for a mono frame.
-    pub color_filter: Option<skotiq_device::BayerPattern>,
+    pub color_filter: Option<skotiq_cfa::ColorFilterArray>,
     /// The camera's own file for this frame (a DSLR's raw file), when it
     /// delivered one.
     pub camera_file: Option<skotiq_device::CameraFile>,
@@ -33,11 +33,8 @@ impl ImageData {
     /// a mono frame and for X-Trans, which they show as luminance.
     pub fn bayer_cell(&self) -> Option<skotiq_imaging::BayerPattern> {
         match self.color_filter? {
-            skotiq_device::BayerPattern::Rggb => Some(skotiq_imaging::BayerPattern::RGGB),
-            skotiq_device::BayerPattern::Grbg => Some(skotiq_imaging::BayerPattern::GRBG),
-            skotiq_device::BayerPattern::Gbrg => Some(skotiq_imaging::BayerPattern::GBRG),
-            skotiq_device::BayerPattern::Bggr => Some(skotiq_imaging::BayerPattern::BGGR),
-            skotiq_device::BayerPattern::XTrans(_) => None,
+            skotiq_cfa::ColorFilterArray::Bayer(pattern) => Some(pattern),
+            skotiq_cfa::ColorFilterArray::XTrans(_) => None,
         }
     }
 }

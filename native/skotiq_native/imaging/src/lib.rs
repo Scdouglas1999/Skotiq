@@ -25,6 +25,8 @@ mod debayer;
 mod fits;
 pub mod fits_layout;
 pub mod fits_reader;
+mod frame_cutouts;
+mod frame_io;
 mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
@@ -33,21 +35,20 @@ pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
 mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
-mod frame_io;
+mod raster;
 mod raw;
 mod raw_exif;
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
-mod raster;
 mod resample;
 mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
+pub mod sample_range;
 pub mod samples;
 pub mod sky_atlas; // NEW: HEALPix-tiled additive all-sky accumulator (the 5.0 keystone)
 pub mod stack_master; // NEW: the live stack's FITS master (synthesized EXPTIME/DATE-OBS)
 pub mod stacking;
 mod star_detect; // Star detection: background/noise maps, matched filter, deblending
 pub mod star_reduction; // NEW: Star-size reduction (morphological + screen recombine)
-pub mod sample_range;
 mod stats;
 mod stretch;
 mod thumbnail;
@@ -66,6 +67,8 @@ pub use detection_plane::{ChannelCollapse, DetectionPlane, Quantize};
 pub use difference_image::*; // NEW: Export difference-imaging (First Light) types
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;
+pub use frame_cutouts::read_frame_cutouts;
+pub use frame_io::*;
 pub use frame_shape::*;
 pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
@@ -73,13 +76,13 @@ pub use master_accumulation::*; // NEW: Export accumulating-master types
 pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
 pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
-pub use frame_io::*;
 pub use raster::{write_raster, RasterError, RasterFormat, DEFAULT_JPEG_QUALITY};
 pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
 pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
 pub use sample_range::{SampleRange, ADU_FULL_SCALE};
+pub use skotiq_cfa::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
 pub use stats::*;
@@ -349,7 +352,10 @@ mod tests {
     fn read_image_exposes_the_color_filter_of_cfa_fits() {
         let fixture = write_temp_fits("rggb", Some(("RGGB", 0, 0)));
         let result = read_image(&fixture.path).expect("read_image should succeed for CFA FITS");
-        assert_eq!(result.cfa, Some(ColorFilterArray::Bayer(BayerPattern::RGGB)));
+        assert_eq!(
+            result.cfa,
+            Some(ColorFilterArray::Bayer(BayerPattern::Rggb))
+        );
     }
 
     #[test]
@@ -357,7 +363,10 @@ mod tests {
         // An odd X offset makes an RGGB sensor read GRBG at the crop's origin.
         let fixture = write_temp_fits("rggb_xoff", Some(("RGGB", 1, 0)));
         let result = read_image(&fixture.path).expect("read_image should succeed");
-        assert_eq!(result.cfa, Some(ColorFilterArray::Bayer(BayerPattern::GRBG)));
+        assert_eq!(
+            result.cfa,
+            Some(ColorFilterArray::Bayer(BayerPattern::Grbg))
+        );
     }
 
     #[test]

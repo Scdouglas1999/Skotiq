@@ -36,14 +36,14 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomCamera;
+use skotiq_cfa::ColorFilterArray;
 use skotiq_device::ascom::camera::{
     cooler_setpoint_to_write, exposes_to_light, readout_mode_name, CameraControl, CameraControls,
     Probe,
 };
 use skotiq_device::{
-    BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,
-    DriverError, ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor,
-    VendorFeatures,
+    CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
+    ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures,
 };
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -168,23 +168,6 @@ fn cooler_power_supported(
     }
 }
 
-/// The FITS `BAYERPAT` spelling of the element order named by ASCOM
-/// `SensorType` plus the `BayerOffsetX`/`BayerOffsetY` pair.
-///
-/// The mapping itself lives in [`crate::ascom_sensor_type`], shared with the
-/// Alpaca download path so both ASCOM transports read the same enum the same
-/// way; this adapter only renders it as the `String` the capabilities struct
-/// carries. `None` means the pattern is unknown, which leaves the frame
-/// undebayered rather than debayered wrongly.
-fn bayer_pattern_from_sensor(
-    sensor_type: i32,
-    offset_x: Option<i32>,
-    offset_y: Option<i32>,
-) -> Option<String> {
-    skotiq_device::ascom::sensor_type::bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
-        .map(|pattern| pattern.fits_name())
-}
-
 /// The frame the camera holds, with what it says about it.
 ///
 /// `ImageArray` is `[NumX][NumY]` and a SAFEARRAY stores its first dimension
@@ -196,7 +179,7 @@ fn bayer_pattern_from_sensor(
 fn download_frame(
     cam: &AscomCamera,
     controls: &CameraControls,
-    bayer_pattern: Option<BayerPattern>,
+    bayer_pattern: Option<ColorFilterArray>,
     commanded_secs: Option<f64>,
 ) -> Result<ImageData, DriverError> {
     use skotiq_device::UNKNOWN_CAMERA_SETTING;
@@ -277,7 +260,7 @@ pub struct AscomCameraCapabilities {
     pub pixel_size_x: Option<f64>,
     pub pixel_size_y: Option<f64>,
     pub is_color: bool,
-    pub bayer_pattern: Option<String>,
+    pub bayer_pattern: Option<ColorFilterArray>,
     pub sensor_name: Option<String>,
     pub readout_modes: Vec<String>,
 }
@@ -341,7 +324,7 @@ impl AscomCameraWrapper {
             // How the camera offers gain and offset, and its Bayer pattern: read
             // with the capabilities at connect, used by every later command.
             let mut controls = CameraControls::default();
-            let mut bayer_pattern: Option<BayerPattern> = None;
+            let mut bayer_pattern: Option<ColorFilterArray> = None;
             // Why: ASCOM has no "last commanded exposure duration" property.
             // We capture it at StartExposure time so that GetStatus can convert
             // `PercentCompleted` (0..100) into a wall-clock seconds-remaining
@@ -543,11 +526,13 @@ impl AscomCameraWrapper {
                             let is_color =
                                 skotiq_device::ascom::sensor_type::is_colour_sensor(sensor_type);
 
-                            let bayer_pattern_text = bayer_pattern_from_sensor(
-                                sensor_type,
-                                sensor_config.bayer_offset_x,
-                                sensor_config.bayer_offset_y,
-                            );
+                            bayer_pattern =
+                                skotiq_device::ascom::sensor_type::bayer_pattern_from_sensor(
+                                    sensor_type,
+                                    sensor_config.bayer_offset_x,
+                                    sensor_config.bayer_offset_y,
+                                )
+                                .map(ColorFilterArray::from);
 
                             // A colour sensor with no nameable Bayer order is left
                             // undebayered and writes no BAYERPAT card — correct for the
@@ -587,10 +572,6 @@ impl AscomCameraWrapper {
                                     probe(cam.offset_max()),
                                 ),
                             };
-                            bayer_pattern = AscomCameraWrapper::map_bayer_pattern(
-                                bayer_pattern_text.as_deref(),
-                            );
-
                             // Try-once-cache the CanGetCoolerPower probe.
                             let can_get_cooler_power =
                                 cooler_power_supported(&mut cooler_power_cache, || {
@@ -622,7 +603,7 @@ impl AscomCameraWrapper {
                                 pixel_size_x: sensor_config.pixel_size_x,
                                 pixel_size_y: sensor_config.pixel_size_y,
                                 is_color,
-                                bayer_pattern: bayer_pattern_text,
+                                bayer_pattern,
                                 sensor_name: cam.sensor_name().ok(),
                                 readout_modes,
                             };
@@ -949,16 +930,6 @@ impl AscomCameraWrapper {
         })
     }
 
-    fn map_bayer_pattern(pattern: Option<&str>) -> Option<BayerPattern> {
-        match pattern {
-            Some("RGGB") => Some(BayerPattern::Rggb),
-            Some("GRBG") => Some(BayerPattern::Grbg),
-            Some("GBRG") => Some(BayerPattern::Gbrg),
-            Some("BGGR") => Some(BayerPattern::Bggr),
-            _ => None,
-        }
-    }
-
     fn map_camera_capabilities(caps: &AscomCameraCapabilities) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: caps.can_set_ccd_temperature,
@@ -993,7 +964,7 @@ impl AscomCameraWrapper {
             max_adu,
             bit_depth,
             color: caps.is_color,
-            bayer_pattern: Self::map_bayer_pattern(caps.bayer_pattern.as_deref()),
+            bayer_pattern: caps.bayer_pattern,
             saturation_adu: None,
         }
     }
@@ -1569,92 +1540,6 @@ mod tests {
         assert!(supported_again);
         assert_eq!(cache, Some(true));
         assert_eq!(probe_count.load(Ordering::SeqCst), 2);
-    }
-
-    /// The Bayer element order comes from the offset pair, never from the
-    /// SensorType family tag alone.
-    #[test]
-    fn test_bayer_pattern_from_sensor_reads_offsets() {
-        assert_eq!(
-            bayer_pattern_from_sensor(2, Some(0), Some(0)),
-            Some("RGGB".to_string())
-        );
-        assert_eq!(
-            bayer_pattern_from_sensor(2, Some(1), Some(0)),
-            Some("GRBG".to_string())
-        );
-        assert_eq!(
-            bayer_pattern_from_sensor(2, Some(0), Some(1)),
-            Some("GBRG".to_string())
-        );
-        assert_eq!(
-            bayer_pattern_from_sensor(2, Some(1), Some(1)),
-            Some("BGGR".to_string())
-        );
-    }
-
-    /// A BGGR sensor must not be reported as RGGB: red and blue would be
-    /// transposed in every debayered frame and the wrong BAYERPAT written to
-    /// the FITS header.
-    #[test]
-    fn test_bayer_pattern_from_sensor_does_not_assume_rggb() {
-        assert_eq!(
-            bayer_pattern_from_sensor(2, Some(1), Some(1)).as_deref(),
-            Some("BGGR"),
-            "the offset pair, not the SensorType ordinal, names the element order"
-        );
-    }
-
-    /// Anything the offsets cannot pin down is unknown, so the frame is left
-    /// undebayered rather than debayered with a guess.
-    #[test]
-    fn test_bayer_pattern_from_sensor_unknown_cases() {
-        // Offsets unreadable on an RGGB-family sensor.
-        assert_eq!(bayer_pattern_from_sensor(2, None, Some(0)), None);
-        assert_eq!(bayer_pattern_from_sensor(2, Some(0), None), None);
-        assert_eq!(bayer_pattern_from_sensor(2, None, None), None);
-        // Offsets outside the 2x2 grid.
-        assert_eq!(bayer_pattern_from_sensor(2, Some(2), Some(0)), None);
-        assert_eq!(bayer_pattern_from_sensor(2, Some(-1), Some(1)), None);
-        // Monochrome and direct-colour sensors carry no Bayer mask.
-        assert_eq!(bayer_pattern_from_sensor(0, Some(0), Some(0)), None);
-        assert_eq!(bayer_pattern_from_sensor(1, Some(0), Some(0)), None);
-        // CMYG / CMYG2 / LRGB have no RGGB-style element order to name.
-        assert_eq!(bayer_pattern_from_sensor(3, Some(0), Some(0)), None);
-        assert_eq!(bayer_pattern_from_sensor(4, Some(0), Some(0)), None);
-        assert_eq!(bayer_pattern_from_sensor(5, Some(0), Some(0)), None);
-        // An unreadable SensorType names no family.
-        assert_eq!(bayer_pattern_from_sensor(-1, Some(0), Some(0)), None);
-    }
-
-    /// Colour and Bayer order are independent answers: SensorType 1..=5 all
-    /// mark the sensor colour, but only the RGGB family names a BAYERPAT.
-    #[test]
-    fn test_colour_sensors_without_a_nameable_bayer_order() {
-        for sensor_type in [1, 3, 4, 5] {
-            assert!(
-                skotiq_device::ascom::sensor_type::is_colour_sensor(sensor_type),
-                "SensorType={sensor_type} is a colour variant"
-            );
-            assert_eq!(
-                bayer_pattern_from_sensor(sensor_type, Some(0), Some(0)),
-                None,
-                "SensorType={sensor_type} is colour without a BAYERPAT card"
-            );
-        }
-    }
-
-    /// Only the four patterns `map_bayer_pattern` accepts may be produced;
-    /// anything else would be discarded downstream and read as mono.
-    #[test]
-    fn test_bayer_pattern_from_sensor_round_trips_to_native() {
-        for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-            let pattern = bayer_pattern_from_sensor(2, Some(x), Some(y));
-            assert!(
-                AscomCameraWrapper::map_bayer_pattern(pattern.as_deref()).is_some(),
-                "offsets ({x}, {y}) produced {pattern:?}, which the native mapping drops"
-            );
-        }
     }
 
     /// PercentCompleted (0..100) translates into a wall-clock

@@ -748,7 +748,7 @@ fn the_bayer_cell_follows_the_flags_the_row_direction_and_the_region_origin() {
         let image = expose(&mut camera, &api, &params(0.001, 1, region));
         assert_eq!(
             image.bayer_pattern,
-            Some(cell),
+            Some(cell.into()),
             "{library:?} x_odd {x_odd} y_odd {y_odd} region {region:?}"
         );
     }

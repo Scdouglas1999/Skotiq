@@ -143,7 +143,7 @@ mod scenario {
         );
 
         let sensor = camera.get_sensor_info();
-        assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Rggb));
+        assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Rggb.into()));
         assert_eq!((sensor.bit_depth, sensor.max_adu), (14, 65532));
         assert_eq!(
             camera.get_exposure_range().await.unwrap(),

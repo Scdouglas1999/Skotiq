@@ -741,7 +741,7 @@ fn a_color_frame_names_the_cell_at_its_own_first_pixel() {
     // delivered row 53, an odd row.
     assert_eq!(
         camera.core.sensor_info.bayer_pattern,
-        Some(BayerPattern::Gbrg)
+        Some(BayerPattern::Gbrg.into())
     );
 
     camera
@@ -752,7 +752,7 @@ fn a_color_frame_names_the_cell_at_its_own_first_pixel() {
         .unwrap();
     let frame = camera.read_frame(&sdk).unwrap();
     // Column 1 and sensor row 53 - 2 = 51 of the delivered frame.
-    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Bggr));
+    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Bggr.into()));
     // Mirrored: the first row handed on is the last row delivered.
     assert_eq!(&frame.data[..3], &[300, 301, 302]);
 
@@ -773,7 +773,7 @@ fn the_cxusb_driver_reads_top_row_first_with_its_own_result_codes() {
     assert_eq!(camera.serial_number().as_deref(), Some("3061-0042"));
     assert_eq!(
         camera.core.sensor_info.bayer_pattern,
-        Some(BayerPattern::Rggb)
+        Some(BayerPattern::Rggb.into())
     );
 
     camera
@@ -784,7 +784,7 @@ fn the_cxusb_driver_reads_top_row_first_with_its_own_result_codes() {
         .unwrap();
     assert_eq!(calls(), ["set_binning(1,1)", "start(1,shutter=1,1,2,8,4)"]);
     let frame = camera.read_frame(&sdk).unwrap();
-    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Grbg));
+    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Grbg.into()));
     assert_eq!(&frame.data[..3], &[0, 1, 2]);
     assert_eq!(calls(), ["read_image(64)"]);
 }

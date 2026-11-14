@@ -271,7 +271,7 @@ impl SvbonyCamera {
             bit_depth,
             color: is_color,
             bayer_pattern: (is_color && self.image_type.is_mosaic())
-                .then(|| bayer_from_asi_index(prop.bayer_pattern)),
+                .then(|| bayer_from_asi_index(prop.bayer_pattern).into()),
             saturation_adu: None,
         };
 
