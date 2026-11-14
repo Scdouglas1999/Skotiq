@@ -48,7 +48,15 @@ used to build each desktop archive.
 - 8 GB RAM minimum; 16 GB recommended
 - OpenGL 3.3-capable GPU
 - GTK 3, libsecret, libusb, libudev, and OpenSSL runtime libraries
+- OpenGL, EGL, and GLES runtime libraries. For Debian/Ubuntu headless or Xvfb
+  installations, install `libgl1 libegl1 libgles2 libgl1-mesa-dri` for Mesa
+  software rendering; Flutter loads GLES even in headless mode.
 - A reachable INDI server for INDI equipment control
+
+Debian Bookworm builds bundle LibRaw but still use its system dependencies:
+`libjpeg62-turbo` (`libjpeg.so.62`), `liblcms2-2`, `libgomp1`, and the standard
+GCC/C++ runtime libraries. A newer glibc alone does not make that bundle
+compatible with a distribution that provides a different JPEG ABI.
 
 Vendor-native USB devices may require
 vendor udev rules, libraries, and group membership.
