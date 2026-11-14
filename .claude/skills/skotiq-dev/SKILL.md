@@ -247,9 +247,10 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
   (`docs/no-fake-hardware-policy.md`).
 - Generated files (`*.g.dart`, `*.freezed.dart`, `frb_generated.*`, `packages/skotiq_bridge/lib/src/`)
   are regenerated, never edited. FRB: `./scripts/dev.sh` (sets the CPATH codegen needs).
-- Do not run `dart format` on `packages/skotiq_app` files: that package declares SDK 3.0 and is in
-  the older format style, so a format pass rewrites the whole file. Match the style by hand. Other
-  packages are in the current style and can be formatted.
+- For routine edits in `packages/skotiq_app`, match the surrounding style and avoid unrelated
+  formatting churn. During release preparation, use the CI-pinned Flutter/Dart formatter to
+  satisfy the workspace format gate; keep mechanical formatting in a separate commit and
+  review it without whitespace changes. Keep the package's declared SDK constraint unchanged.
 - Unreferenced code may be a built feature that was never wired in: judge before deleting, and keep a
   distinct user capability.
 - Writing: American English everywhere. Plain prose in comments, UI text, commits and notes: no
