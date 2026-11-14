@@ -197,6 +197,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
       // pixels — but reaching it needs a bigger width/height on the request
       // itself, not this flag.
       return TileLayer(
+        tileDisplay: const TileDisplay.instantaneous(),
         wmsOptions: WMSTileLayerOptions(
           baseUrl: frame.tileUrlTemplate,
           layers: frame.wmsLayers != null ? [frame.wmsLayers!] : [],
@@ -232,6 +233,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     } else {
       // Standard XYZ tile layer for RainViewer and similar services
       return TileLayer(
+        tileDisplay: const TileDisplay.instantaneous(),
         urlTemplate: frame.tileUrlTemplate,
         // RainViewer only serves native tiles through zoom 7. Keep the map
         // itself zoomable and let flutter_map scale the zoom-7 radar tiles
@@ -294,6 +296,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
         // nothing to report. Esri's dark-gray canvas is keyless, is the dark
         // ground this screen was designed against, and is attributed below.
         TileLayer(
+          tileDisplay: const TileDisplay.instantaneous(),
           urlTemplate:
               'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/'
               'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
@@ -362,6 +365,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
         // readable at any radar opacity, which is the way weather maps
         // conventionally stack.
         TileLayer(
+          tileDisplay: const TileDisplay.instantaneous(),
           urlTemplate:
               'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/'
               'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
@@ -443,6 +447,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
           right: SkotiqTokens.space2xl,
           bottom: SkotiqTokens.spaceLg,
           child: Glass(
+            blurBackground: false,
             padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -483,6 +488,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
             left: SkotiqTokens.space2xl,
             top: SkotiqTokens.spaceLg,
             child: Glass(
+              blurBackground: false,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

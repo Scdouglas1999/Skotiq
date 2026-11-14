@@ -310,7 +310,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                       left: SkotiqTokens.spaceMd,
                       right: SkotiqTokens.spaceMd,
                       bottom: SkotiqTokens.spaceMd,
-                      child: Glass(child: controlBar),
+                      child: Glass(blurBackground: false, child: controlBar),
                     ),
                   ],
                 ),
@@ -339,7 +339,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
               right: SkotiqTokens.space2xl,
               child: SizedBox(
                 width: _conditionsHudWidth,
-                child: Glass(child: conditions),
+                child: Glass(blurBackground: false, child: conditions),
               ),
             ),
             Positioned(
@@ -349,7 +349,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                   WeatherRadarMapMetrics.zoomGroupWidth +
                   SkotiqTokens.spaceMd,
               bottom: SkotiqTokens.spaceLg,
-              child: Glass(child: controlBar),
+              child: Glass(blurBackground: false, child: controlBar),
             ),
           ],
         );

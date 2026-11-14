@@ -7,7 +7,7 @@ import '../theme/skotiq_theme.dart';
 import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_tokens.dart';
 
-/// A translucent blurred panel used ONLY over imagery.
+/// A translucent panel used ONLY over imagery, with optional background blur.
 ///
 /// The image surface stays dark while controls retain the selected accent.
 /// Red-night mode preserves its wavelength-restricted palette.
@@ -16,13 +16,22 @@ import '../theme/skotiq_tokens.dart';
 /// top-left frame stats, top-right last-frame status, bottom-left secondary,
 /// bottom-right histogram, bottom-centre the capture bar.
 class Glass extends StatelessWidget {
-  const Glass({super.key, required this.child, this.padding = defaultPadding});
+  const Glass({
+    super.key,
+    required this.child,
+    this.padding = defaultPadding,
+    this.blurBackground = true,
+  });
 
   /// The HUD content — a [ReadoutRow], a histogram, a status line, the capture
   /// bar.
   final Widget child;
 
   final EdgeInsets padding;
+
+  /// Disable over frequently moving imagery to retain tint and contrast without
+  /// filtering the changing background on every frame.
+  final bool blurBackground;
 
   /// The default HUD padding (`observatory.css` glass blocks: `8 12`).
   static const EdgeInsets defaultPadding = EdgeInsets.symmetric(
@@ -36,6 +45,11 @@ class Glass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    final panel = Container(
+      padding: padding,
+      decoration: SkotiqDecorations.glass(colors),
+      child: SkotiqImageSurface(child: child),
+    );
     // The RepaintBoundary is OUTSIDE everything that could gate an animation.
     // A boundary placed INSIDE an animation gate silently stops the animation
     // and reads as a free performance win; the order here is the fix, not an
@@ -43,14 +57,15 @@ class Glass extends StatelessWidget {
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: SkotiqTokens.borderRadiusLg,
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-          child: Container(
-            padding: padding,
-            decoration: SkotiqDecorations.glass(colors),
-            child: SkotiqImageSurface(child: child),
-          ),
-        ),
+        child: blurBackground
+            ? BackdropFilter(
+                filter: ui.ImageFilter.blur(
+                  sigmaX: blurSigma,
+                  sigmaY: blurSigma,
+                ),
+                child: panel,
+              )
+            : panel,
       ),
     );
   }
