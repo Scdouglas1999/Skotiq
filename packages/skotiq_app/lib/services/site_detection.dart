@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -23,6 +24,10 @@ typedef SiteLocator = Future<PositioningAttempt> Function({
 final siteLocatorProvider = Provider<SiteLocator>(
   (ref) => GeolocationService.locate,
 );
+
+/// Leaves room for every positioning tier and restoring a radio enabled for
+/// this attempt, while keeping a stalled platform call from trapping the UI.
+const siteDetectionTimeout = Duration(seconds: 30);
 
 /// How far a fix may sit from the stored site before the stored elevation is
 /// taken to belong to a different place. An internet estimate is accurate to
@@ -94,12 +99,20 @@ Future<SiteDetection?> detectSite(
 
   final host = ref.backendScope(alive: () => context.mounted);
   onLookingUp?.call();
-  final attempt = await ref.read(siteLocatorProvider)(
-    allowWifiScan: true,
-    allowIp: true,
-    mayEnableWifiRadio: mayEnableWifiRadio,
-    googleApiKey: googleKey.isEmpty ? null : googleKey,
-  );
+  final attempt = await ref
+      .read(siteLocatorProvider)(
+        allowWifiScan: true,
+        allowIp: true,
+        mayEnableWifiRadio: mayEnableWifiRadio,
+        googleApiKey: googleKey.isEmpty ? null : googleKey,
+      )
+      .timeout(
+        siteDetectionTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Location detection timed out. Try again, search for a place, '
+          'or enter coordinates.',
+        ),
+      );
   if (host.isStale) return null;
   final fix = attempt.fix;
   if (fix == null) return SiteNotFound(attempt);

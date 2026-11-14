@@ -6,6 +6,7 @@ import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
 import '../screens/night_control/data/plan/scheduler_provider.dart';
 import '../services/run_dashboard_providers.dart';
 import 'location_sync_service.dart';
+import 'initial_location_service.dart';
 
 /// What this process is, decided once at launch.
 enum AppRole {
@@ -358,6 +359,12 @@ final List<AlwaysOnService> alwaysOnServices = [
     _everyRole,
     "the planetarium and the host's native site following the site in "
         'Settings',
+  ),
+  AlwaysOnService(
+    'initial location',
+    initialLocationProvider,
+    _hosts,
+    'an unset observing site receives a background internet estimate at startup',
   ),
   AlwaysOnService(
     'planetarium altitude floor',

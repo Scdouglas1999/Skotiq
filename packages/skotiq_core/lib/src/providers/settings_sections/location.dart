@@ -12,7 +12,86 @@
 //     `environment.dart` (those are sky-quality, not location).
 part of '../settings_provider.dart';
 
+class _InitialLocationCancelled implements Exception {
+  const _InitialLocationCancelled();
+}
+
 extension LocationSettingsSection on AppSettingsNotifier {
+  /// Includes edits that have not reached the database yet.
+  int get locationEditRevision => _locationEditRevision;
+
+  /// A partially typed coordinate takes precedence over a startup lookup.
+  void noteLocationEdit() => _locationEditRevision++;
+
+  void _recordLocationEdit(Iterable<String> keys) {
+    if (keys.any(
+      (key) =>
+          key == AppSettingDefs.latitude.key ||
+          key == AppSettingDefs.longitude.key ||
+          key == AppSettingDefs.elevation.key,
+    )) {
+      noteLocationEdit();
+    }
+  }
+
+  /// Apply a startup estimate only while the original host remains unset and
+  /// untouched. The check shares the settings write queue, so an edit waiting
+  /// on persistence cannot be overwritten by a late lookup.
+  Future<bool> initializeLocation({
+    required double latitude,
+    required double longitude,
+    required int expectedRevision,
+    required bool Function() isCurrent,
+  }) async {
+    final backend = ref.read(backendProvider);
+    final generation = _backendGeneration;
+    final dao = ref.read(settingsDaoProvider);
+    var applied = false;
+    await _serializeSettingsWrite(
+      'initial observing location',
+      generation,
+      () async {
+        if (!isCurrent() ||
+            !backend.runsRigHere ||
+            ref.backendScopeOver(backend).isStale ||
+            ref.scopeOver(settingsDaoProvider, dao).isStale ||
+            _locationEditRevision != expectedRevision)
+          return;
+        final current = _requireLoadedSettings('setting the initial location');
+        if (current.hasObserverLocation) return;
+        try {
+          await dao.transaction(() async {
+            await dao.setSettings({
+              AppSettingDefs.latitude.key: latitude.toString(),
+              AppSettingDefs.longitude.key: longitude.toString(),
+            });
+            if (!isCurrent() ||
+                generation != _backendGeneration ||
+                _locationEditRevision != expectedRevision ||
+                ref.backendScopeOver(backend).isStale ||
+                ref.scopeOver(settingsDaoProvider, dao).isStale) {
+              // Roll back both rows when typing or a host switch overtakes
+              // the database write, rather than only hiding its result.
+              throw const _InitialLocationCancelled();
+            }
+          });
+        } on _InitialLocationCancelled {
+          return;
+        }
+        if (!isCurrent() ||
+            generation != _backendGeneration ||
+            ref.backendScopeOver(backend).isStale ||
+            ref.scopeOver(settingsDaoProvider, dao).isStale)
+          return;
+        _patchState(
+          (value) => value.copyWith(latitude: latitude, longitude: longitude),
+        );
+        applied = true;
+      },
+    );
+    return applied;
+  }
+
   // The planetarium follows these through the settings screen, not here.
   Future<void> setLatitude(double value) =>
       _set(AppSettingDefs.latitude, value);

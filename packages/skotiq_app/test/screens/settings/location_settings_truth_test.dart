@@ -13,6 +13,8 @@
 //   3. The Timezone picker must only offer values `clockProvider` can parse
 //      (`UTC` / `UTC±HH:MM`); anything else silently falls back to the system
 //      clock and the picker changes nothing at all.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +87,31 @@ void main() {
       longitude: -122.3321,
       elevation: 1234,
     );
+
+    testWidgets('editing a coordinate cancels startup detection before saving',
+        (tester) async {
+      final handle = await _pumpLocation(
+        tester,
+        settings: const AppSettingsState(),
+      );
+      final notifier = handle.container.read(appSettingsProvider.notifier);
+      for (final row in ['latitude', 'longitude', 'elevation']) {
+        final before = notifier.locationEditRevision;
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey('site-$row-row')),
+            matching: find.byType(TextField),
+          ),
+          '-',
+        );
+        await tester.pump();
+        expect(notifier.locationEditRevision, greaterThan(before),
+            reason: '$row input is not ready to commit yet');
+      }
+      final settings = handle.container.read(appSettingsProvider).value!;
+      expect((settings.latitude, settings.longitude, settings.elevation),
+          (0.0, 0.0, 0.0));
+    });
 
     SiteLocator answering(PositioningAttempt attempt) => ({
           required bool allowWifiScan,
@@ -383,6 +410,60 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('a stalled lookup ends loading and allows a retry',
+        (tester) async {
+      final pending = Completer<PositioningAttempt>();
+      var calls = 0;
+      final handle = await _pumpLocation(
+        tester,
+        settings: seattle,
+        locator: ({
+          required bool allowWifiScan,
+          required bool allowIp,
+          bool mayEnableWifiRadio = false,
+          String? googleApiKey,
+        }) {
+          calls++;
+          return calls == 1 ? pending.future : Future.value(wifiFix);
+        },
+      );
+      final detect = find.widgetWithText(SkotiqButton, 'Detect');
+      await tester.tap(detect);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Detect location'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(tester.widget<SkotiqButton>(detect).isLoading, isTrue);
+
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pump();
+      expect(tester.widget<SkotiqButton>(detect).isLoading, isFalse);
+      expect(tester.widget<SkotiqButton>(detect).onPressed, isNotNull);
+      expect(
+          find.textContaining('Location detection timed out'), findsOneWidget);
+      expect(handle.container.read(appSettingsProvider).value?.latitude,
+          seattle.latitude);
+
+      await tester.tap(detect);
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      expect(handle.container.read(appSettingsProvider).value?.latitude,
+          wifiFix.fix!.latitude);
+
+      pending.complete(const PositioningAttempt(
+        fix: PositioningResult(
+          latitude: -33.86,
+          longitude: 151.2,
+          source: PositioningSource.ipAddress,
+          provider: 'ipinfo.io',
+        ),
+        outcomes: [],
+      ));
+      await tester.pumpAndSettle();
+      expect(handle.container.read(appSettingsProvider).value?.latitude,
+          wifiFix.fix!.latitude);
     });
 
     testWidgets('the row leads with the tier that actually finds a yard', (

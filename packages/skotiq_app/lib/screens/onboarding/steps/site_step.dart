@@ -89,9 +89,10 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   double _baselineLat = 0.0;
   double _baselineLon = 0.0;
 
-  /// Guards the one-time controller seed from persisted settings. Re-seeding on
-  /// every rebuild would fight the user's in-progress typing.
-  bool _seeded = false;
+  /// Background detection may finish after this step opens. Follow it only
+  /// until the operator starts editing, preserving even incomplete input.
+  (double, double, double)? _seededSite;
+  bool _fieldsEdited = false;
   bool _locating = false;
 
   /// IP-derived starting point, offered only when there is no site on record.
@@ -118,18 +119,16 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// not a real Gulf-of-Guinea observatory, so we leave the fields blank there
   /// to prompt real entry rather than seeding a misleading 0/0.
   void _seedFrom(AppSettingsState settings) {
-    if (_seeded) return;
-    _seeded = true;
+    final site = (settings.latitude, settings.longitude, settings.elevation);
+    if (_fieldsEdited || _seededSite == site) return;
+    _seededSite = site;
     final hasSite = settings.hasObserverLocation;
     _baselineLat = settings.latitude;
     _baselineLon = settings.longitude;
-    if (hasSite) {
-      _latController.text = _trimNumber(settings.latitude);
-      _lonController.text = _trimNumber(settings.longitude);
-    }
-    if (settings.elevation != 0.0) {
-      _elevController.text = settings.elevation.toStringAsFixed(0);
-    }
+    _latController.text = hasSite ? _trimNumber(settings.latitude) : '';
+    _lonController.text = hasSite ? _trimNumber(settings.longitude) : '';
+    _elevController.text =
+        settings.elevation != 0.0 ? settings.elevation.toStringAsFixed(0) : '';
     // Re-publish the blocking reason for the seeded text. The provider outlives
     // this widget, so a stale reason left by an earlier visit would otherwise
     // block Next until the user happened to touch a field. Seeded values are
@@ -137,9 +136,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _publishBlockingReason();
     });
-    // Deliberately NO lookup here. Skotiq is routinely installed on
-    // isolated observatory networks, so arriving on this step makes no outbound
-    // request: the offer waits for an explicit [_lookUpIpEstimate].
+    // The startup service owns automatic detection; opening this step must
+    // not start a second lookup.
   }
 
   /// True when the coordinate fields hold a usable pair, so the "no site on
@@ -228,6 +226,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// Validate every field on each keystroke so the inline error is immediate,
   /// publish the shell's blocking reason, then reconcile settings.
   void _onFieldChanged() {
+    _fieldsEdited = true;
+    ref.read(appSettingsProvider.notifier).noteLocationEdit();
     setState(() {
       _latError = _validateLatitude(_latController.text.trim());
       _lonError = _validateLongitude(_lonController.text.trim());
@@ -428,7 +428,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
 
     return settingsAsync.when(
       loading: () => const Center(
-        child: const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (error, _) => SkotiqBanner(
         tone: BannerTone.error,

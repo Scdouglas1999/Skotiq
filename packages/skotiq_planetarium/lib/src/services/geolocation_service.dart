@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' show Platform, SocketException;
@@ -7,6 +8,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:geolocator/geolocator.dart';
 
 import 'positioning/positioning_result.dart';
+import 'positioning/positioning_deadline.dart';
 import 'positioning/wifi_positioning.dart';
 import 'positioning/wifi_scan.dart';
 
@@ -95,7 +97,7 @@ class GeolocationService {
     try {
       final response = await client
           .get(uri)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 3));
       if (response.statusCode != 200) return (fix: null, unreachable: false);
       final parsed = _parseIpBody(response.body);
       if (parsed == null) return (fix: null, unreachable: false);
@@ -121,7 +123,10 @@ class GeolocationService {
       );
       return (
         fix: null,
-        unreachable: e is SocketException || e is http.ClientException,
+        unreachable:
+            e is SocketException ||
+            e is http.ClientException ||
+            e is TimeoutException,
       );
     } finally {
       client.close();
@@ -194,6 +199,11 @@ class GeolocationService {
   /// Try to fetch location, using primary service first, then fallback
   static Future<(double latitude, double longitude, String? locationName)?>
   fetchLocation() async => _tupleOf((await _internetFix()).fix);
+
+  /// A labeled, approximate internet estimate, without requesting OS
+  /// permissions, scanning nearby Wi-Fi networks, or changing the radio.
+  static Future<PositioningResult?> fetchInternetEstimate() async =>
+      (await _internetFix()).fix;
 
   /// Look up a town, observatory, or address by name.
   ///
@@ -341,10 +351,13 @@ class GeolocationService {
 
     if (!done() && allowWifiScan) {
       final scanner = scannerFactory();
-      var enabledHere = false;
+      var restoreRadio = false;
       try {
         if (mayEnableWifiRadio && await scanner.radioIsOff()) {
-          enabledHere = await scanner.enableRadio();
+          // The command can time out after the radio changed. Restore even
+          // when it never acknowledged the change.
+          restoreRadio = true;
+          await scanner.enableRadio();
         }
         final outcome = await scanner.scan();
         switch (outcome) {
@@ -374,6 +387,7 @@ class GeolocationService {
           case WifiScanNoAdapter():
           case WifiScanNoNetworks():
           case WifiScanUnsupportedPlatform():
+          case WifiScanUnavailable():
             outcomes.add(
               TierOutcome(
                 tier: PositioningTier.wifiScan,
@@ -382,9 +396,35 @@ class GeolocationService {
               ),
             );
         }
+      } on TimeoutException {
+        outcomes.add(
+          const TierOutcome(
+            tier: PositioningTier.wifiScan,
+            succeeded: false,
+            detail: 'The Wi-Fi radio did not answer in time.',
+          ),
+        );
       } finally {
         // Restore the radio the operator left off, whatever happened above.
-        if (enabledHere) await scanner.disableRadio();
+        if (restoreRadio) {
+          var restored = false;
+          try {
+            restored = await scanner.disableRadio();
+          } on TimeoutException {
+            // The result below tells the operator to check the radio.
+          }
+          if (!restored) {
+            outcomes.add(
+              const TierOutcome(
+                tier: PositioningTier.wifiScan,
+                succeeded: false,
+                detail:
+                    'Could not confirm that Wi-Fi was switched back off. '
+                    'Check the radio in the system settings.',
+              ),
+            );
+          }
+        }
       }
     }
 
@@ -468,17 +508,20 @@ class GeolocationService {
       detail: detail,
     );
 
+    // Service availability and permission calls can stall on a missing DBus
+    // service too; the plugin's position timeLimit does not cover them.
+    final deadline = PositioningDeadline(const Duration(seconds: 3));
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
+      if (!await deadline.run(Geolocator.isLocationServiceEnabled)) {
         return (
           null,
           failed('This machine’s location service is switched off.'),
         );
       }
 
-      var permission = await Geolocator.checkPermission();
+      var permission = await deadline.run(Geolocator.checkPermission);
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        permission = await deadline.run(Geolocator.requestPermission);
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
@@ -491,10 +534,12 @@ class GeolocationService {
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 10),
+      final position = await deadline.run(
+        () => Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            timeLimit: Duration(seconds: 3),
+          ),
         ),
       );
 
@@ -518,6 +563,11 @@ class GeolocationService {
           detail: fix.explanation,
         ),
       );
+    } on TimeoutException {
+      return (
+        null,
+        failed('This machine’s location service did not answer in time.'),
+      );
     } catch (e) {
       developer.log(
         '[Geolocation] Platform location service failed: $e',
@@ -526,6 +576,8 @@ class GeolocationService {
         error: e,
       );
       return (null, failed('This machine has no working location service.'));
+    } finally {
+      deadline.dispose();
     }
   }
 }

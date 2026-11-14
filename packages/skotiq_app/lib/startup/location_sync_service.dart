@@ -10,17 +10,9 @@ import 'package:skotiq_core/services.dart';
 /// Rust backend. Settings is the single source of truth; this only fans changes
 /// out. Uses `ref.listen` to avoid modifying providers during build.
 ///
-/// This deliberately does **not** auto-detect a location on first launch. Free
-/// IP services resolve to the ISP's egress point and disagree with each other
-/// by a hundred kilometres or more, yet a persisted estimate is rendered
-/// exactly like a site the user typed — twilight times, the astro-dark
-/// countdown and the imaging window all quoted off it with no hint that
-/// anything is approximate.
-///
-/// 0/0 is the designed "not set" sentinel and every location-driven surface has
-/// an honest empty state for it. The estimate stays one click away: the
-/// onboarding observing-site step offers it as a labelled suggestion, and
-/// Settings → Location has the same affordance.
+/// Startup detection is owned by `initialLocationProvider`; this provider
+/// only mirrors saved settings. Until a lookup or an edit sets a site, 0/0
+/// remains the "not set" sentinel.
 ///
 /// The Rust backend is the one consumer that must NOT receive the sentinel.
 /// Its site is `Option<ObserverLocation>`, `None` is its only way to say "no

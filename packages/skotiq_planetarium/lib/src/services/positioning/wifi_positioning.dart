@@ -118,7 +118,7 @@ class WifiPositioningProvider {
             headers: const {'Content-Type': 'application/json'},
             body: buildRequestBody(sent),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
       if (response.statusCode != 200) return null;
       return parseGeolocateBody(
         response.body,

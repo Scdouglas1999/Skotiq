@@ -220,7 +220,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Latitude',
                   subtitle: 'Decimal degrees or DMS (44 3 29 N). Positive is '
                       'North, negative is South',
-                  trailing: SettingsNumberInput(
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.latitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -233,7 +233,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLatitude(value);
                     },
-                  ),
+                  )),
                 ),
                 SettingRow(
                   key: const ValueKey('site-longitude-row'),
@@ -241,7 +241,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Longitude',
                   subtitle: 'Decimal degrees or DMS (121 18 55 W). Positive is '
                       'East, negative is West',
-                  trailing: SettingsNumberInput(
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.longitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -254,14 +254,14 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLongitude(value);
                     },
-                  ),
+                  )),
                 ),
                 SettingRow(
                   key: const ValueKey('site-elevation-row'),
                   icon: LucideIcons.mountain,
                   title: 'Elevation',
                   subtitle: 'Height above sea level',
-                  trailing: SettingsNumberInput(
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.elevation,
                     authorityKey: authority,
                     suffix: 'm',
@@ -273,7 +273,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setElevation(value);
                     },
-                  ),
+                  )),
                   isLast: false,
                 ),
                 // Only a remote session HAS a server to read from: over a local
@@ -628,6 +628,18 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           : 'Google key saved. Detect location will ask Google first.',
     );
   }
+
+  /// Number inputs save on blur. Starting to edit must take precedence over
+  /// startup detection before the text is complete or valid enough to save.
+  Widget _locationEditor(Widget child) => Focus(
+        canRequestFocus: false,
+        onFocusChange: (focused) {
+          if (focused) {
+            ref.read(appSettingsProvider.notifier).noteLocationEdit();
+          }
+        },
+        child: child,
+      );
 
   /// Detect location, with consent: see [detectSite] for its rules.
   Future<void> _detectLocation({bool mayEnableWifiRadio = false}) async {
