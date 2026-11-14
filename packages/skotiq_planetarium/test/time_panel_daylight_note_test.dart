@@ -18,7 +18,9 @@ Future<ProviderContainer> _pumpAt(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        home: Scaffold(body: Center(child: TimeControlPanel(compact: compact))),
+        home: Scaffold(
+          body: Center(child: TimeControlPanel(compact: compact)),
+        ),
       ),
     ),
   );

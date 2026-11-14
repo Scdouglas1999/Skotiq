@@ -63,22 +63,24 @@ void main() {
     );
   });
 
-  test('a step with its own sweep takes its own, with the settings\' settle',
-      () {
-    // 5 positions x (1 s settle + 1 x (3 s + 2 s download)).
-    expect(
-      afTime(
-        AutofocusNode(
-          id: 'af',
-          name: 'AF',
-          parentId: 'root',
-          useSettingsDefaults: false,
-          stepsOut: 2,
-          exposuresPerPoint: 1,
-          exposureDuration: 3,
+  test(
+    'a step with its own sweep takes its own, with the settings\' settle',
+    () {
+      // 5 positions x (1 s settle + 1 x (3 s + 2 s download)).
+      expect(
+        afTime(
+          AutofocusNode(
+            id: 'af',
+            name: 'AF',
+            parentId: 'root',
+            useSettingsDefaults: false,
+            stepsOut: 2,
+            exposuresPerPoint: 1,
+            exposureDuration: 3,
+          ),
         ),
-      ),
-      const Duration(seconds: 30),
-    );
-  });
+        const Duration(seconds: 30),
+      );
+    },
+  );
 }

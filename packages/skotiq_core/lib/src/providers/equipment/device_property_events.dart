@@ -23,7 +23,10 @@ import '../../models/backend/device_types.dart';
 /// in the slot (a guide camera, a second switch) is ignored.
 ///
 /// Returns whether the event was one of these settings.
-bool applyDevicePropertyChange(ProviderContainer container, Map<String, dynamic> data) {
+bool applyDevicePropertyChange(
+  ProviderContainer container,
+  Map<String, dynamic> data,
+) {
   final wireType = data['device_type'];
   final deviceId = data['device_id'];
   final property = data['property'];
@@ -232,7 +235,10 @@ bool applyDeviceStateEvent(
 /// Apply a `CameraSettingsChanged` event: the camera's full gain, offset
 /// and binning as it reports them after a change or on connect. Returns
 /// whether it was for the camera in the slot.
-bool applyCameraSettings(ProviderContainer container, Map<String, dynamic> data) {
+bool applyCameraSettings(
+  ProviderContainer container,
+  Map<String, dynamic> data,
+) {
   final deviceId = data['device_id'];
   final gain = data['gain'];
   final offset = data['offset'];

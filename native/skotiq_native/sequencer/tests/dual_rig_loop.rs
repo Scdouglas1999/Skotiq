@@ -280,7 +280,10 @@ async fn secondary_frames_keep_the_camera_file_when_the_run_does() {
     let tmp = temp_dir();
     let recorder = Arc::new(RecordingOps::new(Duration::from_millis(10)));
     let ops: Arc<dyn skotiq_sequencer::DeviceOps> = recorder.clone();
-    let barrier = Arc::new(DitherBarrier::new(30.0, InFlightDitherPolicy::CompleteIfShort));
+    let barrier = Arc::new(DitherBarrier::new(
+        30.0,
+        InFlightDitherPolicy::CompleteIfShort,
+    ));
     let mut config = SecondaryRigConfig::new("cam-secondary", 0.01);
     config.frame_count = Some(1);
     config.rig_label = "WideField".to_string();

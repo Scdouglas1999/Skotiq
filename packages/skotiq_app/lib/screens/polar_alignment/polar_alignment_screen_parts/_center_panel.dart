@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 extension _CenterPanel on _PolarAlignmentScreenState {

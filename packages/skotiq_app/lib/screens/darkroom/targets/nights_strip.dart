@@ -157,7 +157,8 @@ class _NightRow extends StatelessWidget {
       if (night.offTarget > 0) '${night.offTarget} off target',
       if (night.pauses.isNotEmpty)
         '${night.pauses.length} pause${night.pauses.length == 1 ? '' : 's'}',
-      for (final m in night.marks) '${m.label} at ${ClockFormat.hm(m.at.toLocal())}',
+      for (final m in night.marks)
+        '${m.label} at ${ClockFormat.hm(m.at.toLocal())}',
       if (night.use == DarkroomNightUse.all) 'all in the current masters',
     ].join(', ');
     return Container(

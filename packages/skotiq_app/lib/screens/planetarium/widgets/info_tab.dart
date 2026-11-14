@@ -479,7 +479,6 @@ class ImagingHistorySection extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               _buildStatChip(
@@ -495,12 +494,10 @@ class ImagingHistorySection extends ConsumerWidget {
               ),
             ],
           ),
-
           if (history.hasGoal) ...[
             const SizedBox(height: 12),
             _buildCompletionBar(history),
           ],
-
           if (history.lastImaged != null) ...[
             const SizedBox(height: 10),
             Row(
@@ -517,7 +514,6 @@ class ImagingHistorySection extends ConsumerWidget {
               ],
             ),
           ],
-
           if (history.filterCounts.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(

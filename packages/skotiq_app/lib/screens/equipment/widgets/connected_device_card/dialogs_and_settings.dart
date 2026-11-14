@@ -56,7 +56,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
       settings = await ref.read(appSettingsProvider.future);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not load focuser settings: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not load focuser settings: ${userFacingError(e)}');
       }
       return;
     }
@@ -98,8 +99,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                       ? null
                       : () async {
                           if (isSaving) return;
-                          final coefficient = _coefficientCodec
-                              .parse(coefficientText);
+                          final coefficient =
+                              _coefficientCodec.parse(coefficientText);
                           final backlash = _backlashCodec.parse(backlashText);
                           // A number out of range is refused, not clamped:
                           // the note says what the bound is.
@@ -141,7 +142,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted || host.isStale) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to save: ${userFacingError(e)}';
+                              errorText =
+                                  'Failed to save: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -469,7 +471,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not read calibrator capabilities: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not read calibrator capabilities: ${userFacingError(e)}');
       }
       return;
     }
@@ -549,7 +552,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted || host.isStale) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to set brightness: ${userFacingError(e)}';
+                              errorText =
+                                  'Failed to set brightness: ${userFacingError(e)}';
                             });
                           }
                         },

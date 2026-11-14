@@ -12,9 +12,11 @@
 part of '../settings_provider.dart';
 
 extension Phd2SettingsSection on AppSettingsNotifier {
-  Future<void> setPhd2Path(String value) => _set(AppSettingDefs.phd2Path, value);
+  Future<void> setPhd2Path(String value) =>
+      _set(AppSettingDefs.phd2Path, value);
 
-  Future<void> setPhd2Host(String value) => _set(AppSettingDefs.phd2Host, value);
+  Future<void> setPhd2Host(String value) =>
+      _set(AppSettingDefs.phd2Host, value);
 
   Future<void> setPhd2Port(int value) => _set(AppSettingDefs.phd2Port, value);
 
@@ -22,6 +24,9 @@ extension Phd2SettingsSection on AppSettingsNotifier {
   /// and port separately can leave a mixed endpoint when the second write
   /// fails, and sends two full settings snapshots to a remote rig.
   Future<void> setPhd2Endpoint(String host, int port) async {
-    await _setAll([AppSettingDefs.phd2Host.to(host), AppSettingDefs.phd2Port.to(port)]);
+    await _setAll([
+      AppSettingDefs.phd2Host.to(host),
+      AppSettingDefs.phd2Port.to(port),
+    ]);
   }
 }

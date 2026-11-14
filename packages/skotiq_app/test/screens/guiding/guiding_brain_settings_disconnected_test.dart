@@ -58,8 +58,7 @@ void main() {
       const GuidingScreen(),
       size: const Size(1280, 900),
       settle: false,
-      extraOverrides: [
-      ],
+      extraOverrides: [],
     );
     await _drain(tester);
 

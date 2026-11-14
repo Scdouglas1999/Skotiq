@@ -121,8 +121,7 @@ void main() {
     );
   });
 
-  testWidgets('preflight simulation uses the site horizon',
-      (tester) async {
+  testWidgets('preflight simulation uses the site horizon', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

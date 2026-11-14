@@ -10,7 +10,9 @@ void main() {
     // test serializes its `ProgressDetail` values against.
     final kinds =
         jsonDecode(
-              File('test/fixtures/progress_detail_kinds.json').readAsStringSync(),
+              File(
+                'test/fixtures/progress_detail_kinds.json',
+              ).readAsStringSync(),
             )
             as Map<String, dynamic>;
 

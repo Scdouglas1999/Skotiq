@@ -241,7 +241,6 @@ class _AutofocusProgressOverlayState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildTitleBar(colors, overlayState),
-
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
@@ -305,9 +304,7 @@ class _AutofocusProgressOverlayState
             ),
           ),
         ),
-
         _buildStatsRow(colors, overlayState),
-
         if (overlayState.isRunning && overlayState.totalPoints > 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
@@ -318,7 +315,6 @@ class _AutofocusProgressOverlayState
               minHeight: 3,
             ),
           ),
-
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Text(
@@ -477,8 +473,7 @@ class _AutofocusProgressOverlayState
           _buildIconButton(
             icon: LucideIcons.x,
             tooltip: 'Hide panel',
-            onPressed: () =>
-                ref.read(autofocusOverlayProvider.notifier).hide(),
+            onPressed: () => ref.read(autofocusOverlayProvider.notifier).hide(),
             colors: colors,
           ),
         ],

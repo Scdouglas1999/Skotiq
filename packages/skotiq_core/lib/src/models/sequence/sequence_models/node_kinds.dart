@@ -972,11 +972,12 @@ final _scienceDifferential = NodeField<SciencePhotometryNode, bool>(
   (n) => n.applyDifferential,
   FieldCodec.flag,
 );
-final _scienceQuality = NodeField<SciencePhotometryNode, PhotometryQualityGates>(
-  'quality',
-  (n) => n.quality,
-  FieldCodec.json((q) => q.toJson(), PhotometryQualityGates.fromJson),
-);
+final _scienceQuality =
+    NodeField<SciencePhotometryNode, PhotometryQualityGates>(
+      'quality',
+      (n) => n.quality,
+      FieldCodec.json((q) => q.toJson(), PhotometryQualityGates.fromJson),
+    );
 final _scienceGain = NodeField<SciencePhotometryNode, int?>(
   'gain',
   (n) => n.gain,
@@ -1073,11 +1074,7 @@ abstract final class NodeKinds {
     diff: [
       NodeDiffLine.of(_targetName, 'Target name'),
       NodeDiffLine.of(_targetRa, 'RA (hours)', (v) => v.toStringAsFixed(4)),
-      NodeDiffLine.of(
-        _targetDec,
-        'Dec (degrees)',
-        (v) => v.toStringAsFixed(4),
-      ),
+      NodeDiffLine.of(_targetDec, 'Dec (degrees)', (v) => v.toStringAsFixed(4)),
       NodeDiffLine.of(
         _targetRotation,
         'Rotation',

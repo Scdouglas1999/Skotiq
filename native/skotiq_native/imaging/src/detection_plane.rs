@@ -246,8 +246,8 @@ mod tests {
     fn a_normalized_float_frame_reads_as_its_16_bit_twin() {
         use crate::SampleRange;
         let twin = ImageData::from_u16(2, 1, 1, &[1000, 65535]);
-        let unit = ImageData::from_f32(2, 1, 1, &[1000.0 / 65535.0, 1.0])
-            .with_range(SampleRange::UNIT);
+        let unit =
+            ImageData::from_f32(2, 1, 1, &[1000.0 / 65535.0, 1.0]).with_range(SampleRange::UNIT);
         let (a, b) = (
             DetectionPlane::from_image(&twin).unwrap(),
             DetectionPlane::from_image(&unit).unwrap(),

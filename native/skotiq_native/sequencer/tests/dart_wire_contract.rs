@@ -98,8 +98,8 @@ fn every_dart_node_with_every_field_set_is_read_whole() {
 #[test]
 fn the_dart_sequence_document_is_read_whole() {
     let sent = golden("wire_sequence_document.json");
-    let definition: SequenceDefinition = serde_json::from_value(sent.clone())
-        .expect("the Dart sequence document must deserialize");
+    let definition: SequenceDefinition =
+        serde_json::from_value(sent.clone()).expect("the Dart sequence document must deserialize");
     assert!(!definition.nodes.is_empty());
     let kept = serde_json::to_value(&definition).expect("a sequence serializes");
     assert_nothing_lost("wire_sequence_document.json", &sent, &kept);

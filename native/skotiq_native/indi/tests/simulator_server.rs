@@ -218,7 +218,10 @@ async fn simulator_devices_are_listed_by_kind() {
         (WHEEL, skotiq_device::DeviceKind::FilterWheel),
     ] {
         assert!(
-            server.devices.iter().any(|d| d.name == name && d.kind == kind),
+            server
+                .devices
+                .iter()
+                .any(|d| d.name == name && d.kind == kind),
             "{name} listed as {kind:?}"
         );
     }

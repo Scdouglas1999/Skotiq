@@ -110,10 +110,7 @@ void main() {
     test('rejects what the denylist used to wave through', () {
       // These are exactly the paths the two rules disagreed on, and the reason
       // one surface drew a broken-image glyph where another drew a placeholder.
-      for (final path in [
-        '/frames/light.ser',
-        '/frames/light'
-      ]) {
+      for (final path in ['/frames/light.ser', '/frames/light']) {
         expect(FrameFiles.isFrame(path), isFalse, reason: path);
         expect(isDisplayableImagePath(path), isFalse, reason: path);
       }

@@ -100,9 +100,7 @@ final class HostPredictiveAfSettings implements PredictiveAfSettingsController {
       }
     }
     return PredictiveAfSettingsSnapshot(
-      config: PredictiveAfConfig.fromJson(
-        Map<String, dynamic>.from(configRaw),
-      ),
+      config: PredictiveAfConfig.fromJson(Map<String, dynamic>.from(configRaw)),
       models: models,
     );
   }

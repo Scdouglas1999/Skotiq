@@ -17,8 +17,7 @@ const _ditherScales = ['Small', 'Medium', 'Large'];
 
 final _ditherSize = _Field<String>(
   label: 'Dither size',
-  read: (s) =>
-      _ditherScales.contains(s.ditherScale) ? s.ditherScale : 'Medium',
+  read: (s) => _ditherScales.contains(s.ditherScale) ? s.ditherScale : 'Medium',
   write: (ref, v) => _settings(ref).setDitherScale(v),
   choices: _ditherScales,
   choiceLabel: (v) => '$v · ${ditherScalePixels(v).toStringAsFixed(0)} px',
@@ -87,8 +86,7 @@ class GuideSettleSettings extends ConsumerWidget {
         row('dither-size', _ditherSize,
             helpId: FieldHelpId.ditherAmount, width: 124),
         row('dither-ra-only', _ditherRaOnly),
-        row('threshold', _settleThreshold,
-            helpId: FieldHelpId.settleThreshold),
+        row('threshold', _settleThreshold, helpId: FieldHelpId.settleThreshold),
         row('time', _settleTime, helpId: FieldHelpId.settleTime),
         row('timeout', _settleTimeout),
       ],

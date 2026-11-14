@@ -351,8 +351,8 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
 }
 
 String _refreshFailureText(Object failure) => switch (failure) {
-  ElementRefreshFailure() => failure.describe(userFacingError),
-  ElementRefreshConfigUnavailable(:final cause) =>
-    'Refresh configuration unavailable: ${userFacingError(cause)}',
-  _ => userFacingError(failure),
-};
+      ElementRefreshFailure() => failure.describe(userFacingError),
+      ElementRefreshConfigUnavailable(:final cause) =>
+        'Refresh configuration unavailable: ${userFacingError(cause)}',
+      _ => userFacingError(failure),
+    };

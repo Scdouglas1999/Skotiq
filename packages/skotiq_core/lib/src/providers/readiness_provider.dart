@@ -98,8 +98,7 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   // The profile-devices rule needs the counts to tell those apart.
   final assignedProfileSlots = ref.watch(rigDevicesProvider).assigned;
   final otherAssignedProfileSlots = assignedProfileSlots.where(
-    (slot) =>
-        slot != DeviceType.camera && slot != DeviceType.mount,
+    (slot) => slot != DeviceType.camera && slot != DeviceType.mount,
   );
 
   return buildReadinessReport(
@@ -117,4 +116,3 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
     otherAssignedProfileDeviceCount: otherAssignedProfileSlots.length,
   );
 });
-

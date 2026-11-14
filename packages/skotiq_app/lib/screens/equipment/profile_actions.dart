@@ -20,32 +20,30 @@ import 'utils/connect_all_action.dart';
 import 'utils/profile_mutation_epoch.dart';
 
 typedef EquipmentProfileImportPicker = Future<XFile?> Function();
-typedef EquipmentProfileExportPicker =
-    Future<ExportTarget?> Function(String suggestedName);
+typedef EquipmentProfileExportPicker = Future<ExportTarget?> Function(
+    String suggestedName);
 
 /// Picks the file to import profiles from.
 final equipmentProfileImportPickerProvider =
     Provider<EquipmentProfileImportPicker>(
-      (ref) =>
-          () => openFile(
-            acceptedTypeGroups: const [
-              XTypeGroup(label: 'JSON files', extensions: ['json']),
-            ],
-          ),
-    );
+  (ref) => () => openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON files', extensions: ['json']),
+        ],
+      ),
+);
 
 /// Picks where an exported profile goes. On a phone there is no save dialog,
 /// so the target is a sandbox path and the export ends in the share sheet.
 final equipmentProfileExportPickerProvider =
     Provider<EquipmentProfileExportPicker>(
-      (ref) =>
-          (suggestedName) => chooseExportTarget(
-            suggestedName: suggestedName,
-            acceptedTypeGroups: const [
-              XTypeGroup(label: 'JSON files', extensions: ['json']),
-            ],
-          ),
-    );
+  (ref) => (suggestedName) => chooseExportTarget(
+        suggestedName: suggestedName,
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON files', extensions: ['json']),
+        ],
+      ),
+);
 
 /// [base] when no profile has that name, otherwise `base (1)`, `base (2)`, …
 /// Names are compared the way profile validation compares them: trimmed,
@@ -124,8 +122,8 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n
-            .text('equipmentCreateProfileFailed', params: {'error': userFacingError(e)}),
+        context.l10n.text('equipmentCreateProfileFailed',
+            params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -180,7 +178,8 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentSetDefaultFailed', params: {'error': userFacingError(e)}),
+        context.l10n.text('equipmentSetDefaultFailed',
+            params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -212,7 +211,8 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDuplicateFailed', params: {'error': userFacingError(e)}),
+        context.l10n.text('equipmentDuplicateFailed',
+            params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -294,7 +294,8 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDeleteFailed', params: {'error': userFacingError(e)}),
+        context.l10n.text('equipmentDeleteFailed',
+            params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -360,8 +361,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (operation.isStale) return;
       bumpProfileMutationEpoch();
       if (ids.isNotEmpty) {
-        ref.read(selectedEquipmentProfileIdProvider.notifier).state =
-            ids.first;
+        ref.read(selectedEquipmentProfileIdProvider.notifier).state = ids.first;
       }
       if (!mounted) return;
       context.showSuccessSnackBar(

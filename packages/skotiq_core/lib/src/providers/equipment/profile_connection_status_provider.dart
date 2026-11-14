@@ -310,8 +310,7 @@ final rigDevicesProvider = Provider<RigDevices>((ref) {
         type: slot.type,
         assigned: connection.isAssigned,
         connected: connected,
-        sessionOnly:
-            profile != null && connected && !connection.matchesProfile,
+        sessionOnly: profile != null && connected && !connection.matchesProfile,
       ),
     );
   }

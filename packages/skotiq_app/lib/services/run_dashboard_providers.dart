@@ -195,8 +195,7 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
 /// rejected). A single DB scan produces both so the dashboard can show "usable
 /// vs spent" without a second query.
 final runDashboardSessionIntegrationProvider =
-    FutureProvider.family<IntegrationByFilter, int>(
-        (ref, sessionId) async {
+    FutureProvider.family<IntegrationByFilter, int>((ref, sessionId) async {
   // A linked client's session rows are the host's; the dashboard's refresh
   // ticks re-read this provider so the totals stay current.
   return IntegrationByFilter.of(

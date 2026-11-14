@@ -293,7 +293,10 @@ mod tests {
         assert_eq!(header.get_comment("EXPTIME"), Some("exposure time (s)"));
         assert_eq!(header.get_int("GAIN"), Some(100));
         assert_eq!(header.get_bool("FOCUSED"), Some(true));
-        assert_eq!(header.get_string("DARKFILE"), Some("/data/darks/master_dark.fits"));
+        assert_eq!(
+            header.get_string("DARKFILE"),
+            Some("/data/darks/master_dark.fits")
+        );
         assert_eq!(header.comments, vec!["taken with Skotiq".to_string()]);
         assert_eq!(header.history, vec!["calibrated".to_string()]);
         let order: Vec<&str> = header

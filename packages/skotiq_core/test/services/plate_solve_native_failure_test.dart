@@ -71,10 +71,8 @@ void main() {
     expect((await Process.run('chmod', ['+x', script.path])).exitCode, 0);
 
     when(() => backend.detectPlateSolvers()).thenAnswer(
-      (_) async => PlateSolverDetection(
-        astapPath: script.path,
-        catalogPath: temp.path,
-      ),
+      (_) async =>
+          PlateSolverDetection(astapPath: script.path, catalogPath: temp.path),
     );
     when(() => backend.getPlateSolverConfig()).thenAnswer(
       (_) async => const PlateSolverPreference(choice: PlateSolverChoice.astap),

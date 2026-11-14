@@ -209,9 +209,7 @@ class _BannerContent extends StatelessWidget {
                   size: 20,
                   color: onAccent,
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,16 +236,12 @@ class _BannerContent extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 _SnoozeButton(
                   onPressed: onSnooze,
                   inverted: isCritical,
                 ),
-
                 const SizedBox(width: 8),
-
                 Icon(
                   LucideIcons.chevronRight,
                   size: 18,

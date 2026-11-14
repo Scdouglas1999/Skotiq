@@ -72,7 +72,6 @@ class WeatherStatusCard extends StatelessWidget {
       ? 'Imminent'
       : '~${DurationFormat.of(eta, style: DurationStyle.coarse)}';
 
-
   static String _formatLastUpdate(DateTime time) {
     final difference = DateTime.now().difference(time);
     if (difference.inSeconds < 60) return '${difference.inSeconds} sec ago';
@@ -89,7 +88,9 @@ class WeatherStatusCard extends StatelessWidget {
       return fetchFailed ? 'Last data $age' : 'Updated $age';
     }
     if (alert != null) return null;
-    return fetchFailed ? 'No weather data received' : 'Waiting for weather data';
+    return fetchFailed
+        ? 'No weather data received'
+        : 'Waiting for weather data';
   }
 
   @override
@@ -164,7 +165,8 @@ class WeatherStatusCard extends StatelessWidget {
                     size: ReadoutSize.sm,
                   ),
                   Readout(
-                    value: AngleFormat.compass(motion!.directionDegrees, points: 8),
+                    value: AngleFormat.compass(motion!.directionDegrees,
+                        points: 8),
                     label: 'Toward',
                     size: ReadoutSize.sm,
                   ),

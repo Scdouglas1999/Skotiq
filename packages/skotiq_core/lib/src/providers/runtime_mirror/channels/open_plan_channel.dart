@@ -100,7 +100,9 @@ class OpenPlanChannel extends RuntimeMirrorChannel<OpenPlan> {
       sync.appliedFromHost = incoming;
       sync.hostFingerprint = incomingFingerprint;
       editor.showHostRunningSequence(incoming);
-      editor.adoptOwner(ActivePlanOwnerWire.fromWire(value?['activePlanOwner']));
+      editor.adoptOwner(
+        ActivePlanOwnerWire.fromWire(value?['activePlanOwner']),
+      );
       return;
     }
 

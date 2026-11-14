@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/equipment/equipment_models.dart' show DeviceConnectionState, DeviceSlotState;
+import '../models/equipment/equipment_models.dart'
+    show DeviceConnectionState, DeviceSlotState;
 import '../services/equipment_health_service.dart';
 import 'database_provider.dart';
 import 'device_last_contact_provider.dart';

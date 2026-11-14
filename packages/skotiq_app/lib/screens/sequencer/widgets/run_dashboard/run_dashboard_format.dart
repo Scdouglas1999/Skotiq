@@ -14,4 +14,3 @@ String formatDuration(Duration? d) => d == null || d.isNegative
 String formatSeconds(double seconds) {
   return formatDuration(Duration(seconds: seconds.round()));
 }
-

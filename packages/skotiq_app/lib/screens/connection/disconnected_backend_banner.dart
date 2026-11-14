@@ -94,8 +94,7 @@ class _RemoteHostUnavailableBanner extends ConsumerWidget {
             : 'Pair this companion with the host again (Settings > Remote '
                 'access on the host).',
         RemoteLaunchFailure.versionMismatch => status.detail ?? '',
-        RemoteLaunchFailure.refused =>
-          'Retrying every $retrySeconds s.',
+        RemoteLaunchFailure.refused => 'Retrying every $retrySeconds s.',
         RemoteLaunchFailure.hostChanged =>
           'Its identity does not match the computer this one paired with, so '
               'the access token was not sent. Pair again if Skotiq was '

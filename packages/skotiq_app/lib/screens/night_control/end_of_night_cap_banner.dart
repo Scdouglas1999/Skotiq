@@ -40,9 +40,8 @@ class EndOfNightCapBanner extends ConsumerWidget {
         final next = await call();
         ref.read(hostEndOfNightStatusProvider.notifier).state = next;
       } catch (error) {
-        ref
-            .read(uiNotificationProvider.notifier)
-            .showError('The imaging host did not take the answer: ${userFacingError(error)}');
+        ref.read(uiNotificationProvider.notifier).showError(
+            'The imaging host did not take the answer: ${userFacingError(error)}');
       }
     }
 
@@ -134,4 +133,3 @@ class EndOfNightCapBanner extends ConsumerWidget {
     );
   }
 }
-

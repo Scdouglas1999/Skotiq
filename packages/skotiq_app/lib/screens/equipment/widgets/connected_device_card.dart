@@ -257,7 +257,8 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
       context.showSuccessSnackBar('Added to "${profile!.name}".');
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not add to the profile: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Could not add to the profile: ${userFacingError(e)}');
     }
   }
 

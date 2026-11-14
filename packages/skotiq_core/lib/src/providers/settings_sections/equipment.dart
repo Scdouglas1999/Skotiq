@@ -22,7 +22,8 @@ part of '../settings_provider.dart';
 
 extension EquipmentSettingsSection on AppSettingsNotifier {
   // Camera defaults
-  Future<void> setDefaultGain(int value) => _set(AppSettingDefs.defaultGain, value);
+  Future<void> setDefaultGain(int value) =>
+      _set(AppSettingDefs.defaultGain, value);
 
   Future<void> setDefaultOffset(int value) =>
       _set(AppSettingDefs.defaultOffset, value);
@@ -97,7 +98,8 @@ extension EquipmentSettingsSection on AppSettingsNotifier {
   Future<void> setSettleTimeout(int value) =>
       _set(AppSettingDefs.settleTimeout, value);
 
-  Future<void> setSettleTime(int value) => _set(AppSettingDefs.settleTime, value);
+  Future<void> setSettleTime(int value) =>
+      _set(AppSettingDefs.settleTime, value);
 
   Future<void> setDitherRaOnly(bool value) =>
       _set(AppSettingDefs.ditherRaOnly, value);

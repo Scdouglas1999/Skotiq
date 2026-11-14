@@ -43,7 +43,8 @@ void main() {
     await tester.pump();
     final micros = medianPaintMicros(tester, find.byType(GuideGraphAdvanced));
     // ignore: avoid_print
-    print('PAINT guiding_graph 300pts 800x320: ${micros.toStringAsFixed(0)} us');
+    print(
+        'PAINT guiding_graph 300pts 800x320: ${micros.toStringAsFixed(0)} us');
   });
 
   testWidgets('analytics session chart paint cost', (tester) async {

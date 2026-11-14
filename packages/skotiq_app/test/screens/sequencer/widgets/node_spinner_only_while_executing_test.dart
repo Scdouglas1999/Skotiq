@@ -67,7 +67,9 @@ Future<String> _pumpRunningNode(
   // liveValidationProvider debounces with a 500ms one-shot Timer on mutation.
   await tester.pump(const Duration(milliseconds: 600));
 
-  container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+  container
+      .read(runRecordProvider.notifier)
+      .setLifecycle(SequenceExecutionState.running);
   container
       .read(runRecordProvider.notifier)
       .updateNodeStatus(node.id, NodeStatus.running);

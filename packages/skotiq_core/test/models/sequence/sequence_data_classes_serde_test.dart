@@ -145,8 +145,6 @@ void main() {
       expect(e.format(), equals('2h 30m'));
     });
 
-
-
     test('equality_via_props_distinguishes_until_time', () {
       final now = DateTime.utc(2026, 1, 1);
       final a = SequenceEstimate(

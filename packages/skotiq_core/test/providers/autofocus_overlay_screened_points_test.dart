@@ -184,7 +184,8 @@ void main() {
                 'position': 45776,
                 'hfr': 1.88,
                 'star_count': 3,
-                'reason': 'HFR below 19.57 nearer focus, likely missed donut stars',
+                'reason':
+                    'HFR below 19.57 nearer focus, likely missed donut stars',
               },
             ],
           },

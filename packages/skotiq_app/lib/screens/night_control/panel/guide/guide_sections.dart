@@ -231,8 +231,9 @@ class _NightGuideCalibrationSectionState
     return NightPanelSection(
       title: l10n.text('nightScopeGuideCalibration'),
       trailing: status,
-      trailingTone:
-          calibration.isCalibrated ? MetricGridTone.good : MetricGridTone.warning,
+      trailingTone: calibration.isCalibrated
+          ? MetricGridTone.good
+          : MetricGridTone.warning,
       children: [
         NightPanelValues(
           items: [

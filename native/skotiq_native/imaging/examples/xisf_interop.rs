@@ -29,7 +29,11 @@ fn image(w: u32, h: u32, channels: u32, pixel_type: PixelType) -> ImageData {
             PixelType::U32 => (100_000 + x * 7919 + (i * 31) % 997) as f64,
             PixelType::F32 | PixelType::F64 => (x as f64 / w as f64) * 0.5 + (i % 13) as f64 * 1e-3,
         };
-        skotiq_imaging::samples::sample_to_le(&mut image.data[i * size..(i + 1) * size], pixel_type, v);
+        skotiq_imaging::samples::sample_to_le(
+            &mut image.data[i * size..(i + 1) * size],
+            pixel_type,
+            v,
+        );
     }
     image
 }
@@ -103,7 +107,13 @@ fn write(dir: &Path) {
         }
     }
     let header = header();
-    for pixel_type in [PixelType::U8, PixelType::U16, PixelType::U32, PixelType::F32, PixelType::F64] {
+    for pixel_type in [
+        PixelType::U8,
+        PixelType::U16,
+        PixelType::U32,
+        PixelType::F32,
+        PixelType::F64,
+    ] {
         for channels in [1u32, 3] {
             let img = image(64, 48, channels, pixel_type);
             for (name, compression) in &codecs {
@@ -141,7 +151,11 @@ fn read(paths: &[String]) {
                     props.join(",")
                 );
             }
-            Err(e) => println!("{{\"file\":{:?},\"ok\":false,\"error\":{:?}}}", p, e.to_string()),
+            Err(e) => println!(
+                "{{\"file\":{:?},\"ok\":false,\"error\":{:?}}}",
+                p,
+                e.to_string()
+            ),
         }
     }
 }
@@ -196,7 +210,8 @@ fn bench(source: &Path, min_pixels: u64) {
     let (_, r) = time(|| read_frame(&fits).unwrap());
     let size = std::fs::metadata(&fits).unwrap().len();
     println!("| FITS | {w:.0} | {r:.0} | {} |", size >> 20);
-    let mut codecs: Vec<(String, Option<XisfCompression>)> = vec![("XISF uncompressed".into(), None)];
+    let mut codecs: Vec<(String, Option<XisfCompression>)> =
+        vec![("XISF uncompressed".into(), None)];
     for codec in XisfCodec::ALL {
         for shuffle in [false, true] {
             codecs.push((
@@ -233,8 +248,12 @@ fn main() {
         Some("read") => read(&args[1..]),
         Some("bench") => bench(
             Path::new(&args[1]),
-            args.get(2).and_then(|p| p.parse().ok()).unwrap_or(60_000_000),
+            args.get(2)
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(60_000_000),
         ),
-        _ => eprintln!("usage: xisf_interop write <dir> | read <file>... | bench <frame> [min pixels]"),
+        _ => eprintln!(
+            "usage: xisf_interop write <dir> | read <file>... | bench <frame> [min pixels]"
+        ),
     }
 }

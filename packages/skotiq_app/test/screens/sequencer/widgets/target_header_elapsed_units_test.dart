@@ -42,7 +42,9 @@ void main() {
     final progress = container.read(runRecordProvider.notifier);
     progress.updateNodeStatus(exposure.id, NodeStatus.running);
     progress.updateNodeProgress(exposure.id, 50, 'Frame 3/4');
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1200, 1400);

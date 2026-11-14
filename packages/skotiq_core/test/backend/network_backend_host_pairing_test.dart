@@ -50,13 +50,18 @@ void main() {
   // The Remote access page on a linked client called a host that demanded a
   // token open to anything that could reach it: nothing kept what the host
   // says about itself when the client connects.
-  test('a host that requires pairing is known as one after connecting',
-      () async {
-    expect(
-      await _whatTheHostSaid({'version': skotiqRelease, 'authRequired': true}),
-      isTrue,
-    );
-  });
+  test(
+    'a host that requires pairing is known as one after connecting',
+    () async {
+      expect(
+        await _whatTheHostSaid({
+          'version': skotiqRelease,
+          'authRequired': true,
+        }),
+        isTrue,
+      );
+    },
+  );
 
   test('an open host is known as open', () async {
     expect(

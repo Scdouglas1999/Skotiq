@@ -110,10 +110,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// Implemented by the (re)connect/disconnect ops mixin. The discovery /
   /// pairing flows hand a resolved [DiscoveredServer] to it; it is also the
   /// [rigConnectProvider] every other connect goes through.
-  Future<bool> connectToRig(
-    DiscoveredServer server, {
-    String? savedServerId,
-  });
+  Future<bool> connectToRig(DiscoveredServer server, {String? savedServerId});
 
   /// Implemented by the (re)connect/disconnect ops mixin. The relay-connect
   /// dialog (discovery group) routes through it. The concrete override adds

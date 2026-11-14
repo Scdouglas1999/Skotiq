@@ -367,7 +367,8 @@ class _SaveSequenceDialogState extends ConsumerState<SaveSequenceDialog>
                   runSpacing: 8,
                   children: [
                     SkotiqButton(
-                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      onPressed:
+                          _isSaving ? null : () => Navigator.pop(context),
                       label: 'Cancel',
                       variant: ButtonVariant.ghost,
                       size: ButtonSize.small,

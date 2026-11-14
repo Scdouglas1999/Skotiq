@@ -19,7 +19,6 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
             ),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -74,9 +73,7 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
             ],
           ),
         ),
-
         Divider(color: widget.colors.border, height: 1),
-
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -206,7 +203,6 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
               ],
             ),
           ),
-
           Expanded(
             child: ScrollConfiguration(
               behavior: ScrollConfiguration.of(context).copyWith(
@@ -241,9 +237,7 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
               ),
             ),
           ),
-
           _buildCreateFromSelectionButton(isMobile: false),
-
           Container(
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.all(12),

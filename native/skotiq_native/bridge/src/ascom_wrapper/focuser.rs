@@ -85,9 +85,7 @@ impl AscomFocuserWrapper {
                         answer(reply, focuser.temp_comp_available())
                     }
                     AscomFocuserCommand::TempComp(reply) => answer(reply, focuser.temp_comp()),
-                    AscomFocuserCommand::Temperature(reply) => {
-                        answer(reply, focuser.temperature())
-                    }
+                    AscomFocuserCommand::Temperature(reply) => answer(reply, focuser.temperature()),
                     AscomFocuserCommand::Move(value, reply) => {
                         answer(reply, focuser.move_to(value))
                     }
@@ -116,38 +114,66 @@ impl AscomFocuserWrapper {
     }
 
     pub async fn connect(&self) -> Result<(), DeviceOpError> {
-        self.ask(AscomFocuserCommand::Connect, Timeouts::connection(), "connect")
-            .await
+        self.ask(
+            AscomFocuserCommand::Connect,
+            Timeouts::connection(),
+            "connect",
+        )
+        .await
     }
 
     pub async fn disconnect(&self) -> Result<(), DeviceOpError> {
-        self.ask(AscomFocuserCommand::Disconnect, Timeouts::connection(), "disconnect")
-            .await
+        self.ask(
+            AscomFocuserCommand::Disconnect,
+            Timeouts::connection(),
+            "disconnect",
+        )
+        .await
     }
 
     pub async fn connected(&self) -> Result<bool, DeviceOpError> {
-        self.ask(AscomFocuserCommand::Connected, Timeouts::property_read(), "connected")
-            .await
+        self.ask(
+            AscomFocuserCommand::Connected,
+            Timeouts::property_read(),
+            "connected",
+        )
+        .await
     }
 
     pub async fn absolute(&self) -> Result<bool, DeviceOpError> {
-        self.ask(AscomFocuserCommand::Absolute, Timeouts::property_read(), "absolute")
-            .await
+        self.ask(
+            AscomFocuserCommand::Absolute,
+            Timeouts::property_read(),
+            "absolute",
+        )
+        .await
     }
 
     pub async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.ask(AscomFocuserCommand::Position, Timeouts::property_read(), "position")
-            .await
+        self.ask(
+            AscomFocuserCommand::Position,
+            Timeouts::property_read(),
+            "position",
+        )
+        .await
     }
 
     pub async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        self.ask(AscomFocuserCommand::IsMoving, Timeouts::property_read(), "is_moving")
-            .await
+        self.ask(
+            AscomFocuserCommand::IsMoving,
+            Timeouts::property_read(),
+            "is_moving",
+        )
+        .await
     }
 
     pub async fn max_step(&self) -> Result<i32, DeviceOpError> {
-        self.ask(AscomFocuserCommand::MaxStep, Timeouts::property_read(), "max_step")
-            .await
+        self.ask(
+            AscomFocuserCommand::MaxStep,
+            Timeouts::property_read(),
+            "max_step",
+        )
+        .await
     }
 
     pub async fn max_increment(&self) -> Result<i32, DeviceOpError> {
@@ -160,8 +186,12 @@ impl AscomFocuserWrapper {
     }
 
     pub async fn step_size(&self) -> Result<f64, DeviceOpError> {
-        self.ask(AscomFocuserCommand::StepSize, Timeouts::property_read(), "step_size")
-            .await
+        self.ask(
+            AscomFocuserCommand::StepSize,
+            Timeouts::property_read(),
+            "step_size",
+        )
+        .await
     }
 
     pub async fn temp_comp_available(&self) -> Result<bool, DeviceOpError> {
@@ -174,8 +204,12 @@ impl AscomFocuserWrapper {
     }
 
     pub async fn temp_comp(&self) -> Result<bool, DeviceOpError> {
-        self.ask(AscomFocuserCommand::TempComp, Timeouts::property_read(), "temp_comp")
-            .await
+        self.ask(
+            AscomFocuserCommand::TempComp,
+            Timeouts::property_read(),
+            "temp_comp",
+        )
+        .await
     }
 
     pub async fn temperature(&self) -> Result<f64, DeviceOpError> {
@@ -198,8 +232,12 @@ impl AscomFocuserWrapper {
     }
 
     pub async fn halt(&self) -> Result<(), DeviceOpError> {
-        self.ask(AscomFocuserCommand::Halt, Timeouts::property_write(), "halt")
-            .await
+        self.ask(
+            AscomFocuserCommand::Halt,
+            Timeouts::property_write(),
+            "halt",
+        )
+        .await
     }
 }
 

@@ -3,7 +3,6 @@
 part of '../profile_editor_dialog.dart';
 
 extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
-
   Widget _buildOpticalTrainSection(SkotiqColors colors, ThemeData theme) {
     return _SectionBlock(
       title: 'Optical train',
@@ -502,7 +501,8 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             label: 'Cover / calibrator',
             nameController: null,
             deviceId: _coverCalibratorId,
-            choices: _deviceChoices(DeviceType.coverCalibrator, coverCalibrators),
+            choices:
+                _deviceChoices(DeviceType.coverCalibrator, coverCalibrators),
             onDeviceSelected: (id, name) => setState(() {
               _coverCalibratorId = id;
             }),
@@ -552,7 +552,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             camera.activeBackend.shortLabel,
           ),
         for (final profile in _savedProfiles)
-          (profile.guideCameraId, profile.guideCameraName, 'In ${profile.name}'),
+          (
+            profile.guideCameraId,
+            profile.guideCameraName,
+            'In ${profile.name}'
+          ),
       ]).where((choice) => choice.id != _cameraId).toList();
 
   List<EquipmentProfileModel> get _savedProfiles =>

@@ -9,7 +9,6 @@
 // supplied. Reproduced live against a paired appliance: the dialog opened in
 // the app bundle's install directory with only Parent-folder to climb out.
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -232,10 +232,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final commandId = _generateLocalCommandId();
     _registerOwnCommandId(commandId);
     try {
-      await host.updateSettingsPatchWithCommandId(
-        patch,
-        commandId: commandId,
-      );
+      await host.updateSettingsPatchWithCommandId(patch, commandId: commandId);
     } catch (_) {
       _ownCommandIds.remove(commandId);
       rethrow;
@@ -574,9 +571,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _saveSettings(Map<String, String> settings) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final dao = backend.linksToHost
-        ? null
-        : ref.read(settingsDaoProvider);
+    final dao = backend.linksToHost ? null : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(
       settings.keys.join(', '),
       generation,

@@ -59,7 +59,8 @@ void main() {
     SequenceNode node, {
     required String line,
     InstructionProgressDetail? detail,
-  }) => tester.pumpWidget(MaterialApp(
+  }) =>
+      tester.pumpWidget(MaterialApp(
         theme: SkotiqTheme.dark,
         home: Scaffold(
           body: getProgressPanelForNode(
@@ -74,7 +75,8 @@ void main() {
 
   // The step's line carries no cooler power, so a panel that read the line
   // never drew the gauge.
-  testWidgets('the cooling panel shows the sensor, the set-point and the '
+  testWidgets(
+      'the cooling panel shows the sensor, the set-point and the '
       'cooler power the step read', (tester) async {
     await pumpPanel(
       tester,
@@ -93,7 +95,8 @@ void main() {
     expect(find.text('62%'), findsOneWidget);
   });
 
-  testWidgets('a warming step with no sensor reading shows none, not its '
+  testWidgets(
+      'a warming step with no sensor reading shows none, not its '
       'target', (tester) async {
     await pumpPanel(
       tester,

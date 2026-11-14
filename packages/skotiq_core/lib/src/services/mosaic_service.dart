@@ -513,22 +513,23 @@ class MosaicService {
         );
       }
 
-      nodes[targetGroupId] = panelHeader(
-        mosaicName: mosaicName,
-        panel: panel,
-        totalPanels: panels.length,
-        rotation: rotation,
-        minAltitude: options.minAltitude,
-        maxAltitude: options.maxAltitude,
-        // Stamp the panel's own capture target so frames written under this
-        // header attribute to the per-panel `targets` row, not a shared one.
-        catalogTargetId: panelTargetId?.call(panel.index),
-      ).copyWith(
-        id: targetGroupId,
-        childIds: childIds,
-        parentId: rootId,
-        orderIndex: i,
-      );
+      nodes[targetGroupId] =
+          panelHeader(
+            mosaicName: mosaicName,
+            panel: panel,
+            totalPanels: panels.length,
+            rotation: rotation,
+            minAltitude: options.minAltitude,
+            maxAltitude: options.maxAltitude,
+            // Stamp the panel's own capture target so frames written under this
+            // header attribute to the per-panel `targets` row, not a shared one.
+            catalogTargetId: panelTargetId?.call(panel.index),
+          ).copyWith(
+            id: targetGroupId,
+            childIds: childIds,
+            parentId: rootId,
+            orderIndex: i,
+          );
 
       targetGroupIds.add(targetGroupId);
     }

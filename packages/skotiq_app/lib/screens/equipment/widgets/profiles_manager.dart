@@ -154,4 +154,3 @@ class _NoProfileSelected extends StatelessWidget {
     );
   }
 }
-

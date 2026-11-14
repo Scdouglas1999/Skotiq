@@ -117,7 +117,11 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     if (daylight == null) return row;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [daylight, const SizedBox(height: SkotiqTokens.spaceXs), row],
+      children: [
+        daylight,
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        row,
+      ],
     );
   }
 

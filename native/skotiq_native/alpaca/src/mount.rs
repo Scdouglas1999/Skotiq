@@ -119,10 +119,10 @@ impl MountDriver for AlpacaMount {
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError> {
-        self
-            .telescope
+        self.telescope
             .slew_to_coordinates_async(ra_hours, dec_degrees)
-            .await.map_err(own)
+            .await
+            .map_err(own)
     }
 
     async fn slew_to_alt_az(
@@ -130,10 +130,10 @@ impl MountDriver for AlpacaMount {
         altitude_deg: f64,
         azimuth_deg: f64,
     ) -> Result<(), DriverError> {
-        self
-            .telescope
+        self.telescope
             .slew_to_alt_az_async(altitude_deg, azimuth_deg)
-            .await.map_err(own)
+            .await
+            .map_err(own)
     }
 
     async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
@@ -147,10 +147,10 @@ impl MountDriver for AlpacaMount {
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError> {
-        self
-            .telescope
+        self.telescope
             .sync_to_coordinates(ra_hours, dec_degrees)
-            .await.map_err(own)
+            .await
+            .map_err(own)
     }
 
     async fn park(&mut self) -> Result<(), DriverError> {
@@ -192,7 +192,10 @@ impl MountDriver for AlpacaMount {
             ))
         })?;
         let started = Instant::now();
-        self.telescope.pulse_guide(direction, duration).await.map_err(own)?;
+        self.telescope
+            .pulse_guide(direction, duration)
+            .await
+            .map_err(own)?;
         wait_for_pulse_end(started, duration_ms, || self.telescope.is_pulse_guiding()).await
     }
 
@@ -283,8 +286,7 @@ impl MountDriver for AlpacaMount {
         let sidereal_time = reading(mount.sidereal_time().await);
         let side_of_pier = reading(mount.side_of_pier().await);
 
-        let (can_park, can_slew, can_sync, can_pulse_guide) = match mount.get_capabilities().await
-        {
+        let (can_park, can_slew, can_sync, can_pulse_guide) = match mount.get_capabilities().await {
             Ok(caps) => (
                 caps.can_park,
                 caps.can_slew,
@@ -334,10 +336,14 @@ impl MountDriver for AlpacaMount {
     }
 
     async fn set_site(&mut self, site: MountSiteInfo) -> Result<(), DriverError> {
-        self.telescope.set_site_latitude(site.latitude_deg).await.map_err(own)?;
+        self.telescope
+            .set_site_latitude(site.latitude_deg)
+            .await
+            .map_err(own)?;
         self.telescope
             .set_site_longitude(site.longitude_deg)
-            .await.map_err(own)?;
+            .await
+            .map_err(own)?;
         if let Some(elevation) = site.elevation_m {
             if let Err(e) = self.telescope.set_site_elevation(elevation).await {
                 tracing::warn!(
@@ -360,10 +366,10 @@ impl MountDriver for AlpacaMount {
     }
 
     async fn set_clock(&mut self, clock: MountClock) -> Result<(), DriverError> {
-        self
-            .telescope
+        self.telescope
             .set_utc_date(&utc_date(clock.utc_unix_seconds)?)
-            .await.map_err(own)
+            .await
+            .map_err(own)
     }
 
     /// `ITelescope` has the site and the clock as members.

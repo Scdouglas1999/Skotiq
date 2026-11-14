@@ -139,12 +139,12 @@ class _NodeTreeView extends ConsumerWidget {
     // collapsed container is still a valid drop destination (the dropped
     // node appends at the end of its hidden children).
     void acceptIntoContainer(Object data) => insertIntoTree(
-      context,
-      ref,
-      data,
-      parentId: nodeId,
-      index: children.length,
-    );
+          context,
+          ref,
+          data,
+          parentId: nodeId,
+          index: children.length,
+        );
 
     // The row itself, in whichever density is active. Ledger draws every node
     // — target headers included — as one 28 px line; the other two densities
@@ -181,13 +181,13 @@ class _NodeTreeView extends ConsumerWidget {
             },
             onMoveUp: canMoveUp
                 ? () => ref
-                        .read(currentSequenceProvider.notifier)
-                        .shiftNode(nodeId, -1)
+                    .read(currentSequenceProvider.notifier)
+                    .shiftNode(nodeId, -1)
                 : null,
             onMoveDown: canMoveDown
                 ? () => ref
-                        .read(currentSequenceProvider.notifier)
-                        .shiftNode(nodeId, 1)
+                    .read(currentSequenceProvider.notifier)
+                    .shiftNode(nodeId, 1)
                 : null,
           )
         : targetHeaderNode != null
@@ -260,13 +260,13 @@ class _NodeTreeView extends ConsumerWidget {
                 },
                 onMoveUp: canMoveUp
                     ? () => ref
-                            .read(currentSequenceProvider.notifier)
-                            .shiftNode(nodeId, -1)
+                        .read(currentSequenceProvider.notifier)
+                        .shiftNode(nodeId, -1)
                     : null,
                 onMoveDown: canMoveDown
                     ? () => ref
-                            .read(currentSequenceProvider.notifier)
-                            .shiftNode(nodeId, 1)
+                        .read(currentSequenceProvider.notifier)
+                        .shiftNode(nodeId, 1)
                     : null,
               );
 

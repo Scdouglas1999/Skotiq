@@ -43,4 +43,3 @@ double normalizedDepth(double seconds, double maxSeconds) {
   final ratio = (seconds / maxSeconds).clamp(0.0, 1.0);
   return math.sqrt(ratio);
 }
-

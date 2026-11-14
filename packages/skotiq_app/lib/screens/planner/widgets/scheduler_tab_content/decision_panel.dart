@@ -291,7 +291,6 @@ class _Countdown extends StatelessWidget {
       ],
     );
   }
-
 }
 
 class _ControlsRow extends StatelessWidget {

@@ -13,8 +13,15 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show loadedDsosProvider;
-import 'package:skotiq_astro/skotiq_astro.dart' show DeepSkyObject, DsoTypeExtension, RankedTarget, TargetNameResolver, normalizeTargetName;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show loadedDsosProvider;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show
+        DeepSkyObject,
+        DsoTypeExtension,
+        RankedTarget,
+        TargetNameResolver,
+        normalizeTargetName;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 
@@ -191,8 +198,7 @@ class QuickStartWizardDialog extends ConsumerStatefulWidget {
       _QuickStartWizardDialogState();
 }
 
-class _QuickStartWizardDialogState
-    extends ConsumerState<QuickStartWizardDialog>
+class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
     with HostBoundDialogState<QuickStartWizardDialog> {
   int _currentStep = 0;
   static const int _totalSteps = 5;
@@ -639,7 +645,8 @@ class _QuickStartWizardDialogState
         if (host.isStale) return;
         if (!mounted) return;
         setState(() => _finishingAsTemplate = null);
-        context.showErrorSnackBar('Could not save template: ${userFacingError(error)}');
+        context.showErrorSnackBar(
+            'Could not save template: ${userFacingError(error)}');
         return;
       }
       if (host.isStale) return;

@@ -10,7 +10,9 @@ use skotiq_sequencer::GuidingStopReason;
 static REASON: std::sync::Mutex<Option<GuidingStopReason>> = std::sync::Mutex::new(None);
 
 fn reason_slot() -> std::sync::MutexGuard<'static, Option<GuidingStopReason>> {
-    REASON.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    REASON
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn publish(reason: Option<GuidingStopReason>) {

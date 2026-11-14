@@ -118,7 +118,8 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
       }
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to save template: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to save template: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && host.isCurrent) {
@@ -197,9 +198,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
-
                 Text(
                   'Template Name',
                   style: SkotiqTypography.h6
@@ -229,9 +228,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Text(
                   'Description',
                   style: SkotiqTypography.h6
@@ -262,9 +259,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -298,9 +293,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -431,5 +424,4 @@ class _TargetOptionState extends State<_TargetOption> {
       ),
     );
   }
-
 }

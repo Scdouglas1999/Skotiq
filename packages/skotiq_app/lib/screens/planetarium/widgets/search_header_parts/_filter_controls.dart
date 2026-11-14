@@ -57,9 +57,7 @@ class _SearchFilterControls extends StatelessWidget {
             );
           }).toList(),
         ),
-
         const SizedBox(height: 12),
-
         Row(
           children: [
             Text(
@@ -126,9 +124,7 @@ class _SearchFilterControls extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 8),
-
         GestureDetector(
           onTap: () => onFiltersChanged(
               filters.copyWith(observableNow: !filters.observableNow)),
@@ -166,9 +162,7 @@ class _SearchFilterControls extends StatelessWidget {
             ],
           ),
         ),
-
         const SizedBox(height: 8),
-
         Row(
           children: [
             Text(

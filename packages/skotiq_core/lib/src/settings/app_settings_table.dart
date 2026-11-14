@@ -439,6 +439,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
     adminOnly: AdminOnly.administration,
   ),
+
   /// A camera's gain, or a DSLR or mirrorless body's ISO: no camera's gain and
   /// no body's ISO is above the bound.
   IntSetting(

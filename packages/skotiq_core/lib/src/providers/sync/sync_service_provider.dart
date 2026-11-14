@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database_provider.dart';
-import '../notification_router_provider.dart'
-    show secretsStoreProvider;
+import '../notification_router_provider.dart' show secretsStoreProvider;
 import '../../services/sync/sync_service.dart';
 import '../backup_service_provider.dart';
 import '../logging_service_provider.dart';

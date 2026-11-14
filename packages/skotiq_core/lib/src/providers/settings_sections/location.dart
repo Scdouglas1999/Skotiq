@@ -14,13 +14,17 @@ part of '../settings_provider.dart';
 
 extension LocationSettingsSection on AppSettingsNotifier {
   // The planetarium follows these through the settings screen, not here.
-  Future<void> setLatitude(double value) => _set(AppSettingDefs.latitude, value);
+  Future<void> setLatitude(double value) =>
+      _set(AppSettingDefs.latitude, value);
 
-  Future<void> setLongitude(double value) => _set(AppSettingDefs.longitude, value);
+  Future<void> setLongitude(double value) =>
+      _set(AppSettingDefs.longitude, value);
 
-  Future<void> setElevation(double value) => _set(AppSettingDefs.elevation, value);
+  Future<void> setElevation(double value) =>
+      _set(AppSettingDefs.elevation, value);
 
-  Future<void> setTimezone(String value) => _set(AppSettingDefs.timezone, value);
+  Future<void> setTimezone(String value) =>
+      _set(AppSettingDefs.timezone, value);
 
   /// What to do when a connected mount's site/time disagrees with this
   /// computer's: `ask`, `computerToMount`, `mountToComputer` or `never`.

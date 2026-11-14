@@ -371,7 +371,9 @@ impl CameraDriver for QhyCamera {
                     self.core.device_id
                 ))
             })?;
-            if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&Vendor::Qhy, &self.camera_id) {
+            if let Some((min_temp, max_temp)) =
+                crate::quirks::get_cooler_range(&Vendor::Qhy, &self.camera_id)
+            {
                 if target < min_temp || target > max_temp {
                     return Err(DriverError::InvalidParameter(format!(
                         "QHY cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",

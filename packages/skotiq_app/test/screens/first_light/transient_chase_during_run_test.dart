@@ -152,7 +152,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chase this candidate?'), findsOne);
 
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     await tester.pump();
     await tester.tap(find.text('Slew'));
     await tester.pumpAndSettle();

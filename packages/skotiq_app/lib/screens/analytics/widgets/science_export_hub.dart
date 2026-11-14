@@ -251,7 +251,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                 ],
               ),
             ),
-
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -300,7 +299,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -490,7 +488,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                 ),
               ),
             ),
-
             if (_lastExportResult != null)
               Container(
                 width: double.infinity,

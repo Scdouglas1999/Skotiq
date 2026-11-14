@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiStatusProfileOperations on _FfiBackendBase {
-
   @override
   Future<CameraStatus> getCameraStatus(String deviceId) async {
     final bridgeStatus = await _native(

@@ -316,7 +316,6 @@ class _SessionCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-
             Wrap(
               spacing: 16,
               runSpacing: 4,
@@ -348,7 +347,6 @@ class _SessionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

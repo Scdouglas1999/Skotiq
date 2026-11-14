@@ -4328,7 +4328,9 @@ mod ascii_header_tests {
             .position(|card| card.starts_with(b"END "))
             .unwrap();
         assert!(
-            bytes[..(end + 1) * 80].iter().all(|b| (0x20..0x7f).contains(b)),
+            bytes[..(end + 1) * 80]
+                .iter()
+                .all(|b| (0x20..0x7f).contains(b)),
             "{}",
             String::from_utf8_lossy(&bytes[..(end + 1) * 80])
         );

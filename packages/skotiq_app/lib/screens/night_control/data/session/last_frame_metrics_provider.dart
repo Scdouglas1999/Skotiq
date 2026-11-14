@@ -10,7 +10,6 @@
 // shows its value with no delta; nothing is compared against a made-up
 // baseline.
 
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
@@ -103,12 +102,12 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       solvedRa != null &&
       solvedDec != null) {
     solve = AngleFormat.arcsec(AstronomyCalculations.angularSeparation(
-            ra1Deg: solvedRa * 15.0,
-            dec1Deg: solvedDec,
-            ra2Deg: target.raHours * 15.0,
-            dec2Deg: target.decDegrees,
-          ) *
-          3600);
+          ra1Deg: solvedRa * 15.0,
+          dec1Deg: solvedDec,
+          ra2Deg: target.raHours * 15.0,
+          dec2Deg: target.decDegrees,
+        ) *
+        3600);
   }
 
   final histogram = current?.histogram;

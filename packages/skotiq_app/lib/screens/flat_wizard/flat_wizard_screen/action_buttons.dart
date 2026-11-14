@@ -188,8 +188,7 @@ class _ActionButtons extends ConsumerWidget {
         );
       }
 
-      if (!context.mounted ||
-          hostScope.isStale) {
+      if (!context.mounted || hostScope.isStale) {
         return;
       }
 
@@ -200,11 +199,11 @@ class _ActionButtons extends ConsumerWidget {
       await notifier.runCapture();
     } catch (error) {
       if (context.mounted && hostScope.isCurrent) {
-        notifier.setErrorMessage('Could not start flat capture: ${userFacingError(error)}');
+        notifier.setErrorMessage(
+            'Could not start flat capture: ${userFacingError(error)}');
       }
     } finally {
       notifier.releaseStartPrompt();
     }
   }
 }
-

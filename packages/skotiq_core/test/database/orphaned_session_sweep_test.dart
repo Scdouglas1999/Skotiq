@@ -337,8 +337,14 @@ void main() {
       );
 
       expect(closed, [a, b]);
-      expect((await readSession(db, a)).status, SessionStatus.interrupted.token);
-      expect((await readSession(db, b)).status, SessionStatus.interrupted.token);
+      expect(
+        (await readSession(db, a)).status,
+        SessionStatus.interrupted.token,
+      );
+      expect(
+        (await readSession(db, b)).status,
+        SessionStatus.interrupted.token,
+      );
       expect(
         (await readSession(db, b)).notes,
         contains('a new sequence started'),

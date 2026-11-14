@@ -5,7 +5,9 @@
 //! the output.
 
 use super::block::{decompress_block, try_alloc, BlockLocation};
-use super::{ByteOrder, ColorSpace, PixelStorage, SampleFormat, XisfError, XisfImageHeader, XisfUnit};
+use super::{
+    ByteOrder, ColorSpace, PixelStorage, SampleFormat, XisfError, XisfImageHeader, XisfUnit,
+};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 use std::io::Read;
@@ -21,7 +23,10 @@ enum Convert {
     Copy,
     /// UInt64 has no app pixel type; it becomes Float64 normalized over the
     /// representable range.
-    U64ToF64 { low: f64, scale: f64 },
+    U64ToF64 {
+        low: f64,
+        scale: f64,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -98,7 +103,9 @@ pub(crate) fn read_image(
         u32::try_from(image.channels),
     );
     let (Ok(width), Ok(height), Ok(channels)) = (width, height, channels) else {
-        return Err(XisfError::Unsupported("its dimensions are too large".to_string()));
+        return Err(XisfError::Unsupported(
+            "its dimensions are too large".to_string(),
+        ));
     };
     if image.color_space == ColorSpace::CieLab && channels < 3 {
         return Err(XisfError::Malformed(
@@ -158,7 +165,13 @@ pub(crate) fn read_image(
                 }
             } else {
                 out.resize(out_len as usize, 0);
-                stream_into(&layout, &mut range.reader, stored_len, &mut out, &mut hasher)?;
+                stream_into(
+                    &layout,
+                    &mut range.reader,
+                    stored_len,
+                    &mut out,
+                    &mut hasher,
+                )?;
             }
             if let (Some(h), Some(checksum)) = (hasher, &block.checksum) {
                 if h.finish() != checksum.digest {
@@ -170,7 +183,8 @@ pub(crate) fn read_image(
             }
         }
         _ => {
-            let stored = block.read_stored(&unit.source, what, stored_len.saturating_mul(2) + (1 << 20))?;
+            let stored =
+                block.read_stored(&unit.source, what, stored_len.saturating_mul(2) + (1 << 20))?;
             let (data, shuffle) = match block.compression {
                 Some(compression) => {
                     if compression.uncompressed_size != stored_len {
@@ -299,7 +313,10 @@ fn stream_into(
             };
             let sample = &mut sample[..layout.in_size];
             sample.copy_from_slice(stored);
-            layout.write(sample, &mut out[o * layout.out_size..(o + 1) * layout.out_size]);
+            layout.write(
+                sample,
+                &mut out[o * layout.out_size..(o + 1) * layout.out_size],
+            );
             s += 1;
         }
         remaining -= n;
@@ -326,7 +343,9 @@ fn lab_to_rgb(image: &XisfImageHeader, data: &mut ImageData) {
     data.data.par_chunks_exact_mut(stride).for_each(|pixel| {
         let mut lab = [0.0; 3];
         for (c, v) in lab.iter_mut().enumerate() {
-            *v = (crate::samples::sample_from_le(&pixel[c * size..(c + 1) * size], pixel_type) - low) / span;
+            *v = (crate::samples::sample_from_le(&pixel[c * size..(c + 1) * size], pixel_type)
+                - low)
+                / span;
         }
         let rgb = space.lab_to_rgb(lab);
         for (c, v) in rgb.iter().enumerate() {

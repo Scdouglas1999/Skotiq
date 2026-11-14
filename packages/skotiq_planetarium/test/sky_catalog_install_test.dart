@@ -5,35 +5,37 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 DownloadProgress _at(SkyCatalog catalog, double progress) => DownloadProgress(
-      catalog: catalog,
-      progress: progress,
-      bytesReceived: 0,
-      totalBytes: 0,
-      status: 'Downloading ${catalog.displayName}',
-    );
+  catalog: catalog,
+  progress: progress,
+  bytesReceived: 0,
+  totalBytes: 0,
+  status: 'Downloading ${catalog.displayName}',
+);
 
 void main() {
-  test('installs stars then deep-sky objects, reporting overall progress',
-      () async {
-    final installed = <SkyCatalog>[];
-    final seen = <double>[];
-    final notifier = SkyCatalogInstallNotifier((
-      catalog, {
-      onProgress,
-      isCancelled,
-    }) async {
-      onProgress?.call(_at(catalog, 0.5));
-      installed.add(catalog);
-      return null;
-    });
-    notifier.addListener((s) => seen.add(s.progress), fireImmediately: false);
+  test(
+    'installs stars then deep-sky objects, reporting overall progress',
+    () async {
+      final installed = <SkyCatalog>[];
+      final seen = <double>[];
+      final notifier = SkyCatalogInstallNotifier((
+        catalog, {
+        onProgress,
+        isCancelled,
+      }) async {
+        onProgress?.call(_at(catalog, 0.5));
+        installed.add(catalog);
+        return null;
+      });
+      notifier.addListener((s) => seen.add(s.progress), fireImmediately: false);
 
-    final result = await notifier.start();
+      final result = await notifier.start();
 
-    expect(installed, [SkyCatalog.stars, SkyCatalog.dso]);
-    expect(result.phase, SkyCatalogInstallPhase.done);
-    expect(seen, containsAllInOrder([0.25, 0.75, 1.0]));
-  });
+      expect(installed, [SkyCatalog.stars, SkyCatalog.dso]);
+      expect(result.phase, SkyCatalogInstallPhase.done);
+      expect(seen, containsAllInOrder([0.25, 0.75, 1.0]));
+    },
+  );
 
   test('a failed download keeps its reason and can be tried again', () async {
     var attempts = 0;

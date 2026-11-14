@@ -7,7 +7,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 class SequenceProgressBar extends ConsumerStatefulWidget {
   final SkotiqColors colors;
 
@@ -288,7 +287,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ),
-
                   if (progress.currentTarget != null ||
                       progress.currentFilter != null) ...[
                     Container(
@@ -342,14 +340,12 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ],
-
                   Container(
                     width: 1,
                     height: 30,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     color: widget.colors.border,
                   ),
-
                   SizedBox(
                     width: 220,
                     child: Column(
@@ -456,14 +452,12 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ),
-
                   Container(
                     width: 1,
                     height: 30,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     color: widget.colors.border,
                   ),
-
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,

@@ -18,8 +18,8 @@ Future<void> connectPhd2(WidgetRef ref, {BuildContext? context}) async {
         );
   } catch (e) {
     if (context != null && context.mounted) {
-      context.showErrorSnackBar(
-          'PHD2 connection failed: ${userFacingError(e)}');
+      context
+          .showErrorSnackBar('PHD2 connection failed: ${userFacingError(e)}');
     }
   }
 }

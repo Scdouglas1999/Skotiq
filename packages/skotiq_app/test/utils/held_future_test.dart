@@ -38,7 +38,8 @@ Future<WidgetRef> _ref(WidgetTester tester) async {
   return captured;
 }
 
-Future<void> _openEvery(WidgetTester tester, List<Completer<void>> gates) async {
+Future<void> _openEvery(
+    WidgetTester tester, List<Completer<void>> gates) async {
   // A reload adds its own gate after the first opens, so go round twice.
   for (var round = 0; round < 3; round++) {
     for (final gate in gates.toList()) {

@@ -268,9 +268,7 @@ class _StarterCard extends ConsumerWidget {
           ],
         ),
       );
-      if (discard != true ||
-          !context.mounted ||
-          host.isStale) {
+      if (discard != true || !context.mounted || host.isStale) {
         return;
       }
       try {

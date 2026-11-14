@@ -4,11 +4,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    hide
-        BuiltinGuiderConfig,
-        DeviceType,
-        EventCategory,
-        SkotiqEvent;
+    hide BuiltinGuiderConfig, DeviceType, EventCategory, SkotiqEvent;
 import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';

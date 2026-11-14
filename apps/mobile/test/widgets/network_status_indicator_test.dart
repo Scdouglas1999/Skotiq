@@ -14,12 +14,8 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
-DiscoveredServer _rig(String name, String host) => DiscoveredServer(
-  name: name,
-  host: host,
-  webPort: 8099,
-  mode: 'headless',
-);
+DiscoveredServer _rig(String name, String host) =>
+    DiscoveredServer(name: name, host: host, webPort: 8099, mode: 'headless');
 
 void main() {
   testWidgets('the indicator names the rig the phone is linked to now', (

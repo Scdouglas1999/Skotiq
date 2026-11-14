@@ -76,7 +76,9 @@ impl RotatorDriver for AscomRotatorWrapper {
 #[async_trait]
 impl AscomRotatorMembers for AscomRotatorWrapper {
     async fn interface_version(&self) -> Result<i32, DriverError> {
-        AscomRotatorWrapper::interface_version(self).await.map_err(com)
+        AscomRotatorWrapper::interface_version(self)
+            .await
+            .map_err(com)
     }
     async fn can_reverse(&self) -> Result<bool, DriverError> {
         AscomRotatorWrapper::can_reverse(self).await.map_err(com)

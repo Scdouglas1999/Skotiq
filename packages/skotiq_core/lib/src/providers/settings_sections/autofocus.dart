@@ -79,12 +79,14 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
     return operation;
   }
 
-  Future<void> setAfMethod(String value) => _set(AppSettingDefs.afMethod, value);
+  Future<void> setAfMethod(String value) =>
+      _set(AppSettingDefs.afMethod, value);
 
   Future<void> setAfCurveFitting(String value) =>
       _set(AppSettingDefs.afCurveFitting, value);
 
-  Future<void> setAfStepSize(int value) => _set(AppSettingDefs.afStepSize, value);
+  Future<void> setAfStepSize(int value) =>
+      _set(AppSettingDefs.afStepSize, value);
 
   Future<void> setAfExposureTime(double value) =>
       _set(AppSettingDefs.afExposureTime, value);

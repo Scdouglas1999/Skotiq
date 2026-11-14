@@ -148,8 +148,7 @@ void main() {
       expect(created.success, isTrue, reason: created.errorMessage);
 
       final archive = await archiveAt(backupPath);
-      final rows = (archive['tables']['guide_rms_history'] as List)
-          .cast<Map>();
+      final rows = (archive['tables']['guide_rms_history'] as List).cast<Map>();
       expect(rows, hasLength(pagedRowCount));
       expect(
         rows.map((r) => r['total_rms_arcsec']).toList(),

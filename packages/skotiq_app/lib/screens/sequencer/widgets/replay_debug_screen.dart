@@ -310,8 +310,10 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
     DateTime spanEnd,
   ) {
     final range = _timeRange ?? const RangeValues(0, 1);
-    final startLabel = ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.start));
-    final endLabel = ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.end));
+    final startLabel =
+        ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.start));
+    final endLabel =
+        ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.end));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Column(

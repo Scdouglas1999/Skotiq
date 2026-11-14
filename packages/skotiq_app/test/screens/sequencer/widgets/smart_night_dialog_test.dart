@@ -377,8 +377,7 @@ void main() {
           );
     }
 
-    testWidgets('is offered and continues on the Preview step',
-        (tester) async {
+    testWidgets('is offered and continues on the Preview step', (tester) async {
       await _pumpDialog(
         tester,
         overrides: draftOverrides(),

@@ -295,45 +295,52 @@ void main() {
       expect(left.raHours, greaterThan(right.raHours));
     });
 
-    test('Framing numbers a mosaic as the wizard and the sequence do',
-        () async {
-      final container = _container(
-        seed: FramingState(
-          target: _target(),
-          useCustomEquipment: true,
-          customEquipment: _equipment,
-          rotation: 12,
-        ),
-      );
-      final notifier = container.read(framingProvider.notifier);
-      notifier.setMosaicConfig(const FramingMosaicConfig(
-        columns: 3,
-        rows: 2,
-        overlapPercent: 20,
-        startCorner: MosaicStartCorner.bottomRight,
-      ));
-      notifier.setMosaicEnabled(true);
-      await pumpEventQueue();
+    test(
+      'Framing numbers a mosaic as the wizard and the sequence do',
+      () async {
+        final container = _container(
+          seed: FramingState(
+            target: _target(),
+            useCustomEquipment: true,
+            customEquipment: _equipment,
+            rotation: 12,
+          ),
+        );
+        final notifier = container.read(framingProvider.notifier);
+        notifier.setMosaicConfig(
+          const FramingMosaicConfig(
+            columns: 3,
+            rows: 2,
+            overlapPercent: 20,
+            startCorner: MosaicStartCorner.bottomRight,
+          ),
+        );
+        notifier.setMosaicEnabled(true);
+        await pumpEventQueue();
 
-      final framing = container.read(framingProvider).mosaicPanels;
-      // The wizard's preview and every mosaic sequence come from here.
-      final service = const MosaicService().generatePanels(MosaicConfig(
-        centerRa: 5.0,
-        centerDec: 20.0,
-        panelWidthArcmin: _equipment.fovWidthDeg * 60,
-        panelHeightArcmin: _equipment.fovHeightDeg * 60,
-        overlapPercent: 20,
-        rotation: 12,
-        panelsHorizontal: 3,
-        panelsVertical: 2,
-        startCorner: MosaicStartCorner.bottomRight,
-      ));
-      String describe(MosaicPanel p) => '${p.number} ${p.name} '
-          '${p.row},${p.col} ${p.raHours.toStringAsFixed(9)} '
-          '${p.decDegrees.toStringAsFixed(9)}';
-      expect(framing.map(describe), service.map(describe));
-      expect((framing.first.row, framing.first.col), (1, 2));
-    });
+        final framing = container.read(framingProvider).mosaicPanels;
+        // The wizard's preview and every mosaic sequence come from here.
+        final service = const MosaicService().generatePanels(
+          MosaicConfig(
+            centerRa: 5.0,
+            centerDec: 20.0,
+            panelWidthArcmin: _equipment.fovWidthDeg * 60,
+            panelHeightArcmin: _equipment.fovHeightDeg * 60,
+            overlapPercent: 20,
+            rotation: 12,
+            panelsHorizontal: 3,
+            panelsVertical: 2,
+            startCorner: MosaicStartCorner.bottomRight,
+          ),
+        );
+        String describe(MosaicPanel p) =>
+            '${p.number} ${p.name} '
+            '${p.row},${p.col} ${p.raHours.toStringAsFixed(9)} '
+            '${p.decDegrees.toStringAsFixed(9)}';
+        expect(framing.map(describe), service.map(describe));
+        expect((framing.first.row, framing.first.col), (1, 2));
+      },
+    );
 
     test('single-panel grid sits on the aim, not the view center', () async {
       final container = _container(

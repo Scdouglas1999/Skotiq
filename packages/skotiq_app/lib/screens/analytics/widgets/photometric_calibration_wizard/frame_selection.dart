@@ -210,8 +210,7 @@ extension _PhotometricWizardFrameSelection
       ),
       data: (imageList) {
         final solvedImages = imageList
-            .where((img) =>
-                img.isPlateSolved && img.isLight)
+            .where((img) => img.isPlateSolved && img.isLight)
             .toList(growable: false);
 
         if (solvedImages.isEmpty) {

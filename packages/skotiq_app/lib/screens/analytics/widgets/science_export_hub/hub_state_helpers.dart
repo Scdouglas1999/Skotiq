@@ -11,9 +11,8 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       children: [
         _DateButton(
           colors: colors,
-          label: _startDate != null
-              ? ClockFormat.date(_startDate!)
-              : 'Start Date',
+          label:
+              _startDate != null ? ClockFormat.date(_startDate!) : 'Start Date',
           onTap: () => _pickDate(isStart: true),
         ),
         Padding(

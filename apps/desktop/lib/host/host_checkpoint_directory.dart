@@ -79,8 +79,7 @@ Future<void> _adoptEarlierCheckpoints({
   required Map<String, String> environment,
   Future<Directory> Function()? applicationSupportDirectoryProvider,
 }) async {
-  bool configured(String name) =>
-      (environment[name]?.trim() ?? '').isNotEmpty;
+  bool configured(String name) => (environment[name]?.trim() ?? '').isNotEmpty;
   if (configured(skotiqDatabaseDirEnv) && !configured(skotiqDataDirEnv)) {
     return;
   }

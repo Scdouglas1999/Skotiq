@@ -135,8 +135,14 @@ void main() {
 
       final read = await store.read();
       expect(read.lastCheckAt, now);
-      expect(read.lastCheckError, 'Could not reach GitHub (Connection failed).');
-      expect((await store.read()).withCheckOutcome(null).lastCheckError, isNull);
+      expect(
+        read.lastCheckError,
+        'Could not reach GitHub (Connection failed).',
+      );
+      expect(
+        (await store.read()).withCheckOutcome(null).lastCheckError,
+        isNull,
+      );
     });
 
     test('an absent file reads as empty rather than throwing', () async {
@@ -205,38 +211,40 @@ void main() {
 
   // ux walk-2 F1/F40: a launch inside the check interval said no check had
   // run, although the launch before had checked offline and failed.
-  test('a launch that does not check reports the last check and its failure',
-      () async {
-    final checkedAt = DateTime.now().toUtc().subtract(
-      const Duration(minutes: 18),
-    );
-    final recorded = _SlowPromptStore(() async => dataDir)
-      ..stored = UpdatePromptState(
-        lastCheckAt: checkedAt,
-      ).withCheckOutcome('Could not reach GitHub (Connection failed).')
-      ..gate.complete();
+  test(
+    'a launch that does not check reports the last check and its failure',
+    () async {
+      final checkedAt = DateTime.now().toUtc().subtract(
+        const Duration(minutes: 18),
+      );
+      final recorded = _SlowPromptStore(() async => dataDir)
+        ..stored = UpdatePromptState(
+          lastCheckAt: checkedAt,
+        ).withCheckOutcome('Could not reach GitHub (Connection failed).')
+        ..gate.complete();
 
-    final notifier = UpdateNotifier(
-      currentVersion: '7.1.0',
-      currentBuildNumber: 28,
-      dataDirectory: () async => dataDir,
-      promptStore: recorded,
-      updateService: UpdateService(
+      final notifier = UpdateNotifier(
         currentVersion: '7.1.0',
         currentBuildNumber: 28,
-        applicationSupportDirectoryProvider: () async => dataDir,
-      ),
-    );
-    addTearDown(notifier.dispose);
+        dataDirectory: () async => dataDir,
+        promptStore: recorded,
+        updateService: UpdateService(
+          currentVersion: '7.1.0',
+          currentBuildNumber: 28,
+          applicationSupportDirectoryProvider: () async => dataDir,
+        ),
+      );
+      addTearDown(notifier.dispose);
 
-    await notifier.checkForUpdatesIfDue();
+      await notifier.checkForUpdatesIfDue();
 
-    expect(notifier.state.lastCheckTime, checkedAt.toLocal());
-    expect(
-      notifier.state.errorMessage,
-      'Could not reach GitHub (Connection failed).',
-    );
-  });
+      expect(notifier.state.lastCheckTime, checkedAt.toLocal());
+      expect(
+        notifier.state.errorMessage,
+        'Could not reach GitHub (Connection failed).',
+      );
+    },
+  );
 
   test('a slow startup read cannot clobber a check it raced', () async {
     // The store load is async and the startup check fires on a timer. If the

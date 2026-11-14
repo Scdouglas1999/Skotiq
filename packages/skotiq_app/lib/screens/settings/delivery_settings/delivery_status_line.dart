@@ -316,9 +316,8 @@ class DeliveryStatusLine {
       );
     }
     final at = _newestDeliveredAt(delivered);
-    final when = at == null
-        ? 'at an unrecorded time'
-        : ClockFormat.hm(at.toLocal());
+    final when =
+        at == null ? 'at an unrecorded time' : ClockFormat.hm(at.toLocal());
     final recovered = delivered.any((entry) => entry.lastError != null);
     return DeliveryStatusLine(
       DeliveryStatusKind.delivered,
@@ -363,7 +362,6 @@ class DeliveryStatusLine {
   }
 
   static String _files(int count) => count == 1 ? '1 file' : '$count files';
-
 }
 
 /// The colour a status line is drawn in. Kept beside the kinds so a new kind

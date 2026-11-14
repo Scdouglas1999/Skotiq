@@ -13,8 +13,7 @@ use crate::post_session::masters::{
     BuildMasterFlatResult, MasterAccumulateResult, SaveFitsMasterResult, RETIRED_SIDECAR_MARKER,
 };
 use skotiq_imaging::{
-    read_frame, read_frame_header, write_fits, FitsHeader, ImageData, PixelType,
-    SipWcs,
+    read_frame, read_frame_header, write_fits, FitsHeader, ImageData, PixelType, SipWcs,
 };
 use std::path::{Path, PathBuf};
 

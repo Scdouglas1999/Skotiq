@@ -10,7 +10,6 @@ const double _recommendationLabelWidth = 104;
 const double _autoDetectNoteMaxWidth = 240;
 
 extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
-
   Widget _buildFiltersSection(SkotiqColors colors, ThemeData theme) {
     final filterWheelState = ref.watch(filterWheelStateProvider);
     final wheelConnected =
@@ -71,7 +70,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                     ],
                   ),
                 ),
-
                 if (_filterControllers.isEmpty)
                   Padding(
                     padding: SkotiqTokens.paddingLg,

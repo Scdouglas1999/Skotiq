@@ -3,7 +3,6 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
-
   void _showMoveDialog(BuildContext context) async {
     final focuserState = ref.read(focuserStateProvider);
     final reportedMax = focuserState.maxPosition;
@@ -112,7 +111,8 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isMoving = false;
-                              errorText = 'Failed to move focuser: ${userFacingError(e)}';
+                              errorText =
+                                  'Failed to move focuser: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -300,7 +300,8 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isRotating = false;
-                              errorText = 'Failed to rotate: ${userFacingError(e)}';
+                              errorText =
+                                  'Failed to rotate: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -432,7 +433,8 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isSending = false;
-                              errorText = 'Dome slew failed: ${userFacingError(e)}';
+                              errorText =
+                                  'Dome slew failed: ${userFacingError(e)}';
                             });
                           }
                         },

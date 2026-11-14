@@ -170,11 +170,13 @@ void main() {
       baseDefaults,
     );
     expect(
-      _baseOnly(AppSettingsCodec.toRows(
-        AppSettingsCodec.fromRows(
-          Map<String, String>.from(fixture['nonDefaultRows'] as Map),
+      _baseOnly(
+        AppSettingsCodec.toRows(
+          AppSettingsCodec.fromRows(
+            Map<String, String>.from(fixture['nonDefaultRows'] as Map),
+          ),
         ),
-      )),
+      ),
       baseRows,
     );
   });

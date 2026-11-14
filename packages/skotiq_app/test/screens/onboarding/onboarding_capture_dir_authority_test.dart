@@ -115,8 +115,7 @@ void main() {
       (tester) async {
     final picker = Completer<String?>();
     final h = _container(
-      picker: ({required initialPath}) =>
-          picker.future,
+      picker: ({required initialPath}) => picker.future,
       writer: (path) async {},
     );
     addTearDown(h.container.dispose);

@@ -28,11 +28,13 @@ impl DeviceManager {
         let vendor = parts[1];
 
         if info.device_type == DeviceType::Guider && vendor == "builtin_guider" {
-            crate::builtin_guider::control::connect().await.map_err(|e| {
-                let message = format!("Failed to connect built-in guider: {}", e);
-                tracing::warn!("{}", message);
-                message
-            })?;
+            crate::builtin_guider::control::connect()
+                .await
+                .map_err(|e| {
+                    let message = format!("Failed to connect built-in guider: {}", e);
+                    tracing::warn!("{}", message);
+                    message
+                })?;
             tracing::info!("Connected to built-in multi-star guider");
             return Ok(());
         }
@@ -203,16 +205,19 @@ impl DeviceManager {
             return;
         };
         tracing::warn!("{}", message);
-        self.app_state.publish_event(crate::event::correlation::create_event_auto_id(
-            crate::event::equipment::EventSeverity::Warning,
-            crate::event::equipment::EventCategory::Equipment,
-            crate::event::bus::EventPayload::System(crate::event::system::SystemEvent::Notification {
-                title: "Camera noise reduction".to_string(),
-                message,
-                level: "warning".to_string(),
-                explicit_transports: None,
-            }),
-        ));
+        self.app_state
+            .publish_event(crate::event::correlation::create_event_auto_id(
+                crate::event::equipment::EventSeverity::Warning,
+                crate::event::equipment::EventCategory::Equipment,
+                crate::event::bus::EventPayload::System(
+                    crate::event::system::SystemEvent::Notification {
+                        title: "Camera noise reduction".to_string(),
+                        message,
+                        level: "warning".to_string(),
+                        explicit_transports: None,
+                    },
+                ),
+            ));
     }
 }
 

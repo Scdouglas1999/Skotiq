@@ -180,9 +180,7 @@ void main() {
   });
 
   group('Checklist', () {
-    testWidgets('a done step is checked off, not struck out', (
-      tester,
-    ) async {
+    testWidgets('a done step is checked off, not struck out', (tester) async {
       await tester.pumpWidget(
         _host(
           const SizedBox(

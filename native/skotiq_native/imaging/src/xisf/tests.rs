@@ -56,11 +56,20 @@ fn capture_header() -> FitsHeader {
 
 fn cards(h: &FitsHeader) -> Vec<(String, String, Option<String>)> {
     h.cards()
-        .map(|(k, v, c)| (k.to_string(), crate::fits::value_card_text(v), c.map(str::to_string)))
+        .map(|(k, v, c)| {
+            (
+                k.to_string(),
+                crate::fits::value_card_text(v),
+                c.map(str::to_string),
+            )
+        })
         .collect()
 }
 
-fn options(compression: Option<XisfCompression>, checksum: Option<ChecksumAlgorithm>) -> FrameWriteOptions {
+fn options(
+    compression: Option<XisfCompression>,
+    checksum: Option<ChecksumAlgorithm>,
+) -> FrameWriteOptions {
     FrameWriteOptions {
         xisf: XisfWriteOptions {
             compression,
@@ -109,7 +118,11 @@ fn every_sample_format_codec_and_shuffle_round_trips() {
                 size.set_image_size(image.width, image.height, image.channels);
                 let expected: Vec<_> = cards(&size).into_iter().chain(cards(&header)).collect();
                 assert_eq!(cards(&back_header), expected, "{what}");
-                assert_eq!(cards(&read_frame_header(&path).unwrap()), expected, "{what}");
+                assert_eq!(
+                    cards(&read_frame_header(&path).unwrap()),
+                    expected,
+                    "{what}"
+                );
                 assert_eq!(back_header.comments, header.comments, "{what}");
                 assert_eq!(back_header.history, header.history, "{what}");
             }
@@ -129,7 +142,13 @@ fn compressible_data_is_compressed_in_parallel_subblocks() {
         shuffle: true,
         level: None,
     };
-    write_frame_with(&path, &image, &FitsHeader::new(), &options(Some(zstd), None)).unwrap();
+    write_frame_with(
+        &path,
+        &image,
+        &FitsHeader::new(),
+        &options(Some(zstd), None),
+    )
+    .unwrap();
     let unit = read_xisf_unit(&path).unwrap();
     let block = unit.images[0].block.as_ref().unwrap();
     assert_eq!(block.compression.unwrap().shuffle_item, Some(2));
@@ -167,8 +186,13 @@ fn standard_properties_carry_what_the_cards_say() {
     let mut header = capture_header();
     header.set_float("APTDIA", 203.0);
     let path = scratch("props.xisf");
-    write_frame_with(&path, &test_image(8, 8, 1, PixelType::U16), &header, &options(None, None))
-        .unwrap();
+    write_frame_with(
+        &path,
+        &test_image(8, 8, 1, PixelType::U16),
+        &header,
+        &options(None, None),
+    )
+    .unwrap();
     let unit = read_xisf_unit(&path).unwrap();
     let image = &unit.images[0];
     let f = |id: &str| image.property(id).and_then(PropertyValue::as_f64).unwrap();
@@ -182,7 +206,9 @@ fn standard_properties_carry_what_the_cards_say() {
         Some(&PropertyValue::TimePoint("2026-11-11T07:12:06.250Z".into()))
     );
     assert_eq!(
-        image.property("Instrument:Filter:Name").and_then(PropertyValue::as_str),
+        image
+            .property("Instrument:Filter:Name")
+            .and_then(PropertyValue::as_str),
         Some("Ha")
     );
     assert_eq!(image.image_type.as_deref(), Some("Light"));
@@ -203,13 +229,24 @@ fn a_bayer_frame_carries_its_effective_pattern() {
     header.set_string("BAYERPAT", "RGGB");
     header.set_int("XBAYROFF", 1);
     let path = scratch("cfa.xisf");
-    write_frame_with(&path, &test_image(8, 8, 1, PixelType::U16), &header, &options(None, None))
-        .unwrap();
+    write_frame_with(
+        &path,
+        &test_image(8, 8, 1, PixelType::U16),
+        &header,
+        &options(None, None),
+    )
+    .unwrap();
     let unit = read_xisf_unit(&path).unwrap();
     let cfa = unit.images[0].color_filter_array.as_ref().unwrap();
-    assert_eq!((cfa.pattern.as_str(), cfa.width, cfa.height), ("GRBG", 2, 2));
+    assert_eq!(
+        (cfa.pattern.as_str(), cfa.width, cfa.height),
+        ("GRBG", 2, 2)
+    );
     let back = read_frame_header(&path).unwrap();
-    assert_eq!(read_color_filter_array(&back), read_color_filter_array(&header));
+    assert_eq!(
+        read_color_filter_array(&back),
+        read_color_filter_array(&header)
+    );
 }
 
 #[test]
@@ -219,8 +256,13 @@ fn an_x_trans_frame_keeps_its_filter_both_ways() {
     header.set_string("BAYERPAT", XTRANS);
     header.set_int("YBAYROFF", 1);
     let path = scratch("xtrans.xisf");
-    write_frame_with(&path, &test_image(12, 12, 1, PixelType::U16), &header, &options(None, None))
-        .unwrap();
+    write_frame_with(
+        &path,
+        &test_image(12, 12, 1, PixelType::U16),
+        &header,
+        &options(None, None),
+    )
+    .unwrap();
     // The element PixInsight reads holds the cell as the frame's first pixel
     // sees it: one row down.
     let unit = read_xisf_unit(&path).unwrap();
@@ -265,8 +307,13 @@ fn a_wcs_becomes_the_first_layer_of_an_astrometric_solution_and_back() {
     header.set_float("CD2_2", -2.1e-4);
     header.set_string("RADESYS", "ICRS");
     let path = scratch("wcs.xisf");
-    write_frame_with(&path, &test_image(8, 8, 1, PixelType::U16), &header, &options(None, None))
-        .unwrap();
+    write_frame_with(
+        &path,
+        &test_image(8, 8, 1, PixelType::U16),
+        &header,
+        &options(None, None),
+    )
+    .unwrap();
     let unit = read_xisf_unit(&path).unwrap();
     let image = &unit.images[0];
     let v = |id: &str| {
@@ -277,7 +324,10 @@ fn a_wcs_becomes_the_first_layer_of_an_astrometric_solution_and_back() {
     };
     assert_eq!(v("ReferenceImageCoordinates"), vec![2048.0, 1536.0]);
     assert_eq!(v("ReferenceCelestialCoordinates"), vec![35.6, 42.3]);
-    assert_eq!(v("LinearTransformationMatrix"), vec![-2.1e-4, 1.0e-6, -1.0e-6, -2.1e-4]);
+    assert_eq!(
+        v("LinearTransformationMatrix"),
+        vec![-2.1e-4, 1.0e-6, -1.0e-6, -2.1e-4]
+    );
     assert_eq!(
         image
             .property("AstrometricSolution:ProjectionSystem")
@@ -295,7 +345,10 @@ fn a_wcs_becomes_the_first_layer_of_an_astrometric_solution_and_back() {
     assert_eq!(cards.get_string("CTYPE2"), Some("DEC--TAN"));
     assert_eq!(cards.get_float("EXPTIME"), Some(120.0));
     assert_eq!(cards.get_float("FOCALLEN"), Some(1016.0));
-    assert_eq!(cards.get_string("DATE-OBS"), Some("2026-11-11T07:12:06.250"));
+    assert_eq!(
+        cards.get_string("DATE-OBS"),
+        Some("2026-11-11T07:12:06.250")
+    );
     assert_eq!(cards.get_string("IMAGETYP"), Some("Light"));
 }
 
@@ -307,7 +360,12 @@ fn the_astrometric_solution_is_the_wcs_the_app_reads() {
         ("CD diagonal only", &[("CD1_1", -2.1e-4), ("CD2_2", 2.1e-4)]),
         (
             "PC without PC1_1",
-            &[("CDELT1", -2.1e-4), ("CDELT2", 2.1e-4), ("PC1_2", -0.2), ("PC2_1", 0.2)],
+            &[
+                ("CDELT1", -2.1e-4),
+                ("CDELT2", 2.1e-4),
+                ("PC1_2", -0.2),
+                ("PC2_1", 0.2),
+            ],
         ),
         (
             "PC beside CD",
@@ -322,7 +380,10 @@ fn the_astrometric_solution_is_the_wcs_the_app_reads() {
                 ("PC2_2", 0.94),
             ],
         ),
-        ("CDELT and CROTA2", &[("CDELT1", -2.1e-4), ("CDELT2", 2.1e-4), ("CROTA2", 21.0)]),
+        (
+            "CDELT and CROTA2",
+            &[("CDELT1", -2.1e-4), ("CDELT2", 2.1e-4), ("CROTA2", 21.0)],
+        ),
     ];
     for (name, linear) in forms {
         let mut header = capture_header();
@@ -348,7 +409,11 @@ fn the_astrometric_solution_is_the_wcs_the_app_reads() {
             vec![wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2],
             "{name}"
         );
-        assert_eq!(solution("ReferenceImageCoordinates"), vec![2048.0, 1536.0], "{name}");
+        assert_eq!(
+            solution("ReferenceImageCoordinates"),
+            vec![2048.0, 1536.0],
+            "{name}"
+        );
         // PixInsight 1.9.4 reads only the earlier `PCL:` ids; without them it
         // falls back to the keywords, and reads every form but CD wrong.
         for id in [
@@ -548,7 +613,10 @@ fn the_specification_examples_decode() {
         image.property("Hex").and_then(PropertyValue::as_f64_values),
         Some(vec![258.0, 772.0])
     );
-    assert_eq!(image.property("Flags"), Some(&PropertyValue::UInt32(0x8000_FFA0)));
+    assert_eq!(
+        image.property("Flags"),
+        Some(&PropertyValue::UInt32(0x8000_FFA0))
+    );
 }
 
 #[test]
@@ -649,7 +717,11 @@ fn distributed_units_read_from_data_block_files_and_plain_files() {
             )),
         )
         .unwrap();
-        assert_eq!(read_frame(&header).unwrap().0.as_u16().unwrap(), samples, "{location}");
+        assert_eq!(
+            read_frame(&header).unwrap().0.as_u16().unwrap(),
+            samples,
+            "{location}"
+        );
     }
 
     std::fs::write(
@@ -657,7 +729,9 @@ fn distributed_units_read_from_data_block_files_and_plain_files() {
         wrap(r#"<Image geometry="4:3:1" sampleFormat="UInt16" location="url(http://example.com/x.bin)"/>"#),
     )
     .unwrap();
-    let error = read_frame(&dir.join("remote.xish")).unwrap_err().to_string();
+    let error = read_frame(&dir.join("remote.xish"))
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("remote server"), "{error}");
 }
 
@@ -700,7 +774,9 @@ fn cielab_pixels_are_converted_to_rgb() {
         .collect();
     let path = monolithic(
         "lab.xisf",
-        &wrap(r#"<Image geometry="2:1:3" sampleFormat="Float32" bounds="0:1" colorSpace="CIELab" location="attachment:{0}:24"/>"#),
+        &wrap(
+            r#"<Image geometry="2:1:3" sampleFormat="Float32" bounds="0:1" colorSpace="CIELab" location="attachment:{0}:24"/>"#,
+        ),
         &[&data],
     );
     let pixels = read_frame(&path).unwrap().0;
@@ -736,9 +812,10 @@ fn a_metadata_rewrite_keeps_pixels_and_everything_unknown() {
     // ICC profile, an extension element pointing at an attached block, and an
     // unknown attribute.
     let mut unit = read_xisf_unit(&path).unwrap();
-    unit.images[0]
-        .properties
-        .push(XisfProperty::new("Vendor:Thing", PropertyValue::f64_matrix(1, 2, &[1.5, 2.5])));
+    unit.images[0].properties.push(XisfProperty::new(
+        "Vendor:Thing",
+        PropertyValue::f64_matrix(1, 2, &[1.5, 2.5]),
+    ));
     unit.images[0].icc_profile = Some(vec![0, 0, 1, 2, b'a', b'c', b's', b'p']);
     unit.images[0]
         .extra_attributes
@@ -762,19 +839,28 @@ fn a_metadata_rewrite_keeps_pixels_and_everything_unknown() {
     assert_eq!(unit.read_pixels(0).unwrap().data, image.data);
     assert!(unit.read_thumbnail().unwrap().is_some());
     assert_eq!(
-        back.property("Vendor:Thing").and_then(PropertyValue::as_f64_values),
+        back.property("Vendor:Thing")
+            .and_then(PropertyValue::as_f64_values),
         Some(vec![1.5, 2.5])
     );
-    assert_eq!(back.icc_profile.as_deref(), Some(&[0, 0, 1, 2, b'a', b'c', b's', b'p'][..]));
-    assert!(back.extra_attributes.contains(&("vendorAttr".into(), "kept".into())));
     assert_eq!(
-        back.property("Observation:Object:Name").and_then(PropertyValue::as_str),
+        back.icc_profile.as_deref(),
+        Some(&[0, 0, 1, 2, b'a', b'c', b's', b'p'][..])
+    );
+    assert!(back
+        .extra_attributes
+        .contains(&("vendorAttr".into(), "kept".into())));
+    assert_eq!(
+        back.property("Observation:Object:Name")
+            .and_then(PropertyValue::as_str),
         Some("NGC 891 (rewritten)")
     );
     let header = header_from_image(back);
     assert_eq!(header.get_string("OBJECT"), Some("NGC 891 (rewritten)"));
     assert_eq!(header.history.last(), Some(&long));
-    assert!(unit.metadata_property("XISF:OriginalCreationTime").is_some());
+    assert!(unit
+        .metadata_property("XISF:OriginalCreationTime")
+        .is_some());
 
     // The extension element's block moved with the others and still holds
     // the first four bytes of the image's block.

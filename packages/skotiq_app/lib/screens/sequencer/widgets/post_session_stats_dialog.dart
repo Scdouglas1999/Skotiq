@@ -29,6 +29,7 @@ class PostSessionStatsDialog extends StatelessWidget {
       final t = instant.toLocal();
       return '${ClockFormat.monthDayYear(t)} ${ClockFormat.hms(t)}';
     }
+
     return SkotiqDialog(
       title: 'Session summary',
       icon: LucideIcons.barChart3,
@@ -53,14 +54,10 @@ class PostSessionStatsDialog extends StatelessWidget {
             icon: LucideIcons.clock,
             children: [
               _StatRow(
-                  colors: colors,
-                  label: 'Started',
-                  value: stamp(startedAt)),
+                  colors: colors, label: 'Started', value: stamp(startedAt)),
               if (endedAt != null)
                 _StatRow(
-                    colors: colors,
-                    label: 'Ended',
-                    value: stamp(endedAt!)),
+                    colors: colors, label: 'Ended', value: stamp(endedAt!)),
               _StatRow(
                   colors: colors,
                   label: 'Wall clock',
@@ -82,9 +79,7 @@ class PostSessionStatsDialog extends StatelessWidget {
                 ),
             ],
           ),
-
           const SizedBox(height: 20),
-
           _Section(
             colors: colors,
             title: 'Frames',
@@ -105,9 +100,7 @@ class PostSessionStatsDialog extends StatelessWidget {
                   value: '${stats.framesCaptured - stats.framesRejected}'),
             ],
           ),
-
           const SizedBox(height: 20),
-
           _Section(
             colors: colors,
             title: 'Operations',
@@ -131,7 +124,6 @@ class PostSessionStatsDialog extends StatelessWidget {
                   value: '${stats.triggerFires}'),
             ],
           ),
-
           if (stats.targetBreakdown.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(
@@ -160,7 +152,6 @@ class PostSessionStatsDialog extends StatelessWidget {
               ],
             ),
           ],
-
           if (stats.errorMessages.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(
@@ -182,7 +173,6 @@ class PostSessionStatsDialog extends StatelessWidget {
               ],
             ),
           ],
-
           if (stats.errorMessages
               .any((message) => runFailureMessage(message) != message))
             ExpansionTile(

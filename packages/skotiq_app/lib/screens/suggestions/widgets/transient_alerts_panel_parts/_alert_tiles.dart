@@ -90,7 +90,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                     child: _TypeBadge(type: alert.type),
                   ),
                   const SizedBox(width: 10),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,7 +190,8 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                                   color: colors.textMuted),
                             ),
                             Text(
-                              ClockFormat.monthDay(alert.discoveryTime.toLocal()),
+                              ClockFormat.monthDay(
+                                  alert.discoveryTime.toLocal()),
                               style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: colors.textMuted),
@@ -212,7 +212,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                       ],
                     ),
                   ),
-
                   if (!isDismissed && !isQueued && !isObserved) ...[
                     const SizedBox(width: 8),
                     Column(
@@ -265,7 +264,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
           )),
     );
   }
-
 }
 
 class _TypeBadge extends StatelessWidget {

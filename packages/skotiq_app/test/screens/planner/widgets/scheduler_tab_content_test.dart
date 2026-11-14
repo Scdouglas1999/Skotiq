@@ -576,7 +576,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final defaultAltitude = SchedulerConfig.defaults.weights.altitude;
-    double altitudeSlider() => tester.widget<Slider>(find.byType(Slider).first).value;
+    double altitudeSlider() =>
+        tester.widget<Slider>(find.byType(Slider).first).value;
     expect(altitudeSlider(), defaultAltitude);
 
     tester.widget<Slider>(find.byType(Slider).first).onChanged!(2.5);
@@ -592,8 +593,8 @@ void main() {
     oldSave.completeError(StateError('old host went away'));
     await tester.pumpAndSettle();
     expect(altitudeSlider(), defaultAltitude);
-    expect(find.textContaining('Could not save scheduler settings'),
-        findsNothing);
+    expect(
+        find.textContaining('Could not save scheduler settings'), findsNothing);
     verifyNever(() => newBackend.updateSchedulerConfig(any()));
   });
 

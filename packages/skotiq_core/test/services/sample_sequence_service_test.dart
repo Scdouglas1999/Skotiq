@@ -168,24 +168,27 @@ void main() {
     // The walk-through's M51 starter failed its own pre-flight on an
     // L/R/G/B/Ha/OIII/SII wheel ("Lum") and raised four "Loop Repeats Once"
     // notes about its own loops.
-    test('starters name the standard filters and hold no one-pass loops',
-        () async {
-      final samples = await SampleSequenceService().load();
-      const wheel = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
-      for (final sample in samples) {
-        expect(
-          filterNamesUsedBy(sample.template).difference(wheel.toSet()),
-          isEmpty,
-          reason: '${sample.id} names a filter the standard wheel spells '
-              'differently',
-        );
-        expect(
-          NoOpLogicNodeRule().validate(sample.template),
-          isEmpty,
-          reason: '${sample.id} has a step that does nothing',
-        );
-      }
-    });
+    test(
+      'starters name the standard filters and hold no one-pass loops',
+      () async {
+        final samples = await SampleSequenceService().load();
+        const wheel = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
+        for (final sample in samples) {
+          expect(
+            filterNamesUsedBy(sample.template).difference(wheel.toSet()),
+            isEmpty,
+            reason:
+                '${sample.id} names a filter the standard wheel spells '
+                'differently',
+          );
+          expect(
+            NoOpLogicNodeRule().validate(sample.template),
+            isEmpty,
+            reason: '${sample.id} has a step that does nothing',
+          );
+        }
+      },
+    );
 
     test('parses NGC 7000 SHO narrowband with meridian flip', () async {
       final service = SampleSequenceService();

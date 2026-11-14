@@ -480,10 +480,7 @@ void main() {
         () async {
           final port = await serveStatus(
             code,
-            info: {
-              'version': skotiqRelease,
-              'authRequired': true,
-            },
+            info: {'version': skotiqRelease, 'authRequired': true},
           );
           expect(
             await EnhancedSkotiqDiscovery.probeServer(

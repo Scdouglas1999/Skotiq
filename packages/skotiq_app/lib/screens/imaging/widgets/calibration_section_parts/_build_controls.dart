@@ -69,7 +69,8 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
       }
     } catch (error) {
       if (!mounted || !_isCurrent(operation, cameraId)) return;
-      context.showErrorSnackBar('Could not select dark frames: ${userFacingError(error)}');
+      context.showErrorSnackBar(
+          'Could not select dark frames: ${userFacingError(error)}');
     } finally {
       if (operation.isCurrent) setState(() => _picking = false);
     }

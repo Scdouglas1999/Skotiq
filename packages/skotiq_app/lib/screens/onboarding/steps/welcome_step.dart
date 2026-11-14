@@ -21,8 +21,8 @@ class OnboardingWelcomeStep extends ConsumerWidget {
     final profilesAsync = ref.watch(allProfilesProvider);
     // Only a desktop that owns its equipment can switch to linking; a linked
     // desktop is set up on the imaging computer, not here.
-    final offerLink = canSwitchRole(ref) &&
-        ref.watch(remoteLaunchTargetProvider) == null;
+    final offerLink =
+        canSwitchRole(ref) && ref.watch(remoteLaunchTargetProvider) == null;
 
     return SingleChildScrollView(
       child: Column(

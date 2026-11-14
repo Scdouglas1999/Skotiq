@@ -5,9 +5,9 @@
 //! scoped per interface, per the ASCOM Alpaca discovery protocol.
 
 use crate::{AlpacaDevice, AlpacaError, ApiVersion, ALPACA_DISCOVERY_PORT};
-use skotiq_device::ascom::AscomDeviceType;
 use if_addrs::{get_if_addrs, IfAddr};
 use serde::Deserialize;
+use skotiq_device::ascom::AscomDeviceType;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};

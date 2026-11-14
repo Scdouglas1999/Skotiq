@@ -541,7 +541,9 @@ abstract final class NightFixtures {
     return NightSeriesVm(
       lines: <SeriesLineVm>[
         SeriesLineVm(
-            id: NightSeriesId.guideRa, points: ra, tone: SeriesChartTone.primary),
+            id: NightSeriesId.guideRa,
+            points: ra,
+            tone: SeriesChartTone.primary),
         SeriesLineVm(
           id: NightSeriesId.guideDec,
           points: dec,

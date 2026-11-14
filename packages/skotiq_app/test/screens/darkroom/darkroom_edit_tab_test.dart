@@ -439,7 +439,8 @@ void main() {
     seam.answer = (args) {
       final custom = (args['composite'] as Map)['palette'] == 'custom';
       final reply = _combinedReply('/m/Ha.fits');
-      final step = ((reply['draft'] as Map)['recipe'] as Map)['steps'][0] as Map;
+      final step =
+          ((reply['draft'] as Map)['recipe'] as Map)['steps'][0] as Map;
       step['params'] = {
         'palette': custom ? 'custom' : 'sho',
         if (custom) 'mix': mix,
@@ -450,7 +451,10 @@ void main() {
         ..['reason'] = 'narrowband'
         ..['alternatives'] = [
           {'palette': 'hoo', 'name': 'HOO (bicolor)'},
-          {'palette': custom ? 'sho' : 'custom', 'name': custom ? 'SHO (Hubble palette)' : 'Custom mix'},
+          {
+            'palette': custom ? 'sho' : 'custom',
+            'name': custom ? 'SHO (Hubble palette)' : 'Custom mix'
+          },
         ];
       return reply;
     };

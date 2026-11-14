@@ -284,7 +284,8 @@ class RunFrameRecorder {
         binningX: capture.binX,
         binningY: capture.binY,
         filter: filter,
-        frameType: FrameType.fromImageType(capture.frameType) ?? FrameType.light,
+        frameType:
+            FrameType.fromImageType(capture.frameType) ?? FrameType.light,
       );
     }
     final sequence = _ref.read(currentSequenceProvider);

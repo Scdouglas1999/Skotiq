@@ -114,7 +114,6 @@ class _ImagePreview extends StatelessWidget {
                   ? _buildImage(imageResult, colors)
                   : _buildEmptyState(),
             ),
-
             if (showHistogram && imageResult != null)
               Positioned(
                 top: SkotiqTokens.spaceMd,

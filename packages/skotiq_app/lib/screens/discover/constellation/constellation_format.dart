@@ -66,4 +66,3 @@ String formatHubLabel(String name, String fingerprint) {
   if (name.isEmpty) return shortPrint.isEmpty ? 'Hub' : shortPrint;
   return shortPrint.isEmpty ? name : '$name · $shortPrint';
 }
-

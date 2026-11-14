@@ -66,7 +66,10 @@ fn calibrated_save_keeps_card_order_comments_and_history() {
     assert_eq!(out_header.get_string("OBJECT"), Some("61"));
     assert_eq!(out_header.get_comment("EXPTIME"), Some("exposure time (s)"));
     assert_eq!(out_header.comments, vec!["taken with Skotiq".to_string()]);
-    assert_eq!(out_header.history, vec!["dark subtracted on the camera".to_string()]);
+    assert_eq!(
+        out_header.history,
+        vec!["dark subtracted on the camera".to_string()]
+    );
     let order: Vec<&str> = out_header
         .cards()
         .map(|(key, _, _)| key)
@@ -82,7 +85,12 @@ fn a_calibrated_copy_named_as_camera_raw_is_refused() {
     let light = scratch("raw_named_light.fits");
     let out = scratch("raw_named_calibrated.CR2");
     let _ = std::fs::remove_file(&out);
-    write_fits(&light, &ImageData::new(4, 4, 1, PixelType::U16), &FitsHeader::new()).unwrap();
+    write_fits(
+        &light,
+        &ImageData::new(4, 4, 1, PixelType::U16),
+        &FitsHeader::new(),
+    )
+    .unwrap();
 
     let err = api_calibrate_image_file(
         light.to_string_lossy().into_owned(),

@@ -112,4 +112,3 @@ final dawnAutopilotServiceProvider = Provider<DawnAutopilotService>((ref) {
     passReporter: ref.watch(passReporterProvider),
   );
 });
-

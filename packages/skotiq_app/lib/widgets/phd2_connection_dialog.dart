@@ -5,7 +5,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import '../utils/snackbar_helper.dart';
 
-
 /// Reusable PHD2 connection configuration dialog.
 ///
 /// Allows users to enter PHD2 host and port, saves settings,

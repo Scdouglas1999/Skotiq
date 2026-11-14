@@ -4,7 +4,9 @@ import '../services/linked_rig/linked_rig_store.dart';
 import '../services/linked_rig/rig_link_service.dart';
 
 /// Where this desktop remembers the imaging computer it links to.
-final linkedRigStoreProvider = Provider<LinkedRigStore>((_) => LinkedRigStore());
+final linkedRigStoreProvider = Provider<LinkedRigStore>(
+  (_) => LinkedRigStore(),
+);
 
 final rigLinkServiceProvider = Provider<RigLinkService>(
   (ref) => RigLinkService(store: ref.watch(linkedRigStoreProvider)),

@@ -240,12 +240,7 @@ impl<M: FocuserMembers> AscomFocuser<M> {
 
     async fn send_move(&self, value: i32, from: Option<i32>) -> Result<(), SkotiqError> {
         focuser_move_with_timeout(
-            async {
-                self.members
-                    .move_to(value)
-                    .await
-                    .map_err(SkotiqError::from)
-            },
+            async { self.members.move_to(value).await.map_err(SkotiqError::from) },
             &self.device_id,
             value,
             from,
@@ -586,11 +581,11 @@ impl FilterWheelMembers for skotiq_alpaca::AlpacaFilterWheel {
 mod com {
     use super::super::Exclusive;
     use super::{DeviceMembers, FilterWheelMembers, FocuserMembers};
+    use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
+    use crate::ascom_wrapper::focuser::AscomFocuserWrapper;
     use crate::dispatch::error::DeviceOpError;
     use async_trait::async_trait;
     use skotiq_device::DriverError;
-    use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
-    use crate::ascom_wrapper::focuser::AscomFocuserWrapper;
 
     #[async_trait]
     impl DeviceMembers for Exclusive<AscomFocuserWrapper> {
@@ -806,7 +801,9 @@ mod tests {
 
     #[tokio::test]
     async fn a_focuser_without_a_sensor_has_no_temperature_and_a_failing_sensor_is_an_error() {
-        let without = AscomFocuser::open("bench", BenchFocuser::default()).await.unwrap();
+        let without = AscomFocuser::open("bench", BenchFocuser::default())
+            .await
+            .unwrap();
         assert_eq!(without.temperature().await.unwrap(), None);
 
         let with = AscomFocuser::open(
@@ -879,7 +876,9 @@ mod tests {
             Ok(self.names.clone())
         }
         async fn focus_offsets(&self) -> Result<Vec<i32>, DeviceOpError> {
-            Err(DeviceOpError::unsupported("FocusOffsets is not implemented"))
+            Err(DeviceOpError::unsupported(
+                "FocusOffsets is not implemented",
+            ))
         }
     }
 
@@ -894,11 +893,18 @@ mod tests {
             },
         );
         wheel.move_to_slot(2).await.unwrap();
-        assert_eq!(*wheel.members.turning.lock().unwrap(), 0, "polled through the -1 reads");
+        assert_eq!(
+            *wheel.members.turning.lock().unwrap(),
+            0,
+            "polled through the -1 reads"
+        );
         assert_eq!(wheel.position().await.unwrap(), 2);
 
         let error = wheel.move_to_slot(7).await.expect_err("no slot 7");
-        assert!(matches!(error, DeviceOpError::InvalidParameter { .. }), "{error:?}");
+        assert!(
+            matches!(error, DeviceOpError::InvalidParameter { .. }),
+            "{error:?}"
+        );
 
         *wheel.members.turning.lock().unwrap() = 1;
         let caps = wheel.capabilities("bench").await.unwrap();

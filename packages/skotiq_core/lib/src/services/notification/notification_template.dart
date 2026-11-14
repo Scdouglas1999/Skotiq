@@ -54,19 +54,23 @@ class NotificationContext {
     final utc = now.toUtc();
     final local = now.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
-    String date(DateTime t) => '${t.year.toString().padLeft(4, '0')}-'
+    String date(DateTime t) =>
+        '${t.year.toString().padLeft(4, '0')}-'
         '${two(t.month)}-${two(t.day)}';
     final offset = local.timeZoneOffset;
     final offsetMinutes = offset.inMinutes.abs();
-    final zone = '${offset.isNegative ? '-' : '+'}'
+    final zone =
+        '${offset.isNegative ? '-' : '+'}'
         '${two(offsetMinutes ~/ 60)}:${two(offsetMinutes % 60)}';
     m.putIfAbsent(
       'time.now',
-      () => '${date(utc)}T${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)}Z',
+      () =>
+          '${date(utc)}T${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)}Z',
     );
     m.putIfAbsent(
       'time.local',
-      () => '${date(local)} ${two(local.hour)}:${two(local.minute)}:'
+      () =>
+          '${date(local)} ${two(local.hour)}:${two(local.minute)}:'
           '${two(local.second)} $zone',
     );
     m.putIfAbsent('time.date', () => date(utc));

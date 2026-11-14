@@ -57,7 +57,8 @@ void main() {
       settle: false,
       extraOverrides: [
         runRecordProvider.overrideWith(
-          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
         ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);
@@ -96,7 +97,8 @@ void main() {
       settle: false,
       extraOverrides: [
         runRecordProvider.overrideWith(
-          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
         ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);

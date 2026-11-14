@@ -16,7 +16,9 @@ use skotiq_device::{
 
 impl std::fmt::Debug for IndiCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("IndiCamera").field(&self.device_name()).finish()
+        f.debug_tuple("IndiCamera")
+            .field(&self.device_name())
+            .finish()
     }
 }
 
@@ -303,9 +305,7 @@ impl CameraDriver for IndiCamera {
                 .set_number(&device, CCD_CONTROLS, element, f64::from(value))
                 .await
             {
-                tracing::warn!(
-                    "Failed to set INDI camera {what} (device may not support it): {e}"
-                );
+                tracing::warn!("Failed to set INDI camera {what} (device may not support it): {e}");
             }
         }
         client
@@ -359,7 +359,10 @@ impl CameraDriver for IndiCamera {
         // when it is told the frame type.
         if client.has_property(&device, CCD_FRAME_TYPE).await {
             drop(client);
-            if let Err(e) = self.set_frame_type(Self::frame_type(params.frame_type)).await {
+            if let Err(e) = self
+                .set_frame_type(Self::frame_type(params.frame_type))
+                .await
+            {
                 tracing::warn!(
                     "INDI camera {device} refused frame type {:?}: {e}",
                     params.frame_type

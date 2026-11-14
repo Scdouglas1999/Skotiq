@@ -80,8 +80,8 @@ void main() {
         onboardingDraftProvider.overrideWith(
           (ref) => _SeededOnboardingNotifier(ref, '/data/captures'),
         ),
-        hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onCheck: folderCheckFrom(
+        hostFoldersProvider
+            .overrideWithValue(FakeHostFolders(onCheck: folderCheckFrom(
           (path) async {
             probed.add(path);
             return null;
@@ -112,7 +112,7 @@ void main() {
           (ref) => _SeededOnboardingNotifier(ref, '/mnt/unplugged'),
         ),
         hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onCheck: folderCheckFrom(
+            onCheck: folderCheckFrom(
           (path) async => 'That folder does not exist.',
         ))),
       ],
@@ -139,7 +139,7 @@ void main() {
           (ref) => _SeededOnboardingNotifier(ref, '/data/captures'),
         ),
         hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onCheck: folderCheckFrom(
+            onCheck: folderCheckFrom(
           (path) => gate.future,
         ))),
       ],
@@ -217,7 +217,8 @@ void main() {
         // The local probe must never be consulted for a host path — if the step
         // fell through to it, this would fail the test loudly.
         localFoldersProvider.overrideWithValue(FakeHostFolders(
-          onCheck: (path) => throw StateError('local probe ran for a host path'),
+          onCheck: (path) =>
+              throw StateError('local probe ran for a host path'),
         )),
       ],
     );

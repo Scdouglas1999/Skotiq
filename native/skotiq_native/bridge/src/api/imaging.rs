@@ -1738,10 +1738,15 @@ fn encode_preview_jpeg(
     let mut gray = Vec::with_capacity((w * h) as usize);
     for y in 0..h {
         for x in 0..w {
-            let at = ((y * scale) as usize * preview.width as usize + (x * scale) as usize) * channels;
+            let at =
+                ((y * scale) as usize * preview.width as usize + (x * scale) as usize) * channels;
             let pixel = &preview.data[at..at + channels];
             gray.push(if channels >= 3 {
-                ((77 * u32::from(pixel[0]) + 150 * u32::from(pixel[1]) + 29 * u32::from(pixel[2]) + 128) >> 8) as u8
+                ((77 * u32::from(pixel[0])
+                    + 150 * u32::from(pixel[1])
+                    + 29 * u32::from(pixel[2])
+                    + 128)
+                    >> 8) as u8
             } else {
                 pixel[0]
             });

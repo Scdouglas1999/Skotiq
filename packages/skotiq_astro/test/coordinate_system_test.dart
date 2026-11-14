@@ -170,6 +170,5 @@ void main() {
         expect(AstronomyCalculations.darknessHours(twilight), isNull);
       });
     });
-
   });
 }

@@ -68,7 +68,8 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.refreshSwitchChannels();
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Channel refresh failed: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Channel refresh failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {

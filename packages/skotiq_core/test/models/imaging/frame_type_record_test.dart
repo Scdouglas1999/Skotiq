@@ -17,7 +17,11 @@ void main() {
   test('the query filter finds the light rows', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    for (final (i, type) in [FrameType.light, FrameType.dark, FrameType.light].indexed) {
+    for (final (i, type) in [
+      FrameType.light,
+      FrameType.dark,
+      FrameType.light,
+    ].indexed) {
       await db.imagesDao.createImage(
         CapturedImagesCompanion.insert(
           filePath: '/f$i.fits',

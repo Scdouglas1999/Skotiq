@@ -94,9 +94,11 @@ macro_rules! sta_accessory {
         impl skotiq_device::AccessoryDriver for $wrapper {
             async fn disconnect(&self) -> Result<(), skotiq_device::DriverError> {
                 self.device
-                    .run("disconnect", $crate::timeout_ops::Timeouts::connection(), |d| {
-                        d.disconnect()
-                    })
+                    .run(
+                        "disconnect",
+                        $crate::timeout_ops::Timeouts::connection(),
+                        |d| d.disconnect(),
+                    )
                     .await
                     .map_err($crate::ascom_wrapper::sta_device::driver_error)
             }
@@ -104,9 +106,11 @@ macro_rules! sta_accessory {
             async fn heartbeat(&self) -> Result<(), skotiq_device::DriverError> {
                 let connected = self
                     .device
-                    .run("heartbeat", $crate::timeout_ops::Timeouts::heartbeat(), |d| {
-                        d.is_connected()
-                    })
+                    .run(
+                        "heartbeat",
+                        $crate::timeout_ops::Timeouts::heartbeat(),
+                        |d| d.is_connected(),
+                    )
                     .await
                     .map_err($crate::ascom_wrapper::sta_device::driver_error)?;
                 if connected {

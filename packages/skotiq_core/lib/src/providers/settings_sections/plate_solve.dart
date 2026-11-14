@@ -49,7 +49,8 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
     await _set(AppSettingDefs.plateSolver, label);
   }
 
-  Future<void> setAstapPath(String value) => _set(AppSettingDefs.astapPath, value);
+  Future<void> setAstapPath(String value) =>
+      _set(AppSettingDefs.astapPath, value);
 
   Future<void> setAstrometryPath(String value) =>
       _set(AppSettingDefs.astrometryPath, value);
@@ -60,7 +61,8 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
   Future<void> setPlateSolveSearchRadius(double value) =>
       _set(AppSettingDefs.plateSolveSearchRadius, value);
 
-  Future<void> setBlindSolve(bool value) => _set(AppSettingDefs.blindSolve, value);
+  Future<void> setBlindSolve(bool value) =>
+      _set(AppSettingDefs.blindSolve, value);
 
   Future<void> setCenteringSyncMount(bool value) =>
       _set(AppSettingDefs.centeringSyncMount, value);

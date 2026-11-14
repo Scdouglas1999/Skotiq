@@ -120,7 +120,8 @@ pub(crate) fn parse_tree(xml: &str) -> Result<Vec<Node>, XisfError> {
             }
             Event::CData(t) => {
                 if let Some(node) = stack.last_mut() {
-                    node.text.push_str(&String::from_utf8_lossy(&t.into_inner()));
+                    node.text
+                        .push_str(&String::from_utf8_lossy(&t.into_inner()));
                 }
             }
             Event::Eof => break,
@@ -231,9 +232,7 @@ impl<'a> Context<'a> {
         let byte_order = match node.attr("byteOrder").map(str::trim) {
             None | Some("little") => ByteOrder::Little,
             Some("big") => ByteOrder::Big,
-            Some(other) => {
-                return Err(XisfError::Malformed(format!("byte order \"{other}\"")))
-            }
+            Some(other) => return Err(XisfError::Malformed(format!("byte order \"{other}\""))),
         };
         let mut compression_node = node;
         let location = match parse_location(location, self.source)? {
@@ -297,9 +296,9 @@ impl<'a> Context<'a> {
         })?;
         let value = match kind {
             PropertyKind::Scalar => {
-                let text = node.attr("value").ok_or_else(|| {
-                    XisfError::Malformed(format!("property {id} has no value"))
-                })?;
+                let text = node
+                    .attr("value")
+                    .ok_or_else(|| XisfError::Malformed(format!("property {id} has no value")))?;
                 PropertyValue::parse_scalar(type_name, text)?
             }
             PropertyKind::String => match self.block(node, false)? {
@@ -318,7 +317,10 @@ impl<'a> Context<'a> {
             PropertyKind::Vector(element) | PropertyKind::Matrix(element) => {
                 let shape = match kind {
                     PropertyKind::Vector(_) => (dimension(node, "length", &id)?, 1),
-                    _ => (dimension(node, "rows", &id)?, dimension(node, "columns", &id)?),
+                    _ => (
+                        dimension(node, "rows", &id)?,
+                        dimension(node, "columns", &id)?,
+                    ),
                 };
                 let expected = PropertyValue::block_len(&kind, shape).ok_or_else(|| {
                     XisfError::Malformed(format!("property {id} has an impossible size"))
@@ -360,9 +362,10 @@ impl<'a> Context<'a> {
             .filter(|items| items.len() >= 2)
             .ok_or_else(|| XisfError::Malformed(format!("image geometry \"{geometry}\"")))?;
         let channels = items.pop().expect("at least two items");
-        let sample_format = SampleFormat::parse(node.attr("sampleFormat").ok_or_else(|| {
-            XisfError::Malformed("an image has no sample format".to_string())
-        })?)?;
+        let sample_format =
+            SampleFormat::parse(node.attr("sampleFormat").ok_or_else(|| {
+                XisfError::Malformed("an image has no sample format".to_string())
+            })?)?;
         let mut image = XisfImageHeader::new(items, channels, sample_format);
         if image.data_len().is_none() {
             return Err(XisfError::Malformed(format!(
@@ -380,17 +383,16 @@ impl<'a> Context<'a> {
                         "Planar" => PixelStorage::Planar,
                         "Normal" => PixelStorage::Normal,
                         other => {
-                            return Err(XisfError::Malformed(format!(
-                                "pixel storage \"{other}\""
-                            )))
+                            return Err(XisfError::Malformed(format!("pixel storage \"{other}\"")))
                         }
                     }
                 }
                 "imageType" => image.image_type = Some(value.trim().to_string()),
                 "offset" => {
-                    image.offset = Some(value.trim().parse().map_err(|_| {
-                        XisfError::Malformed(format!("image offset \"{value}\""))
-                    })?)
+                    image.offset =
+                        Some(value.trim().parse().map_err(|_| {
+                            XisfError::Malformed(format!("image offset \"{value}\""))
+                        })?)
                 }
                 "orientation" => image.orientation = Some(value.trim().to_string()),
                 "id" => image.id = Some(value.clone()),
@@ -472,8 +474,14 @@ fn parse_bounds(text: &str) -> Result<(f64, f64), XisfError> {
 fn parse_cfa(node: &Node) -> Result<ColorFilterArray, XisfError> {
     let bad = || XisfError::Malformed("a ColorFilterArray element is incomplete".to_string());
     let pattern = node.attr("pattern").ok_or_else(bad)?.trim().to_string();
-    let width: u32 = node.attr("width").and_then(|v| v.trim().parse().ok()).ok_or_else(bad)?;
-    let height: u32 = node.attr("height").and_then(|v| v.trim().parse().ok()).ok_or_else(bad)?;
+    let width: u32 = node
+        .attr("width")
+        .and_then(|v| v.trim().parse().ok())
+        .ok_or_else(bad)?;
+    let height: u32 = node
+        .attr("height")
+        .and_then(|v| v.trim().parse().ok())
+        .ok_or_else(bad)?;
     if width == 0 || height == 0 || pattern.len() as u64 != width as u64 * height as u64 {
         return Err(bad());
     }

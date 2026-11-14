@@ -167,7 +167,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return id;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to create list: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to create list: ${userFacingError(e)}',
+          );
         }
         return null;
       }
@@ -251,7 +253,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return true;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to rename list: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to rename list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
@@ -302,7 +306,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return true;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to update list: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to update list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
@@ -321,7 +327,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return true;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to delete list: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to delete list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
@@ -397,7 +405,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
           state = state.copyWith(statusMessage: duplicate, errorMessage: null);
           return null;
         }
-        state = state.copyWith(errorMessage: 'Failed to add item: ${userFacingError(e)}');
+        state = state.copyWith(
+          errorMessage: 'Failed to add item: ${userFacingError(e)}',
+        );
         return null;
       }
     });
@@ -425,7 +435,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return true;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to remove item: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to remove item: ${userFacingError(e)}',
+          );
         }
         return false;
       }
@@ -440,7 +452,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         return true;
       } catch (e) {
         if (scope.isCurrent) {
-          state = state.copyWith(errorMessage: 'Failed to update notes: ${userFacingError(e)}');
+          state = state.copyWith(
+            errorMessage: 'Failed to update notes: ${userFacingError(e)}',
+          );
         }
         return false;
       }

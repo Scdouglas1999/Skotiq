@@ -53,7 +53,10 @@ extension SmartNightSettingsSection on AppSettingsNotifier {
   /// full day at the upper end — anyone asking for >24 h per target is
   /// either testing limits or mis-entering hours as minutes.
   Future<void> setSmartNightDefaultIntegrationBudgetMinsPerTarget(int value) =>
-      _set(AppSettingDefs.smartNightDefaultIntegrationBudgetMinsPerTarget, value);
+      _set(
+        AppSettingDefs.smartNightDefaultIntegrationBudgetMinsPerTarget,
+        value,
+      );
 
   /// Whether the wizard appends end-of-session flats when the active
   /// profile has a cover calibrator.
@@ -156,7 +159,9 @@ extension SmartNightSettingsSection on AppSettingsNotifier {
         useSchedulerForMultiTarget,
       ),
       AppSettingDefs.smartNightSchedulerTargetThreshold.to(clampedThreshold),
-      AppSettingDefs.smartNightPolarAlignmentStaleAfterDays.to(clampedStaleDays),
+      AppSettingDefs.smartNightPolarAlignmentStaleAfterDays.to(
+        clampedStaleDays,
+      ),
       AppSettingDefs.smartNightSubExposureFloorSecs.to(clampedFloor),
       AppSettingDefs.smartNightSubExposureCeilingSecs.to(clampedCeiling),
       AppSettingDefs.smartNightTargetSnr.to(clampedSnr),

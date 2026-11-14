@@ -137,7 +137,9 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       );
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, history, profileId)) {
-        state = previous.copyWith(error: 'Failed to save filter offset: ${userFacingError(e)}');
+        state = previous.copyWith(
+          error: 'Failed to save filter offset: ${userFacingError(e)}',
+        );
       }
     }
   }
@@ -166,7 +168,9 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       await _loadOffsetsForActiveProfile();
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, history, profileId)) {
-        state = state.copyWith(error: 'Failed to set reference filter: ${userFacingError(e)}');
+        state = state.copyWith(
+          error: 'Failed to set reference filter: ${userFacingError(e)}',
+        );
       }
     }
   }
@@ -191,7 +195,9 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       );
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, history, profileId)) {
-        state = previous.copyWith(error: 'Failed to clear offsets: ${userFacingError(e)}');
+        state = previous.copyWith(
+          error: 'Failed to clear offsets: ${userFacingError(e)}',
+        );
       }
     }
   }

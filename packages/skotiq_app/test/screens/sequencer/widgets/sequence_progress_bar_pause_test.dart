@@ -93,7 +93,9 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.paused);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(runningController.isAnimating, isFalse,
@@ -114,7 +116,9 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(controller.isAnimating, isTrue,

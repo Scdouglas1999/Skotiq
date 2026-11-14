@@ -117,7 +117,6 @@ class _RecoveryHistoryTile extends StatelessWidget {
       ),
     );
   }
-
 }
 
 /// Render one post-session [SessionInsight] inside the

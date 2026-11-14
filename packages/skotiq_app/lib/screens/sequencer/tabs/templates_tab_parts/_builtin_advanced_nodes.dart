@@ -37,7 +37,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
     ),
     coolId: CoolCameraNode(
         id: coolId, targetTemp: -10, parentId: rootId, orderIndex: 0),
-
     target1CondId: ConditionalNode(
       id: target1CondId,
       name: 'Target 1 Above 30 deg',
@@ -118,7 +117,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
         name: 'Stop Guiding',
         parentId: target1SeqId,
         orderIndex: 5),
-
     target2CondId: ConditionalNode(
       id: target2CondId,
       name: 'Target 2 Above 30 deg',
@@ -199,7 +197,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
         name: 'Stop Guiding',
         parentId: target2SeqId,
         orderIndex: 5),
-
     warmId: WarmCameraNode(
         id: warmId, ratePerMin: 5, parentId: rootId, orderIndex: 3),
     parkId: ParkNode(

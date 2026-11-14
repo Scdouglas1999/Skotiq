@@ -575,4 +575,3 @@ List<MetricGridItem> nightMetricItems(
           valueTone: m.valueTone,
         ),
     ];
-

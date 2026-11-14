@@ -89,7 +89,8 @@ class AtlasRegionCard extends ConsumerWidget {
                   children: [
                     _Pill(
                       icon: LucideIcons.clock,
-                      label: DurationFormat.decimalHours(region.integrationSeconds),
+                      label: DurationFormat.decimalHours(
+                          region.integrationSeconds),
                       colors: colors,
                     ),
                     const SizedBox(width: SkotiqTokens.spaceSm),

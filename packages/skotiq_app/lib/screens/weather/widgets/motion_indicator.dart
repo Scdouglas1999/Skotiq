@@ -114,7 +114,6 @@ class _MotionIndicatorPainter extends CustomPainter {
     canvas.drawPath(arrowPath, borderPaint);
 
     canvas.restore();
-
   }
 
   @override

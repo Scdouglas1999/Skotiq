@@ -84,7 +84,8 @@ mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
           }
         }
       } else if (mounted) {
-        context.showErrorSnackBar('Failed to connect $deviceName: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to connect $deviceName: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _isConnecting = false);

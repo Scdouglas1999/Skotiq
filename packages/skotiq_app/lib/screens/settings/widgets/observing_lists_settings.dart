@@ -208,9 +208,9 @@ class _ObservingListManagementCard extends ConsumerWidget {
                           final state = ref.read(observingListNotifierProvider);
                           context.showInfoSnackBar(
                             id == null
-                  ? (state.errorMessage ??
-                      'Could not duplicate list')
-                  : 'Duplicated "${list.name}"',
+                                ? (state.errorMessage ??
+                                    'Could not duplicate list')
+                                : 'Duplicated "${list.name}"',
                           );
                         },
                 ),

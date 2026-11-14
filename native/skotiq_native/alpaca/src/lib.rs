@@ -24,24 +24,24 @@ mod switch;
 mod telescope;
 
 pub use camera::*;
+pub use camera_driver::AlpacaCameraDriver;
 pub use client::*;
 pub use covercalibrator::*;
 pub use discovery::*;
 pub use dome::*;
 pub use filterwheel::*;
 pub use focuser::*;
+pub use mount::AlpacaMount;
 pub use observingconditions::*;
 pub use rotator::*;
 pub use safetymonitor::*;
 pub use switch::*;
-pub use camera_driver::AlpacaCameraDriver;
-pub use mount::AlpacaMount;
 pub use telescope::*;
 
 // The ASCOM enumerations are shared with the COM transport.
 pub use skotiq_device::ascom::{
-    AlignmentMode, AscomDeviceType, AxisRate, CalibratorStatus, CameraState, CoverStatus, DriveRate, PierSide,
-    SensorType, ShutterStatus, TelescopeAxis,
+    AlignmentMode, AscomDeviceType, AxisRate, CalibratorStatus, CameraState, CoverStatus,
+    DriveRate, PierSide, SensorType, ShutterStatus, TelescopeAxis,
 };
 
 /// Default Alpaca discovery port
@@ -105,11 +105,7 @@ impl AlpacaDevice {
     /// Get a display name combining device name and type
     pub fn display_name(&self) -> String {
         if self.device_name.is_empty() {
-            format!(
-                "{} #{}",
-                self.device_type.label(),
-                self.device_number
-            )
+            format!("{} #{}", self.device_type.label(), self.device_number)
         } else {
             self.device_name.clone()
         }

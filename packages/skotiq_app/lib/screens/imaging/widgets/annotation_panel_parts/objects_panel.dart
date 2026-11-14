@@ -361,15 +361,11 @@ class _AnnotationObjectsPanelState
       child: Column(
         children: [
           _buildHeader(annotation, filteredObjects, displayableObjects),
-
           AnnotationSearchBar(
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
-
           _buildFiltersSection(settings, typeCounts),
-
           Divider(height: 1, color: widget.colors.border),
-
           Expanded(
             child: filteredObjects.isEmpty
                 ? AnnotationEmptyState(

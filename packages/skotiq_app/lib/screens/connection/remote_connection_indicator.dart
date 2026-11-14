@@ -617,9 +617,7 @@ class _RemoteConnectionSheetState
                 ),
               ),
             ),
-          ] else if (hostLink == null &&
-              !activeBackend.hasNoHost &&
-              canSwitch)
+          ] else if (hostLink == null && !activeBackend.hasNoHost && canSwitch)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SizedBox(

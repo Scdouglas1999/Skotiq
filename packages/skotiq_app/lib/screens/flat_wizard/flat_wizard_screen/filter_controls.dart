@@ -185,8 +185,9 @@ class _FilterSettingsRow extends ConsumerWidget {
     Widget isoOverride(IsoSensitivity iso, int? value, int? inherited,
         {bool showLabel = true}) {
       const unset = '';
-      final defaultLabel =
-          inherited == null ? 'Default' : 'Default (${iso.describe(inherited)})';
+      final defaultLabel = inherited == null
+          ? 'Default'
+          : 'Default (${iso.describe(inherited)})';
       return Semantics(
         label: '${filter.filterName} ${iso.label}',
         child: Column(
@@ -206,8 +207,8 @@ class _FilterSettingsRow extends ConsumerWidget {
               isExpanded: true,
               dense: true,
               onChanged: editable
-                  ? (picked) => update(current().copyWith(
-                      gainOverride: int.tryParse(picked ?? '')))
+                  ? (picked) => update(current()
+                      .copyWith(gainOverride: int.tryParse(picked ?? '')))
                   : null,
             ),
           ],
@@ -226,26 +227,27 @@ class _FilterSettingsRow extends ConsumerWidget {
           children: [
             if (config.sensitivity.hasGain)
               Expanded(
-                child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: SensitivityField(
-                        value: filter.gainOverride,
-                        sensitivity: config.sensitivity,
-                        onChanged: (v) =>
-                            update(current().copyWith(gainOverride: v)),
-                        isoField: (context, iso) => isoOverride(
-                            iso, filter.gainOverride, config.gain,
-                            showLabel: !wide || !showToggle),
-                        gainField: (_) => field(
-                            'Gain',
-                            filter.gainOverride,
-                            config.gain,
-                            (v) => update(current().copyWith(gainOverride: v)),
-                            showLabel: !wide || !showToggle,
-                            supported:
-                                !config.capabilitiesKnown || config.canSetGain,
-                            min: config.gainMin,
-                            max: config.gainMax)))),
+                  child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: SensitivityField(
+                          value: filter.gainOverride,
+                          sensitivity: config.sensitivity,
+                          onChanged: (v) =>
+                              update(current().copyWith(gainOverride: v)),
+                          isoField: (context, iso) => isoOverride(
+                              iso, filter.gainOverride, config.gain,
+                              showLabel: !wide || !showToggle),
+                          gainField: (_) => field(
+                              'Gain',
+                              filter.gainOverride,
+                              config.gain,
+                              (v) =>
+                                  update(current().copyWith(gainOverride: v)),
+                              showLabel: !wide || !showToggle,
+                              supported: !config.capabilitiesKnown ||
+                                  config.canSetGain,
+                              min: config.gainMin,
+                              max: config.gainMax)))),
             if (config.sensitivity.hasOffset)
               Expanded(
                   child: Padding(

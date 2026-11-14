@@ -83,7 +83,8 @@ void main() {
     expect(at[4]!.dx, at[2]!.dx);
   });
 
-  testWidgets('disabled cells keep their row and phone grids keep their columns',
+  testWidgets(
+      'disabled cells keep their row and phone grids keep their columns',
       (tester) async {
     final at = await _pump(
       tester,
@@ -92,11 +93,11 @@ void main() {
       indices: const [2, 3],
       width: 240,
     );
-    expect(at[3]!.dy, greaterThan(120), reason: 'the empty first row keeps space');
+    expect(at[3]!.dy, greaterThan(120),
+        reason: 'the empty first row keeps space');
     expect(at[3]!.dy, at[4]!.dy);
     expect(at[3]!.dx, greaterThan(at[4]!.dx));
     expect(find.byType(SingleChildScrollView), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
-
 }

@@ -134,19 +134,21 @@ void main() {
     });
   });
 
-  test('a companion never polls the host mount: the host sends its readings',
-      () {
-    fakeAsync((async) {
-      final container = containerFor();
-      container.read(mountStateProvider.notifier)
-        ..setConnecting('sim_mount_1', 'Mount')
-        ..setConnected();
-      async.elapse(const Duration(minutes: 1));
-      expect(mountReads, 0);
-      container.read(mountStateProvider.notifier).setDisconnected();
-      container.dispose();
-    });
-  });
+  test(
+    'a companion never polls the host mount: the host sends its readings',
+    () {
+      fakeAsync((async) {
+        final container = containerFor();
+        container.read(mountStateProvider.notifier)
+          ..setConnecting('sim_mount_1', 'Mount')
+          ..setConnected();
+        async.elapse(const Duration(minutes: 1));
+        expect(mountReads, 0);
+        container.read(mountStateProvider.notifier).setDisconnected();
+        container.dispose();
+      });
+    },
+  );
 
   test('the narrator feed ignores per-tick telemetry', () {
     fakeAsync((async) {

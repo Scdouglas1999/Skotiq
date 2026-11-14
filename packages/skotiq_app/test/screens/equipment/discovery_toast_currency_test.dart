@@ -76,7 +76,8 @@ class _FakeDeviceService extends DeviceService {
     String deviceId, {
     String? host,
     int? port,
-  }) async => camera._apply(connected: true);
+  }) async =>
+      camera._apply(connected: true);
 
   @override
   Future<void> disconnect(DeviceType type) async =>

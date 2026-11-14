@@ -542,7 +542,6 @@ void main() {
 
     expect(find.text('Discord test failed'), findsOneWidget);
   });
-
 }
 
 /// A plugin that throws on enable, used to drive the error-pill rendering.

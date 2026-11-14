@@ -7,7 +7,10 @@ void main() {
     test('small-angle formula: 206.265 * pixelSizeUm / focalLengthMm', () {
       // 3.76 µm at 530 mm -> ~1.4634"/px (ASI2600 on a typical refractor).
       expect(
-        FOVCalculator.imageScaleOrNull(pixelSizeMicrons: 3.76, focalLengthMm: 530),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: 3.76,
+          focalLengthMm: 530,
+        ),
         closeTo(206.265 * 3.76 / 530, 1e-9),
       );
     });
@@ -18,11 +21,17 @@ void main() {
         isNull,
       );
       expect(
-        FOVCalculator.imageScaleOrNull(pixelSizeMicrons: 3.76, focalLengthMm: 0),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: 3.76,
+          focalLengthMm: 0,
+        ),
         isNull,
       );
       expect(
-        FOVCalculator.imageScaleOrNull(pixelSizeMicrons: null, focalLengthMm: 530),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: null,
+          focalLengthMm: 530,
+        ),
         isNull,
       );
     });

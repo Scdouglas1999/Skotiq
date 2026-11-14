@@ -348,7 +348,16 @@ mod tests {
     /// left, CRPIX at the geometric centre.
     fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> SipWcs {
         let scale_deg = scale_arcsec / 3600.0;
-        SipWcs::tan_only(ra, dec, w as f64 / 2.0 + 0.5, h as f64 / 2.0 + 0.5, -scale_deg, 0.0, 0.0, scale_deg)
+        SipWcs::tan_only(
+            ra,
+            dec,
+            w as f64 / 2.0 + 0.5,
+            h as f64 / 2.0 + 0.5,
+            -scale_deg,
+            0.0,
+            0.0,
+            scale_deg,
+        )
     }
 
     /// Write a synthetic single-channel F32 panel master (ramp field) to a FITS

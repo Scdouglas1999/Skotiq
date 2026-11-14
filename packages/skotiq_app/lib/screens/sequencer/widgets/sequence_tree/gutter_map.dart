@@ -155,7 +155,8 @@ class _SequenceGutterMapState extends ConsumerState<_SequenceGutterMap> {
                       );
                     },
                     onVerticalDragStart: (details) {
-                      final metrics = sequenceMapMetrics(widget.scrollController);
+                      final metrics =
+                          sequenceMapMetrics(widget.scrollController);
                       if (metrics == null) return;
                       _dragAnchorY = details.localPosition.dy;
                       _dragAnchorOffset = metrics.offset;
@@ -197,8 +198,10 @@ class _SequenceGutterMapState extends ConsumerState<_SequenceGutterMap> {
                         // announces where the increase/decrease will land, and
                         // the framework asserts on a valued slider that names
                         // neither.
-                        increasedValue: _positionLabel(entries.length, pages: 1),
-                        decreasedValue: _positionLabel(entries.length, pages: -1),
+                        increasedValue:
+                            _positionLabel(entries.length, pages: 1),
+                        decreasedValue:
+                            _positionLabel(entries.length, pages: -1),
                         // A slider a reader cannot move is a label wearing a
                         // control's clothes: the two actions page the tree by a
                         // screen, which is what dragging the rectangle by its

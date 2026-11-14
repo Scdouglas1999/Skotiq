@@ -56,9 +56,7 @@ async fn stop_guiding_recovers_the_connection_and_waits_for_stopped() {
         }
         (stops, confirmation_reads)
     });
-    connect(Some("127.0.0.1".into()), Some(port))
-        .await
-        .unwrap();
+    connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
     let mut events = get_state().event_bus.subscribe();
     let result = stop_guiding().await;
     let mut disconnected = false;

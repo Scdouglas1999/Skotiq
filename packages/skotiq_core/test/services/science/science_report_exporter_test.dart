@@ -260,7 +260,10 @@ void main() {
       exports: () async => temp,
     );
     expect(file.parent.path, temp.path);
-    expect(file.uri.pathSegments.last, startsWith('science_report_session_12_'));
+    expect(
+      file.uri.pathSegments.last,
+      startsWith('science_report_session_12_'),
+    );
     expect(file.path, endsWith('.md'));
     expect(await file.readAsString(), '# report');
   });

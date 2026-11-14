@@ -76,7 +76,8 @@ impl DomeMembers for AscomDomeWrapper {
         self.read("can_park", |d| d.can_park()).await
     }
     async fn can_set_altitude(&self) -> Result<bool, DriverError> {
-        self.read("can_set_altitude", |d| d.can_set_altitude()).await
+        self.read("can_set_altitude", |d| d.can_set_altitude())
+            .await
     }
     async fn can_set_azimuth(&self) -> Result<bool, DriverError> {
         self.read("can_set_azimuth", |d| d.can_set_azimuth()).await
@@ -88,7 +89,8 @@ impl DomeMembers for AscomDomeWrapper {
         self.read("can_slave", |d| d.can_slave()).await
     }
     async fn can_sync_azimuth(&self) -> Result<bool, DriverError> {
-        self.read("can_sync_azimuth", |d| d.can_sync_azimuth()).await
+        self.read("can_sync_azimuth", |d| d.can_sync_azimuth())
+            .await
     }
 }
 
@@ -96,14 +98,18 @@ impl DomeMembers for AscomDomeWrapper {
 impl DomeDriver for AscomDomeWrapper {
     async fn open_shutter(&self) -> Result<(), DriverError> {
         self.device
-            .run("open_shutter", Timeouts::dome_shutter(), |d| d.open_shutter())
+            .run("open_shutter", Timeouts::dome_shutter(), |d| {
+                d.open_shutter()
+            })
             .await
             .map_err(driver_error)
     }
 
     async fn close_shutter(&self) -> Result<(), DriverError> {
         self.device
-            .run("close_shutter", Timeouts::dome_shutter(), |d| d.close_shutter())
+            .run("close_shutter", Timeouts::dome_shutter(), |d| {
+                d.close_shutter()
+            })
             .await
             .map_err(driver_error)
     }

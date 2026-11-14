@@ -129,7 +129,8 @@ class _ConnectionTroubleshooterDialogState
             title: _diagnosis.headline,
             message: _diagnosis.plainLanguage,
           ),
-          if (widget.reason case final reason? when reason.trim().isNotEmpty) ...[
+          if (widget.reason case final reason?
+              when reason.trim().isNotEmpty) ...[
             const SizedBox(height: SkotiqTokens.spaceLg),
             Text(
               'The ${widget.deviceType.noun} reported',

@@ -101,5 +101,4 @@ extension _PhotometricWizardHeaderAndSteps
       },
     );
   }
-
 }

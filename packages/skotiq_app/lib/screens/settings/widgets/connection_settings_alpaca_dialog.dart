@@ -4,7 +4,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 /// Alpaca (ASCOM Remote) server address editor.
 ///
 /// The only writer of `setAlpacaServerHost` / `setAlpacaServerPort`, which
@@ -68,7 +67,8 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
       if (!mounted) return;
       setState(() {
         _statusSuccess = false;
-        _statusMessage = 'Could not load saved Alpaca settings: ${userFacingError(e)}';
+        _statusMessage =
+            'Could not load saved Alpaca settings: ${userFacingError(e)}';
       });
     }
   }
@@ -178,7 +178,8 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
       setState(() {
         _isSaving = false;
         _statusSuccess = false;
-        _statusMessage = 'Could not save Alpaca settings: ${userFacingError(e)}';
+        _statusMessage =
+            'Could not save Alpaca settings: ${userFacingError(e)}';
       });
       return;
     }

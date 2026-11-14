@@ -522,13 +522,7 @@ pub(crate) async fn dither(
     // release it for the settle wait so status polls and stop are not stalled.
     let waiter = phd2_client()
         .await?
-        .dither_arm(
-            amount,
-            ra_only,
-            settle_pixels,
-            settle_time,
-            settle_timeout,
-        )
+        .dither_arm(amount, ra_only, settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to dither: {}", e)))?;
 
     get_state().publish_guiding_event(
@@ -1348,9 +1342,7 @@ mod post_flip_protocol_tests {
     async fn post_flip_selection_waits_for_download_even_when_old_star_is_selectable() {
         let _slot = PHD2_TEST_SLOT.lock().await;
         let (port, task) = server(1, true);
-        connect(Some("127.0.0.1".into()), Some(port))
-            .await
-            .unwrap();
+        connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let selected = select_fresh_star(None).await;
         disconnect().await.unwrap();
         task.join().unwrap();
@@ -1365,9 +1357,7 @@ mod post_flip_protocol_tests {
     async fn guide_rpc_accepted_but_settle_failed_is_not_success() {
         let _slot = PHD2_TEST_SLOT.lock().await;
         let (port, task) = server(1, true);
-        connect(Some("127.0.0.1".into()), Some(port))
-            .await
-            .unwrap();
+        connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = start_guiding(0.5, 0.1, 1.0).await;
         disconnect().await.unwrap();
         task.join().unwrap();
@@ -1380,9 +1370,7 @@ mod post_flip_protocol_tests {
     async fn successful_settle_allows_guiding_to_start() {
         let _slot = PHD2_TEST_SLOT.lock().await;
         let (port, task) = server(0, true);
-        connect(Some("127.0.0.1".into()), Some(port))
-            .await
-            .unwrap();
+        connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = start_guiding(0.5, 0.1, 1.0).await;
         disconnect().await.unwrap();
         task.join().unwrap();
@@ -1393,9 +1381,7 @@ mod post_flip_protocol_tests {
     async fn disconnect_before_new_frame_cannot_select_the_old_star() {
         let _slot = PHD2_TEST_SLOT.lock().await;
         let (port, task) = server(0, false);
-        connect(Some("127.0.0.1".into()), Some(port))
-            .await
-            .unwrap();
+        connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = select_fresh_star(None).await;
         disconnect().await.unwrap();
         task.join().unwrap();

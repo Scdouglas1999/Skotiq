@@ -1,6 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart'
-    show FrameGradingMode, FrameQualityAssessment, FrameQualityAssessmentService, FrameQualityDisposition, FrameQualityLevel;
+    show
+        FrameGradingMode,
+        FrameQualityAssessment,
+        FrameQualityAssessmentService,
+        FrameQualityDisposition,
+        FrameQualityLevel;
 import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 
 DbCapturedImage _image({
@@ -339,10 +344,9 @@ void main() {
           _image(id: i, qualityScore: 77, hfr: 2.4, starCount: 45),
       ];
       final assessments = service.assessBatch(night);
-      expect(
-        assessments.values.map((a) => a.level).toSet(),
-        {FrameQualityLevel.good},
-      );
+      expect(assessments.values.map((a) => a.level).toSet(), {
+        FrameQualityLevel.good,
+      });
       expect(service.summarize(assessments).needsReview, 0);
     });
 
@@ -355,10 +359,14 @@ void main() {
       ];
       final assessments = service.assessBatch(night);
       expect(assessments[6]!.level, FrameQualityLevel.poor);
-      expect(assessments[6]!.reasons.single,
-          'Star count (40) under half the session median (120)');
-      expect(assessments[7]!.reasons.single,
-          'Fewer stars than the session median (80 vs 120)');
+      expect(
+        assessments[6]!.reasons.single,
+        'Star count (40) under half the session median (120)',
+      );
+      expect(
+        assessments[7]!.reasons.single,
+        'Fewer stars than the session median (80 vs 120)',
+      );
       expect(assessments[1]!.level, FrameQualityLevel.good);
     });
 

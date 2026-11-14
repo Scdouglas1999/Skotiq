@@ -214,8 +214,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final lst = site == null
         ? null
         : AstronomyCalculations.localSiderealTime(now, site.longitude);
-    final hourAngle =
-        lst == null || ra == null ? null : AstronomyCalculations.hourAngleHours(ra, lst);
+    final hourAngle = lst == null || ra == null
+        ? null
+        : AstronomyCalculations.hourAngleHours(ra, lst);
     final toFlip = countdown.isArmed ? countdown.timeToFlip : null;
     final pierKey = switch (mount.sideOfPier?.trim().toLowerCase()) {
       'east' || 'pierside_east' => 'nightScopePierEast',
@@ -249,7 +250,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                         ),
                         MetricGridTone.good,
                       )
-                    : (l10n.text('nightScopeNotTracking'), MetricGridTone.warning);
+                    : (
+                        l10n.text('nightScopeNotTracking'),
+                        MetricGridTone.warning
+                      );
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
@@ -261,15 +265,11 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeRaJNow'),
-              value: ra == null
-                  ? null
-                  : CoordinateFormat.raDense(ra),
+              value: ra == null ? null : CoordinateFormat.raDense(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDecJNow'),
-              value: dec == null
-                  ? null
-                  : CoordinateFormat.decDense(dec),
+              value: dec == null ? null : CoordinateFormat.decDense(dec),
             ),
           ],
         ),

@@ -44,8 +44,10 @@ void main() {
       for (var i = 0; i < panels.length; i++) {
         expect(panels[i].index, equals(i));
       }
-      expect([for (final p in panels) (p.row, p.col)],
-          [(0, 0), (0, 1), (1, 1), (1, 0)]);
+      expect(
+        [for (final p in panels) (p.row, p.col)],
+        [(0, 0), (0, 1), (1, 1), (1, 0)],
+      );
       // Row 0 is north, column 0 is east.
       expect(panels[0].decDegrees, greaterThan(30.0));
       expect(panels[0].raHours, greaterThan(12.0));

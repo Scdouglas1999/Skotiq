@@ -66,15 +66,14 @@ class _RecentStacksPanelState extends ConsumerState<RecentStacksPanel> {
         title: 'No stacks yet',
         body: linked
             ? 'Stacks made with Stack & Share on the imaging host are listed '
-                  'here.'
+                'here.'
             : 'Run Stack & Share on a finished session and the stack is kept '
-                  'here.',
+                'here.',
       );
     } else {
       final all = stacks.requireValue;
-      final shown = _expanded
-          ? all
-          : all.take(RecentStacksPanel.collapsedRows).toList();
+      final shown =
+          _expanded ? all : all.take(RecentStacksPanel.collapsedRows).toList();
       final hidden = all.length - shown.length;
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

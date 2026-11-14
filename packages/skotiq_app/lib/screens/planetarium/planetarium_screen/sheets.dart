@@ -3,7 +3,6 @@
 part of '../planetarium_screen.dart';
 
 extension _PlanetariumScreenSheets on _PlanetariumScreenState {
-
   void _showContextMenu(BuildContext context, Offset position) {
     showMenu<String>(
       context: context,

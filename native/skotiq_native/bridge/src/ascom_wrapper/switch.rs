@@ -104,6 +104,7 @@ impl SwitchDriver for AscomSwitchWrapper {
     }
 
     async fn step(&self, index: i32) -> Result<f64, DriverError> {
-        self.read("switch_step", move |d| d.switch_step(index)).await
+        self.read("switch_step", move |d| d.switch_step(index))
+            .await
     }
 }

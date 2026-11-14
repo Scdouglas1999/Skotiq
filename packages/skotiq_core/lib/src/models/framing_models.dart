@@ -225,4 +225,3 @@ class FramingMosaicConfig {
   double get effectiveHeightMultiplier =>
       rows - (rows - 1) * (overlapPercent / 100);
 }
-

@@ -518,7 +518,8 @@ class _DevicePickerState extends State<_DevicePicker> {
           const SizedBox(width: SkotiqTokens.spaceSm),
           Text(
             text,
-            style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
         ],
       ),

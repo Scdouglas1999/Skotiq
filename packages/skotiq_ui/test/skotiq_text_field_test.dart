@@ -322,7 +322,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final opacity = tester.widget<AnimatedOpacity>(
-      find.ancestor(of: find.text('mm'), matching: find.byType(AnimatedOpacity)),
+      find.ancestor(
+        of: find.text('mm'),
+        matching: find.byType(AnimatedOpacity),
+      ),
     );
     expect(opacity.opacity, 1.0, reason: 'the unit is part of the question');
   });
@@ -363,7 +366,9 @@ void main() {
     await tester.pumpAndSettle();
     final error = ringOf();
 
-    final colors = SkotiqColors.of(tester.element(find.byType(SkotiqTextField)));
+    final colors = SkotiqColors.of(
+      tester.element(find.byType(SkotiqTextField)),
+    );
     expect(error, colors.error);
     expect(
       focused,

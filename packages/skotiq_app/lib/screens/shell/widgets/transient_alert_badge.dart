@@ -190,7 +190,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
                     loading: () => _LoadingIcon(colors: colors),
                     error: (_, __) => _ErrorIcon(colors: colors),
                   ),
-
                   if (unacknowledgedCount > 0)
                     Positioned(
                       right: -6,
@@ -579,7 +578,6 @@ class _AlertListItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,7 +603,6 @@ class _AlertListItem extends StatelessWidget {
               ],
             ),
           ),
-
           if (alert.magnitude != null) ...[
             const SizedBox(width: 8),
             Container(
@@ -625,7 +622,6 @@ class _AlertListItem extends StatelessWidget {
               ),
             ),
           ],
-
           if (isNew) ...[
             const SizedBox(width: 8),
             Container(

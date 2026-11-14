@@ -80,15 +80,17 @@ void main() {
     expect(bare.single.name, 'HIP 3293');
   });
 
-  test('a designation does not find the objects whose number it extends',
-      () async {
-    Future<List<String>> ids(String query) async => [
-          for (final r in await CatalogManager.instance.search(query))
-            r.catalogId,
-        ];
-    expect(await ids('M31'), ['NGC224']);
-    expect(await ids('M 3'), contains('NGC5272'));
-    expect(await ids('NGC 7000'), ['NGC7000']);
-    expect(await ids('NGC 7000 nebula'), ['NGC7000']);
-  });
+  test(
+    'a designation does not find the objects whose number it extends',
+    () async {
+      Future<List<String>> ids(String query) async => [
+        for (final r in await CatalogManager.instance.search(query))
+          r.catalogId,
+      ];
+      expect(await ids('M31'), ['NGC224']);
+      expect(await ids('M 3'), contains('NGC5272'));
+      expect(await ids('NGC 7000'), ['NGC7000']);
+      expect(await ids('NGC 7000 nebula'), ['NGC7000']);
+    },
+  );
 }

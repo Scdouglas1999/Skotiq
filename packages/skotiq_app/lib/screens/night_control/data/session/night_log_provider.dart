@@ -23,7 +23,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import 'package:skotiq_core/providers.dart'
-    show cameraStateProvider, eventHistoryProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, mountStateProvider, rotatorStateProvider;
+    show
+        cameraStateProvider,
+        eventHistoryProvider,
+        filterWheelStateProvider,
+        focuserStateProvider,
+        guiderStateProvider,
+        mountStateProvider,
+        rotatorStateProvider;
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../../../services/run_dashboard_providers.dart'
@@ -105,7 +112,8 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
   }
 }
 
-MetricGridTone _toneOf(RunDashboardEventSeverity severity) => switch (severity) {
+MetricGridTone _toneOf(RunDashboardEventSeverity severity) =>
+    switch (severity) {
       RunDashboardEventSeverity.critical ||
       RunDashboardEventSeverity.error =>
         MetricGridTone.bad,

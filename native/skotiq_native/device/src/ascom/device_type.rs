@@ -41,7 +41,13 @@ const fn row(
 }
 
 const TYPES: [Row; 10] = [
-    row(AscomDeviceType::Camera, DeviceKind::Camera, "Camera", "camera", "Camera"),
+    row(
+        AscomDeviceType::Camera,
+        DeviceKind::Camera,
+        "Camera",
+        "camera",
+        "Camera",
+    ),
     row(
         AscomDeviceType::CoverCalibrator,
         DeviceKind::CoverCalibrator,
@@ -49,7 +55,13 @@ const TYPES: [Row; 10] = [
         "covercalibrator",
         "Cover Calibrator",
     ),
-    row(AscomDeviceType::Dome, DeviceKind::Dome, "Dome", "dome", "Dome"),
+    row(
+        AscomDeviceType::Dome,
+        DeviceKind::Dome,
+        "Dome",
+        "dome",
+        "Dome",
+    ),
     row(
         AscomDeviceType::FilterWheel,
         DeviceKind::FilterWheel,
@@ -57,7 +69,13 @@ const TYPES: [Row; 10] = [
         "filterwheel",
         "Filter Wheel",
     ),
-    row(AscomDeviceType::Focuser, DeviceKind::Focuser, "Focuser", "focuser", "Focuser"),
+    row(
+        AscomDeviceType::Focuser,
+        DeviceKind::Focuser,
+        "Focuser",
+        "focuser",
+        "Focuser",
+    ),
     row(
         AscomDeviceType::ObservingConditions,
         DeviceKind::Weather,
@@ -65,7 +83,13 @@ const TYPES: [Row; 10] = [
         "observingconditions",
         "Observing Conditions",
     ),
-    row(AscomDeviceType::Rotator, DeviceKind::Rotator, "Rotator", "rotator", "Rotator"),
+    row(
+        AscomDeviceType::Rotator,
+        DeviceKind::Rotator,
+        "Rotator",
+        "rotator",
+        "Rotator",
+    ),
     row(
         AscomDeviceType::SafetyMonitor,
         DeviceKind::SafetyMonitor,
@@ -73,8 +97,20 @@ const TYPES: [Row; 10] = [
         "safetymonitor",
         "Safety Monitor",
     ),
-    row(AscomDeviceType::Switch, DeviceKind::Switch, "Switch", "switch", "Switch"),
-    row(AscomDeviceType::Telescope, DeviceKind::Mount, "Telescope", "telescope", "Telescope"),
+    row(
+        AscomDeviceType::Switch,
+        DeviceKind::Switch,
+        "Switch",
+        "switch",
+        "Switch",
+    ),
+    row(
+        AscomDeviceType::Telescope,
+        DeviceKind::Mount,
+        "Telescope",
+        "telescope",
+        "Telescope",
+    ),
 ];
 
 impl AscomDeviceType {
@@ -154,12 +190,18 @@ mod tests {
             let rows = TYPES.iter().filter(|r| r.device_type == device_type);
             assert_eq!(rows.count(), 1, "{device_type:?}");
             assert_eq!(device_type.alpaca_path(), device_type.name().to_lowercase());
-            assert_eq!(AscomDeviceType::from_name(device_type.name()), Some(device_type));
+            assert_eq!(
+                AscomDeviceType::from_name(device_type.name()),
+                Some(device_type)
+            );
             assert_eq!(
                 AscomDeviceType::from_name(device_type.alpaca_path()),
                 Some(device_type)
             );
-            assert_eq!(AscomDeviceType::of_kind(device_type.kind()), Some(device_type));
+            assert_eq!(
+                AscomDeviceType::of_kind(device_type.kind()),
+                Some(device_type)
+            );
         }
     }
 
@@ -168,6 +210,9 @@ mod tests {
         assert_eq!(AscomDeviceType::of_kind(DeviceKind::Guider), None);
         assert_eq!(AscomDeviceType::from_name("video"), None);
         assert_eq!(AscomDeviceType::Telescope.kind(), DeviceKind::Mount);
-        assert_eq!(AscomDeviceType::ObservingConditions.kind(), DeviceKind::Weather);
+        assert_eq!(
+            AscomDeviceType::ObservingConditions.kind(),
+            DeviceKind::Weather
+        );
     }
 }

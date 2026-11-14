@@ -91,11 +91,12 @@ final starCatalogFallbackProvider = Provider<bool>((ref) {
 });
 
 /// Installs one catalog, reporting progress and polling for a cancel.
-typedef SkyCatalogInstaller = Future<Object?> Function(
-  SkyCatalog catalog, {
-  void Function(DownloadProgress)? onProgress,
-  Future<bool> Function()? isCancelled,
-});
+typedef SkyCatalogInstaller =
+    Future<Object?> Function(
+      SkyCatalog catalog, {
+      void Function(DownloadProgress)? onProgress,
+      Future<bool> Function()? isCancelled,
+    });
 
 enum SkyCatalogInstallPhase { idle, running, failed, done }
 
@@ -128,7 +129,7 @@ class SkyCatalogInstallState {
 /// in one is the download the others show.
 class SkyCatalogInstallNotifier extends StateNotifier<SkyCatalogInstallState> {
   SkyCatalogInstallNotifier(this._install)
-      : super(const SkyCatalogInstallState());
+    : super(const SkyCatalogInstallState());
 
   final SkyCatalogInstaller _install;
   bool _cancelRequested = false;
@@ -192,5 +193,5 @@ class SkyCatalogInstallNotifier extends StateNotifier<SkyCatalogInstallState> {
 
 final skyCatalogInstallProvider =
     StateNotifierProvider<SkyCatalogInstallNotifier, SkyCatalogInstallState>(
-  (ref) => SkyCatalogInstallNotifier(CatalogManager.instance.install),
-);
+      (ref) => SkyCatalogInstallNotifier(CatalogManager.instance.install),
+    );

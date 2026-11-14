@@ -155,8 +155,9 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
       _fill(found.name, found.raHours, found.decDegrees);
     } catch (e) {
       if (mounted) {
-        setState(() => _lookupError = context.l10n
-            .text('nightScopeGoToLookupFailed', params: {'error': userFacingError(e)}));
+        setState(() => _lookupError = context.l10n.text(
+            'nightScopeGoToLookupFailed',
+            params: {'error': userFacingError(e)}));
       }
     } finally {
       if (mounted) setState(() => _busy = null);

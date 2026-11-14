@@ -60,7 +60,6 @@ void main() {
     expect(_headerButton('Connect all'), findsOneWidget);
     expect(_variant(tester, 'Connect all'), ButtonVariant.primary);
     expect(_variant(tester, 'Scan for devices'), ButtonVariant.secondary);
-
   });
 
   testWidgets('with the profile up, no header action is primary',
@@ -74,7 +73,6 @@ void main() {
     expect(_headerButton('Connect all'), findsNothing);
     expect(_variant(tester, 'Disconnect all'), ButtonVariant.secondary);
     expect(_variant(tester, 'Scan for devices'), ButtonVariant.secondary);
-
   });
 
   testWidgets('the Profiles tab has no header actions', (tester) async {
@@ -85,6 +83,5 @@ void main() {
 
     expect(_headerButton('Scan for devices'), findsNothing);
     expect(_headerButton('Connect all'), findsNothing);
-
   });
 }

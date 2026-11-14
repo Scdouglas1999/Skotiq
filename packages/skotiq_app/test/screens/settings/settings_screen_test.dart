@@ -375,7 +375,8 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      SettingsScreen(initialSection: SettingsSectionId.resolve('does-not-exist')),
+      SettingsScreen(
+          initialSection: SettingsSectionId.resolve('does-not-exist')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -432,7 +433,8 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      SettingsScreen(initialSection: SettingsSectionId.resolve('predictive-af')),
+      SettingsScreen(
+          initialSection: SettingsSectionId.resolve('predictive-af')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -451,7 +453,8 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      SettingsScreen(initialSection: SettingsSectionId.resolve('notification-routing')),
+      SettingsScreen(
+          initialSection: SettingsSectionId.resolve('notification-routing')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );

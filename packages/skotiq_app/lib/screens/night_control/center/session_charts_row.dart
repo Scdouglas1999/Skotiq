@@ -390,9 +390,8 @@ Widget _legend(
             : line.dashed
                 ? _SwatchKind.dashed
                 : _SwatchKind.line,
-        swatchColor: line == null
-            ? null
-            : SeriesChart.colorFor(line.tone, colors),
+        swatchColor:
+            line == null ? null : SeriesChart.colorFor(line.tone, colors),
         rank: line == null && !keep.contains(item.label.key) ? 2 : 0,
       ),
     );

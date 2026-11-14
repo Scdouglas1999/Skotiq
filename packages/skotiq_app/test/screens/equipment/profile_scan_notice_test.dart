@@ -25,13 +25,13 @@ const _rig = EquipmentProfileModel(
 );
 
 DeviceInfo _mount() => const DeviceInfo(
-  id: 'sim_mount_1',
-  name: 'Simulated Mount',
-  deviceType: DeviceType.mount,
-  driverType: DriverType.simulator,
-  description: '',
-  driverVersion: '',
-);
+      id: 'sim_mount_1',
+      name: 'Simulated Mount',
+      deviceType: DeviceType.mount,
+      driverType: DriverType.simulator,
+      description: '',
+      driverVersion: '',
+    );
 
 UnifiedDiscoveryState _scanned(List<DeviceInfo> devices) =>
     UnifiedDiscoveryState(
@@ -241,7 +241,8 @@ void main() {
     );
     expect(find.byType(ProfileScanNotice), findsOneWidget);
     expect(
-      find.textContaining('Simulated Camera was not listed', findRichText: true),
+      find.textContaining('Simulated Camera was not listed',
+          findRichText: true),
       findsOneWidget,
     );
     await tester.tap(find.text('Connect all'));

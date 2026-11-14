@@ -476,7 +476,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               }
             } catch (e) {
               if (requireCurrentContext() && context.mounted) {
-                context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
+                context.showErrorSnackBar(
+                    'Failed to load sequence: ${userFacingError(e)}');
               }
             }
           }
@@ -828,9 +829,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           final saveLabel = sequence == null
               ? 'Save (create or open a sequence first)'
               : 'Save to the library (Ctrl+S)';
-          final save = sequence == null
-              ? null
-              : () => saveOpenSequence(context, ref);
+          final save =
+              sequence == null ? null : () => saveOpenSequence(context, ref);
 
           final isNarrowRow = constraints.maxWidth <
               math.max(_narrowBarWidth, _barWidthFor(barToolbarWidth));

@@ -59,7 +59,8 @@ final _regionPngToShareProvider =
   linked: (ref, host) => (regionId, name) async {
     final bytes = await host.skyAtlas.getAtlasRegionCutout(regionId);
     final dir = await getTemporaryDirectory();
-    final file = File(p.join(dir.path, 'region_${regionId}_${_safeName(name)}.png'));
+    final file =
+        File(p.join(dir.path, 'region_${regionId}_${_safeName(name)}.png'));
     await file.writeAsBytes(bytes);
     return file.path;
   },

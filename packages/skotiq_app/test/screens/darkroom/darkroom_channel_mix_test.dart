@@ -260,7 +260,8 @@ void main() {
       .widget<Text>(find.byKey(ValueKey('darkroom_mix_total_$channel')))
       .data!;
 
-  test('a mix reads its rows, defaults a missing master to zero and writes '
+  test(
+      'a mix reads its rows, defaults a missing master to zero and writes '
       'every weight', () {
     final mix = DarkroomChannelMix.fromJson(_hoo)!;
     expect(mix.weight('red', 'hAlpha'), 1);
@@ -284,14 +285,16 @@ void main() {
     expect(catalog.ops.single.param('mix')!.kind, DarkroomParamKind.channelMix);
     expect(
       darkroomMixRolesOf(
-        DarkroomStep.fromJson(_combine('sho', const ['sii', 'luminance', 'hAlpha']),
+        DarkroomStep.fromJson(
+            _combine('sho', const ['sii', 'luminance', 'hAlpha']),
             index: 0),
       ),
       ['hAlpha', 'sii'],
     );
   });
 
-  testWidgets('a palette shows its own weights and a changed one is stored as '
+  testWidgets(
+      'a palette shows its own weights and a changed one is stored as '
       'a custom mix', (tester) async {
     final id = await seedRecipe(_combine('sho', _narrowband));
     await pump(tester, id);
@@ -301,9 +304,11 @@ void main() {
     expect(find.text('Channel mix'), findsOneWidget);
     expect(find.widgetWithText(SkotiqChip, 'SHO'), findsNWidgets(2));
     expect(totalOf(tester, 'red'), 'total 1');
-    expect(tester.widget<EditableText>(weightField('SII in red')).controller.text,
+    expect(
+        tester.widget<EditableText>(weightField('SII in red')).controller.text,
         '1');
-    expect(tester.widget<EditableText>(weightField('Ha in red')).controller.text,
+    expect(
+        tester.widget<EditableText>(weightField('Ha in red')).controller.text,
         '0');
 
     await tester.enterText(weightField('Ha in red'), '0.6');
@@ -321,7 +326,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a custom mix opens with its stored weights showing, and '
+  testWidgets(
+      'a custom mix opens with its stored weights showing, and '
       'starting again from the palette stores the palette', (tester) async {
     final id = await seedRecipe(
       _combine('custom', _narrowband, mix: {
@@ -334,7 +340,8 @@ void main() {
 
     // No press on Parameters: a custom mix arrives open.
     expect(find.byKey(const ValueKey('darkroom_channel_mix')), findsOneWidget);
-    expect(tester.widget<EditableText>(weightField('Ha in red')).controller.text,
+    expect(
+        tester.widget<EditableText>(weightField('Ha in red')).controller.text,
         '0.700');
     expect(totalOf(tester, 'blue'), 'total 1.250');
 
@@ -381,7 +388,8 @@ void main() {
     await pump(tester, id);
     expect(find.textContaining('stores no weights yet'), findsOneWidget);
     expect(totalOf(tester, 'green'), 'total 0');
-    expect(find.byKey(const ValueKey('darkroom_mix_start_sho')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('darkroom_mix_start_sho')), findsOneWidget);
   });
 
   testWidgets('a combination without narrowband masters has no channel mix',

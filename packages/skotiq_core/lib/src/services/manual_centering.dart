@@ -13,19 +13,19 @@ class ManualCentering {
     AppSettingsState settings,
     EquipmentProfileModel? profile, {
     double? exposureSeconds,
-  })  : config = CenteringConfig(
-          maxIterations: maxIterations,
-          toleranceArcsec: toleranceArcsec,
-          exposureTime: exposureSeconds ?? exposureFor(profile),
-          binning: profile?.defaultBinX ?? 2,
-          gain: profile?.defaultGain,
-          offset: profile?.defaultOffset,
-          syncMount: settings.centeringSyncMount,
-        ),
-        solver = PlateSolverConfig(
-          timeoutSeconds: settings.plateSolveTimeout,
-          searchRadius: settings.plateSolveSearchRadius,
-        );
+  }) : config = CenteringConfig(
+         maxIterations: maxIterations,
+         toleranceArcsec: toleranceArcsec,
+         exposureTime: exposureSeconds ?? exposureFor(profile),
+         binning: profile?.defaultBinX ?? 2,
+         gain: profile?.defaultGain,
+         offset: profile?.defaultOffset,
+         syncMount: settings.centeringSyncMount,
+       ),
+       solver = PlateSolverConfig(
+         timeoutSeconds: settings.plateSolveTimeout,
+         searchRadius: settings.plateSolveSearchRadius,
+       );
 
   /// Solve-and-correct passes before a run gives up.
   static const int maxIterations = 5;
@@ -42,8 +42,6 @@ class ManualCentering {
   /// The solve exposure, in seconds, of [profile]'s centering frames.
   static double exposureFor(EquipmentProfileModel? profile) {
     final exposure = profile?.defaultCenteringExposure;
-    return exposure != null && exposure > 0
-        ? exposure
-        : defaultExposureSeconds;
+    return exposure != null && exposure > 0 ? exposure : defaultExposureSeconds;
   }
 }

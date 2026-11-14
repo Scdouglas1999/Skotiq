@@ -279,7 +279,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
             ],
           ),
         ),
-
         LayoutBuilder(
           builder: (context, constraints) {
             return Container(
@@ -336,12 +335,10 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
             );
           },
         ),
-
         if (widget.startTime != null || widget.totalDuration > 0) ...[
           const SizedBox(height: 8),
           _buildCompletionInfo(),
         ],
-
         const SizedBox(height: 12),
         Wrap(
           spacing: 16,
@@ -614,8 +611,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
 
     String completionText;
     if (widget.startTime != null) {
-      completionText =
-          'Est. completion: ${ClockFormat.hm(_estimatedEndTime)}';
+      completionText = 'Est. completion: ${ClockFormat.hm(_estimatedEndTime)}';
       if (!isInPast && remaining.inMinutes > 0) {
         completionText +=
             ' (~${DurationFormat.of(remaining, style: DurationStyle.coarse)} remaining)';
@@ -623,7 +619,8 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
         completionText += ' (completed)';
       }
     } else {
-      completionText = 'Duration: ${DurationFormat.of(Duration(seconds: widget.totalDuration.round()), style: DurationStyle.coarse)}';
+      completionText =
+          'Duration: ${DurationFormat.of(Duration(seconds: widget.totalDuration.round()), style: DurationStyle.coarse)}';
     }
 
     return Row(
@@ -648,5 +645,4 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
 
   String _formatDuration(double seconds) =>
       '${DurationFormat.seconds(seconds, style: DurationStyle.coarse, rounding: DurationRounding.truncate)} total';
-
 }

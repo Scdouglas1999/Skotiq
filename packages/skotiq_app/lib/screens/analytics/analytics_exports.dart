@@ -157,8 +157,6 @@ final class _HostAnalyticsExports implements AnalyticsExports {
   }
 }
 
-
-
 /// Reports of one transient detection: the files for AAVSO and the MPC, and
 /// the submission to the TNS, made by whichever machine holds the detection
 /// and the credentials.
@@ -195,38 +193,33 @@ final class _LocalTransientReports implements TransientReports {
     TransientDetectionRow detection,
     ScienceSettings settings, {
     required double magZeroPoint,
-  }) => _ref
-      .read(transientSubmissionServiceProvider)
-      .exportAavso(
-        detection: detection,
-        observerCode: settings.aavsoObserverCode,
-        magZeroPoint: magZeroPoint,
-      );
+  }) =>
+      _ref.read(transientSubmissionServiceProvider).exportAavso(
+            detection: detection,
+            observerCode: settings.aavsoObserverCode,
+            magZeroPoint: magZeroPoint,
+          );
 
   @override
   Future<String> exportMpcAdes(
     TransientDetectionRow detection,
     ScienceSettings settings,
-  ) => _ref
-      .read(transientSubmissionServiceProvider)
-      .exportMpcAdes(
-        detection: detection,
-        observatoryCode: settings.mpcObservatoryCode,
-        observerName: settings.observerName,
-        astrometricCatalog: settings.mpcAstrometricCatalog,
-      );
+  ) =>
+      _ref.read(transientSubmissionServiceProvider).exportMpcAdes(
+            detection: detection,
+            observatoryCode: settings.mpcObservatoryCode,
+            observerName: settings.observerName,
+            astrometricCatalog: settings.mpcAstrometricCatalog,
+          );
 
   @override
   Future<TnsSubmissionResult> submitToTns(
     TransientDetectionRow detection,
     ScienceSettings settings,
   ) async {
-    final apiKey = await _ref
-        .read(secretsStoreProvider)
-        .read(SecretField.tnsApiKey);
-    return _ref
-        .read(transientSubmissionServiceProvider)
-        .submitToTns(
+    final apiKey =
+        await _ref.read(secretsStoreProvider).read(SecretField.tnsApiKey);
+    return _ref.read(transientSubmissionServiceProvider).submitToTns(
           detection: detection,
           creds: TnsCredentials(
             botId: settings.tnsBotId,
@@ -257,26 +250,28 @@ final class _HostTransientReports implements TransientReports {
     TransientDetectionRow detection,
     ScienceSettings settings, {
     required double magZeroPoint,
-  }) async => _files.writeReport(
-    content: String.fromCharCodes(
-      await _host.transients.exportFirstLightAavso(
-        detection.id,
-        magZeroPoint: magZeroPoint,
-      ),
-    ),
-    fileName: 'aavso_transient_${detection.id}.txt',
-  );
+  }) async =>
+      _files.writeReport(
+        content: String.fromCharCodes(
+          await _host.transients.exportFirstLightAavso(
+            detection.id,
+            magZeroPoint: magZeroPoint,
+          ),
+        ),
+        fileName: 'aavso_transient_${detection.id}.txt',
+      );
 
   @override
   Future<String> exportMpcAdes(
     TransientDetectionRow detection,
     ScienceSettings settings,
-  ) async => _files.writeReport(
-    content: String.fromCharCodes(
-      await _host.transients.exportFirstLightMpc(detection.id),
-    ),
-    fileName: 'mpc_ades_transient_${detection.id}.psv',
-  );
+  ) async =>
+      _files.writeReport(
+        content: String.fromCharCodes(
+          await _host.transients.exportFirstLightMpc(detection.id),
+        ),
+        fileName: 'mpc_ades_transient_${detection.id}.psv',
+      );
 
   @override
   Future<TnsSubmissionResult> submitToTns(

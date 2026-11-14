@@ -108,8 +108,7 @@ async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
     // produces a future we discard. This both proves the symbol exists
     // AND that its return type unifies with `Result<(), _>` shape.
     let _disconnect_fut = async {
-        let _: Result<(), crate::error::SkotiqError> =
-            crate::guider::phd2::disconnect().await;
+        let _: Result<(), crate::error::SkotiqError> = crate::guider::phd2::disconnect().await;
     };
 
     // Behavioral check: the id-recognition helper must accept every form
@@ -126,12 +125,8 @@ async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
     }
 
     // And a non-PHD2 id must NOT trigger the dispatch arm.
-    assert!(!crate::guider::phd2::is_device_id(
-        "alpaca:test-guider"
-    ));
-    assert!(!crate::guider::phd2::is_device_id(
-        "phd2x-not-really-phd2"
-    ));
+    assert!(!crate::guider::phd2::is_device_id("alpaca:test-guider"));
+    assert!(!crate::guider::phd2::is_device_id("phd2x-not-really-phd2"));
 }
 
 // a manual `disconnect_device` arriving while a reconnect attempt
@@ -340,8 +335,8 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
 // probe passes. The failed reads must be what the heartbeat sees.
 #[tokio::test]
 async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
-    use crate::simulator::mount::get_sim_mount;
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -379,10 +374,10 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
 // "Reconnection attempt N failed" event for the same failure.
 #[tokio::test]
 async fn a_failed_reconnect_attempt_publishes_one_event() {
-    use crate::simulator::mount::get_sim_mount;
-    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
     use crate::event::bus::EventPayload;
     use crate::event::equipment::EquipmentEvent;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::mount::get_sim_mount;
     use tokio::sync::broadcast::error::TryRecvError;
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
@@ -442,8 +437,14 @@ async fn connect_starts_the_policy_heartbeat_and_disconnect_stops_it() {
         .await;
     let mut rx = manager.app_state.event_bus.subscribe();
 
-    manager.connect_device(device_id).await.expect("sim rotator connects");
-    manager.disconnect_device(device_id).await.expect("sim rotator disconnects");
+    manager
+        .connect_device(device_id)
+        .await
+        .expect("sim rotator connects");
+    manager
+        .disconnect_device(device_id)
+        .await
+        .expect("sim rotator disconnects");
 
     let mut started = Vec::new();
     let mut stopped = 0;
@@ -466,9 +467,11 @@ async fn connect_starts_the_policy_heartbeat_and_disconnect_stops_it() {
     }
     assert_eq!(
         started,
-        vec![crate::device_manager::policy::policy(DeviceType::Rotator)
-            .heartbeat
-            .base_interval_secs]
+        vec![
+            crate::device_manager::policy::policy(DeviceType::Rotator)
+                .heartbeat
+                .base_interval_secs
+        ]
     );
     assert_eq!(stopped, 1);
 }

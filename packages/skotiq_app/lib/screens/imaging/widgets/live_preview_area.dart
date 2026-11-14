@@ -230,7 +230,10 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
             ref
                 .watch(
                   frameTileMetricsProvider(
-                    (sessionId: sessionId, capturedImageId: currentFrameImageId),
+                    (
+                      sessionId: sessionId,
+                      capturedImageId: currentFrameImageId
+                    ),
                   ),
                 )
                 .valueOrNull,
@@ -844,7 +847,8 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                         child: _readout(
                           MeasuredWidth(
                             onWidth: (width) {
-                              if (!mounted || width == _bottomLeftReadoutsWidth) {
+                              if (!mounted ||
+                                  width == _bottomLeftReadoutsWidth) {
                                 return;
                               }
                               setState(() => _bottomLeftReadoutsWidth = width);

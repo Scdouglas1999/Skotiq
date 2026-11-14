@@ -4,7 +4,12 @@
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
-  const sites = [(34.05, -118.25), (51.48, 0.0), (-33.87, 151.21), (64.84, -147.72)];
+  const sites = [
+    (34.05, -118.25),
+    (51.48, 0.0),
+    (-33.87, 151.21),
+    (64.84, -147.72),
+  ];
   double bench(String name, int n, void Function(int i) body) {
     for (var i = 0; i < n ~/ 10 + 1; i++) {
       body(i);

@@ -398,29 +398,26 @@ void main() {
       expect(summary.targetName, isNull);
     });
 
-    test(
-      'a session with no target of its own is named for the one target its '
-      'lights were taken on',
-      () async {
-        final targetId = await seedTarget(name: 'NGC 7380');
-        final sessionId = await seedSession();
-        for (var i = 0; i < 2; i++) {
-          await seedFrame(
-            sessionId: sessionId,
-            targetId: targetId,
-            filter: 'L',
-            capturedAt: DateTime.utc(2026, 1, 1, 22, i),
-            fileName: 'l$i.fits',
-          );
-        }
-
-        final summary = await selector.selectForSession(
+    test('a session with no target of its own is named for the one target its '
+        'lights were taken on', () async {
+      final targetId = await seedTarget(name: 'NGC 7380');
+      final sessionId = await seedSession();
+      for (var i = 0; i < 2; i++) {
+        await seedFrame(
           sessionId: sessionId,
-          config: const StackAndShareConfig(),
+          targetId: targetId,
+          filter: 'L',
+          capturedAt: DateTime.utc(2026, 1, 1, 22, i),
+          fileName: 'l$i.fits',
         );
-        expect(summary.targetName, 'NGC 7380');
-      },
-    );
+      }
+
+      final summary = await selector.selectForSession(
+        sessionId: sessionId,
+        config: const StackAndShareConfig(),
+      );
+      expect(summary.targetName, 'NGC 7380');
+    });
 
     test('lights on two targets leave the stack unnamed', () async {
       final sessionId = await seedSession();

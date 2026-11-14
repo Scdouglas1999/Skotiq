@@ -67,7 +67,8 @@ class AtlasCoverageOverlay extends StatelessWidget {
                 _Stat(
                   icon: LucideIcons.clock,
                   label: totals == null ? 'Deepest tile' : 'Integration',
-                  value: DurationFormat.decimalHours(totals?.integrationSeconds ?? maxSeconds),
+                  value: DurationFormat.decimalHours(
+                      totals?.integrationSeconds ?? maxSeconds),
                   tint: colors.primary,
                 ),
                 _Stat(

@@ -91,7 +91,11 @@ fn the_reader_declares_each_files_range_and_the_samples_agree() {
     let reference = scene.samples_f64();
     for (name, twin, range) in mono_twins() {
         assert_eq!(twin.range, range, "{name}: range");
-        assert_eq!((twin.width, twin.height, twin.channels), (400, 300, 1), "{name}");
+        assert_eq!(
+            (twin.width, twin.height, twin.channels),
+            (400, 300, 1),
+            "{name}"
+        );
         let worst = twin
             .samples_f64()
             .iter()
@@ -111,7 +115,10 @@ fn stars_hfr_statistics_and_histogram_agree_across_conventions() {
     let stats = calculate_stats(&scene);
     let histogram = calculate_histogram(&scene, 256);
     let quality = analyze_frame_quality(&scene, &FrameQualityConfig::default()).unwrap();
-    println!("16-bit: {count} stars, HFR {hfr:.4}, median {} mad {}", stats.median, stats.mad);
+    println!(
+        "16-bit: {count} stars, HFR {hfr:.4}, median {} mad {}",
+        stats.median, stats.mad
+    );
 
     for (name, twin, _) in mono_twins() {
         let (twin_count, twin_hfr) = median_hfr(&twin);
@@ -121,7 +128,10 @@ fn stars_hfr_statistics_and_histogram_agree_across_conventions() {
             twin_stats.median, twin_stats.mad
         );
         assert_eq!(twin_count, count, "{name}: star count");
-        assert!((twin_hfr - hfr).abs() < 0.005 * hfr, "{name}: HFR {twin_hfr} vs {hfr}");
+        assert!(
+            (twin_hfr - hfr).abs() < 0.005 * hfr,
+            "{name}: HFR {twin_hfr} vs {hfr}"
+        );
         for (what, a, b) in [
             ("min", twin_stats.min, stats.min),
             ("max", twin_stats.max, stats.max),
@@ -132,7 +142,11 @@ fn stars_hfr_statistics_and_histogram_agree_across_conventions() {
         ] {
             assert!((a - b).abs() < 0.02, "{name}: {what} {a} vs {b}");
         }
-        assert_eq!(calculate_histogram(&twin, 256), histogram, "{name}: histogram");
+        assert_eq!(
+            calculate_histogram(&twin, 256),
+            histogram,
+            "{name}: histogram"
+        );
         let twin_quality = analyze_frame_quality(&twin, &FrameQualityConfig::default())
             .unwrap_or_else(|| panic!("{name}: no frame quality"));
         assert!(
@@ -158,7 +172,11 @@ fn stretch_and_thumbnail_agree_across_conventions() {
                 && (twin_params.highlights - params.highlights).abs() < 1e-6,
             "{name}: stretch {twin_params:?} vs {params:?}"
         );
-        assert_eq!(apply_stretch(&twin, &twin_params), display, "{name}: stretched frame");
+        assert_eq!(
+            apply_stretch(&twin, &twin_params),
+            display,
+            "{name}: stretched frame"
+        );
         let twin_preview = thumbnail(&twin, 1, 200);
         let worst = twin_preview
             .data
@@ -184,7 +202,10 @@ fn a_color_float_frame_reads_as_its_16_bit_twin() {
     assert!((float_hfr - hfr).abs() < 0.005 * hfr);
     let (a, b) = (float.to_display_u8(), sixteen.to_display_u8());
     let worst = a.iter().zip(&b).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
-    assert!(worst <= 1, "displayed color frames differ by {worst} levels");
+    assert!(
+        worst <= 1,
+        "displayed color frames differ by {worst} levels"
+    );
 }
 
 #[test]
@@ -226,7 +247,11 @@ fn a_float_frame_registers_against_a_16_bit_reference() {
     let scene = load("scene_u16.fits");
     let config = RegistrationConfig::default();
     let reference = ReferenceStars::detect(&scene, &config).unwrap();
-    for name in ["pi_scene_f32.xisf", "pi_scene_f32.fits", "unmarked_f32_adu.fits"] {
+    for name in [
+        "pi_scene_f32.xisf",
+        "pi_scene_f32.fits",
+        "unmarked_f32_adu.fits",
+    ] {
         let (model, stats) = solve_registration_against(&reference, &load(name), &config)
             .unwrap_or_else(|e| panic!("{name}: {e:?}"));
         let (x, y) = model.apply(200.0, 150.0);
@@ -280,5 +305,8 @@ fn a_file_keeps_its_range_through_the_app() {
     let path = scratch("legacy_rewritten.fits");
     write_fits(&path, &load("unmarked_f32_adu.fits"), &FitsHeader::new()).unwrap();
     let text = String::from_utf8_lossy(&std::fs::read(&path).unwrap()[..2880]).to_string();
-    assert!(text.contains("RANGELOW=") && text.contains("RANGEHI ="), "{text}");
+    assert!(
+        text.contains("RANGELOW=") && text.contains("RANGEHI ="),
+        "{text}"
+    );
 }

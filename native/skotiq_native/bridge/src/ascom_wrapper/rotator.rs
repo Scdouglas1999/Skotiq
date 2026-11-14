@@ -68,8 +68,8 @@ impl AscomRotatorWrapper {
                         let _ = reply.send(rotator.position().map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::MoveAbsolute(position, reply) => {
-                        let _ =
-                            reply.send(rotator.move_absolute(position).map_err(DeviceOpError::from));
+                        let _ = reply
+                            .send(rotator.move_absolute(position).map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::Halt(reply) => {
                         let _ = reply.send(rotator.halt().map_err(DeviceOpError::from));
@@ -81,13 +81,16 @@ impl AscomRotatorWrapper {
                         let _ = reply.send(rotator.sync(position).map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::SetReverse(reverse, reply) => {
-                        let _ = reply.send(rotator.set_reverse(reverse).map_err(DeviceOpError::from));
+                        let _ =
+                            reply.send(rotator.set_reverse(reverse).map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::InterfaceVersion(reply) => {
-                        let _ = reply.send(rotator.interface_version().map_err(DeviceOpError::from));
+                        let _ =
+                            reply.send(rotator.interface_version().map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::MechanicalPosition(reply) => {
-                        let _ = reply.send(rotator.mechanical_position().map_err(DeviceOpError::from));
+                        let _ =
+                            reply.send(rotator.mechanical_position().map_err(DeviceOpError::from));
                     }
                     AscomRotatorCommand::Connected(reply) => {
                         let _ = reply.send(rotator.is_connected().map_err(DeviceOpError::from));
@@ -119,7 +122,8 @@ impl AscomRotatorWrapper {
             .send(AscomRotatorCommand::Connect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = super::recv_with_timeout("Rotator", rx, Timeouts::connection(), "connect").await;
+        let result =
+            super::recv_with_timeout("Rotator", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
@@ -132,7 +136,8 @@ impl AscomRotatorWrapper {
             .send(AscomRotatorCommand::Disconnect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = super::recv_with_timeout("Rotator", rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("Rotator", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -207,7 +212,13 @@ impl AscomRotatorWrapper {
             .send(AscomRotatorCommand::InterfaceVersion(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "interface_version").await
+        super::recv_with_timeout(
+            "Rotator",
+            rx,
+            Timeouts::property_read(),
+            "interface_version",
+        )
+        .await
     }
 
     /// Degrees the mechanism is at, before any sync offset.
@@ -217,7 +228,13 @@ impl AscomRotatorWrapper {
             .send(AscomRotatorCommand::MechanicalPosition(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "mechanical_position").await
+        super::recv_with_timeout(
+            "Rotator",
+            rx,
+            Timeouts::property_read(),
+            "mechanical_position",
+        )
+        .await
     }
 
     /// Fails with NotConnected when the driver says it is not connected.

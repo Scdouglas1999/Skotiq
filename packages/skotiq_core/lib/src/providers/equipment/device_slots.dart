@@ -170,12 +170,16 @@ DeviceType? deviceTypeFromWireName(String raw) =>
     _typeByWireName[raw.toLowerCase()];
 
 /// The live state of [deviceType]'s slot.
-DeviceSlotState<Object?> readDeviceSlot(ProviderContainer container, DeviceType deviceType) =>
-    container.read(deviceType.slot.state);
+DeviceSlotState<Object?> readDeviceSlot(
+  ProviderContainer container,
+  DeviceType deviceType,
+) => container.read(deviceType.slot.state);
 
 /// The name [deviceType]'s card shows, or null when the slot has none.
-String? readDeviceSlotName(ProviderContainer container, DeviceType deviceType) =>
-    readDeviceSlot(container, deviceType).deviceName;
+String? readDeviceSlotName(
+  ProviderContainer container,
+  DeviceType deviceType,
+) => readDeviceSlot(container, deviceType).deviceName;
 
 /// The notifier that drives [deviceType]'s slot.
 DeviceConnectionNotifier readDeviceConnectionNotifier(

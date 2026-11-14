@@ -217,8 +217,7 @@ void main() {
     expect(controller.state.phase, OneTapPhase.running);
   });
 
-  test('planning that never answers ends failed with a plain reason',
-      () async {
+  test('planning that never answers ends failed with a plain reason', () async {
     var ranCalled = false;
     final controller = OneTapTonightController(
       pick: () async => suggestion(),

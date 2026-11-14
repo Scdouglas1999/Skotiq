@@ -157,10 +157,7 @@ void main() {
         startTime: DateTime.now().subtract(const Duration(hours: 1)),
       ),
     );
-    await sessionsDao.endSession(
-      id,
-      status: SessionStatus.stoppedResumable,
-    );
+    await sessionsDao.endSession(id, status: SessionStatus.stoppedResumable);
     final quickStart = QuickStartService(
       sessionsDao: sessionsDao,
       profilesDao: EquipmentProfilesDao(db),

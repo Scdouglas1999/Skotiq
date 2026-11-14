@@ -1,6 +1,4 @@
-use super::{
-    describe_atlas_error, mode_from_clip, open_atlas, parse_interp, read_frame,
-};
+use super::{describe_atlas_error, mode_from_clip, open_atlas, parse_interp, read_frame};
 use crate::output::ensure_parent_dir;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::sky_atlas::{tile_center, PreparedFrame, TileId, ATLAS_HEALPIX_ORDER};

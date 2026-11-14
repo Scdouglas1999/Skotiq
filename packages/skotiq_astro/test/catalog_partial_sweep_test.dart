@@ -13,7 +13,6 @@ import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
-
   late Directory tempDir;
 
   setUp(() async {

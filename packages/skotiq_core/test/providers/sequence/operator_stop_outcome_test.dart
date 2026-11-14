@@ -134,9 +134,7 @@ void main() {
       _,
     ) async {
       scheduleMicrotask(() {
-        executor.handleSequencerEventForTest(
-          event('Stopped', const {}),
-        );
+        executor.handleSequencerEventForTest(event('Stopped', const {}));
       });
     });
 

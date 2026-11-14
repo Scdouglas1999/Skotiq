@@ -488,7 +488,12 @@ impl CameraDriver for AlpacaCameraDriver {
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
-        let wire = self.camera.controls().await.offset.to_wire(offset, "Offset")?;
+        let wire = self
+            .camera
+            .controls()
+            .await
+            .offset
+            .to_wire(offset, "Offset")?;
         self.camera.set_offset(wire).await.map_err(own)
     }
 

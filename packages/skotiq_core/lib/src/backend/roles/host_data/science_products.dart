@@ -1,5 +1,6 @@
 import '../../../database/database.dart'
-    show AstrometryResidualVectorRow,
+    show
+        AstrometryResidualVectorRow,
         FramePhotometricCalibrationRow,
         LineRatioProductRow,
         MovingObjectCandidateRow,

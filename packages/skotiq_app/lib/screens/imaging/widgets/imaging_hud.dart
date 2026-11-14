@@ -166,7 +166,6 @@ class FrameInfoPill extends ConsumerWidget {
   /// fonts carry no U+2009, so the separator rendered as a tofu box inside the
   /// number it was meant to make readable.
   static String _whole(double value) => value.round().toString();
-
 }
 
 /// Bottom-right, opt-in: the preview histogram.

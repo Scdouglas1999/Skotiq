@@ -88,7 +88,8 @@ void main() {
     expect(find.byType(IsoSpeedPicker), findsOneWidget);
   });
 
-  testWidgets('the Imaging capture panel keeps gain and offset for a gain camera',
+  testWidgets(
+      'the Imaging capture panel keeps gain and offset for a gain camera',
       (tester) async {
     await pumpAppScreen(
       tester,

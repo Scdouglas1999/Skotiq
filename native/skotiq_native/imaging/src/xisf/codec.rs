@@ -163,9 +163,7 @@ pub(crate) fn decompress_into(
     match codec {
         XisfCodec::Zlib => {
             let mut decoder = flate2::read::ZlibDecoder::new(compressed);
-            decoder
-                .read_exact(out)
-                .map_err(|e| wrong(e.to_string()))?;
+            decoder.read_exact(out).map_err(|e| wrong(e.to_string()))?;
             let mut extra = [0u8; 1];
             match decoder.read(&mut extra) {
                 Ok(0) => Ok(()),
@@ -422,10 +420,7 @@ pub(crate) fn encode_base64(bytes: &[u8]) -> String {
 /// Base64 text to bytes; white space is ignored (section 10.3).
 pub(crate) fn decode_base64(text: &str) -> Result<Vec<u8>, XisfError> {
     use base64::Engine;
-    let compact: Vec<u8> = text
-        .bytes()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
+    let compact: Vec<u8> = text.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     base64::engine::general_purpose::STANDARD
         .decode(compact)
         .or_else(|_| {
@@ -467,9 +462,15 @@ mod tests {
             assert_eq!(out, data, "{codec:?}");
 
             let mut short = vec![0u8; data.len() - 1];
-            assert!(decompress_into(codec, &packed, &mut short).is_err(), "{codec:?} short");
+            assert!(
+                decompress_into(codec, &packed, &mut short).is_err(),
+                "{codec:?} short"
+            );
             let mut long = vec![0u8; data.len() + 1];
-            assert!(decompress_into(codec, &packed, &mut long).is_err(), "{codec:?} long");
+            assert!(
+                decompress_into(codec, &packed, &mut long).is_err(),
+                "{codec:?} long"
+            );
             assert!(
                 decompress_into(codec, &packed[..packed.len() / 2], &mut out).is_err(),
                 "{codec:?} truncated"
@@ -503,7 +504,10 @@ mod tests {
     fn checksums_match_known_digests() {
         // FIPS 180 / FIPS 202 test vectors for "abc".
         let cases = [
-            (ChecksumAlgorithm::Sha1, "a9993e364706816aba3e25717850c26c9cd0d89d"),
+            (
+                ChecksumAlgorithm::Sha1,
+                "a9993e364706816aba3e25717850c26c9cd0d89d",
+            ),
             (
                 ChecksumAlgorithm::Sha256,
                 "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

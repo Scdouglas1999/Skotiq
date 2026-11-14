@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 /// How a persisted run must be presented in Alignment History.

@@ -642,8 +642,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
 
   /// [save] is still wanted and the imaging session is the one it saved for.
   bool _isCurrentSave(AsyncScope<SkotiqBackend> save, int? sessionId) =>
-      save.isCurrent &&
-      ref.read(sessionStateProvider).dbSessionId == sessionId;
+      save.isCurrent && ref.read(sessionStateProvider).dbSessionId == sessionId;
 
   void _retryAuthorities(int? sessionId) {
     ref.invalidate(scienceSettingsProvider);

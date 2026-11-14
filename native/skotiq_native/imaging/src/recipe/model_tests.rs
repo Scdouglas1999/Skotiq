@@ -207,13 +207,15 @@ fn an_f32_image_carries_its_samples_verbatim() {
 /// operation's output and a change of geometry, to the export.
 #[test]
 fn a_unit_range_master_keeps_its_numbers_and_its_range() {
-    let source = ImageData::from_f32(2, 2, 1, &[0.25, 0.5, 0.75, 1.0])
-        .with_range(crate::SampleRange::UNIT);
+    let source =
+        ImageData::from_f32(2, 2, 1, &[0.25, 0.5, 0.75, 1.0]).with_range(crate::SampleRange::UNIT);
     let image = OpImage::from_image_data(&source, FitsHeader::new()).expect("image reads");
     assert_eq!(image.data(), &[0.25, 0.5, 0.75, 1.0]);
     assert_eq!(image.range(), crate::SampleRange::UNIT);
 
-    let edited = image.with_data(vec![0.1, 0.2, 0.3, 0.4]).expect("same geometry");
+    let edited = image
+        .with_data(vec![0.1, 0.2, 0.3, 0.4])
+        .expect("same geometry");
     assert_eq!(edited.range(), crate::SampleRange::UNIT);
     let cropped = edited.with_geometry(2, 1, 1, vec![0.1, 0.2]).expect("crop");
     let out = cropped.to_image_data();

@@ -418,7 +418,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
         error: errors.isEmpty ? null : errors.join('; '),
       );
     } catch (e) {
-      return _BackendResult(backend: backend, devices: [], error: userFacingError(e));
+      return _BackendResult(
+        backend: backend,
+        devices: [],
+        error: userFacingError(e),
+      );
     }
   }
 }

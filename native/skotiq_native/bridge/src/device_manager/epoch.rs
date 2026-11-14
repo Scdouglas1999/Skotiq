@@ -385,12 +385,21 @@ mod tests {
         assert_eq!(MountFrame::from_equatorial_system(0), None);
         assert_eq!(MountFrame::from_equatorial_system(7), None);
 
-        assert_eq!(MountFrame::J2000.j2000_to_mount(22.7892, 58.1324), (22.7892, 58.1324));
-        assert_eq!(MountFrame::J2000.mount_to_j2000(22.7892, 58.1324), (22.7892, 58.1324));
+        assert_eq!(
+            MountFrame::J2000.j2000_to_mount(22.7892, 58.1324),
+            (22.7892, 58.1324)
+        );
+        assert_eq!(
+            MountFrame::J2000.mount_to_j2000(22.7892, 58.1324),
+            (22.7892, 58.1324)
+        );
 
         let j2050 = MountFrame::from_equatorial_system(3).expect("J2050");
         let (ra, dec) = j2050.j2000_to_mount(22.7892, 58.1324);
-        assert!((ra - 22.7892).abs() > 0.02, "50 years of precession moves RA");
+        assert!(
+            (ra - 22.7892).abs() > 0.02,
+            "50 years of precession moves RA"
+        );
         let (ra_back, dec_back) = j2050.mount_to_j2000(ra, dec);
         assert!((ra_back - 22.7892).abs() < 1e-9 && (dec_back - 58.1324).abs() < 1e-9);
     }

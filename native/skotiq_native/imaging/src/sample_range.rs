@@ -86,8 +86,16 @@ impl SampleRange {
     /// truncates samples outside the declared range.
     pub fn widened_to(&self, low: f64, high: f64) -> Self {
         Self {
-            low: if low.is_finite() { self.low.min(low) } else { self.low },
-            high: if high.is_finite() { self.high.max(high) } else { self.high },
+            low: if low.is_finite() {
+                self.low.min(low)
+            } else {
+                self.low
+            },
+            high: if high.is_finite() {
+                self.high.max(high)
+            } else {
+                self.high
+            },
         }
     }
 }
@@ -128,6 +136,9 @@ mod tests {
         assert_eq!(SampleRange::ADU.widened_to(10.0, 4000.0), SampleRange::ADU);
         let wide = SampleRange::ADU.widened_to(-12.5, 70000.0);
         assert_eq!((wide.low, wide.high), (-12.5, 70000.0));
-        assert_eq!(SampleRange::ADU.widened_to(f64::INFINITY, f64::NEG_INFINITY), SampleRange::ADU);
+        assert_eq!(
+            SampleRange::ADU.widened_to(f64::INFINITY, f64::NEG_INFINITY),
+            SampleRange::ADU
+        );
     }
 }

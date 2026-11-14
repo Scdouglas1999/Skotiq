@@ -174,7 +174,12 @@ class _NetworkStatusIndicatorState
         builder: (context, wsSnap) {
           final wsState = wsSnap.data ?? hostLink.connectionState;
           final combined = _combine(wsState, osState);
-          return _renderIndicator(context, combined, osState, backend: hostLink);
+          return _renderIndicator(
+            context,
+            combined,
+            osState,
+            backend: hostLink,
+          );
         },
       );
     }
@@ -629,10 +634,7 @@ class _ConnectionDetailsSheetState
           if (rig != null) ...[
             _DetailRow(label: 'Server', value: rig.name),
             _DetailRow(label: 'Host', value: rig.host),
-            _DetailRow(
-              label: 'Port',
-              value: rig.webPort.toString(),
-            ),
+            _DetailRow(label: 'Port', value: rig.webPort.toString()),
             if (rig.version case final version?)
               _DetailRow(label: 'Version', value: version),
           ],

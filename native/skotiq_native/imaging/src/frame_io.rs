@@ -181,7 +181,9 @@ impl FrameCodec for FitsFrames {
     ) -> Result<(), FrameIoError> {
         let (image, mut header) = crate::read_fits(path)?;
         edit(&mut header);
-        replace_file(path, |staged| Ok(crate::write_fits(staged, &image, &header)?))
+        replace_file(path, |staged| {
+            Ok(crate::write_fits(staged, &image, &header)?)
+        })
     }
 }
 
@@ -235,7 +237,13 @@ impl FrameCodec for XisfFrames {
                 Ok(unit.read_thumbnail()?.map(|mut preview| {
                     // Thumbnails may be 16-bit (section 11.12); previews are 8.
                     if preview.pixel_type == crate::PixelType::U16 {
-                        preview.data = preview.data.as_chunks::<2>().0.iter().map(|b| b[1]).collect();
+                        preview.data = preview
+                            .data
+                            .as_chunks::<2>()
+                            .0
+                            .iter()
+                            .map(|b| b[1])
+                            .collect();
                         preview.pixel_type = crate::PixelType::U8;
                     }
                     preview
@@ -388,7 +396,10 @@ pub fn is_frame_path(path: &Path) -> bool {
 
 /// Every extension the app opens as a frame, lower case, without the dot.
 pub fn frame_extensions() -> Vec<&'static str> {
-    CODECS.iter().flat_map(|c| c.extensions().iter().copied()).collect()
+    CODECS
+        .iter()
+        .flat_map(|c| c.extensions().iter().copied())
+        .collect()
 }
 
 /// The extension a new file of `format` gets.
@@ -424,7 +435,11 @@ pub fn read_frame_preview(path: &Path, min_side: u32) -> Result<Option<ImageData
 }
 
 /// Write a frame in the format its extension names, with default choices.
-pub fn write_frame(path: &Path, image: &ImageData, header: &FitsHeader) -> Result<(), FrameIoError> {
+pub fn write_frame(
+    path: &Path,
+    image: &ImageData,
+    header: &FitsHeader,
+) -> Result<(), FrameIoError> {
     write_frame_with(path, image, header, &FrameWriteOptions::default())
 }
 
@@ -550,7 +565,11 @@ mod tests {
                 write_frame(&path, &image, &FitsHeader::new()).unwrap();
                 let header = read_frame_header(&path).unwrap();
                 let size = |key: &str| header.get_int(key);
-                assert_eq!(size("NAXIS"), Some(if channels > 1 { 3 } else { 2 }), "{extension}");
+                assert_eq!(
+                    size("NAXIS"),
+                    Some(if channels > 1 { 3 } else { 2 }),
+                    "{extension}"
+                );
                 assert_eq!(size("NAXIS1"), Some(7), "{extension}");
                 assert_eq!(size("NAXIS2"), Some(5), "{extension}");
                 assert_eq!(size("NAXIS3"), (channels > 1).then_some(3), "{extension}");
@@ -593,7 +612,11 @@ mod tests {
                         "{extension} round {round}: {writer}'s cards were lost"
                     );
                 }
-                assert_eq!(read_back.as_u16().unwrap(), pixels, "{extension} round {round}");
+                assert_eq!(
+                    read_back.as_u16().unwrap(),
+                    pixels,
+                    "{extension} round {round}"
+                );
             }
         }
         let _ = std::fs::remove_dir_all(&dir);

@@ -247,4 +247,3 @@ class _NarratorEmptyState extends StatelessWidget {
     );
   }
 }
-

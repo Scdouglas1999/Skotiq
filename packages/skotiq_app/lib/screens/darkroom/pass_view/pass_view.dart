@@ -196,7 +196,8 @@ class _ChartTitle extends StatelessWidget {
           style: SkotiqTypography.labelStrongSm
               .copyWith(color: colors.textSecondary),
         ),
-        key(Container(color: FilterColors.forName(lane, colors: colors)), 'measured'),
+        key(Container(color: FilterColors.forName(lane, colors: colors)),
+            'measured'),
         key(
           Row(
             children: <Widget>[
@@ -306,8 +307,8 @@ class _StageTiming extends StatelessWidget {
               _cell(total == 0 ? '' : '$done/$total', 50,
                   mono.copyWith(color: colors.textSecondary)),
               _cell(perSub, 46, mono),
-              _cell(took == Duration.zero ? '' : ClockFormat.stopwatch(took), 46,
-                  mono.copyWith(color: colors.textSecondary)),
+              _cell(took == Duration.zero ? '' : ClockFormat.stopwatch(took),
+                  46, mono.copyWith(color: colors.textSecondary)),
               _cell(leftText, 60, mono.copyWith(color: leftColor)),
             ],
           ),

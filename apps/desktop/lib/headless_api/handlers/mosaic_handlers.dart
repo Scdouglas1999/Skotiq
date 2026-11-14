@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel, MosaicStartCorner;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';

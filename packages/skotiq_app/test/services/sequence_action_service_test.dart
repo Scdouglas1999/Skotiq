@@ -170,7 +170,9 @@ void main() {
     final start = h.service.start();
     // The real executor publishes running during acquisition, exposing Stop
     // on the other playback surfaces before start() has returned.
-    h.container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    h.container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     final stop = h.service.stop();
 
     expect(h.executor.stopCount, 0);

@@ -111,7 +111,9 @@ pub(crate) fn tiff_raw_make(head: &[u8]) -> Option<Option<String>> {
     if ifd0.iter().any(|e| e.tag == DNG_VERSION) {
         return Some(None);
     }
-    tiff.text(r, &ifd0, MAKE).filter(|m| !m.is_empty()).map(Some)
+    tiff.text(r, &ifd0, MAKE)
+        .filter(|m| !m.is_empty())
+        .map(Some)
 }
 
 fn read_array<R: Read, const N: usize>(r: &mut R) -> Option<[u8; N]> {
@@ -218,8 +220,10 @@ impl Tiff {
         let bytes = if entry.count <= 4 {
             entry.value[..entry.count as usize].to_vec()
         } else {
-            r.seek(SeekFrom::Start(self.base + self.order.u32(entry.value) as u64))
-                .ok()?;
+            r.seek(SeekFrom::Start(
+                self.base + self.order.u32(entry.value) as u64,
+            ))
+            .ok()?;
             let mut buf = vec![0u8; entry.count as usize];
             r.read_exact(&mut buf).ok()?;
             buf
@@ -251,7 +255,8 @@ fn record_in_tiff<R: Read + Seek>(r: &mut R) -> Option<CameraRecord> {
             let at = tiff.pointer(&ifd0, DNG_PRIVATE_DATA)?;
             pentax_maker_note(r, &tiff, at)
         });
-    let sensor_celsius = pentax.and_then(|(note, ifd)| pentax_sensor_celsius(r, &note, &ifd, &model));
+    let sensor_celsius =
+        pentax.and_then(|(note, ifd)| pentax_sensor_celsius(r, &note, &ifd, &model));
     Some(CameraRecord {
         clock,
         sensor_celsius,
@@ -357,7 +362,11 @@ fn pentax_sensor_celsius<R: Read + Seek>(
     if !known {
         return None;
     }
-    let field = if series.starts_with("3 Mark III") { 0x2a } else { 0x0c };
+    let field = if series.starts_with("3 Mark III") {
+        0x2a
+    } else {
+        0x0c
+    };
     let block = ifd
         .iter()
         .find(|e| e.tag == PENTAX_TEMP_INFO && e.kind == UNDEFINED && e.count >= 0x30)?;
@@ -559,10 +568,25 @@ mod tests {
         let wall = b"2017:01:22 14:18:36\0";
         let mut note = b"Nikon\0\x02\x10\0\0MM\0*".to_vec();
         note.extend(8u32.to_be_bytes());
-        note.extend(ifd(entry(NIKON_WORLD_TIME, UNDEFINED, 4, [0xfe, 0x20, 1, 1])));
+        note.extend(ifd(entry(
+            NIKON_WORLD_TIME,
+            UNDEFINED,
+            4,
+            [0xfe, 0x20, 1, 1],
+        )));
         let mut exif = 2u16.to_be_bytes().to_vec();
-        exif.extend(entry(DATE_TIME_ORIGINAL, ASCII, wall.len() as u32, 56u32.to_be_bytes()));
-        exif.extend(entry(MAKER_NOTE, UNDEFINED, note.len() as u32, 76u32.to_be_bytes()));
+        exif.extend(entry(
+            DATE_TIME_ORIGINAL,
+            ASCII,
+            wall.len() as u32,
+            56u32.to_be_bytes(),
+        ));
+        exif.extend(entry(
+            MAKER_NOTE,
+            UNDEFINED,
+            note.len() as u32,
+            76u32.to_be_bytes(),
+        ));
         exif.extend(0u32.to_be_bytes());
         file.extend(exif);
         assert_eq!(file.len(), 56);
@@ -576,7 +600,10 @@ mod tests {
         // Without daylight saving the zone is the plain -08:00.
         let at = file.len() - note.len() + 18 + 2 + 8 + 2;
         file[at] = 0;
-        assert_eq!(clock(file).unwrap().utc(), Some(utc("2017-01-22T22:18:36Z")));
+        assert_eq!(
+            clock(file).unwrap().utc(),
+            Some(utc("2017-01-22T22:18:36Z"))
+        );
     }
 
     /// The layout of a Pentax PEF: IFD0 names the model and points at the Exif
@@ -589,7 +616,12 @@ mod tests {
         let mut file = b"MM\0*".to_vec();
         file.extend(8u32.to_be_bytes());
         file.extend(2u16.to_be_bytes());
-        file.extend(entry(MODEL, ASCII, model.len() as u32, model_at.to_be_bytes()));
+        file.extend(entry(
+            MODEL,
+            ASCII,
+            model.len() as u32,
+            model_at.to_be_bytes(),
+        ));
         file.extend(entry(EXIF_IFD, 4, 1, exif_at.to_be_bytes()));
         file.extend(0u32.to_be_bytes());
         file.extend(model.as_bytes());
@@ -597,8 +629,18 @@ mod tests {
         let note_at = exif_at + 18;
         let block_at = note_at + 6 + 18;
         let mut note = b"AOC\0MM".to_vec();
-        note.extend(ifd(entry(PENTAX_TEMP_INFO, UNDEFINED, 256, block_at.to_be_bytes())));
-        file.extend(ifd(entry(MAKER_NOTE, UNDEFINED, note.len() as u32, note_at.to_be_bytes())));
+        note.extend(ifd(entry(
+            PENTAX_TEMP_INFO,
+            UNDEFINED,
+            256,
+            block_at.to_be_bytes(),
+        )));
+        file.extend(ifd(entry(
+            MAKER_NOTE,
+            UNDEFINED,
+            note.len() as u32,
+            note_at.to_be_bytes(),
+        )));
         file.extend(note);
         assert_eq!(file.len(), block_at as usize);
         let mut block = vec![0u8; 256];
@@ -609,8 +651,14 @@ mod tests {
 
     #[test]
     fn a_pentax_maker_note_supplies_the_sensor_temperature() {
-        assert_eq!(record(pentax_pef("PENTAX K-5", 324)).sensor_celsius, Some(32.4));
-        assert_eq!(record(pentax_pef("PENTAX K-5 II s", -55)).sensor_celsius, Some(-5.5));
+        assert_eq!(
+            record(pentax_pef("PENTAX K-5", 324)).sensor_celsius,
+            Some(32.4)
+        );
+        assert_eq!(
+            record(pentax_pef("PENTAX K-5 II s", -55)).sensor_celsius,
+            Some(-5.5)
+        );
         // Bodies that use the block for something else, and readings no
         // sensor reports, are not taken.
         assert_eq!(record(pentax_pef("PENTAX K-1", 324)).sensor_celsius, None);
@@ -671,7 +719,10 @@ mod tests {
         nef.extend(8u32.to_be_bytes());
         nef.extend(ifd(entry(MAKE, ASCII, 18, 26u32.to_be_bytes())));
         nef.extend(b"NIKON CORPORATION\0");
-        assert_eq!(tiff_raw_make(&nef), Some(Some("NIKON CORPORATION".to_string())));
+        assert_eq!(
+            tiff_raw_make(&nef),
+            Some(Some("NIKON CORPORATION".to_string()))
+        );
         // A Make string beyond the bytes at hand says nothing.
         assert_eq!(tiff_raw_make(&nef[..30]), None);
 

@@ -173,7 +173,16 @@ pub(crate) fn query_cutout_impl(args: QueryCutoutArgs) -> Result<QueryCutoutResu
     let span_deg = 2.0 * args.radius_deg * 1.08;
     let scale_deg = span_deg / out_w;
     let crpix = out_w / 2.0 + 0.5;
-    let out_wcs = SipWcs::tan_only(args.center_ra, args.center_dec, crpix, crpix, -scale_deg, 0.0, 0.0, scale_deg);
+    let out_wcs = SipWcs::tan_only(
+        args.center_ra,
+        args.center_dec,
+        crpix,
+        crpix,
+        -scale_deg,
+        0.0,
+        0.0,
+        scale_deg,
+    );
 
     let path = Path::new(&args.fits_path);
     ensure_parent_dir(path)?;

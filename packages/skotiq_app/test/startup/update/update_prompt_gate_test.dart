@@ -78,7 +78,9 @@ void main() {
       overrides: [updateProvider.overrideWith((ref) => notifier)],
     );
     addTearDown(container.dispose);
-    container.read(runRecordProvider.notifier).setLifecycle(initialSequenceState);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(initialSequenceState);
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -125,7 +127,9 @@ void main() {
     expect(find.textContaining('7.2.0'), findsNothing);
 
     // The night finishes.
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.idle);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
     await tester.pump();
     await tester.pump();
 

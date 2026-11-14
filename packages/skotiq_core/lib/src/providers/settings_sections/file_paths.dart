@@ -23,5 +23,6 @@ extension FilePathSettingsSection on AppSettingsNotifier {
   Future<void> setDatabasePath(String value) =>
       _set(AppSettingDefs.databasePath, value);
 
-  Future<void> setLogsPath(String value) => _set(AppSettingDefs.logsPath, value);
+  Future<void> setLogsPath(String value) =>
+      _set(AppSettingDefs.logsPath, value);
 }

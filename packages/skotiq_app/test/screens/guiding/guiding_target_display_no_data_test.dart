@@ -20,8 +20,7 @@ void main() {
       const GuidingScreen(),
       size: const Size(1280, 800),
       settle: false,
-      extraOverrides: [
-      ],
+      extraOverrides: [],
     );
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));

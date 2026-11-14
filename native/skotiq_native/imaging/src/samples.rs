@@ -227,7 +227,11 @@ impl ImageData {
             .par_chunks_exact_mut(size)
             .zip(values.par_iter())
             .for_each(|(bytes, &adu)| {
-                let v = if adu.is_nan() { 0.0 } else { range.from_adu(adu) };
+                let v = if adu.is_nan() {
+                    0.0
+                } else {
+                    range.from_adu(adu)
+                };
                 sample_to_le(bytes, pixel_type, if integer { v.round() } else { v });
             });
         std::borrow::Cow::Owned(out)

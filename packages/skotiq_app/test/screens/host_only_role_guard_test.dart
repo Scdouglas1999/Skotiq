@@ -204,8 +204,7 @@ List<int> backendTypeAnswers(String code) {
   for (var i = 0; i < lines.length; i++) {
     final match = test.firstMatch(lines[i]);
     if (match == null) continue;
-    var before =
-        lines[i].substring(0, match.start).replaceFirst(receiver, '');
+    var before = lines[i].substring(0, match.start).replaceFirst(receiver, '');
     if (RegExp(r'\b(if|while)\s*\(').hasMatch(before)) continue;
     if (before.trim().isEmpty) {
       for (var j = i - 1; j >= 0; j--) {

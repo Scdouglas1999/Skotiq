@@ -83,7 +83,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             ),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -159,9 +158,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             ],
           ),
         ),
-
         Divider(color: widget.colors.border, height: 1),
-
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -474,7 +471,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
             ),
           ),
         ),
-
         AnimatedCrossFade(
           firstChild: Padding(
             padding: EdgeInsets.only(

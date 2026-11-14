@@ -62,10 +62,7 @@ void main() {
       expect(CoordinateFormat.decReadout(dec(10, 20, 59.995)), '+10° 21\' 00"');
       expect(CoordinateFormat.decReadout(dec(10, 20, 59.49)), '+10° 20\' 59"');
       expect(CoordinateFormat.decReadout(dec(10, 59, 59.96)), '+11° 00\' 00"');
-      expect(
-        CoordinateFormat.decReadout(-dec(10, 59, 59.96)),
-        '-11° 00\' 00"',
-      );
+      expect(CoordinateFormat.decReadout(-dec(10, 59, 59.96)), '-11° 00\' 00"');
       expect(CoordinateFormat.decDense(dec(89, 59, 59.96)), '+90°00\'00"');
     });
 

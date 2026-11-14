@@ -348,7 +348,8 @@ class _NoLocationBody extends ConsumerWidget {
                     label: 'Set your location',
                     variant: ButtonVariant.secondary,
                     size: ButtonSize.small,
-                    onPressed: () => openSettings(context, SettingsSectionId.location),
+                    onPressed: () =>
+                        openSettings(context, SettingsSectionId.location),
                   ),
                 ),
               ),

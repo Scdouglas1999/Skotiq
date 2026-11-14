@@ -24,9 +24,9 @@
 
 use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
 use crate::fits_reader::FitsReader;
-use crate::{frame_format, FitsCopy, ImageFormat};
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
+use crate::{frame_format, FitsCopy, ImageFormat};
 use crate::{ImageData, PixelType};
 use std::fs::File;
 use std::io::BufReader;
@@ -701,7 +701,9 @@ mod tests {
             frames
                 .iter()
                 .enumerate()
-                .map(|(i, px)| write_frame(dir.path(), &format!("f{i}.{}", ext(i)), px, w, h, CARDS))
+                .map(|(i, px)| {
+                    write_frame(dir.path(), &format!("f{i}.{}", ext(i)), px, w, h, CARDS)
+                })
                 .collect()
         };
         let fits = named(&|_| "fits");
@@ -719,7 +721,14 @@ mod tests {
         assert_eq!(master(&mixed, "mixed.fits"), from_fits);
 
         let mut wrong = xisf.clone();
-        wrong.push(write_frame(dir.path(), "long.xisf", &frames[0], w, h, &[("EXPTIME", 300.0)]));
+        wrong.push(write_frame(
+            dir.path(),
+            "long.xisf",
+            &frames[0],
+            w,
+            h,
+            &[("EXPTIME", 300.0)],
+        ));
         let refused = build_streamed_master(&wrong, &dir.path().join("Masters/no.fits"), &config);
         assert!(matches!(refused, Err(MasterBuildError::Refused(m)) if m.contains("exposed")));
 
@@ -816,7 +825,10 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")),
+            "{err}"
+        );
         assert!(!out.exists());
     }
 
@@ -833,7 +845,10 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")),
+            "{err}"
+        );
     }
 
     /// A QHY camera's darks taken in two read modes differ in read noise and
@@ -855,7 +870,10 @@ mod tests {
             &config,
         )
         .unwrap_err();
-        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("read out in mode")), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("read out in mode")),
+            "{err}"
+        );
 
         let same = in_mode("c.fits", 3, "Photographic DSO 16BIT");
         let out = dir.path().join("one.fits");

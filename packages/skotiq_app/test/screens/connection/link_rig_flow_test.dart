@@ -88,7 +88,8 @@ final _host = DiscoveredServer(
   hostName: 'DESKTOP-MMAJGAK',
   platform: 'windows',
   version: skotiqRelease,
-  fingerprint: 'dc2f261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
+  fingerprint:
+      'dc2f261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
   lanPairing: true,
 );
 
@@ -100,7 +101,8 @@ final _headless = DiscoveredServer(
   platform: 'linux',
   hostMode: 'headless',
   version: skotiqRelease,
-  fingerprint: 'ab12261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
+  fingerprint:
+      'ab12261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
   lanPairing: true,
 );
 
@@ -130,17 +132,17 @@ void main() {
   tearDown(() => dir.delete(recursive: true));
 
   Widget app(Widget child, {List<Override> extra = const []}) => ProviderScope(
-    overrides: [
-      linkedRigStoreProvider.overrideWithValue(store),
-      rigLinkServiceProvider.overrideWithValue(service),
-      appRelauncherProvider.overrideWithValue(relauncher),
-      ...extra,
-    ],
-    child: MaterialApp(
-      theme: SkotiqTheme.dark,
-      home: Scaffold(body: child),
-    ),
-  );
+        overrides: [
+          linkedRigStoreProvider.overrideWithValue(store),
+          rigLinkServiceProvider.overrideWithValue(service),
+          appRelauncherProvider.overrideWithValue(relauncher),
+          ...extra,
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Scaffold(body: child),
+        ),
+      );
 
   Future<void> setSize(WidgetTester tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -181,7 +183,8 @@ void main() {
     expect(await tester.runAsync(store.readToken), 'tok');
   });
 
-  testWidgets('a host of another release says which side to update and '
+  testWidgets(
+      'a host of another release says which side to update and '
       'offers no pairing', (tester) async {
     await setSize(tester);
     final older = _host.copyWith(version: '0.0.1');
@@ -227,8 +230,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.enterText(find.byKey(const ValueKey('link.code')),
-        'orbit nebula 4821');
+    await tester.enterText(
+        find.byKey(const ValueKey('link.code')), 'orbit nebula 4821');
     await tester.tap(find.byType(SkotiqCheckbox));
     await tester.pump();
     await tester.runAsync(() async {
@@ -448,7 +451,8 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byKey(const ValueKey('remoteBanner.pairAgain')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('remoteBanner.pairAgain')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('remoteBanner.useThisComputer')),
       findsOneWidget,

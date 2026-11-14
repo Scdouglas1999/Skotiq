@@ -212,7 +212,8 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       }
     } catch (e) {
       if (mounted && _isCurrentOperation(scan, scanning: true)) {
-        context.showErrorSnackBar('Equipment scan failed: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Equipment scan failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(scan, scanning: true)) {

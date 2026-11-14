@@ -745,7 +745,8 @@ void main() {
               filterNames: ['L', 'R', 'G', 'B'],
             ),
           ),
-          effectiveFiltersProvider.overrideWithValue(const ['L', 'R', 'G', 'B']),
+          effectiveFiltersProvider
+              .overrideWithValue(const ['L', 'R', 'G', 'B']),
           plannerTargetIntegrationPreviewProvider(1023).overrideWith(
             (ref) async => const TargetIntegrationPreview(
               estimatedIntegrationHours: 4,

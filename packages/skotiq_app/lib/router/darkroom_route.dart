@@ -7,7 +7,6 @@ library;
 
 import 'package:flutter/widgets.dart';
 
-
 /// The four tabs of the Darkroom screen, in header order.
 enum DarkroomTab {
   targets,

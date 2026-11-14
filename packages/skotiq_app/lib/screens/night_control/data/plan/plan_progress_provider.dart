@@ -67,8 +67,8 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // A linked client counts the run's session rows: the frame list below is
     // what this app saw arrive, and a client that joined after the run
     // started saw none of the frames before it.
-    final sessionRows = terminal?.isCalibration == true ||
-        ref.watch(isRemoteModeProvider);
+    final sessionRows =
+        terminal?.isCalibration == true || ref.watch(isRemoteModeProvider);
     final frames = sessionRows
         ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);

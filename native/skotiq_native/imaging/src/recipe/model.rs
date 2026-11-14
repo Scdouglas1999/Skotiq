@@ -598,8 +598,10 @@ impl OpImage {
             PixelType::F32 | PixelType::U16 => image.stored_f32(),
             other => return Err(OpError::UnsupportedPixelType { found: other }),
         };
-        Ok(Self::new(image.width, image.height, image.channels, data, header)?
-            .with_range(image.range))
+        Ok(
+            Self::new(image.width, image.height, image.channels, data, header)?
+                .with_range(image.range),
+        )
     }
 
     /// Write the samples back out as an `F32` [`ImageData`] in the range the

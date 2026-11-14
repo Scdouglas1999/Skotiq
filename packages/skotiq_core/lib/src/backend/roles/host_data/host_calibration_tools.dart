@@ -70,7 +70,5 @@ abstract interface class HostCalibrationTools {
 
   Future<DateTime?> armHostStartAtDark();
 
-  Future<List<CatalogStarMatch>> matchPhotometricCalibrationStars(
-    int imageId,
-  );
+  Future<List<CatalogStarMatch>> matchPhotometricCalibrationStars(int imageId);
 }

@@ -13,8 +13,7 @@ fn fixture() -> serde_json::Value {
         env!("CARGO_MANIFEST_DIR"),
         "/../../../test_fixtures/frame_naming/run_tokens.json"
     );
-    serde_json::from_str(&std::fs::read_to_string(path).expect("fixture"))
-        .expect("fixture JSON")
+    serde_json::from_str(&std::fs::read_to_string(path).expect("fixture")).expect("fixture JSON")
 }
 
 #[test]

@@ -308,7 +308,6 @@ fn detect_mask_stars(image: &ImageData) -> Vec<DetectedStar> {
     }
 }
 
-
 /// Build a soft, feathered star mask in `[0, 1]` from detected stars.
 ///
 /// Each star contributes a disk: weight `1` out to `core` (= HFR·multiple +
@@ -930,8 +929,8 @@ mod tests {
                 }
             }
         }
-        let input = ImageData::from_f32(w as u32, h as u32, 1, &data)
-            .with_range(crate::SampleRange::UNIT);
+        let input =
+            ImageData::from_f32(w as u32, h as u32, 1, &data).with_range(crate::SampleRange::UNIT);
         let cfg = StarReductionConfig {
             strength: 0.6,
             method: StarReduceMethod::ScreenedResidual,

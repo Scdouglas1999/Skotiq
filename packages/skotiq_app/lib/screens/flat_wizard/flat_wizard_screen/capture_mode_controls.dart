@@ -38,8 +38,7 @@ class _QuickCaptureControls extends ConsumerWidget {
           const SizedBox(height: FormRow.rowGap),
           // Camera settings the run will actually command.
           const FormRow(
-              label: 'Camera settings',
-              child: _CaptureConfigSummary()),
+              label: 'Camera settings', child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',
@@ -105,8 +104,7 @@ class _BatchCaptureControls extends ConsumerWidget {
             title: 'Capture settings',
           ),
           const FormRow(
-              label: 'Camera settings',
-              child: _CaptureConfigSummary()),
+              label: 'Camera settings', child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',
@@ -187,8 +185,7 @@ class _SkyFlatsControls extends ConsumerWidget {
             title: 'Capture settings',
           ),
           const FormRow(
-              label: 'Camera settings',
-              child: _CaptureConfigSummary()),
+              label: 'Camera settings', child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',

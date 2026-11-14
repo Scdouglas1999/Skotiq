@@ -590,7 +590,8 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// The step numbers count the order they were handed, from 1, the way the
   /// engine's own sentences and the cards on screen do — so a caller that
   /// passes a candidate order says so, as `_refusalOverCandidate` does.
-  String? _stageOrderViolation(DarkroomViewState state, List<DarkroomStep> steps) {
+  String? _stageOrderViolation(
+      DarkroomViewState state, List<DarkroomStep> steps) {
     int? stretchedAt;
     for (var i = 0; i < steps.length; i++) {
       final stage = state.catalog?.specFor(steps[i])?.stage;

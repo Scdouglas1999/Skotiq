@@ -60,7 +60,11 @@ pub enum RasterError {
 }
 
 /// Write `image` to `path` as `format`.
-pub fn write_raster(path: &Path, image: &ImageData, format: RasterFormat) -> Result<(), RasterError> {
+pub fn write_raster(
+    path: &Path,
+    image: &ImageData,
+    format: RasterFormat,
+) -> Result<(), RasterError> {
     let channels = image.channels;
     if !matches!(channels, 1 | 3 | 4) {
         return Err(RasterError::Channels(channels));
@@ -119,7 +123,8 @@ pub fn write_raster(path: &Path, image: &ImageData, format: RasterFormat) -> Res
                             .0
                             .iter()
                             .flat_map(|[r, g, b, a]| {
-                                let over_black = |c: &u8| (u32::from(*c) * u32::from(*a) / 255) as u8;
+                                let over_black =
+                                    |c: &u8| (u32::from(*c) * u32::from(*a) / 255) as u8;
                                 [over_black(r), over_black(g), over_black(b)]
                             })
                             .collect(),
@@ -189,7 +194,10 @@ mod tests {
         let path = std::env::temp_dir().join(format!("raster-short-{}.png", std::process::id()));
         assert!(matches!(
             write_raster(&path, &short, RasterFormat::Png),
-            Err(RasterError::Size { held: 12, needed: 16 })
+            Err(RasterError::Size {
+                held: 12,
+                needed: 16
+            })
         ));
         assert!(!path.exists());
         let two = ImageData::new(1, 1, 2, PixelType::U8);
@@ -201,7 +209,10 @@ mod tests {
 
     #[test]
     fn extensions_name_their_format() {
-        assert_eq!(RasterFormat::from_path(Path::new("a.TIF")), Some(RasterFormat::Tiff));
+        assert_eq!(
+            RasterFormat::from_path(Path::new("a.TIF")),
+            Some(RasterFormat::Tiff)
+        );
         assert_eq!(
             RasterFormat::from_path(Path::new("a.jpeg")),
             Some(RasterFormat::Jpeg {

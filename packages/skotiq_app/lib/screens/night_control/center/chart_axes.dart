@@ -274,8 +274,7 @@ List<DateTime> nightClockTicks({
       DateTime.fromMillisecondsSinceEpoch(range.$2),
       most,
     );
-    if (_labelLefts(painter, ticks, width, labelWidth).length ==
-        ticks.length) {
+    if (_labelLefts(painter, ticks, width, labelWidth).length == ticks.length) {
       return ticks;
     }
   }

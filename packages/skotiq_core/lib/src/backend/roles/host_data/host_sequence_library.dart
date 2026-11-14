@@ -9,9 +9,7 @@ abstract interface class HostSequenceLibrary {
 
   Future<int> duplicateSequence(int sourceId, String newName);
 
-  Future<RemoteSequenceRunDiffContext> fetchSequenceRunDiffContext(
-    int runId,
-  );
+  Future<RemoteSequenceRunDiffContext> fetchSequenceRunDiffContext(int runId);
 
   Future<Map<String, dynamic>?> getFullSequence(int sequenceId);
 
@@ -45,10 +43,7 @@ abstract interface class HostSequenceLibrary {
 
   Future<int> createSequence(Map<String, dynamic> sequence);
 
-  Future<void> createSequenceNode(
-    int sequenceId,
-    Map<String, dynamic> node,
-  );
+  Future<void> createSequenceNode(int sequenceId, Map<String, dynamic> node);
 
   Future<List<Map<String, dynamic>>> getSequenceTemplates();
 

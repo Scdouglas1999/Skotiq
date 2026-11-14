@@ -270,8 +270,12 @@ fn a_color_mosaic_thumbnail_holds_every_filter_color() {
     let path = dir.path().join("osc.fits");
     let mut header = FitsHeader::new();
     header.set_string("BAYERPAT", "RGGB");
-    skotiq_imaging::write_fits(&path, &ImageData::from_u16(width, height, 1, &samples), &header)
-        .unwrap();
+    skotiq_imaging::write_fits(
+        &path,
+        &ImageData::from_u16(width, height, 1, &samples),
+        &header,
+    )
+    .unwrap();
 
     let jpeg = generate_fits_thumbnail_jpeg(path.to_str().unwrap(), 16).expect("thumbnail");
     let img = image::load_from_memory(&jpeg).unwrap().to_luma8();

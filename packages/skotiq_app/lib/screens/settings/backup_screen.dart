@@ -444,7 +444,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Failed to delete backup: ${userFacingError(e)}');
+      context
+          .showErrorSnackBar('Failed to delete backup: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
     }
@@ -974,7 +975,6 @@ class _BackupTile extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _StatusRow extends StatelessWidget {

@@ -275,7 +275,12 @@ impl CameraFile {
 
 impl std::fmt::Debug for CameraFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CameraFile({}, {} bytes)", self.file_name, self.bytes.len())
+        write!(
+            f,
+            "CameraFile({}, {} bytes)",
+            self.file_name,
+            self.bytes.len()
+        )
     }
 }
 

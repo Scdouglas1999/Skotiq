@@ -179,8 +179,7 @@ impl CameraOps for UnifiedDeviceOps {
         // What the camera says of itself: where it clips, and whether it has
         // gain and offset controls. Best-effort by design: a driver that cannot
         // answer its own status must not cost us the frame.
-        let camera_status = match get_device_manager()
-            .camera_get_status(camera_id).await {
+        let camera_status = match get_device_manager().camera_get_status(camera_id).await {
             Ok(status) => Some(status),
             Err(e) => {
                 tracing::debug!(
@@ -411,7 +410,9 @@ impl CameraOps for UnifiedDeviceOps {
 
     async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
         match crate::device_capabilities::get_device_capabilities(camera_id).await {
-            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
+            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => {
+                Ok(caps.iso_speeds)
+            }
             Ok(_) => Ok(Vec::new()),
             Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
         }

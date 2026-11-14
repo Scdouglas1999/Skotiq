@@ -118,7 +118,9 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
           .read(manualExposureSettingsUpdaterProvider)
           .update(ref.read(exposureSettingsProvider).copyWith(filter: name));
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Failed to change filter: ${userFacingError(e)}');
+      if (mounted)
+        context.showErrorSnackBar(
+            'Failed to change filter: ${userFacingError(e)}');
     }
   }
 

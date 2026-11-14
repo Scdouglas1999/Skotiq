@@ -163,17 +163,21 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let mount_id = "sim_mount_frame_fits";
     attach_sim_mount(mount_id).await;
     let camera_id = "sim_camera_frame_fits";
-    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
-                id: camera_id.to_string(),
-                name: "Simulated Camera".to_string(),
-                device_type: DeviceType::Camera,
-                driver_type: DriverType::Simulator,
-                description: "Simulated camera".to_string(),
-                driver_version: "1.0".to_string(),
-                serial_number: None,
-                unique_id: None,
-                display_name: "Simulated Camera".to_string(),
-            }).await;
+    crate::simulator::register_connected(
+        get_device_manager(),
+        DeviceInfo {
+            id: camera_id.to_string(),
+            name: "Simulated Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Simulator,
+            description: "Simulated camera".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Camera".to_string(),
+        },
+    )
+    .await;
     crate::simulator::camera::get_sim_camera()
         .write()
         .await
@@ -269,7 +273,9 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
         .get_observer_location()
         .ok()
         .flatten();
-    crate::state::get_state().set_observer_location(None).unwrap();
+    crate::state::get_state()
+        .set_observer_location(None)
+        .unwrap();
     let mount_id = "sim_mount_frame_flip";
     attach_sim_mount(mount_id).await;
     get_sim_mount().write().await.status.side_of_pier = Some(crate::device::PierSide::Unknown);
@@ -364,17 +370,21 @@ fn card_format(card: &str) -> String {
 }
 
 async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str) {
-    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
-                id: device_id.to_string(),
-                name: name.to_string(),
-                device_type,
-                driver_type: DriverType::Simulator,
-                description: name.to_string(),
-                driver_version: "1.0".to_string(),
-                serial_number: None,
-                unique_id: None,
-                display_name: name.to_string(),
-            }).await;
+    crate::simulator::register_connected(
+        get_device_manager(),
+        DeviceInfo {
+            id: device_id.to_string(),
+            name: name.to_string(),
+            device_type,
+            driver_type: DriverType::Simulator,
+            description: name.to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: name.to_string(),
+        },
+    )
+    .await;
 }
 
 /// The owner's rule: a frame saved from the Imaging screen and a frame saved
@@ -421,8 +431,9 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
     let site = (0..24)
         .map(|hour| (39.9719, -180.0 + 15.0 * f64::from(hour)))
         .min_by(|a, b| {
-            skotiq_sequencer::solar::sun_altitude_degrees(a.0, a.1, &now)
-                .total_cmp(&skotiq_sequencer::solar::sun_altitude_degrees(b.0, b.1, &now))
+            skotiq_sequencer::solar::sun_altitude_degrees(a.0, a.1, &now).total_cmp(
+                &skotiq_sequencer::solar::sun_altitude_degrees(b.0, b.1, &now),
+            )
         })
         .unwrap();
     // The simulated mount takes its hour angle, and so its pier side, from the

@@ -1,6 +1,4 @@
-
 import 'dart:typed_data';
-
 
 /// The sky atlas a linked imaging host builds from its frames.
 ///

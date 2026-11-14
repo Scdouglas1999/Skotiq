@@ -78,8 +78,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       _remotePollTicks++;
-      if (_remotePollTicks % 3 == 0 &&
-          ref.read(isRemoteModeProvider)) {
+      if (_remotePollTicks % 3 == 0 && ref.read(isRemoteModeProvider)) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
       }
       setState(() {});
@@ -256,7 +255,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler state: ${userFacingError(error)}'),
+                Text(
+                    'Could not load scheduler state: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',
@@ -285,7 +285,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler configuration: ${userFacingError(error)}'),
+                Text(
+                    'Could not load scheduler configuration: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',

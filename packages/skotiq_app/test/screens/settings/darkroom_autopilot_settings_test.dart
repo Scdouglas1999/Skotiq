@@ -46,7 +46,8 @@ void main() {
   });
 
   test('the locale-independent group lookup agrees with the catalog', () {
-    expect(SettingsSectionId.resolve('darkroom')!.group.title, 'Automation & Safety');
+    expect(SettingsSectionId.resolve('darkroom')!.group.title,
+        'Automation & Safety');
     expect(SettingsSectionId.resolve('darkroom')?.key, 'darkroom');
   });
 

@@ -75,7 +75,6 @@ class SecondaryRigCard extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 24),
-
             camerasAsync.when(
               data: (cameras) {
                 final selectable = cameras
@@ -120,7 +119,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -146,7 +144,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -183,7 +180,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 if (statusAsync.hasError) ...[

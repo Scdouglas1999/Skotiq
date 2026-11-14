@@ -230,7 +230,8 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
       restored = await _repository.restoreVersion(version.id);
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to restore version: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to restore version: ${userFacingError(e)}');
       }
       return;
     }
@@ -267,8 +268,7 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
           ],
         ),
       );
-      if (discard != true ||
-          host.isStale) {
+      if (discard != true || host.isStale) {
         return;
       }
       editor.loadSequence(restored, discardUnsaved: true);

@@ -29,7 +29,8 @@ String pathTail(
       .where((part) => part.isNotEmpty)
       .toList(growable: false);
   for (var keep = parts.length - 1; keep > 1; keep--) {
-    final tail = '…$separator${parts.sublist(parts.length - keep).join(separator)}';
+    final tail =
+        '…$separator${parts.sublist(parts.length - keep).join(separator)}';
     if (fits(tail)) return tail;
   }
   return parts.isEmpty ? path : '…$separator${parts.last}';

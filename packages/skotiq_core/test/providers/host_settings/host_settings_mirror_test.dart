@@ -32,11 +32,8 @@ class _FixedBackendNotifier extends BackendNotifier {
 
 /// The imaging host as the client sees it over the API.
 class _Host {
-  _Host({
-    required this.settings,
-    Map<String, String>? store,
-    this.adminAccess,
-  }) : store = store ?? {};
+  _Host({required this.settings, Map<String, String>? store, this.adminAccess})
+    : store = store ?? {};
 
   models.AppSettings settings;
   final Map<String, String> store;

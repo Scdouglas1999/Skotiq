@@ -70,12 +70,12 @@ pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
 /// reason; a master that could not be written is `OperationFailed`.
 pub fn api_build_calibration_master(args_json: String) -> Result<String, SkotiqError> {
     use skotiq_imaging::calibration_master_stream::MasterBuildError;
-    skotiq_processing::post_session::entrypoints::build_calibration_master(args_json).map_err(
-        |e| match e {
+    skotiq_processing::post_session::entrypoints::build_calibration_master(args_json).map_err(|e| {
+        match e {
             MasterBuildError::Refused(reason) => SkotiqError::InvalidInput(reason),
             MasterBuildError::Failed(reason) => SkotiqError::OperationFailed(reason),
-        },
-    )
+        }
+    })
 }
 
 /// Re-export an in-memory pixel buffer as a 16-bit or float FITS master with

@@ -564,7 +564,8 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       return sequence;
     } catch (e) {
       if (context.mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to load sequence: ${userFacingError(e)}');
       }
       return null;
     }
@@ -613,7 +614,8 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       ref.invalidate(savedSequenceSummariesProvider);
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to update favorite: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to update favorite: ${userFacingError(e)}');
       }
     }
   }
@@ -752,17 +754,13 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       host: host,
       repository: repository,
     );
-    if (sequence == null ||
-        !context.mounted ||
-        host.isStale) {
+    if (sequence == null || !context.mounted || host.isStale) {
       return;
     }
     final fileService = ref.read(sequenceFileServiceProvider);
     try {
       final exportedPath = await fileService.exportSequence(sequence);
-      if (exportedPath != null &&
-          context.mounted &&
-          host.isCurrent) {
+      if (exportedPath != null && context.mounted && host.isCurrent) {
         // On a phone the file landed in the app sandbox, so a snackbar naming
         // it would be a file the user can never open — hand it to the share
         // sheet instead. Live before this: "Failed to export:
@@ -790,9 +788,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
           sequence,
           forceExport: true,
         );
-        if (exportedPath != null &&
-            context.mounted &&
-            host.isCurrent) {
+        if (exportedPath != null && context.mounted && host.isCurrent) {
           await revealExportedFile(
             context,
             exportedPath,
@@ -802,7 +798,8 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         }
       } catch (err) {
         if (context.mounted && host.isCurrent) {
-          context.showErrorSnackBar('Failed to export: ${userFacingError(err)}');
+          context
+              .showErrorSnackBar('Failed to export: ${userFacingError(err)}');
         }
       }
     } catch (e) {

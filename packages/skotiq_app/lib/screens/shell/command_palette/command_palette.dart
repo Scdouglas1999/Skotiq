@@ -225,7 +225,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     // Close first: a handler that pushes a route or opens a dialog must not
     // be doing it underneath a palette that is still dismissing.
     Navigator.of(context).pop();
-    final run = alternate ? entry.invokeAlternate ?? entry.invoke : entry.invoke;
+    final run =
+        alternate ? entry.invokeAlternate ?? entry.invoke : entry.invoke;
     run(context, ref);
   }
 
@@ -339,8 +340,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     // height: several hundred rows per keystroke for a one-letter query. Rows
     // that alone overflow the panel leave nothing to wrap, so that list fills
     // the panel and builds only the rows in view.
-    final fillsPanel = entries.length * _CommandRow.height >=
-        CommandPalette.maxResultsHeight;
+    final fillsPanel =
+        entries.length * _CommandRow.height >= CommandPalette.maxResultsHeight;
     return ListView.builder(
       controller: _scrollController,
       shrinkWrap: !fillsPanel,

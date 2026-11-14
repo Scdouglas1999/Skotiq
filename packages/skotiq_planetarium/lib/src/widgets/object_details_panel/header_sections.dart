@@ -220,19 +220,16 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
   Widget _buildThumbnail(DeepSkyObject dso) {
     final fov = _thumbnailFovDeg(dso).toStringAsFixed(6);
     // CDS hips2fits cutout of the DSS2 red survey.
-    final thumbnailUrl = Uri.https(
-      'alasky.cds.unistra.fr',
-      '/hips-image-services/hips2fits',
-      {
-        'ra': (dso.coordinates.ra * 15.0).toStringAsFixed(6),
-        'dec': dso.coordinates.dec.toStringAsFixed(6),
-        'fov': fov,
-        'width': '256',
-        'height': '256',
-        'format': 'jpg',
-        'hips': 'CDS/P/DSS2/red',
-      },
-    ).toString();
+    final thumbnailUrl =
+        Uri.https('alasky.cds.unistra.fr', '/hips-image-services/hips2fits', {
+          'ra': (dso.coordinates.ra * 15.0).toStringAsFixed(6),
+          'dec': dso.coordinates.dec.toStringAsFixed(6),
+          'fov': fov,
+          'width': '256',
+          'height': '256',
+          'format': 'jpg',
+          'hips': 'CDS/P/DSS2/red',
+        }).toString();
 
     return Container(
       width: 80,

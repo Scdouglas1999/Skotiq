@@ -11,10 +11,10 @@ pub use error::*;
 pub use version::*;
 
 use crate::AlpacaDevice;
-use skotiq_device::ascom::AscomDeviceType;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Deserialize};
+use skotiq_device::ascom::AscomDeviceType;
 use std::any::TypeId;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;

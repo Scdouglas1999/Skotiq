@@ -38,7 +38,6 @@ class DiagnosticsTabContent extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
-
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);

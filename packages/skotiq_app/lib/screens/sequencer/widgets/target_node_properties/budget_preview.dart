@@ -49,7 +49,8 @@ class _BudgetPreview extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               resolved.entries
-                  .map((e) => '${e.key} ${DurationFormat.seconds(e.value, style: DurationStyle.coarse, roundToMinute: true)}')
+                  .map((e) =>
+                      '${e.key} ${DurationFormat.seconds(e.value, style: DurationStyle.coarse, roundToMinute: true)}')
                   .join(' · '),
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,

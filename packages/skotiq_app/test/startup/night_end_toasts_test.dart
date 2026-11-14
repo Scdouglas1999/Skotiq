@@ -7,8 +7,7 @@ import 'package:skotiq_app/startup/night_end_toasts.dart';
 import 'package:skotiq_core/services.dart';
 
 void main() {
-  testWidgets('a night-end result toasts over the routed app',
-      (tester) async {
+  testWidgets('a night-end result toasts over the routed app', (tester) async {
     final router = GoRouter(
       initialLocation: '/',
       routes: [

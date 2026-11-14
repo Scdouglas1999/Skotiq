@@ -142,11 +142,11 @@ class _RailDraggableState extends ConsumerState<_RailDraggable> {
   bool _hovered = false;
 
   void _addNodeViaDoubleTap() => insertIntoTree(
-    context,
-    ref,
-    widget.item,
-    parentId: ref.read(selectedNodeIdProvider),
-  );
+        context,
+        ref,
+        widget.item,
+        parentId: ref.read(selectedNodeIdProvider),
+      );
 
   @override
   Widget build(BuildContext context) {

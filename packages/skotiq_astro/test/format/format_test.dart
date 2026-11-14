@@ -81,7 +81,10 @@ void main() {
       final names = ByteFormat.units.names;
       expect(ByteFormat.megaUnit, names[2]);
       expect(ByteFormat.gigaUnit, names[3]);
-      expect(ByteFormat.bytesPerMega, ByteFormat.units.step * ByteFormat.units.step);
+      expect(
+        ByteFormat.bytesPerMega,
+        ByteFormat.units.step * ByteFormat.units.step,
+      );
       // A limit entered as a number of gigabytes reads back as that number.
       expect(
         ByteFormat.size(25 * ByteFormat.bytesPerGiga),

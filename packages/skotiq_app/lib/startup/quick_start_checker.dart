@@ -422,7 +422,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       );
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        uiContext.showErrorSnackBar('Failed to start fresh: ${userFacingError(e)}');
+        uiContext
+            .showErrorSnackBar('Failed to start fresh: ${userFacingError(e)}');
       }
     }
   }
@@ -479,7 +480,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       );
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        uiContext.showErrorSnackBar('Failed to resume progress: ${userFacingError(e)}');
+        uiContext.showErrorSnackBar(
+            'Failed to resume progress: ${userFacingError(e)}');
       }
     }
   }

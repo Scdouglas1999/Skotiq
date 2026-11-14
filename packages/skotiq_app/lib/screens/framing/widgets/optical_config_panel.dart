@@ -156,14 +156,11 @@ class OpticalConfigPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
         ],
-
         Text(
           _formatOpticalSpecs(config),
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
-
         const SizedBox(height: 12),
-
         if (config.cameraName != null) ...[
           Row(
             children: [
@@ -182,18 +179,15 @@ class OpticalConfigPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
         ],
-
         if (config.sensorWidth != null && config.sensorHeight != null)
           Text(
             _formatSensorSpecs(config),
             style:
                 SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
-
         const SizedBox(height: 16),
         Divider(color: colors.border, height: 1),
         const SizedBox(height: 12),
-
         _buildMetricRow(
           'FOV',
           config.fovString ?? kReadoutUnknown,
@@ -205,9 +199,7 @@ class OpticalConfigPanel extends ConsumerWidget {
           config.scaleString ?? kReadoutUnknown,
           colors,
         ),
-
         const SizedBox(height: 16),
-
         _ProfileSwitcher(currentProfile: profile),
       ],
     );

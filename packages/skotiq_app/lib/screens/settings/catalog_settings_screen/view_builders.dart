@@ -455,8 +455,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
             Align(
               alignment: Alignment.centerLeft,
               child: SkotiqButton(
-                label:
-                    'Download ${_selectedAnnotationPackage.displayName} '
+                label: 'Download ${_selectedAnnotationPackage.displayName} '
                     '(~${_selectedAnnotationPackage.approximateSizeMB} '
                     '${ByteFormat.megaUnit})',
                 icon: SkotiqIcons.download,

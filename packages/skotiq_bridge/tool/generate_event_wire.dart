@@ -329,9 +329,7 @@ WireEvent encodeEventPayload(EventPayload payload) => switch (payload) {''');
           "('${_polarClasses[inner]}', encode$inner(field0)),",
         );
       } else {
-        out.writeln(
-          '${v.className}(:final field0) => _encode$inner(field0),',
-        );
+        out.writeln('${v.className}(:final field0) => _encode$inner(field0),');
       }
     }
     out.writeln('''
@@ -412,9 +410,7 @@ const Map<EventCategory, List<String>> eventWireTypes = {''');
     for (final v in variants) {
       final spec = variantSpecs[v.className];
       if (spec?.customTypes != null) {
-        out.writeln(
-          '${v.className}() => encode${v.union}${v.pascal}(event),',
-        );
+        out.writeln('${v.className}() => encode${v.union}${v.pascal}(event),');
         continue;
       }
       out.write("${v.className}() => ('${wireType(v)}', ");
@@ -435,9 +431,7 @@ const Map<EventCategory, List<String>> eventWireTypes = {''');
         for (final type in spec!.customTypes!) {
           out.writeln("case '$type':");
         }
-        out.writeln(
-          'return decode${v.union}${v.pascal}(type, d, severity);',
-        );
+        out.writeln('return decode${v.union}${v.pascal}(type, d, severity);');
         continue;
       }
       byType.putIfAbsent(wireType(v), () => []).add(v);
@@ -450,7 +444,9 @@ const Map<EventCategory, List<String>> eventWireTypes = {''');
           final bKeyed = variantSpecs[b.className]?.whenKey != null;
           return aKeyed == bKeyed ? 0 : (aKeyed ? -1 : 1);
         });
-      if (sharing.where((v) => variantSpecs[v.className]?.whenKey == null).length >
+      if (sharing
+              .where((v) => variantSpecs[v.className]?.whenKey == null)
+              .length >
           1) {
         throw StateError('${entry.key} is sent by two variants of $union');
       }
@@ -546,9 +542,7 @@ class SampleGenerator {
   }
 
   String construct(String ctor, List<Field> fields, {required bool full}) {
-    final args = [
-      for (final f in fields) '${f.name}: ${value(f, full: full)}',
-    ];
+    final args = [for (final f in fields) '${f.name}: ${value(f, full: full)}'];
     return '$ctor(${args.join(', ')})';
   }
 
@@ -605,7 +599,8 @@ String webEventTable(Model model) {
       entry.key: {
         for (final union in entry.value)
           for (final v in model.unions[union]!)
-            ...variantSpecs[v.className]?.customTypes ?? [generator.wireType(v)],
+            ...variantSpecs[v.className]?.customTypes ??
+                [generator.wireType(v)],
       },
     'polarAlignment': _polarClasses.values,
   };

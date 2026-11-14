@@ -259,7 +259,7 @@ class FinderChartService {
       creator: 'Skotiq Astrophotography Suite',
     );
 
-        final dateStr = ClockFormat.dateHms(observationTime);
+    final dateStr = ClockFormat.dateHms(observationTime);
 
     final latStr = _formatLatitude(latitude);
     final lonStr = _formatLongitude(longitude);
@@ -288,13 +288,11 @@ class FinderChartService {
               pw.SizedBox(height: 8),
               pw.Divider(thickness: 0.5),
               pw.SizedBox(height: 8),
-
               pw.Expanded(
                 child: pw.Center(
                   child: pw.Image(image, fit: pw.BoxFit.contain),
                 ),
               ),
-
               pw.SizedBox(height: 8),
               pw.Divider(thickness: 0.5),
               pw.SizedBox(height: 4),
@@ -503,7 +501,6 @@ class FinderChartService {
         pw.SizedBox(height: 16),
         pw.Divider(thickness: 0.5),
         pw.SizedBox(height: 16),
-
         _detailRow('Object Name', chartConfig.objectName ?? 'N/A'),
         if (chartConfig.objectType != null)
           _detailRow('Type', chartConfig.objectType!),
@@ -514,11 +511,9 @@ class FinderChartService {
           ),
         if (chartConfig.objectSize != null)
           _detailRow('Size', chartConfig.objectSize!),
-
         pw.SizedBox(height: 16),
         pw.Divider(thickness: 0.5, color: PdfColors.grey300),
         pw.SizedBox(height: 16),
-
         pw.Text(
           'Observation Context',
           style: pw.TextStyle(
@@ -527,7 +522,6 @@ class FinderChartService {
           ),
         ),
         pw.SizedBox(height: 8),
-
         _detailRow('Date/Time', dateStr),
         _detailRow('Location', '$latStr, $lonStr'),
         _detailRow('Right Ascension', raStr),
@@ -539,11 +533,9 @@ class FinderChartService {
           'Projection',
           _projectionName(viewState.projection),
         ),
-
         pw.SizedBox(height: 24),
         pw.Divider(thickness: 0.5, color: PdfColors.grey300),
         pw.SizedBox(height: 8),
-
         pw.Text(
           'Notes',
           style: pw.TextStyle(
@@ -559,7 +551,6 @@ class FinderChartService {
             borderRadius: pw.BorderRadius.circular(SkotiqTokens.radiusXs),
           ),
         ),
-
         pw.Spacer(),
         pw.Divider(thickness: 0.5),
         pw.SizedBox(height: 4),

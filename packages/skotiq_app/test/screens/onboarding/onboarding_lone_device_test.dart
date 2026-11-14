@@ -92,8 +92,7 @@ void main() {
     expect(handle.container.read(onboardingDraftProvider).mountId, isNull);
   });
 
-  testWidgets('the built-in guider is not picked for the user',
-      (tester) async {
+  testWidgets('the built-in guider is not picked for the user', (tester) async {
     // Most users guide with PHD2, chosen above the list; a lone native guider
     // is not an answer to the step.
     final handle = await _pump(tester, const OnboardingGuiderStep());
@@ -101,8 +100,7 @@ void main() {
     expect(handle.container.read(onboardingDraftProvider).guiderId, isNull);
   });
 
-  testWidgets('camera defaults name the camera already picked',
-      (tester) async {
+  testWidgets('camera defaults name the camera already picked', (tester) async {
     final handle = await _pump(tester, const OnboardingCameraDefaultsStep());
     await handle.container
         .read(onboardingDraftProvider.notifier)

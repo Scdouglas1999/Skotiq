@@ -56,7 +56,8 @@ class CatalogTab extends ConsumerWidget {
         ),
       ),
       error: (e, _) => Center(
-        child: Text('Error: ${userFacingError(e)}', style: TextStyle(color: colors.error)),
+        child: Text('Error: ${userFacingError(e)}',
+            style: TextStyle(color: colors.error)),
       ),
     );
   }

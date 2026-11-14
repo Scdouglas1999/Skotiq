@@ -428,7 +428,6 @@ class _ProgressRow extends StatelessWidget {
     if (nights == 1) return '1 night ago';
     return '$nights nights ago';
   }
-
 }
 
 class _ProgressBar extends StatelessWidget {

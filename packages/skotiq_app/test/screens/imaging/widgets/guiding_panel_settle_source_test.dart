@@ -27,7 +27,8 @@ class _ConnectedGuiderNotifier extends GuiderStateNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the panel shows the settle setting, in pixels, and dithers with it', (
+  testWidgets(
+      'the panel shows the settle setting, in pixels, and dithers with it', (
     tester,
   ) async {
     final guider = _MockGuider();

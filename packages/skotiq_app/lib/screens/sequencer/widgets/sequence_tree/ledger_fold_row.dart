@@ -413,8 +413,9 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final count = group.count;
     return (
       columns: LedgerColumns(
-        filterExp:
-            durationSecs == null ? '' : '${QuantityFormat.trimmed(durationSecs)}s',
+        filterExp: durationSecs == null
+            ? ''
+            : '${QuantityFormat.trimmed(durationSecs)}s',
         count: count == null ? '' : '${count * group.memberIds.length}',
         duration: openEnd != null
             ? formatNodeRollup(total, openEnd)

@@ -304,7 +304,6 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
       }
     }
   }
-
 }
 
 class _MetricLine extends StatelessWidget {

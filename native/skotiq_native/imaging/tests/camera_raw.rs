@@ -13,9 +13,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skotiq_imaging::{
     camera_raw_extension, frame_extensions, frame_format, is_frame_path, read_frame,
-    read_frame_header, read_image,
-    read_raw_file, rewrite_frame_header, write_frame, BayerColor, ColorFilterArray, ImageFormat,
-    TemperatureSource,
+    read_frame_header, read_image, read_raw_file, rewrite_frame_header, write_frame, BayerColor,
+    ColorFilterArray, ImageFormat, TemperatureSource,
 };
 use std::path::{Path, PathBuf};
 
@@ -168,7 +167,8 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("skotiq-camera-raw-{}-{name}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("skotiq-camera-raw-{}-{name}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         Scratch(dir)
     }
@@ -193,7 +193,11 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     assert_eq!(frame.black_level(), BLACK as u32);
     for y in 0..height {
         for x in 0..width {
-            assert_eq!(frame.data[y * width + x], synthetic_pixel(&cfa, x, y), "({x}, {y})");
+            assert_eq!(
+                frame.data[y * width + x],
+                synthetic_pixel(&cfa, x, y),
+                "({x}, {y})"
+            );
         }
     }
 
@@ -205,9 +209,15 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     let unnamed = scratch.0.join("frame.download");
     std::fs::copy(&path, &unnamed).unwrap();
     assert_eq!(frame_format(&unnamed).unwrap(), ImageFormat::CameraRaw);
-    assert_eq!(read_frame(&unnamed).unwrap().0.as_u16().unwrap(), frame.data);
+    assert_eq!(
+        read_frame(&unnamed).unwrap().0.as_u16().unwrap(),
+        frame.data
+    );
     let (image, header) = read_frame(&path).unwrap();
-    assert_eq!((image.width, image.height, image.channels), (width as u32, height as u32, 1));
+    assert_eq!(
+        (image.width, image.height, image.channels),
+        (width as u32, height as u32, 1)
+    );
     assert_eq!(image.as_u16().unwrap(), frame.data);
     assert_eq!(header.get_string("BAYERPAT"), Some(letters));
     assert_eq!(header.get_string("INSTRUME"), Some("Skotiq Synthetic"));
@@ -235,7 +245,11 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     );
     let at = |plane: &[u16]| plane[(height / 2) * width + width / 2] as i32 - BLACK as i32;
     assert!((at(&rgb.red) - 1000).abs() <= 7, "red {}", at(&rgb.red));
-    assert!((at(&rgb.green) - 2000).abs() <= 7, "green {}", at(&rgb.green));
+    assert!(
+        (at(&rgb.green) - 2000).abs() <= 7,
+        "green {}",
+        at(&rgb.green)
+    );
     assert!((at(&rgb.blue) - 3000).abs() <= 7, "blue {}", at(&rgb.blue));
 
     // The camera's file is never changed.
@@ -304,7 +318,10 @@ fn every_maker_signature_is_recognized_from_its_first_bytes() {
         assert_eq!(camera_raw_extension(head), Some(*extension), "{extension}");
     }
     // A JPEG, a TIFF no camera marked, and too few bytes are no raw file.
-    assert_eq!(camera_raw_extension(&[0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x']), None);
+    assert_eq!(
+        camera_raw_extension(&[0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x']),
+        None
+    );
     assert_eq!(camera_raw_extension(&tiff_with_make(b"II", b"\0")), None);
     assert_eq!(camera_raw_extension(b"II"), None);
 }
@@ -335,7 +352,12 @@ fn camera_raw_darks_build_a_master() {
     left.sort();
     assert_eq!(
         left,
-        ["IMG_0000.DNG", "IMG_0001.DNG", "IMG_0002.DNG", "master_dark.fits"],
+        [
+            "IMG_0000.DNG",
+            "IMG_0001.DNG",
+            "IMG_0002.DNG",
+            "master_dark.fits"
+        ],
         "the decoded copies are working files, never beside the master"
     );
     let (master, header) = read_frame(&out).unwrap();
@@ -351,7 +373,10 @@ fn every_maker_extension_is_a_frame_path() {
         "cr2", "cr3", "nef", "arw", "raf", "pef", "dng", "orf", "rw2",
     ] {
         assert!(frame_extensions().contains(&ext), "{ext}");
-        assert!(is_frame_path(Path::new(&format!("IMG_0001.{}", ext.to_uppercase()))), "{ext}");
+        assert!(
+            is_frame_path(Path::new(&format!("IMG_0001.{}", ext.to_uppercase()))),
+            "{ext}"
+        );
     }
 }
 
@@ -362,7 +387,10 @@ fn manifest() -> Value {
 }
 
 fn sha256(bytes: &[u8]) -> String {
-    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn near(ours: Option<f64>, theirs: &Value, tolerance: f64) -> bool {
@@ -386,7 +414,11 @@ fn public_samples_match_independent_readers() {
         let name = entry["file"].as_str().unwrap();
         let path = Path::new(&dir).join(name);
         let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
-        assert_eq!(sha256(&bytes), entry["file_sha256"], "{name} is not the sample file");
+        assert_eq!(
+            sha256(&bytes),
+            entry["file_sha256"],
+            "{name} is not the sample file"
+        );
         let want = &entry["independent"];
 
         let extension = name.rsplit('.').next().unwrap();
@@ -433,11 +465,18 @@ fn public_samples_match_independent_readers() {
         );
         // rawpy reports black by color channel; every position's black must be
         // one of them, and the mean must agree.
-        let channels: Vec<u64> =
-            want["black_by_channel"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+        let channels: Vec<u64> = want["black_by_channel"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_u64().unwrap())
+            .collect();
         check(
             "black level",
-            frame.black_levels.iter().all(|&b| channels.contains(&(b as u64))),
+            frame
+                .black_levels
+                .iter()
+                .all(|&b| channels.contains(&(b as u64))),
             format!("{:?}", frame.black_levels),
         );
 
@@ -476,7 +515,9 @@ fn public_samples_match_independent_readers() {
             ),
             None => (
                 meta.captured_at.map(|t| {
-                    t.with_timezone(&chrono::Local).format("%Y-%m-%dT%H:%M:%S").to_string()
+                    t.with_timezone(&chrono::Local)
+                        .format("%Y-%m-%dT%H:%M:%S")
+                        .to_string()
                 }),
                 Some(wall.to_string()),
             ),
@@ -490,11 +531,16 @@ fn public_samples_match_independent_readers() {
         // Olympus records its sensor in a tag LibRaw reads, Pentax in a
         // maker-note block Skotiq reads itself.
         let expected_source = if !want["exif_sensor_temperature"].is_null()
-            && matches!(meta.maker(), skotiq_imaging::Maker::Olympus | skotiq_imaging::Maker::Pentax)
-        {
+            && matches!(
+                meta.maker(),
+                skotiq_imaging::Maker::Olympus | skotiq_imaging::Maker::Pentax
+            ) {
             Some((TemperatureSource::Sensor, &want["exif_sensor_temperature"]))
         } else if !want["exif_camera_temperature"].is_null()
-            && matches!(meta.maker(), skotiq_imaging::Maker::Canon | skotiq_imaging::Maker::Pentax)
+            && matches!(
+                meta.maker(),
+                skotiq_imaging::Maker::Canon | skotiq_imaging::Maker::Pentax
+            )
         {
             Some((
                 TemperatureSource::CameraBody,

@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 /// Whether a finished run actually got the polar axis inside the threshold the
@@ -148,7 +147,6 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
                   ],
                 ),
                 const SizedBox(height: 20),
-
                 Row(
                   children: [
                     Expanded(
@@ -254,9 +252,7 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 Text(
                   'Improvement',
                   style: TextStyle(

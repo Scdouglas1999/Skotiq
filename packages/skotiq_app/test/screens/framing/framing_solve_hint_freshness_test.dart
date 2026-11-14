@@ -132,8 +132,8 @@ Future<(_RecordingPlateSolveService, _StagedMountNotifier)> _pumpRail(
         (ref) => _SeededFramingNotifier(ref, _framingState),
       ),
       framingFOVProvider.overrideWith(
-        (ref) async =>
-            const FramingEquipmentResult(status: FramingEquipmentStatus.noProfile),
+        (ref) async => const FramingEquipmentResult(
+            status: FramingEquipmentStatus.noProfile),
       ),
       currentImageProvider.overrideWith((ref) => _frame()),
       mountStateProvider.overrideWith(

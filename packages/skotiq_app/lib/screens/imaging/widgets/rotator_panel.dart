@@ -84,7 +84,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.moveRotatorRelative(delta);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -122,7 +123,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.moveRotatorTo(angle);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -140,7 +142,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.haltRotator();
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to halt rotator: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to halt rotator: ${userFacingError(e)}');
       }
     }
   }
@@ -168,7 +171,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to sync rotator: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to sync rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {

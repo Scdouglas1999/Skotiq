@@ -109,7 +109,6 @@ class _SnippetCategorySectionState extends State<_SnippetCategorySection> {
             ),
           ),
         ),
-
         AnimatedCrossFade(
           firstChild: Padding(
             padding: EdgeInsets.only(

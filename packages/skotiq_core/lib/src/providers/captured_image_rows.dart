@@ -164,6 +164,7 @@ class RemoteImageRows implements CapturedImageRows {
   /// Rows fetched one at a time or by session since that list, by id.
   final Map<int, db.DbCapturedImage> _fetched = {};
   final Set<int> _inFlight = {};
+
   /// Each open list with the cut of the table it shows.
   final Map<StreamController<List<db.DbCapturedImage>>, _Cut> _listeners = {};
   StreamSubscription<List<db.DbCapturedImage>>? _pollSubscription;

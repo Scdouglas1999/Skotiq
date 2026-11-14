@@ -407,7 +407,8 @@ void main() {
     expect(find.text('Saving…'), findsOneWidget);
     expect(
       tester
-          .widget<SkotiqButton>(find.byKey(TourTarget.imagingSnapshotButton.key))
+          .widget<SkotiqButton>(
+              find.byKey(TourTarget.imagingSnapshotButton.key))
           .onPressed,
       isNull,
     );
@@ -423,7 +424,8 @@ void main() {
     expect(find.text('Snapshot'), findsOneWidget);
     expect(
       tester
-          .widget<SkotiqButton>(find.byKey(TourTarget.imagingSnapshotButton.key))
+          .widget<SkotiqButton>(
+              find.byKey(TourTarget.imagingSnapshotButton.key))
           .onPressed,
       isNotNull,
     );

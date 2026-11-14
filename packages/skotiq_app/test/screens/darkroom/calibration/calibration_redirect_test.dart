@@ -46,7 +46,8 @@ void main() {
 
     test('the merged keys resolve to the one Calibration entry', () {
       expect(SettingsSectionId.resolve('dark-library')?.key, 'calibration');
-      expect(SettingsSectionId.resolve('calibration-library')?.key, 'calibration');
+      expect(
+          SettingsSectionId.resolve('calibration-library')?.key, 'calibration');
       expect(SettingsSectionId.resolve('calibration')?.key, 'calibration');
     });
 

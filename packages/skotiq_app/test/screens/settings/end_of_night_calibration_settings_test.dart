@@ -72,7 +72,8 @@ void main() {
   testWidgets('the section lives in Automation & Safety', (
     tester,
   ) async {
-    expect(SettingsSectionId.resolve('end-of-night-calibration')!.group.title, 'Automation & Safety');
+    expect(SettingsSectionId.resolve('end-of-night-calibration')!.group.title,
+        'Automation & Safety');
     expect(
       SettingsSectionId.resolve('end-of-night-calibration')?.key,
       'end-of-night-calibration',

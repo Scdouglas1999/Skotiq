@@ -209,9 +209,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       ],
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
                   Text(
                     widget.template.name,
                     style: TextStyle(
@@ -222,9 +220,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 6),
-
                   Expanded(
                     child: Text(
                       widget.template.description.isEmpty
@@ -239,9 +235,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       Expanded(
@@ -291,7 +285,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                         ),
                       ),
                       const SizedBox(width: 8),
-
                       AnimatedOpacity(
                         opacity: showActions ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 150),
@@ -494,9 +487,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           ],
         ),
       );
-      if (discard != true ||
-          !context.mounted ||
-          host.isStale) {
+      if (discard != true || !context.mounted || host.isStale) {
         return;
       }
       sequenceNotifier.loadSequence(newSequence, discardUnsaved: true);
@@ -604,8 +595,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           editableTemplate,
           isTemplate: true,
         );
-        if (!context.mounted ||
-            host.isStale) {
+        if (!context.mounted || host.isStale) {
           return;
         }
         editableTemplate = editableTemplate.copyWith(databaseId: savedId);
@@ -618,9 +608,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         );
         ref.invalidate(sequenceTemplatesProvider);
       } catch (e) {
-        if (context.mounted &&
-            host.isCurrent) {
-          context.showErrorSnackBar('Could not create template copy: ${userFacingError(e)}');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Could not create template copy: ${userFacingError(e)}');
         }
         return;
       }
@@ -649,8 +639,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         final duplicated = await repository.duplicateSequence(
             dbId, '${widget.template.name} (Copy)');
 
-        if (!context.mounted ||
-            host.isStale) {
+        if (!context.mounted || host.isStale) {
           return;
         }
 
@@ -667,9 +656,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
-        if (context.mounted &&
-            host.isCurrent) {
-          context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     } else {
@@ -685,8 +674,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         final savedId =
             await repository.saveSequence(newTemplate, isTemplate: true);
 
-        if (!context.mounted ||
-            host.isStale) {
+        if (!context.mounted || host.isStale) {
           return;
         }
 
@@ -701,9 +689,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
-        if (context.mounted &&
-            host.isCurrent) {
-          context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     }

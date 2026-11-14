@@ -273,11 +273,7 @@ List<SequenceNode> fullNodes() => [
   ),
   ParkNode(id: nodeId('Park'), name: 'Park it', comment: 'park note'),
   UnparkNode(id: nodeId('Unpark'), name: 'Unpark it', comment: 'unpark note'),
-  HomeMountNode(
-    id: nodeId('HomeMount'),
-    name: 'Home it',
-    comment: 'home note',
-  ),
+  HomeMountNode(id: nodeId('HomeMount'), name: 'Home it', comment: 'home note'),
   WaitTimeNode(
     id: nodeId('WaitForTime'),
     name: 'Wait dusk',

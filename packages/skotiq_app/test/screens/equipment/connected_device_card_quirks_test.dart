@@ -66,7 +66,8 @@ void main() {
           category: 'Temperature',
           description: 'First temperature read unreliable',
         ),
-        DeviceQuirk(category: 'Timing', description: '200ms delay after connect'),
+        DeviceQuirk(
+            category: 'Timing', description: '200ms delay after connect'),
       ],
     );
     await tester.pumpAndSettle();

@@ -37,7 +37,8 @@ void main() {
     'a linked client cuts a session\'s frames from the one polled table',
     () async {
       final backend = _MockNetworkBackend();
-      final other = _frame('other.fits').copyWith(id: 8, sessionId: const Value(9));
+      final other =
+          _frame('other.fits').copyWith(id: 8, sessionId: const Value(9));
       when(() => backend.getAllImageRows()).thenAnswer(
         (_) async => [_frame('first.fits').toJson(), other.toJson()],
       );

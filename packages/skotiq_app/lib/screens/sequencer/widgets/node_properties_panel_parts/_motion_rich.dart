@@ -673,4 +673,3 @@ class _TargetResolutionPreview extends ConsumerWidget {
     );
   }
 }
-

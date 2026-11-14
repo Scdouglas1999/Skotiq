@@ -49,7 +49,9 @@ void main() {
     await tester.pump(SettingsSwitch.writeDelay);
     await tester.pumpAndSettle();
     expect(
-      handle.container.read(appSettingsProvider).requireValue
+      handle.container
+          .read(appSettingsProvider)
+          .requireValue
           .qhyDiscoveryEnabled,
       isFalse,
     );

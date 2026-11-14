@@ -150,9 +150,7 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
               ],
             ),
           ),
-
           const SizedBox(height: 8),
-
           if (!_expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -354,10 +352,9 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         : 'Enable an alert source in the settings above.';
   }
 
-  String _ago(DateTime when) =>
-      DateTime.now().difference(when).inHours < 24
-          ? RelativeTime.ago(when)
-          : ClockFormat.monthDayYearHm(when.toLocal());
+  String _ago(DateTime when) => DateTime.now().difference(when).inHours < 24
+      ? RelativeTime.ago(when)
+      : ClockFormat.monthDayYearHm(when.toLocal());
 
   List<TransientAlert> _sortForDisplay(
     List<TransientAlert> alerts,

@@ -157,8 +157,9 @@ class _GanttPainter extends CustomPainter {
       final top = plot.top + i * (rowHeight + rowGap);
       final f = rows[i];
       final label = f ?? afterLabel;
-      final color =
-          f == null ? colors.textSecondary : FilterColors.forName(f, colors: colors);
+      final color = f == null
+          ? colors.textSecondary
+          : FilterColors.forName(f, colors: colors);
       canvas.drawRect(Rect.fromLTWH(0, top + rowHeight / 2 - 4, 8, 8),
           Paint()..color = color);
       _text(

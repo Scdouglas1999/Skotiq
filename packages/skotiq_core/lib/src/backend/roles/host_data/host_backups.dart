@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-
 /// The database backups a linked imaging host keeps and restores.
 ///
 /// The remote half of a feature whose local half is a service or DAO in this

@@ -160,8 +160,9 @@ final class _HostFocusHistory implements FocusHistory {
   );
 
   @override
-  Future<String> export(String profileId) async =>
-      const JsonEncoder.withIndent('  ').convert(await _host.exportFocusModel());
+  Future<String> export(String profileId) async => const JsonEncoder.withIndent(
+    '  ',
+  ).convert(await _host.exportFocusModel());
 
   @override
   Future<void> import(String profileId, Map<String, dynamic> data) =>
@@ -197,11 +198,8 @@ final class _HostFocusHistory implements FocusHistory {
   );
 
   @override
-  Future<void> setReferenceFilter(String profileId, String filterName) =>
-      _host.setFilterFocusOffsets(
-        referenceFilter: filterName,
-        offsets: const {},
-      );
+  Future<void> setReferenceFilter(String profileId, String filterName) => _host
+      .setFilterFocusOffsets(referenceFilter: filterName, offsets: const {});
 }
 
 /// Combines the host's split focus-history and fitted-model response shapes

@@ -125,7 +125,9 @@ mod tests {
         copy_optics_cards(&mut master, &reference);
         replace_astrometry_headers(&mut master, &reference);
 
-        for key in ["WCSAXES", "RADECSYS", "PV1_1", "CD1_1", "TELESCOP", "XPIXSZ"] {
+        for key in [
+            "WCSAXES", "RADECSYS", "PV1_1", "CD1_1", "TELESCOP", "XPIXSZ",
+        ] {
             assert!(master.get(key).is_some(), "{key}");
         }
         for key in ["PC1_1", "A_2_0", "AIRMASS", "EXPOSURE"] {

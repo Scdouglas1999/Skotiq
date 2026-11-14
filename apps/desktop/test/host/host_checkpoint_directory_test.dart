@@ -56,8 +56,10 @@ void main() {
     final resolved = await resolve({skotiqDataDirEnv: data});
 
     expect(p.isWithin(data, resolved.path), isTrue);
-    expect(Directory(p.join(support.path, 'checkpoints')).existsSync(),
-        isFalse);
+    expect(
+      Directory(p.join(support.path, 'checkpoints')).existsSync(),
+      isFalse,
+    );
   });
 
   test('a relative database directory fails loudly', () async {
@@ -88,17 +90,19 @@ void main() {
     expect(read(resolved), 'daemon night');
   });
 
-  test('a shared data folder is left alone when only the database is named',
-      () async {
-    write(support.path, 'someone else');
+  test(
+    'a shared data folder is left alone when only the database is named',
+    () async {
+      write(support.path, 'someone else');
 
-    final resolved = await resolve({
-      skotiqDatabaseDirEnv: p.join(root.path, 'db'),
-    });
+      final resolved = await resolve({
+        skotiqDatabaseDirEnv: p.join(root.path, 'db'),
+      });
 
-    expect(read(resolved), isNull);
-    expect(File(p.join(support.path, _checkpoint)).existsSync(), isTrue);
-  });
+      expect(read(resolved), isNull);
+      expect(File(p.join(support.path, _checkpoint)).existsSync(), isTrue);
+    },
+  );
 
   test('this database\'s own checkpoint is never replaced', () async {
     write(support.path, 'stale');

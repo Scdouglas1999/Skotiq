@@ -62,7 +62,8 @@ void main() {
     // `groupTitleForKey` reads `_structuralGroups`, a separate list from the
     // one `buildSettingsGroups` builds. A move that edits only the builder
     // leaves every deep link and breadcrumb naming the old group.
-    expect(SettingsSectionId.resolve('delivery')!.group.title, 'Automation & Safety');
+    expect(SettingsSectionId.resolve('delivery')!.group.title,
+        'Automation & Safety');
   });
 
   test('the delivery deep link still resolves', () {

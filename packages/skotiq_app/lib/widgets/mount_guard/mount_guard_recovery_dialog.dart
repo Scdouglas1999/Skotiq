@@ -7,7 +7,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 /// The two ways to make the mount's position trustworthy again: the operator
 /// puts it at home and says so, or Skotiq plate solves a frame and, once the
 /// operator accepts the result, syncs the mount to it.
@@ -53,9 +52,8 @@ class _MountGuardRecoveryDialogState
       _error = null;
     });
     try {
-      final solve = await ref
-          .read(mountGuardProvider.notifier)
-          .solve(widget.deviceId);
+      final solve =
+          await ref.read(mountGuardProvider.notifier).solve(widget.deviceId);
       setState(() {
         _solve = solve;
         _step = _Step.solved;
@@ -266,19 +264,20 @@ class _MountGuardRecoveryDialogState
   }
 
   Widget _row(String label, String value, TextStyle style) => Padding(
-    padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
-    child: Row(
-      children: [
-        SizedBox(width: 190, child: Text(label, style: style)),
-        Expanded(
-          child: Text(
-            value,
-            style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-          ),
+        padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
+        child: Row(
+          children: [
+            SizedBox(width: 190, child: Text(label, style: style)),
+            Expanded(
+              child: Text(
+                value,
+                style: style.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 String _radec(double raHours, double decDegrees) =>

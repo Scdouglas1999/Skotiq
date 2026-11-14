@@ -210,8 +210,7 @@ void main() {
       expect(find.byType(HelpTutorialsSettings), findsOneWidget);
     });
 
-    testWidgets('opening Settings without a section stays put',
-        (tester) async {
+    testWidgets('opening Settings without a section stays put', (tester) async {
       final router = await pumpRouted(tester);
 
       router.goToSettings();

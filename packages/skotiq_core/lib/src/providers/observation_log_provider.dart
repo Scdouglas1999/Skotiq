@@ -244,7 +244,9 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
       return csv;
     } catch (e) {
       if (scope.isCurrent) {
-        state = state.copyWith(errorMessage: 'Failed to export: ${userFacingError(e)}');
+        state = state.copyWith(
+          errorMessage: 'Failed to export: ${userFacingError(e)}',
+        );
       }
       return null;
     }

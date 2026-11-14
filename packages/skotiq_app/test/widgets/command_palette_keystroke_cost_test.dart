@@ -39,8 +39,19 @@ List<Star> _stars() => [
     ];
 
 const _queries = [
-  'ngc', 'ngc 8', 'ngc 89', 'ngc 891', 'whi', 'whirl', 'star1', 'star12',
-  'm3', 'm31', 'ugc 004', 'gain', 'park',
+  'ngc',
+  'ngc 8',
+  'ngc 89',
+  'ngc 891',
+  'whi',
+  'whirl',
+  'star1',
+  'star12',
+  'm3',
+  'm31',
+  'ugc 004',
+  'gain',
+  'park',
 ];
 
 double _median(List<double> values) =>

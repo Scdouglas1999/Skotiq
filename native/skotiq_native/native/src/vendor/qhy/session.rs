@@ -43,7 +43,11 @@ pub(crate) fn scan(sdk: &QhySdk) -> Vec<String> {
         // buffer is larger than any QHY id (qhyccd.h: 32 bytes).
         if unsafe { (sdk.get_qhyccd_id)(index, id.as_mut_ptr()) } == QHYCCD_SUCCESS {
             // SAFETY: GetQHYCCDId wrote a NUL-terminated id.
-            ids.push(unsafe { CStr::from_ptr(id.as_ptr()) }.to_string_lossy().into_owned());
+            ids.push(
+                unsafe { CStr::from_ptr(id.as_ptr()) }
+                    .to_string_lossy()
+                    .into_owned(),
+            );
         }
     }
     ids

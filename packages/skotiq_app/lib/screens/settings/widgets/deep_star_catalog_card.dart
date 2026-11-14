@@ -114,7 +114,8 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
         context.showInfoSnackBar('Download paused — resume any time');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
+      if (mounted)
+        context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -140,7 +141,8 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
             '${result.missing.length} missing, ${result.corrupt.length} corrupt');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Verification failed: ${userFacingError(e)}');
+      if (mounted)
+        context.showErrorSnackBar('Verification failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _action = null);
     }
@@ -380,7 +382,6 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
       ),
     );
   }
-
 }
 
 enum _DeepStarAction { download, verify, delete }

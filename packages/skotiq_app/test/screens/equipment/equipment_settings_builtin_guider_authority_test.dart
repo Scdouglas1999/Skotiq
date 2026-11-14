@@ -149,6 +149,7 @@ void main() {
 
     expect(_gainField(tester).controller.text, '321');
     expect(find.textContaining('gain 321'), findsOneWidget);
-    expect(find.textContaining('Could not reset the guider settings'), findsOneWidget);
+    expect(find.textContaining('Could not reset the guider settings'),
+        findsOneWidget);
   });
 }

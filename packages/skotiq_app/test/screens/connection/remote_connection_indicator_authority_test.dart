@@ -121,7 +121,8 @@ void main() {
             (ref) => _SwappableBackendNotifier(ref, backend),
           ),
           runRecordProvider.overrideWith(
-            (ref) => RunRecordNotifier(ref, const RunRecord(lifecycle: SequenceExecutionState.running)),
+            (ref) => RunRecordNotifier(ref,
+                const RunRecord(lifecycle: SequenceExecutionState.running)),
           ),
         ],
         child: MaterialApp(
@@ -139,7 +140,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Connection Status'), findsNothing);
     expect(find.textContaining('Disconnect blocked:'), findsNothing);
-    expect(_linkLabel('Imaging host link: Not linked to a remote imaging host'), findsOneWidget);
+    expect(_linkLabel('Imaging host link: Not linked to a remote imaging host'),
+        findsOneWidget);
     verify(backend.dispose).called(1);
     verifyNever(backend.sequencerStop);
     verifyNever(backend.sequencerPause);

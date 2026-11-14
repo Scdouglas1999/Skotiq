@@ -5,8 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/smart_night_dialog.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}

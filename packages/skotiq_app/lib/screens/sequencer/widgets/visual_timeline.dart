@@ -229,7 +229,6 @@ class VisualTimeline extends ConsumerWidget {
               ],
             ),
           ),
-
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -263,7 +262,6 @@ class VisualTimeline extends ConsumerWidget {
               },
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
@@ -313,7 +311,6 @@ class VisualTimeline extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _TimelinePainter extends CustomPainter {

@@ -227,7 +227,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              ClockFormat.monthDayYearHm(session.startTime.toLocal()),
+                              ClockFormat.monthDayYearHm(
+                                  session.startTime.toLocal()),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: SkotiqTypography.bodySm.copyWith(
@@ -329,9 +330,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       _SessionHeaderAction(
         buttonKey: const ValueKey('session_detail_review'),
         icon: LucideIcons.sparkles,
-        label: reviewRefusal == null
-            ? 'Session review'
-            : 'Review on imaging host',
+        label:
+            reviewRefusal == null ? 'Session review' : 'Review on imaging host',
         unavailableReason: reviewRefusal,
         onPressed: () {
           Navigator.of(context).pop();
@@ -619,9 +619,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     SkotiqColors colors,
     List<DbCapturedImage> images,
   ) {
-    final lightCount = images
-        .where((image) => image.isLight)
-        .length;
+    final lightCount = images.where((image) => image.isLight).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

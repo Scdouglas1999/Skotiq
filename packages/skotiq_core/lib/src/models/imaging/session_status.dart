@@ -55,7 +55,8 @@ enum SessionStatus {
     SequenceRunStatus.stopped => stopped,
     SequenceRunStatus.stoppedResumable => stoppedResumable,
     SequenceRunStatus.interrupted => interrupted,
-    SequenceRunStatus.running || SequenceRunStatus.paused => throw ArgumentError(
+    SequenceRunStatus.running ||
+    SequenceRunStatus.paused => throw ArgumentError(
       'A session ends only on a finished run, not a ${run.token} one.',
     ),
   };

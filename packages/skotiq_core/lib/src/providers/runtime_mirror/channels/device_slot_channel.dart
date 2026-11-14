@@ -15,8 +15,7 @@ import '../runtime_mirror_codec.dart';
 /// (or links again after a host restart) shows the host's devices as the
 /// host's own window does, and a device type added to the table is mirrored
 /// without anything written here.
-class DeviceSlotChannel
-    extends RuntimeMirrorChannel<DeviceSlotState<Object?>> {
+class DeviceSlotChannel extends RuntimeMirrorChannel<DeviceSlotState<Object?>> {
   const DeviceSlotChannel(this.slot);
 
   final DeviceSlot slot;
@@ -111,9 +110,7 @@ class DeviceSlotChannel
           : null,
     );
     if (shownId != null && shownId != deviceId) {
-      context
-          .read(deviceHeartbeatHealthProvider.notifier)
-          .clearDevice(shownId);
+      context.read(deviceHeartbeatHealthProvider.notifier).clearDevice(shownId);
     }
     final failed = value?['failedReads'];
     context

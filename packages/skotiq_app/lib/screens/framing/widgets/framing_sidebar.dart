@@ -12,8 +12,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';

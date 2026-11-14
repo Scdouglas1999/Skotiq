@@ -466,8 +466,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                       variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
                       isLoading: _locating,
-                      onPressed:
-                          _locating ? null : () => _useDeviceLocation(),
+                      onPressed: _locating ? null : () => _useDeviceLocation(),
                     ),
                   ),
                 ],

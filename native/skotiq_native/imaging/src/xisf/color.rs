@@ -40,7 +40,9 @@ impl RgbWorkingSpace {
                 .split(':')
                 .map(|v| v.trim().parse::<f64>())
                 .collect::<Result<_, _>>()
-                .map_err(|_| XisfError::Malformed(format!("RGB working space {attr} \"{text}\"")))?;
+                .map_err(|_| {
+                    XisfError::Malformed(format!("RGB working space {attr} \"{text}\""))
+                })?;
             values
                 .try_into()
                 .map_err(|_| XisfError::Malformed(format!("RGB working space {attr} \"{text}\"")))
@@ -171,11 +173,24 @@ fn invert(m: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-    let c = |r1: usize, c1: usize, r2: usize, c2: usize| m[r1][c1] * m[r2][c2] - m[r1][c2] * m[r2][c1];
+    let c =
+        |r1: usize, c1: usize, r2: usize, c2: usize| m[r1][c1] * m[r2][c2] - m[r1][c2] * m[r2][c1];
     [
-        [c(1, 1, 2, 2) / det, -c(0, 1, 2, 2) / det, c(0, 1, 1, 2) / det],
-        [-c(1, 0, 2, 2) / det, c(0, 0, 2, 2) / det, -c(0, 0, 1, 2) / det],
-        [c(1, 0, 2, 1) / det, -c(0, 0, 2, 1) / det, c(0, 0, 1, 1) / det],
+        [
+            c(1, 1, 2, 2) / det,
+            -c(0, 1, 2, 2) / det,
+            c(0, 1, 1, 2) / det,
+        ],
+        [
+            -c(1, 0, 2, 2) / det,
+            c(0, 0, 2, 2) / det,
+            -c(0, 0, 1, 2) / det,
+        ],
+        [
+            c(1, 0, 2, 1) / det,
+            -c(0, 0, 2, 1) / det,
+            c(0, 0, 1, 1) / det,
+        ],
     ]
 }
 
@@ -214,7 +229,10 @@ mod tests {
                 }
             }
             let gray = ws.rgb_to_lab([0.5, 0.5, 0.5]);
-            assert!((gray[1] - 0.5).abs() < 2e-3 && (gray[2] - 0.5).abs() < 2e-3, "{gray:?}");
+            assert!(
+                (gray[1] - 0.5).abs() < 2e-3 && (gray[2] - 0.5).abs() < 2e-3,
+                "{gray:?}"
+            );
         }
     }
 }

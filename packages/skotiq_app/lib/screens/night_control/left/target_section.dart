@@ -258,7 +258,8 @@ class _AltitudeChart extends StatelessWidget {
     final facts = <String>[
       if (target.transitAt case final at?)
         target.transitAltitudeDeg == null
-            ? l10n.text('nightCtlAltSemTransit', params: {'time': ClockFormat.hm(at)})
+            ? l10n.text('nightCtlAltSemTransit',
+                params: {'time': ClockFormat.hm(at)})
             : l10n.text('nightCtlAltSemTransitAt', params: {
                 'time': ClockFormat.hm(at),
                 'deg': target.transitAltitudeDeg!.round().toString(),
@@ -271,7 +272,8 @@ class _AltitudeChart extends StatelessWidget {
     ];
     final extras = <String>[
       if (target.moonSet case final at?)
-        l10n.text('nightCtlAltSemMoonSet', params: {'time': ClockFormat.hm(at)}),
+        l10n.text('nightCtlAltSemMoonSet',
+            params: {'time': ClockFormat.hm(at)}),
       if (target.flipAt case final at?)
         l10n.text('nightCtlAltSemFlip', params: {'time': ClockFormat.hm(at)}),
     ];
@@ -514,7 +516,8 @@ class _Legend extends StatelessWidget {
           if (target.flipAt case final flip?)
             item(
               colors.warning,
-              l10n.text('nightCtlLegendFlip', params: {'time': ClockFormat.hm(flip)}),
+              l10n.text('nightCtlLegendFlip',
+                  params: {'time': ClockFormat.hm(flip)}),
               ink: colors.warning,
             ),
           item(

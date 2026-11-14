@@ -221,18 +221,20 @@ void main() {
       );
     });
 
-    test('a copy that is not the pinned file is refused and start-up goes on',
-        () async {
-      await manager.initialize(
-        tempDir.path,
-        builtIn: {SkyCatalog.dso: () async => utf8.encode(_ngcCsv)},
-      );
-      expect(
-        (await manager.status(SkyCatalog.dso)).state,
-        CatalogInstallStatus.missing,
-      );
-      expect(tempDir.listSync(), isEmpty);
-    });
+    test(
+      'a copy that is not the pinned file is refused and start-up goes on',
+      () async {
+        await manager.initialize(
+          tempDir.path,
+          builtIn: {SkyCatalog.dso: () async => utf8.encode(_ngcCsv)},
+        );
+        expect(
+          (await manager.status(SkyCatalog.dso)).state,
+          CatalogInstallStatus.missing,
+        );
+        expect(tempDir.listSync(), isEmpty);
+      },
+    );
 
     test('a copy that cannot be read is skipped', () async {
       await manager.initialize(

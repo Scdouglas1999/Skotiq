@@ -115,10 +115,10 @@ class FilePathSettings extends ConsumerWidget {
     }
     try {
       final result = await ref.read(hostFoldersProvider).pickUsable(
-        context,
-        title: isRemoteMode ? 'Select host folder' : 'Select folder',
-        initialPath: currentPath,
-      );
+            context,
+            title: isRemoteMode ? 'Select host folder' : 'Select folder',
+            initialPath: currentPath,
+          );
 
       if (!context.mounted || result == null) return;
       if (host.isStale) {
@@ -187,11 +187,10 @@ class FilePathSettings extends ConsumerWidget {
       case FolderNotFullPath(:final reason):
         context.showWarningSnackBar(reason);
         return;
-      case FolderMissing() ||
-            FolderRefused() ||
-            FolderUnchecked():
+      case FolderMissing() || FolderRefused() || FolderUnchecked():
         final reason = switch (verdict) {
-          FolderRefused(:final reason) || FolderUnchecked(:final reason) =>
+          FolderRefused(:final reason) ||
+          FolderUnchecked(:final reason) =>
             reason,
           _ => 'There is no folder there.',
         };
@@ -369,9 +368,9 @@ class _AppDataFolderRow extends ConsumerWidget {
               onPressed: () async {
                 try {
                   await ref.read(localFoldersProvider).reveal(
-                    context,
-                    resolved,
-                  );
+                        context,
+                        resolved,
+                      );
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(
@@ -390,9 +389,9 @@ class _AppDataFolderRow extends ConsumerWidget {
               onPressed: () async {
                 try {
                   await ref.read(localFoldersProvider).reveal(
-                    context,
-                    resolvedLogs,
-                  );
+                        context,
+                        resolvedLogs,
+                      );
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(
@@ -482,10 +481,10 @@ class _BackupFolderRow extends ConsumerWidget {
             size: ButtonSize.small,
             onPressed: () async {
               final picked = await ref.read(localFoldersProvider).pickUsable(
-                context,
-                title: 'Select backup folder',
-                initialPath: resolved,
-              );
+                    context,
+                    title: 'Select backup folder',
+                    initialPath: resolved,
+                  );
               if (picked == null || !context.mounted) return;
               await _move(context, ref, picked);
             },
@@ -509,9 +508,9 @@ class _BackupFolderRow extends ConsumerWidget {
               onPressed: () async {
                 try {
                   await ref.read(localFoldersProvider).reveal(
-                    context,
-                    resolved,
-                  );
+                        context,
+                        resolved,
+                      );
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(

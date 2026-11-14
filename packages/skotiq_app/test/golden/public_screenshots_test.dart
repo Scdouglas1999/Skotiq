@@ -949,7 +949,8 @@ void main() {
     );
     await _capture(
       tester,
-      screen: SettingsScreen(initialSection: SettingsSectionId.resolve('equipment-profiles')),
+      screen: SettingsScreen(
+          initialSection: SettingsSectionId.resolve('equipment-profiles')),
       fileName: 'settings-equipment-profiles.png',
     );
   }, timeout: const Timeout(Duration(minutes: 5)));

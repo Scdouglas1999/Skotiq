@@ -225,10 +225,7 @@ void main() {
       // 'active' forever, with every retry a no-op.
       await database.close();
 
-      await expectLater(
-        sessionService.endSession(),
-        throwsA(anything),
-      );
+      await expectLater(sessionService.endSession(), throwsA(anything));
 
       // Identity retained so a caller (SequenceExecutor's cleanupFailed retry,
       // or a later endSession) can actually finalize the row.
@@ -243,7 +240,6 @@ void main() {
       final session = await sessionsDao.getSessionById(sessionId);
       expect(session!.status, equals('aborted'));
     });
-
   });
 
   group('SessionService - Checkpointing', () {

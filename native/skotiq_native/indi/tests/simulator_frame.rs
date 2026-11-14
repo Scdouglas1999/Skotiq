@@ -25,11 +25,17 @@ async fn a_simulator_frame_holds_the_levels_the_simulator_draws() {
         .parse()
         .expect("a port number");
     let mut client = IndiClient::new("127.0.0.1", Some(port));
-    client.connect().await.expect("connect to the simulator server");
+    client
+        .connect()
+        .await
+        .expect("connect to the simulator server");
     let client = Arc::new(RwLock::new(client));
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     while !client.read().await.has_property(CAMERA, "CONNECTION").await {
-        assert!(tokio::time::Instant::now() < deadline, "the camera is defined");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the camera is defined"
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     client
@@ -40,8 +46,16 @@ async fn a_simulator_frame_holds_the_levels_the_simulator_draws() {
         .expect("the driver confirms the connection");
     let camera = IndiCamera::new(client.clone(), CAMERA);
     camera.enable_blob().await.expect("enable BLOBs");
-    while !client.read().await.has_property(CAMERA, "SIMULATOR_SETTINGS").await {
-        assert!(tokio::time::Instant::now() < deadline, "the simulator settings");
+    while !client
+        .read()
+        .await
+        .has_property(CAMERA, "SIMULATOR_SETTINGS")
+        .await
+    {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the simulator settings"
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     let noise = client
@@ -80,8 +94,14 @@ async fn a_simulator_frame_holds_the_levels_the_simulator_draws() {
             frame.height
         );
         assert_eq!((frame.width, frame.height), (1280, 1024));
-        assert!(f64::from(median) <= noise, "median {median} above the noise {noise}");
-        assert!(f64::from(max) <= 3.0 * noise, "max {max} above the noise {noise}");
+        assert!(
+            f64::from(median) <= noise,
+            "median {median} above the noise {noise}"
+        );
+        assert!(
+            f64::from(max) <= 3.0 * noise,
+            "max {max} above the noise {noise}"
+        );
     }
 
     // Compression on: fpack tiles a FITS frame, which is refused by name.

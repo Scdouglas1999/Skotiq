@@ -257,7 +257,6 @@ class _QueueTable extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _ColumnHeaders extends StatelessWidget {

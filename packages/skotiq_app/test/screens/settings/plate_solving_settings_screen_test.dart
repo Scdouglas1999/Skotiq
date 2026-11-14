@@ -402,7 +402,8 @@ void main() {
     final scrollable = find.byType(Scrollable).first;
     await tester.drag(scrollable, const Offset(0, -600));
     await tester.pumpAndSettle();
-    final scrolledTo = tester.state<ScrollableState>(scrollable).position.pixels;
+    final scrolledTo =
+        tester.state<ScrollableState>(scrollable).position.pixels;
     expect(scrolledTo, greaterThan(0));
 
     container.read(hostPlateSolverSetupProvider.notifier).state = (
@@ -415,7 +416,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      tester.state<ScrollableState>(find.byType(Scrollable).first)
+      tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
           .position
           .pixels,
       scrolledTo,

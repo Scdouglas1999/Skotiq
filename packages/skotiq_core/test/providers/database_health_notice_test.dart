@@ -27,25 +27,31 @@ const _repairNotice = DatabaseHealthNotice(
 );
 
 void main() {
-  test('an announced notice reaches the window and the linked clients', () async {
-    final hub = HostMutationEventHub();
-    addTearDown(hub.dispose);
-    final broadcast = <SkotiqEvent>[];
-    hub.wsBroadcast = broadcast.add;
-    final local = <SkotiqEvent>[];
-    final sub = hub.stream.listen(local.add);
-    addTearDown(sub.cancel);
+  test(
+    'an announced notice reaches the window and the linked clients',
+    () async {
+      final hub = HostMutationEventHub();
+      addTearDown(hub.dispose);
+      final broadcast = <SkotiqEvent>[];
+      hub.wsBroadcast = broadcast.add;
+      final local = <SkotiqEvent>[];
+      final sub = hub.stream.listen(local.add);
+      addTearDown(sub.cancel);
 
-    hub.announce(_repairNotice.toEvent());
-    await pumpEventQueue();
+      hub.announce(_repairNotice.toEvent());
+      await pumpEventQueue();
 
-    expect(local.single.eventType, 'Notification');
-    expect(broadcast.single.data['title'], 'Database needs repair');
-  });
+      expect(local.single.eventType, 'Notification');
+      expect(broadcast.single.data['title'], 'Database needs repair');
+    },
+  );
 
   test('a linked client rebuilds it as the system notification it is', () {
     final sent = _repairNotice.toEvent();
-    final received = SkotiqEvent.fromWireJson({'type': 'event', ...sent.toJson()});
+    final received = SkotiqEvent.fromWireJson({
+      'type': 'event',
+      ...sent.toJson(),
+    });
 
     final event = typedEventFromWire(received);
 

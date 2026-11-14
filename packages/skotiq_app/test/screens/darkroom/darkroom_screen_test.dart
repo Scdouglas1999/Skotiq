@@ -1739,8 +1739,7 @@ void main() {
         index: 1,
         opId: 'color_calibrate',
         opVersion: 1,
-        reason:
-            'unsupported channel layout: a 1-channel image, a color master '
+        reason: 'unsupported channel layout: a 1-channel image, a color master '
             'with 3 channels; combine a per-filter mono master first',
         message: sentence,
       ),

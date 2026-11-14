@@ -88,7 +88,6 @@ pub struct GuiderCalibration {
     pub dec_rate: Option<f64>,
 }
 
-
 /// One of the guiders this build can guide with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Guider {
@@ -138,9 +137,7 @@ impl Guider {
             .filter(|device| device.device_type == DeviceType::Guider)
             .map(|device| device.id)
             .collect();
-        let profile_guider = get_state()
-            .get_profile_device_id(DeviceType::Guider)
-            .await;
+        let profile_guider = get_state().get_profile_device_id(DeviceType::Guider).await;
         Self::choose(profile_guider.as_deref(), &connected)
     }
 
@@ -171,8 +168,12 @@ impl Guider {
         match self {
             Self::Phd2 => phd2::start_guiding(settle_pixels, settle_time, settle_timeout).await,
             Self::Builtin => {
-                crate::builtin_guider::control::start_guiding(settle_pixels, settle_time, settle_timeout)
-                    .await?;
+                crate::builtin_guider::control::start_guiding(
+                    settle_pixels,
+                    settle_time,
+                    settle_timeout,
+                )
+                .await?;
                 stop_reason::set(None);
                 Ok(())
             }
@@ -343,7 +344,7 @@ pub(crate) static TEST_SLOT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_
 
 #[cfg(test)]
 mod tests {
-    
+
     use super::*;
 
     fn backend_name(device_id: &str) -> Result<&'static str, String> {

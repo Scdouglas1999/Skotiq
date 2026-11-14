@@ -250,12 +250,10 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildHeader(),
-
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
-
                       Flexible(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
@@ -271,12 +269,10 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                           ),
                         ),
                       ),
-
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
-
                       _buildActions(),
                     ],
                   ),

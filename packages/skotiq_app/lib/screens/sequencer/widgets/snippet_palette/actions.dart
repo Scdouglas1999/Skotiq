@@ -54,7 +54,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                   hintText: 'Enter template name',
                 ),
                 const SizedBox(height: 16),
-
                 _buildDialogLabel('Description'),
                 const SizedBox(height: 8),
                 _buildDialogTextField(
@@ -63,7 +62,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                   maxLines: 2,
                 ),
                 const SizedBox(height: 16),
-
                 _buildDialogLabel('Category'),
                 const SizedBox(height: 8),
                 Container(
@@ -108,7 +106,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 _buildDialogLabel('Icon'),
                 const SizedBox(height: 8),
                 _buildIconSelector(

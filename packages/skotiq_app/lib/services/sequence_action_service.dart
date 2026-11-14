@@ -151,7 +151,8 @@ class SequenceActionService {
               await _executor.stop(preserveCheckpoint: preserveCheckpoint);
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to stop sequence: ${userFacingError(e)}');
+              return CommandActionResult.failure(
+                  'Failed to stop sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -180,7 +181,8 @@ class SequenceActionService {
               }
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to skip: ${userFacingError(e)}');
+              return CommandActionResult.failure(
+                  'Failed to skip: ${userFacingError(e)}');
             }
           }));
 
@@ -215,4 +217,3 @@ class SequenceActionService {
     return start.then((_) => body());
   }
 }
-

@@ -532,7 +532,8 @@ class _InfoRow extends ConsumerWidget {
       }
       final exposure = [
         if (header.currentFilter case final filter?) filter,
-        if (header.currentExposureSecs case final secs?) '${QuantityFormat.trimmed(secs)} s',
+        if (header.currentExposureSecs case final secs?)
+          '${QuantityFormat.trimmed(secs)} s',
       ].join(' ');
       if (exposure.isNotEmpty) parts.add(exposure);
       if (header.framesDone case final done?) {
@@ -578,7 +579,6 @@ class _InfoRow extends ConsumerWidget {
     }
     return parts.isEmpty ? null : parts.join(' · ');
   }
-
 }
 
 /// "Running 4 h 04 m", "Ready · not started", "Paused for autofocus".
@@ -831,8 +831,8 @@ class _ArmedControl extends _Control {
 
   static TextStyle get _style => SkotiqTypography.labelSm;
 
-  String _label(SkotiqLocalizations l10n) =>
-      l10n.text('nightActArmedStartsAt', params: {'time': ClockFormat.hm(armedAt)});
+  String _label(SkotiqLocalizations l10n) => l10n
+      .text('nightActArmedStartsAt', params: {'time': ClockFormat.hm(armedAt)});
 
   @override
   double measure(BuildContext context) {

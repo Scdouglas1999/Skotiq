@@ -308,8 +308,7 @@ void main() {
     when(() => backend.downloadCatalog('stars')).thenThrow(
       const ServerError(
         code: 'invalid_token',
-        message:
-            'Access denied: Invalid authentication token (not retried — '
+        message: 'Access denied: Invalid authentication token (not retried — '
             'the host rejected this token)',
         httpStatus: 403,
       ),

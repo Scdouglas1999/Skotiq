@@ -52,7 +52,10 @@ class _PlanNightChips extends ConsumerWidget {
               ? l10n.text('plannerChipDarkNone')
               : l10n.text(
                   'plannerChipDark',
-                  params: {'start': ClockFormat.hm(dusk), 'end': ClockFormat.hm(dawn)},
+                  params: {
+                    'start': ClockFormat.hm(dusk),
+                    'end': ClockFormat.hm(dawn)
+                  },
                 ),
         ),
       ],
@@ -80,7 +83,6 @@ class _PlanNightChips extends ConsumerWidget {
       child: SkotiqChip(icon: LucideIcons.moon, label: plain),
     );
   }
-
 }
 
 /// The search field's width on the desktop filter row (06 §Plan: "300 px

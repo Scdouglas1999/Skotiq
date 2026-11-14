@@ -31,7 +31,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       await deviceService.disconnect(widget.type);
     } catch (e) {
       if (mounted && _isCurrentDevice(command, deviceId)) {
-        context.showErrorSnackBar('Failed to disconnect: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to disconnect: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -53,7 +54,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _isCurrentDevice(command, deviceId)) {
-        context.showErrorSnackBar('Failed to start cooling: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to start cooling: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -128,7 +130,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                           if (!context.mounted || host.isStale) return;
                           setState(() {
                             isSaving = false;
-                            errorText = 'Failed to start cooling: ${userFacingError(e)}';
+                            errorText =
+                                'Failed to start cooling: ${userFacingError(e)}';
                           });
                         }
                       },
@@ -286,17 +289,14 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
           ),
         ),
       );
-      if (confirmed != true ||
-          !mounted ||
-          command.isStale) {
+      if (confirmed != true || !mounted || command.isStale) {
         return;
       }
 
       final succeeded = await ref
           .read(meridianFlipStandaloneMonitorProvider.notifier)
           .executeNow();
-      if (!mounted ||
-          command.isStale) {
+      if (!mounted || command.isStale) {
         return;
       }
       if (succeeded) {
@@ -320,7 +320,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       await deviceService.setFilterWheelPosition(position);
     } catch (e) {
       if (mounted && _isCurrentDevice(command, deviceId)) {
-        context.showErrorSnackBar('Failed to change filter: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to change filter: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -346,15 +347,15 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _isCurrentDevice(command, deviceId)) {
-        context.showErrorSnackBar('Guiding operation failed: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Guiding operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
     }
   }
 
-  String? _currentCardDeviceId() =>
-      ref.read(widget.type.slot.state).deviceId;
+  String? _currentCardDeviceId() => ref.read(widget.type.slot.state).deviceId;
 
   /// [command] is still the card's and the card still shows the device it was
   /// sent to.
@@ -407,7 +408,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _isCurrentDome(command, deviceId)) {
-        context.showErrorSnackBar('Dome shutter operation failed: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Dome shutter operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -427,7 +429,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _isCurrentDome(command, deviceId)) {
-        context.showErrorSnackBar('Dome park operation failed: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Dome park operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -511,7 +514,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && command.isCurrent) {
-        context.showErrorSnackBar('Cover operation failed: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Cover operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);
@@ -563,7 +567,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && command.isCurrent) {
-        context.showErrorSnackBar('Calibrator operation failed: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Calibrator operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCommand(command);

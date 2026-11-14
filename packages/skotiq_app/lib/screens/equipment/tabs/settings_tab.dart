@@ -40,7 +40,8 @@ class EquipmentSettingsTab extends ConsumerWidget {
           }),
         ),
       ),
-      error: (e, _) => Center(child: Text('Error loading settings: ${userFacingError(e)}')),
+      error: (e, _) =>
+          Center(child: Text('Error loading settings: ${userFacingError(e)}')),
       data: (settings) => SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         // No in-content title: both hosts (the desktop SkotiqDialog and

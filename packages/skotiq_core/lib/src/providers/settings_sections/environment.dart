@@ -17,7 +17,8 @@ part of '../settings_provider.dart';
 /// Setters for observing-environment, critical-alert delivery, and the
 /// FITS observer-name field.
 extension EnvironmentSettingsSection on AppSettingsNotifier {
-  Future<void> setBortleClass(int value) => _set(AppSettingDefs.bortleClass, value);
+  Future<void> setBortleClass(int value) =>
+      _set(AppSettingDefs.bortleClass, value);
 
   Future<void> setHorizonProfileJson(String value) =>
       _set(AppSettingDefs.horizonProfileJson, value);

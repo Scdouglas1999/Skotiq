@@ -275,7 +275,10 @@ async fn focuser_session<F: FocuserDriver>(record: &mut Record, label: &str, foc
         &l("get_max_position"),
         focuser.get_max_position().await.to_string(),
     );
-    record.line(&l("get_step_size"), focuser.get_step_size().await.to_string());
+    record.line(
+        &l("get_step_size"),
+        focuser.get_step_size().await.to_string(),
+    );
     record.result(&l("get_position"), focuser.get_position().await);
     record.result(&l("move_to(1234)"), focuser.move_to(1234).await);
     record.result(&l("is_moving"), focuser.is_moving().await);
@@ -296,7 +299,10 @@ async fn wheel_session<W: FilterWheelDriver>(record: &mut Record, label: &str, w
     record.result(&l("connect"), wheel.connect().await);
     record.line(&l("name"), wheel.name());
     record.line(&l("serial_number"), format!("{:?}", wheel.serial_number()));
-    record.line(&l("get_filter_count"), wheel.get_filter_count().await.to_string());
+    record.line(
+        &l("get_filter_count"),
+        wheel.get_filter_count().await.to_string(),
+    );
     record.result(&l("get_filter_names"), wheel.get_filter_names().await);
     record.result(&l("get_position"), wheel.get_position().await);
     record.result(&l("move_to_position(2)"), wheel.move_to_position(2).await);

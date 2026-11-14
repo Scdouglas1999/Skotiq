@@ -723,7 +723,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
               ),
             ],
           ),
-
           if (_showFilters) ...[
             const SizedBox(height: 12),
             _SearchFilterControls(

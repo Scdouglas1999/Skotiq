@@ -130,9 +130,9 @@ class _AutomationSettingsPanelState
             link: (
               'Calibration options',
               () => openSettings(
-                context,
-                SettingsSectionId.endOfNightCalibration,
-              ),
+                    context,
+                    SettingsSectionId.endOfNightCalibration,
+                  ),
             ),
           ),
           _Step(

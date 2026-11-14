@@ -139,9 +139,7 @@ class _CompactStretchControls extends StatelessWidget {
             },
           ),
         ),
-
         const SizedBox(width: 12),
-
         if (settings.enabled) ...[
           SkotiqTooltip(
             message: _methodDescriptions[settings.method] ?? '',
@@ -162,9 +160,7 @@ class _CompactStretchControls extends StatelessWidget {
               },
             ),
           ),
-
           const SizedBox(width: 8),
-
           SkotiqTooltip(
             message: 'Advanced stretch settings',
             position: SkotiqTooltipPosition.bottom,
@@ -207,9 +203,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(enabled: value));
           },
         ),
-
         const SizedBox(height: 16),
-
         _SettingRow(
           label: 'Method',
           tooltip: 'Select the stretch algorithm to use',
@@ -227,9 +221,7 @@ class _ExpandedStretchControls extends StatelessWidget {
                 : null,
           ),
         ),
-
         const SizedBox(height: 12),
-
         _SliderSetting(
           label: 'Shadow clip',
           tooltip:
@@ -246,9 +238,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(shadowClip: value));
           },
         ),
-
         const SizedBox(height: 12),
-
         _SliderSetting(
           label: 'Highlight clip',
           tooltip:
@@ -265,9 +255,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(highlightClip: value));
           },
         ),
-
         const SizedBox(height: 12),
-
         _SliderSetting(
           label: 'Target median',
           tooltip: 'Target brightness level for the stretched image midtones. '
@@ -283,9 +271,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(targetMedian: value));
           },
         ),
-
         const SizedBox(height: 12),
-
         SkotiqSwitchRow(
           label: 'Linked channels',
           tooltip:
@@ -299,7 +285,6 @@ class _ExpandedStretchControls extends StatelessWidget {
                 }
               : null,
         ),
-
         if (settings.method == AutoStretchMethod.gamma) ...[
           const SizedBox(height: 12),
           _SliderSetting(
@@ -318,9 +303,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             },
           ),
         ],
-
         const SizedBox(height: 16),
-
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [

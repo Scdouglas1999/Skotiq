@@ -103,7 +103,9 @@ void main() {
       );
       expect(
         rendered,
-        matches(RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$')),
+        matches(
+          RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$'),
+        ),
       );
     },
   );

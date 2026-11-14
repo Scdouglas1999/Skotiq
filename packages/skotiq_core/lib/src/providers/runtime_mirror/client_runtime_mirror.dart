@@ -38,7 +38,6 @@ class ClientRuntimeMirrorState {
   /// tell a host value from one this client computed.
   Object? appliedValue(String channel) => _applied[channel];
 
-
   /// True while a host update is being written into [channel]'s provider.
   bool isApplying(String channel) => _applying.contains(channel);
 

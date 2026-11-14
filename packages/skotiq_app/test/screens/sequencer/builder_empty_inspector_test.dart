@@ -66,8 +66,7 @@ void main() {
     expect(_showProperties(), findsOneWidget);
     expect(find.text('Select a node'), findsNothing);
 
-    handle.container.read(selectedNodeIdProvider.notifier).state =
-        _exposure.id;
+    handle.container.read(selectedNodeIdProvider.notifier).state = _exposure.id;
     await tester.pumpAndSettle();
     expect(_showProperties(), findsNothing);
 

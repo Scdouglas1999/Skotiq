@@ -222,10 +222,9 @@ class NightFlipTracker extends Notifier<NightFlipState> {
           startedAt: () => null,
           nextTryAt: () => null,
           succeeded: success,
-          failure: () =>
-              outcome == sk_events.FlipOutcome.failed
-                  ? (at: at, attempts: attempts)
-                  : null,
+          failure: () => outcome == sk_events.FlipOutcome.failed
+              ? (at: at, attempts: attempts)
+              : null,
         );
       case sk_events.SequencerEvent_Resumed():
         // The operator has seen the failure; the Steps list moves on.

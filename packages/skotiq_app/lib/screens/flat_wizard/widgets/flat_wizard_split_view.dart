@@ -67,7 +67,6 @@ class FlatWizardSplitView extends StatelessWidget {
                 child: controlsPanel,
               ),
             ),
-
             Expanded(
               child: Container(
                 color: colors.background,

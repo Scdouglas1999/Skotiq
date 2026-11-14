@@ -302,9 +302,8 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         : ref.watch(dbSessionImagesProvider(activeSessionId));
     track(imagesAsync);
     final imageList = imagesAsync.valueOrNull ?? const [];
-    final lightFrames = imageList
-        .where((image) => image.isLight)
-        .toList(growable: false);
+    final lightFrames =
+        imageList.where((image) => image.isLight).toList(growable: false);
     final solvedFrames =
         lightFrames.where((image) => image.isPlateSolved).length;
     final calibratedRowCount = calibrations.where((c) => c.isCalibrated).length;

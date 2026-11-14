@@ -182,7 +182,10 @@ class _RunDashboardRecoveryBannerState
                         weatherHold
                             ? l10n.text(
                                 'recoveryWeatherStatus',
-                                params: {'held': DurationFormat.seconds(heldSecs, style: DurationStyle.short)},
+                                params: {
+                                  'held': DurationFormat.seconds(heldSecs,
+                                      style: DurationStyle.short)
+                                },
                               )
                             : _statusLine(
                                 ctx, nextAttemptSecs, remainingBudgetSecs),
@@ -267,7 +270,6 @@ class _RunDashboardRecoveryBannerState
     }
     return attempts;
   }
-
 }
 
 /// Trio of recovery-mode buttons: Try Now, Skip Node, Abort.

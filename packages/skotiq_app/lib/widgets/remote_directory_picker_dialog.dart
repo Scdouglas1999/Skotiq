@@ -97,8 +97,7 @@ class _RemoteDirectoryPickerDialogState
     });
 
     try {
-      final listing =
-          await hostFiles.browseRemoteDirectories(path: path);
+      final listing = await hostFiles.browseRemoteDirectories(path: path);
       // A host change has already said so on screen (see build).
       if (scope.isStale) return;
       setState(() {

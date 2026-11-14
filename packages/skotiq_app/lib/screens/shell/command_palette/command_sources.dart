@@ -307,8 +307,8 @@ List<CommandEntry> buildTargetEntries(
     final exact = dso.designations.contains(normalized);
     final prefix =
         !exact && dso.designations.any((id) => id.startsWith(normalized));
-    final byName = normalized.length >= 3 &&
-        dso.names.any((name) => name.contains(query));
+    final byName =
+        normalized.length >= 3 && dso.names.any((name) => name.contains(query));
     if (!exact && !prefix && !byName) continue;
     found.add((exact ? 0 : (prefix ? 1 : 2), dso.object, dso.label));
   }

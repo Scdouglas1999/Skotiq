@@ -26,6 +26,7 @@
 //! deconvolution and star-reduction passes preserve the source pixel type since
 //! they already return a same-layout frame.
 
+use crate::output::ensure_parent_dir;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::background_extraction::{self, BackgroundConfig};
 use skotiq_imaging::deconvolution::{self, DeconvConfig, PsfEstimateConfig, PsfKind, PsfModel};
@@ -34,7 +35,6 @@ use skotiq_imaging::{
     carry_source_header, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
 use std::path::Path;
-use crate::output::ensure_parent_dir;
 
 // Public FFI entry points
 
@@ -509,7 +509,12 @@ fn to_f32(image: &ImageData) -> ImageData {
     if image.pixel_type == PixelType::F32 {
         return image.clone();
     }
-    ImageData::from_f32(image.width, image.height, image.channels, &image.samples_f32())
+    ImageData::from_f32(
+        image.width,
+        image.height,
+        image.channels,
+        &image.samples_f32(),
+    )
 }
 
 #[cfg(test)]
@@ -802,15 +807,9 @@ mod tests {
     fn write_solved_master(path: &Path, image: &ImageData) -> FitsHeader {
         let mut h = FitsHeader::new();
         h.set_string("IMAGETYP", "MASTER_LIGHT");
-        skotiq_imaging::SipWcs::from_pointing(
-                83.822,
-                -5.391,
-                12.0,
-                1.5,
-                image.width,
-                image.height,
-            )
-            .cd_only().write_to_header(&mut h);
+        skotiq_imaging::SipWcs::from_pointing(83.822, -5.391, 12.0, 1.5, image.width, image.height)
+            .cd_only()
+            .write_to_header(&mut h);
         h.set_string("CTYPE1", "RA---TAN-SIP");
         h.set_string("CTYPE2", "DEC--TAN-SIP");
         h.set_int("A_ORDER", 2);

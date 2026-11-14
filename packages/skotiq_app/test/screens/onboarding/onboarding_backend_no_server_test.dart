@@ -103,6 +103,7 @@ void main() {
     expect(find.textContaining('did not answer in time'), findsOneWidget);
 
     // Both server protocols can be pointed somewhere else from here.
-    expect(find.widgetWithText(SkotiqButton, 'Change address'), findsNWidgets(2));
+    expect(
+        find.widgetWithText(SkotiqButton, 'Change address'), findsNWidgets(2));
   });
 }

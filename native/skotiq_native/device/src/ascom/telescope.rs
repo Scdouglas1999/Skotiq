@@ -54,9 +54,7 @@ where
 pub fn utc_date(unix_seconds: i64) -> Result<String, DriverError> {
     chrono::DateTime::from_timestamp(unix_seconds, 0)
         .map(|utc| utc.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
-        .ok_or_else(|| {
-            DriverError::InvalidParameter(format!("{unix_seconds} is not a UTC time"))
-        })
+        .ok_or_else(|| DriverError::InvalidParameter(format!("{unix_seconds} is not a UTC time")))
 }
 
 /// Seconds since the Unix epoch of an ASCOM `UTCDate` value.

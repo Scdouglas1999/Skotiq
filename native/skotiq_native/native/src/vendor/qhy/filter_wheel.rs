@@ -16,8 +16,10 @@ pub(crate) const QHY_CFW_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// A slot count from `CONTROL_CFWSLOTSNUM`. Above 16 (INDI sees 255) means the
 /// port answers but no wheel is attached.
 pub(crate) fn parse_cfw_slot_count(count: f64) -> Option<i32> {
-    (count.is_finite() && count.fract() == 0.0 && (1.0..=f64::from(MAX_QHY_CFW_SLOTS)).contains(&count))
-        .then_some(count as i32)
+    (count.is_finite()
+        && count.fract() == 0.0
+        && (1.0..=f64::from(MAX_QHY_CFW_SLOTS)).contains(&count))
+    .then_some(count as i32)
 }
 
 /// A wheel status character as a 0-based slot, or `None` for anything else
@@ -144,8 +146,14 @@ impl QhyFilterWheel {
             }
             let elapsed = started.elapsed();
             if elapsed >= QHY_CFW_MOVE_TIMEOUT {
-                let at = position.map_or_else(|| "still turning".to_string(), |p| format!("at slot {}", p + 1));
-                let goal = wanted.map_or_else(|| "come to rest".to_string(), |t| format!("reach slot {}", t + 1));
+                let at = position.map_or_else(
+                    || "still turning".to_string(),
+                    |p| format!("at slot {}", p + 1),
+                );
+                let goal = wanted.map_or_else(
+                    || "come to rest".to_string(),
+                    |t| format!("reach slot {}", t + 1),
+                );
                 return Err(DriverError::Timeout(format!(
                     "The QHY filter wheel did not {goal} within {} s ({at}). Check the wheel's cable \
                      to the camera and that nothing blocks it.",
@@ -284,7 +292,10 @@ impl FilterWheelDriver for QhyFilterWheel {
                     encode_cfw_position(position),
                 )
             };
-            check_qhy_error(result, &format!("send its filter wheel to slot {}", position + 1))?;
+            check_qhy_error(
+                result,
+                &format!("send its filter wheel to slot {}", position + 1),
+            )?;
         }
         self.target_position = Some(position);
         self.settled_position(Some(position)).await?;

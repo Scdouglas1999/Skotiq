@@ -69,9 +69,7 @@ final equipmentFovBindingProvider = Provider<void>((ref) {
 
   void applyOptics(OpticalConfig? config) {
     if (disposed) return;
-    ref
-        .read(equipmentFOVProvider.notifier)
-        .setRig(
+    ref.read(equipmentFOVProvider.notifier).setRig(
           telescope: telescopeSpecsFromOpticalConfig(config),
           camera: cameraSensorSpecsFromOpticalConfig(config),
         );

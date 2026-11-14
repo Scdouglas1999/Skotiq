@@ -110,8 +110,8 @@ class SessionChart extends StatelessWidget {
     final firstTimestamp = points.first.timestamp;
     // Clock time, so a point lines up with the night log; a run of a few
     // minutes has no clock ticks to label and keeps elapsed seconds.
-    final onClock = points.last.timestamp.difference(firstTimestamp) >=
-        _clockAxisMinSpan;
+    final onClock =
+        points.last.timestamp.difference(firstTimestamp) >= _clockAxisMinSpan;
     final samples = <Offset>[
       for (final point in points)
         Offset(
@@ -346,8 +346,7 @@ class _ChartSummary extends StatelessWidget {
 /// frames are excluded for the same reason: a dark's sensor temperature is
 /// real but it is not part of the night the rest of the card describes.
 List<DbCapturedImage> sessionChartFrames(List<DbCapturedImage> images) => images
-    .where(
-        (image) => image.isAccepted && image.isLight)
+    .where((image) => image.isAccepted && image.isLight)
     .toList(growable: false);
 
 class HfrChart extends StatelessWidget {

@@ -36,8 +36,7 @@ const _roleEnvironment = [
 @visibleForTesting
 List<String> argumentsWithoutRole(List<String> args) => [
   for (final arg in args)
-    if (!_roleFlags.any((flag) => arg == flag || arg.startsWith('$flag=')))
-      arg,
+    if (!_roleFlags.any((flag) => arg == flag || arg.startsWith('$flag='))) arg,
 ];
 
 @visibleForTesting

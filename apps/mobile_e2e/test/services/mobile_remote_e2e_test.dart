@@ -403,8 +403,7 @@ void main() {
       expect(
         await _waitUntil(
           () =>
-              mobileBackend.connectionState ==
-              BackendConnectionState.connected,
+              mobileBackend.connectionState == BackendConnectionState.connected,
         ),
         isTrue,
       );

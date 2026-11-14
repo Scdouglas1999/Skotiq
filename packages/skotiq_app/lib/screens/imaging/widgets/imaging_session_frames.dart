@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,9 +104,8 @@ List<SessionFrameGroup> sessionFrameGroups(List<DbCapturedImage> lights) {
   final byKey = <(int?, String?), List<SessionFrame>>{};
   for (var i = lights.length - 1; i >= 0; i--) {
     final row = lights[i];
-    byKey
-        .putIfAbsent((row.targetId, row.filter), () => [])
-        .add(SessionFrame(row, i + 1));
+    byKey.putIfAbsent(
+        (row.targetId, row.filter), () => []).add(SessionFrame(row, i + 1));
   }
   return [
     for (final entry in byKey.entries)
@@ -273,9 +271,8 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
                         overflow: TextOverflow.ellipsis,
                         style: SkotiqTypography.withTabular(
                           SkotiqTypography.captionSm.copyWith(
-                            color: rejected
-                                ? colors.error
-                                : colors.textSecondary,
+                            color:
+                                rejected ? colors.error : colors.textSecondary,
                           ),
                         ),
                       ),

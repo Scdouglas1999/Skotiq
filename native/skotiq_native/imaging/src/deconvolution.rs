@@ -1335,7 +1335,8 @@ mod tests {
         let u16_field = render_star_field(200, 200, sigma, 25000.0, 800.0, 6.0, 28, 0xC0FFEE);
         let src = u16_field.as_u16().unwrap();
         let f32_data: Vec<f32> = src.iter().map(|&v| v as f32 / 65535.0).collect();
-        let field = ImageData::from_f32(200, 200, 1, &f32_data).with_range(crate::SampleRange::UNIT);
+        let field =
+            ImageData::from_f32(200, 200, 1, &f32_data).with_range(crate::SampleRange::UNIT);
         assert_eq!(field.pixel_type, crate::PixelType::F32);
         // Sanity: this really is a low-amplitude [0,1] frame.
         let max_v = f32_data.iter().cloned().fold(0.0f32, f32::max);

@@ -14,15 +14,21 @@ import 'host_role.dart';
 
 final linkedHostLinkProvider = linkedOnlyProvider((host) => host.link);
 
-final linkedHostCalibrationToolsProvider = linkedOnlyProvider((host) => host.calibrationTools);
+final linkedHostCalibrationToolsProvider = linkedOnlyProvider(
+  (host) => host.calibrationTools,
+);
 
-final linkedHostImagingRecordsProvider = linkedOnlyProvider((host) => host.imagingRecords);
+final linkedHostImagingRecordsProvider = linkedOnlyProvider(
+  (host) => host.imagingRecords,
+);
 
 final linkedHostDevicesProvider = linkedOnlyProvider((host) => host.devices);
 
 final linkedHostFilesProvider = linkedOnlyProvider((host) => host.files);
 
-final linkedHostFocusModelsProvider = linkedOnlyProvider((host) => host.focusModels);
+final linkedHostFocusModelsProvider = linkedOnlyProvider(
+  (host) => host.focusModels,
+);
 
 final linkedHostProfilesProvider = linkedOnlyProvider((host) => host.profiles);
 
@@ -30,37 +36,53 @@ final linkedHostBackupsProvider = linkedOnlyProvider((host) => host.backups);
 
 final linkedHostCatalogsProvider = linkedOnlyProvider((host) => host.catalogs);
 
-final linkedHostCloudSyncProvider = linkedOnlyProvider((host) => host.cloudSync);
+final linkedHostCloudSyncProvider = linkedOnlyProvider(
+  (host) => host.cloudSync,
+);
 
 final linkedHostLogsProvider = linkedOnlyProvider((host) => host.logs);
 
-final linkedHostNotificationsProvider = linkedOnlyProvider((host) => host.notifications);
+final linkedHostNotificationsProvider = linkedOnlyProvider(
+  (host) => host.notifications,
+);
 
 final linkedHostJobsProvider = linkedOnlyProvider((host) => host.jobs);
 
 final linkedHostUpdatesProvider = linkedOnlyProvider((host) => host.updates);
 
-final linkedHostTransientsProvider = linkedOnlyProvider((host) => host.transients);
+final linkedHostTransientsProvider = linkedOnlyProvider(
+  (host) => host.transients,
+);
 
 final linkedHostControlProvider = linkedOnlyProvider((host) => host.control);
 
 final linkedHostNightProvider = linkedOnlyProvider((host) => host.night);
 
-final linkedHostLiveStackProvider = linkedOnlyProvider((host) => host.liveStack);
+final linkedHostLiveStackProvider = linkedOnlyProvider(
+  (host) => host.liveStack,
+);
 
 final linkedHostPlanningProvider = linkedOnlyProvider((host) => host.planning);
 
-final linkedHostPostSessionProvider = linkedOnlyProvider((host) => host.postSession);
+final linkedHostPostSessionProvider = linkedOnlyProvider(
+  (host) => host.postSession,
+);
 
-final linkedHostSequencesProvider = linkedOnlyProvider((host) => host.sequences);
+final linkedHostSequencesProvider = linkedOnlyProvider(
+  (host) => host.sequences,
+);
 
 final linkedHostPointingProvider = linkedOnlyProvider((host) => host.pointing);
 
-final linkedHostRigSettingsProvider = linkedOnlyProvider((host) => host.rigSettings);
+final linkedHostRigSettingsProvider = linkedOnlyProvider(
+  (host) => host.rigSettings,
+);
 
 final linkedHostRunStateProvider = linkedOnlyProvider((host) => host.runState);
 
-final linkedHostCalibrationFramesProvider = linkedOnlyProvider((host) => host.calibrationFrames);
+final linkedHostCalibrationFramesProvider = linkedOnlyProvider(
+  (host) => host.calibrationFrames,
+);
 
 final linkedHostWeatherProvider = linkedOnlyProvider((host) => host.weather);
 

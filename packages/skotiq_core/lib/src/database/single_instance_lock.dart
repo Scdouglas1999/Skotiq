@@ -1,6 +1,5 @@
 import 'dart:io';
 
-
 /// Set to `1`/`true` to let a second process open the same database anyway.
 ///
 /// The guard exists because SQLite's own locking is per-statement: a second
@@ -220,4 +219,3 @@ class SingleInstanceLock {
     return null;
   }
 }
-

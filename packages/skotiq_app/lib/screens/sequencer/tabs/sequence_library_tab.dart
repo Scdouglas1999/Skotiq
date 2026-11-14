@@ -154,13 +154,9 @@ class SequenceLibraryTab extends ConsumerWidget {
       child: Column(
         children: [
           _LibraryHeader(colors: colors),
-
           const SizedBox(height: 16),
-
           _LibraryFilterRow(colors: colors),
-
           const SizedBox(height: 16),
-
           Expanded(
             child: filteredAsync.when(
               data: (filtered) {

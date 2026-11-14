@@ -242,8 +242,10 @@ class MdnsServiceRegistration {
             'cat >/dev/null; kill \$child 2>/dev/null',
       ]);
       // Give a missing tool or a dead daemon a moment to show itself.
-      final early = await process.exitCode
-          .timeout(const Duration(milliseconds: 400), onTimeout: () => -1);
+      final early = await process.exitCode.timeout(
+        const Duration(milliseconds: 400),
+        onTimeout: () => -1,
+      );
       if (early != -1) {
         _emitWarning(
           early == 127

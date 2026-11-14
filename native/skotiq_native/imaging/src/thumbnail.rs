@@ -86,7 +86,10 @@ mod tests {
         assert_eq!((thumb.pixel_type, thumb.channels), (PixelType::U8, 1));
         assert_eq!(thumb.data.len(), (thumb.width * thumb.height) as usize);
         let mean = thumb.data.iter().map(|&v| v as f64).sum::<f64>() / thumb.data.len() as f64;
-        assert!(mean > 20.0, "a dark linear frame should be stretched, mean {mean}");
+        assert!(
+            mean > 20.0,
+            "a dark linear frame should be stretched, mean {mean}"
+        );
     }
 
     #[test]
@@ -96,14 +99,19 @@ mod tests {
         let (w, h) = (1024u32, 1024u32);
         let cell = [100u16, 4000, 4000, 9000];
         let samples: Vec<u16> = (0..h)
-            .flat_map(|y| (0..w).map(move |x| cell[((y % 2) * 2 + x % 2) as usize] + (x / 4) as u16))
+            .flat_map(|y| {
+                (0..w).map(move |x| cell[((y % 2) * 2 + x % 2) as usize] + (x / 4) as u16)
+            })
             .collect();
         let image = ImageData::from_u16(w, h, 1, &samples);
         // 1024 / 400 asks for a factor of 3; the cell makes it 4.
         let thumb = thumbnail(&image, 2, 400);
         assert_eq!((thumb.width, thumb.height), (256, 256));
         let row = &thumb.data[..256];
-        assert!(row.windows(2).all(|p| p[1] >= p[0]), "a smooth gradient, no checkerboard");
+        assert!(
+            row.windows(2).all(|p| p[1] >= p[0]),
+            "a smooth gradient, no checkerboard"
+        );
     }
 
     #[test]

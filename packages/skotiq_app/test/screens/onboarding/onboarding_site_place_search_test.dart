@@ -46,7 +46,8 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Cherry Springs State Park, Pennsylvania · 701 m'));
+    await tester
+        .tap(find.text('Cherry Springs State Park, Pennsylvania · 701 m'));
     await tester.pumpAndSettle();
 
     final settings = handle.container.read(appSettingsProvider).value!;

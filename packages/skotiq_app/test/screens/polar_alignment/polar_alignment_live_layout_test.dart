@@ -95,8 +95,7 @@ void main() {
       await _pump(tester, size, state);
       expect(tester.takeException(), isNull);
 
-      final frame =
-          tester.getRect(find.byKey(TourTarget.polarImageView.key));
+      final frame = tester.getRect(find.byKey(TourTarget.polarImageView.key));
       expect(frame.width, greaterThan(size.width * 0.7),
           reason: 'the live frame takes most of the width');
       expect(frame.height, greaterThan(size.height * 0.6));
@@ -118,8 +117,7 @@ void main() {
     testWidgets('frame and readout both fit at $size', (tester) async {
       await _pump(tester, size, _adjusting());
       expect(tester.takeException(), isNull);
-      final frame =
-          tester.getRect(find.byKey(TourTarget.polarImageView.key));
+      final frame = tester.getRect(find.byKey(TourTarget.polarImageView.key));
       expect(frame.width, greaterThan(size.width * 0.45));
       expect(frame.height, greaterThan(100));
       expect(frame.bottom, lessThanOrEqualTo(size.height));

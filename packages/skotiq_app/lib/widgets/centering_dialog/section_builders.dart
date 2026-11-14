@@ -95,7 +95,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                 height: imageData.height,
               ),
             ),
-
             if (ref.watch(imagingViewerStateProvider).showCrosshair)
               Positioned.fill(
                 child: CustomPaint(
@@ -104,7 +103,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                   ),
                 ),
               ),
-
             Positioned(
               right: 8,
               top: 8,
@@ -117,7 +115,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                     .toggleCrosshair(),
               ),
             ),
-
             Positioned(
               left: 8,
               bottom: 8,
@@ -148,8 +145,8 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
     Widget pair(String prefix, double ra, double dec) => LayoutBuilder(
           builder: (context, constraints) {
             final items = [
-              _buildCoordInfo(
-                  '$prefix RA', CoordinateFormat.raReadout(ra), SkotiqIcons.compass, colors),
+              _buildCoordInfo('$prefix RA', CoordinateFormat.raReadout(ra),
+                  SkotiqIcons.compass, colors),
               _buildCoordInfo('$prefix Dec', CoordinateFormat.decReadout(dec),
                   LucideIcons.moveVertical, colors),
             ];

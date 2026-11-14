@@ -92,11 +92,12 @@ class _ProfileScanNoticeState extends ConsumerState<ProfileScanNotice> {
 }
 
 @visibleForTesting
-String profileScanNoticeTitle(List<ProfileDeviceNotFound> missing) =>
-    missing.length == 1
-        ? "This profile's ${missing.single.slot} was not found in the last scan."
-        : "${missing.length} of this profile's devices were not found in the "
-            'last scan.';
+String profileScanNoticeTitle(List<ProfileDeviceNotFound> missing) => missing
+            .length ==
+        1
+    ? "This profile's ${missing.single.slot} was not found in the last scan."
+    : "${missing.length} of this profile's devices were not found in the "
+        'last scan.';
 
 @visibleForTesting
 String profileScanNoticeMessage(

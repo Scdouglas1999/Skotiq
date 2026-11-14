@@ -2,9 +2,7 @@
 //! with every length checked against the file, verifying its checksum, and
 //! undoing its compression.
 
-use super::codec::{
-    decode_base64, decode_hex, decompress_into, unshuffle, Checksum, Compression,
-};
+use super::codec::{decode_base64, decode_hex, decompress_into, unshuffle, Checksum, Compression};
 use super::header::MAX_HEADER_LEN;
 use super::{ByteOrder, UnitSource, XisfError, XISB_SIGNATURE, XISF_SIGNATURE};
 use rayon::prelude::*;
@@ -18,13 +16,19 @@ pub(crate) const MAX_AUXILIARY_BLOCK: u64 = 256 << 20;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum BlockLocation {
-    Attachment { position: u64, size: u64 },
+    Attachment {
+        position: u64,
+        size: u64,
+    },
     /// Base64 or Base16 text in the element (`inline:`) or its `Data` child
     /// (`embedded`), already decoded.
     InHeader(Vec<u8>),
     /// A whole file, or, with an index identifier, one block of a data blocks
     /// file.
-    External { file: PathBuf, index: Option<u64> },
+    External {
+        file: PathBuf,
+        index: Option<u64>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -344,8 +348,12 @@ pub(crate) fn decompress_block(
 ) -> Result<Vec<u8>, XisfError> {
     let single = [(stored.len() as u64, compression.uncompressed_size)];
     let subblocks = subblocks.unwrap_or(&single);
-    let total_c = subblocks.iter().try_fold(0u64, |a, (c, _)| a.checked_add(*c));
-    let total_u = subblocks.iter().try_fold(0u64, |a, (_, u)| a.checked_add(*u));
+    let total_c = subblocks
+        .iter()
+        .try_fold(0u64, |a, (c, _)| a.checked_add(*c));
+    let total_u = subblocks
+        .iter()
+        .try_fold(0u64, |a, (_, u)| a.checked_add(*u));
     if total_c != Some(stored.len() as u64) || total_u != Some(compression.uncompressed_size) {
         return Err(XisfError::Corrupt(format!(
             "the {what} block's subblocks do not add up to its stored and uncompressed lengths"
@@ -382,7 +390,9 @@ pub(crate) fn decompress_block(
 /// not have the memory.
 pub(crate) fn try_alloc(len: u64, what: &str) -> Result<Vec<u8>, XisfError> {
     let n = usize::try_from(len).map_err(|_| {
-        XisfError::Unsupported(format!("its {what} is larger than this computer can address"))
+        XisfError::Unsupported(format!(
+            "its {what} is larger than this computer can address"
+        ))
     })?;
     let mut v = Vec::new();
     v.try_reserve_exact(n).map_err(|_| {
@@ -427,7 +437,8 @@ fn locate_in_blocks_file(path: &Path, id: u64) -> Result<(u64, Option<u64>), Xis
         let mut elements = vec![0u8; (count * 40) as usize];
         file.read_exact(&mut elements)?;
         for element in elements.as_chunks::<40>().0 {
-            let field = |i: usize| u64::from_le_bytes(element[i * 8..i * 8 + 8].try_into().expect("8"));
+            let field =
+                |i: usize| u64::from_le_bytes(element[i * 8..i * 8 + 8].try_into().expect("8"));
             if field(0) == id && field(1) != 0 {
                 return Ok((field(1), Some(field(2))));
             }

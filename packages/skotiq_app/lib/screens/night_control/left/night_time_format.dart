@@ -18,7 +18,9 @@ String _two(int v) => v.toString().padLeft(2, '0');
 
 /// `≈03:40` when [estimated], else `03:40`.
 String nightHmMaybeEstimated(DateTime onClock, {required bool estimated}) =>
-    estimated ? '$kNightEstimatePrefix${ClockFormat.hm(onClock)}' : ClockFormat.hm(onClock);
+    estimated
+        ? '$kNightEstimatePrefix${ClockFormat.hm(onClock)}'
+        : ClockFormat.hm(onClock);
 
 /// `4 h 04 m`, `7 h`, `12 m`. A negative length reads as zero minutes.
 String nightSpan(SkotiqLocalizations l10n, Duration d) {

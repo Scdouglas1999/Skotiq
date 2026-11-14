@@ -108,8 +108,8 @@ void main() {
     return (controller, router);
   }
 
-  testWidgets(
-      'the build action opens the target\'s framing check', (tester) async {
+  testWidgets('the build action opens the target\'s framing check',
+      (tester) async {
     final (controller, router) = await pump(
       tester,
       SessionReviewState(

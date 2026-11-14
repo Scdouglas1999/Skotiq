@@ -42,7 +42,9 @@ bridge_event.SkotiqEvent _sequencerEvent(
 }
 
 bridge_event.SkotiqEvent _midRunError(int id, {String message = _reason}) =>
-    _sequencerEvent(id, bridge_event.SequencerEvent.error(
+    _sequencerEvent(
+      id,
+      bridge_event.SequencerEvent.error(
         message: message,
         kind: bridge_event.SequencerErrorKind.stepFailed,
       ),

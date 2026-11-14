@@ -39,4 +39,3 @@ final forensicsRecordsForSessionProvider = FutureProvider.family
       final svc = ref.watch(forensicsServiceProvider);
       return svc.loadRecentForSession(sessionId);
     });
-

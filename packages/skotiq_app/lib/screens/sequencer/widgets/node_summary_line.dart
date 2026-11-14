@@ -68,8 +68,8 @@ class NodeSummaryLine extends ConsumerWidget {
         localNode is AutofocusNode && localNode.useSettingsDefaults
             ? ref.watch(autofocusSettingsProvider).method
             : null;
-    final fragments =
-        nodeSummary(localNode, globalAutofocusMethod: globalAfMethod,
+    final fragments = nodeSummary(localNode,
+        globalAutofocusMethod: globalAfMethod,
         sensitivity: ref.watch(cameraSensitivityProvider));
     if (fragments.isEmpty) return const SizedBox.shrink();
 

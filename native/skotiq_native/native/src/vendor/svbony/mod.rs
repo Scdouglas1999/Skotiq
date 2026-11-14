@@ -265,7 +265,10 @@ mod tests {
             control(18, true),
             control(11, false),
         ]);
-        let reset: Vec<c_int> = controls.reset_at_connect().map(|c| c.control_type).collect();
+        let reset: Vec<c_int> = controls
+            .reset_at_connect()
+            .map(|c| c.control_type)
+            .collect();
         assert_eq!(reset, vec![0, 2, 7, 13, 18]);
     }
 

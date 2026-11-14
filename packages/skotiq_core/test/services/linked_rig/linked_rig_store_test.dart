@@ -40,10 +40,8 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
 
-  LinkedRigStore storeWith(SecureKeyValueStore keyring) => LinkedRigStore(
-    dataDirectory: () async => dir,
-    secureStore: keyring,
-  );
+  LinkedRigStore storeWith(SecureKeyValueStore keyring) =>
+      LinkedRigStore(dataDirectory: () async => dir, secureStore: keyring);
 
   test('round-trips the rig and keeps the token in the keyring', () async {
     final keyring = InMemorySecureKeyValueStore();

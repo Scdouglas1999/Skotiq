@@ -159,8 +159,12 @@ impl AscomFilterWheelWrapper {
     }
 
     pub async fn connect(&self) -> Result<(), DeviceOpError> {
-        self.ask(AscomFilterWheelCommand::Connect, Timeouts::connection(), "connect")
-            .await
+        self.ask(
+            AscomFilterWheelCommand::Connect,
+            Timeouts::connection(),
+            "connect",
+        )
+        .await
     }
 
     pub async fn disconnect(&self) -> Result<(), DeviceOpError> {
@@ -262,7 +266,10 @@ mod tests {
             false
         });
 
-        let error = wrapper.connect().await.expect_err("Names failure must propagate");
+        let error = wrapper
+            .connect()
+            .await
+            .expect_err("Names failure must propagate");
         assert!(error.to_string().contains("Names"), "{error}");
     }
 

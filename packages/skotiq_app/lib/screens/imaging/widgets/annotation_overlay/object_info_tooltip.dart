@@ -40,9 +40,7 @@ class ObjectInfoTooltip extends ConsumerWidget {
     final uiState = ref.read(observingListNotifierProvider);
     if (context.mounted) {
       context.showInfoSnackBar(
-        uiState.errorMessage ??
-uiState.statusMessage ??
-'Added ${object.name}',
+        uiState.errorMessage ?? uiState.statusMessage ?? 'Added ${object.name}',
         duration: const Duration(seconds: 2),
       );
     }
@@ -222,7 +220,6 @@ uiState.statusMessage ??
         return 'Unknown';
     }
   }
-
 }
 
 class _ObjectTypeIcon extends StatelessWidget {

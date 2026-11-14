@@ -7,9 +7,7 @@ import '../models/meridian_flip_settings.dart';
 import '../models/sequence/sequence_models.dart' show SequenceExecutionState;
 import 'equipment_provider.dart' show mountStateProvider;
 import 'meridian_flip_provider.dart'
-    show
-        effectiveMeridianFlipSettingsProvider,
-        isMeridianFlipEnabledProvider;
+    show effectiveMeridianFlipSettingsProvider, isMeridianFlipEnabledProvider;
 import 'sequence_provider.dart' show sequenceExecutionStateProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';

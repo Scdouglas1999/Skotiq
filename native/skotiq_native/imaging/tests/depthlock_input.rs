@@ -196,8 +196,14 @@ fn an_app_solved_sub_anchors_a_goal() {
 
     let geometry = ReferenceGeometry::from_header(&frame, 4656, 3520).unwrap();
     let linear = SipWcs::tan_only(
-        solve.crval1, solve.crval2, solve.crpix1, solve.crpix2, solve.cd1_1, solve.cd1_2,
-        solve.cd2_1, solve.cd2_2,
+        solve.crval1,
+        solve.crval2,
+        solve.crpix1,
+        solve.crpix2,
+        solve.cd1_1,
+        solve.cd1_2,
+        solve.cd2_1,
+        solve.cd2_2,
     );
     assert_eq!(geometry.wcs(), linear);
     assert!((geometry.pixel_scale_arcsec() - 0.6164).abs() < 1e-3);

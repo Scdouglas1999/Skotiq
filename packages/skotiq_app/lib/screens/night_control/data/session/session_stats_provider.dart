@@ -124,7 +124,8 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
         MetricVm(
           label: const NightText('nightSessionStatDropouts'),
           value: '$dropouts',
-          valueTone: dropouts > 0 ? MetricGridTone.warning : MetricGridTone.neutral,
+          valueTone:
+              dropouts > 0 ? MetricGridTone.warning : MetricGridTone.neutral,
         ),
     ],
     rejectStreak:

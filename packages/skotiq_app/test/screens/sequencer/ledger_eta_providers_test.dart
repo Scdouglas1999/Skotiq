@@ -122,7 +122,9 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       container
           .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: built.steps[1].id);
@@ -164,7 +166,9 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       container
           .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: built.steps[1].id);
@@ -231,7 +235,9 @@ void main() {
     });
 
     test('survives the sequencer closing while a run is still going', () async {
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 
@@ -253,7 +259,9 @@ void main() {
 
     test('keeps a finished run\'s observed starts after the tree is gone',
         () async {
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 
@@ -262,7 +270,9 @@ void main() {
       await _settleDisposal();
 
       // The run finishes and the operator leaves the sequencer.
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.completed);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.completed);
       subscription.close();
       await _settleDisposal();
 
@@ -274,7 +284,9 @@ void main() {
     });
 
     test('a NEW run is what clears the record', () async {
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 

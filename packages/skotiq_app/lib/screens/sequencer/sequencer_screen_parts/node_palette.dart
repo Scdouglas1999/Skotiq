@@ -178,11 +178,11 @@ class _DraggableNodeItemCompactState
       _iconSquare + SkotiqTokens.spaceSm + 2 + _glyph + 4;
 
   void _addNode() => insertIntoTree(
-    context,
-    ref,
-    widget.item,
-    parentId: ref.read(selectedNodeIdProvider),
-  );
+        context,
+        ref,
+        widget.item,
+        parentId: ref.read(selectedNodeIdProvider),
+      );
 
   @override
   Widget build(BuildContext context) {

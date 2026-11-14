@@ -246,8 +246,7 @@ void main() {
     );
     when(() => repository.loadAllTemplates()).thenAnswer((_) async => [custom]);
     final deletion = Completer<void>();
-    when(() => repository.deleteSequence(7))
-        .thenAnswer((_) => deletion.future);
+    when(() => repository.deleteSequence(7)).thenAnswer((_) => deletion.future);
     final hostA = DisconnectedBackend();
     final hostB = DisconnectedBackend();
     addTearDown(hostA.dispose);

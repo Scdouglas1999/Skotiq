@@ -167,7 +167,10 @@ void main() {
         final fake = FakeNetworkClient()
           ..setResponse(
             '/api/info',
-            body: jsonEncode({'version': skotiqRelease, 'fingerprint': 'ABCD1234'}),
+            body: jsonEncode({
+              'version': skotiqRelease,
+              'fingerprint': 'ABCD1234',
+            }),
           );
         final backend = _backend(
           fake,
@@ -189,7 +192,10 @@ void main() {
         final fake = FakeNetworkClient()
           ..setResponse(
             '/api/info',
-            body: jsonEncode({'version': skotiqRelease, 'fingerprint': 'DEADBEEF'}),
+            body: jsonEncode({
+              'version': skotiqRelease,
+              'fingerprint': 'DEADBEEF',
+            }),
           );
         final backend = _backend(
           fake,
@@ -209,7 +215,10 @@ void main() {
       'a server advertising no fingerprint is refused when client pins one',
       () async {
         final fake = FakeNetworkClient()
-          ..setResponse('/api/info', body: jsonEncode({'version': skotiqRelease}));
+          ..setResponse(
+            '/api/info',
+            body: jsonEncode({'version': skotiqRelease}),
+          );
         final backend = _backend(
           fake,
           host: '100.64.0.9',
@@ -228,7 +237,10 @@ void main() {
         final fake = FakeNetworkClient()
           ..setResponse(
             '/api/info',
-            body: jsonEncode({'version': skotiqRelease, 'fingerprint': 'ANYTHING'}),
+            body: jsonEncode({
+              'version': skotiqRelease,
+              'fingerprint': 'ANYTHING',
+            }),
           );
         final backend = _backend(fake, host: '192.168.1.10');
         addTearDown(backend.dispose);
@@ -246,7 +258,10 @@ void main() {
         final fake = FakeNetworkClient()
           ..setResponse(
             '/api/info',
-            body: jsonEncode({'version': skotiqRelease, 'fingerprint': 'DEADBEEF'}),
+            body: jsonEncode({
+              'version': skotiqRelease,
+              'fingerprint': 'DEADBEEF',
+            }),
           );
         final backend = _backend(
           fake,

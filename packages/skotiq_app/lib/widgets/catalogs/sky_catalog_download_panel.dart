@@ -60,8 +60,7 @@ class SkyCatalogDownloadPanel extends ConsumerWidget {
       label: settingsLabel,
       variant: ButtonVariant.ghost,
       size: ButtonSize.small,
-      onPressed: () =>
-          openSettings(context, SettingsSectionId.catalogs),
+      onPressed: () => openSettings(context, SettingsSectionId.catalogs),
     );
 
     final (IconData icon, String heading, String text, List<Widget> actions) =
@@ -117,9 +116,8 @@ class SkyCatalogDownloadPanel extends ConsumerWidget {
         ),
     };
 
-    final progress = install.isRunning
-        ? SkotiqProgressBar(value: install.progress)
-        : null;
+    final progress =
+        install.isRunning ? SkotiqProgressBar(value: install.progress) : null;
     final buttons = actions.isEmpty
         ? null
         : Wrap(

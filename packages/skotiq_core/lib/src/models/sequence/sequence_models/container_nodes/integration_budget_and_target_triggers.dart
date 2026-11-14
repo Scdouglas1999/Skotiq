@@ -274,8 +274,10 @@ sealed class TargetTrigger with _$TargetTrigger {
       'altitude ≥ ${v.toStringAsFixed(1)}°',
     AltitudeBelowTrigger(altitudeDeg: final v) =>
       'altitude ≤ ${v.toStringAsFixed(1)}°',
-    TimeAfterTrigger(unixSeconds: final v) => 'time ≥ ${ClockFormat.dateHm(DateTime.fromMillisecondsSinceEpoch(v * 1000).toLocal())}',
-    TimeBeforeTrigger(unixSeconds: final v) => 'time < ${ClockFormat.dateHm(DateTime.fromMillisecondsSinceEpoch(v * 1000).toLocal())}',
+    TimeAfterTrigger(unixSeconds: final v) =>
+      'time ≥ ${ClockFormat.dateHm(DateTime.fromMillisecondsSinceEpoch(v * 1000).toLocal())}',
+    TimeBeforeTrigger(unixSeconds: final v) =>
+      'time < ${ClockFormat.dateHm(DateTime.fromMillisecondsSinceEpoch(v * 1000).toLocal())}',
     AndTrigger(children: final cs) =>
       '(${cs.map((c) => c.label).join(' AND ')})',
     OrTrigger(children: final cs) => '(${cs.map((c) => c.label).join(' OR ')})',
@@ -351,4 +353,3 @@ bool evaluateTargetTrigger(
       return hourAngleHours >= lo && hourAngleHours <= hi;
   }
 }
-

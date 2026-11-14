@@ -103,22 +103,25 @@ fn main() {
         "detect_stars_with_stats",
         best_of(5, || detect_stars_with_stats(&frame, &cfg)),
     );
-    line(
-        "calculate_stats",
-        best_of(5, || calculate_stats(&frame)),
-    );
+    line("calculate_stats", best_of(5, || calculate_stats(&frame)));
     line(
         "calculate_histogram(256)",
         best_of(5, || calculate_histogram(&frame, 256)),
     );
     line("auto_stretch_stf", best_of(5, || auto_stretch_stf(&frame)));
     line("to_display_u8 mono", best_of(5, || frame.to_display_u8()));
-    line("thumbnail 512", best_of(5, || skotiq_imaging::thumbnail(&frame, 1, 512)));
+    line(
+        "thumbnail 512",
+        best_of(5, || skotiq_imaging::thumbnail(&frame, 1, 512)),
+    );
     let unit: Vec<f32> = frame.samples_f32().iter().map(|v| v / 65535.0).collect();
     let unit = ImageData::from_f32(frame.width, frame.height, 1, &unit)
         .with_range(skotiq_imaging::SampleRange::UNIT);
     line("samples_f32 [0,1] float", best_of(5, || unit.samples_f32()));
-    line("detect_stars [0,1] float", best_of(5, || detect_stars(&unit, &cfg)));
+    line(
+        "detect_stars [0,1] float",
+        best_of(5, || detect_stars(&unit, &cfg)),
+    );
     line(
         "measure_frame_shape",
         best_of(5, || measure_frame_shape(&frame)),

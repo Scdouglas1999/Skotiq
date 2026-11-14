@@ -87,9 +87,7 @@ void insertSnippetGuarded(
     ref,
     operationName: 'insert snippet',
     action: () async {
-      ref
-          .read(currentSequenceProvider.notifier)
-          .insertSnippet(
+      ref.read(currentSequenceProvider.notifier).insertSnippet(
             snippet,
             parentId: parentId,
             index: index,

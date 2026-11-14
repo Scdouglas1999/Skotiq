@@ -323,7 +323,8 @@ mixin _MobileReconnectOps on _MobileConnectionState {
               pinnedFingerprint: enrichedServer.fingerprint,
             );
             final lanResult = await lanPairing.lanClaim();
-            if (!_isCurrentConnectionOperation(operationGeneration)) return false;
+            if (!_isCurrentConnectionOperation(operationGeneration))
+              return false;
             if (lanResult != null &&
                 lanResult.success &&
                 lanResult.token != null &&
@@ -341,7 +342,8 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             // Fail-closed: the lan-claim pre-flight refused the identity.
             // Surface it rather than silently dropping to the code dialog —
             // a mismatch means the host we reached is not the one we trust.
-            if (!_isCurrentConnectionOperation(operationGeneration)) return false;
+            if (!_isCurrentConnectionOperation(operationGeneration))
+              return false;
             setState(() {
               _isDiscovering = false;
               _statusMessage = '';

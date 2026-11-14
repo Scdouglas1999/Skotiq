@@ -45,8 +45,9 @@ String? _xdgPicturesDir(String home, String configDir) {
 @visibleForTesting
 Future<String> makeCaptureDirectoryIn(String home, {String? configDir}) async {
   final sep = Platform.pathSeparator;
-  final pictures = (configDir == null ? null : _xdgPicturesDir(home, configDir)) ??
-      '$home${sep}Pictures';
+  final pictures =
+      (configDir == null ? null : _xdgPicturesDir(home, configDir)) ??
+          '$home${sep}Pictures';
   final parent = await Directory(pictures).exists() ? pictures : home;
   final folder = await Directory('$parent${sep}Skotiq').create(recursive: true);
   return folder.path;
@@ -62,9 +63,8 @@ Future<String?> prepareDefaultCaptureDirectory() async {
   if (home == null || home.trim().isEmpty) return null;
   return makeCaptureDirectoryIn(
     home,
-    configDir: Platform.isLinux
-        ? env['XDG_CONFIG_HOME'] ?? '$home/.config'
-        : null,
+    configDir:
+        Platform.isLinux ? env['XDG_CONFIG_HOME'] ?? '$home/.config' : null,
   );
 }
 
@@ -304,7 +304,8 @@ class _OnboardingCaptureDirStepState
       setState(() {
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
+        _checkDetail =
+            'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
       if (operation.isCurrent && _validating) {
@@ -324,7 +325,8 @@ class _OnboardingCaptureDirStepState
   /// A caller that keeps working after the check (the typed-path commit, which
   /// still has a draft write to do) must share its scope, or it supersedes
   /// itself and discards its own result.
-  Future<void> _verify(String path, {AsyncScope<HostFolders>? operation}) async {
+  Future<void> _verify(String path,
+      {AsyncScope<HostFolders>? operation}) async {
     final scope = operation ?? _operations.beginLatest();
     setState(() {
       _check = _FolderCheck.checking;
@@ -394,7 +396,8 @@ class _OnboardingCaptureDirStepState
         _selecting = false;
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
+        _checkDetail =
+            'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
       if (operation.isCurrent) {

@@ -252,7 +252,8 @@ List<SummaryFragment> nodeSummary(
     // target headers via a dedicated card and does not consume this.
     TargetHeaderNode(displayName: final displayName) => <SummaryFragment>[
         StaticFragment(displayName, emphasized: true),
-        StaticFragment('${CoordinateFormat.raCompact(node.raHours)} ${CoordinateFormat.decCompact(node.decDegrees)}'),
+        StaticFragment(
+            '${CoordinateFormat.raCompact(node.raHours)} ${CoordinateFormat.decCompact(node.decDegrees)}'),
       ],
 
     // Slew — coordinate entry is panel-grade, so the whole line is static.
@@ -373,7 +374,8 @@ List<SummaryFragment> nodeSummary(
     // Rotator — angle + reference are panel-grade together; static.
     RotatorNode(targetAngle: final angle, relative: final relative) =>
       <SummaryFragment>[
-        StaticFragment('→ ${QuantityFormat.trimmed(angle)}° ${relative ? 'rel' : 'abs'}'),
+        StaticFragment(
+            '→ ${QuantityFormat.trimmed(angle)}° ${relative ? 'rel' : 'abs'}'),
       ],
 
     // Flat-panel calibrator on — brightness shown statically (the panel
@@ -459,7 +461,8 @@ List<SummaryFragment> nodeSummary(
       startAltitude: final startAlt,
     ) =>
       <SummaryFragment>[
-        StaticFragment('${isNorth ? 'N' : 'S'} · alt ${QuantityFormat.trimmed(startAlt)}°'),
+        StaticFragment(
+            '${isNorth ? 'N' : 'S'} · alt ${QuantityFormat.trimmed(startAlt)}°'),
       ],
 
     // Guiding lifecycle — settle params are a tuple; static.

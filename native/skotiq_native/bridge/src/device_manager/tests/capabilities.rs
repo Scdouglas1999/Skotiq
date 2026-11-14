@@ -20,7 +20,10 @@ async fn connect_sim(id: &str, device_type: DeviceType) -> &'static DeviceManage
 }
 
 async fn release(manager: &DeviceManager, id: &str) {
-    manager.disconnect_device(id).await.expect("disconnect simulator");
+    manager
+        .disconnect_device(id)
+        .await
+        .expect("disconnect simulator");
     manager.unregister_device(id).await;
 }
 
@@ -151,8 +154,14 @@ async fn every_connected_simulated_accessory_answers_through_its_handle() {
             (Ok(DeviceCapabilities::Dome(_)), DeviceType::Dome)
                 | (Ok(DeviceCapabilities::Rotator(_)), DeviceType::Rotator)
                 | (Ok(DeviceCapabilities::Weather(_)), DeviceType::Weather)
-                | (Ok(DeviceCapabilities::SafetyMonitor(_)), DeviceType::SafetyMonitor)
-                | (Ok(DeviceCapabilities::CoverCalibrator(_)), DeviceType::CoverCalibrator)
+                | (
+                    Ok(DeviceCapabilities::SafetyMonitor(_)),
+                    DeviceType::SafetyMonitor
+                )
+                | (
+                    Ok(DeviceCapabilities::CoverCalibrator(_)),
+                    DeviceType::CoverCalibrator
+                )
         );
         assert!(matches_type, "{id}: got {answer:?}");
     }

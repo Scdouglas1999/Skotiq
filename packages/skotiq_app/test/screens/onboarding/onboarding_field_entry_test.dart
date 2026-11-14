@@ -85,7 +85,8 @@ void main() {
     final focalError = find.text('Enter a positive focal length in mm.');
     expect(focalError, findsOneWidget);
     expect(find.text('Enter a positive aperture in mm.'), findsOneWidget);
-    expect(find.text('Enter a positive pixel size in microns.'), findsOneWidget);
+    expect(
+        find.text('Enter a positive pixel size in microns.'), findsOneWidget);
     // The error sits with its field, above the aperture label, not in the
     // band under the card.
     expect(

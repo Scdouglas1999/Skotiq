@@ -116,7 +116,11 @@ void main() {
       final client = _client(backend);
       addTearDown(client.dispose);
 
-      applyHostEventOnClient(client, backend, _overWire(updates.single.toEvent()));
+      applyHostEventOnClient(
+        client,
+        backend,
+        _overWire(updates.single.toEvent()),
+      );
 
       final mirrored = client.read(plateSolveStateProvider).lastResult;
       expect(mirrored, isNotNull);
@@ -582,51 +586,53 @@ void main() {
       );
     });
 
-    test("the host's run events do not write the client's run progress",
-        () async {
-      final backend = _clientBackend();
-      final client = await roundTrip((host) {
-        host.read(runRecordProvider.notifier)
-          ..setLifecycle(SequenceExecutionState.running)
-          ..updateProgress(currentNodeId: 'exp-r', currentNodeName: 'R');
-      }, 'sequenceRun');
-      // The next step starts on the host. Its event names the step's type;
-      // the channel names the step, a moment later.
-      applyHostEventOnClient(
-        client,
-        backend,
-        _overWire(
-          const SkotiqEvent(
-            timestamp: 1,
-            severity: EventSeverity.info,
-            category: EventCategory.sequencer,
-            eventType: 'NodeStarted',
-            data: const {'node_id': 'exp-g', 'node_type': 'TakeExposure'},
+    test(
+      "the host's run events do not write the client's run progress",
+      () async {
+        final backend = _clientBackend();
+        final client = await roundTrip((host) {
+          host.read(runRecordProvider.notifier)
+            ..setLifecycle(SequenceExecutionState.running)
+            ..updateProgress(currentNodeId: 'exp-r', currentNodeName: 'R');
+        }, 'sequenceRun');
+        // The next step starts on the host. Its event names the step's type;
+        // the channel names the step, a moment later.
+        applyHostEventOnClient(
+          client,
+          backend,
+          _overWire(
+            const SkotiqEvent(
+              timestamp: 1,
+              severity: EventSeverity.info,
+              category: EventCategory.sequencer,
+              eventType: 'NodeStarted',
+              data: const {'node_id': 'exp-g', 'node_type': 'TakeExposure'},
+            ),
           ),
-        ),
-      );
-      applyHostEventOnClient(
-        client,
-        backend,
-        _overWire(
-          const SkotiqEvent(
-            timestamp: 2,
-            severity: EventSeverity.info,
-            category: EventCategory.sequencer,
-            eventType: 'Paused',
-            data: const {},
+        );
+        applyHostEventOnClient(
+          client,
+          backend,
+          _overWire(
+            const SkotiqEvent(
+              timestamp: 2,
+              severity: EventSeverity.info,
+              category: EventCategory.sequencer,
+              eventType: 'Paused',
+              data: const {},
+            ),
           ),
-        ),
-      );
-      final progress = client.read(sequenceProgressProvider);
-      expect(progress.currentNodeName, 'R');
-      expect(progress.currentNodeId, 'exp-r');
-      expect(
-        client.read(sequenceExecutionStateProvider),
-        SequenceExecutionState.running,
-      );
-      verifyNever(() => backend.sequencerGetStatus());
-    });
+        );
+        final progress = client.read(sequenceProgressProvider);
+        expect(progress.currentNodeName, 'R');
+        expect(progress.currentNodeId, 'exp-r');
+        expect(
+          client.read(sequenceExecutionStateProvider),
+          SequenceExecutionState.running,
+        );
+        verifyNever(() => backend.sequencerGetStatus());
+      },
+    );
 
     test('a flip on the host shows on the client', () async {
       final client = await roundTrip((host) {

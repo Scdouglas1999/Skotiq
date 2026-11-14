@@ -715,7 +715,6 @@ class _SequencerRecoveryActionsBannerState
       ),
     );
   }
-
 }
 
 class _RecoveryChip extends StatelessWidget {

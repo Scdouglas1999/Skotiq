@@ -414,9 +414,13 @@ class UpdateService {
         currentVersion: _currentVersion,
       );
     } on SocketException catch (e) {
-      throw UpdateException('Could not reach the update server (${e.message}).');
+      throw UpdateException(
+        'Could not reach the update server (${e.message}).',
+      );
     } on http.ClientException catch (e) {
-      throw UpdateException('Could not reach the update server (${e.message}).');
+      throw UpdateException(
+        'Could not reach the update server (${e.message}).',
+      );
     } on FormatException catch (e) {
       throw UpdateException('Invalid response format: ${e.message}');
     } on TypeError catch (e) {

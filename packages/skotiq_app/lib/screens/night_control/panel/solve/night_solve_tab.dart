@@ -202,7 +202,8 @@ class _LastSolveSection extends ConsumerWidget {
             result != null &&
             !result.success &&
             result.error != null)
-          NightPanelNote(result.error!, tone: MetricGridTone.bad, maxLines: null),
+          NightPanelNote(result.error!,
+              tone: MetricGridTone.bad, maxLines: null),
         if (inputs.solverMissing)
           NightPanelNote(
             l10n.text('nightScopeSolverMissingNote'),

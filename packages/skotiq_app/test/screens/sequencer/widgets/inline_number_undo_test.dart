@@ -71,8 +71,8 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 400));
 
-    final edited = widgetRef.read(currentSequenceProvider)!.nodes['exp']!
-        as ExposureNode;
+    final edited =
+        widgetRef.read(currentSequenceProvider)!.nodes['exp']! as ExposureNode;
     expect(edited.durationSecs, 300);
     expect(notifier.undoStack.length - before, 1);
   });

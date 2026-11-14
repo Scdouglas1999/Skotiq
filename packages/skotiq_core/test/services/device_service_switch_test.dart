@@ -218,7 +218,9 @@ void main() {
         SwitchChannelService.switchBridgeGetMax = (_) async =>
             throw StateError('channel snapshot unavailable');
 
-        await container.read(deviceServiceProvider).connect(DeviceType.switch_, deviceId);
+        await container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.switch_, deviceId);
 
         final state = container.read(switchStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);

@@ -76,13 +76,11 @@ class _EquipmentStatsTab extends ConsumerWidget {
                 'mount and guider actually did.',
           );
         }
-        final lights =
-            images.where((i) => i.isLight).toList();
+        final lights = images.where((i) => i.isLight).toList();
         // Accepted lights are the usable integration/quality population;
         // total camera exposures and temperature still cover every frame.
-        final acceptedLights = lights
-            .where((i) => i.isLight && i.isAccepted)
-            .toList();
+        final acceptedLights =
+            lights.where((i) => i.isLight && i.isAccepted).toList();
         final totalExposures = images.length;
         final acceptedIntegration = acceptedLights.fold<double>(
           0,

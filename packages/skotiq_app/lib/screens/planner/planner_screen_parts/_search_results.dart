@@ -24,10 +24,9 @@ class _PlannerSearchResults extends ConsumerWidget {
     if (trimmed.length < localQueryFloor) return const SizedBox.shrink();
     final candidates =
         ref.watch(plannerFilteredSuggestionsProvider).valueOrNull ?? const [];
-    final installedMatches = ref
-            .watch(plannerInstalledCatalogSearchProvider(trimmed))
-            .valueOrNull ??
-        const [];
+    final installedMatches =
+        ref.watch(plannerInstalledCatalogSearchProvider(trimmed)).valueOrNull ??
+            const [];
 
     return Padding(
       padding: const EdgeInsets.only(top: SkotiqTokens.space2xl),

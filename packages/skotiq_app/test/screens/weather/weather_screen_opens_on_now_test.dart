@@ -143,5 +143,4 @@ void main() {
       expect(latestObservedRadarFrameIndex(const []), 0);
     });
   });
-
 }

@@ -70,22 +70,29 @@ void main() {
     expect(await startDaemon(dataDirectory: other), isNot(await startDaemon()));
   });
 
-  test('a configured admin token stays the identity clients paired with', () async {
-    expect(
-      await startDaemon(authToken: 'operator-token'),
-      computeServerFingerprint('operator-token'),
-    );
-    expect(
-      File(p.join(dataDir.path, hostIdentityKeyFileName)).existsSync(),
-      isFalse,
-    );
-  });
+  test(
+    'a configured admin token stays the identity clients paired with',
+    () async {
+      expect(
+        await startDaemon(authToken: 'operator-token'),
+        computeServerFingerprint('operator-token'),
+      );
+      expect(
+        File(p.join(dataDir.path, hostIdentityKeyFileName)).existsSync(),
+        isFalse,
+      );
+    },
+  );
 
-  test('the identity key is readable by its owner only', () async {
-    await startDaemon();
-    final mode = File(p.join(dataDir.path, hostIdentityKeyFileName))
-        .statSync()
-        .modeString();
-    expect(mode, 'rw-------');
-  }, skip: Platform.isWindows ? 'POSIX file modes' : null);
+  test(
+    'the identity key is readable by its owner only',
+    () async {
+      await startDaemon();
+      final mode = File(
+        p.join(dataDir.path, hostIdentityKeyFileName),
+      ).statSync().modeString();
+      expect(mode, 'rw-------');
+    },
+    skip: Platform.isWindows ? 'POSIX file modes' : null,
+  );
 }

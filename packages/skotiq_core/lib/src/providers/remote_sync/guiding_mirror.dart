@@ -5,7 +5,10 @@ part of '../remote_sync_handler.dart';
 void _applyGuidingEvent(ProviderContainer container, SkotiqEvent event) {
   switch (event.eventType) {
     case 'Connected':
-      final notifier = readDeviceConnectionNotifier(container, DeviceType.guider);
+      final notifier = readDeviceConnectionNotifier(
+        container,
+        DeviceType.guider,
+      );
       if (!_isDeviceAlreadyConnected(
         container,
         DeviceType.guider,
@@ -15,6 +18,9 @@ void _applyGuidingEvent(ProviderContainer container, SkotiqEvent event) {
       }
       notifier.setConnected();
     case 'Disconnected':
-      readDeviceConnectionNotifier(container, DeviceType.guider).setDisconnected();
+      readDeviceConnectionNotifier(
+        container,
+        DeviceType.guider,
+      ).setDisconnected();
   }
 }

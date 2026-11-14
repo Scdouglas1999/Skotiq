@@ -32,8 +32,7 @@ class _FailingSettingsNotifier extends AppSettingsNotifier {
   }
 }
 
-Future<HarnessHandle> _pump(
-    WidgetTester tester, DeviceType type) async {
+Future<HarnessHandle> _pump(WidgetTester tester, DeviceType type) async {
   final handle = await pumpAppScreen(
     tester,
     ConnectedDeviceCard(type: type),
@@ -185,10 +184,8 @@ void main() {
     testWidgets('out-of-range backlash (10001) is rejected and stays open',
         (tester) async {
       final handle = await _pump(tester, DeviceType.focuser);
-      final before = handle.container
-          .read(appSettingsProvider)
-          .requireValue
-          .afBacklashIn;
+      final before =
+          handle.container.read(appSettingsProvider).requireValue.afBacklashIn;
 
       await _openDialog(tester);
       await tester.enterText(coeffField(), '2.0');
@@ -197,10 +194,7 @@ void main() {
 
       expect(find.text('Focuser configuration'), findsOneWidget);
       expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .afBacklashIn,
+        handle.container.read(appSettingsProvider).requireValue.afBacklashIn,
         before,
       );
     });

@@ -57,6 +57,9 @@ pub(crate) async fn register_connected(
     manager: &crate::device_manager::DeviceManager,
     info: crate::device::DeviceInfo,
 ) {
-    manager.connect_simulator(&info).await.expect("simulator connects");
+    manager
+        .connect_simulator(&info)
+        .await
+        .expect("simulator connects");
     manager.register_device(info, false).await;
 }

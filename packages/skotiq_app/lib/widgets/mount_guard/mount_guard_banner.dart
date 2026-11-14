@@ -75,8 +75,8 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
     final title = lost != null
         ? "Mount position unknown: automatic moves are stopped"
         : stillMoving
-        ? 'The mount is moving on its own'
-        : 'The mount moved on its own';
+            ? 'The mount is moving on its own'
+            : 'The mount moved on its own';
     final lines = <String>[
       if (fault != null) fault.message,
       if (lost != null) lost.message,
@@ -189,10 +189,10 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
                   onPressed: stillMoving
                       ? null
                       : () => showDialog<void>(
-                          context: context,
-                          builder: (_) =>
-                              MountGuardRecoveryDialog(deviceId: entry.deviceId),
-                        ),
+                            context: context,
+                            builder: (_) => MountGuardRecoveryDialog(
+                                deviceId: entry.deviceId),
+                          ),
                 ),
               ],
             ),
@@ -215,4 +215,3 @@ String _summarizeAttempts(List<String> attempts) {
   if (rounds.length == 1) return rounds.values.first.join(', ');
   return '${rounds.values.first.join(', ')} (${rounds.length} rounds)';
 }
-

@@ -65,7 +65,9 @@ class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
         widget.onFilterSelected!(position, fwState.filterNames[position]);
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Failed to change filter: ${userFacingError(e)}');
+      if (mounted)
+        context.showErrorSnackBar(
+            'Failed to change filter: ${userFacingError(e)}');
     }
   }
 

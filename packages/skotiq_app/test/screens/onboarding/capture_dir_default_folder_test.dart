@@ -29,7 +29,7 @@ Future<ProviderContainer> _pump(
       onboardingDefaultCaptureDirectoryProvider
           .overrideWithValue(() async => _suggested),
       hostFoldersProvider.overrideWithValue(FakeHostFolders(
-        onCheck: folderCheckFrom(
+          onCheck: folderCheckFrom(
         (path) async => null,
       ))),
     ],

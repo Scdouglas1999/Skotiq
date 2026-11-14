@@ -80,8 +80,8 @@ Widget _harness({
         return notifier;
       }),
       if (execState != null)
-        runRecordProvider.overrideWith(
-            (ref) => RunRecordNotifier()..showPhase(execState)),
+        runRecordProvider
+            .overrideWith((ref) => RunRecordNotifier()..showPhase(execState)),
     ],
     child: MaterialApp(
       theme: ThemeData.dark().copyWith(

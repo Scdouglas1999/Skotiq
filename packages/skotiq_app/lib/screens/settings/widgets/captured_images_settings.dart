@@ -40,7 +40,8 @@ class _CapturedImagesSettingsState
   /// drops what the old host answers.
   late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
-  HostImagingRecords? get _records => ref.read(linkedHostImagingRecordsProvider);
+  HostImagingRecords? get _records =>
+      ref.read(linkedHostImagingRecordsProvider);
 
   @override
   void initState() {

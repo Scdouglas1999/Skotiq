@@ -42,8 +42,10 @@ sta_accessory!(AscomObservingConditionsWrapper);
 impl ObservingConditionsMembers for AscomObservingConditionsWrapper {
     async fn sensor(&self, sensor: Sensor) -> Result<f64, DriverError> {
         self.device
-            .run(sensor.ascom_name(), Timeouts::property_read(), move |d| {
-                match sensor {
+            .run(
+                sensor.ascom_name(),
+                Timeouts::property_read(),
+                move |d| match sensor {
                     Sensor::CloudCover => d.cloud_cover(),
                     Sensor::DewPoint => d.dew_point(),
                     Sensor::Humidity => d.humidity(),
@@ -57,8 +59,8 @@ impl ObservingConditionsMembers for AscomObservingConditionsWrapper {
                     Sensor::WindDirection => d.wind_direction(),
                     Sensor::WindGust => d.wind_gust(),
                     Sensor::WindSpeed => d.wind_speed(),
-                }
-            })
+                },
+            )
             .await
             .map_err(driver_error)
     }

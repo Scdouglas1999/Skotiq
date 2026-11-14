@@ -64,12 +64,25 @@ async fn http(base: &str, method: &str, path: &str, form: &str) -> serde_json::V
 
 /// An OmniSim setting, e.g. `simulate(&base, "focuser", "absolute", "Absolute=false")`.
 async fn simulate(base: &str, device: &str, setting: &str, form: &str) {
-    let reply = http(base, "PUT", &format!("/simulator/v1/{device}/0/{setting}"), form).await;
+    let reply = http(
+        base,
+        "PUT",
+        &format!("/simulator/v1/{device}/0/{setting}"),
+        form,
+    )
+    .await;
     assert_eq!(reply["ErrorNumber"], 0, "{device} {setting}: {reply}");
 }
 
 async fn simulated(base: &str, device: &str, setting: &str) -> serde_json::Value {
-    http(base, "GET", &format!("/simulator/v1/{device}/0/{setting}"), "").await["Value"].clone()
+    http(
+        base,
+        "GET",
+        &format!("/simulator/v1/{device}/0/{setting}"),
+        "",
+    )
+    .await["Value"]
+        .clone()
 }
 
 /// What another client sees of `member`, straight from the device.
@@ -156,28 +169,48 @@ async fn an_absolute_focuser_moves_to_positions_and_reports_its_properties() {
 
     assert!(manager.focuser_is_absolute(&id).await.expect("Absolute"));
     let (max_step, step_size) = manager.focuser_get_details(&id).await.expect("travel");
-    assert_eq!(i64::from(max_step), alpaca_get(&base, "focuser", "maxstep").await);
+    assert_eq!(
+        i64::from(max_step),
+        alpaca_get(&base, "focuser", "maxstep").await
+    );
     assert_eq!(step_size, alpaca_get(&base, "focuser", "stepsize").await);
 
     let start = manager.focuser_get_position(&id).await.expect("Position");
-    let target = if start > max_step / 2 { start - 400 } else { start + 400 };
+    let target = if start > max_step / 2 {
+        start - 400
+    } else {
+        start + 400
+    };
     manager.focuser_move_abs(&id, target).await.expect("Move");
     focuser_at_rest(&manager, &id).await;
     assert_eq!(manager.focuser_get_position(&id).await.unwrap(), target);
     assert_eq!(alpaca_get(&base, "focuser", "position").await, target);
 
-    manager.focuser_move_rel(&id, -120).await.expect("relative move");
+    manager
+        .focuser_move_rel(&id, -120)
+        .await
+        .expect("relative move");
     focuser_at_rest(&manager, &id).await;
-    assert_eq!(manager.focuser_get_position(&id).await.unwrap(), target - 120);
+    assert_eq!(
+        manager.focuser_get_position(&id).await.unwrap(),
+        target - 120
+    );
 
     // 4000 steps take OmniSim 10 s; Halt stops it where it is.
-    let far = if target > max_step / 2 { target - 4000 } else { target + 4000 };
+    let far = if target > max_step / 2 {
+        target - 4000
+    } else {
+        target + 4000
+    };
     manager.focuser_move_abs(&id, far).await.expect("Move");
     tokio::time::sleep(Duration::from_millis(500)).await;
     manager.focuser_halt(&id).await.expect("Halt");
     focuser_at_rest(&manager, &id).await;
     let stopped = manager.focuser_get_position(&id).await.unwrap();
-    assert_ne!(stopped, far, "the halt stopped the move short of its target");
+    assert_ne!(
+        stopped, far,
+        "the halt stopped the move short of its target"
+    );
 
     let temperature = manager.focuser_get_temp(&id).await.expect("Temperature");
     assert_eq!(
@@ -185,9 +218,18 @@ async fn an_absolute_focuser_moves_to_positions_and_reports_its_properties() {
         alpaca_get(&base, "focuser", "temperature").await.as_f64()
     );
 
-    let caps = manager.focuser(&id).await.unwrap().capabilities(&id).await.unwrap();
+    let caps = manager
+        .focuser(&id)
+        .await
+        .unwrap()
+        .capabilities(&id)
+        .await
+        .unwrap();
     assert!(caps.absolute);
-    assert_eq!(i64::from(caps.max_position), alpaca_get(&base, "focuser", "maxstep").await);
+    assert_eq!(
+        i64::from(caps.max_position),
+        alpaca_get(&base, "focuser", "maxstep").await
+    );
     assert_eq!(
         i64::from(caps.max_increment),
         alpaca_get(&base, "focuser", "maxincrement").await
@@ -224,24 +266,48 @@ async fn a_relative_focuser_is_moved_by_steps_and_has_a_counted_position() {
     let (max_step, _) = manager.focuser_get_details(&id).await.unwrap();
     assert_eq!(start, max_step / 2);
 
-    manager.focuser_move_abs(&id, start + 300).await.expect("Move");
+    manager
+        .focuser_move_abs(&id, start + 300)
+        .await
+        .expect("Move");
     // OmniSim's relative focuser holds the commanded step count in its
     // position setting and counts it down to 0 as it moves.
-    let commanded = simulated(&base, "focuser", "position").await.as_i64().unwrap();
+    let commanded = simulated(&base, "focuser", "position")
+        .await
+        .as_i64()
+        .unwrap();
     assert!(
         (0..=300).contains(&commanded),
         "Move was sent the 300 steps, not the position: {commanded}"
     );
     focuser_at_rest(&manager, &id).await;
-    assert_eq!(manager.focuser_get_position(&id).await.unwrap(), start + 300);
+    assert_eq!(
+        manager.focuser_get_position(&id).await.unwrap(),
+        start + 300
+    );
 
-    manager.focuser_move_rel(&id, -50).await.expect("relative move");
-    let commanded = simulated(&base, "focuser", "position").await.as_i64().unwrap();
+    manager
+        .focuser_move_rel(&id, -50)
+        .await
+        .expect("relative move");
+    let commanded = simulated(&base, "focuser", "position")
+        .await
+        .as_i64()
+        .unwrap();
     assert!((-50..=0).contains(&commanded), "{commanded}");
     focuser_at_rest(&manager, &id).await;
-    assert_eq!(manager.focuser_get_position(&id).await.unwrap(), start + 250);
+    assert_eq!(
+        manager.focuser_get_position(&id).await.unwrap(),
+        start + 250
+    );
 
-    let caps = manager.focuser(&id).await.unwrap().capabilities(&id).await.unwrap();
+    let caps = manager
+        .focuser(&id)
+        .await
+        .unwrap()
+        .capabilities(&id)
+        .await
+        .unwrap();
     assert!(!caps.absolute);
     assert_eq!(caps.position, Some(start + 250));
 
@@ -257,7 +323,13 @@ async fn a_relative_focuser_is_moved_by_steps_and_has_a_counted_position() {
 async fn a_filter_change_ends_when_the_wheel_is_at_the_slot() {
     let Some(base) = omnisim() else { return };
     let _guard = omnisim_lock().lock().await;
-    simulate(&base, "filterwheel", "filterchangetimeinterval", "FilterChangeTimeInterval=400").await;
+    simulate(
+        &base,
+        "filterwheel",
+        "filterchangetimeinterval",
+        "FilterChangeTimeInterval=400",
+    )
+    .await;
     let manager = build_device_manager();
     let id = connect(&manager, &base, DeviceType::FilterWheel).await;
     wait_until("wheel at rest", Duration::from_secs(30), || async {
@@ -294,7 +366,13 @@ async fn a_filter_change_ends_when_the_wheel_is_at_the_slot() {
         "{error:?}"
     );
 
-    let caps = manager.filter_wheel(&id).await.unwrap().capabilities(&id).await.unwrap();
+    let caps = manager
+        .filter_wheel(&id)
+        .await
+        .unwrap()
+        .capabilities(&id)
+        .await
+        .unwrap();
     assert_eq!(caps.position_count, count);
     assert_eq!(caps.current_position, Some(to));
     assert_eq!(
@@ -324,7 +402,10 @@ async fn a_rotator_move_ends_at_the_angle_and_a_sync_moves_only_the_sky_angle() 
 
     let start = rotator.position().await.unwrap();
     let target = (start + 45.0) % 360.0;
-    manager.rotator_move_absolute(&id, target).await.expect("MoveAbsolute");
+    manager
+        .rotator_move_absolute(&id, target)
+        .await
+        .expect("MoveAbsolute");
     assert!(
         !rotator.is_moving().await.unwrap(),
         "the move returned while the rotator was still turning"
@@ -340,27 +421,44 @@ async fn a_rotator_move_ends_at_the_angle_and_a_sync_moves_only_the_sky_angle() 
     );
     assert_eq!(
         Some(rotator.mechanical_position().await.unwrap()),
-        alpaca_get(&base, "rotator", "mechanicalposition").await.as_f64()
+        alpaca_get(&base, "rotator", "mechanicalposition")
+            .await
+            .as_f64()
     );
 
     let caps = rotator.capabilities(&id).await.unwrap();
-    assert_eq!(caps.can_reverse, alpaca_get(&base, "rotator", "canreverse").await);
+    assert_eq!(
+        caps.can_reverse,
+        alpaca_get(&base, "rotator", "canreverse").await
+    );
     assert_eq!(
         caps.step_size,
         alpaca_get(&base, "rotator", "stepsize").await.as_f64()
     );
     assert!(caps.can_sync);
-    manager.rotator_set_reverse(&id, true).await.expect("Reverse");
+    manager
+        .rotator_set_reverse(&id, true)
+        .await
+        .expect("Reverse");
     assert_eq!(alpaca_get(&base, "rotator", "reverse").await, true);
     let caps = rotator.capabilities(&id).await.unwrap();
     assert!(caps.reverse);
-    manager.rotator_set_reverse(&id, false).await.expect("Reverse");
+    manager
+        .rotator_set_reverse(&id, false)
+        .await
+        .expect("Reverse");
     manager.disconnect_device(&id).await.expect("disconnect");
 
     // Sync arrived with IRotatorV3.
     simulate(&base, "rotator", "interfaceversion", "InterfaceVersion=2").await;
     let id = connect(&manager, &base, DeviceType::Rotator).await;
-    let caps = manager.rotator(&id).await.unwrap().capabilities(&id).await.unwrap();
+    let caps = manager
+        .rotator(&id)
+        .await
+        .unwrap()
+        .capabilities(&id)
+        .await
+        .unwrap();
     assert!(!caps.can_sync, "an IRotatorV2 has no Sync");
     manager.disconnect_device(&id).await.expect("disconnect");
     simulate(&base, "rotator", "interfaceversion", "InterfaceVersion=4").await;

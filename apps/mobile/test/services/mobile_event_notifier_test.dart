@@ -335,29 +335,31 @@ void main() {
   });
 
   group('Equipment', () {
-    test('a device the heartbeat gave up on is reported disconnected',
-        () async {
-      // What the host's heartbeat sends when a device stops answering.
-      await emitEquipment(
-        const sk.EquipmentEvent.heartbeatStatusChanged(
-          deviceType: 'focuser',
-          deviceId: 'sim_focuser_1',
-          status: sk.HeartbeatStatus.disconnected,
-          consecutiveFailures: 3,
-        ),
-      );
-      await emitEquipment(
-        const sk.EquipmentEvent.error(
-          deviceType: 'focuser',
-          deviceId: 'sim_focuser_1',
-          message:
-              'Device unresponsive after 3 heartbeat failures: timed out',
-        ),
-      );
-      expect(notifications.calls, hasLength(1));
-      expect(notifications.calls.single.kind, 'equipmentDisconnected');
-      expect(notifications.calls.single.data['deviceType'], 'focuser');
-    });
+    test(
+      'a device the heartbeat gave up on is reported disconnected',
+      () async {
+        // What the host's heartbeat sends when a device stops answering.
+        await emitEquipment(
+          const sk.EquipmentEvent.heartbeatStatusChanged(
+            deviceType: 'focuser',
+            deviceId: 'sim_focuser_1',
+            status: sk.HeartbeatStatus.disconnected,
+            consecutiveFailures: 3,
+          ),
+        );
+        await emitEquipment(
+          const sk.EquipmentEvent.error(
+            deviceType: 'focuser',
+            deviceId: 'sim_focuser_1',
+            message:
+                'Device unresponsive after 3 heartbeat failures: timed out',
+          ),
+        );
+        expect(notifications.calls, hasLength(1));
+        expect(notifications.calls.single.kind, 'equipmentDisconnected');
+        expect(notifications.calls.single.data['deviceType'], 'focuser');
+      },
+    );
 
     test('a disconnect names the device', () async {
       await emitEquipment(
@@ -413,15 +415,17 @@ void main() {
           ),
         );
 
-    test('an autofocus the run carried on through raises autofocus failed',
-        () async {
-      await emitTyped(
-        sk.EventCategory.sequencer,
-        decision(notice: const sk.SequencerNotice.autofocusContinued()),
-        severity: sk.EventSeverity.info,
-      );
-      expect(notifications.calls.single.kind, 'autofocusFailed');
-    });
+    test(
+      'an autofocus the run carried on through raises autofocus failed',
+      () async {
+        await emitTyped(
+          sk.EventCategory.sequencer,
+          decision(notice: const sk.SequencerNotice.autofocusContinued()),
+          severity: sk.EventSeverity.info,
+        );
+        expect(notifications.calls.single.kind, 'autofocusFailed');
+      },
+    );
 
     test('a decision row with no notice is silent', () async {
       await emitTyped(
@@ -497,7 +501,9 @@ void main() {
     // The host's push carries the notification category's storage key as
     // its `eventType`.
     test('a direct alert right after the host pushed it is skipped', () async {
-      notifier.recordPushReceived(NotificationCategory.weatherUnsafe.storageKey);
+      notifier.recordPushReceived(
+        NotificationCategory.weatherUnsafe.storageKey,
+      );
       await emitTyped(
         sk.EventCategory.safety,
         const sk.EventPayload.safety(

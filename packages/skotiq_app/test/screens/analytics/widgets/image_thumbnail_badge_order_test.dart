@@ -110,7 +110,7 @@ void main() {
     );
     expect(verdict.overlaps(hfr), isFalse);
     expect(verdict.right, lessThan(hfr.left));
-    expect(tile.contains(verdict.topLeft) && tile.contains(hfr.topRight),
-        isTrue);
+    expect(
+        tile.contains(verdict.topLeft) && tile.contains(hfr.topRight), isTrue);
   });
 }

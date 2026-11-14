@@ -131,8 +131,8 @@ class _ProcessingDefaultsPanelState
               ref.invalidate(darkroomProcessingOptionsProvider);
             } catch (e) {
               if (mounted) {
-                setState(
-                    () => _error = 'Could not save processing options: ${userFacingError(e)}');
+                setState(() => _error =
+                    'Could not save processing options: ${userFacingError(e)}');
               }
             } finally {
               if (mounted) setState(() => _saving = false);

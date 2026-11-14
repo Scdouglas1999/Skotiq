@@ -30,7 +30,8 @@ void main() {
       (tester) async {
     final start = DateTime(2026, 11, 11, 8, 21);
     final frames = [
-      for (var i = 0; i < 8; i++) _frame(i, start.add(Duration(seconds: 5 * i))),
+      for (var i = 0; i < 8; i++)
+        _frame(i, start.add(Duration(seconds: 5 * i))),
     ];
     await tester.pumpWidget(MaterialApp(
       theme: SkotiqTheme.dark,

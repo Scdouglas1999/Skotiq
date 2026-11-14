@@ -10,7 +10,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_view_parts.dart';
 
-
 /// Whether [v] sits more than 3 robust sigmas above the median of [values].
 /// Needs five values; a lane with fewer flags nothing.
 bool passHighOutlier(double? v, Iterable<double?> values) {
@@ -185,7 +184,9 @@ class PassLedger extends StatelessWidget {
               color: m ? colors.textSecondary : colors.textMuted),
           'Taken' => cell(
               c,
-              f.capturedAt == null ? '' : ClockFormat.hm(f.capturedAt!.toLocal()),
+              f.capturedAt == null
+                  ? ''
+                  : ClockFormat.hm(f.capturedAt!.toLocal()),
               color: colors.textMuted,
             ),
           'Stars' => cell(c, v(f.stars, 0)),

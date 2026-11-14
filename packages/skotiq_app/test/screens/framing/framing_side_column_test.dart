@@ -5,7 +5,8 @@
 
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel, MosaicStartCorner;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
@@ -205,7 +206,8 @@ void main() {
     expect(find.byTooltip('Save target'), findsOneWidget);
     expect(
       tester
-          .widget<SlewDropdownButton>(find.byKey(TourTarget.framingSlewButton.key))
+          .widget<SlewDropdownButton>(
+              find.byKey(TourTarget.framingSlewButton.key))
           .isEnabled,
       isTrue,
     );
@@ -307,8 +309,8 @@ void main() {
     await pumpColumn(
       tester,
       state: const FramingState(target: _m42),
-      equipment:
-          const FramingEquipmentResult(status: FramingEquipmentStatus.noProfile),
+      equipment: const FramingEquipmentResult(
+          status: FramingEquipmentStatus.noProfile),
     );
 
     expect(find.text('Set up equipment to plan a mosaic.'), findsOneWidget);

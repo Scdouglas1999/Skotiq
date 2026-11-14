@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
 
-
-
 // Deep-star tier — downloadable Tycho-2 / Gaia subset below the HYG floor
 
 /// FOV (degrees) below which the deep-star tier is consulted.

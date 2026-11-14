@@ -191,13 +191,16 @@ void main() {
       // The run is live and pass 1 of 10 has finished: the loop has already
       // reset the exposure node, so its `success` status describes that pass
       // alone. Only the run-level frame counter distinguishes pass 1 from 10.
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       // ignore: invalid_use_of_protected_member
-      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(progress: SequenceProgress(
-        nodeStatuses: {exposure.id: NodeStatus.success},
-        completedExposures: 1,
-        completedIntegrationSecs: 120,
-      )));
+      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(
+              progress: SequenceProgress(
+            nodeStatuses: {exposure.id: NodeStatus.success},
+            completedExposures: 1,
+            completedIntegrationSecs: 120,
+          )));
 
       await _pumpCard(
         tester,
@@ -235,12 +238,15 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       // ignore: invalid_use_of_protected_member
-      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(progress: SequenceProgress(
-        nodeStatuses: {exposure.id: NodeStatus.success},
-        completedExposures: 7,
-      )));
+      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(
+              progress: SequenceProgress(
+            nodeStatuses: {exposure.id: NodeStatus.success},
+            completedExposures: 7,
+          )));
 
       await _pumpCard(
         tester,

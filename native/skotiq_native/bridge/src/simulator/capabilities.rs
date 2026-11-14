@@ -59,7 +59,9 @@ pub(crate) async fn get_simulator_capabilities(
 
     let capabilities = match device_type {
         DeviceType::Camera if crate::simulator::camera::is_sim_guide_camera(&parsed.raw_id) => {
-            use crate::simulator::camera::{SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W};
+            use crate::simulator::camera::{
+                SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W,
+            };
             DeviceCapabilities::Camera(CameraCapabilities {
                 max_width: SIM_GUIDE_SENSOR_W,
                 max_height: SIM_GUIDE_SENSOR_H,
@@ -86,8 +88,7 @@ pub(crate) async fn get_simulator_capabilities(
             })
         }
         DeviceType::Camera
-            if !crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id)
-                .is_empty() =>
+            if !crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id).is_empty() =>
         {
             let iso_speeds =
                 crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id).to_vec();

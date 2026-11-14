@@ -8,7 +8,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 final NumberFormat _grouped = NumberFormat('#,##0', 'en_US');
 
 String passGrouped(num v) => _grouped.format(v);

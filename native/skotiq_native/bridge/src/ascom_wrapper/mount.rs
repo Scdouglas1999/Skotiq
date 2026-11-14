@@ -688,8 +688,7 @@ impl AscomMountWrapper {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetEquatorialSystem(tx))
             .await?;
-        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "equatorial_system")
-            .await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "equatorial_system").await
     }
 
     pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), DriverError> {
@@ -1158,7 +1157,9 @@ pub(crate) mod test_support {
                         let _ = reply.send(Ok((40.0, -75.0, Some(100.0))));
                     }
                     SetSite(latitude, longitude, elevation, reply) => {
-                        saw(format!("SetSite {latitude:.4} {longitude:.4} {elevation:?}"));
+                        saw(format!(
+                            "SetSite {latitude:.4} {longitude:.4} {elevation:?}"
+                        ));
                         let _ = reply.send(Ok(()));
                     }
                     GetUtcDate(reply) => {

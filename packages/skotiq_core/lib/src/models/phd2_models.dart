@@ -292,7 +292,6 @@ abstract class Phd2GuideStats with _$Phd2GuideStats {
 
     @Default(0.0) double starY,
 
-
     /// Number of guide STEPS measured — corrections, not exposures.
     ///
     /// Zero while Loop Exposures is running (looping takes no corrections), so

@@ -252,8 +252,8 @@ void main() {
           defaultCenteringExposure: 0.0,
         ),
       );
-      expect(fieldText(tester),
-          ManualCentering.defaultExposureSeconds.toString());
+      expect(
+          fieldText(tester), ManualCentering.defaultExposureSeconds.toString());
     });
   });
 

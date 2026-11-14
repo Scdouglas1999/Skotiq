@@ -16,7 +16,12 @@ final projectProgressListProvider = Provider<AsyncValue<List<ProjectProgress>>>(
     final goalsAsync = ref.watch(integrationGoalsStreamProvider);
     final service = ref.watch(projectTrackingServiceProvider);
 
-    for (final source in [targetsAsync, sessionsAsync, framesAsync, goalsAsync]) {
+    for (final source in [
+      targetsAsync,
+      sessionsAsync,
+      framesAsync,
+      goalsAsync,
+    ]) {
       if (source.hasError) {
         return AsyncValue.error(
           source.error!,

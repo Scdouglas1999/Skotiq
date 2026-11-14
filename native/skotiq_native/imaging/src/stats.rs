@@ -65,7 +65,9 @@ fn stats_from_samples(samples: &mut [f64]) -> ImageStats {
         .sum::<f64>()
         / count;
     let median = crate::robust_stats::median_in_place(samples);
-    samples.par_iter_mut().for_each(|v| *v = (*v - median).abs());
+    samples
+        .par_iter_mut()
+        .for_each(|v| *v = (*v - median).abs());
     let mad = crate::robust_stats::median_in_place(samples);
     ImageStats {
         min,

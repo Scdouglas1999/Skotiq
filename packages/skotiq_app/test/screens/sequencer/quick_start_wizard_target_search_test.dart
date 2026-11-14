@@ -16,8 +16,10 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show loadedDsosProvider;
-import 'package:skotiq_astro/skotiq_astro.dart' show CelestialCoordinate, DeepSkyObject, DsoType;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show loadedDsosProvider;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CelestialCoordinate, DeepSkyObject, DsoType;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;

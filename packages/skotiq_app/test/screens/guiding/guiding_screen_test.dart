@@ -62,8 +62,7 @@ Future<void> _drainAsyncFrames(WidgetTester tester) async {
 }
 
 List<Override> _commonOverrides() {
-  return [
-  ];
+  return [];
 }
 
 void main() {

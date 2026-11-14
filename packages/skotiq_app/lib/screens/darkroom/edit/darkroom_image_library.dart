@@ -90,7 +90,6 @@ String darkroomMasterKind(IntegratedMaster master) {
   return master.channels >= 3 ? 'Color' : 'Mono';
 }
 
-
 /// Group [images] by target, newest target first and composites first within
 /// a target.
 List<DarkroomLibraryTarget> groupDarkroomLibrary(

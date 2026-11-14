@@ -114,7 +114,8 @@ void main() {
     // The bridge is an always-on service: a recovery that begins while no
     // screen showing it is open is still recorded, and the banner shows it
     // when it is mounted afterwards.
-    testWidgets('a recovery that starts with no banner mounted is shown when '
+    testWidgets(
+        'a recovery that starts with no banner mounted is shown when '
         'one is', (tester) async {
       final backend = _SpyBackend();
       final controller = StreamController<bridge_event.SkotiqEvent>.broadcast();

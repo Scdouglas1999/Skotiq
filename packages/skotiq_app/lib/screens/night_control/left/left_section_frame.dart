@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 class NightLeftSectionFrame extends StatelessWidget {
   const NightLeftSectionFrame({
     super.key,

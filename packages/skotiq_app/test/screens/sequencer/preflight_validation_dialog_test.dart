@@ -146,7 +146,8 @@ void main() {
           severity: ValidationSeverity.warning,
           category: ValidationCategory.darkLibrary,
           title: 'Missing Dark Frames',
-          description: 'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
+          description:
+              'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
           resolutionHint: 'Capture darks for the missing combinations',
         ),
       ],
@@ -158,8 +159,7 @@ void main() {
 
   // The walk-through's dialog opened on four "Loop Repeats Once" notes; the
   // two errors that blocked the run were below the fold.
-  testWidgets('lists what blocks the run first and notes last',
-      (tester) async {
+  testWidgets('lists what blocks the run first and notes last', (tester) async {
     ValidationIssue issue(
       ValidationSeverity severity,
       ValidationCategory category,
@@ -528,7 +528,8 @@ void main() {
           severity: ValidationSeverity.warning,
           category: ValidationCategory.darkLibrary,
           title: 'Missing Dark Frames',
-          description: 'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
+          description:
+              'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
         ),
       ],
     );

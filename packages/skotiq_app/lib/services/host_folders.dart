@@ -110,7 +110,8 @@ abstract class HostFolders {
     if (verdict is FolderUsable) return path;
     if (context.mounted) {
       context.showErrorSnackBar(switch (verdict) {
-        FolderRefused(:final reason) || FolderUnchecked(:final reason) =>
+        FolderRefused(:final reason) ||
+        FolderUnchecked(:final reason) =>
           '$path cannot be used. $reason',
         _ => '$path is not there any more.',
       });

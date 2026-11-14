@@ -210,7 +210,6 @@ class QuickStartDialog extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           const Divider(height: 1),
           const SizedBox(height: SkotiqTokens.spaceMd),
-
           _SessionDetailRow(
             icon: LucideIcons.settings2,
             label: 'Equipment profile',
@@ -261,7 +260,6 @@ class QuickStartDialog extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
-
           Wrap(
             spacing: SkotiqTokens.spaceSm,
             runSpacing: SkotiqTokens.spaceSm,
@@ -318,7 +316,8 @@ class QuickStartDialog extends ConsumerWidget {
       progressText =
           '$frames frames captured, ${DurationFormat.seconds(integration * 3600)} integration';
     } else if (integration > 0) {
-      progressText = '${DurationFormat.seconds(integration * 3600)} integration';
+      progressText =
+          '${DurationFormat.seconds(integration * 3600)} integration';
     } else {
       progressText = 'No progress yet';
     }

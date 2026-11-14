@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 extension _ConfigurationPanel on _PolarAlignmentScreenState {
@@ -157,7 +156,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
           child: _hemisphereFromSite(colors),
         ),
         const SizedBox(height: 12),
-
         _SettingRow(
           label: 'Exposure',
           tooltip:
@@ -240,7 +238,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
             _SettingRow(
               label: 'Step size',
               tooltip:
@@ -273,7 +270,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
             _SettingRow(
               label: 'Direction',
               tooltip:
@@ -337,7 +333,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
             _SettingRow(
               label: 'Solve timeout',
               tooltip: 'Budget for one frame: a solve hinted from the mount '
@@ -369,7 +364,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
             _SettingRow(
               label: 'Start from',
               tooltip: 'Current: measure from where the scope points now. '
@@ -388,7 +382,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
             _SettingRow(
               label: 'Auto-Complete',
               tooltip:

@@ -77,8 +77,10 @@ impl DriverFilterWheel {
         Self {
             device_id: device_id.to_string(),
             driver: Slot::per_call(move || {
-                Box::new(skotiq_indi::IndiFilterWheel::new(client.clone(), &device_name))
-                    as Box<Driver>
+                Box::new(skotiq_indi::IndiFilterWheel::new(
+                    client.clone(),
+                    &device_name,
+                )) as Box<Driver>
             }),
             protocol: "INDI",
             in_sentence: "INDI",
@@ -120,7 +122,10 @@ impl RigDriver for DriverFilterWheel {
             return None;
         };
         let driver = self.driver.read().await?;
-        Some(DeviceManager::identity_from_device(&self.device_id, &*driver))
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            &*driver,
+        ))
     }
 }
 

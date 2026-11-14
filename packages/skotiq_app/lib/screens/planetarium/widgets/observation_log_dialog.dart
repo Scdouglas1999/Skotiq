@@ -169,11 +169,9 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                 value: ClockFormat.dateHms(DateTime.now()),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
               Divider(color: colors.border),
               const SizedBox(height: 16),
-
               Text(
                 'Rating',
                 style:
@@ -200,9 +198,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                   );
                 }),
               ),
-
               const SizedBox(height: 16),
-
               Text(
                 'Seeing',
                 style:
@@ -215,9 +211,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                 onChanged: (v) => setState(() => _seeingConditions = v),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
-
               Text(
                 'Transparency',
                 style:
@@ -230,9 +224,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                 onChanged: (v) => setState(() => _transparency = v),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
-
               Text(
                 'Notes',
                 style:
@@ -289,7 +281,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
     );
     return PopScope(canPop: !_isSaving, child: dialog);
   }
-
 }
 
 class _InfoRow extends StatelessWidget {

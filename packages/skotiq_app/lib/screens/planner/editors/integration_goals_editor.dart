@@ -139,7 +139,8 @@ class _IntegrationGoalsEditorState
       return true;
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        messenger.showErrorSnackBar('Failed to add goal: ${userFacingError(e)}');
+        messenger
+            .showErrorSnackBar('Failed to add goal: ${userFacingError(e)}');
       }
       return false;
     } finally {
@@ -182,7 +183,8 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        messenger.showErrorSnackBar('Failed to update goal: ${userFacingError(e)}');
+        messenger
+            .showErrorSnackBar('Failed to update goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -219,7 +221,8 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        messenger.showErrorSnackBar('Failed to delete goal: ${userFacingError(e)}');
+        messenger
+            .showErrorSnackBar('Failed to delete goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -720,7 +723,8 @@ class _AddGoalRowState extends State<_AddGoalRow> {
               children: [
                 SizedBox(width: 110, child: filter),
                 const SizedBox(width: SkotiqTokens.spaceSm),
-                SizedBox(width: 100, child: field(_exposureCtl, 'Exposure (s)')),
+                SizedBox(
+                    width: 100, child: field(_exposureCtl, 'Exposure (s)')),
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 SizedBox(width: 96, child: field(_frameCtl, 'Frames')),
                 const SizedBox(width: SkotiqTokens.spaceSm),
@@ -796,4 +800,3 @@ String _goalFilterLabel(String filter) =>
 
 void _showGoalError(BuildContext context, String message) =>
     context.showErrorSnackBar(message);
-

@@ -395,7 +395,8 @@ class _FieldRow extends StatelessWidget {
         Flexible(
           child: Text(
             field.label,
-            style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
         ),
         if (helpId != null) ...[

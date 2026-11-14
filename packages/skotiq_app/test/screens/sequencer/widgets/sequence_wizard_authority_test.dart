@@ -246,7 +246,8 @@ void main() {
       overrides: [
         inMemoryDatabaseOverride(),
         appSettingsProvider.overrideWith(
-          () => _PendingSettingsNotifier(Future.value(const AppSettingsState())),
+          () =>
+              _PendingSettingsNotifier(Future.value(const AppSettingsState())),
         ),
         appObserverLocationProvider.overrideWithValue(
           const LocationSettings(latitude: 40, longitude: -75),
@@ -282,8 +283,7 @@ void main() {
 
 class _FixedProfilesNotifier extends EquipmentProfilesNotifier {
   @override
-  Future<EquipmentProfilesState> build() async =>
-      const EquipmentProfilesState(
+  Future<EquipmentProfilesState> build() async => const EquipmentProfilesState(
         profiles: [_testRig],
         activeProfile: _testRig,
       );

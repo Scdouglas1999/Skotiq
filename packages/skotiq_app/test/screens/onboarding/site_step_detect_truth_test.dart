@@ -165,7 +165,8 @@ void main() {
     await tester.pumpAndSettle();
 
     TextField field(Key key) => tester.widget<TextField>(
-          find.descendant(of: find.byKey(key), matching: find.byType(TextField)),
+          find.descendant(
+              of: find.byKey(key), matching: find.byType(TextField)),
         );
     expect(field(onboardingSiteLatitudeKey).controller?.text, '39.9527');
     expect(

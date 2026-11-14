@@ -123,9 +123,8 @@ class _ContextualOffers extends ConsumerWidget {
     final images = imageStream.valueOrNull ?? const <DbCapturedImage>[];
     if (images.isEmpty) return const SizedBox.shrink();
 
-    final lights = images
-        .where((image) => image.isLight)
-        .toList(growable: false);
+    final lights =
+        images.where((image) => image.isLight).toList(growable: false);
 
     final filterCounts = <String, int>{};
     for (final image in lights) {
@@ -185,9 +184,7 @@ class _ContextualOffers extends ConsumerWidget {
 /// client shows the nudges for the session its host is capturing.
 final _huddedImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  return ref
-      .watch(imagingRecordsProvider)
-      .watchImagesForSession(sessionId);
+  return ref.watch(imagingRecordsProvider).watchImagesForSession(sessionId);
 });
 
 class _OfferTile extends StatelessWidget {

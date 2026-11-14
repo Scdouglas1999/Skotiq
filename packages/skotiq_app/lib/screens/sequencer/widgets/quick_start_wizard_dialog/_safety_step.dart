@@ -1,4 +1,3 @@
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _SafetyStep on _QuickStartWizardDialogState {

@@ -9,7 +9,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/models.dart'
     show MountCapabilities, MountState, DeviceConnectionState;
 import 'package:skotiq_core/providers.dart'
-    show mountStateProvider, equipmentMountCapabilitiesProvider, gateCapability, slewCoordinatesProvider;
+    show
+        mountStateProvider,
+        equipmentMountCapabilitiesProvider,
+        gateCapability,
+        slewCoordinatesProvider;
 import 'package:skotiq_core/utils.dart' show CoordinateParser;
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';

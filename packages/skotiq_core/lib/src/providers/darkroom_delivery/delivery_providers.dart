@@ -11,8 +11,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database_provider.dart';
-import '../notification_router_provider.dart'
-    show secretsStoreProvider;
+import '../notification_router_provider.dart' show secretsStoreProvider;
 import '../../services/darkroom_delivery/delivery_retry_sweeper.dart';
 import '../../services/darkroom_delivery/delivery_service.dart';
 import '../../services/darkroom_delivery/delivery_transport_factory.dart';

@@ -345,7 +345,10 @@ mod tests {
             code: 0x400,
             message: "Property CanSetPark is not available in this driver".to_string(),
         };
-        assert!(matches!(capability_or_unsupported(Err(by_number)), Ok(false)));
+        assert!(matches!(
+            capability_or_unsupported(Err(by_number)),
+            Ok(false)
+        ));
         let not_connected = AlpacaError::DeviceError {
             code: 0x407,
             message: "not implemented while disconnected".to_string(),

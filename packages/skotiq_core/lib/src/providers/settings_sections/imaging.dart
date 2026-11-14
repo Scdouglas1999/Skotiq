@@ -27,7 +27,8 @@ extension ImagingSettingsSection on AppSettingsNotifier {
   Future<void> setFileNamingPattern(String value) =>
       _set(AppSettingDefs.fileNamingPattern, value);
 
-  Future<void> setBitDepth(String value) => _set(AppSettingDefs.bitDepth, value);
+  Future<void> setBitDepth(String value) =>
+      _set(AppSettingDefs.bitDepth, value);
 
   Future<void> setCameraFileSaving(String value) =>
       _set(AppSettingDefs.cameraFileSaving, value);

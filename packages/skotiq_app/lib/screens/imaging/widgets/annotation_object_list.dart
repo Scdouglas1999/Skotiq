@@ -51,7 +51,6 @@ class AnnotationObjectListItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,7 +86,6 @@ class AnnotationObjectListItem extends StatelessWidget {
                 ],
               ),
             ),
-
             if (object.magnitude != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

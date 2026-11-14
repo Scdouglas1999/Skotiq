@@ -61,8 +61,11 @@ struct RawInfoFfi {
 
 extern "C" {
     fn skotiq_raw_describe(data: *mut libraw_data_t, info: *mut RawInfoFfi) -> c_int;
-    fn skotiq_raw_copy_mosaic(data: *mut libraw_data_t, out: *mut c_ushort, out_len: usize)
-        -> c_int;
+    fn skotiq_raw_copy_mosaic(
+        data: *mut libraw_data_t,
+        out: *mut c_ushort,
+        out_len: usize,
+    ) -> c_int;
 }
 
 #[cfg_attr(target_os = "windows", link(name = "libraw"))]
@@ -249,7 +252,13 @@ impl RawFrame {
     /// The frame's FITS header: what the camera recorded plus the levels.
     pub fn header(&self) -> FitsHeader {
         let mut header = FitsHeader::new();
-        describe_into(&mut header, &self.metadata, self.width, self.height, Some(&self.cfa));
+        describe_into(
+            &mut header,
+            &self.metadata,
+            self.width,
+            self.height,
+            Some(&self.cfa),
+        );
         header.set_int("BLKLEVEL", self.black_level() as i64);
         header.set_comment("BLKLEVEL", "camera black level (ADU), not subtracted");
         header.set_int("DATAMAX", self.white_level as i64);
@@ -295,7 +304,10 @@ fn describe_into(
         header.set_comment("GAIN", "camera ISO");
     }
     if let Some(temperature) = meta.temperature {
-        header.set_float("CCD-TEMP", (temperature.celsius as f64 * 10.0).round() / 10.0);
+        header.set_float(
+            "CCD-TEMP",
+            (temperature.celsius as f64 * 10.0).round() / 10.0,
+        );
         header.set_comment(
             "CCD-TEMP",
             match temperature.source {
@@ -400,8 +412,9 @@ impl Processor {
         }
         let processor = Self::new()?;
         // SAFETY: valid handle and a live buffer of the stated length.
-        let code =
-            unsafe { libraw_open_buffer(processor.0, bytes.as_ptr() as *const c_void, bytes.len()) };
+        let code = unsafe {
+            libraw_open_buffer(processor.0, bytes.as_ptr() as *const c_void, bytes.len())
+        };
         Self::check(code, "opening the file")?;
         Ok(processor)
     }
@@ -418,7 +431,9 @@ impl Processor {
         // layout of the shim's skotiq_raw_info_t, which it only writes.
         let code = unsafe { skotiq_raw_describe(self.0, &mut info) };
         if code != 0 {
-            return Err(RawError::Decode(format!("reading the file's description (code {code})")));
+            return Err(RawError::Decode(format!(
+                "reading the file's description (code {code})"
+            )));
         }
         Ok(info)
     }
@@ -428,7 +443,9 @@ impl Processor {
         // SAFETY: valid, unpacked handle; `data` holds width*height samples.
         let code = unsafe { skotiq_raw_copy_mosaic(self.0, data.as_mut_ptr(), data.len()) };
         if code != 0 {
-            return Err(RawError::Decode(format!("copying the sensor data (code {code})")));
+            return Err(RawError::Decode(format!(
+                "copying the sensor data (code {code})"
+            )));
         }
         Ok(data)
     }
@@ -442,7 +459,11 @@ impl Drop for Processor {
 }
 
 fn text(field: &[c_char]) -> String {
-    let bytes: Vec<u8> = field.iter().take_while(|&&c| c != 0).map(|&c| c as u8).collect();
+    let bytes: Vec<u8> = field
+        .iter()
+        .take_while(|&&c| c != 0)
+        .map(|&c| c as u8)
+        .collect();
     String::from_utf8_lossy(&bytes).trim().to_string()
 }
 
@@ -532,7 +553,10 @@ fn metadata_from(info: &RawInfoFfi, record: CameraRecord) -> RawMetadata {
 
 fn color_filter_from(info: &RawInfoFfi) -> Result<ColorFilterArray, RawError> {
     let size = info.cfa_size.clamp(0, 6) as usize;
-    let letters: String = info.cfa[..size * size].iter().map(|&c| c as u8 as char).collect();
+    let letters: String = info.cfa[..size * size]
+        .iter()
+        .map(|&c| c as u8 as char)
+        .collect();
     ColorFilterArray::parse(&letters).ok_or_else(|| {
         RawError::Unsupported(if size == 0 {
             "this raw file holds no color-filter mosaic (a linear DNG, a small sRAW or a \
@@ -674,7 +698,10 @@ mod tests {
         olympus.camera_temperature = 5.0;
         assert_eq!(
             frame_temperature(Maker::Olympus, &olympus, None),
-            Some(SensorTemperature { celsius: 32.0, source: TemperatureSource::Sensor })
+            Some(SensorTemperature {
+                celsius: 32.0,
+                source: TemperatureSource::Sensor
+            })
         );
     }
 
@@ -682,11 +709,24 @@ mod tests {
     fn a_body_reading_is_used_only_where_it_tracks_the_sensor() {
         let mut body_only = info();
         body_only.camera_temperature = 21.0;
-        let body = Some(SensorTemperature { celsius: 21.0, source: TemperatureSource::CameraBody });
+        let body = Some(SensorTemperature {
+            celsius: 21.0,
+            source: TemperatureSource::CameraBody,
+        });
         assert_eq!(frame_temperature(Maker::Canon, &body_only, None), body);
         assert_eq!(frame_temperature(Maker::Pentax, &body_only, None), body);
-        for maker in [Maker::Nikon, Maker::Sony, Maker::Olympus, Maker::Panasonic, Maker::Fujifilm] {
-            assert_eq!(frame_temperature(maker, &body_only, None), None, "{maker:?}");
+        for maker in [
+            Maker::Nikon,
+            Maker::Sony,
+            Maker::Olympus,
+            Maker::Panasonic,
+            Maker::Fujifilm,
+        ] {
+            assert_eq!(
+                frame_temperature(maker, &body_only, None),
+                None,
+                "{maker:?}"
+            );
         }
         assert_eq!(frame_temperature(Maker::Canon, &info(), None), None);
     }
@@ -697,7 +737,10 @@ mod tests {
         pentax.camera_temperature = 29.0;
         assert_eq!(
             frame_temperature(Maker::Pentax, &pentax, Some(32.4)),
-            Some(SensorTemperature { celsius: 32.4, source: TemperatureSource::Sensor })
+            Some(SensorTemperature {
+                celsius: 32.4,
+                source: TemperatureSource::Sensor
+            })
         );
     }
 
@@ -734,7 +777,10 @@ mod tests {
         assert_eq!(header.get_int("GAIN"), Some(800));
         assert_eq!(header.get_int("ISOSPEED"), Some(800));
         assert_eq!(header.get_float("CCD-TEMP"), Some(32.0));
-        assert_eq!(header.get_comment("CCD-TEMP"), Some("camera body temperature (C)"));
+        assert_eq!(
+            header.get_comment("CCD-TEMP"),
+            Some("camera body temperature (C)")
+        );
         assert_eq!(header.get_string("DATE-OBS"), Some("2021-05-11T00:08:34"));
         assert_eq!(
             header.get_comment("DATE-OBS"),
@@ -753,14 +799,19 @@ mod tests {
         assert_eq!(header.get_int("BLKLEVEL"), Some(511));
         assert_eq!(header.get_int("DATAMAX"), Some(16383));
         assert_eq!(header.get_float("FOCALLEN"), Some(18.0));
-        assert_eq!(header.get_string("LENS"), Some("EF-M18-150mm f/3.5-6.3 IS STM"));
+        assert_eq!(
+            header.get_string("LENS"),
+            Some("EF-M18-150mm f/3.5-6.3 IS STM")
+        );
     }
 
     #[test]
     fn missing_metadata_writes_no_card() {
         let mut header = FitsHeader::new();
         describe_into(&mut header, &RawMetadata::default(), 2, 2, None);
-        for key in ["INSTRUME", "EXPTIME", "GAIN", "CCD-TEMP", "DATE-OBS", "BAYERPAT", "LENS"] {
+        for key in [
+            "INSTRUME", "EXPTIME", "GAIN", "CCD-TEMP", "DATE-OBS", "BAYERPAT", "LENS",
+        ] {
             assert!(header.get(key).is_none(), "{key}");
         }
     }
@@ -772,12 +823,21 @@ mod tests {
                 .unwrap();
         // LibRaw's reading: the same wall clock taken as US Eastern time.
         let libraw = 1_697_746_428;
-        let clock = CameraClock { wall, offset: chrono::FixedOffset::east_opt(2 * 3600) };
+        let clock = CameraClock {
+            wall,
+            offset: chrono::FixedOffset::east_opt(2 * 3600),
+        };
         let (at, recorded) = capture_time(Some(clock), libraw);
-        assert_eq!(at.map(|t| t.to_rfc3339()), Some("2023-10-19T14:13:48+00:00".to_string()));
+        assert_eq!(
+            at.map(|t| t.to_rfc3339()),
+            Some("2023-10-19T14:13:48+00:00".to_string())
+        );
         assert!(recorded);
         let unzoned = CameraClock { wall, offset: None };
-        assert!(!capture_time(Some(unzoned), libraw).1, "no offset: this computer's zone stands in");
+        assert!(
+            !capture_time(Some(unzoned), libraw).1,
+            "no offset: this computer's zone stands in"
+        );
         assert_eq!(
             capture_time(None, libraw),
             (chrono::DateTime::from_timestamp(libraw, 0), false)
@@ -831,6 +891,8 @@ mod tests {
     #[test]
     fn bytes_that_are_no_raw_are_refused() {
         assert!(read_raw_bytes(&[]).is_err());
-        assert!(read_raw_bytes(&[0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, b'J', b'F', b'I', b'F']).is_err());
+        assert!(
+            read_raw_bytes(&[0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, b'J', b'F', b'I', b'F']).is_err()
+        );
     }
 }

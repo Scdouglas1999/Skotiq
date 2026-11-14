@@ -186,7 +186,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       scrollController: _scrollController,
       selectedTargetId: selected?.targetId,
       onSelect: (target) => setState(() => _selectedTargetId = target.targetId),
-      onImageTonight: (target) => _createSequence(context, colors, target, plan),
+      onImageTonight: (target) =>
+          _createSequence(context, colors, target, plan),
       riskFactors: plan.riskFactors,
     );
 

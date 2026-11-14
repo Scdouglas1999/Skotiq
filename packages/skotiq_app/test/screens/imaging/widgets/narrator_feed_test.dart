@@ -89,5 +89,4 @@ void main() {
     );
     expect(find.byType(NarratorCard), findsNWidgets(8));
   });
-
 }

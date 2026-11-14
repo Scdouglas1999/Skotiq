@@ -495,7 +495,6 @@ class _ObservationLogSettingsState
       }
     }
   }
-
 }
 
 class _StatChip extends StatelessWidget {

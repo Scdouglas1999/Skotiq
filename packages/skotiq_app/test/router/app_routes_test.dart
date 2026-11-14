@@ -12,7 +12,13 @@ import 'package:skotiq_app/router/planner_route.dart';
 import 'package:skotiq_app/router/sequencer_route.dart';
 import 'package:skotiq_app/router/settings_sections.dart';
 import 'package:skotiq_core/models.dart'
-    show AppScreen, buildReadinessReport, darkroomActivityRoute, darkroomFramingRoute, darkroomTargetRoute, kNextUseSteps;
+    show
+        AppScreen,
+        buildReadinessReport,
+        darkroomActivityRoute,
+        darkroomFramingRoute,
+        darkroomTargetRoute,
+        kNextUseSteps;
 
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

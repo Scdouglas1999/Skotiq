@@ -393,11 +393,13 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                     borderRadius:
                         BorderRadius.circular(SkotiqTokens.radiusInline4),
                     child: LinearProgressIndicator(
-                      value: (status.currentOffsetArcsec! / ManualCentering.toleranceArcsec)
+                      value: (status.currentOffsetArcsec! /
+                                  ManualCentering.toleranceArcsec)
                               .clamp(0.0, 2.0) /
                           2.0,
                       backgroundColor: colors.surfaceAlt,
-                      color: status.currentOffsetArcsec! <= ManualCentering.toleranceArcsec
+                      color: status.currentOffsetArcsec! <=
+                              ManualCentering.toleranceArcsec
                           ? colors.success
                           : colors.accent,
                       minHeight: 6,
@@ -410,7 +412,8 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontFeatures: [const FontFeature.tabularFigures()],
-                    color: status.currentOffsetArcsec! <= ManualCentering.toleranceArcsec
+                    color: status.currentOffsetArcsec! <=
+                            ManualCentering.toleranceArcsec
                         ? colors.success
                         : colors.textPrimary,
                   ),

@@ -33,7 +33,8 @@ DeviceConnectProgress _ok(String label) => DeviceConnectProgress(
     );
 
 void main() {
-  testWidgets('the sweep counts the guide camera with the guider, whose card '
+  testWidgets(
+      'the sweep counts the guide camera with the guider, whose card '
       'names it', (tester) async {
     final handle = await pumpAppScreen(
       tester,

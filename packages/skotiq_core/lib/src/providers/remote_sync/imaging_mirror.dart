@@ -112,7 +112,9 @@ final _hostFollowsForeignExposureProvider = StateProvider<bool>((ref) => false);
 void followHostCameraExposure(ProviderContainer container, SkotiqEvent event) {
   final change = _ExposureChange.of(event);
   if (change == null) return;
-  final following = container.read(_hostFollowsForeignExposureProvider.notifier);
+  final following = container.read(
+    _hostFollowsForeignExposureProvider.notifier,
+  );
   switch (change) {
     case _ExposureBegan():
       if (!following.state && container.read(cameraStateProvider).isExposing) {
@@ -293,8 +295,9 @@ Future<void> _publishRemoteCurrentFrame(
       container.read(hostFrameSolvesProvider).mirroredFrame =
           imageData.capturedAt;
     }
-    container.read(capturePreviewPublisherProvider,
-    ).publish(container, imageData, deviceId, loadRaw: !hinted);
+    container
+        .read(capturePreviewPublisherProvider)
+        .publish(container, imageData, deviceId, loadRaw: !hinted);
   } catch (_) {
     // Degrade gracefully: a failed/aborted fetch must never crash the event
     // pump or spam logs. The tile simply keeps its previous frame; the next

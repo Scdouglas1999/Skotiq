@@ -15,7 +15,9 @@ const String kGeneratedPath = 'lib/src/settings/app_settings_state.g.dart';
 /// The `///` lines directly above each table entry, by field name.
 Map<String, List<String>> _docsByField(String tableSource) {
   final docs = <String, List<String>>{};
-  final entry = RegExp(r"^\s*\w+Setting(?:<\w+>)?\(\s*$|^\s*\w+Setting(?:<\w+>)?\('(\w+)'");
+  final entry = RegExp(
+    r"^\s*\w+Setting(?:<\w+>)?\(\s*$|^\s*\w+Setting(?:<\w+>)?\('(\w+)'",
+  );
   final name = RegExp(r"^\s*'(\w+)',");
   var pending = <String>[];
   var awaitingName = false;
@@ -62,7 +64,9 @@ String generateAppSettingsState(String tableSource) {
     ..writeln()
     ..writeln('// dart format off')
     ..writeln()
-    ..writeln("import '../models/settings/app_settings.dart' show SafetyFailMode;")
+    ..writeln(
+      "import '../models/settings/app_settings.dart' show SafetyFailMode;",
+    )
     ..writeln("import 'app_settings_table.dart';")
     ..writeln("import 'preflight_strictness.dart';")
     ..writeln("import 'setting.dart';")
@@ -102,7 +106,9 @@ String generateAppSettingsState(String tableSource) {
   out
     ..writeln('  });')
     ..writeln()
-    ..writeln('  /// A copy with the given fields replaced. A nullable field is')
+    ..writeln(
+      '  /// A copy with the given fields replaced. A nullable field is',
+    )
     ..writeln('  /// cleared by passing null and kept by leaving it out.')
     ..writeln('  AppSettingsState copyWith({');
   for (final s in kAppSettingsTable) {
@@ -128,7 +134,9 @@ String generateAppSettingsState(String tableSource) {
     ..writeln('  }')
     ..writeln()
     ..writeln('  /// The value of [setting].')
-    ..writeln('  T valueOf<T>(Setting<T> setting) => _read(setting.field) as T;')
+    ..writeln(
+      '  T valueOf<T>(Setting<T> setting) => _read(setting.field) as T;',
+    )
     ..writeln()
     ..writeln('  Object? _read(String field) => switch (field) {');
   for (final s in kAppSettingsTable) {
@@ -141,9 +149,7 @@ String generateAppSettingsState(String tableSource) {
     ..writeln('  };')
     ..writeln()
     ..writeln('  /// A copy with [setting] set to [value].')
-    ..writeln(
-      '  AppSettingsState withValue<T>(Setting<T> setting, T value) =>',
-    )
+    ..writeln('  AppSettingsState withValue<T>(Setting<T> setting, T value) =>')
     ..writeln('      switch (setting.field) {');
   for (final s in kAppSettingsTable) {
     out.writeln(

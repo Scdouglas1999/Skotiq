@@ -1,4 +1,3 @@
-
 /// Which client holds control of a linked imaging host, and whether a
 /// run is in flight on it.
 ///

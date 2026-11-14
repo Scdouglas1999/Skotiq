@@ -133,8 +133,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     required String successMessage,
     String? catalogName,
     String? Function()? successMessageOverride,
-    required Future<void> Function(HostCatalogs catalogs, HostJobs jobs)
-        action,
+    required Future<void> Function(HostCatalogs catalogs, HostJobs jobs) action,
   }) async {
     if (_busy || _confirmationOpen) return;
     final host = _hostScopes.begin();

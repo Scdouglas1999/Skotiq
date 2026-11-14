@@ -4,7 +4,6 @@ import 'package:skotiq_core/services.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
-
 /// Directory avahi-daemon watches for static service files on the appliance.
 const _avahiServicesDir = '/etc/avahi/services';
 const _avahiServiceFileName = 'skotiq.service';

@@ -103,7 +103,6 @@ class ProfileSidebar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeader(context, colors),
-
           Expanded(
             child: profiles.isEmpty
                 ? _buildEmptyState(context, colors)
@@ -115,7 +114,6 @@ class ProfileSidebar extends ConsumerWidget {
                     activeProfileId,
                   ),
           ),
-
           if (selectedProfile != null)
             _buildFooter(
               context,
@@ -709,9 +707,7 @@ class _ProfileCardState extends State<_ProfileCard>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     widget.profile.subtitle,
                     style: SkotiqTypography.caption.copyWith(
@@ -720,9 +716,7 @@ class _ProfileCardState extends State<_ProfileCard>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 8),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

@@ -30,4 +30,3 @@ String formatPolarError(double arcsec) {
   return "$sign$degrees° ${minutes.toString().padLeft(2, '0')}' "
       '$paddedSeconds"';
 }
-

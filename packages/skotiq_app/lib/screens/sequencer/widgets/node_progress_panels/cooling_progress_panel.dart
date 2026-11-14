@@ -69,7 +69,6 @@ class _CoolingProgressPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               _TempDisplay(
@@ -96,7 +95,6 @@ class _CoolingProgressPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           _AnimatedProgressBar(
             colors: colors,
             progress: progressPercent / 100.0,

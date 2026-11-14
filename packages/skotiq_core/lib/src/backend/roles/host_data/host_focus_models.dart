@@ -1,6 +1,3 @@
-
-
-
 /// The predictive autofocus settings and per-filter focus models of a linked
 /// imaging host.
 ///

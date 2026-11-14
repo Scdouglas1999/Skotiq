@@ -12,7 +12,7 @@ part 'polar_alignment_history_dao.g.dart';
 @DriftAccessor(tables: [PolarAlignmentHistory])
 class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     with _$PolarAlignmentHistoryDaoMixin
-    implements PolarAlignmentLog{
+    implements PolarAlignmentLog {
   PolarAlignmentHistoryDao(super.db);
 
   Future<int> insertResult(PolarAlignmentResult result) {

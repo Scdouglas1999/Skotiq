@@ -98,7 +98,6 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
             onChanged: _onSearchChanged,
           ),
         ),
-
         Expanded(
           child: _buildResults(searchState),
         ),

@@ -22,8 +22,7 @@ pub use error::DriverError;
 pub use kind::DeviceKind;
 pub use mount::{
     GuideDirection, MountClock, MountDescription, MountReadings, MountSiteAbilities, MountSiteInfo,
-    PierSide,
-    Reading, SiteSource, TrackingRate,
+    PierSide, Reading, SiteSource, TrackingRate,
 };
 pub use skotiq_cfa::{BayerPattern, ColorFilterArray};
 pub use vendor::Vendor;

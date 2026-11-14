@@ -24,8 +24,7 @@ void main() {
         OSError('Permission denied', 13),
       );
 
-      expect(notWritableReason(error),
-          'Not writable: Permission denied');
+      expect(notWritableReason(error), 'Not writable: Permission denied');
     });
 
     test('a read-only mount says so rather than "Cannot open file"', () {
@@ -35,15 +34,13 @@ void main() {
         OSError('Read-only file system', 30),
       );
 
-      expect(notWritableReason(error),
-          'Not writable: Read-only file system');
+      expect(notWritableReason(error), 'Not writable: Read-only file system');
     });
 
     test('with no errno it falls back to the generic phrase', () {
       const error = FileSystemException('Cannot open file', '/x');
 
-      expect(notWritableReason(error),
-          'Not writable: Cannot open file');
+      expect(notWritableReason(error), 'Not writable: Cannot open file');
     });
   });
 

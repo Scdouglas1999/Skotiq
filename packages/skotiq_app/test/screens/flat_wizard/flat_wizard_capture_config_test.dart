@@ -93,8 +93,7 @@ void main() {
     expect(find.text('100'), findsWidgets);
     expect(find.text('10'), findsWidgets);
     expect(
-      find.textContaining(
-          'Camera settings differ from current light settings'),
+      find.textContaining('Camera settings differ from current light settings'),
       findsWidgets,
     );
     expect(find.textContaining('offset 10 vs 50'), findsWidgets);
@@ -113,8 +112,7 @@ void main() {
     );
 
     expect(
-      find.textContaining(
-          'Camera settings differ from current light settings'),
+      find.textContaining('Camera settings differ from current light settings'),
       findsNothing,
     );
   });

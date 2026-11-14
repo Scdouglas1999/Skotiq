@@ -91,7 +91,8 @@ void main() {
   ) async {
     final science = await pump(tester, const YourSkyView());
     expect(find.text('Your sky is off'), findsOneWidget);
-    expect(find.textContaining('2 to 3 GiB on a typical night'), findsOneWidget);
+    expect(
+        find.textContaining('2 to 3 GiB on a typical night'), findsOneWidget);
 
     await tester.tap(find.text('Turn on Your sky'));
     await tester.pumpAndSettle();

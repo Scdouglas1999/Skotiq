@@ -149,7 +149,6 @@ class _ExposureProgressPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           _FrameGrid(
             colors: colors,
             totalFrames: totalFrames,
@@ -157,7 +156,6 @@ class _ExposureProgressPanel extends StatelessWidget {
             currentFrame: currentFrame,
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               _StatBox(

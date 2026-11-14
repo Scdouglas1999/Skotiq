@@ -9,8 +9,7 @@
 //! `simulator/v1` API and put them back.
 
 use skotiq_alpaca::{
-    AlpacaCoverCalibrator, AlpacaDome, AlpacaObservingConditions, AlpacaSafetyMonitor,
-    AlpacaSwitch,
+    AlpacaCoverCalibrator, AlpacaDome, AlpacaObservingConditions, AlpacaSafetyMonitor, AlpacaSwitch,
 };
 use skotiq_device::ascom::cover_calibrator::Settle;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
@@ -52,7 +51,10 @@ where
         if let Some(value) = check().await {
             return value;
         }
-        assert!(started.elapsed() < limit, "{what} did not happen within {limit:?}");
+        assert!(
+            started.elapsed() < limit,
+            "{what} did not happen within {limit:?}"
+        );
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 }
@@ -77,15 +79,22 @@ async fn dome_through_the_driver_trait() {
     .await;
 
     // 370 degrees goes out as 10.
-    DomeDriver::slew_to_azimuth(&dome, 370.0).await.expect("slew");
+    DomeDriver::slew_to_azimuth(&dome, 370.0)
+        .await
+        .expect("slew");
     until("slew over", Duration::from_secs(120), || async {
         (!DomeDriver::status(&dome).await.unwrap().slewing).then_some(())
     })
     .await;
     let azimuth = DomeDriver::status(&dome).await.unwrap().azimuth;
-    assert!((azimuth - 10.0).abs() < 1.0, "azimuth after slew to 370: {azimuth}");
+    assert!(
+        (azimuth - 10.0).abs() < 1.0,
+        "azimuth after slew to 370: {azimuth}"
+    );
 
-    DomeDriver::slew_to_azimuth(&dome, 200.0).await.expect("slew");
+    DomeDriver::slew_to_azimuth(&dome, 200.0)
+        .await
+        .expect("slew");
     DomeDriver::abort_slew(&dome).await.expect("abort");
     until("abort stops the dome", Duration::from_secs(10), || async {
         (!DomeDriver::status(&dome).await.unwrap().slewing).then_some(())
@@ -103,7 +112,9 @@ async fn dome_through_the_driver_trait() {
     let refused = DomeDriver::set_slaved(&dome, true).await.unwrap_err();
     assert!(matches!(refused, DriverError::NotSupported), "{refused}");
 
-    DomeDriver::close_shutter(&dome).await.expect("close shutter");
+    DomeDriver::close_shutter(&dome)
+        .await
+        .expect("close shutter");
     DomeDriver::park(&dome).await.expect("park");
     until("parked and closed", Duration::from_secs(120), || async {
         let state = DomeDriver::status(&dome).await.unwrap();
@@ -126,7 +137,9 @@ async fn dome_through_the_driver_trait() {
     assert!(!roof.state.can_set_azimuth && !roof.can_find_home && roof.can_park);
     assert_eq!(roof.state.shutter, Some(ShutterStatus::Closed));
 
-    AccessoryDriver::disconnect(&dome).await.expect("disconnect");
+    AccessoryDriver::disconnect(&dome)
+        .await
+        .expect("disconnect");
     assert!(matches!(
         AccessoryDriver::heartbeat(&dome).await,
         Err(DriverError::NotConnected)
@@ -147,18 +160,27 @@ async fn switch_through_the_driver_trait() {
     assert_eq!(SwitchDriver::max_value(&switch, 2).await.unwrap(), 100.0);
     assert_eq!(SwitchDriver::step(&switch, 2).await.unwrap(), 10.0);
     assert!(SwitchDriver::can_write(&switch, 2).await.unwrap());
-    SwitchDriver::set_value(&switch, 2, 30.0).await.expect("set value");
+    SwitchDriver::set_value(&switch, 2, 30.0)
+        .await
+        .expect("set value");
     assert_eq!(SwitchDriver::value(&switch, 2).await.unwrap(), 30.0);
     // A value off the switch's steps is refused by the switch itself; the
     // app snaps a value to the step before it writes.
     let off_step = SwitchDriver::set_value(&switch, 2, 33.0).await;
-    let out_of_range = SwitchDriver::set_value(&switch, 2, 130.0).await.unwrap_err();
-    assert!(matches!(out_of_range, DriverError::InvalidParameter(_)), "{out_of_range}");
+    let out_of_range = SwitchDriver::set_value(&switch, 2, 130.0)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(out_of_range, DriverError::InvalidParameter(_)),
+        "{out_of_range}"
+    );
     SwitchDriver::set_value(&switch, 2, 0.0).await.unwrap();
     eprintln!("OmniSim on an off-step value: {off_step:?}");
 
     // Channel 0 is a boolean switch.
-    SwitchDriver::set_state(&switch, 0, true).await.expect("set state");
+    SwitchDriver::set_state(&switch, 0, true)
+        .await
+        .expect("set state");
     assert!(SwitchDriver::state(&switch, 0).await.unwrap());
     SwitchDriver::set_state(&switch, 0, false).await.unwrap();
     // A read-only channel refuses a write.
@@ -169,21 +191,23 @@ async fn switch_through_the_driver_trait() {
     assert!(switch.can_async(0).await.unwrap());
     assert!(!switch.can_async(1).await.unwrap());
     switch.set_async(0, true).await.expect("set async");
-    until("asynchronous switch change", Duration::from_secs(30), || async {
-        switch.state_change_complete(0).await.unwrap().then_some(())
-    })
+    until(
+        "asynchronous switch change",
+        Duration::from_secs(30),
+        || async { switch.state_change_complete(0).await.unwrap().then_some(()) },
+    )
     .await;
     assert!(switch.get_switch(0).await.unwrap());
-    switch.set_async_value(0, 0.0).await.expect("set async value");
+    switch
+        .set_async_value(0, 0.0)
+        .await
+        .expect("set async value");
     switch.cancel_async(0).await.expect("cancel async");
     // After CancelAsync, StateChangeComplete raises OperationCancelled
     // (ISwitchV3), unless the change had already finished.
     match switch.state_change_complete(0).await {
         Ok(_) => {}
-        Err(cancelled) => assert!(
-            cancelled.to_string().contains("cancelled"),
-            "{cancelled}"
-        ),
+        Err(cancelled) => assert!(cancelled.to_string().contains("cancelled"), "{cancelled}"),
     }
 
     AccessoryDriver::disconnect(&switch).await.unwrap();
@@ -199,7 +223,9 @@ async fn cover_calibrator_through_the_driver_trait() {
     let device = AlpacaCoverCalibrator::from_server(&omnisim(), 0);
     device.connect().await.expect("connect");
     assert_eq!(device.interface_version().await.unwrap(), 2);
-    let state = CoverCalibratorDriver::status(&device).await.expect("status");
+    let state = CoverCalibratorDriver::status(&device)
+        .await
+        .expect("status");
     assert!(state.max_brightness > 0);
 
     for (open, target) in [(true, CoverStatus::Open), (false, CoverStatus::Closed)] {
@@ -223,26 +249,50 @@ async fn cover_calibrator_through_the_driver_trait() {
     }
 
     let brightness = state.max_brightness / 2;
-    CoverCalibratorDriver::calibrator_on(&device, brightness).await.unwrap();
+    CoverCalibratorDriver::calibrator_on(&device, brightness)
+        .await
+        .unwrap();
     until("calibrator ready", Duration::from_secs(60), || async {
-        let reported = CoverCalibratorDriver::calibrator_status(&device).await.unwrap();
+        let reported = CoverCalibratorDriver::calibrator_status(&device)
+            .await
+            .unwrap();
         let changing = device.calibrator_changing().await.unwrap();
-        assert_eq!(changing, reported == CalibratorStatus::NotReady, "{reported}");
+        assert_eq!(
+            changing,
+            reported == CalibratorStatus::NotReady,
+            "{reported}"
+        );
         (Settle::calibrator(reported, CalibratorStatus::Ready) == Settle::Done).then_some(())
     })
     .await;
-    assert_eq!(CoverCalibratorDriver::brightness(&device).await.unwrap(), brightness);
+    assert_eq!(
+        CoverCalibratorDriver::brightness(&device).await.unwrap(),
+        brightness
+    );
     let too_bright = CoverCalibratorDriver::calibrator_on(&device, state.max_brightness + 1)
         .await
         .unwrap_err();
-    assert!(matches!(too_bright, DriverError::InvalidParameter(_)), "{too_bright}");
-    CoverCalibratorDriver::calibrator_off(&device).await.unwrap();
+    assert!(
+        matches!(too_bright, DriverError::InvalidParameter(_)),
+        "{too_bright}"
+    );
+    CoverCalibratorDriver::calibrator_off(&device)
+        .await
+        .unwrap();
     until("calibrator off", Duration::from_secs(60), || async {
-        let reported = CoverCalibratorDriver::calibrator_status(&device).await.unwrap();
+        let reported = CoverCalibratorDriver::calibrator_status(&device)
+            .await
+            .unwrap();
         (Settle::calibrator(reported, CalibratorStatus::Off) == Settle::Done).then_some(())
     })
     .await;
-    assert_eq!(CoverCalibratorDriver::status(&device).await.unwrap().brightness, 0);
+    assert_eq!(
+        CoverCalibratorDriver::status(&device)
+            .await
+            .unwrap()
+            .brightness,
+        0
+    );
 
     AccessoryDriver::disconnect(&device).await.unwrap();
     assert!(matches!(
@@ -296,10 +346,17 @@ async fn weather_station_through_the_driver_trait() {
         ("wind_direction", readings.wind_direction),
         ("rain_rate", readings.rain_rate),
     ] {
-        assert!(value.is_some(), "OmniSim reports every sensor; {name} missing");
+        assert!(
+            value.is_some(),
+            "OmniSim reports every sensor; {name} missing"
+        );
     }
     assert!(station.average_period().await.unwrap() >= 0.0);
-    assert!(!station.sensor_description("Temperature").await.unwrap().is_empty());
+    assert!(!station
+        .sensor_description("Temperature")
+        .await
+        .unwrap()
+        .is_empty());
     assert!(station.time_since_last_update("Temperature").await.unwrap() >= 0.0);
     assert!(station.time_since_last_update("").await.unwrap() >= 0.0);
     station.refresh().await.ok();

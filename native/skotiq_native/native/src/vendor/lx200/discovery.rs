@@ -86,18 +86,19 @@ fn identify_mount(port: &mut ProbedPort<'_>) -> Option<Lx200MountInfo> {
 
         // Meade's own handsets answer `Autostar` (ETX, LX90 and LXD mounts)
         // or an `LX` model name.
-        let mount_type = if lower.contains("meade") || lower.contains("lx") || lower.contains("autostar")
-        {
-            Some(Lx200MountType::Meade)
-        } else if lower.contains("gemini") || lower.contains("losmandy") {
-            Some(Lx200MountType::Losmandy)
-        } else if lower.contains("10micron") {
-            Some(Lx200MountType::TenMicron)
-        } else if !name.is_empty() && name != "\0" && name.chars().any(|c| c.is_alphanumeric()) {
-            Some(Lx200MountType::Generic)
-        } else {
-            None
-        };
+        let mount_type =
+            if lower.contains("meade") || lower.contains("lx") || lower.contains("autostar") {
+                Some(Lx200MountType::Meade)
+            } else if lower.contains("gemini") || lower.contains("losmandy") {
+                Some(Lx200MountType::Losmandy)
+            } else if lower.contains("10micron") {
+                Some(Lx200MountType::TenMicron)
+            } else if !name.is_empty() && name != "\0" && name.chars().any(|c| c.is_alphanumeric())
+            {
+                Some(Lx200MountType::Generic)
+            } else {
+                None
+            };
 
         if let Some(mount_type) = mount_type {
             let display_name = format!("{} ({})", name, port.name);

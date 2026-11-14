@@ -22,13 +22,10 @@ void main() {
     });
 
     test('picks the address on a shared subnet', () async {
-      final picked = await RigDiscovery.pickReachableAddress(
-        [
-          InternetAddress('172.17.0.1'),
-          InternetAddress('192.168.1.20'),
-        ],
-        localAddresses: () async => [InternetAddress('192.168.1.40')],
-      );
+      final picked = await RigDiscovery.pickReachableAddress([
+        InternetAddress('172.17.0.1'),
+        InternetAddress('192.168.1.20'),
+      ], localAddresses: () async => [InternetAddress('192.168.1.40')]);
       expect(picked!.address, '192.168.1.20');
     });
 
@@ -52,8 +49,10 @@ void main() {
         );
 
     test('prefers the computer name', () {
-      expect(server(hostName: 'DESKTOP-MMAJGAK').displayName,
-          'DESKTOP-MMAJGAK');
+      expect(
+        server(hostName: 'DESKTOP-MMAJGAK').displayName,
+        'DESKTOP-MMAJGAK',
+      );
     });
 
     test('ignores the product names old hosts advertised', () {
@@ -82,14 +81,7 @@ void main() {
 
   test('a UDP beacon carries the computer name and host mode', () {
     final server = SkotiqDiscovery.tryParseResponsePacket(
-      'SKOTIQ_RESPONSE_V2:${jsonEncode({
-        'protocol': '2',
-        'name': 'rig',
-        'webPort': 8099,
-        'signalingPort': 8099,
-        'hostName': 'rig',
-        'hostMode': 'headless',
-      })}',
+      'SKOTIQ_RESPONSE_V2:${jsonEncode({'protocol': '2', 'name': 'rig', 'webPort': 8099, 'signalingPort': 8099, 'hostName': 'rig', 'hostMode': 'headless'})}',
       '10.0.0.5',
     );
     expect(server!.hostName, 'rig');
@@ -105,8 +97,11 @@ void main() {
         port: 0,
         handler: (message, datagram, socket) {
           if (!message.startsWith('SKOTIQ_DISCOVERY_V2:')) return false;
-          socket.send(utf8.encode('discovery'), datagram.address,
-              datagram.port);
+          socket.send(
+            utf8.encode('discovery'),
+            datagram.address,
+            datagram.port,
+          );
           return true;
         },
       );
@@ -133,10 +128,16 @@ void main() {
         replies.add(utf8.decode(d.data));
         if (replies.length == 2 && !got.isCompleted) got.complete();
       });
-      client.send(utf8.encode('SKOTIQ_DISCOVERY_V2:{}'),
-          InternetAddress.loopbackIPv4, port);
-      client.send(utf8.encode('SKOTIQ_UPDATE_PUSH'),
-          InternetAddress.loopbackIPv4, port);
+      client.send(
+        utf8.encode('SKOTIQ_DISCOVERY_V2:{}'),
+        InternetAddress.loopbackIPv4,
+        port,
+      );
+      client.send(
+        utf8.encode('SKOTIQ_UPDATE_PUSH'),
+        InternetAddress.loopbackIPv4,
+        port,
+      );
       await got.future.timeout(const Duration(seconds: 5));
       expect(replies, containsAll(['discovery', 'update']));
 

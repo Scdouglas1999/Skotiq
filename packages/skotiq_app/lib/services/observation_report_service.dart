@@ -251,9 +251,11 @@ class ObservationReportService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               if (observerName != null) _headerRow('Observer', observerName),
-              _headerRow('Date', ClockFormat.dateHms(session.startTime.toLocal())),
+              _headerRow(
+                  'Date', ClockFormat.dateHms(session.startTime.toLocal())),
               if (session.endTime != null)
-                _headerRow('End Time', ClockFormat.dateHms(session.endTime!.toLocal())),
+                _headerRow('End Time',
+                    ClockFormat.dateHms(session.endTime!.toLocal())),
               _headerRow(
                   'Duration',
                   DurationFormat.of(

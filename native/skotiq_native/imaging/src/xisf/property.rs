@@ -181,11 +181,17 @@ pub enum PropertyValue {
     Complex32(f32, f32),
     Complex64(f64, f64),
     /// A 128-bit scalar or complex value, kept as its type name and text.
-    Wide { type_name: String, text: String },
+    Wide {
+        type_name: String,
+        text: String,
+    },
     String(String),
     /// An ISO 8601 time point, as written.
     TimePoint(String),
-    Vector { element: Element, data: Vec<u8> },
+    Vector {
+        element: Element,
+        data: Vec<u8>,
+    },
     Matrix {
         element: Element,
         rows: u64,
@@ -209,8 +215,8 @@ pub(crate) fn kind_of(type_name: &str) -> Option<PropertyKind> {
         "String" => Some(PropertyKind::String),
         "Boolean" | "Int8" | "UInt8" | "Byte" | "Int16" | "Short" | "UInt16" | "UShort"
         | "Int32" | "Int" | "UInt32" | "UInt" | "Int64" | "UInt64" | "Float32" | "Float"
-        | "Float64" | "Double" | "Complex32" | "Complex64" | "Complex" | "TimePoint"
-        | "Int128" | "UInt128" | "Float128" | "Quad" | "Complex128" => Some(PropertyKind::Scalar),
+        | "Float64" | "Double" | "Complex32" | "Complex64" | "Complex" | "TimePoint" | "Int128"
+        | "UInt128" | "Float128" | "Quad" | "Complex128" => Some(PropertyKind::Scalar),
         _ => Element::of_vector(type_name)
             .map(PropertyKind::Vector)
             .or_else(|| Element::of_matrix(type_name).map(PropertyKind::Matrix)),
@@ -246,11 +252,8 @@ impl PropertyValue {
     /// property (section 8.3).
     pub(crate) fn parse_scalar(type_name: &str, text: &str) -> Result<Self, XisfError> {
         let t = text.trim();
-        let bad = || {
-            XisfError::Malformed(format!(
-                "the value \"{text}\" is not a valid {type_name}"
-            ))
-        };
+        let bad =
+            || XisfError::Malformed(format!("the value \"{text}\" is not a valid {type_name}"));
         Ok(match type_name {
             "Boolean" => match t {
                 "true" | "1" => PropertyValue::Boolean(true),
@@ -261,13 +264,9 @@ impl PropertyValue {
             },
             "Int8" => PropertyValue::Int8(parse_int(t, 8).ok_or_else(bad)? as i8),
             "UInt8" | "Byte" => PropertyValue::UInt8(parse_uint(t, 8).ok_or_else(bad)? as u8),
-            "Int16" | "Short" => {
-                PropertyValue::Int16(parse_int(t, 16).ok_or_else(bad)? as i16)
-            }
+            "Int16" | "Short" => PropertyValue::Int16(parse_int(t, 16).ok_or_else(bad)? as i16),
             "UInt16" | "UShort" => PropertyValue::UInt16(parse_uint(t, 16).ok_or_else(bad)? as u16),
-            "Int32" | "Int" => {
-                PropertyValue::Int32(parse_int(t, 32).ok_or_else(bad)? as i32)
-            }
+            "Int32" | "Int" => PropertyValue::Int32(parse_int(t, 32).ok_or_else(bad)? as i32),
             "UInt32" | "UInt" => PropertyValue::UInt32(parse_uint(t, 32).ok_or_else(bad)? as u32),
             "Int64" => PropertyValue::Int64(parse_int(t, 64).ok_or_else(bad)?),
             "UInt64" => PropertyValue::UInt64(parse_uint(t, 64).ok_or_else(bad)?),
@@ -357,10 +356,7 @@ impl PropertyValue {
     pub(crate) fn block_len(kind: &PropertyKind, shape: (u64, u64)) -> Option<u64> {
         match *kind {
             PropertyKind::Vector(e) => shape.0.checked_mul(e.size() as u64),
-            PropertyKind::Matrix(e) => shape
-                .0
-                .checked_mul(shape.1)?
-                .checked_mul(e.size() as u64),
+            PropertyKind::Matrix(e) => shape.0.checked_mul(shape.1)?.checked_mul(e.size() as u64),
             _ => None,
         }
     }
@@ -493,9 +489,16 @@ fn parse_uint(t: &str, bits: u32) -> Option<u64> {
 }
 
 fn parse_radix(t: &str) -> Option<u64> {
-    let (digits, radix) = [("0x", 16), ("0X", 16), ("0b", 2), ("0B", 2), ("0o", 8), ("0O", 8)]
-        .into_iter()
-        .find_map(|(prefix, radix)| t.strip_prefix(prefix).map(|d| (d, radix)))?;
+    let (digits, radix) = [
+        ("0x", 16),
+        ("0X", 16),
+        ("0b", 2),
+        ("0B", 2),
+        ("0o", 8),
+        ("0O", 8),
+    ]
+    .into_iter()
+    .find_map(|(prefix, radix)| t.strip_prefix(prefix).map(|d| (d, radix)))?;
     u64::from_str_radix(digits, radix).ok()
 }
 
@@ -536,8 +539,14 @@ mod tests {
     #[test]
     fn scalar_text_forms_of_section_8_3() {
         let p = |t: &str, v: &str| PropertyValue::parse_scalar(t, v).unwrap();
-        assert_eq!(p("UInt32", "0x8000FFA0"), PropertyValue::UInt32(0x8000_FFA0));
-        assert_eq!(p("Int32", "0x80E950AB"), PropertyValue::Int32(-2_132_193_109));
+        assert_eq!(
+            p("UInt32", "0x8000FFA0"),
+            PropertyValue::UInt32(0x8000_FFA0)
+        );
+        assert_eq!(
+            p("Int32", "0x80E950AB"),
+            PropertyValue::Int32(-2_132_193_109)
+        );
         assert_eq!(p("UInt16", "0b101"), PropertyValue::UInt16(5));
         assert_eq!(p("Int64", " +45678 "), PropertyValue::Int64(45678));
         assert_eq!(p("UInt8", "0o17"), PropertyValue::UInt8(15));
@@ -550,7 +559,10 @@ mod tests {
             PropertyValue::Complex32(0.123, -0.00735)
         );
         assert!(matches!(p("Float32", "NaN"), PropertyValue::Float32(v) if v.is_nan()));
-        assert_eq!(p("Float64", "-Inf"), PropertyValue::Float64(f64::NEG_INFINITY));
+        assert_eq!(
+            p("Float64", "-Inf"),
+            PropertyValue::Float64(f64::NEG_INFINITY)
+        );
         assert!(PropertyValue::parse_scalar("UInt8", "256").is_err());
         assert!(PropertyValue::parse_scalar("Int8", "-129").is_err());
         assert!(PropertyValue::parse_scalar("Boolean", "maybe").is_err());
@@ -577,11 +589,26 @@ mod tests {
 
     #[test]
     fn type_names_and_alternates() {
-        assert!(matches!(kind_of("ByteArray"), Some(PropertyKind::Vector(Element::U8))));
-        assert!(matches!(kind_of("Vector"), Some(PropertyKind::Vector(Element::F64))));
-        assert!(matches!(kind_of("UI16Vector"), Some(PropertyKind::Vector(Element::U16))));
-        assert!(matches!(kind_of("Matrix"), Some(PropertyKind::Matrix(Element::F64))));
-        assert!(matches!(kind_of("C128Matrix"), Some(PropertyKind::Matrix(Element::C128))));
+        assert!(matches!(
+            kind_of("ByteArray"),
+            Some(PropertyKind::Vector(Element::U8))
+        ));
+        assert!(matches!(
+            kind_of("Vector"),
+            Some(PropertyKind::Vector(Element::F64))
+        ));
+        assert!(matches!(
+            kind_of("UI16Vector"),
+            Some(PropertyKind::Vector(Element::U16))
+        ));
+        assert!(matches!(
+            kind_of("Matrix"),
+            Some(PropertyKind::Matrix(Element::F64))
+        ));
+        assert!(matches!(
+            kind_of("C128Matrix"),
+            Some(PropertyKind::Matrix(Element::C128))
+        ));
         assert!(matches!(kind_of("Short"), Some(PropertyKind::Scalar)));
         assert!(kind_of("Table").is_none());
         for element in Element::ALL {

@@ -122,7 +122,9 @@ class AstroBinExportMetadata {
     final acquired = dateIso;
     if (acquired != null) buf.writeln('**Date:** $acquired');
     buf.writeln('**Subject type:** $subjectType');
-    buf.writeln('**Frames:** $frames x ${QuantityFormat.trimmed(perFrameExposureSecs)}s');
+    buf.writeln(
+      '**Frames:** $frames x ${QuantityFormat.trimmed(perFrameExposureSecs)}s',
+    );
     buf.writeln('**Integration:** $integrationHms');
 
     final tele = telescope?.trim();
@@ -138,7 +140,9 @@ class AstroBinExportMetadata {
       buf.writeln('**Filter:** $filt');
     }
     if (focalLength != null) {
-      buf.writeln('**Focal length:** ${QuantityFormat.trimmed(focalLength!)} mm');
+      buf.writeln(
+        '**Focal length:** ${QuantityFormat.trimmed(focalLength!)} mm',
+      );
     }
     if (aperture != null) {
       buf.writeln('**Aperture:** ${QuantityFormat.trimmed(aperture!)} mm');

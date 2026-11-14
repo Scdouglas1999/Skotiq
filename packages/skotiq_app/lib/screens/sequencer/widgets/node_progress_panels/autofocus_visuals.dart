@@ -57,7 +57,6 @@ class _StarZoomPanel extends StatelessWidget {
                         size: 24, color: colors.textMuted),
                   ),
           ),
-
           Container(
             width: 80,
             padding: const EdgeInsets.symmetric(vertical: 2),

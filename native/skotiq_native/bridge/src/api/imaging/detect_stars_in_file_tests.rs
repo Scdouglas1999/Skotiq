@@ -118,12 +118,18 @@ fn sample_range_fixture(name: &str) -> String {
 #[tokio::test]
 async fn a_pixinsight_float_file_measures_as_its_16_bit_twin() {
     let sixteen = sample_range_fixture("scene_u16.fits");
-    let expected = api_detect_stars_in_file(sixteen.clone(), None).await.unwrap();
+    let expected = api_detect_stars_in_file(sixteen.clone(), None)
+        .await
+        .unwrap();
     assert!(expected.star_count >= 30, "{}", expected.star_count);
     let expected_file = api_read_fits_file(sixteen.clone()).await.unwrap();
     let expected_thumbnail = generate_fits_thumbnail_jpeg(&sixteen, 200).unwrap();
 
-    for name in ["pi_scene_f32.xisf", "pi_scene_f64.xisf", "pi_scene_f32.fits"] {
+    for name in [
+        "pi_scene_f32.xisf",
+        "pi_scene_f64.xisf",
+        "pi_scene_f32.fits",
+    ] {
         let path = sample_range_fixture(name);
         let stars = api_detect_stars_in_file(path.clone(), None).await.unwrap();
         assert_eq!(stars.star_count, expected.star_count, "{name}: star count");
@@ -151,7 +157,10 @@ async fn a_pixinsight_float_file_measures_as_its_16_bit_twin() {
         ] {
             assert!((a - b).abs() < 0.02, "{name}: {what} {a} vs {b}");
         }
-        assert_eq!(file.display_data, expected_file.display_data, "{name}: displayed frame");
+        assert_eq!(
+            file.display_data, expected_file.display_data,
+            "{name}: displayed frame"
+        );
         assert_eq!(file.histogram, expected_file.histogram, "{name}: histogram");
 
         // The XISF files carry PixInsight's own thumbnail; the FITS one is
@@ -162,7 +171,11 @@ async fn a_pixinsight_float_file_measures_as_its_16_bit_twin() {
                 gray(&generate_fits_thumbnail_jpeg(&path, 200).unwrap()),
                 gray(&expected_thumbnail),
             );
-            assert_eq!(got.dimensions(), want.dimensions(), "{name}: thumbnail size");
+            assert_eq!(
+                got.dimensions(),
+                want.dimensions(),
+                "{name}: thumbnail size"
+            );
             // The previews themselves agree to a level (the imaging crate's
             // test); JPEG blocks turn that into a little more here and there.
             let total: u64 = got
@@ -171,7 +184,10 @@ async fn a_pixinsight_float_file_measures_as_its_16_bit_twin() {
                 .map(|(a, b)| u64::from(a.abs_diff(*b)))
                 .sum();
             let mean = total as f64 / got.len() as f64;
-            assert!(mean < 0.5, "{name}: thumbnails differ by {mean:.2} levels on average");
+            assert!(
+                mean < 0.5,
+                "{name}: thumbnails differ by {mean:.2} levels on average"
+            );
         }
     }
 }

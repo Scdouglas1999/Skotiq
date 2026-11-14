@@ -1131,10 +1131,9 @@ async fn a_looping_frame_announces_its_star_measurement() {
             .await
             .expect("no guiding event published for a looping frame")
             .expect("event bus closed");
-        if let crate::event::bus::EventPayload::Guiding(crate::event::guiding::GuidingEvent::GuideStats {
-            snr,
-            star_mass,
-        }) = event.payload
+        if let crate::event::bus::EventPayload::Guiding(
+            crate::event::guiding::GuidingEvent::GuideStats { snr, star_mass },
+        ) = event.payload
         {
             break (snr, star_mass);
         }
@@ -1530,11 +1529,11 @@ fn the_guide_scale_uses_the_guide_scope_focal_length() {
 /// imaging camera takes no exposure at all.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera() {
+    use crate::device::{DeviceInfo, DriverType};
     use crate::simulator::camera::{
         get_sim_camera, get_sim_camera_for, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
     };
     use crate::simulator::sim_singleton_test_lock;
-    use crate::device::{DeviceInfo, DriverType};
     let _serial = test_serial().lock().await;
     let _sims = sim_singleton_test_lock().lock().await;
     reset_guider_state().await;
@@ -1786,7 +1785,10 @@ async fn a_paused_or_idle_guider_refuses_with_an_invalid_state() {
     }
     match dither(3.0, false, 1.5, 2.0, 10.0).await {
         Err(SkotiqError::InvalidState(message)) => {
-            assert_eq!(message, "Guiding is paused. Resume guiding before dithering.")
+            assert_eq!(
+                message,
+                "Guiding is paused. Resume guiding before dithering."
+            )
         }
         other => panic!("dithering a paused guider: {other:?}"),
     }

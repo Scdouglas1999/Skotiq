@@ -9,8 +9,8 @@
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::stack_master::{FrameProvenance, StackProvenance};
 use crate::{
-    detect_stars, BayerPattern, ColorFilterArray, DebayerAlgorithm, DetectedStar, ImageData, PixelType,
-    StarDetectionConfig,
+    detect_stars, BayerPattern, ColorFilterArray, DebayerAlgorithm, DetectedStar, ImageData,
+    PixelType, StarDetectionConfig,
 };
 use rayon::prelude::*;
 
@@ -2815,16 +2815,31 @@ mod tests {
 
         let mut float = LiveStacker::new(&unit(&reference), osc_test_config())
             .expect("a float reference is accepted");
-        let stacked = float.add_frame(&unit(&shifted)).expect("a float frame is stacked");
+        let stacked = float
+            .add_frame(&unit(&shifted))
+            .expect("a float frame is stacked");
         assert_eq!(stacked.pixel_type, PixelType::U16);
         assert_eq!(float.frame_count(), 2);
         let got = stacked.as_u16().unwrap();
-        let worst = got.iter().zip(&expected).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
-        assert!(worst <= 1, "the float stack differs from the 16-bit one by {worst} ADU");
+        let worst = got
+            .iter()
+            .zip(&expected)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(
+            worst <= 1,
+            "the float stack differs from the 16-bit one by {worst} ADU"
+        );
 
         let mut mixed = LiveStacker::new(&reference, osc_test_config()).unwrap();
         let got = mixed.add_frame(&unit(&shifted)).unwrap().as_u16().unwrap();
-        let worst = got.iter().zip(&expected).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        let worst = got
+            .iter()
+            .zip(&expected)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
         assert!(worst <= 1, "the mixed stack differs by {worst} ADU");
     }
 

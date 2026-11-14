@@ -160,9 +160,7 @@ pub fn split_id(id: &str) -> Option<(&str, &str)> {
 pub fn family_of_id(id: &str) -> Option<(&'static Family, &str)> {
     let (token, address) = split_id(id)?;
     let by_segment = FAMILIES.iter().find_map(|family| {
-        let rest = address
-            .strip_prefix(family.subtype?)?
-            .strip_prefix(':')?;
+        let rest = address.strip_prefix(family.subtype?)?.strip_prefix(':')?;
         (family.base == token).then_some((family, rest))
     });
     by_segment.or_else(|| {

@@ -20,8 +20,18 @@ use crate::{FitsHeader, FitsValue, SampleRange};
 /// the range, and the cards are in an XISF image only when its writer had to
 /// widen `bounds` past it (see [`sample_range`]).
 const STRUCTURAL: [&str; 12] = [
-    "SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "EXTEND", "BZERO", "BSCALE", "END",
-    RANGE_LOW_CARD, RANGE_HIGH_CARD,
+    "SIMPLE",
+    "BITPIX",
+    "NAXIS",
+    "NAXIS1",
+    "NAXIS2",
+    "NAXIS3",
+    "EXTEND",
+    "BZERO",
+    "BSCALE",
+    "END",
+    RANGE_LOW_CARD,
+    RANGE_HIGH_CARD,
 ];
 
 /// What an image's samples span, as [`XisfUnit::read_pixels`](super::XisfUnit::read_pixels)
@@ -116,29 +126,69 @@ const MAPPINGS: &[Mapping] = &[
     map("RA", "Observation:Object:RA", Kind::Float64),
     map("DEC", "Observation:Object:Dec", Kind::Float64),
     map("EQUINOX", "Observation:Equinox", Kind::Float64),
-    map("RADESYS", "Observation:CelestialReferenceSystem", Kind::Text),
+    map(
+        "RADESYS",
+        "Observation:CelestialReferenceSystem",
+        Kind::Text,
+    ),
     map("SITELAT", "Observation:Location:Latitude", Kind::Float64),
     map("SITELONG", "Observation:Location:Longitude", Kind::Float64),
     map("SITEELEV", "Observation:Location:Elevation", Kind::Float64),
     map("OBSERVER", "Observer:Name", Kind::Text),
     map("TELESCOP", "Instrument:Telescope:Name", Kind::Text),
     map("INSTRUME", "Instrument:Camera:Name", Kind::Text),
-    map("FOCALLEN", "Instrument:Telescope:FocalLength", Kind::Float32(0.001)),
-    map("APTDIA", "Instrument:Telescope:Aperture", Kind::Float32(0.001)),
+    map(
+        "FOCALLEN",
+        "Instrument:Telescope:FocalLength",
+        Kind::Float32(0.001),
+    ),
+    map(
+        "APTDIA",
+        "Instrument:Telescope:Aperture",
+        Kind::Float32(0.001),
+    ),
     map("XPIXSZ", "Instrument:Sensor:XPixelSize", Kind::Float32(1.0)),
     map("YPIXSZ", "Instrument:Sensor:YPixelSize", Kind::Float32(1.0)),
     map("XBINNING", "Instrument:Camera:XBinning", Kind::Int32),
     map("YBINNING", "Instrument:Camera:YBinning", Kind::Int32),
     map("EGAIN", "Instrument:Camera:Gain", Kind::Float32(1.0)),
     map("ISOSPEED", "Instrument:Camera:ISOSpeed", Kind::Int32),
-    map("CCD-TEMP", "Instrument:Sensor:Temperature", Kind::Float32(1.0)),
-    map("SET-TEMP", "Instrument:Sensor:TargetTemperature", Kind::Float32(1.0)),
+    map(
+        "CCD-TEMP",
+        "Instrument:Sensor:Temperature",
+        Kind::Float32(1.0),
+    ),
+    map(
+        "SET-TEMP",
+        "Instrument:Sensor:TargetTemperature",
+        Kind::Float32(1.0),
+    ),
     map("FILTER", "Instrument:Filter:Name", Kind::Text),
-    map("AMBTEMP", "Observation:Meteorology:AmbientTemperature", Kind::Float32(1.0)),
-    map("HUMIDITY", "Observation:Meteorology:RelativeHumidity", Kind::Float32(1.0)),
-    map("PRESSURE", "Observation:Meteorology:AtmosphericPressure", Kind::Float32(1.0)),
-    map("WINDSPD", "Observation:Meteorology:WindSpeed", Kind::Float32(1.0)),
-    map("WINDDIR", "Observation:Meteorology:WindDirection", Kind::Float32(1.0)),
+    map(
+        "AMBTEMP",
+        "Observation:Meteorology:AmbientTemperature",
+        Kind::Float32(1.0),
+    ),
+    map(
+        "HUMIDITY",
+        "Observation:Meteorology:RelativeHumidity",
+        Kind::Float32(1.0),
+    ),
+    map(
+        "PRESSURE",
+        "Observation:Meteorology:AtmosphericPressure",
+        Kind::Float32(1.0),
+    ),
+    map(
+        "WINDSPD",
+        "Observation:Meteorology:WindSpeed",
+        Kind::Float32(1.0),
+    ),
+    map(
+        "WINDDIR",
+        "Observation:Meteorology:WindDirection",
+        Kind::Float32(1.0),
+    ),
 ];
 
 const SOLUTION: &str = "AstrometricSolution:";
@@ -414,11 +464,13 @@ fn chrono_utc(text: &str) -> Option<chrono::DateTime<chrono::Utc>> {
 fn xisf_time(card: &str) -> Option<String> {
     let t = card.trim();
     chrono_utc(t)?;
-    Some(if t.ends_with('Z') || t.contains('+') || t.matches('-').count() > 2 {
-        t.to_string()
-    } else {
-        format!("{t}Z")
-    })
+    Some(
+        if t.ends_with('Z') || t.contains('+') || t.matches('-').count() > 2 {
+            t.to_string()
+        } else {
+            format!("{t}Z")
+        },
+    )
 }
 
 /// A TimePoint as a FITS date: UTC, written without a zone.
@@ -501,7 +553,10 @@ fn cards_to_solution(
             "ReferenceCelestialCoordinates",
             PropertyValue::f64_vector(&[wcs.crval1, wcs.crval2]),
         ),
-        ("ReferenceImageCoordinates", PropertyValue::f64_vector(&reference)),
+        (
+            "ReferenceImageCoordinates",
+            PropertyValue::f64_vector(&reference),
+        ),
         (
             "LinearTransformationMatrix",
             PropertyValue::f64_matrix(2, 2, &[wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2]),

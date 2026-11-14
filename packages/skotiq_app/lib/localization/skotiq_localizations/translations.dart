@@ -741,7 +741,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMount': 'Mount',
     'nightSessionCheckMountIdle': 'unparked · not tracking',
     'nightSessionCheckMountParked': 'parked',
-    'nightSessionCheckMountParkedStays': 'parked · this plan does not unpark it',
+    'nightSessionCheckMountParkedStays':
+        'parked · this plan does not unpark it',
     'nightSessionCheckMountParkedTracking': 'parked · tracking',
     'nightSessionCheckMountParkedUnparks': 'parked · the run unparks it',
     'nightSessionCheckMountTracking': 'unparked · tracking',
@@ -1345,9 +1346,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideLoop': 'Loop',
     'nightScopeGuideFindStar': 'Find star',
     'nightScopeGuideLoopHint': 'Take guide exposures without guiding',
-    'nightScopeGuideFindStarHint': 'Pick the best star in the latest guide frame',
+    'nightScopeGuideFindStarHint':
+        'Pick the best star in the latest guide frame',
     'nightScopeGuideStopHint': 'Stop looping or guiding',
-    'nightScopeGuideDitherHint': 'Move the guide star a few pixels now and wait for it to settle',
+    'nightScopeGuideDitherHint':
+        'Move the guide star a few pixels now and wait for it to settle',
     'nightScopeGuideGuide': 'Guide',
     'nightScopeGuideGuideHint':
         'Calibrates if the guider needs it, then guides with the settle settings below',
@@ -2374,8 +2377,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMount': 'Montura',
     'nightSessionCheckMountIdle': 'desaparcada · sin seguimiento',
     'nightSessionCheckMountParked': 'aparcada',
-    'nightSessionCheckMountParkedStays':
-        'aparcada · este plan no la desaparca',
+    'nightSessionCheckMountParkedStays': 'aparcada · este plan no la desaparca',
     'nightSessionCheckMountParkedTracking': 'aparcada · siguiendo',
     'nightSessionCheckMountParkedUnparks': 'aparcada · la sesión la desaparca',
     'nightSessionCheckMountTracking': 'desaparcada · siguiendo',
@@ -2999,9 +3001,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideLoop': 'Bucle',
     'nightScopeGuideFindStar': 'Buscar estrella',
     'nightScopeGuideLoopHint': 'Toma exposiciones de guiado sin guiar',
-    'nightScopeGuideFindStarHint': 'Elige la mejor estrella de la última toma de guiado',
+    'nightScopeGuideFindStarHint':
+        'Elige la mejor estrella de la última toma de guiado',
     'nightScopeGuideStopHint': 'Detiene el bucle o el guiado',
-    'nightScopeGuideDitherHint': 'Mueve la estrella guía unos píxeles ahora y espera a que se estabilice',
+    'nightScopeGuideDitherHint':
+        'Mueve la estrella guía unos píxeles ahora y espera a que se estabilice',
     'nightScopeGuideGuide': 'Guiar',
     'nightScopeGuideGuideHint':
         'Calibra si el guiado lo necesita y guía con los ajustes de estabilización de abajo',

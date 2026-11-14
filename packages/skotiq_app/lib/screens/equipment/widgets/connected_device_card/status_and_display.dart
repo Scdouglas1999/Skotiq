@@ -302,14 +302,14 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           // ellipsising to "00:00:…", which reads as a different coordinate;
           // the seconds live on Imaging's mount tab.
           _DeviceMetric(
-            value: state.ra != null
-                ? CoordinateFormat.raCompact(state.ra!)
-                : null,
+            value:
+                state.ra != null ? CoordinateFormat.raCompact(state.ra!) : null,
             label: 'RA',
           ),
           _DeviceMetric(
-            value:
-                state.dec != null ? CoordinateFormat.decCompact(state.dec!) : null,
+            value: state.dec != null
+                ? CoordinateFormat.decCompact(state.dec!)
+                : null,
             label: 'Dec',
           ),
           _DeviceMetric(

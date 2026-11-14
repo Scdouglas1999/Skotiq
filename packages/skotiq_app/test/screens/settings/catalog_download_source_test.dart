@@ -65,7 +65,8 @@ void main() {
     );
   });
 
-  testWidgets('a link without admin access reads the source and where to '
+  testWidgets(
+      'a link without admin access reads the source and where to '
       'change it', (tester) async {
     await pumpAppScreen(
       tester,
@@ -91,7 +92,8 @@ void main() {
     );
   });
 
-  testWidgets('an address that is not http or https is refused with the '
+  testWidgets(
+      'an address that is not http or https is refused with the '
       'reason', (tester) async {
     final handle = await _pump(tester);
     await tester.tap(find.text('Change'));

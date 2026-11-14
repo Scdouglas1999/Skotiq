@@ -268,8 +268,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       await _finish(host, pairing);
     } on RigPairingFailure catch (failure) {
       if (!mounted) return;
-      final wantsCode =
-          failure.kind == RigPairingFailureKind.oneTapUnavailable;
+      final wantsCode = failure.kind == RigPairingFailureKind.oneTapUnavailable;
       if (wantsCode && _hasNoScreen(host)) {
         setState(() {
           _busy = false;
@@ -378,9 +377,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       case RigPairingFailureKind.expiredCode:
         return _hasNoScreen(host)
             ? 'That code has expired or was already used. Press Get a new '
-                  'code and type the one $name makes.'
+                'code and type the one $name makes.'
             : 'That code has expired or was already used. Start pairing '
-                  'again on $name and type the new code.';
+                'again on $name and type the new code.';
       case RigPairingFailureKind.rateLimited:
         return '$name paused pairing after several wrong codes. Wait a '
             'minute and try again.';
@@ -491,7 +490,8 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
             children: [
               for (var i = 0; i < hosts.length; i++)
                 _HostRow(
-                  key: ValueKey('link.host.${hosts[i].host}:${hosts[i].webPort}'),
+                  key: ValueKey(
+                      'link.host.${hosts[i].host}:${hosts[i].webPort}'),
                   host: hosts[i],
                   showDivider: i < hosts.length - 1 || _browsing,
                   onLink: () => _openHost(hosts[i]),
@@ -673,12 +673,12 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
               Text(
                 _hasNoScreen(host)
                     ? '$name has no screen, so it keeps the code on its own '
-                          'disk and never sends it over the network. Press '
-                          'Get a code, then type the code from $name here, '
-                          'for example ORBIT-NEBULA-4821.'
+                        'disk and never sends it over the network. Press '
+                        'Get a code, then type the code from $name here, '
+                        'for example ORBIT-NEBULA-4821.'
                     : 'On $name, open Settings > Remote access and press '
-                          'Start pairing. Type the code it shows, for example '
-                          'ORBIT-NEBULA-4821.',
+                        'Start pairing. Type the code it shows, for example '
+                        'ORBIT-NEBULA-4821.',
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,
                   height: 1.4,
@@ -837,7 +837,7 @@ String describeCodeWhereabouts(
   final until = ClockFormat.hm(made.expiresAt.toLocal());
   final lead = askedForCode
       ? '$name asks for a code before it links a computer. It made one, '
-            'valid until $until.'
+          'valid until $until.'
       : '$name made a code, valid until $until.';
   final delivery = made.delivery;
   if (delivery == null) return '$lead Read it on $name.';

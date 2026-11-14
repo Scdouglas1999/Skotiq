@@ -28,9 +28,8 @@ final hostPlateSolverSetupProvider = StateProvider<PlateSolverSetup?>((ref) {
 });
 
 /// [value] as the host told it; loading until the host has.
-Future<T> _toldByHost<T>(T? value) => value != null
-    ? Future.value(value)
-    : Completer<T>().future;
+Future<T> _toldByHost<T>(T? value) =>
+    value != null ? Future.value(value) : Completer<T>().future;
 
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
@@ -185,10 +184,7 @@ class PlateSolverSettingsNotifier
         final detection = await _service.detect();
         if (!_isCurrent(generation)) return false;
         final told = ref.read(hostPlateSolverSetupProvider.notifier);
-        told.state = (
-          detection: detection,
-          preference: told.state?.preference,
-        );
+        told.state = (detection: detection, preference: told.state?.preference);
       } else {
         ref.invalidate(plateSolverDetectionProvider);
         // The `await` here ensures any test driver can observe the new detect
@@ -274,7 +270,10 @@ class PlateSolverSettingsNotifier
       state = state.copyWith(verifying: false, astapVerifyInfo: info);
     } catch (e) {
       if (!_isCurrent(generation)) return;
-      state = state.copyWith(verifying: false, astapVerifyError: userFacingError(e));
+      state = state.copyWith(
+        verifying: false,
+        astapVerifyError: userFacingError(e),
+      );
     }
   }
 

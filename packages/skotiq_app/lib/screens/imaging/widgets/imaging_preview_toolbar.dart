@@ -20,7 +20,8 @@ import 'depthlock/depthlock_region_layer.dart'
 import 'depthlock/depthlock_selection.dart' show depthLockSelectionProvider;
 import 'live_preview_area.dart' show previewReadoutsVisibleProvider;
 import 'meridian_flip_countdown_banner.dart' show MeridianFlipChip;
-import '../../../widgets/image_preview/preview_display_scale.dart' show previewDisplayScaleProvider;
+import '../../../widgets/image_preview/preview_display_scale.dart'
+    show previewDisplayScaleProvider;
 import 'preview_histogram_visibility.dart';
 
 /// The 44 px viewer toolbar above the canvas (06 §Imaging).

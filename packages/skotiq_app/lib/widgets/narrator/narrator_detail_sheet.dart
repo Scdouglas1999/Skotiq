@@ -68,7 +68,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
-
             Row(
               children: [
                 Icon(icon, size: 18, color: accent),
@@ -92,7 +91,6 @@ class _NarratorDetailSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
-
             Text(
               event.headline,
               style: TextStyle(
@@ -102,7 +100,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-
             if (event.body != null && event.body!.isNotEmpty) ...[
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
@@ -113,7 +110,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
             if (event.evidence != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               Container(
@@ -136,7 +132,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
             if (explainer != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               Text(
@@ -157,7 +152,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
             if (action != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               SizedBox(

@@ -117,7 +117,9 @@ impl IndiCamera {
     pub async fn forget_frame(&self) {
         let client = self.client().read().await;
         for element in [CCD1, CCD2] {
-            client.clear_blob(self.device_name(), element, element).await;
+            client
+                .clear_blob(self.device_name(), element, element)
+                .await;
         }
     }
 
@@ -239,7 +241,11 @@ mod tests {
     fn an_indi_16_bit_frame_reads_its_own_levels() {
         let levels = [0, 5, 1000, 32768, 65535, 9];
         let frame = decode_frame(&indi_u16((3, 2), &levels), (1280, 1024)).unwrap();
-        assert_eq!((frame.width, frame.height), (3, 2), "the BLOB's own size wins");
+        assert_eq!(
+            (frame.width, frame.height),
+            (3, 2),
+            "the BLOB's own size wins"
+        );
         assert_eq!(frame.pixels, levels);
     }
 
@@ -265,8 +271,7 @@ mod tests {
     fn a_zlib_compressed_frame_reads_like_the_plain_one() {
         use std::io::Write;
         let plain = indi_u16((2, 2), &[10, 20, 30, 40]);
-        let mut encoder =
-            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::best());
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::best());
         encoder.write_all(&plain).unwrap();
         let compressed = encoder.finish().unwrap();
         assert_eq!(

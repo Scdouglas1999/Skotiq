@@ -62,7 +62,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     final active = sessions
         .cast<ImagingSession?>()
         .firstWhere((s) => s?.id == activeSessionId, orElse: () => null);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,

@@ -510,7 +510,8 @@ class SequenceTreeContextMenu extends ConsumerWidget {
           await ref.read(sequenceExecutorProvider).skipToNode(first.id);
         } catch (e) {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Failed to skip to "${first.name}": ${userFacingError(e)}');
+          _showSnackBar(context,
+              'Failed to skip to "${first.name}": ${userFacingError(e)}');
         }
     }
   }
@@ -608,7 +609,8 @@ class SequenceTreeContextMenu extends ConsumerWidget {
           await ref.read(sequenceExecutorProvider).skipToNode(node.id);
         } catch (e) {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Failed to skip to "${node.name}": ${userFacingError(e)}');
+          _showSnackBar(context,
+              'Failed to skip to "${node.name}": ${userFacingError(e)}');
         }
         break;
     }

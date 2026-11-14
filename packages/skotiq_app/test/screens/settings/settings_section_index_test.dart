@@ -168,7 +168,8 @@ void main() {
     expect(SettingsSectionId.resolve('auto-save')?.key, 'files-storage');
     expect(SettingsSectionId.resolve('predictive-af')?.key, 'autofocus');
     expect(SettingsSectionId.resolve('focus-model')?.key, 'autofocus');
-    expect(SettingsSectionId.resolve('notification-routing')?.key, 'notifications');
+    expect(SettingsSectionId.resolve('notification-routing')?.key,
+        'notifications');
   });
 
   test('ai_assistant_section_is_hidden_from_settings_contract', () {

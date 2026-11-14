@@ -176,7 +176,8 @@ class _AutofocusProgressPanelState
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Failed to refresh star crops: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to refresh star crops: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {

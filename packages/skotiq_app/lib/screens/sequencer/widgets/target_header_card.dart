@@ -339,18 +339,20 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               children: [
                 _CoordinateChip(
                   label: 'RA',
-                  value: unset ? 'Not set' : CoordinateFormat.raReadout(node.raHours),
+                  value: unset
+                      ? 'Not set'
+                      : CoordinateFormat.raReadout(node.raHours),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
-
                 _CoordinateChip(
                   label: 'Dec',
-                  value: unset ? 'Not set' : CoordinateFormat.decReadout(node.decDegrees),
+                  value: unset
+                      ? 'Not set'
+                      : CoordinateFormat.decReadout(node.decDegrees),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
-
                 if (node.rotation != null)
                   _CoordinateChip(
                     label: '↻',
@@ -360,7 +362,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               ],
             ),
           ),
-
           if (node.priority > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -452,7 +453,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               label: 'End: ${ClockFormat.hm(node.endBefore!)}',
               colors: widget.colors,
             ),
-
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)
             const SizedBox(width: 12),
           if (node.minAltitude != null)
@@ -522,8 +522,8 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       NodeStatus.success => 'Completed',
       NodeStatus.failure => 'Failed',
       NodeStatus.skipped => 'Skipped',
-      NodeStatus.cancelled when stats.hasPlannedFrames &&
-              stats.hasKnownCompletion =>
+      NodeStatus.cancelled
+          when stats.hasPlannedFrames && stats.hasKnownCompletion =>
         'Stopped · ${stats.completedFrames} of ${stats.totalFrames} frames',
       NodeStatus.cancelled => 'Stopped',
       _ => targetCoordinatesUnset(widget.node) ? 'Needs coordinates' : 'Ready',
@@ -613,8 +613,11 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // directly above it in the same card read "~34s". The estimate beside it
     // uses the shared compact duration format, so this uses it too and the two
     // halves of one card finally quote the same unit.
-    final completedElapsed = DurationFormat.seconds(stats.completedIntegrationSecs, style: DurationStyle.coarse);
-    final totalElapsed = DurationFormat.seconds(stats.totalIntegrationSecs, style: DurationStyle.coarse);
+    final completedElapsed = DurationFormat.seconds(
+        stats.completedIntegrationSecs,
+        style: DurationStyle.coarse);
+    final totalElapsed = DurationFormat.seconds(stats.totalIntegrationSecs,
+        style: DurationStyle.coarse);
     final progressState = executionState == SequenceExecutionState.paused
         ? SkotiqProgressState.paused
         : SkotiqProgressState.normal;
@@ -681,7 +684,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     if (sequence == null) return PlannedCapture.empty;
     return plannedCaptureUnder(sequence, widget.node.id);
   }
-
 }
 
 class _CoordinateChip extends StatelessWidget {

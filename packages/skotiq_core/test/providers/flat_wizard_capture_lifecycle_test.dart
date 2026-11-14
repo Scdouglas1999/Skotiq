@@ -362,38 +362,43 @@ void main() {
   });
 
   group('save folder', () {
-    test('without a chosen folder, flats go to Flats in the capture folder',
-        () async {
-      final backend = _AutoBackend();
-      addTearDown(backend.dispose);
-      final container = makeContainer(
-        backend,
-        filterNames: const ['L'],
-        captureFolder: tempDir.path,
-      );
-      await container.read(appSettingsProvider.future);
-      final notifier = container.read(flatWizardProvider.notifier);
-      await notifier.loadFilters();
-      notifier.updateGlobalSettings(
-        container.read(flatWizardProvider).globalSettings.copyWith(
-              createDateSubfolder: false,
-              createFilterSubfolders: false,
-              frameCount: 1,
-            ),
-      );
-      final flats = '${tempDir.path}${Platform.pathSeparator}Flats';
-      expect(container.read(flatWizardSaveFolderProvider), flats);
+    test(
+      'without a chosen folder, flats go to Flats in the capture folder',
+      () async {
+        final backend = _AutoBackend();
+        addTearDown(backend.dispose);
+        final container = makeContainer(
+          backend,
+          filterNames: const ['L'],
+          captureFolder: tempDir.path,
+        );
+        await container.read(appSettingsProvider.future);
+        final notifier = container.read(flatWizardProvider.notifier);
+        await notifier.loadFilters();
+        notifier.updateGlobalSettings(
+          container
+              .read(flatWizardProvider)
+              .globalSettings
+              .copyWith(
+                createDateSubfolder: false,
+                createFilterSubfolders: false,
+                frameCount: 1,
+              ),
+        );
+        final flats = '${tempDir.path}${Platform.pathSeparator}Flats';
+        expect(container.read(flatWizardSaveFolderProvider), flats);
 
-      notifier.setMode(FlatWizardMode.quick);
-      notifier.setCurrentFilterIndex(0);
-      await notifier.runCapture();
+        notifier.setMode(FlatWizardMode.quick);
+        notifier.setCurrentFilterIndex(0);
+        await notifier.runCapture();
 
-      expect(container.read(flatWizardProvider).errorMessage, isNull);
-      expect(backend.savedPaths, hasLength(1));
-      expect(backend.savedPaths.single, startsWith(flats));
-      // A flat is saved as a frame: it follows the camera-file setting.
-      expect(backend.keptCameraFiles, [true]);
-    });
+        expect(container.read(flatWizardProvider).errorMessage, isNull);
+        expect(backend.savedPaths, hasLength(1));
+        expect(backend.savedPaths.single, startsWith(flats));
+        // A flat is saved as a frame: it follows the camera-file setting.
+        expect(backend.keptCameraFiles, [true]);
+      },
+    );
 
     test('a chosen folder wins over the capture folder', () async {
       final backend = _AutoBackend();
@@ -622,8 +627,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   Future<CapturedImageResult?> cameraGetLastImage(
     String deviceId, {
     int? maxWidth,
-  }) async =>
-      _image(_onTargetAdu);
+  }) async => _image(_onTargetAdu);
 
   @override
   Future<String> saveFitsFromLastCapture({
@@ -734,8 +738,7 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
   Future<CapturedImageResult?> cameraGetLastImage(
     String deviceId, {
     int? maxWidth,
-  }) async =>
-      _image(_onTargetAdu);
+  }) async => _image(_onTargetAdu);
 
   @override
   Future<String> saveFitsFromLastCapture({

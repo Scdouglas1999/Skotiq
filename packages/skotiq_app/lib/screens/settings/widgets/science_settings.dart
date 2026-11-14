@@ -573,8 +573,7 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
           '${userFacingError(error)}';
       if (mounted) {
         setState(() => _rowError = message);
-        ScaffoldMessenger.maybeOf(context)
-            ?.showInfoSnackBar(message);
+        ScaffoldMessenger.maybeOf(context)?.showInfoSnackBar(message);
       }
       // Hands the failure back to SettingsTextInput, which restores the stored
       // value. Swallowing it here would leave unsaved text on screen looking
@@ -659,8 +658,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
         final message =
             'Could not store the TNS bot key: ${userFacingError(error)}';
         setState(() => _writeError = message);
-        ScaffoldMessenger.maybeOf(context)
-            ?.showInfoSnackBar(message);
+        ScaffoldMessenger.maybeOf(context)?.showInfoSnackBar(message);
       }
       return;
     }

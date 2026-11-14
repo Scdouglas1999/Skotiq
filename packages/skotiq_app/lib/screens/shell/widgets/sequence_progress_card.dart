@@ -73,9 +73,7 @@ class SequenceProgressCard extends ConsumerWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           if (progress.currentTarget != null) ...[
             Row(
               children: [
@@ -96,7 +94,6 @@ class SequenceProgressCard extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
           ],
-
           if (progress.currentNodeName != null) ...[
             Row(
               children: [
@@ -116,7 +113,6 @@ class SequenceProgressCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-
           ClipRRect(
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             child: LinearProgressIndicator(
@@ -126,9 +122,7 @@ class SequenceProgressCard extends ConsumerWidget {
               minHeight: 6,
             ),
           ),
-
           const SizedBox(height: 12),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -153,7 +147,6 @@ class SequenceProgressCard extends ConsumerWidget {
                   ),
                 ],
               ),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -176,7 +169,6 @@ class SequenceProgressCard extends ConsumerWidget {
                   ),
                 ],
               ),
-
               if (estimatedRemaining != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -202,7 +194,6 @@ class SequenceProgressCard extends ConsumerWidget {
                 ),
             ],
           ),
-
           if (progress.currentFilter != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -220,7 +211,6 @@ class SequenceProgressCard extends ConsumerWidget {
               ],
             ),
           ],
-
           if (progress.message != null && progress.message!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(

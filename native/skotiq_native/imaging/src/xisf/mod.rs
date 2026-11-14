@@ -377,7 +377,9 @@ impl XisfImageHeader {
 #[derive(Debug, Clone)]
 pub(crate) enum UnitSource {
     Monolithic(PathBuf),
-    Distributed { header_dir: PathBuf },
+    Distributed {
+        header_dir: PathBuf,
+    },
     /// A monolithic unit held in memory, such as a frame a camera server sent.
     InMemory(std::sync::Arc<[u8]>),
 }
@@ -398,10 +400,7 @@ pub struct XisfUnit {
 
 impl XisfUnit {
     pub fn metadata_property(&self, id: &str) -> Option<&PropertyValue> {
-        self.metadata
-            .iter()
-            .find(|p| p.id == id)
-            .map(|p| &p.value)
+        self.metadata.iter().find(|p| p.id == id).map(|p| &p.value)
     }
 
     pub fn image(&self, index: usize) -> Result<&XisfImageHeader, XisfError> {

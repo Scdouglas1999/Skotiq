@@ -587,7 +587,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
     } catch (e, st) {
       ref.read(loggingServiceProvider).error(
         'ProfileEditorDialog save failed: $e',
-
         source: 'ProfileEditorDialog',
         fields: {'error': e.toString(), 'stack': st.toString()},
       );

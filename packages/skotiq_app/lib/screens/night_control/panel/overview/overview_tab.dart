@@ -7,7 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/models.dart' show TargetHeaderNode;
 import 'package:skotiq_core/providers.dart'
-    show activeEquipmentProfileProvider, currentSequenceProvider, liveBroadcastProvider, weatherSafetyProvider;
+    show
+        activeEquipmentProfileProvider,
+        currentSequenceProvider,
+        liveBroadcastProvider,
+        weatherSafetyProvider;
 
 import '../../../equipment/utils/connect_all_action.dart';
 

@@ -95,7 +95,8 @@ class ContinueRunButton extends ConsumerWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      context.showErrorSnackBar('Could not restore the run: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Could not restore the run: ${userFacingError(e)}');
     }
   }
 }

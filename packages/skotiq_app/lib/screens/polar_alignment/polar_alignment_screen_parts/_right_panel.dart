@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 extension _RightPanel on _PolarAlignmentScreenState {
@@ -204,7 +203,8 @@ extension _RightPanel on _PolarAlignmentScreenState {
       // sample this is instead of printing a "0s" the run never had.
       text = 'Drift baseline: first drift solve';
     } else {
-      text = 'Drift baseline: at least ${DurationFormat.of(elapsed, style: DurationStyle.short)}';
+      text =
+          'Drift baseline: at least ${DurationFormat.of(elapsed, style: DurationStyle.short)}';
     }
     return Text(
       text,

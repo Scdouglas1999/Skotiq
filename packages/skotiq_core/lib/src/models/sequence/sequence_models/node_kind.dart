@@ -227,11 +227,7 @@ final class NodeField<N extends SequenceNode, T> {
 
   Object? encode(N node, NodeStore store) => codec.encode(read(node), store);
 
-  T _decode(
-    NodeKind<N> kind,
-    Map<String, dynamic> stored,
-    NodeStore store,
-  ) {
+  T _decode(NodeKind<N> kind, Map<String, dynamic> stored, NodeStore store) {
     Object? raw = stored[key];
     for (final alternate in alternateKeys) {
       raw ??= stored[alternate];
@@ -239,9 +235,7 @@ final class NodeField<N extends SequenceNode, T> {
     final decoded = raw == null ? null : codec.decode(raw, store);
     if (decoded != null) return decoded;
     if (requiredIn.contains(store)) {
-      throw FormatException(
-        '${kind.displayName} node missing required fields',
-      );
+      throw FormatException('${kind.displayName} node missing required fields');
     }
     if (absentIn.containsKey(store)) return absentIn[store] as T;
     if (null is T) return null as T;

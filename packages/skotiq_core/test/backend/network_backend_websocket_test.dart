@@ -727,42 +727,47 @@ void main() {
       },
     );
 
-    test('a host that issues no ticket is never sent the bearer in the URL',
-        () async {
-      var upgrades = 0;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        final path = request.uri.path;
-        if (path == '/api/info') {
-          request.response
-            ..statusCode = HttpStatus.ok
-            ..headers.contentType = ContentType.json
-            ..write(jsonEncode(const {'version': skotiqRelease}));
-        } else if (path == '/events') {
-          upgrades++;
-          request.response.statusCode = HttpStatus.forbidden;
-        } else {
-          request.response.statusCode = HttpStatus.notFound;
-        }
-        await request.response.close();
-      });
-      final backend = NetworkBackend(
-        serverHost: InternetAddress.loopbackIPv4.address,
-        serverPort: server.port,
-        webSocketPort: server.port,
-        authToken: 'bearer-secret-xyz',
-        autoConnectWebSocket: false,
-      );
+    test(
+      'a host that issues no ticket is never sent the bearer in the URL',
+      () async {
+        var upgrades = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final path = request.uri.path;
+          if (path == '/api/info') {
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..headers.contentType = ContentType.json
+              ..write(jsonEncode(const {'version': skotiqRelease}));
+          } else if (path == '/events') {
+            upgrades++;
+            request.response.statusCode = HttpStatus.forbidden;
+          } else {
+            request.response.statusCode = HttpStatus.notFound;
+          }
+          await request.response.close();
+        });
+        final backend = NetworkBackend(
+          serverHost: InternetAddress.loopbackIPv4.address,
+          serverPort: server.port,
+          webSocketPort: server.port,
+          authToken: 'bearer-secret-xyz',
+          autoConnectWebSocket: false,
+        );
 
-      try {
-        await backend.connect();
-        expect(upgrades, 0);
-        expect(backend.connectionState, isNot(BackendConnectionState.connected));
-      } finally {
-        backend.dispose();
-        await server.close(force: true);
-      }
-    });
+        try {
+          await backend.connect();
+          expect(upgrades, 0);
+          expect(
+            backend.connectionState,
+            isNot(BackendConnectionState.connected),
+          );
+        } finally {
+          backend.dispose();
+          await server.close(force: true);
+        }
+      },
+    );
   });
 
   group('upgrade timeout', () {

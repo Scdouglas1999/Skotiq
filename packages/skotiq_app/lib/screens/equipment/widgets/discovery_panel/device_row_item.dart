@@ -103,7 +103,8 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
           'Assigned ${device.displayName} to ${profile.name}');
     } catch (e) {
       if (mounted && assignment.isCurrent) {
-        context.showErrorSnackBar('Failed to assign device: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to assign device: ${userFacingError(e)}');
       }
     } finally {
       if (assignment.isCurrent) setState(() => _isAssigning = false);

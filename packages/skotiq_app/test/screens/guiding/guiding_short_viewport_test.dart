@@ -63,8 +63,7 @@ void main() {
         const GuidingScreen(),
         size: size,
         settle: false,
-        extraOverrides: [
-        ],
+        extraOverrides: [],
       );
       await _drainAsyncFrames(tester);
 

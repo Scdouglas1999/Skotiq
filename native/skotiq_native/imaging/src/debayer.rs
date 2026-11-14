@@ -765,7 +765,10 @@ mod color_filter_array_tests {
             let cfa = ColorFilterArray::parse(letters).expect(letters);
             assert_eq!(cfa.letters(), letters);
         }
-        assert!(matches!(ColorFilterArray::parse(XT3), Some(ColorFilterArray::XTrans(_))));
+        assert!(matches!(
+            ColorFilterArray::parse(XT3),
+            Some(ColorFilterArray::XTrans(_))
+        ));
     }
 
     #[test]
@@ -862,7 +865,8 @@ mod tests {
             4,
             BayerPattern::Rggb,
             DebayerAlgorithm::Bilinear,
-        ).to_rgb16();
+        )
+        .to_rgb16();
         let idx = (4 + 2) * 3;
         assert_eq!(rgb[idx], 1000);
         assert_eq!(rgb[idx + 1], 500);
@@ -878,7 +882,8 @@ mod tests {
             4,
             BayerPattern::Bggr,
             DebayerAlgorithm::Bilinear,
-        ).to_rgb16();
+        )
+        .to_rgb16();
         let idx = ((2 * 4) + 1) * 3;
         assert_eq!(rgb[idx], 1000);
         assert_eq!(rgb[idx + 1], 500);
@@ -985,7 +990,8 @@ mod tests {
             h as u32,
             BayerPattern::Rggb,
             DebayerAlgorithm::VNG,
-        ).to_rgb16();
+        )
+        .to_rgb16();
         let dark_idx = (4 * w + 2) * 3;
         let bright_idx = (4 * w + 7) * 3;
         let dark_sum: u32 =

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'sequence/sequencer_defaults.dart'
-    show sequencerDefaultsProvider;
+import 'sequence/sequencer_defaults.dart' show sequencerDefaultsProvider;
 import '../services/live_stacking_broadcast_service.dart';
 
 /// Provider for the broadcast service. Singleton per app — the HTTP

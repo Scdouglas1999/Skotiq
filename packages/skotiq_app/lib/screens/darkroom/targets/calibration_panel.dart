@@ -221,7 +221,9 @@ class _FilterRow extends ConsumerWidget {
         : cell(
             'flat',
             'Flat',
-            flat == null ? null : ClockFormat.monthDay(flat.record.createdAt.toLocal()),
+            flat == null
+                ? null
+                : ClockFormat.monthDay(flat.record.createdAt.toLocal()),
             flat?.record.filePath,
           );
     return Container(

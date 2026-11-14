@@ -23,10 +23,10 @@ class _FakeCriticalAlertPlayer implements CriticalAlertPlayer {
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async => const AppSettingsState(
-    audibleAlertsOnCritical: true,
-    pushCriticalAlerts: true,
-    criticalAlertSound: 'systemBell',
-  );
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+        criticalAlertSound: 'systemBell',
+      );
 }
 
 bridge_event.SkotiqEvent _sequencerError(int id, String message) =>
@@ -46,7 +46,8 @@ bridge_event.SkotiqEvent _sequencerError(int id, String message) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('alerts from before the link show in the banner without sounding; '
+  test(
+      'alerts from before the link show in the banner without sounding; '
       'one raised after it sounds', () async {
     final player = _FakeCriticalAlertPlayer();
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());

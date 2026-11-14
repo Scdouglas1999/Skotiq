@@ -86,9 +86,7 @@ class _TransientCardState extends State<TransientCard> {
             color: TransientTypeStyle.color(widget.alert.type, colors),
           ),
         ),
-
         const SizedBox(width: SkotiqTokens.spaceMd),
-
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +119,6 @@ class _TransientCardState extends State<TransientCard> {
             ],
           ),
         ),
-
         _StateBadge(state: effectiveState, colors: colors),
       ],
     );
@@ -151,7 +148,6 @@ class _TransientCardState extends State<TransientCard> {
             ],
           ),
         ),
-
         if (widget.alert.magnitude != null) ...[
           const SizedBox(width: SkotiqTokens.spaceMd),
           _MagnitudeIndicator(

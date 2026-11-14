@@ -984,7 +984,11 @@ mod tests {
 
         let display = apply_stretch(&float_image, &auto_stretch_stf(&float_image));
         let white = display.iter().filter(|&&b| b == 255).count();
-        assert!(white * 4 < display.len(), "{white} of {} white", display.len());
+        assert!(
+            white * 4 < display.len(),
+            "{white} of {} white",
+            display.len()
+        );
     }
 
     /// A float image with no finite sample at all displays black rather than

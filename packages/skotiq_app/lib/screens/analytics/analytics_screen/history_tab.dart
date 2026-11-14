@@ -1,4 +1,3 @@
-
 part of '../analytics_screen.dart';
 
 class _HistoryTab extends ConsumerStatefulWidget {

@@ -6,7 +6,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-
 // Phd2GuidingState (and its displayName extension) are owned by skotiq_core.
 // This UI-only extension layers on the icon mapping that's specific to widgets.
 extension Phd2GuidingStateIcon on Phd2GuidingState {

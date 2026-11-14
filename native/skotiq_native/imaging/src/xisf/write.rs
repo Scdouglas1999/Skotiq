@@ -3,8 +3,7 @@
 
 use super::block::{BlockLocation, DataBlock};
 use super::codec::{
-    compress, encode_base64, shuffle, Checksum, ChecksumAlgorithm, Compression,
-    XisfCodec,
+    compress, encode_base64, shuffle, Checksum, ChecksumAlgorithm, Compression, XisfCodec,
 };
 use super::property::{PropertyValue, XisfProperty};
 use super::{
@@ -155,7 +154,10 @@ pub(crate) fn write_images(
             "XISF:CreatorApplication",
             PropertyValue::String(format!("Skotiq {PRODUCT_VERSION}")),
         ),
-        XisfProperty::new("XISF:CreatorOS", PropertyValue::String(creator_os().to_string())),
+        XisfProperty::new(
+            "XISF:CreatorOS",
+            PropertyValue::String(creator_os().to_string()),
+        ),
         XisfProperty::new(
             "XISF:BlockAlignmentSize",
             PropertyValue::UInt16(BLOCK_ALIGNMENT as u16),
@@ -251,7 +253,9 @@ fn place_blocks(headers: &mut [XisfImageHeader], blocks: &[(u64, u64)]) {
     let mut next = blocks.iter();
     for header in headers {
         for block in std::iter::once(header.block.as_mut())
-            .chain(std::iter::once(header.thumbnail.as_mut().and_then(|t| t.block.as_mut())))
+            .chain(std::iter::once(
+                header.thumbnail.as_mut().and_then(|t| t.block.as_mut()),
+            ))
             .flatten()
         {
             if let BlockLocation::Attachment { .. } = block.location {
@@ -424,10 +428,9 @@ fn for_each_planar_chunk(pixels: &ImageData, mut sink: impl FnMut(&[u8])) {
     for channel in 0..channels {
         for rows in pixels.data.chunks(stride * pixels_per_chunk) {
             buffer.clear();
-            buffer.par_extend(
-                rows.par_chunks_exact(stride)
-                    .flat_map_iter(|pixel| pixel[channel * size..(channel + 1) * size].iter().copied()),
-            );
+            buffer.par_extend(rows.par_chunks_exact(stride).flat_map_iter(|pixel| {
+                pixel[channel * size..(channel + 1) * size].iter().copied()
+            }));
             sink(&buffer);
         }
     }
@@ -485,7 +488,10 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
         )
     });
     let mut fresh = vec![
-        XisfProperty::new("XISF:CreationTime", PropertyValue::TimePoint(now_timepoint())),
+        XisfProperty::new(
+            "XISF:CreationTime",
+            PropertyValue::TimePoint(now_timepoint()),
+        ),
         XisfProperty::new(
             "XISF:CreatorApplication",
             PropertyValue::String(format!("Skotiq {PRODUCT_VERSION}")),
@@ -499,7 +505,13 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
     let mut new_start = align(old_header_end).max(BLOCK_ALIGNMENT);
     let xml = loop {
         let shift = new_start as i64 - tail_start as i64;
-        let xml = emit_header(&fresh, &unit.properties, &unit.images, &unit.preserved, shift)?;
+        let xml = emit_header(
+            &fresh,
+            &unit.properties,
+            &unit.images,
+            &unit.preserved,
+            shift,
+        )?;
         let needed = align(16 + xml.len() as u64);
         if needed <= new_start {
             break xml;
@@ -555,7 +567,11 @@ pub(super) fn attachment_positions(unit: &XisfUnit) -> impl Iterator<Item = u64>
         .preserved
         .iter()
         .chain(unit.images.iter().flat_map(|i| i.preserved_children.iter()))
-        .flat_map(|raw| attachment_spans(raw).into_iter().map(|(_, position)| position));
+        .flat_map(|raw| {
+            attachment_spans(raw)
+                .into_iter()
+                .map(|(_, position)| position)
+        });
     modeled.chain(verbatim)
 }
 
@@ -567,11 +583,7 @@ pub(super) fn attachment_spans(raw: &str) -> Vec<(std::ops::Range<usize>, u64)> 
     let mut from = 0;
     while let Some(found) = raw[from..].find(KEY) {
         let start = from + found + KEY.len();
-        let end = start
-            + raw[start..]
-                .bytes()
-                .take_while(u8::is_ascii_digit)
-                .count();
+        let end = start + raw[start..].bytes().take_while(u8::is_ascii_digit).count();
         if let Ok(value) = raw[start..end].parse() {
             spans.push((start..end, value));
         }
@@ -638,7 +650,8 @@ fn emit_header(
 
 fn emit_verbatim(w: &mut XmlWriter, raw: &str, shift: i64) -> Result<(), XisfError> {
     w.get_mut().write_all(b"\n")?;
-    w.get_mut().write_all(shift_verbatim(raw, shift).as_bytes())?;
+    w.get_mut()
+        .write_all(shift_verbatim(raw, shift).as_bytes())?;
     Ok(())
 }
 
@@ -775,7 +788,13 @@ fn emit_image(
     if let Some(df) = &image.display_function {
         let mut e = BytesStart::new("DisplayFunction");
         let join = |v: &[f64; 4]| format!("{}:{}:{}:{}", v[0], v[1], v[2], v[3]);
-        for (key, value) in [("m", &df.m), ("s", &df.s), ("h", &df.h), ("l", &df.l), ("r", &df.r)] {
+        for (key, value) in [
+            ("m", &df.m),
+            ("s", &df.s),
+            ("h", &df.h),
+            ("l", &df.l),
+            ("r", &df.r),
+        ] {
             e.push_attribute((key, join(value).as_str()));
         }
         if let Some(name) = &df.name {
@@ -815,7 +834,9 @@ fn emit_property(w: &mut XmlWriter, property: &XisfProperty) -> Result<(), XisfE
         PropertyValue::Vector { data, .. } => {
             e.push_attribute((
                 "length",
-                (data.len() / element_size(&property.value)).to_string().as_str(),
+                (data.len() / element_size(&property.value))
+                    .to_string()
+                    .as_str(),
             ));
             e.push_attribute(("location", "inline:base64"));
             Some(encode_base64(data))
@@ -832,10 +853,7 @@ fn emit_property(w: &mut XmlWriter, property: &XisfProperty) -> Result<(), XisfE
             Some(encode_base64(data))
         }
         scalar => {
-            e.push_attribute((
-                "value",
-                scalar.scalar_text().unwrap_or_default().as_str(),
-            ));
+            e.push_attribute(("value", scalar.scalar_text().unwrap_or_default().as_str()));
             None
         }
     };

@@ -17,7 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/altitude_chart.dart';
 import 'package:skotiq_core/models.dart' show SchedulerConfig;
 import 'package:skotiq_core/providers.dart'
-    show AppSettingsNotifier, appSettingsProvider, schedulerPersistedConfigProvider;
+    show
+        AppSettingsNotifier,
+        appSettingsProvider,
+        schedulerPersistedConfigProvider;
 import 'package:skotiq_core/settings.dart' show AppSettingsState;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;

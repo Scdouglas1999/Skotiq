@@ -49,8 +49,10 @@ sta_accessory!(AscomCoverCalibratorWrapper);
 #[async_trait]
 impl CoverCalibratorDriver for AscomCoverCalibratorWrapper {
     async fn open_cover(&self) -> Result<(), DriverError> {
-        self.call("open_cover", Timeouts::cover_calibrator(), |d| d.open_cover())
-            .await
+        self.call("open_cover", Timeouts::cover_calibrator(), |d| {
+            d.open_cover()
+        })
+        .await
     }
 
     async fn close_cover(&self) -> Result<(), DriverError> {
@@ -66,9 +68,11 @@ impl CoverCalibratorDriver for AscomCoverCalibratorWrapper {
     }
 
     async fn cover_status(&self) -> Result<CoverStatus, DriverError> {
-        self.call("cover_state", Timeouts::property_read(), |d| d.cover_state())
-            .await
-            .map(CoverStatus::from)
+        self.call("cover_state", Timeouts::property_read(), |d| {
+            d.cover_state()
+        })
+        .await
+        .map(CoverStatus::from)
     }
 
     async fn calibrator_on(&self, brightness: i32) -> Result<(), DriverError> {

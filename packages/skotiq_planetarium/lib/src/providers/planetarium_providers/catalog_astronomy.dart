@@ -299,7 +299,9 @@ Duration untilNextSiderealMinute(double lstHours) {
   final minutes = lstHours * 60;
   final siderealSecondsLeft = (minutes.floor() + 1 - minutes) * 60;
   final micros =
-      siderealSecondsLeft * _solarPerSiderealSecond * Duration.microsecondsPerSecond;
+      siderealSecondsLeft *
+      _solarPerSiderealSecond *
+      Duration.microsecondsPerSecond;
   return Duration(microseconds: micros.ceil()) +
       const Duration(milliseconds: 5);
 }

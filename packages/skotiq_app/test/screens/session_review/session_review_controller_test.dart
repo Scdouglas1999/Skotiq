@@ -230,8 +230,7 @@ void main() {
       'with no image folder chosen, an accumulating master goes to its '
       'target\'s masters folder in the documents folder', () async {
     final sidecar = await accumulatingSidecar();
-    expect(
-        sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters/'));
+    expect(sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters/'));
   });
 
   test(
@@ -243,7 +242,8 @@ void main() {
         .write(AppSettingDefs.imageOutputPath, images);
     final sidecar = await accumulatingSidecar();
     final locations = await container.read(outputLocationsProvider.future);
-    final folder = await locations.mastersOf(state().targetName ?? state().title);
+    final folder =
+        await locations.mastersOf(state().targetName ?? state().title);
     expect(sidecar, startsWith('${folder.path}/'));
     expect(sidecar, startsWith('$images/Masters/'));
   });

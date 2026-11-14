@@ -104,7 +104,8 @@ class CapturePanel extends ConsumerWidget {
 
     // "252 GiB": the shared size format Tonight uses, split for the readout.
     // Selected as text: the free bytes change on every 10 s sample.
-    final freeText = ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
+    final freeText =
+        ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
     final freeGap = freeText?.lastIndexOf(' ') ?? -1;
     final freeSize = freeText == null || freeGap < 0
         ? null
@@ -653,12 +654,12 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     setState(() => _busy = true);
     try {
       final result = await ref.read(hostFoldersProvider).pickUsable(
-        context,
-        title: widget.isRemote
-            ? 'Select host capture folder'
-            : 'Select capture folder',
-        initialPath: initialPath,
-      );
+            context,
+            title: widget.isRemote
+                ? 'Select host capture folder'
+                : 'Select capture folder',
+            initialPath: initialPath,
+          );
       if (result == null || operation.isStale) return;
 
       await ref.read(captureSavePathWriterProvider)(result);

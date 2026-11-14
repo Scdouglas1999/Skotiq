@@ -362,15 +362,17 @@ void main() {
             deviceServiceProvider.overrideWithValue(service),
           ],
         );
-        await container.read(equipmentProfilesDaoProvider).createProfile(
-          EquipmentProfilesCompanion.insert(
-            name: 'Guided Rig',
-            cameraId: const Value('sim_camera_1'),
-            guiderId: const Value(builtinGuiderDeviceId),
-            guideCameraId: const Value('sim_camera_2'),
-            isActive: const Value(true),
-          ),
-        );
+        await container
+            .read(equipmentProfilesDaoProvider)
+            .createProfile(
+              EquipmentProfilesCompanion.insert(
+                name: 'Guided Rig',
+                cameraId: const Value('sim_camera_1'),
+                guiderId: const Value(builtinGuiderDeviceId),
+                guideCameraId: const Value('sim_camera_2'),
+                isActive: const Value(true),
+              ),
+            );
         await container.read(equipmentProfilesProvider.future);
         handlers = DeviceHandlers(container);
         return translateHandlerErrors(

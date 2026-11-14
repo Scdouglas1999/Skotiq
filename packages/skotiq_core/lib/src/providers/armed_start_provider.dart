@@ -15,9 +15,7 @@ import 'sequence/sequence_progress.dart' show sequenceExecutionStateProvider;
 
 /// When the armed start fires (a UTC instant), or null when not armed.
 final nightArmedStartProvider =
-    NotifierProvider<ArmedStartController, DateTime?>(
-      ArmedStartController.new,
-    );
+    NotifierProvider<ArmedStartController, DateTime?>(ArmedStartController.new);
 
 class ArmedStartController extends Notifier<DateTime?> {
   Timer? _timer;

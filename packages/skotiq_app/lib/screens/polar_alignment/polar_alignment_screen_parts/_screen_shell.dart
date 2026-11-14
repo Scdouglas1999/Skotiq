@@ -1,4 +1,3 @@
-
 part of '../polar_alignment_screen.dart';
 
 extension _ScreenShell on _PolarAlignmentScreenState {

@@ -4,7 +4,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 
-
 /// INDI server address configuration (Linux/macOS).
 class IndiServerDialog extends ConsumerStatefulWidget {
   const IndiServerDialog({super.key});
@@ -70,7 +69,8 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
       if (!mounted) return;
       setState(() {
         _statusSuccess = false;
-        _statusMessage = 'Could not load saved INDI settings: ${userFacingError(e)}';
+        _statusMessage =
+            'Could not load saved INDI settings: ${userFacingError(e)}';
       });
     }
   }

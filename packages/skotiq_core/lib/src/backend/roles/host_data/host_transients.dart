@@ -1,6 +1,4 @@
-
 import 'dart:typed_data';
-
 
 /// Transient alerts and first-light candidates kept by a linked imaging host.
 ///
@@ -17,9 +15,7 @@ abstract interface class HostTransients {
 
   Future<Map<String, dynamic>> submitFirstLightToTns(int id);
 
-  Future<List<Map<String, dynamic>>> getFirstLightCandidates({
-    int? sessionId,
-  });
+  Future<List<Map<String, dynamic>>> getFirstLightCandidates({int? sessionId});
 
   Future<Uint8List> getFirstLightCrop(int id, String stage);
 

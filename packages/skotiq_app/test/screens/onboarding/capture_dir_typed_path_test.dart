@@ -39,7 +39,7 @@ ProviderContainer _container({
       databaseProvider.overrideWithValue(db),
       onboardingDraftProvider.overrideWith(_TestOnboardingNotifier.new),
       hostFoldersProvider.overrideWithValue(FakeHostFolders(
-        onCheck: folderCheckFrom(
+          onCheck: folderCheckFrom(
         (path) async => writableFolders.contains(path)
             ? null
             : 'That folder does not exist.',

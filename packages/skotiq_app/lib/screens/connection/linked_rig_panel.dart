@@ -28,9 +28,8 @@ class LinkedRigPanel extends ConsumerWidget {
     final target = ref.watch(remoteLaunchTargetProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
-      child: target != null
-          ? _LinkedCard(target: target)
-          : const _ConnectCard(),
+      child:
+          target != null ? _LinkedCard(target: target) : const _ConnectCard(),
     );
   }
 }

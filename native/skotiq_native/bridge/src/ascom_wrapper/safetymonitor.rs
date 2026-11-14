@@ -57,7 +57,9 @@ impl SafetyMonitor for AscomSafetyMonitorWrapper {
             is_safe: SafetyMonitorDriver::is_safe(self).await.map_err(error)?,
             safety_description: self
                 .device
-                .run("driver_info", Timeouts::property_read(), |d| d.driver_info())
+                .run("driver_info", Timeouts::property_read(), |d| {
+                    d.driver_info()
+                })
                 .await
                 .ok(),
         })

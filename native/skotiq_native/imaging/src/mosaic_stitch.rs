@@ -327,7 +327,9 @@ fn build_output_wcs(
 
     // Output CD matrix: axis-aligned (no rotation), standard RA-flips-left sign.
     // CRPIX is provisional (1,1); we finalise it after projecting the corners.
-    let mut out_wcs = SipWcs::tan_only(center_ra, center_dec, 1.0, 1.0, -scale_deg, 0.0, 0.0, scale_deg);
+    let mut out_wcs = SipWcs::tan_only(
+        center_ra, center_dec, 1.0, 1.0, -scale_deg, 0.0, 0.0, scale_deg,
+    );
     let proj0 = projection(&out_wcs)?;
 
     // Project every panel corner onto the provisional output plane.
@@ -906,7 +908,16 @@ mod tests {
     /// (1-based). No rotation. RA flips left (standard sky convention).
     fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> SipWcs {
         let scale_deg = scale_arcsec / 3600.0;
-        SipWcs::tan_only(ra, dec, w as f64 / 2.0 + 0.5, h as f64 / 2.0 + 0.5, -scale_deg, 0.0, 0.0, scale_deg)
+        SipWcs::tan_only(
+            ra,
+            dec,
+            w as f64 / 2.0 + 0.5,
+            h as f64 / 2.0 + 0.5,
+            -scale_deg,
+            0.0,
+            0.0,
+            scale_deg,
+        )
     }
 
     /// Sample a smooth synthetic sky brightness at `(ra, dec)` — a slowly-varying

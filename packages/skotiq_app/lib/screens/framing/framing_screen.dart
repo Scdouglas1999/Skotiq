@@ -439,7 +439,8 @@ class _FramingViewState extends ConsumerState<FramingView> {
       context.showSuccessSnackBar('Cached at ${entry.filePath}');
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to cache survey image: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to cache survey image: ${userFacingError(e)}');
     }
   }
 }

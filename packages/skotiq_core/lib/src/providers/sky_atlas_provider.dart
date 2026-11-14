@@ -10,8 +10,7 @@ import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/host_mutation_event.dart';
-import '../services/notification_service.dart'
-    show NotificationEvent;
+import '../services/notification_service.dart' show NotificationEvent;
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
 import '../settings/store_settings.dart';

@@ -92,8 +92,10 @@ void main() {
 
     await pressCtrlS(tester);
 
-    final saved = verify(() => repository.saveSequence(captureAny(),
-        isTemplate: false)).captured.single as Sequence;
+    final saved =
+        verify(() => repository.saveSequence(captureAny(), isTemplate: false))
+            .captured
+            .single as Sequence;
     expect(saved.databaseId, 7);
     expect(saved.name, 'Whirlpool LRGB');
     expect(find.text('Saved "Whirlpool LRGB"'), findsOneWidget);
@@ -132,8 +134,8 @@ void main() {
     await pressCtrlS(tester);
 
     expect(find.text('Save sequence'), findsOneWidget);
-    verifyNever(() => repository.saveSequence(any(),
-        isTemplate: any(named: 'isTemplate')));
+    verifyNever(() =>
+        repository.saveSequence(any(), isTemplate: any(named: 'isTemplate')));
     await tester.tap(find.widgetWithText(SkotiqButton, 'Save'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

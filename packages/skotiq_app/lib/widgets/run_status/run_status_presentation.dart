@@ -36,10 +36,10 @@ String sessionStatusLabel(String token) {
   return switch (status?.runEnding) {
     final run? => runStatusLabel(run),
     null => switch (status) {
-      SessionStatus.active => 'Active',
-      SessionStatus.error => 'Error',
-      _ => _tokenWords(token),
-    },
+        SessionStatus.active => 'Active',
+        SessionStatus.error => 'Error',
+        _ => _tokenWords(token),
+      },
   };
 }
 

@@ -13,7 +13,9 @@ use skotiq_device::{
 
 impl std::fmt::Debug for IndiMount {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("IndiMount").field(&self.device_name()).finish()
+        f.debug_tuple("IndiMount")
+            .field(&self.device_name())
+            .finish()
     }
 }
 
@@ -196,7 +198,9 @@ impl MountDriver for IndiMount {
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError> {
-        IndiMount::slew_to_coordinates(self, ra_hours, dec_degrees).await.map_err(own)
+        IndiMount::slew_to_coordinates(self, ra_hours, dec_degrees)
+            .await
+            .map_err(own)
     }
 
     async fn slew_to_alt_az(
@@ -204,7 +208,9 @@ impl MountDriver for IndiMount {
         altitude_deg: f64,
         azimuth_deg: f64,
     ) -> Result<(), DriverError> {
-        IndiMount::slew_to_alt_az(self, altitude_deg, azimuth_deg).await.map_err(own)
+        IndiMount::slew_to_alt_az(self, altitude_deg, azimuth_deg)
+            .await
+            .map_err(own)
     }
 
     async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
@@ -216,7 +222,9 @@ impl MountDriver for IndiMount {
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError> {
-        IndiMount::sync_to_coordinates(self, ra_hours, dec_degrees).await.map_err(own)
+        IndiMount::sync_to_coordinates(self, ra_hours, dec_degrees)
+            .await
+            .map_err(own)
     }
 
     async fn park(&mut self) -> Result<(), DriverError> {
@@ -244,7 +252,9 @@ impl MountDriver for IndiMount {
         direction: GuideDirection,
         duration_ms: u32,
     ) -> Result<(), DriverError> {
-        IndiMount::pulse_guide(self, direction, duration_ms).await.map_err(own)
+        IndiMount::pulse_guide(self, direction, duration_ms)
+            .await
+            .map_err(own)
     }
 
     async fn abort_slew(&mut self) -> Result<(), DriverError> {

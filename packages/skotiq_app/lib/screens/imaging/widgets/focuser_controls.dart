@@ -74,7 +74,8 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
       await service.moveFocuserRelative(steps);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move focuser: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to move focuser: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -275,23 +276,23 @@ class _MoveButton extends StatelessWidget {
           enabled: onPressed != null,
           label: label,
           child: Tooltip(
-          message: label,
-          excludeFromSemantics: true,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
-            child: SizedBox(
-              width: size,
-              height: size,
-              child: Icon(
-                icon,
-                size: size * 0.5,
-                color: onPressed != null
-                    ? (color ?? colors.textPrimary)
-                    : colors.textMuted,
-              ),
-            ),
-          ))),
+              message: label,
+              excludeFromSemantics: true,
+              child: InkWell(
+                onTap: onPressed,
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: Icon(
+                    icon,
+                    size: size * 0.5,
+                    color: onPressed != null
+                        ? (color ?? colors.textPrimary)
+                        : colors.textMuted,
+                  ),
+                ),
+              ))),
     );
   }
 }

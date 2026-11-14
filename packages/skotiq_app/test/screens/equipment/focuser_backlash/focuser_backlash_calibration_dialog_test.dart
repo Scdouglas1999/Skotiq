@@ -225,8 +225,8 @@ void main() {
       final chart = tester.widget<VCurveChart>(find.byType(VCurveChart));
       expect(chart.series, hasLength(2));
       List<(int, double)> plotted(VCurveSeries series) => [
-        for (final sample in series.points) (sample.position, sample.hfr),
-      ];
+            for (final sample in series.points) (sample.position, sample.hfr),
+          ];
       expect(plotted(chart.series[0]), [
         for (final point in belowPoints6620) (point.position, point.hfr),
       ]);

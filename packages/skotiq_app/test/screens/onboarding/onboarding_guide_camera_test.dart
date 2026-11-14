@@ -11,8 +11,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 
-UnifiedDevice _device(String id, String name, DeviceType type) =>
-    UnifiedDevice(
+UnifiedDevice _device(String id, String name, DeviceType type) => UnifiedDevice(
       canonicalName: name.toLowerCase(),
       displayName: name,
       type: type,

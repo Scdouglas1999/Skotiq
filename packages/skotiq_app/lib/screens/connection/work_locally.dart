@@ -34,7 +34,8 @@ Future<void> switchToLocalBackend(BuildContext context, WidgetRef ref) async {
     // owns the visible outcome, so say nothing here.
   } catch (error) {
     if (context.mounted) {
-      context.showErrorSnackBar('Could not switch to local mode: ${userFacingError(error)}');
+      context.showErrorSnackBar(
+          'Could not switch to local mode: ${userFacingError(error)}');
     }
   }
 }

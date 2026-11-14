@@ -4,17 +4,21 @@ use crate::simulator::camera::{get_sim_camera, get_sim_camera_for};
 /// Connect a simulated camera under `device_id` the way the Equipment screen
 /// does: registered with the device manager, singleton marked connected.
 async fn attach_sim_camera(device_id: &str) {
-    crate::simulator::register_connected(get_device_manager(), crate::device::DeviceInfo {
-                id: device_id.to_string(),
-                name: "Simulated Camera".to_string(),
-                device_type: crate::device::DeviceType::Camera,
-                driver_type: crate::device::DriverType::Simulator,
-                description: "Simulated camera".to_string(),
-                driver_version: "1.0".to_string(),
-                serial_number: None,
-                unique_id: None,
-                display_name: "Simulated Camera".to_string(),
-            }).await;
+    crate::simulator::register_connected(
+        get_device_manager(),
+        crate::device::DeviceInfo {
+            id: device_id.to_string(),
+            name: "Simulated Camera".to_string(),
+            device_type: crate::device::DeviceType::Camera,
+            driver_type: crate::device::DriverType::Simulator,
+            description: "Simulated camera".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Camera".to_string(),
+        },
+    )
+    .await;
     get_sim_camera_for(device_id).write().await.status.connected = true;
 }
 
@@ -46,9 +50,7 @@ async fn detach_sim_camera(device_id: &str) {
 async fn the_manual_capture_path_renders_the_catalogue_sky() {
     use crate::simulator::mount::get_sim_mount;
 
-    let _serialized = crate::simulator::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
 
     // A grid of catalogue stars centred on the pointing, spaced ~90 px at
     // the simulated rig's 0.776"/px so the detector resolves them apart.
@@ -90,8 +92,10 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
-            .j2000_to_mount(ra_hours, dec_deg);
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(
+            crate::device::DriverType::Simulator,
+        )
+        .j2000_to_mount(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;
@@ -166,9 +170,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
 async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
     use crate::simulator::focuser::get_sim_focuser;
 
-    let _serialized = crate::simulator::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
 
     async fn hfr_at_focus(position: i32, device_id: &str) -> Option<f64> {
         {
@@ -220,9 +222,7 @@ async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
 /// advertised 1920x1080 and drew it 2.16x too narrow.
 #[tokio::test]
 async fn simulated_frame_matches_the_advertised_sensor() {
-    let _serialized = crate::simulator::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let device_id = "sim_geometry_probe".to_string();
     attach_sim_camera(&device_id).await;
 
@@ -262,9 +262,7 @@ async fn simulated_frame_matches_the_advertised_sensor() {
 /// aborted at 24 s still "completed" 7 s later.
 #[tokio::test]
 async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
-    let _serialized = crate::simulator::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let device_id = "sim_cancel_probe".to_string();
     attach_sim_camera(&device_id).await;
     api_clear_device_image(device_id.clone())
@@ -336,9 +334,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     use crate::simulator::mount::get_sim_mount;
     use crate::simulator::sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
 
-    let _serialized = crate::simulator::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let dir = astap_dir();
     let binary = dir.join("astap_cli");
     assert!(
@@ -363,8 +359,10 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
-            .j2000_to_mount(ra_hours, dec_deg);
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(
+            crate::device::DriverType::Simulator,
+        )
+        .j2000_to_mount(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;

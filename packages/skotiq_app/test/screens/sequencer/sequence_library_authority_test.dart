@@ -143,7 +143,8 @@ void main() {
     verifyNever(() => repositoryB.loadSequence(any()));
   });
 
-  testWidgets('a loaded plan matches its saved copy, so pre-flight sees no '
+  testWidgets(
+      'a loaded plan matches its saved copy, so pre-flight sees no '
       'changes since the last run', (tester) async {
     final host = _MockBackend();
     final repository = _MockSequenceRepository();
@@ -181,7 +182,9 @@ void main() {
     final loaded = editor.state!;
     expect(loaded.databaseId, 1);
     expect(
-      const SequenceDiffService().diff(previous: saved, current: loaded).isEmpty,
+      const SequenceDiffService()
+          .diff(previous: saved, current: loaded)
+          .isEmpty,
       isTrue,
     );
   });

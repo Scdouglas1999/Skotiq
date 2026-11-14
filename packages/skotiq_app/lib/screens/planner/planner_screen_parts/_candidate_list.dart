@@ -248,7 +248,10 @@ class _CandidateColumnHeader extends StatelessWidget {
               windowLabel: l10n.text('plannerColWindow'),
               windowScale: switch (night) {
                 null => null,
-                final n => (ClockFormat.hm(n.start.toLocal()), ClockFormat.hm(n.end.toLocal())),
+                final n => (
+                    ClockFormat.hm(n.start.toLocal()),
+                    ClockFormat.hm(n.end.toLocal())
+                  ),
               },
               columns: grid,
             ),

@@ -299,5 +299,4 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     );
     dawnTp.paint(canvas, Offset(left + width - dawnTp.width, top + height + 4));
   }
-
 }

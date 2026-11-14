@@ -38,7 +38,8 @@ void main() {
       const Stack(children: [AutofocusProgressOverlay()]),
       settle: false,
     );
-    handle.container.read(autofocusOverlayProvider.notifier)
+    handle.container
+        .read(autofocusOverlayProvider.notifier)
         .onAutofocusStarted();
     await tester.pump();
 

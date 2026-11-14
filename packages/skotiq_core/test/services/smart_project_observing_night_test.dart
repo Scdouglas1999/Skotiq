@@ -104,7 +104,10 @@ void main() {
       ];
 
       final nights =
-          captures.map(SmartProjectService.observingNightOfEpochSeconds).toSet().toList()
+          captures
+              .map(SmartProjectService.observingNightOfEpochSeconds)
+              .toSet()
+              .toList()
             ..sort();
 
       expect(nights.length, 3, reason: 'Three sessions, three nights.');

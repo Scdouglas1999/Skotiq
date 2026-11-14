@@ -10,7 +10,11 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart' show SchedulerScoreEntry;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart'
-    show AdaptiveExposureEvent, AdaptiveExposureReason, AdaptiveSwapRuntimeState, AdaptiveSwapSnapshot;
+    show
+        AdaptiveExposureEvent,
+        AdaptiveExposureReason,
+        AdaptiveSwapRuntimeState,
+        AdaptiveSwapSnapshot;
 import 'package:skotiq_core/providers.dart'
     show LiveBroadcast, LiveBroadcastReach;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -332,15 +336,18 @@ class NightConditionsSwapSection extends StatelessWidget {
             value: RelativeTime.age(age),
           ),
         if (age != null && age.inMinutes >= 5)
-          NightPanelNote(l10n.text('nightSwapStale'), tone: MetricGridTone.warning),
+          NightPanelNote(l10n.text('nightSwapStale'),
+              tone: MetricGridTone.warning),
         if (reason != null && reason.isNotEmpty) NightPanelNote(reason),
       ],
     );
   }
 
-  (String, MetricGridTone?) _status(AdaptiveSwapRuntimeState state, double? score) {
+  (String, MetricGridTone?) _status(
+      AdaptiveSwapRuntimeState state, double? score) {
     final kind = state.lastDecisionKind?.toLowerCase() ?? '';
-    if (kind.contains('swap')) return ('nightSwapSwapped', MetricGridTone.warning);
+    if (kind.contains('swap'))
+      return ('nightSwapSwapped', MetricGridTone.warning);
     if (kind.contains('hold') || kind.contains('keep')) {
       return ('nightSwapHolding', MetricGridTone.good);
     }

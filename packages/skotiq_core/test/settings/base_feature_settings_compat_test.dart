@@ -853,9 +853,7 @@ final _probes = <_Probe>[
       final config = await c.read(pushoverTransportConfigProvider.future);
       await c
           .read(pushoverTransportConfigProvider.notifier)
-          .save(
-            config.copyWith(apiToken: 'a', userKey: 'u', priority: 2),
-          );
+          .save(config.copyWith(apiToken: 'a', userKey: 'u', priority: 2));
     },
   ),
   _transport(

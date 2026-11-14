@@ -173,7 +173,9 @@ const Duration nightSkyClearOverride = Duration(minutes: 30);
     notes.add(
       NightText(
         'nightWeatherOverrideActive',
-        params: <String, String>{'time': ClockFormat.hm(clock.fromUtc(until.toUtc()))},
+        params: <String, String>{
+          'time': ClockFormat.hm(clock.fromUtc(until.toUtc()))
+        },
       ),
     );
     return (notes: notes, skyOverride: NightSkyOverride.active);

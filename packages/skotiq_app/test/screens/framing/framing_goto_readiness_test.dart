@@ -88,8 +88,8 @@ Future<void> pumpRail(
       mountStateProvider.overrideWith((ref) => _SeededMount(ref, mount)),
       appSettingsProvider.overrideWith(() => _SeededSettings(_site)),
       framingFOVProvider.overrideWith(
-        (ref) async =>
-            const FramingEquipmentResult(status: FramingEquipmentStatus.noProfile),
+        (ref) async => const FramingEquipmentResult(
+            status: FramingEquipmentStatus.noProfile),
       ),
     ],
   );

@@ -126,7 +126,6 @@ class _TimeWindowField extends StatelessWidget {
       endMinutes: tod.hour * 60 + tod.minute,
     ));
   }
-
 }
 
 class _MoonField extends StatelessWidget {
@@ -331,7 +330,6 @@ class _ScheduledWindowField extends StatelessWidget {
       priorityBoost: window.priorityBoost,
     ));
   }
-
 }
 
 Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {

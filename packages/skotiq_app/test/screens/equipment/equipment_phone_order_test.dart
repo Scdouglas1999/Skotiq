@@ -57,7 +57,6 @@ void main() {
     final readiness = tester.getTopLeft(find.byType(EquipmentReadinessPanel));
     expect(card.dy, lessThan(readiness.dy));
     expect(tester.getTopLeft(find.text('Phone Rig')).dy, lessThan(card.dy));
-
   });
 
   testWidgets("the profile's menu carries Connect all, Disconnect all and Scan",
@@ -70,6 +69,5 @@ void main() {
     expect(find.text('Connect all'), findsOneWidget);
     expect(find.text('Disconnect all'), findsOneWidget);
     expect(find.text('Scan for devices'), findsOneWidget);
-
   });
 }

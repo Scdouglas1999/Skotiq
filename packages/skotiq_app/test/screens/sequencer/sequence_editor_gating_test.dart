@@ -87,7 +87,8 @@ void main() {
           overrides: [
             inMemoryDatabaseOverride(),
             runRecordProvider.overrideWith(
-              (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+              (ref) => RunRecordNotifier(
+                  ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
             ),
           ],
           child: MaterialApp(
@@ -135,7 +136,8 @@ void main() {
           overrides: [
             inMemoryDatabaseOverride(),
             runRecordProvider.overrideWith(
-              (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+              (ref) => RunRecordNotifier(
+                  ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
             ),
           ],
           child: MaterialApp(
@@ -296,7 +298,8 @@ void main() {
       final c = ProviderContainer(overrides: [
         inMemoryDatabaseOverride(),
         runRecordProvider.overrideWith(
-          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.running)),
         ),
       ]);
       addTearDown(c.dispose);

@@ -79,17 +79,18 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
     setState(() => _isBrowsing = true);
     try {
       final result = await ref.read(hostFoldersProvider).pickUsable(
-        context,
-        title: ref.read(isRemoteModeProvider)
-            ? 'Select host flat-frame folder'
-            : 'Select flat-frame folder',
-        initialPath: current,
-      );
+            context,
+            title: ref.read(isRemoteModeProvider)
+                ? 'Select host flat-frame folder'
+                : 'Select flat-frame folder',
+            initialPath: current,
+          );
       if (!_isCurrentBrowse(generation, authority)) return;
       if (result != null) _pathController.text = result;
     } catch (error) {
       if (mounted && _isCurrentBrowse(generation, authority)) {
-        context.showErrorSnackBar('Could not choose a save folder: ${userFacingError(error)}');
+        context.showErrorSnackBar(
+            'Could not choose a save folder: ${userFacingError(error)}');
       }
     } finally {
       if (_isCurrentBrowse(generation, authority)) {
@@ -184,7 +185,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
                 Row(
                   children: [
                     Expanded(
@@ -204,7 +204,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
                 _OptionCheckbox(
                   value: _createDateSubfolder,
                   onChanged: (v) {
@@ -229,7 +228,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   colors: colors,
                 ),
                 const SizedBox(height: 24),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

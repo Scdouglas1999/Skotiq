@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
-import '../../database/database.dart' show $CapturedImagesTable, DbCapturedImage;
+import '../../database/database.dart'
+    show $CapturedImagesTable, DbCapturedImage;
 import 'imaging_models.dart' show FrameType;
 
 /// A recorded frame's type ([FrameType.record]).

@@ -1,6 +1,9 @@
 part of '../remote_sync_handler.dart';
 
-void _applyDisconnectedDevice(ProviderContainer container, Map<String, dynamic> data) {
+void _applyDisconnectedDevice(
+  ProviderContainer container,
+  Map<String, dynamic> data,
+) {
   final deviceType = data['device_type'] as String?;
   if (deviceType == null) {
     return;
@@ -21,7 +24,11 @@ void _applyDisconnectedDevice(ProviderContainer container, Map<String, dynamic> 
 /// disconnect leaves this client showing nothing where the host still holds
 /// a device (its own Disconnect all then skips it), and a slot that holds
 /// no device but shows why a connect failed keeps saying so.
-void _emptySlotFor(ProviderContainer container, DeviceType type, String? deviceId) {
+void _emptySlotFor(
+  ProviderContainer container,
+  DeviceType type,
+  String? deviceId,
+) {
   final notifier = readDeviceConnectionNotifier(container, type);
   final held = notifier.deviceId;
   if (held == null || held.isEmpty) {
@@ -93,7 +100,11 @@ bool _isDeviceAlreadyConnected(
 
 /// Whether a host device event is about the profile's guide camera, which has
 /// no slot of its own and must not take the imaging camera's.
-bool _isHostGuideCamera(ProviderContainer container, DeviceType? type, String? deviceId) =>
+bool _isHostGuideCamera(
+  ProviderContainer container,
+  DeviceType? type,
+  String? deviceId,
+) =>
     type == DeviceType.camera &&
     isProfileGuideCamera(
       container.read(activeEquipmentProfileProvider),

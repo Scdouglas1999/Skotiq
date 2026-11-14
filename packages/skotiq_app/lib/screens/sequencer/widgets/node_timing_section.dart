@@ -174,8 +174,8 @@ class NodeTimingSection extends ConsumerWidget {
 
     if (node is AutofocusNode) {
       final autofocus = node as AutofocusNode;
-      final run = AutofocusRun.ofNode(
-          ref.watch(autofocusSettingsProvider), autofocus);
+      final run =
+          AutofocusRun.ofNode(ref.watch(autofocusSettingsProvider), autofocus);
       String seconds(double value) => '${QuantityFormat.trimmed(value)}s';
 
       return [
@@ -190,9 +190,8 @@ class NodeTimingSection extends ConsumerWidget {
         ),
         _DurationDetail(
           label: 'Download overhead',
-          value: '~${seconds(run.points *
-              run.exposuresPerPoint *
-              overhead.downloadOverheadPerExposureSecs)}',
+          value:
+              '~${seconds(run.points * run.exposuresPerPoint * overhead.downloadOverheadPerExposureSecs)}',
         ),
         _DurationDetail(
           label: 'Source',
@@ -208,7 +207,9 @@ class NodeTimingSection extends ConsumerWidget {
       return [
         _DurationDetail(
           label: 'Delay',
-          value: DurationFormat.of(Duration(milliseconds: (delay.seconds * 1000).round()), style: DurationStyle.short),
+          value: DurationFormat.of(
+              Duration(milliseconds: (delay.seconds * 1000).round()),
+              style: DurationStyle.short),
         ),
       ];
     }

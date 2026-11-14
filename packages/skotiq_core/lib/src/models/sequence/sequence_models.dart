@@ -16,7 +16,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show ScoringWeights, mosaicPanelName;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show ScoringWeights, mosaicPanelName;
 import 'package:uuid/uuid.dart';
 import '../imaging/imaging_models.dart' show FrameType;
 import '../notification/notification_categories.dart'

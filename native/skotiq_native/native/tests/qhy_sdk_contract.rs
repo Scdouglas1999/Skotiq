@@ -20,8 +20,7 @@ fn qhy_driver_against_the_fake_sdk() {
 mod sdk_contract {
     use skotiq_device::{
         BayerPattern, CameraDriver, CameraState, DeviceDriver, DriverError, ExposureParams,
-        FilterWheelDriver,
-        FrameType, ImageData, ReadoutMode, SubFrame,
+        FilterWheelDriver, FrameType, ImageData, ReadoutMode, SubFrame,
     };
     use skotiq_native::vendor::qhy;
     use std::time::{Duration, Instant};
@@ -62,7 +61,11 @@ mod sdk_contract {
             // SAFETY: the fake is a plain Rust cdylib with no load-time code.
             let fake = Fake(unsafe { libloading::Library::new("libqhyccd.so") }.expect("fake SDK"));
             // SAFETY: FakeQhyReset takes no arguments.
-            unsafe { fake.0.get::<unsafe extern "C" fn()>(b"FakeQhyReset\0").unwrap()() };
+            unsafe {
+                fake.0
+                    .get::<unsafe extern "C" fn()>(b"FakeQhyReset\0")
+                    .unwrap()()
+            };
             fake
         }
 
@@ -180,7 +183,10 @@ mod sdk_contract {
             "odd y start"
         );
         let frame = take(&mut cam, params(0.01, 2, None, FrameType::Light)).await;
-        assert_eq!(frame.bayer_pattern, None, "a binned color frame is not a mosaic");
+        assert_eq!(
+            frame.bayer_pattern, None,
+            "a binned color frame is not a mosaic"
+        );
         cam.disconnect().await.unwrap();
 
         let mut guide = connected(GUIDE_CAM).await;
@@ -203,7 +209,11 @@ mod sdk_contract {
         let fake = Fake::new();
         let mut cam = connected(COLOR_CMOS).await;
         let sensor = cam.get_sensor_info();
-        assert_eq!((sensor.width, sensor.height), (72, 56), "the effective area, no overscan");
+        assert_eq!(
+            (sensor.width, sensor.height),
+            (72, 56),
+            "the effective area, no overscan"
+        );
 
         let frame = take(&mut cam, params(0.01, 2, None, FrameType::Light)).await;
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_BIN), 2.0);
@@ -239,7 +249,10 @@ mod sdk_contract {
         assert_eq!((frame.width, frame.height), (20, 12));
         assert_eq!((frame.metadata.bin_x, frame.metadata.bin_y), (1, 1));
         let sub = frame.metadata.subframe.expect("subframe recorded");
-        assert_eq!((sub.start_x, sub.start_y, sub.width, sub.height), (10, 6, 20, 12));
+        assert_eq!(
+            (sub.start_x, sub.start_y, sub.width, sub.height),
+            (10, 6, 20, 12)
+        );
         assert_eq!(frame.metadata.exposure_time, 0.01);
         assert_eq!((frame.metadata.gain, frame.metadata.offset), (55, 9));
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_GAIN), 55.0);
@@ -253,9 +266,17 @@ mod sdk_contract {
         let outside = cam
             .start_exposure(params(0.01, 1, roi(60, 50, 20, 12), FrameType::Light))
             .await;
-        assert!(matches!(outside, Err(DriverError::InvalidParameter(_))), "{outside:?}");
-        let unsupported = cam.start_exposure(params(0.01, 5, None, FrameType::Light)).await;
-        assert!(matches!(unsupported, Err(DriverError::InvalidParameter(_))), "{unsupported:?}");
+        assert!(
+            matches!(outside, Err(DriverError::InvalidParameter(_))),
+            "{outside:?}"
+        );
+        let unsupported = cam
+            .start_exposure(params(0.01, 5, None, FrameType::Light))
+            .await;
+        assert!(
+            matches!(unsupported, Err(DriverError::InvalidParameter(_))),
+            "{unsupported:?}"
+        );
         cam.disconnect().await.unwrap();
     }
 
@@ -271,7 +292,10 @@ mod sdk_contract {
         assert!(!cam.is_exposure_complete().await.unwrap());
         let status = cam.get_status().await.unwrap();
         assert_eq!(status.state, CameraState::Exposing);
-        assert!(status.exposure_remaining.is_some_and(|left| left > 0.3), "{status:?}");
+        assert!(
+            status.exposure_remaining.is_some_and(|left| left > 0.3),
+            "{status:?}"
+        );
         while !cam.is_exposure_complete().await.unwrap() {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -395,7 +419,11 @@ mod sdk_contract {
         assert_eq!(fake.get(COLOR_CMOS, key::INITS), 1.0);
         let mut wheel = qhy::QhyFilterWheel::new(IDS[0].to_string());
         wheel.connect().await.expect("wheel connect");
-        assert_eq!(fake.get(COLOR_CMOS, key::INITS), 1.0, "the wheel must not re-initialize the camera");
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::INITS),
+            1.0,
+            "the wheel must not re-initialize the camera"
+        );
         assert_eq!(fake.get(COLOR_CMOS, key::BITS), 16.0);
         assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(3).await.expect("wheel move");
@@ -404,19 +432,32 @@ mod sdk_contract {
         cam.start_exposure(params(0.5, 1, None, FrameType::Light))
             .await
             .unwrap();
-        let wheels = qhy::discover_filter_wheels().await.expect("wheel discovery");
+        let wheels = qhy::discover_filter_wheels()
+            .await
+            .expect("wheel discovery");
         let ids: Vec<&str> = wheels.iter().map(|w| w.camera_id.as_str()).collect();
         assert_eq!(ids, vec![IDS[0]], "only the camera with a wheel attached");
         assert_eq!(wheels[0].slot_count, 7);
-        assert_eq!(fake.get(COLOR_CMOS, key::EXPOSING), 1.0, "discovery must not end the exposure");
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::EXPOSING),
+            1.0,
+            "discovery must not end the exposure"
+        );
         assert_eq!(fake.get(COLOR_CMOS, key::CANCELS), 0.0);
 
         wheel.disconnect().await.unwrap();
-        assert_eq!(fake.get(COLOR_CMOS, key::OPEN), 1.0, "the camera keeps its handle");
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::OPEN),
+            1.0,
+            "the camera keeps its handle"
+        );
         while !cam.is_exposure_complete().await.unwrap() {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        let frame = cam.download_image().await.expect("frame after the wheel left");
+        let frame = cam
+            .download_image()
+            .await
+            .expect("frame after the wheel left");
         assert_eq!((frame.width, frame.height), (72, 56));
         cam.disconnect().await.unwrap();
         assert_eq!(fake.get(COLOR_CMOS, key::OPEN), 0.0);
@@ -427,10 +468,18 @@ mod sdk_contract {
         wheel.connect().await.unwrap();
         let mut cam = qhy::QhyCamera::new(IDS[0].to_string());
         cam.connect().await.unwrap();
-        assert_eq!(fake.get(COLOR_CMOS, key::INITS), 2.0, "one initialization per session");
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::INITS),
+            2.0,
+            "one initialization per session"
+        );
         assert_eq!(fake.get(COLOR_CMOS, key::BITS), 16.0);
         cam.disconnect().await.unwrap();
-        assert_eq!(fake.get(COLOR_CMOS, key::OPEN), 1.0, "the wheel keeps its handle");
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::OPEN),
+            1.0,
+            "the wheel keeps its handle"
+        );
         assert_eq!(wheel.get_position().await.unwrap(), 3);
         wheel.disconnect().await.unwrap();
         assert_eq!(fake.get(COLOR_CMOS, key::OPEN), 0.0);
@@ -441,8 +490,13 @@ mod sdk_contract {
     #[ignore = "run by qhy_driver_against_the_fake_sdk"]
     async fn a_cfw_port_without_a_wheel_is_not_a_filter_wheel() {
         let _fake = Fake::new();
-        let wheels = qhy::discover_filter_wheels().await.expect("wheel discovery");
-        assert!(wheels.iter().all(|w| w.camera_id != IDS[1]), "slot count 255 means no wheel");
+        let wheels = qhy::discover_filter_wheels()
+            .await
+            .expect("wheel discovery");
+        assert!(
+            wheels.iter().all(|w| w.camera_id != IDS[1]),
+            "slot count 255 means no wheel"
+        );
         let mut wheel = qhy::QhyFilterWheel::new(IDS[1].to_string());
         assert!(wheel.connect().await.is_err());
         assert!(!wheel.is_connected());
@@ -481,22 +535,41 @@ mod sdk_contract {
     async fn settings_outside_the_camera_range_are_refused() {
         let _fake = Fake::new();
         let mut ccd = connected(LEGACY_CCD).await;
-        assert_eq!(ccd.get_exposure_range().await.unwrap(), Some((0.001, 3600.0)));
-        let short = ccd.start_exposure(params(0.0005, 1, None, FrameType::Light)).await;
-        assert!(matches!(short, Err(DriverError::InvalidParameter(_))), "{short:?}");
+        assert_eq!(
+            ccd.get_exposure_range().await.unwrap(),
+            Some((0.001, 3600.0))
+        );
+        let short = ccd
+            .start_exposure(params(0.0005, 1, None, FrameType::Light))
+            .await;
+        assert!(
+            matches!(short, Err(DriverError::InvalidParameter(_))),
+            "{short:?}"
+        );
         let gain = ccd
             .start_exposure(ExposureParams {
                 gain: Some(150),
                 ..params(0.01, 1, None, FrameType::Light)
             })
             .await;
-        assert!(matches!(gain, Err(DriverError::InvalidParameter(_))), "{gain:?}");
-        assert!(matches!(ccd.set_offset(300).await, Err(DriverError::InvalidParameter(_))));
+        assert!(
+            matches!(gain, Err(DriverError::InvalidParameter(_))),
+            "{gain:?}"
+        );
+        assert!(matches!(
+            ccd.set_offset(300).await,
+            Err(DriverError::InvalidParameter(_))
+        ));
         ccd.disconnect().await.unwrap();
 
         let mut guide = connected(GUIDE_CAM).await;
-        let long = guide.start_exposure(params(700.0, 1, None, FrameType::Light)).await;
-        assert!(matches!(long, Err(DriverError::InvalidParameter(_))), "{long:?}");
+        let long = guide
+            .start_exposure(params(700.0, 1, None, FrameType::Light))
+            .await;
+        assert!(
+            matches!(long, Err(DriverError::InvalidParameter(_))),
+            "{long:?}"
+        );
         guide.disconnect().await.unwrap();
     }
 
@@ -511,7 +584,9 @@ mod sdk_contract {
         assert!(unplugged.is_err());
         assert!(!cam.is_connected());
         fake.plug(COLOR_CMOS, true);
-        cam.connect().await.expect("connect after the camera came back");
+        cam.connect()
+            .await
+            .expect("connect after the camera came back");
         cam.disconnect().await.unwrap();
     }
 

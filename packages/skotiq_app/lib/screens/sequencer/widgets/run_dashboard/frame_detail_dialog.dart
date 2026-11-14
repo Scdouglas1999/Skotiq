@@ -570,4 +570,3 @@ String _formatNumber(double? value, String suffix, {int digits = 2}) {
   if (value == null || value.isNaN || value.isInfinite) return '—';
   return '${value.toStringAsFixed(digits)}$suffix';
 }
-

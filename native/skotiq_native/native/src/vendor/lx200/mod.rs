@@ -192,8 +192,14 @@ mod home_tests {
     /// whether `find_home` can do anything.
     #[tokio::test]
     async fn only_onstep_advertises_a_home_command() {
-        assert!(Lx200Mount::new_onstep("TEST_PORT".to_string()).can_find_home().await.unwrap_or(false));
-        assert!(!Lx200Mount::new_meade("TEST_PORT".to_string()).can_find_home().await.unwrap_or(false));
+        assert!(Lx200Mount::new_onstep("TEST_PORT".to_string())
+            .can_find_home()
+            .await
+            .unwrap_or(false));
+        assert!(!Lx200Mount::new_meade("TEST_PORT".to_string())
+            .can_find_home()
+            .await
+            .unwrap_or(false));
     }
 
     /// OnStep's `:hF#` resets the mount's idea of where it points to the

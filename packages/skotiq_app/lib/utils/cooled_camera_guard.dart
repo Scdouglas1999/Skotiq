@@ -28,8 +28,7 @@ Future<bool> confirmDisconnectCooledCamera(
   if (!connected || (!cam.isCooling && !cam.isWarming)) return true;
 
   final temp = cam.temperature;
-  final tempNote =
-      temp != null ? ' (sensor at ${formatCelsius(temp)})' : '';
+  final tempNote = temp != null ? ' (sensor at ${formatCelsius(temp)})' : '';
   return ConfirmDialog.show(
     context: context,
     title: 'Disconnect cooled camera?',

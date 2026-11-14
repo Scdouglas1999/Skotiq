@@ -321,28 +321,30 @@ void main() {
       );
     }
 
-    CommandCompletion? sequencer(sk.SequencerEvent event) => commandCompletionOf(
-      fromHost(sk.EventCategory.sequencer, sk.EventPayload.sequencer(event)),
-    );
+    CommandCompletion? sequencer(sk.SequencerEvent event) =>
+        commandCompletionOf(
+          fromHost(
+            sk.EventCategory.sequencer,
+            sk.EventPayload.sequencer(event),
+          ),
+        );
 
     test('the run lifecycle events a host sends complete their commands', () {
       expect(
-        sequencer(const sk.SequencerEvent.started(sequenceName: 'n'))
-            ?.operations,
+        sequencer(
+          const sk.SequencerEvent.started(sequenceName: 'n'),
+        )?.operations,
         contains('sequencer.start'),
       );
-      expect(
-        sequencer(const sk.SequencerEvent.paused())?.operations,
-        ['sequencer.pause'],
-      );
-      expect(
-        sequencer(const sk.SequencerEvent.resumed())?.operations,
-        ['sequencer.resume'],
-      );
-      expect(
-        sequencer(const sk.SequencerEvent.stopped())?.operations,
-        ['sequencer.stop'],
-      );
+      expect(sequencer(const sk.SequencerEvent.paused())?.operations, [
+        'sequencer.pause',
+      ]);
+      expect(sequencer(const sk.SequencerEvent.resumed())?.operations, [
+        'sequencer.resume',
+      ]);
+      expect(sequencer(const sk.SequencerEvent.stopped())?.operations, [
+        'sequencer.stop',
+      ]);
     });
 
     test("the guider's pause completes no sequencer command", () {

@@ -935,12 +935,7 @@ fn moved_after_park(calls: &[String]) -> Vec<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_flip_step_after_the_plans_park_leaves_the_mount_parked() {
     let ops = rig_at_site();
-    let executor = start_night(
-        executor_at_site().await,
-        ops.clone(),
-        wizard_plan(0.5),
-    )
-    .await;
+    let executor = start_night(executor_at_site().await, ops.clone(), wizard_plan(0.5)).await;
     let state = wait_until_finished(&executor).await;
     let calls = ops.calls();
 
@@ -961,12 +956,7 @@ async fn a_flip_step_after_the_plans_park_leaves_the_mount_parked() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn dawn_runs_the_shutdown_inside_a_wizard_plan() {
     let ops = rig_at_site();
-    let mut executor = start_night(
-        executor_at_site().await,
-        ops.clone(),
-        wizard_plan(600.0),
-    )
-    .await;
+    let mut executor = start_night(executor_at_site().await, ops.clone(), wizard_plan(600.0)).await;
     wait_for_monitor(&ops).await;
 
     bring_dawn_near(&executor).await;
@@ -1019,12 +1009,7 @@ async fn dawn_runs_the_shutdown_of_a_plan_that_ends_with_a_watcher() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_owners_plan_ends_its_target_without_a_second_flip() {
     let ops = rig_at_site();
-    let executor = start_night(
-        executor_at_site().await,
-        ops.clone(),
-        owners_plan(0.5),
-    )
-    .await;
+    let executor = start_night(executor_at_site().await, ops.clone(), owners_plan(0.5)).await;
     let state = wait_until_finished(&executor).await;
     let calls = ops.calls();
 
@@ -1048,12 +1033,7 @@ async fn the_owners_plan_ends_its_target_without_a_second_flip() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_owners_plan_at_dawn_parks_and_warms() {
     let ops = rig_at_site();
-    let mut executor = start_night(
-        executor_at_site().await,
-        ops.clone(),
-        owners_plan(600.0),
-    )
-    .await;
+    let mut executor = start_night(executor_at_site().await, ops.clone(), owners_plan(600.0)).await;
     wait_for_monitor(&ops).await;
 
     bring_dawn_near(&executor).await;

@@ -11,5 +11,4 @@ void disposeWindowManager(State state) {
   // Not applicable on mobile/web
 }
 
-mixin WindowListenerMixin {
-}
+mixin WindowListenerMixin {}

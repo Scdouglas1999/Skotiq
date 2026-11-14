@@ -633,7 +633,10 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
     assert!(!std::path::Path::new(&fits_only.replace(".fits", ".CR3")).exists());
 
     assert_eq!(recorded_both.unwrap(), both);
-    assert_eq!(std::fs::read(both.replace(".fits", ".CR3")).unwrap(), camera_bytes);
+    assert_eq!(
+        std::fs::read(both.replace(".fits", ".CR3")).unwrap(),
+        camera_bytes
+    );
     // DATE is when the file was written; the pointing is whatever mount the
     // process has, read at each save.
     let varying = [
@@ -646,7 +649,9 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
             .collect()
     };
     assert_eq!(cards(&both), cards(&fits_only));
-    assert!(cards(&both).iter().any(|card| card.starts_with("BAYERPAT= 'RGGB")));
+    assert!(cards(&both)
+        .iter()
+        .any(|card| card.starts_with("BAYERPAT= 'RGGB")));
 
     assert_eq!(recorded_live_view.unwrap(), live_view);
     assert!(!std::path::Path::new(&live_view.replace(".fits", ".CR3")).exists());

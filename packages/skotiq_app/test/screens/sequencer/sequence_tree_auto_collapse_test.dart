@@ -306,8 +306,7 @@ void main() {
     final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
     final collapsed = handle.container.read(collapsedNodeIdsProvider.notifier);
-    final execution =
-        handle.container.read(runRecordProvider.notifier);
+    final execution = handle.container.read(runRecordProvider.notifier);
 
     execution.setLifecycle(SequenceExecutionState.running);
     progress.updateProgress(currentNodeId: t.a1);

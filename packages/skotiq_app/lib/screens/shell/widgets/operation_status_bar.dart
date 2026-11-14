@@ -273,4 +273,3 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
     );
   }
 }
-

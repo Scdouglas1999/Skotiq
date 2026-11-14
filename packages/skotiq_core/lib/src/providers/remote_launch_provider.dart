@@ -124,8 +124,7 @@ RemoteLaunchFailure classifyRemoteLaunchFailure(
     return RemoteLaunchFailure.versionMismatch;
   }
   if (error is ServerError &&
-      (error.isTokenRejected ||
-          error.httpStatus == HttpStatus.unauthorized)) {
+      (error.isTokenRejected || error.httpStatus == HttpStatus.unauthorized)) {
     return RemoteLaunchFailure.tokenRejected;
   }
   final text = error?.toString().toLowerCase() ?? '';
@@ -252,12 +251,13 @@ class RemoteLaunchStatusNotifier extends StateNotifier<RemoteLaunchStatus> {
 /// answer without a network.
 final remoteLaunchFingerprintCheckProvider =
     Provider<Future<String?> Function(RemoteLaunchTarget target)>(
-      (_) => (target) => RemotePairingClient(
-        host: target.host,
-        port: target.port,
-        scheme: target.scheme,
-        timeout: const Duration(seconds: 6),
-      ).fetchFingerprint(),
+      (_) =>
+          (target) => RemotePairingClient(
+            host: target.host,
+            port: target.port,
+            scheme: target.scheme,
+            timeout: const Duration(seconds: 6),
+          ).fetchFingerprint(),
     );
 
 final remoteLaunchStatusProvider =

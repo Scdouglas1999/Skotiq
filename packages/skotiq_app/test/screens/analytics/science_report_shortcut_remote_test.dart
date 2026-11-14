@@ -27,7 +27,8 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    final file = await container.read(analyticsExportsProvider).scienceReport(4);
+    final file =
+        await container.read(analyticsExportsProvider).scienceReport(4);
 
     expect(file.path, expected.path);
     verify(() => exporter.exportToDisk(4)).called(1);

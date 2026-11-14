@@ -77,7 +77,8 @@ impl FocuserDriver for IndiFocuser {
     }
 
     async fn temp_comp(&self) -> Option<bool> {
-        if self.has_property(FOCUS_TEMPERATURE_COMP).await || self.has_property(FOCUS_TEMP_COMP).await
+        if self.has_property(FOCUS_TEMPERATURE_COMP).await
+            || self.has_property(FOCUS_TEMP_COMP).await
         {
             Some(self.is_temp_comp_enabled().await.unwrap_or(false))
         } else {
@@ -114,16 +115,14 @@ impl FocuserDriver for IndiFocuser {
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         match IndiFocuser::get_temperature(self).await {
             Ok(temperature) => Ok(Some(temperature)),
-            Err(e) if self.has_property(FOCUS_TEMPERATURE).await => {
-                Err(DriverError::Backend(
-                    format!(
-                        "INDI focuser {} advertises a temperature sensor but the read failed: {}",
-                        self.device_name(),
-                        e
-                    )
-                    .into(),
-                ))
-            }
+            Err(e) if self.has_property(FOCUS_TEMPERATURE).await => Err(DriverError::Backend(
+                format!(
+                    "INDI focuser {} advertises a temperature sensor but the read failed: {}",
+                    self.device_name(),
+                    e
+                )
+                .into(),
+            )),
             Err(_) => Ok(None),
         }
     }

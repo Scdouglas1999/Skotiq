@@ -31,7 +31,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockHost extends Mock implements NetworkBackend {}
 
-
 final _info = CheckpointInfo(
   sequenceName: 'Veil Nebula',
   timestamp: DateTime(2026, 8, 1, 23, 15),
@@ -253,10 +252,10 @@ void main() {
     test('prefers the operator-facing message of a SkotiqError', () {
       expect(
         userFacingError(const SkotiqError(
-            category: BackendErrorCategory.connection,
-            message: 'ipc channel closed while resuming',
-            userMessage: 'The imaging host stopped responding.',
-          )),
+          category: BackendErrorCategory.connection,
+          message: 'ipc channel closed while resuming',
+          userMessage: 'The imaging host stopped responding.',
+        )),
         'The imaging host stopped responding.',
       );
     });

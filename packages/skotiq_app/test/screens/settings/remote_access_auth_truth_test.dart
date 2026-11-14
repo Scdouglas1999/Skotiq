@@ -97,7 +97,8 @@ Future<void> _pumpRemoteAccess(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('a link without admin access sees the host\'s server port and '
+  testWidgets(
+      'a link without admin access sees the host\'s server port and '
       'where to change it, and cannot switch the server off', (tester) async {
     await _pumpRemoteAccess(
       tester,

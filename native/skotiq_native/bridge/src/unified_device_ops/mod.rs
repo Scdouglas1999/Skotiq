@@ -65,6 +65,8 @@ use skotiq_sequencer::{DeviceError, DeviceResult, SiteOps};
 use std::sync::Arc;
 
 mod camera;
+#[cfg(test)]
+mod capture_pins_tests;
 mod connection;
 mod cover_calibrator;
 mod dome;
@@ -72,24 +74,22 @@ pub(crate) mod exposure_wait;
 mod filter_wheel;
 mod focuser;
 mod frame_store;
+#[cfg(test)]
+mod frame_tests;
 mod guider;
 mod mount;
 mod operator;
 mod plate_solve;
-mod rotator;
-mod safety;
-mod site;
-mod solve_diagnostics;
 pub(crate) mod pointing;
-#[cfg(test)]
-mod capture_pins_tests;
-#[cfg(test)]
-mod frame_tests;
 #[cfg(test)]
 mod pointing_tests;
 pub(crate) mod rich_header;
 #[cfg(test)]
 mod rig_grading_tests;
+mod rotator;
+mod safety;
+mod site;
+mod solve_diagnostics;
 #[cfg(test)]
 mod tests;
 
@@ -211,11 +211,11 @@ impl UnifiedDeviceOps {
                     .map(|(lat, lon)| altitude_degrees(ra_hours, dec_degrees, lat, lon, when));
                 // The altitude wants the of-date read-back; the RA/DEC cards are
                 // read as J2000, so they get the mount's position in J2000.
-                let (ra_hours, dec_degrees) = match get_device_manager().mount_frame(&mount_id).await
-                {
-                    Some(frame) => frame.mount_to_j2000(ra_hours, dec_degrees),
-                    None => return None,
-                };
+                let (ra_hours, dec_degrees) =
+                    match get_device_manager().mount_frame(&mount_id).await {
+                        Some(frame) => frame.mount_to_j2000(ra_hours, dec_degrees),
+                        None => return None,
+                    };
                 Some(MountPointing {
                     ra_hours,
                     dec_degrees,

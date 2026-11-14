@@ -80,8 +80,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
     };
   }
 
-  String _formatDate(DateTime dt) =>
-      ClockFormat.monthDayYear(dt.toLocal());
+  String _formatDate(DateTime dt) => ClockFormat.monthDayYear(dt.toLocal());
 
   void _applyAll(SessionHandoffDecision decision) {
     setState(() {

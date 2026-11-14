@@ -319,8 +319,7 @@ class _RemoteHomeAssistantFormState
         throw StateError('The imaging host is no longer connected.');
       }
       final replacement = _password.text;
-      final updated =
-          await hostNotifications.updateHomeAssistantHostSettings(
+      final updated = await hostNotifications.updateHomeAssistantHostSettings(
         config: HomeAssistantDiscoveryConfig(
           enabled: _enabled,
           deviceName: _deviceName.text.trim(),

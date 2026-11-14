@@ -29,7 +29,6 @@ import 'package:equatable/equatable.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 
-
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.
 enum FoldKind {
   /// ≥2 enabled [ExposureNode]s that differ only by filter.

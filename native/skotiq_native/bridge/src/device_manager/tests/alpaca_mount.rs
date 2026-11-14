@@ -37,8 +37,11 @@ async fn fake_telescope(
             let Ok((mut socket, _)) = listener.accept().await else {
                 return;
             };
-            let (values, recorded, pulse_reads) =
-                (Arc::clone(&values), Arc::clone(&recorded), Arc::clone(&pulse_reads));
+            let (values, recorded, pulse_reads) = (
+                Arc::clone(&values),
+                Arc::clone(&recorded),
+                Arc::clone(&pulse_reads),
+            );
             tokio::spawn(async move {
                 let request = read_request(&mut socket).await;
                 let mut words = request.split_whitespace();
@@ -177,13 +180,19 @@ async fn a_j2000_mount_is_sent_j2000_coordinates() {
     let fake = fake_telescope(mount_values(Some(2)), Some(0)).await;
     let manager = build_device_manager();
     let device_id = connect_fake(&manager, &fake).await;
-    assert_eq!(manager.mount_frame(&device_id).await, Some(MountFrame::J2000));
+    assert_eq!(
+        manager.mount_frame(&device_id).await,
+        Some(MountFrame::J2000)
+    );
 
     manager
         .mount_slew(&device_id, 5.5, 22.0)
         .await
         .expect("slew");
-    assert_eq!(sent_coordinates(&fake, "slewtocoordinatesasync"), (5.5, 22.0));
+    assert_eq!(
+        sent_coordinates(&fake, "slewtocoordinatesasync"),
+        (5.5, 22.0)
+    );
     manager
         .mount_sync(&device_id, 5.5, 22.0)
         .await
@@ -210,7 +219,10 @@ async fn a_mount_of_date_is_sent_precessed_coordinates() {
         let (ra, dec) = sent_coordinates(&fake, "slewtocoordinatesasync");
         let (want_ra, want_dec) = crate::device_manager::epoch::j2000_to_jnow(5.5, 22.0);
         assert!((ra - want_ra).abs() < 1e-6 && (dec - want_dec).abs() < 1e-5);
-        assert!((ra - 5.5).abs() * 15.0 * 60.0 > 10.0, "precessed by minutes of arc");
+        assert!(
+            (ra - 5.5).abs() * 15.0 * 60.0 > 10.0,
+            "precessed by minutes of arc"
+        );
     }
 }
 
@@ -228,7 +240,10 @@ async fn a_pulse_guide_returns_when_the_pulse_is_over() {
         .await
         .expect("pulse");
     let took = started.elapsed();
-    assert!(took >= Duration::from_millis(300), "returned after {took:?}");
+    assert!(
+        took >= Duration::from_millis(300),
+        "returned after {took:?}"
+    );
     assert!(
         took >= Duration::from_millis(300 + 3 * 50),
         "waited out the reads that still reported the pulse: {took:?}"
@@ -238,7 +253,9 @@ async fn a_pulse_guide_returns_when_the_pulse_is_over() {
         .lock()
         .expect("lock puts")
         .iter()
-        .any(|put| put.starts_with("pulseguide ") && put.contains("Direction=0") && put.contains("Duration=300")));
+        .any(|put| put.starts_with("pulseguide ")
+            && put.contains("Direction=0")
+            && put.contains("Duration=300")));
 }
 
 /// A driver that cannot report `IsPulseGuiding` is done when the pulse's

@@ -1127,7 +1127,8 @@ class _SavePathRow extends ConsumerWidget {
       _formatPathLabel,
       context.l10n,
     );
-    final freeText = ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
+    final freeText =
+        ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
     final free = freeText == null ? null : '$freeText free';
     // No free-space figure next to a path we know is unusable: "No save folder
     // · 412 GB free" reports room in a place that does not exist.

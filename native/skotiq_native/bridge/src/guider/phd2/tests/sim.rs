@@ -362,11 +362,8 @@ async fn a_restart_while_phd2_is_inside_a_guide_pulse_waits_for_the_capture_to_e
     .await;
     // The earlier guide is still settling when its waiter is abandoned, as a
     // recovery attempt does when its own deadline passes.
-    let started = tokio::time::timeout(
-        Duration::from_millis(400),
-        start_guiding(2.0, 10.0, 120.0),
-    )
-    .await;
+    let started =
+        tokio::time::timeout(Duration::from_millis(400), start_guiding(2.0, 10.0, 120.0)).await;
     assert!(started.is_err(), "the first guide must still be settling");
 
     let selected = select_fresh_star(None).await;

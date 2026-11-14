@@ -51,7 +51,12 @@ async fn the_mount_workflow_against_omnisim() {
         MountFrame::from_equatorial_system(declared).unwrap_or(MountFrame::OfDate)
     );
 
-    if manager.mount_get_status(&device_id).await.expect("status").parked {
+    if manager
+        .mount_get_status(&device_id)
+        .await
+        .expect("status")
+        .parked
+    {
         manager.mount_unpark(&device_id).await.expect("unpark");
         wait_for("unparked", async || {
             let s = manager.mount_get_status(&device_id).await.expect("status");
@@ -68,7 +73,11 @@ async fn the_mount_workflow_against_omnisim() {
         .await
         .expect("slew");
     wait_for("arrived", async || {
-        !manager.mount_get_status(&device_id).await.expect("status").slewing
+        !manager
+            .mount_get_status(&device_id)
+            .await
+            .expect("status")
+            .slewing
     })
     .await;
     let status = manager.mount_get_status(&device_id).await.expect("status");
@@ -77,11 +86,20 @@ async fn the_mount_workflow_against_omnisim() {
     let expected = frame.j2000_to_mount(target.0, target.1);
     let miss = arcmin_apart(readback, expected);
     println!("  read back {readback:?}, expected {expected:?} in the mount's frame, {miss:.3}'");
-    assert!(miss < 0.5, "landed {miss}' from the target in the mount's frame");
+    assert!(
+        miss < 0.5,
+        "landed {miss}' from the target in the mount's frame"
+    );
     let j2000 = frame.mount_to_j2000(readback.0, readback.1);
-    assert!(arcmin_apart(j2000, target) < 0.5, "read-back in J2000 is the target");
+    assert!(
+        arcmin_apart(j2000, target) < 0.5,
+        "read-back in J2000 is the target"
+    );
     if frame == MountFrame::OfDate {
-        assert!(arcmin_apart(readback, target) > 5.0, "an of-date mount was sent precessed RA/Dec");
+        assert!(
+            arcmin_apart(readback, target) > 5.0,
+            "an of-date mount was sent precessed RA/Dec"
+        );
     }
 
     println!("sync a J2000 position");
@@ -107,7 +125,10 @@ async fn the_mount_workflow_against_omnisim() {
     );
 
     println!("clock");
-    let caps = manager.mount_site_capabilities(&device_id).await.expect("site caps");
+    let caps = manager
+        .mount_site_capabilities(&device_id)
+        .await
+        .expect("site caps");
     assert!(caps.can_write_time);
     let now = chrono::Utc::now().timestamp();
     manager
@@ -120,22 +141,33 @@ async fn the_mount_workflow_against_omnisim() {
         )
         .await
         .expect("set the mount clock");
-    let clock = manager.mount_get_time(&device_id).await.expect("read the clock");
+    let clock = manager
+        .mount_get_time(&device_id)
+        .await
+        .expect("read the clock");
     assert!((clock.utc_unix_seconds - now).abs() < 5, "{clock:?}");
 
     println!("capabilities");
     let capabilities = crate::device_capabilities::get_device_capabilities(&device_id)
         .await
         .expect("capabilities");
-    let crate::device_capabilities::types::DeviceCapabilities::Mount(mount_caps) = capabilities else {
+    let crate::device_capabilities::types::DeviceCapabilities::Mount(mount_caps) = capabilities
+    else {
         panic!("not mount capabilities");
     };
     let alignment = raw.alignment_mode().await.expect("AlignmentMode");
-    assert_eq!(mount_caps.is_equatorial, alignment != 0, "AlignmentMode {alignment}");
+    assert_eq!(
+        mount_caps.is_equatorial,
+        alignment != 0,
+        "AlignmentMode {alignment}"
+    );
     assert!(mount_caps.can_park && mount_caps.can_find_home && mount_caps.can_pulse_guide);
 
     println!("home");
-    manager.mount_find_home(&device_id).await.expect("find home");
+    manager
+        .mount_find_home(&device_id)
+        .await
+        .expect("find home");
     wait_for("homed", async || {
         let s = manager.mount_get_status(&device_id).await.expect("status");
         !s.slewing && s.at_home == Some(true)
@@ -161,7 +193,10 @@ async fn the_mount_workflow_against_omnisim() {
     raw.slew_to_coordinates_async((sidereal + 1.0).rem_euclid(24.0), 60.0)
         .await
         .expect("a slew Skotiq did not start");
-    manager.disconnect_device(&device_id).await.expect("disconnect");
+    manager
+        .disconnect_device(&device_id)
+        .await
+        .expect("disconnect");
     raw.connect().await.expect("reconnect the raw client");
     assert!(
         raw.slewing().await.expect("Slewing"),

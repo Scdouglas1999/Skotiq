@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import '../backend/skotiq_backend.dart';
 import '../models/backend/backend_types.dart';
 

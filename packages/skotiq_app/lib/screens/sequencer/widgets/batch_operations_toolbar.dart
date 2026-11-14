@@ -71,9 +71,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
                       );
                     },
                   ),
-
                   const SizedBox(width: 4),
-
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.clipboardPaste,
@@ -95,11 +93,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 8),
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
-
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eye,
@@ -118,9 +114,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 4),
-
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eyeOff,
@@ -139,11 +133,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 8),
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
-
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.trash2,

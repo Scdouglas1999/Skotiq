@@ -886,8 +886,8 @@ void main() {
     expect(
       find.descendant(
         of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-        matching:
-            find.text(ClockFormat.hm((t0.add(const Duration(hours: 2))).toLocal())),
+        matching: find
+            .text(ClockFormat.hm((t0.add(const Duration(hours: 2))).toLocal())),
       ),
       findsNothing,
     );

@@ -135,7 +135,8 @@ class StaleReadings {
   const StaleReadings({this.since, this.reason});
 
   /// The age of the values at [now], or null when unknown.
-  Duration? ageAt(DateTime now) => since == null ? null : now.difference(since!);
+  Duration? ageAt(DateTime now) =>
+      since == null ? null : now.difference(since!);
 }
 
 /// Whether the values the [type] slot shows for [deviceId] are stale: its
@@ -192,7 +193,5 @@ String staleAgeText(Duration age) {
   if (age.inSeconds < 60) return '${age.inSeconds} s';
   if (age.inMinutes < 60) return '${age.inMinutes} min';
   final minutes = age.inMinutes % 60;
-  return minutes == 0
-      ? '${age.inHours} h'
-      : '${age.inHours} h $minutes min';
+  return minutes == 0 ? '${age.inHours} h' : '${age.inHours} h $minutes min';
 }

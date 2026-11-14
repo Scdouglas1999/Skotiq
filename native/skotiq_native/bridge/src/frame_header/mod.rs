@@ -10,7 +10,8 @@
 
 use crate::error::SkotiqError;
 use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_frame_with, FitsHeader, ImageData,
+    calculate_airmass, validate_fits_header, validate_image, write_frame_with, FitsHeader,
+    ImageData,
 };
 use skotiq_sequencer::scheduling::{DefectMapCorrectionRecord, FrameContext};
 
