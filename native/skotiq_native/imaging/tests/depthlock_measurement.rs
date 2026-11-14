@@ -164,16 +164,12 @@ fn a_frame_with_an_unmeasurable_background_is_excluded_not_fatal() {
     assert_eq!(baseline.evidence_frames, 40);
     assert_eq!(baseline.excluded_frames, 0);
 
-    for cell in 0..3 {
-        frames[5].background[cell] = None;
-    }
+    frames[5].background[..3].fill(None);
     let (tolerated, _) = evaluate(&s, &frames, 0, None);
     assert_eq!(tolerated.evidence_frames, 40, "{}", tolerated.reason);
     assert_eq!(tolerated.excluded_frames, 0);
 
-    for cell in 0..8 {
-        frames[5].background[cell] = None;
-    }
+    frames[5].background[..8].fill(None);
     let (excluded, _) = evaluate(&s, &frames, 0, None);
     assert_ne!(
         excluded.state,
