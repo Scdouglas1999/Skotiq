@@ -77,13 +77,7 @@ impl FocuserDriver for IndiFocuser {
     }
 
     async fn temp_comp(&self) -> Option<bool> {
-        if self.has_property(FOCUS_TEMPERATURE_COMP).await
-            || self.has_property(FOCUS_TEMP_COMP).await
-        {
-            Some(self.is_temp_comp_enabled().await.unwrap_or(false))
-        } else {
-            None
-        }
+        self.is_temp_comp_enabled().await
     }
 
     async fn move_to(&mut self, position: i32) -> Result<(), DriverError> {

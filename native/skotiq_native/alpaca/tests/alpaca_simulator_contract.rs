@@ -39,6 +39,7 @@ struct SimState {
     telescope_tracking: Arc<Mutex<bool>>,
     telescope_rate: Arc<Mutex<i32>>,
     filter_position: Arc<Mutex<i32>>,
+    camera_errors: Arc<Mutex<HashMap<String, i32>>>,
 }
 
 impl SimState {
@@ -49,6 +50,7 @@ impl SimState {
             telescope_tracking: Arc::new(Mutex::new(true)),
             telescope_rate: Arc::new(Mutex::new(DriveRate::Sidereal as i32)),
             filter_position: Arc::new(Mutex::new(0)),
+            camera_errors: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -173,6 +175,10 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
             }
             Value::Null
         }
+        ("GET", "camera", "gain") if device_number == "97" => json!(42),
+        ("GET", "camera", "offset") if device_number == "97" => json!(17),
+        ("GET", "camera", "gainmin" | "offsetmin") if device_number == "97" => json!(0),
+        ("GET", "camera", "gainmax" | "offsetmax") if device_number == "97" => json!(100),
         ("GET", "camera", "connected") => json!(*state.camera_connected.lock().unwrap()),
         ("GET", "camera", "name") => json!("Skotiq Alpaca Camera Simulator"),
         ("GET", "camera", "camerastate") => json!(CameraState::Idle as i32),
@@ -252,7 +258,9 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
     } else if method == "GET" && device == "camera" && endpoint == "imagearray" {
         value.to_string()
     } else {
-        let error_number = if matches!(value, Value::String(ref s) if s.starts_with("unhandled ")) {
+        let error_number = if let Some(code) = state.camera_errors.lock().unwrap().get(&endpoint) {
+            *code
+        } else if matches!(value, Value::String(ref s) if s.starts_with("unhandled ")) {
             1024
         } else {
             0
@@ -436,4 +444,26 @@ async fn an_alpaca_camera_reports_its_sensor_and_what_each_frame_was_taken_with(
     let frame = driver.download_image().await.expect("frame");
     assert_eq!(frame.metadata.exposure_time, 2.5);
     assert_eq!(frame.metadata.readout_mode.as_deref(), Some("Fast"));
+}
+
+#[tokio::test]
+async fn a_failed_advertised_setting_does_not_report_zero() {
+    let (base, state) = start_simulator().await;
+    let driver = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 97));
+    let report = driver.report().await.unwrap();
+    assert!(report.can_set_gain && report.can_set_offset);
+    assert_eq!((report.status.gain, report.status.offset), (42, 17));
+    for member in ["gain", "offset"] {
+        state
+            .camera_errors
+            .lock()
+            .unwrap()
+            .insert(member.into(), 0x4ff);
+        let error = driver.report().await.unwrap_err();
+        assert!(error.to_string().contains(member), "{error}");
+        state.camera_errors.lock().unwrap().clear();
+    }
+    let absent = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 0));
+    let report = absent.report().await.unwrap();
+    assert!(!report.can_set_gain && !report.can_set_offset);
 }

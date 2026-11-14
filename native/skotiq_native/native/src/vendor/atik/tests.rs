@@ -28,6 +28,7 @@ struct Fake {
     colour: c_int,
     colour_offset: (c_int, c_int),
     cooling_flags: c_int,
+    cooling_levels: (c_int, c_int, c_int),
     setpoint: c_int,
     /// `Some` only for the cameras whose gain control implements
     /// ArtemisSetGain; GainControlEmpty answers 5 to both calls.
@@ -65,6 +66,7 @@ impl Default for Fake {
             colour: ARTEMIS_COLOUR_NONE,
             colour_offset: (0, 0),
             cooling_flags: 0,
+            cooling_levels: (51, 0, 255),
             setpoint: 0,
             sdk_gain: None,
             options: HashMap::new(),
@@ -290,9 +292,9 @@ extern "C" fn cooling_info(
 ) -> c_int {
     with(|f| {
         put(flags, f.cooling_flags);
-        put(level, 51);
-        put(min_level, 0);
-        put(max_level, 255);
+        put(level, f.cooling_levels.0);
+        put(min_level, f.cooling_levels.1);
+        put(max_level, f.cooling_levels.2);
         put(setpoint, f.setpoint);
     });
     0
@@ -1003,4 +1005,25 @@ fn sdk_errors_read_as_what_they_mean() {
         panic!("an SDK error");
     };
     assert!(text.contains("does not have that feature"), "{text}");
+}
+
+#[test]
+fn an_unknown_cooler_scale_is_not_a_zero_power_reading() {
+    let _fake = install(Fake {
+        cooling_flags: ARTEMIS_COOLING_INFO_HASCOOLING | ARTEMIS_COOLING_INFO_COOLINGON,
+        ..Fake::default()
+    });
+    let sdk = fake_sdk();
+    let camera = connected(&sdk);
+    for levels in [(0, 0, 0), (0, 255, 0), (256, 0, 255), (-1, 0, 255)] {
+        with(|f| f.cooling_levels = levels);
+        assert_eq!(camera.status(&sdk).unwrap().cooler_power, None);
+        assert!(matches!(
+            camera.cooler_power(&sdk),
+            Err(DriverError::SdkError(_))
+        ));
+    }
+    with(|f| f.cooling_levels = (0, 0, 255));
+    assert_eq!(camera.status(&sdk).unwrap().cooler_power, Some(0.0));
+    assert_eq!(camera.cooler_power(&sdk).unwrap(), 0.0);
 }

@@ -237,8 +237,23 @@ impl MoravianCamera {
                 .filter(|max| *max > 0)
                 .map(|max| u16::try_from(max).unwrap_or(u16::MAX)),
             asymmetric_binning: flag(GBP_ASYMMETRIC_BINNING),
-            full_frame_cell: flag(GBP_RGB)
-                .then(|| delivered_bayer(flag(GBP_DEBAYER_X_ODD), flag(GBP_DEBAYER_Y_ODD))),
+            full_frame_cell: if flag(GBP_RGB) {
+                match (
+                    session.boolean(GBP_DEBAYER_X_ODD),
+                    session.boolean(GBP_DEBAYER_Y_ODD),
+                ) {
+                    (Some(x_odd), Some(y_odd)) => Some(delivered_bayer(x_odd, y_odd)),
+                    _ => {
+                        tracing::warn!(
+                        "Moravian camera '{}' did not report its Bayer offsets; keeping raw pixels without an assumed color pattern",
+                        self.core.name
+                    );
+                        None
+                    }
+                }
+            } else {
+                None
+            },
         };
         let max_adu = full_scale(&session).unwrap_or(65535);
         let width = width as u32;

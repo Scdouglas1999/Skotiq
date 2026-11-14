@@ -349,3 +349,35 @@ async fn a_wheel_unplugged_while_connected_reads_as_disconnected() {
     assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
     wheel.disconnect().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn unreadable_color_controls_do_not_stamp_a_guessed_pattern() {
+    let mut color = connected(UNCOOLED_COLOR).await;
+    for (control, bin) in [("9", 1), ("18", 2)] {
+        let baseline = take(&mut color, exposure(1.0, bin, None)).await;
+        std::env::set_var("FAKE_ASI_UNREADABLE", control);
+        let frame = take(&mut color, exposure(1.0, bin, None)).await;
+        std::env::remove_var("FAKE_ASI_UNREADABLE");
+        assert_eq!(frame.bayer_pattern, None, "control {control}");
+        assert_eq!(frame.data, baseline.data, "raw samples must survive");
+    }
+    std::env::set_var("FAKE_ASI_UNREADABLE", "9");
+    std::env::set_var("FAKE_ASI_CAPS_ERROR", "1");
+    let frame = take(&mut color, exposure(1.0, 1, None)).await;
+    std::env::remove_var("FAKE_ASI_CAPS_ERROR");
+    std::env::remove_var("FAKE_ASI_UNREADABLE");
+    assert_eq!(
+        frame.bayer_pattern, None,
+        "a failed control list is not unsupported"
+    );
+    std::env::set_var("FAKE_ASI_UNSUPPORTED", "9,18");
+    let frame = take(&mut color, exposure(1.0, 2, None)).await;
+    std::env::remove_var("FAKE_ASI_UNSUPPORTED");
+    assert_eq!(
+        frame.bayer_pattern,
+        Some(BayerPattern::Rggb.into()),
+        "absent controls cannot flip or mono-bin the frame"
+    );
+    color.disconnect().await.unwrap();
+}

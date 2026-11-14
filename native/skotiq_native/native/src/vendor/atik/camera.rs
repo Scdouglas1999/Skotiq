@@ -359,10 +359,12 @@ impl CoolingInfo {
     }
 
     pub(crate) fn power_percent(self) -> Option<f64> {
-        (self.max_level > self.min_level).then(|| {
-            f64::from(self.level - self.min_level) / f64::from(self.max_level - self.min_level)
-                * 100.0
-        })
+        (self.max_level > self.min_level && (self.min_level..=self.max_level).contains(&self.level))
+            .then(|| {
+                (f64::from(self.level) - f64::from(self.min_level))
+                    / (f64::from(self.max_level) - f64::from(self.min_level))
+                    * 100.0
+            })
     }
 
     /// The set-point is reported in hundredths of a degree, as it is set

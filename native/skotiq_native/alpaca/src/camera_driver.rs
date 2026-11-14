@@ -177,8 +177,22 @@ impl CameraDriver for AlpacaCameraDriver {
                 None
             }
         });
-        let gain = gain.ok().map(|wire| controls.gain.from_wire(wire));
-        let offset = offset.ok().map(|wire| controls.offset.from_wire(wire));
+        let gain = match gain {
+            Ok(wire) => controls.gain.from_wire(wire),
+            Err(error) if controls.gain.is_present() => {
+                return Err(failed("read Alpaca camera gain", error));
+            }
+            // The shared status has required integers; an absent control is
+            // hidden by can_set_gain rather than presented as a measurement.
+            Err(_) => 0,
+        };
+        let offset = match offset {
+            Ok(wire) => controls.offset.from_wire(wire),
+            Err(error) if controls.offset.is_present() => {
+                return Err(failed("read Alpaca camera offset", error));
+            }
+            Err(_) => 0,
+        };
         Ok(CameraReport {
             status: CameraStatus {
                 state: match status.state {
@@ -193,8 +207,8 @@ impl CameraDriver for AlpacaCameraDriver {
                 cooler_power: status.cooler_power,
                 target_temp: setpoint,
                 cooler_on: status.cooler_on,
-                gain: gain.unwrap_or(0),
-                offset: offset.unwrap_or(0),
+                gain,
+                offset,
                 bin_x: status.bin_x,
                 bin_y: status.bin_y,
                 exposure_remaining: None,

@@ -70,6 +70,7 @@ struct DocCamera {
     color: bool,
     x_odd: bool,
     y_odd: bool,
+    unavailable_boolean: Option<c_int>,
     max_gain: i32,
     read_modes: &'static [&'static str],
     state: Mutex<State>,
@@ -82,6 +83,7 @@ impl DocCamera {
             color: false,
             x_odd: false,
             y_odd: false,
+            unavailable_boolean: None,
             max_gain: 4030,
             read_modes: &READ_MODES,
             state: Mutex::new(State {
@@ -201,6 +203,9 @@ impl Api for DocCamera {
     }
 
     unsafe fn raw_boolean(&self, handle: PCCamera, index: c_int) -> Option<bool> {
+        if self.unavailable_boolean == Some(index) {
+            return None;
+        }
         if index == GBP_CONNECTED {
             let st = self.st();
             return if st.plugged {
@@ -774,5 +779,26 @@ async fn a_camera_that_lists_no_read_modes_offers_none() {
             .begin(&api, &params(0.001, 1, None))
             .expect("a frame without a read mode starts");
         camera.abort(&api);
+    }
+}
+
+#[test]
+fn an_unreadable_color_offset_keeps_the_raw_frame_without_guessing_its_phase() {
+    let _turn = turn();
+    for library in [Library::Gxccd, Library::GxUsb, Library::CxUsb] {
+        for missing in [GBP_DEBAYER_X_ODD, GBP_DEBAYER_Y_ODD] {
+            let mut api = DocCamera::new(library);
+            api.color = true;
+            api.x_odd = true;
+            api.y_odd = true;
+            api.unavailable_boolean = Some(missing);
+            let mut camera = connected(&api);
+            assert!(camera.get_sensor_info().color);
+            assert_eq!(camera.get_sensor_info().bayer_pattern, None);
+            let image = expose(&mut camera, &api, &params(0.001, 1, None));
+            assert_eq!(image.bayer_pattern, None);
+            assert_eq!(image.data, expected(1, (0, 0, WIDTH, HEIGHT)));
+            camera.close(&api);
+        }
     }
 }

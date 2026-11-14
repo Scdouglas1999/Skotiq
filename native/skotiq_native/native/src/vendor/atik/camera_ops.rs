@@ -9,6 +9,19 @@ const IDLE_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
 const IDLE_POLL: std::time::Duration = std::time::Duration::from_millis(100);
 
 impl AtikCamera {
+    pub(crate) fn cooler_power(&self, sdk: &AtikSdk) -> Result<f64, DriverError> {
+        if !self.facts.has_cooling {
+            return Err(DriverError::NotSupported);
+        }
+        let cooling = cooling_info(sdk, self.handle())
+            .ok_or_else(|| DriverError::SdkError("could not read the Atik cooler".to_string()))?;
+        cooling.power_percent().ok_or_else(|| {
+            DriverError::SdkError(
+                "the Atik camera did not report a valid cooler power range".into(),
+            )
+        })
+    }
+
     /// Fails when the SDK has lost the camera (unplugged, powered off).
     fn require_present(&self, sdk: &AtikSdk) -> Result<(), DriverError> {
         // SAFETY: the handle is open while `core.connected`; the lock is held.
@@ -429,13 +442,8 @@ impl CameraDriver for AtikCamera {
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
-        if !self.facts.has_cooling {
-            return Err(DriverError::NotSupported);
-        }
         let sdk = self.sdk().await?;
-        let cooling = cooling_info(&sdk, self.handle())
-            .ok_or_else(|| DriverError::SdkError("could not read the Atik cooler".to_string()))?;
-        Ok(cooling.power_percent().unwrap_or(0.0))
+        self.cooler_power(&sdk)
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
