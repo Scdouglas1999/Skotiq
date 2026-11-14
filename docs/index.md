@@ -59,9 +59,9 @@ New to Skotiq? Start here:
    - Release notes checklist
 
 7. **[Release Notes Template](release-notes-template.md)**
-   - Required release evidence
-   - Hardware and migration summaries
-   - Rollback notes
+   - Finished app changes and upgrade actions
+   - User-facing limitations and rollback notes
+   - Separate [internal validation record](release-validation-template.md) for release evidence
 
 8. **[Migration, Backup, and Restore Guide](migration-backup-restore.md)**
    - Backup contents and exclusions

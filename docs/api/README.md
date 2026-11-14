@@ -29,7 +29,8 @@ Skotiq is a comprehensive astronomical imaging application with multiple API lay
 - [Headless Secure Setup](../headless-secure-setup.md) - Authenticated LAN setup and verification
 - [Supported Hardware By Platform](../supported-hardware-by-platform.md) - Driver and device support matrix
 - [Known Limitations](../known-limitations.md) - Accepted release limitations and unsupported-platform summary
-- [Release Notes Template](../release-notes-template.md) - Public release note evidence template
+- [Release Notes Template](../release-notes-template.md) - User-facing app changes and upgrade guidance
+- [Release Validation Template](../release-validation-template.md) - Internal checks, benchmarks and release evidence
 - [Migration, Backup, and Restore Guide](../migration-backup-restore.md) - Backup format, restore routes, and migration verification
 
 ### Reference

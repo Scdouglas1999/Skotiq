@@ -6,7 +6,7 @@ This guide matches the official Skotiq 8.0.0 artifacts. Read the
 [known limitations](../known-limitations.md) before connecting equipment.
 
 Release engineering validates this guide against
-`docs/release-notes-template.md`,
+`docs/release-validation-template.md`,
 `docs/supported-hardware-by-platform.md`, `docs/known-limitations.md`,
 `docs/production-readiness/linux-release-ci-recipe.md`, and
 `docs/production-readiness/linux-release-package-metadata.json`. A Linux
