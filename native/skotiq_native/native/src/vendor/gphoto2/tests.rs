@@ -949,3 +949,100 @@ fn a_device_address_names_the_body_by_its_model_key_and_port() {
     );
     assert!(GPhoto2Camera::from_address("x:00", "any").is_err());
 }
+
+/// Directory Browse is libgphoto2's local-files camera, so this exercises
+/// the real download/cleanup calls without opening any USB device.
+#[tokio::test]
+#[ignore = "needs the installed libgphoto2; uses only a disk: camera"]
+async fn an_undecodable_ram_capture_survives_cleanup_and_a_retry() {
+    let root = std::env::temp_dir().join(format!("skotiq-gphoto2-retained-{}", std::process::id()));
+    let folder = root.join("DCIM");
+    std::fs::create_dir_all(&folder).unwrap();
+    let original = b"II*\0\x10\0\0\0CR\x02\0truncated raw file";
+    let disk_path = folder.join("failed.CR2");
+    std::fs::write(&disk_path, original).unwrap();
+    let port = format!("disk:{}", root.display());
+    let sdk = GPhoto2Sdk::lock().await.expect("libgphoto2 is installed");
+    let (handle, context) = open_camera(&sdk, "Directory Browse", &port).unwrap();
+    let mut camera = GPhoto2Camera::new(0, "Directory Browse", &port);
+    camera.gp_camera = handle;
+    camera.gp_context = context;
+    camera.core.connected = true;
+    camera.facts.capture_target = Some("Internal RAM".into());
+    let mut path = CameraFilePath::default();
+    for (dst, byte) in path.folder.iter_mut().zip(b"/DCIM") {
+        *dst = *byte as c_char;
+    }
+    for (dst, byte) in path.name.iter_mut().zip(b"failed.CR2") {
+        *dst = *byte as c_char;
+    }
+    let captured = path.clone();
+    camera.exposure = ExposureState::Timed {
+        start: Instant::now(),
+        seconds: 1.0,
+        capture: tokio::spawn(async move { Ok(captured) }),
+    };
+    drop(sdk);
+    let error = camera.download_image().await.unwrap_err();
+    assert!(
+        error.to_string().contains("Failed to decode RAW"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("/DCIM/failed.CR2"), "{error}");
+    assert_eq!(std::fs::read(&disk_path).unwrap(), original);
+    assert_eq!(camera.protected_files, vec![path.clone()]);
+    assert!(camera.is_connected());
+    assert!(camera.check_automatic_reconnect().is_err());
+    camera.core.connected = false;
+    assert!(camera.check_automatic_reconnect().is_err());
+    camera.core.connected = true;
+    let sdk = GPhoto2Sdk::lock().await.unwrap();
+    camera.discard_files(&sdk, std::slice::from_ref(&path));
+    camera.delete_file(&sdk, &path);
+    assert_eq!(camera.download_file(&sdk, &path).unwrap(), original);
+    drop(sdk);
+    let retry = camera
+        .start_exposure(ExposureParams {
+            duration_secs: 1.0,
+            gain: None,
+            offset: None,
+            bin_x: 1,
+            bin_y: 1,
+            subframe: None,
+            readout_mode: None,
+            frame_type: FrameType::Light,
+        })
+        .await
+        .unwrap_err();
+    assert!(retry.to_string().contains("could overwrite"), "{retry}");
+    assert!(retry.to_string().contains("/DCIM/failed.CR2"), "{retry}");
+    assert_eq!(std::fs::read(&disk_path).unwrap(), original);
+    let sdk = GPhoto2Sdk::lock().await.unwrap();
+    camera.close(&sdk);
+    drop(sdk);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_retained_capture_blocks_automatic_replacement_even_after_a_lost_connection() {
+    let mut camera = camera_with_model_table("Canon EOS 1000D");
+    assert!(camera.check_automatic_reconnect().is_ok());
+    camera.facts.capture_target = Some("Internal RAM".into());
+    let mut path = CameraFilePath::default();
+    for (dst, byte) in path.folder.iter_mut().zip(b"/DCIM") {
+        *dst = *byte as c_char;
+    }
+    for (dst, byte) in path.name.iter_mut().zip(b"failed.CR2") {
+        *dst = *byte as c_char;
+    }
+    let error =
+        camera.protect_failed_capture(&[path], DriverError::SdkError("decode failed".into()));
+    assert!(error.to_string().contains("/DCIM/failed.CR2"));
+    assert!(!camera.is_connected());
+    let blocked = camera.check_automatic_reconnect().unwrap_err();
+    assert!(
+        blocked.to_string().contains("/DCIM/failed.CR2"),
+        "{blocked}"
+    );
+    assert!(camera.require_recovered_capture().is_err());
+}
