@@ -307,7 +307,9 @@ class SiteHorizonProfile {
   /// Whether this profile is all zeros (flat horizon) with no learned
   /// obstruction.
   bool get isFlat =>
-      _learned.isEmpty && _altitudes.values.every((v) => v == 0.0);
+      _learned.isEmpty &&
+      _altitudes.values.every((v) => v == 0.0) &&
+      _samples.every((s) => s.altitude == 0.0);
 
   /// The effective horizon as (azimuth, altitude) samples every [stepDeg]
   /// degrees, plus both edges of every learned obstruction's band, so a

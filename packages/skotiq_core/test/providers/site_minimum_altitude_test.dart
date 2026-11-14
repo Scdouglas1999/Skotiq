@@ -90,6 +90,19 @@ void main() {
       expect(floor.lowestDeg, 25);
     });
 
+    test('a samples-only imported skyline does not take the flat shortcut', () {
+      final skyline = SiteHorizonProfile.fromJson(
+        '{"samples":[[0,40],[90,40],[180,40],[270,40]]}',
+      );
+      final floor = AltitudeFloor(horizon: skyline, minimumDeg: 25);
+      expect(skyline.isFlat, isFalse);
+      expect(floor.lowestDeg, 40);
+      expect(
+        floor.denseSamples().every((sample) => sample.altitude == 40),
+        isTrue,
+      );
+    });
+
     test('time to set follows the horizon in the setting direction', () {
       // A target setting in the west behind 35 deg trees leaves earlier than
       // it does against a flat 10 deg floor.

@@ -31,6 +31,14 @@ class AltitudeFloor {
     return followsHorizon ? horizonDeg : math.max(minimumDeg, horizonDeg);
   }
 
+  /// Samples for the native scheduler and altitude loops, including the
+  /// learned obstruction edges that a regular grid could smooth away.
+  List<({double azimuth, double altitude})> denseSamples() => [
+    for (final sample
+        in horizon?.denseSamples() ?? const [(azimuth: 0.0, altitude: 0.0)])
+      (azimuth: sample.azimuth, altitude: atAzimuth(sample.azimuth)),
+  ];
+
   /// Whether a target at [altitudeDeg] toward [azimuthDeg] clears the floor.
   bool clears(double altitudeDeg, double azimuthDeg) =>
       altitudeDeg >= atAzimuth(azimuthDeg);
