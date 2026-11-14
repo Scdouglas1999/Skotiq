@@ -724,6 +724,14 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             "${require[@]}"
 
+      - name: Retain verified release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-release-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
       # Fail early with a clear message rather than letting the publish step
       # silently fall back to an empty release body when the notes file for this
       # tag was never written. The file name must match the tag (v5.0.0 ->
