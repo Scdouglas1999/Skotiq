@@ -54,7 +54,7 @@ impl DeviceDriver for QhyCamera {
             self.supported_bins,
             self.core.sensor_info.bayer_pattern.map_or_else(
                 || "mono".to_string(),
-                |p| skotiq_cfa::ColorFilterArray::from(p).letters()
+                |p| p.letters()
             )
         );
         Ok(())

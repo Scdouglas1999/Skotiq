@@ -14,32 +14,17 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   }) async {
     const fallback = (<_CatalogMatch>[], PhotometricCatalogSource.localHyg);
     try {
-      final size = await _imageSize(imagePath);
+      final header = await readFrameHeader(imagePath);
+      final size = header.imageSize;
       if (size == null) return fallback;
-      final radius =
-          (math.sqrt(
-                        wcs.fieldWidthDegrees * wcs.fieldWidthDegrees +
-                            wcs.fieldHeightDegrees * wcs.fieldHeightDegrees,
-                      ) *
-                      0.65 +
-                  0.3)
-              .clamp(0.25, 8.0)
-              .toDouble();
-      final cone = await _ref
-          .read(photometricCatalogServiceProvider)
-          .coneSearch(
-            raDegrees: wcs.raHours * 15.0,
-            decDegrees: wcs.decDegrees,
-            radiusDegrees: radius,
-            maxMagnitude: maxCatalogMag,
-          );
-      if (cone.stars.isEmpty) return fallback;
-
-      final projection = _projectionFor(
-        wcs,
-        imageWidth: size.width,
-        imageHeight: size.height,
-      );
+      final fileWcs = header.solvedWcs;
+      final projection = fileWcs != null
+          ? GnomonicProjection(fileWcs)
+          : _projectionFor(
+              wcs,
+              imageWidth: size.width,
+              imageHeight: size.height,
+            );
       if (projection == null) {
         _logger.warning(
           'Catalog matching skipped for $imagePath: WCS/image geometry is '
@@ -49,6 +34,17 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
         );
         return fallback;
       }
+      final center = projection.imageCentre;
+      final cone = await _ref
+          .read(photometricCatalogServiceProvider)
+          .coneSearch(
+            raDegrees: center.raDegrees,
+            decDegrees: center.decDegrees,
+            radiusDegrees: projection.wcs.coneSearchRadiusDegrees,
+            maxMagnitude: maxCatalogMag,
+          );
+      if (cone.stars.isEmpty) return fallback;
+
       final matches = await _matchCatalogInBackground(
         projection,
         cone.stars,
