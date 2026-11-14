@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicStartCorner;
 
 import '../../models/imaging/mosaic_project.dart';
 import '../database.dart';
@@ -26,6 +27,8 @@ class MosaicProjectsDao extends DatabaseAccessor<SkotiqDatabase>
     required int cols,
     double overlapPct = 15.0,
     double positionAngleDeg = 0.0,
+    MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+    bool serpentine = true,
     MosaicProjectStatus status = MosaicProjectStatus.planning,
     int? outputMasterId,
     DateTime? createdAt,
@@ -41,6 +44,8 @@ class MosaicProjectsDao extends DatabaseAccessor<SkotiqDatabase>
         cols: cols,
         overlapPct: Value(overlapPct),
         positionAngleDeg: Value(positionAngleDeg),
+        startCorner: Value(startCorner.name),
+        serpentine: Value(serpentine),
         status: Value(status.wire),
         outputMasterId: Value(outputMasterId),
         createdAt: created,
@@ -171,6 +176,8 @@ class MosaicProjectsDao extends DatabaseAccessor<SkotiqDatabase>
       cols: row.cols,
       overlapPct: row.overlapPct,
       positionAngleDeg: row.positionAngleDeg,
+      startCorner: MosaicStartCorner.values.byName(row.startCorner),
+      serpentine: row.serpentine,
       status: MosaicProjectStatus.fromWire(row.status),
       outputMasterId: row.outputMasterId,
       createdAt: fromEpochSeconds(row.createdAt),

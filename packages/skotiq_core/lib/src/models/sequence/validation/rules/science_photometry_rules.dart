@@ -27,9 +27,8 @@ class SciencePhotometryFilterRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SciencePhotometryNode) continue;
-      if (!node.isEnabled) continue;
       if (!node.isPhotometricFilter) {
         issues.add(
           ValidationIssue(
@@ -81,9 +80,8 @@ class SciencePhotometryReferenceStarsEmptyRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SciencePhotometryNode) continue;
-      if (!node.isEnabled) continue;
       if (node.applyDifferential && node.referenceStars.isEmpty) {
         issues.add(
           ValidationIssue(
@@ -149,9 +147,8 @@ class SciencePhotometryCadenceRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SciencePhotometryNode) continue;
-      if (!node.isEnabled) continue;
       if (node.hasImpossibleCadence) {
         issues.add(
           ValidationIssue(

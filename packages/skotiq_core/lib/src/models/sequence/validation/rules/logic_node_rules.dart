@@ -404,9 +404,7 @@ class NoOpLogicNodeRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
-      if (!node.isEnabled) continue;
-
+    for (final node in sequence.enabledNodes) {
       if (node is LoopNode &&
           node.conditionType == LoopConditionType.count &&
           (node.repeatCount ?? 1) <= 1) {

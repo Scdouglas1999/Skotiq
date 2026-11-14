@@ -22,6 +22,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicStartCorner, mosaicPanelCenters;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
@@ -294,6 +296,51 @@ void main() {
       expect(byIndex[0]!.centerDec, greaterThan(41.0));
       expect(byIndex[3]!.centerRa, closeTo(byIndex[2]!.centerRa, 1e-6));
     });
+
+    test(
+      'keeps the start corner and serpentine choice it was planned with',
+      () async {
+        final projectId = await service.createProject(
+          name: 'M31 bottom right',
+          rows: 2,
+          cols: 3,
+          centerRa: 0.7,
+          centerDec: 41.0,
+          overlapPct: 20.0,
+          startCorner: MosaicStartCorner.bottomRight,
+          serpentine: false,
+          fovWidthDeg: 1.0,
+          fovHeightDeg: 0.75,
+        );
+
+        final project = await projectsDao.getById(projectId);
+        expect(project!.startCorner, MosaicStartCorner.bottomRight);
+        expect(project.serpentine, isFalse);
+
+        // Panel N is where the Framing canvas drew N for that corner.
+        final framed = mosaicPanelCenters(
+          centerRaHours: 0.7,
+          centerDecDegrees: 41.0,
+          stepRaDegrees: 1.0 * 0.8,
+          stepDecDegrees: 0.75 * 0.8,
+          columns: 3,
+          rows: 2,
+          startCorner: MosaicStartCorner.bottomRight,
+          serpentine: false,
+        );
+        final panels = await panelsDao.getForProject(projectId);
+        expect(panels, hasLength(6));
+        for (final panel in panels) {
+          final drawn = framed[panel.panelIndex];
+          expect(panel.centerRa, closeTo(drawn.raHours, 1e-9));
+          expect(panel.centerDec, closeTo(drawn.decDegrees, 1e-9));
+        }
+        // Panel 1 is the south-west corner (bottom right as drawn).
+        final first = panels.firstWhere((p) => p.panelIndex == 0);
+        expect(first.centerDec, lessThan(41.0));
+        expect(first.centerRa, lessThan(0.7));
+      },
+    );
 
     test(
       'derives panel arcmin from explicit dims and rejects a bad grid',

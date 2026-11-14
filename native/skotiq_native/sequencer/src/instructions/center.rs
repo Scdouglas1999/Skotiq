@@ -672,7 +672,7 @@ async fn wait_for_flip(
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        let (threshold_min, polled_ha, pier, blocked, flip_requested) = {
+        let (threshold_min, polled_ha, pier, blocked, flip_requested, refusal) = {
             let state = lock.read().await;
             (
                 state.trigger_config.meridian_flip_minutes_past,
@@ -682,6 +682,11 @@ async fn wait_for_flip(
                 // predicate the trigger uses.
                 state.flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian),
                 state.flip_request_pending(),
+                state
+                    .meridian
+                    .refusal()
+                    .filter(|_| state.flip_progress() == FlipProgress::Refused)
+                    .map(str::to_string),
             )
         };
         // An operator's flip request fires the trigger on its next tick, and
@@ -715,6 +720,20 @@ async fn wait_for_flip(
                 }
             }
             continue;
+        }
+        // A flip that ran and refused to move the mount is not coming until
+        // the trigger's cooldown ends, so holding the frame for it only throws
+        // the night away. A retry that fires mid-frame waits for the frame.
+        if let Some(reason) = refusal {
+            let message = format!(
+                "Not holding the next {exposure_secs:.0}s exposure for the meridian flip: the \
+                 flip did not move the mount ({}). Imaging goes on with the mount on this \
+                 side of the pier, and the flip trigger tries again later.",
+                reason.trim_end().trim_end_matches('.')
+            );
+            tracing::warn!("{}", message);
+            control.report(&message);
+            return None;
         }
         // No MinutesPastMeridian trigger armed: nothing predictable to gate on.
         let threshold_min = threshold_min?;
@@ -935,7 +954,7 @@ async fn wait_for_overdue_flip_to_start(
         let verdict = match lock.read().await.flip_progress() {
             FlipProgress::Flipped => Some(OverdueFlip::Flipped),
             FlipProgress::Starting => Some(OverdueFlip::Starting),
-            FlipProgress::NotComing => Some(OverdueFlip::NotComing),
+            FlipProgress::NotComing | FlipProgress::Refused => Some(OverdueFlip::NotComing),
             FlipProgress::AwaitingEvaluation => None,
         };
         if let Some(verdict) = verdict {

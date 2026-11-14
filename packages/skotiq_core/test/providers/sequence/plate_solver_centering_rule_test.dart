@@ -52,6 +52,30 @@ Sequence _centringSequence({bool enabled = true}) {
   );
 }
 
+/// A Center step, itself enabled, inside a switched-off group.
+Sequence _centringInsideDisabledGroup() {
+  const rootId = 'root';
+  return Sequence.create(
+    name: 'M51',
+    nodes: {
+      rootId: InstructionSetNode(
+        id: rootId,
+        name: 'Sequence',
+        childIds: const ['group'],
+      ),
+      'group': InstructionSetNode(
+        id: 'group',
+        name: 'Disabled group',
+        parentId: rootId,
+        isEnabled: false,
+        childIds: const ['center'],
+      ),
+      'center': CenterNode(id: 'center', parentId: 'group'),
+    },
+    rootNodeId: rootId,
+  );
+}
+
 Sequence _plainSequence() {
   const rootId = 'root';
   return Sequence.create(
@@ -123,6 +147,18 @@ void main() {
       expect(issues.single.resolutionHint, contains('ASTAP'));
     },
   );
+
+  test('a Center step inside a switched-off group needs no solver', () async {
+    final container = _containerWith(
+      detection: const AsyncValue.data(PlateSolverDetection()),
+    );
+    addTearDown(container.dispose);
+
+    final sequence = _centringInsideDisabledGroup();
+    expect(await _run(container, sequence), isEmpty);
+    expect(await _run(container, _centringSequence(enabled: false)), isEmpty);
+    expect(sequence.enabledNodes.map((n) => n.id), ['root']);
+  });
 
   test('an installed, cataloged ASTAP satisfies it', () async {
     final container = _containerWith(

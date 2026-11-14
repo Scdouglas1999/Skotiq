@@ -11,9 +11,8 @@ class SmartExposureEmptyPlansRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SmartExposureNode) continue;
-      if (!node.isEnabled) continue;
       if (node.plans.isEmpty) {
         issues.add(
           ValidationIssue(
@@ -43,9 +42,8 @@ class SmartExposureNegativeCountRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SmartExposureNode) continue;
-      if (!node.isEnabled) continue;
       for (var i = 0; i < node.plans.length; i++) {
         final p = node.plans[i];
         // In loop-until-stopped mode the per-plan count is ignored entirely
@@ -127,9 +125,8 @@ class SmartExposureUnboundedLoopRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SmartExposureNode) continue;
-      if (!node.isEnabled) continue;
       if (!node.loopUntilStopped) continue;
       // A positive integration budget is a valid automatic bound.
       if (node.integrationBudgetSecs > 0) continue;

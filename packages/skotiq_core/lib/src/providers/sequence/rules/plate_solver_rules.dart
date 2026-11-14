@@ -25,9 +25,7 @@ class PlateSolverForCenteringRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    final centres = sequence.nodes.values.any(
-      (node) => node.isEnabled && node is CenterNode,
-    );
+    final centres = sequence.enabledNodes.any((node) => node is CenterNode);
     if (!centres) return const [];
 
     final ref = ctx.ref;
@@ -60,9 +58,7 @@ class PlateSolveFocalLengthRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    if (!sequence.nodes.values.any(
-      (node) => node.isEnabled && node is CenterNode,
-    )) {
+    if (!sequence.enabledNodes.any((node) => node is CenterNode)) {
       return const [];
     }
     final profile = ctx.ref.read(activeEquipmentProfileProvider);

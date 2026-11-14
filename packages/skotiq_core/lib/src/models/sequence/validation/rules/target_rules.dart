@@ -128,11 +128,11 @@ class CaptureBeforeAimRule implements SequenceValidator {
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
     for (final target in sequence.targetHeaders) {
-      if (!target.isEnabled) continue;
+      if (!sequence.isNodeEnabled(target)) continue;
       SequenceNode? firstCapture;
       for (final id in sequence.descendantsOf(target.id)) {
         final node = sequence.nodes[id];
-        if (node == null || !node.isEnabled) continue;
+        if (node == null || !sequence.isNodeEnabled(node)) continue;
         final stage = node.kind.stage;
         if (stage == NodeStage.capture) {
           firstCapture ??= node;
@@ -523,9 +523,9 @@ class NoTargetForExposuresRule implements SequenceValidator {
     final targets = sequence.targetHeaders;
     if (targets.isNotEmpty) return const [];
 
-    final hasEnabledExposures = sequence.nodes.values
+    final hasEnabledExposures = sequence.enabledNodes
         .whereType<ExposureNode>()
-        .any((n) => n.isEnabled);
+        .isNotEmpty;
     if (!hasEnabledExposures) return const [];
 
     return const [

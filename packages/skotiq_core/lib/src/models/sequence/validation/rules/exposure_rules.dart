@@ -115,9 +115,8 @@ class HighBinningRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! ExposureNode) continue;
-      if (!node.isEnabled) continue;
       if (node.binning != BinningMode.three &&
           node.binning != BinningMode.four) {
         continue;
@@ -149,11 +148,11 @@ class NoExposuresRule implements SequenceValidator {
     // in per-filter plans) and SciencePhotometry bursts (which capture through
     // the same TakeExposure pipeline) so neither an auto-built sequence nor a
     // photometry-only one is falsely flagged as capturing no images.
-    final hasEnabledExposure = sequence.nodes.values.any(
+    final hasEnabledExposure = sequence.enabledNodes.any(
       (n) =>
-          (n is ExposureNode && n.isEnabled) ||
-          (n is SmartExposureNode && n.isEnabled && n.plans.isNotEmpty) ||
-          (n is SciencePhotometryNode && n.isEnabled && n.count > 0),
+          n is ExposureNode ||
+          (n is SmartExposureNode && n.plans.isNotEmpty) ||
+          (n is SciencePhotometryNode && n.count > 0),
     );
     if (hasEnabledExposure) return const [];
 

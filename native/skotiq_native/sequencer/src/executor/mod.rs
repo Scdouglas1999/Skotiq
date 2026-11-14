@@ -125,14 +125,7 @@ pub struct SequenceExecutor {
     /// Device operations handler - None indicates no device ops have been configured.
     /// Device ops MUST be set via set_device_ops() before starting a sequence.
     device_ops: Option<SharedDeviceOps>,
-    /// Connected device IDs
-    pub camera_id: Option<String>,
-    pub mount_id: Option<String>,
-    pub focuser_id: Option<String>,
-    pub filterwheel_id: Option<String>,
-    pub rotator_id: Option<String>,
-    pub dome_id: Option<String>,
-    pub cover_calibrator_id: Option<String>,
+    devices: Arc<StdRwLock<AssignedDevices>>,
     /// Base save path for images
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
@@ -219,13 +212,7 @@ impl SequenceExecutor {
             is_cancelled: Arc::new(AtomicBool::new(false)),
             root_node: None,
             device_ops: None,
-            camera_id: None,
-            mount_id: None,
-            focuser_id: None,
-            filterwheel_id: None,
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: None,
+            devices: Arc::default(),
             save_path: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
             checkpoint_manager: None,
@@ -295,7 +282,13 @@ impl SequenceExecutor {
             commands: self.commands.clone(),
             decision_tx: self.decision_tx.clone(),
             active_sequence_run_id: self.active_sequence_run_id.clone(),
+            devices: self.devices.clone(),
         }
+    }
+
+    /// The devices the next run drives.
+    pub fn devices(&self) -> AssignedDevices {
+        self.devices.read().clone()
     }
 
     pub fn get_progress(&self) -> SequenceProgress {
@@ -345,6 +338,22 @@ pub struct ExecutorHandle {
     commands: RunCommands,
     decision_tx: crate::decision::DecisionSender,
     active_sequence_run_id: Arc<StdRwLock<Option<i64>>>,
+    devices: Arc<StdRwLock<AssignedDevices>>,
+}
+
+/// The devices the host assigned to the executor's runs, by role: the
+/// canonical `driver:vendor:id` strings device dispatch uses. The executor and
+/// its handle share them, so a reader outside a run (the motion guard's
+/// recovery frame) never waits for the executor.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct AssignedDevices {
+    pub camera_id: Option<String>,
+    pub mount_id: Option<String>,
+    pub focuser_id: Option<String>,
+    pub filterwheel_id: Option<String>,
+    pub rotator_id: Option<String>,
+    pub dome_id: Option<String>,
+    pub cover_calibrator_id: Option<String>,
 }
 
 /// The command channel of the run in progress, `None` between runs. The
@@ -370,6 +379,11 @@ impl RunCommands {
 impl ExecutorHandle {
     pub fn state(&self) -> ExecutorState {
         self.run_state.get()
+    }
+
+    /// The devices the executor's runs drive.
+    pub fn devices(&self) -> AssignedDevices {
+        self.devices.read().clone()
     }
 
     pub fn progress(&self) -> SequenceProgress {

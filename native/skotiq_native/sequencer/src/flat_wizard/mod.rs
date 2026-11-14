@@ -144,7 +144,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
     ) -> WizardStepOutcome<FlatStep> {
         match step {
             FlatStep::Filter => {
-                let changed = self.do_filter_change(ctx).await;
+                let changed = self.do_filter_change(ctx, progress).await;
                 self.step_outcome(changed)
             }
             FlatStep::Position => {
@@ -246,7 +246,11 @@ impl<'a> FlatWizardRun<'a> {
         }
     }
 
-    async fn do_filter_change(&self, ctx: &InstructionContext) -> Result<(), DeviceError> {
+    async fn do_filter_change(
+        &self,
+        ctx: &InstructionContext,
+        progress: &dyn WizardProgressReporter,
+    ) -> Result<(), DeviceError> {
         if self.config.filter.is_none() && self.config.filter_index.is_none() {
             return Ok(());
         }
@@ -254,6 +258,13 @@ impl<'a> FlatWizardRun<'a> {
             Some(id) => id,
             None => return Ok(()),
         };
+        progress.report(
+            0.05,
+            match &self.config.filter {
+                Some(name) => format!("Changing filter to {name}"),
+                None => "Changing filter".to_string(),
+            },
+        );
         if let Some(index) = self.config.filter_index {
             tracing::info!(
                 "Changing to filter position: {} (name: {:?})",

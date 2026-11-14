@@ -11,7 +11,7 @@ use crate::{NodeType, SequenceDefinition};
 /// Triggers the sequence declares itself through Recovery nodes still apply.
 pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     let mut calibration_frames = false;
-    for node in sequence.nodes.iter().filter(|n| n.enabled) {
+    for node in sequence.enabled_nodes() {
         match &node.node_type {
             NodeType::TakeExposure(config) => {
                 if !config.frame_type.is_calibration() {
@@ -126,6 +126,16 @@ mod tests {
             node("dark", exposure("Dark")),
             light
         ])));
+    }
+
+    #[test]
+    fn a_light_inside_a_disabled_group_does_not_count() {
+        let mut group = node("group", NodeType::Loop(LoopConfig::default()));
+        group.enabled = false;
+        group.children = vec!["light".into()];
+        let mut sequence = plan(vec![node("dark", exposure("Dark")), group]);
+        sequence.nodes.push(node("light", exposure("Light")));
+        assert!(is_calibration_only(&sequence));
     }
 
     #[test]

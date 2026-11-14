@@ -20,6 +20,8 @@ Object? _encode(Object value) => switch (value) {
     'cols': p.cols,
     'overlapPct': p.overlapPct,
     'positionAngleDeg': p.positionAngleDeg,
+    'startCorner': p.startCorner.name,
+    'serpentine': p.serpentine,
     'status': p.status,
     'outputMasterId': p.outputMasterId,
     'createdAt': p.createdAt,

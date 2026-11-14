@@ -121,12 +121,13 @@ impl SequenceExecutor {
             if let Some(root) = self.root_node.as_ref() {
                 collect_required_devices(&**root, &mut required);
             }
+            let devices = self.devices();
             validate_required_devices(&required, |role| match role {
-                RequiredDevice::Camera => self.camera_id.clone(),
-                RequiredDevice::Mount => self.mount_id.clone(),
-                RequiredDevice::FilterWheel => self.filterwheel_id.clone(),
-                RequiredDevice::Focuser => self.focuser_id.clone(),
-                RequiredDevice::Rotator => self.rotator_id.clone(),
+                RequiredDevice::Camera => devices.camera_id.clone(),
+                RequiredDevice::Mount => devices.mount_id.clone(),
+                RequiredDevice::FilterWheel => devices.filterwheel_id.clone(),
+                RequiredDevice::Focuser => devices.focuser_id.clone(),
+                RequiredDevice::Rotator => devices.rotator_id.clone(),
             })?;
         }
 

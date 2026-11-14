@@ -18,37 +18,31 @@ pub(super) fn find_first_autofocus_config(node: &dyn Node) -> Option<crate::Auto
         .find_map(|child| find_first_autofocus_config(&**child))
 }
 
-/// Whether the node tree contains a plate-solve-dependent CenterTarget node.
-/// Used to gate the plate-solver/catalog preflight at start() so a sequence
-/// that centers on a target fails fast if no solver is installed.
+/// Whether the run centers on a target (an enabled CenterTarget step). Used
+/// to gate the plate-solver/catalog preflight at start() so a sequence that
+/// centers on a target fails fast if no solver is installed.
 pub(super) fn tree_contains_centering(node: &dyn Node) -> bool {
-    if matches!(node.node_type(), NodeType::CenterTarget(_)) {
-        return true;
-    }
-    node.children()
+    crate::node::enabled_nodes(node)
         .iter()
-        .any(|child| tree_contains_centering(&**child))
+        .any(|node| matches!(node.node_type(), NodeType::CenterTarget(_)))
 }
 
-/// True when some node in the tree captures frames it must persist through the
+/// True when an enabled step captures frames it must persist through the
 /// run's base save path. A `TakeExposure` carrying an absolute `save_to` names
 /// its own complete destination, so it does not depend on the base path.
 pub(super) fn tree_needs_base_save_path(node: &dyn Node) -> bool {
-    let needs_here = match node.node_type() {
-        NodeType::TakeExposure(config) => !config
-            .save_to
-            .as_deref()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .is_some_and(|t| std::path::Path::new(t).is_absolute()),
-        NodeType::SmartExposure(_) => true,
-        _ => false,
-    };
-    needs_here
-        || node
-            .children()
-            .iter()
-            .any(|child| tree_needs_base_save_path(&**child))
+    crate::node::enabled_nodes(node)
+        .iter()
+        .any(|node| match node.node_type() {
+            NodeType::TakeExposure(config) => !config
+                .save_to
+                .as_deref()
+                .map(str::trim)
+                .filter(|t| !t.is_empty())
+                .is_some_and(|t| std::path::Path::new(t).is_absolute()),
+            NodeType::SmartExposure(_) => true,
+            _ => false,
+        })
 }
 
 /// A hardware role the loaded sequence declares it needs, in the order the
@@ -100,108 +94,102 @@ pub(crate) struct DeviceRequirement {
 /// is not blocked for a wheel it will not touch; and `Dither` steers the
 /// guider, which is not one of the five ids `set_devices` carries.
 ///
-/// Disabled nodes contribute nothing, and neither do their children:
-/// `RuntimeNode::execute` returns `Skipped` before it descends, so a disabled
-/// subtree never reaches hardware and must never block a start.
+/// Disabled nodes contribute nothing, and neither do their children
+/// ([`crate::node::enabled_nodes`]): a disabled subtree never reaches hardware
+/// and must never block a start.
 pub(super) fn collect_required_devices(
-    node: &dyn Node,
+    root: &dyn Node,
     out: &mut std::collections::BTreeMap<RequiredDevice, DeviceRequirement>,
 ) {
-    if !node.is_enabled() {
-        return;
-    }
+    for node in crate::node::enabled_nodes(root) {
+        let mut require = |role: RequiredDevice, captures_frames: bool| {
+            out.entry(role).or_insert_with(|| DeviceRequirement {
+                node_name: node.name().to_string(),
+                captures_frames,
+            });
+        };
 
-    let mut require = |role: RequiredDevice, captures_frames: bool| {
-        out.entry(role).or_insert_with(|| DeviceRequirement {
-            node_name: node.name().to_string(),
-            captures_frames,
-        });
-    };
+        fn names_a_filter(filter: Option<&str>, filter_index: Option<i32>) -> bool {
+            filter_index.is_some() || filter.map(str::trim).is_some_and(|name| !name.is_empty())
+        }
 
-    fn names_a_filter(filter: Option<&str>, filter_index: Option<i32>) -> bool {
-        filter_index.is_some() || filter.map(str::trim).is_some_and(|name| !name.is_empty())
-    }
-
-    match node.node_type() {
-        NodeType::TakeExposure(config) => {
-            require(RequiredDevice::Camera, true);
-            if names_a_filter(config.filter.as_deref(), config.filter_index) {
+        match node.node_type() {
+            NodeType::TakeExposure(config) => {
+                require(RequiredDevice::Camera, true);
+                if names_a_filter(config.filter.as_deref(), config.filter_index) {
+                    require(RequiredDevice::FilterWheel, false);
+                }
+            }
+            NodeType::SmartExposure(config) => {
+                require(RequiredDevice::Camera, true);
+                // EVERY plan moves the wheel, named or not. SmartExposure fires a
+                // ChangeFilter whenever `current_filter != Some(plan.filter_name)`
+                // (`smart_exposure.rs`), and `current_filter` starts a run as
+                // `None` — so even a plan whose filter name is empty triggers the
+                // change, and `execute_filter_change` reads `filterwheel_id()`
+                // before it looks at the name at all.
+                //
+                // Reproduced against the Linux appliance on 2026-08-09 with the
+                // sim camera/mount/focuser connected and NO wheel: a one-plan
+                // SmartExposure with `filter_name: ""` answered
+                // `POST /api/sequencer/start -> 200 {"status":"started"}` and then
+                // logged `ERROR Change Filter failed: No filter wheel connected` /
+                // `WARN [RECOVERY] Change Filter promoted device disconnect to
+                // recovery`, five futile retries, run failed — the exact loop this
+                // preflight exists to prevent.
+                if !config.plans.is_empty() {
+                    require(RequiredDevice::FilterWheel, false);
+                }
+            }
+            NodeType::FlatWizard(_) | NodeType::SciencePhotometry(_) => {
+                require(RequiredDevice::Camera, true);
+            }
+            NodeType::CenterTarget(_) | NodeType::PolarAlignment(_) => {
+                require(RequiredDevice::Camera, false);
+                require(RequiredDevice::Mount, false);
+            }
+            NodeType::SlewToTarget(_)
+            | NodeType::Park
+            | NodeType::Unpark
+            | NodeType::HomeMount
+            | NodeType::MeridianFlip(_) => {
+                require(RequiredDevice::Mount, false);
+            }
+            NodeType::Autofocus(config) => {
+                require(RequiredDevice::Camera, false);
+                require(RequiredDevice::Focuser, false);
+                // An AF node pinned to a filter reads the wheel before it sweeps:
+                // `execute_autofocus_admitted_with_pause` fails outright with
+                // "Autofocus is configured to use filter \"…\", but no filter wheel
+                // is connected". Reproduced on the Linux appliance on 2026-08-09
+                // with camera + focuser connected and no wheel: `start` answered
+                // 200 and the node then failed with exactly that line.
+                //
+                // `filter_settings` alone is NOT enough to require a wheel — with
+                // no wheel that branch simply leaves the per-filter overrides
+                // unapplied and the sweep still runs.
+                if config
+                    .filter
+                    .as_deref()
+                    .is_some_and(|name| !name.trim().is_empty())
+                {
+                    require(RequiredDevice::FilterWheel, false);
+                }
+            }
+            NodeType::TemperatureCompensation(_) => {
+                require(RequiredDevice::Focuser, false);
+            }
+            NodeType::CoolCamera(_) | NodeType::WarmCamera(_) => {
+                require(RequiredDevice::Camera, false);
+            }
+            NodeType::ChangeFilter(_) => {
                 require(RequiredDevice::FilterWheel, false);
             }
-        }
-        NodeType::SmartExposure(config) => {
-            require(RequiredDevice::Camera, true);
-            // EVERY plan moves the wheel, named or not. SmartExposure fires a
-            // ChangeFilter whenever `current_filter != Some(plan.filter_name)`
-            // (`smart_exposure.rs`), and `current_filter` starts a run as
-            // `None` — so even a plan whose filter name is empty triggers the
-            // change, and `execute_filter_change` reads `filterwheel_id()`
-            // before it looks at the name at all.
-            //
-            // Reproduced against the Linux appliance on 2026-08-09 with the
-            // sim camera/mount/focuser connected and NO wheel: a one-plan
-            // SmartExposure with `filter_name: ""` answered
-            // `POST /api/sequencer/start -> 200 {"status":"started"}` and then
-            // logged `ERROR Change Filter failed: No filter wheel connected` /
-            // `WARN [RECOVERY] Change Filter promoted device disconnect to
-            // recovery`, five futile retries, run failed — the exact loop this
-            // preflight exists to prevent.
-            if !config.plans.is_empty() {
-                require(RequiredDevice::FilterWheel, false);
+            NodeType::MoveRotator(_) => {
+                require(RequiredDevice::Rotator, false);
             }
+            _ => {}
         }
-        NodeType::FlatWizard(_) | NodeType::SciencePhotometry(_) => {
-            require(RequiredDevice::Camera, true);
-        }
-        NodeType::CenterTarget(_) | NodeType::PolarAlignment(_) => {
-            require(RequiredDevice::Camera, false);
-            require(RequiredDevice::Mount, false);
-        }
-        NodeType::SlewToTarget(_)
-        | NodeType::Park
-        | NodeType::Unpark
-        | NodeType::HomeMount
-        | NodeType::MeridianFlip(_) => {
-            require(RequiredDevice::Mount, false);
-        }
-        NodeType::Autofocus(config) => {
-            require(RequiredDevice::Camera, false);
-            require(RequiredDevice::Focuser, false);
-            // An AF node pinned to a filter reads the wheel before it sweeps:
-            // `execute_autofocus_admitted_with_pause` fails outright with
-            // "Autofocus is configured to use filter \"…\", but no filter wheel
-            // is connected". Reproduced on the Linux appliance on 2026-08-09
-            // with camera + focuser connected and no wheel: `start` answered
-            // 200 and the node then failed with exactly that line.
-            //
-            // `filter_settings` alone is NOT enough to require a wheel — with
-            // no wheel that branch simply leaves the per-filter overrides
-            // unapplied and the sweep still runs.
-            if config
-                .filter
-                .as_deref()
-                .is_some_and(|name| !name.trim().is_empty())
-            {
-                require(RequiredDevice::FilterWheel, false);
-            }
-        }
-        NodeType::TemperatureCompensation(_) => {
-            require(RequiredDevice::Focuser, false);
-        }
-        NodeType::CoolCamera(_) | NodeType::WarmCamera(_) => {
-            require(RequiredDevice::Camera, false);
-        }
-        NodeType::ChangeFilter(_) => {
-            require(RequiredDevice::FilterWheel, false);
-        }
-        NodeType::MoveRotator(_) => {
-            require(RequiredDevice::Rotator, false);
-        }
-        _ => {}
-    }
-
-    for child in node.children() {
-        collect_required_devices(&**child, out);
     }
 }
 
@@ -309,21 +297,21 @@ pub(super) fn device_refusal(role: RequiredDevice, requirement: &DeviceRequireme
 /// ran `Unpark`, returned Success, and reported the run `completed` with 0
 /// frames and an empty `errorMessages` while the header still advertised
 /// "3 frames".
-pub(super) fn unreachable_instructions(node: &dyn Node, out: &mut Vec<String>) {
-    let reachable_children = node.node_type().accepts_children();
-    for child in node.children() {
-        if reachable_children {
-            unreachable_instructions(&**child, out);
-        } else {
-            collect_subtree_names(&**child, out);
+///
+/// Disabled steps are left out: the operator switched them off, so they are not
+/// work the run skipped.
+pub(super) fn unreachable_instructions(root: &dyn Node, out: &mut Vec<String>) {
+    let mut unreachable = std::collections::HashSet::new();
+    for node in crate::node::enabled_nodes(root) {
+        if node.node_type().accepts_children() || unreachable.contains(node.id()) {
+            continue;
         }
-    }
-}
-
-pub(super) fn collect_subtree_names(node: &dyn Node, out: &mut Vec<String>) {
-    out.push(node.name().to_string());
-    for child in node.children() {
-        collect_subtree_names(&**child, out);
+        for child in node.children() {
+            for stranded in crate::node::enabled_nodes(&**child) {
+                unreachable.insert(stranded.id().clone());
+                out.push(stranded.name().to_string());
+            }
+        }
     }
 }
 

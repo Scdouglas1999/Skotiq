@@ -43,9 +43,8 @@ int? _minutesUntilDark(DateTime now, double latitude, double longitude) {
 
 /// Enabled light-frame exposures reachable in this sequence.
 bool _capturesLightFrames(Sequence sequence) {
-  return sequence.nodes.values.any(
+  return sequence.enabledNodes.any(
     (node) =>
-        node.isEnabled &&
         node is ExposureNode &&
         node.frameType == FrameType.light &&
         node.count > 0 &&
@@ -58,8 +57,7 @@ bool _capturesLightFrames(Sequence sequence) {
 /// crossing trigger. Such a run is *meant* to begin in daylight and wait, so
 /// the daylight gate is not a categorical refusal for it.
 bool _waitsBeforeImaging(Sequence sequence) {
-  return sequence.nodes.values.any((node) {
-    if (!node.isEnabled) return false;
+  return sequence.enabledNodes.any((node) {
     if (node is WaitTimeNode) {
       return node.waitUntil != null || node.waitForTwilight != null;
     }
@@ -213,23 +211,21 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
     // operators legitimately put a Slew or Center above the target rather than
     // under it, and a false block on a run that does point the mount would be
     // worse than the miss this rule exists to catch.
-    final pointsTheMount = sequence.nodes.values.any(
+    final pointsTheMount = sequence.enabledNodes.any(
       (node) =>
-          node.isEnabled &&
-          (node is SlewNode || node is CenterNode || node is MeridianFlipNode),
+          node is SlewNode || node is CenterNode || node is MeridianFlipNode,
     );
     if (pointsTheMount) return const [];
 
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! TargetHeaderNode) continue;
-      if (!node.isEnabled) continue;
       if (node.raHours == 0.0 && node.decDegrees == 0.0) continue;
 
       final capturesLight = sequence.descendantsOf(node.id).any((id) {
         final child = sequence.nodes[id];
         return child is ExposureNode &&
-            child.isEnabled &&
+            sequence.isNodeEnabled(child) &&
             child.frameType == FrameType.light &&
             child.count > 0;
       });

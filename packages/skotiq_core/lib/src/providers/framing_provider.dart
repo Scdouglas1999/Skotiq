@@ -700,6 +700,8 @@ class FramingNotifier extends StateNotifier<FramingState> {
       centerDec: aimTarget.decDegrees,
       overlapPct: config.overlapPercent,
       positionAngleDeg: state.rotation,
+      startCorner: config.startCorner,
+      serpentine: config.serpentine,
       fovWidthDeg: fovWidthDeg,
       fovHeightDeg: fovHeightDeg,
     );

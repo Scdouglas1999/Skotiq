@@ -162,6 +162,8 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
       rotation: project.positionAngleDeg,
       panelsHorizontal: project.cols,
       panelsVertical: project.rows,
+      startCorner: project.startCorner,
+      serpentine: project.serpentine,
     );
 
     final exposure = smartNightMosaicExposureSettings(

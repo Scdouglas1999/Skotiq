@@ -21,7 +21,8 @@
 // injectable client factory (so it is exercised with a `package:http/testing`
 // MockClient) + a logger, kept DB-agnostic via resolvers.
 
-import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelTargetName;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show inferMosaicCaptureOrder, mosaicPanelTargetName;
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -219,7 +220,22 @@ class CollaborativeMosaicService {
         ? mosaic
         : await getMosaic(mosaic.mosaicId);
 
+    final order = inferMosaicCaptureOrder(
+      columns: detail.cols,
+      rows: detail.rows,
+      rotationDegrees: detail.positionAngleDeg,
+      panels: [
+        for (final panel in detail.panels)
+          (
+            index: panel.panelIndex,
+            raHours: panel.centerRaDeg / 15,
+            decDegrees: panel.centerDecDeg,
+          ),
+      ],
+    );
     final projectId = await _projectsDao.create(
+      startCorner: order.startCorner,
+      serpentine: order.serpentine,
       name: detail.name,
       rows: detail.rows,
       cols: detail.cols,
@@ -510,7 +526,8 @@ class CollaborativeMosaicService {
         final (panelWidth, panelHeight) = await _fitsImageSize(outPath);
         final newMasterId = await _mastersDao.insertMaster(
           targetId: project.targetId,
-          name: '${mosaicPanelTargetName(project.name, panel.panelIndex)} (hub)',
+          name:
+              '${mosaicPanelTargetName(project.name, panel.panelIndex)} (hub)',
           masterFitsPath: outPath,
           status: IntegratedMasterStatus.finalized,
           accumulationMode: AccumulationMode.batch,

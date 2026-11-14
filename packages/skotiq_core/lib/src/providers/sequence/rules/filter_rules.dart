@@ -12,8 +12,7 @@ import '../../../models/sequence/validation/validation_issue.dart';
 Iterable<({SequenceNode node, String filter})> _filterUses(
   Sequence sequence,
 ) sync* {
-  for (final node in sequence.nodes.values) {
-    if (!node.isEnabled) continue;
+  for (final node in sequence.enabledNodes) {
     for (final filter in node.kind.filtersOf(node)) {
       yield (node: node, filter: filter);
     }

@@ -210,6 +210,14 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                 );
                 tracing::warn!("[MERIDIAN] {}", message);
                 run.warning(message);
+            } else if !run.is_cancelled() {
+                // The pre-frame gate stops holding frames for this flip; the
+                // trigger tries again when its cooldown ends.
+                rig.trigger_state
+                    .write()
+                    .await
+                    .meridian
+                    .mark_refused(reason);
             }
             ActionFlow::Finished
         }

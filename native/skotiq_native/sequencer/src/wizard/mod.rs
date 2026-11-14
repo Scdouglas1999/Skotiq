@@ -19,8 +19,7 @@
 //!   step results (flat wizard's binary search, all-sky polar's
 //!   adjustment loop).
 //! * The [`WizardExecutor`] — drives a `Wizard` through its plan,
-//!   handling cancellation, progress callbacks, and step-level
-//!   checkpointing.
+//!   handling cancellation and step-level checkpointing.
 //! * The [`WizardCheckpoint`] schema — JSON-serializable record of
 //!   completed step indices for a given wizard instance, lifted into
 //!   [`crate::checkpoint::SessionCheckpoint::wizard_states`] so a
@@ -33,21 +32,20 @@
 //! FITS files, UI events, plate-solve callbacks, final `InstructionResult`
 //! payload, and step ordering are all preserved. The executor adds:
 //!
-//! * Uniform `"Step X/Y: <description>"` progress messages.
 //! * Pre-step cancellation checks.
 //! * Optional persistence of completed step indices through
 //!   [`WizardCheckpointSink`].
 //!
-//! Each wizard remains free to emit its own fine-grained progress
-//! callbacks **inside** [`Wizard::execute_step`] (e.g. flat wizard's
-//! "Iteration 5/10: testing 0.42s exposure"). The executor's progress
-//! emission is in addition to, not in place of, those.
+//! The wizard owns its progress: it reports through the reporter handed to
+//! [`Wizard::execute_step`], and the executor reports none of its own. A plan
+//! that grows as it runs (the flat wizard's search) has no step count to
+//! divide by, and a second reporter on the same bar moved it backwards.
 //!
 //! # Plugin extensibility
 //!
 //! A future plugin that wants to author a new wizard implements [`Wizard`]
 //! for its config type and delegates to a [`WizardExecutor`]. It then gets
-//! progress, cancellation, and resume support "for free" without having
+//! cancellation and resume support "for free" without having
 //! to reimplement those concerns.
 
 use crate::checkpoint::WizardCheckpoint;
@@ -98,8 +96,7 @@ pub trait Wizard: Send {
     /// internal state via `&mut self`; the executor only orchestrates.
     ///
     /// `idx` is the zero-based step index within the (possibly
-    /// extended) plan. `progress` lets the wizard emit fine-grained
-    /// progress messages on top of the executor's step-level emission.
+    /// extended) plan. `progress` is the wizard's progress line and bar.
     async fn execute_step(
         &mut self,
         ctx: &InstructionContext,
@@ -158,12 +155,13 @@ pub enum WizardStepOutcome<K> {
     Failed(String),
 }
 
-/// Hook invoked by the executor to surface step-level progress to the
-/// outer sequencer UI. Implementations typically wrap the existing
-/// instruction-level progress callback (`Fn(f64, String)`).
+/// Where a wizard reports its progress to the outer sequencer UI.
+/// Implementations typically wrap the instruction-level progress callback
+/// (`Fn(f64, String)`).
 pub trait WizardProgressReporter: Send + Sync {
     /// Emit a progress update. `fraction` is 0.0..=1.0 representing
-    /// overall wizard progress. `message` is a UI-ready string.
+    /// overall wizard progress and never goes down within a run. `message`
+    /// is a UI-ready string.
     fn report(&self, fraction: f64, message: String);
 }
 
@@ -307,11 +305,10 @@ impl WizardCheckpointSink for NullCheckpointSink {
 /// 2. Builds the initial plan via [`Wizard::plan_steps`].
 /// 3. For each step from `resume_idx` onward:
 ///    a. Checks the cancellation token.
-///    b. Reports "Step X/Y: <description>" via `progress`.
-///    c. Awaits [`Wizard::execute_step`].
-///    d. Handles the outcome: advances, extends the plan, terminates
+///    b. Awaits [`Wizard::execute_step`], handing it `progress`.
+///    c. Handles the outcome: advances, extends the plan, terminates
 ///    early, or surfaces a failure.
-///    e. Persists the completed step index.
+///    d. Persists the completed step index.
 /// 4. Invokes [`Wizard::finalize`] with the terminal status and clears
 ///    the checkpoint on success.
 pub struct WizardExecutor<'a> {
@@ -391,24 +388,6 @@ impl<'a> WizardExecutor<'a> {
 
             let step = plan[idx].clone();
             let description = wizard.describe_step(&step, idx);
-            // Why: `idx` and `plan.len()` are bounded by realistic step counts
-            // (max iterations are u32-bounded); u32 → f64 widening is lossless.
-            let fraction = if plan.is_empty() {
-                0.0
-            } else {
-                (idx as f64) / (plan.len() as f64)
-            };
-            self.progress.report(
-                fraction,
-                format!(
-                    "{}: step {}/{} — {}",
-                    wizard_name,
-                    idx + 1,
-                    plan.len(),
-                    description
-                ),
-            );
-
             tracing::debug!(
                 "Wizard '{}' running step {}/{}: {}",
                 wizard_name,
@@ -456,9 +435,6 @@ impl<'a> WizardExecutor<'a> {
 
         let status = terminal.unwrap_or(WizardRunStatus::Completed);
         if status.is_success() {
-            // Final progress at 100%.
-            self.progress
-                .report(1.0, format!("{} complete", wizard_name));
             // Clear the checkpoint so a fresh run starts at step 0.
             self.checkpoint_sink.clear(checkpoint_key);
         }

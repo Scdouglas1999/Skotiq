@@ -20802,6 +20802,30 @@ class MosaicProjects extends Table
     $customConstraints: 'NOT NULL DEFAULT 0.0',
     defaultValue: const CustomExpression('0.0'),
   );
+  static const VerificationMeta _startCornerMeta = const VerificationMeta(
+    'startCorner',
+  );
+  late final GeneratedColumn<String> startCorner = GeneratedColumn<String>(
+    'start_corner',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'topLeft\'',
+    defaultValue: const CustomExpression('\'topLeft\''),
+  );
+  static const VerificationMeta _serpentineMeta = const VerificationMeta(
+    'serpentine',
+  );
+  late final GeneratedColumn<bool> serpentine = GeneratedColumn<bool>(
+    'serpentine',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT TRUE',
+    defaultValue: const CustomExpression('TRUE'),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
     'status',
@@ -20887,6 +20911,8 @@ class MosaicProjects extends Table
     cols,
     overlapPct,
     positionAngleDeg,
+    startCorner,
+    serpentine,
     status,
     outputMasterId,
     createdAt,
@@ -20953,6 +20979,21 @@ class MosaicProjects extends Table
           data['position_angle_deg']!,
           _positionAngleDegMeta,
         ),
+      );
+    }
+    if (data.containsKey('start_corner')) {
+      context.handle(
+        _startCornerMeta,
+        startCorner.isAcceptableOrUnknown(
+          data['start_corner']!,
+          _startCornerMeta,
+        ),
+      );
+    }
+    if (data.containsKey('serpentine')) {
+      context.handle(
+        _serpentineMeta,
+        serpentine.isAcceptableOrUnknown(data['serpentine']!, _serpentineMeta),
       );
     }
     if (data.containsKey('status')) {
@@ -21047,6 +21088,14 @@ class MosaicProjects extends Table
         DriftSqlType.double,
         data['${effectivePrefix}position_angle_deg'],
       )!,
+      startCorner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_corner'],
+      )!,
+      serpentine: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}serpentine'],
+      )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -21096,6 +21145,8 @@ class MosaicProjectRow extends DataClass
   final int cols;
   final double overlapPct;
   final double positionAngleDeg;
+  final String startCorner;
+  final bool serpentine;
   final String status;
   final int? outputMasterId;
   final int createdAt;
@@ -21111,6 +21162,8 @@ class MosaicProjectRow extends DataClass
     required this.cols,
     required this.overlapPct,
     required this.positionAngleDeg,
+    required this.startCorner,
+    required this.serpentine,
     required this.status,
     this.outputMasterId,
     required this.createdAt,
@@ -21131,6 +21184,8 @@ class MosaicProjectRow extends DataClass
     map['cols'] = Variable<int>(cols);
     map['overlap_pct'] = Variable<double>(overlapPct);
     map['position_angle_deg'] = Variable<double>(positionAngleDeg);
+    map['start_corner'] = Variable<String>(startCorner);
+    map['serpentine'] = Variable<bool>(serpentine);
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || outputMasterId != null) {
       map['output_master_id'] = Variable<int>(outputMasterId);
@@ -21160,6 +21215,8 @@ class MosaicProjectRow extends DataClass
       cols: Value(cols),
       overlapPct: Value(overlapPct),
       positionAngleDeg: Value(positionAngleDeg),
+      startCorner: Value(startCorner),
+      serpentine: Value(serpentine),
       status: Value(status),
       outputMasterId: outputMasterId == null && nullToAbsent
           ? const Value.absent()
@@ -21191,6 +21248,8 @@ class MosaicProjectRow extends DataClass
       cols: serializer.fromJson<int>(json['cols']),
       overlapPct: serializer.fromJson<double>(json['overlap_pct']),
       positionAngleDeg: serializer.fromJson<double>(json['position_angle_deg']),
+      startCorner: serializer.fromJson<String>(json['start_corner']),
+      serpentine: serializer.fromJson<bool>(json['serpentine']),
       status: serializer.fromJson<String>(json['status']),
       outputMasterId: serializer.fromJson<int?>(json['output_master_id']),
       createdAt: serializer.fromJson<int>(json['created_at']),
@@ -21211,6 +21270,8 @@ class MosaicProjectRow extends DataClass
       'cols': serializer.toJson<int>(cols),
       'overlap_pct': serializer.toJson<double>(overlapPct),
       'position_angle_deg': serializer.toJson<double>(positionAngleDeg),
+      'start_corner': serializer.toJson<String>(startCorner),
+      'serpentine': serializer.toJson<bool>(serpentine),
       'status': serializer.toJson<String>(status),
       'output_master_id': serializer.toJson<int?>(outputMasterId),
       'created_at': serializer.toJson<int>(createdAt),
@@ -21229,6 +21290,8 @@ class MosaicProjectRow extends DataClass
     int? cols,
     double? overlapPct,
     double? positionAngleDeg,
+    String? startCorner,
+    bool? serpentine,
     String? status,
     Value<int?> outputMasterId = const Value.absent(),
     int? createdAt,
@@ -21244,6 +21307,8 @@ class MosaicProjectRow extends DataClass
     cols: cols ?? this.cols,
     overlapPct: overlapPct ?? this.overlapPct,
     positionAngleDeg: positionAngleDeg ?? this.positionAngleDeg,
+    startCorner: startCorner ?? this.startCorner,
+    serpentine: serpentine ?? this.serpentine,
     status: status ?? this.status,
     outputMasterId: outputMasterId.present
         ? outputMasterId.value
@@ -21267,6 +21332,12 @@ class MosaicProjectRow extends DataClass
       positionAngleDeg: data.positionAngleDeg.present
           ? data.positionAngleDeg.value
           : this.positionAngleDeg,
+      startCorner: data.startCorner.present
+          ? data.startCorner.value
+          : this.startCorner,
+      serpentine: data.serpentine.present
+          ? data.serpentine.value
+          : this.serpentine,
       status: data.status.present ? data.status.value : this.status,
       outputMasterId: data.outputMasterId.present
           ? data.outputMasterId.value
@@ -21295,6 +21366,8 @@ class MosaicProjectRow extends DataClass
           ..write('cols: $cols, ')
           ..write('overlapPct: $overlapPct, ')
           ..write('positionAngleDeg: $positionAngleDeg, ')
+          ..write('startCorner: $startCorner, ')
+          ..write('serpentine: $serpentine, ')
           ..write('status: $status, ')
           ..write('outputMasterId: $outputMasterId, ')
           ..write('createdAt: $createdAt, ')
@@ -21315,6 +21388,8 @@ class MosaicProjectRow extends DataClass
     cols,
     overlapPct,
     positionAngleDeg,
+    startCorner,
+    serpentine,
     status,
     outputMasterId,
     createdAt,
@@ -21334,6 +21409,8 @@ class MosaicProjectRow extends DataClass
           other.cols == this.cols &&
           other.overlapPct == this.overlapPct &&
           other.positionAngleDeg == this.positionAngleDeg &&
+          other.startCorner == this.startCorner &&
+          other.serpentine == this.serpentine &&
           other.status == this.status &&
           other.outputMasterId == this.outputMasterId &&
           other.createdAt == this.createdAt &&
@@ -21351,6 +21428,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
   final Value<int> cols;
   final Value<double> overlapPct;
   final Value<double> positionAngleDeg;
+  final Value<String> startCorner;
+  final Value<bool> serpentine;
   final Value<String> status;
   final Value<int?> outputMasterId;
   final Value<int> createdAt;
@@ -21366,6 +21445,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
     this.cols = const Value.absent(),
     this.overlapPct = const Value.absent(),
     this.positionAngleDeg = const Value.absent(),
+    this.startCorner = const Value.absent(),
+    this.serpentine = const Value.absent(),
     this.status = const Value.absent(),
     this.outputMasterId = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -21382,6 +21463,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
     required int cols,
     this.overlapPct = const Value.absent(),
     this.positionAngleDeg = const Value.absent(),
+    this.startCorner = const Value.absent(),
+    this.serpentine = const Value.absent(),
     this.status = const Value.absent(),
     this.outputMasterId = const Value.absent(),
     required int createdAt,
@@ -21402,6 +21485,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
     Expression<int>? cols,
     Expression<double>? overlapPct,
     Expression<double>? positionAngleDeg,
+    Expression<String>? startCorner,
+    Expression<bool>? serpentine,
     Expression<String>? status,
     Expression<int>? outputMasterId,
     Expression<int>? createdAt,
@@ -21418,6 +21503,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
       if (cols != null) 'cols': cols,
       if (overlapPct != null) 'overlap_pct': overlapPct,
       if (positionAngleDeg != null) 'position_angle_deg': positionAngleDeg,
+      if (startCorner != null) 'start_corner': startCorner,
+      if (serpentine != null) 'serpentine': serpentine,
       if (status != null) 'status': status,
       if (outputMasterId != null) 'output_master_id': outputMasterId,
       if (createdAt != null) 'created_at': createdAt,
@@ -21436,6 +21523,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
     Value<int>? cols,
     Value<double>? overlapPct,
     Value<double>? positionAngleDeg,
+    Value<String>? startCorner,
+    Value<bool>? serpentine,
     Value<String>? status,
     Value<int?>? outputMasterId,
     Value<int>? createdAt,
@@ -21452,6 +21541,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
       cols: cols ?? this.cols,
       overlapPct: overlapPct ?? this.overlapPct,
       positionAngleDeg: positionAngleDeg ?? this.positionAngleDeg,
+      startCorner: startCorner ?? this.startCorner,
+      serpentine: serpentine ?? this.serpentine,
       status: status ?? this.status,
       outputMasterId: outputMasterId ?? this.outputMasterId,
       createdAt: createdAt ?? this.createdAt,
@@ -21485,6 +21576,12 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
     }
     if (positionAngleDeg.present) {
       map['position_angle_deg'] = Variable<double>(positionAngleDeg.value);
+    }
+    if (startCorner.present) {
+      map['start_corner'] = Variable<String>(startCorner.value);
+    }
+    if (serpentine.present) {
+      map['serpentine'] = Variable<bool>(serpentine.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -21520,6 +21617,8 @@ class MosaicProjectsCompanion extends UpdateCompanion<MosaicProjectRow> {
           ..write('cols: $cols, ')
           ..write('overlapPct: $overlapPct, ')
           ..write('positionAngleDeg: $positionAngleDeg, ')
+          ..write('startCorner: $startCorner, ')
+          ..write('serpentine: $serpentine, ')
           ..write('status: $status, ')
           ..write('outputMasterId: $outputMasterId, ')
           ..write('createdAt: $createdAt, ')
@@ -41528,12 +41627,7 @@ class SequenceRun extends DataClass implements Insertable<SequenceRun> {
   /// When the run ended (null if still running)
   final DateTime? endedAt;
 
-  /// Final status: 'completed', 'failed', 'aborted', 'stopped',
-  /// 'paused-stopped', 'interrupted', or 'running' while in flight.
-  ///
-  /// 'interrupted' is assigned at startup to any row still marked 'running'
-  /// when the database opens: the executor that owned it lives in memory, so
-  /// such a row can only be residue from a process that died mid-run.
+  /// A `SequenceRunStatus` token; `running` while in flight.
   final String status;
 
   /// JSON blob with detailed statistics
@@ -72068,6 +72162,8 @@ typedef $MosaicProjectsCreateCompanionBuilder =
       required int cols,
       Value<double> overlapPct,
       Value<double> positionAngleDeg,
+      Value<String> startCorner,
+      Value<bool> serpentine,
       Value<String> status,
       Value<int?> outputMasterId,
       required int createdAt,
@@ -72085,6 +72181,8 @@ typedef $MosaicProjectsUpdateCompanionBuilder =
       Value<int> cols,
       Value<double> overlapPct,
       Value<double> positionAngleDeg,
+      Value<String> startCorner,
+      Value<bool> serpentine,
       Value<String> status,
       Value<int?> outputMasterId,
       Value<int> createdAt,
@@ -72197,6 +72295,16 @@ class $MosaicProjectsFilterComposer
 
   ColumnFilters<double> get positionAngleDeg => $composableBuilder(
     column: $table.positionAngleDeg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startCorner => $composableBuilder(
+    column: $table.startCorner,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get serpentine => $composableBuilder(
+    column: $table.serpentine,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -72341,6 +72449,16 @@ class $MosaicProjectsOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get startCorner => $composableBuilder(
+    column: $table.startCorner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get serpentine => $composableBuilder(
+    column: $table.serpentine,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -72446,6 +72564,16 @@ class $MosaicProjectsAnnotationComposer
 
   GeneratedColumn<double> get positionAngleDeg => $composableBuilder(
     column: $table.positionAngleDeg,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startCorner => $composableBuilder(
+    column: $table.startCorner,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get serpentine => $composableBuilder(
+    column: $table.serpentine,
     builder: (column) => column,
   );
 
@@ -72584,6 +72712,8 @@ class $MosaicProjectsTableManager
                 Value<int> cols = const Value.absent(),
                 Value<double> overlapPct = const Value.absent(),
                 Value<double> positionAngleDeg = const Value.absent(),
+                Value<String> startCorner = const Value.absent(),
+                Value<bool> serpentine = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int?> outputMasterId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -72599,6 +72729,8 @@ class $MosaicProjectsTableManager
                 cols: cols,
                 overlapPct: overlapPct,
                 positionAngleDeg: positionAngleDeg,
+                startCorner: startCorner,
+                serpentine: serpentine,
                 status: status,
                 outputMasterId: outputMasterId,
                 createdAt: createdAt,
@@ -72616,6 +72748,8 @@ class $MosaicProjectsTableManager
                 required int cols,
                 Value<double> overlapPct = const Value.absent(),
                 Value<double> positionAngleDeg = const Value.absent(),
+                Value<String> startCorner = const Value.absent(),
+                Value<bool> serpentine = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int?> outputMasterId = const Value.absent(),
                 required int createdAt,
@@ -72631,6 +72765,8 @@ class $MosaicProjectsTableManager
                 cols: cols,
                 overlapPct: overlapPct,
                 positionAngleDeg: positionAngleDeg,
+                startCorner: startCorner,
+                serpentine: serpentine,
                 status: status,
                 outputMasterId: outputMasterId,
                 createdAt: createdAt,

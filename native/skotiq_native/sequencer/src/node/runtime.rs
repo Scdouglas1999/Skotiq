@@ -302,6 +302,23 @@ async fn wait_for_disconnect_recovery(
     }
 }
 
+/// The nodes of `root`'s subtree a run executes, in tree order. A disabled
+/// node is skipped with everything under it: [`RuntimeNode::execute`] returns
+/// `Skipped` before it descends. The tree twin of
+/// [`crate::SequenceDefinition::enabled_nodes`].
+pub fn enabled_nodes(root: &dyn Node) -> Vec<&dyn Node> {
+    let mut out = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if !node.is_enabled() {
+            continue;
+        }
+        out.push(node);
+        stack.extend(node.children().iter().rev().map(|child| &**child));
+    }
+    out
+}
+
 /// Base trait for all behaviour-tree nodes.
 #[async_trait]
 pub trait Node: Send + Sync {

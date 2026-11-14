@@ -8,7 +8,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show meanRaHours, mosaicPanelName;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show meanRaHours, mosaicPanelName;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -347,7 +348,7 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
                 MosaicPanelGrid(
                   panels: state.panels,
                   panelMasters: state.panelMasters,
-                  cols: project.cols,
+                  project: project,
                   // Surface per-panel claim/upload once the project is a
                   // published collaborative mosaic and a hub service is wired.
                   collaborative: controller.canCollaborate && state.isPublished,

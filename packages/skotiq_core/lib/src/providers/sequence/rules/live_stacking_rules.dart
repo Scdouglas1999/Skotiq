@@ -23,9 +23,8 @@ class LiveStackingGloballyDisabledRule implements RefAwareSequenceValidator {
     if (!defaults.livestackingDisableEverywhere) return const [];
 
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! LiveStackingNode) continue;
-      if (!node.isEnabled) continue;
       issues.add(
         ValidationIssue(
           severity: ValidationSeverity.warning,
