@@ -21,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicStartCorner;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show FrameWcs;
 import 'package:skotiq_core/services.dart';
@@ -872,6 +873,8 @@ void main() {
     expect(project.collabRole, 'participant');
     expect(project.name, 'Heart & Soul');
     expect(project.cols, 2);
+    expect(project.startCorner, MosaicStartCorner.bottomRight);
+    expect(project.serpentine, isFalse);
     final panels = await panelsDao.getForProject(projectId);
     expect(panels, hasLength(2));
     // Hub RA degrees were converted back to the local RA-hours convention.

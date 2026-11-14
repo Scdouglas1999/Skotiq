@@ -118,9 +118,129 @@ double raOffsetHoursFromDegrees(double eastOffsetDegrees, double decDegrees) {
   return eastOffsetDegrees / 15.0 / cosDec;
 }
 
+/// The grid cell of every panel in capture order: entry `i` is the cell of the
+/// panel at capture-order index `i` (see [MosaicPanel] for rows and columns).
+/// Starts in [startCorner] and, when [serpentine], reverses direction on every
+/// other row. The one panel numbering; [mosaicPanelCenters] places these cells
+/// on the sky.
+List<({int row, int col})> mosaicCaptureOrder({
+  required int columns,
+  required int rows,
+  MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+  bool serpentine = true,
+}) {
+  final fromBottom =
+      startCorner == MosaicStartCorner.bottomLeft ||
+      startCorner == MosaicStartCorner.bottomRight;
+  final fromRight =
+      startCorner == MosaicStartCorner.topRight ||
+      startCorner == MosaicStartCorner.bottomRight;
+  return [
+    for (var pass = 0; pass < rows; pass++)
+      for (var step = 0; step < columns; step++)
+        (
+          row: fromBottom ? rows - 1 - pass : pass,
+          col: fromRight != (serpentine && pass.isOdd)
+              ? columns - 1 - step
+              : step,
+        ),
+  ];
+}
+
+/// Recover the numbering of a stored grid from its panel centers. Older
+/// projects and hub mosaics store centers and indices but no capture order.
+/// The fit uses relative positions, so disabled cells and the RA seam do not
+/// change the answer. An underdetermined grid keeps [fallback].
+({MosaicStartCorner startCorner, bool serpentine}) inferMosaicCaptureOrder({
+  required int columns,
+  required int rows,
+  required double rotationDegrees,
+  required List<({int index, double raHours, double decDegrees})> panels,
+  ({MosaicStartCorner startCorner, bool serpentine}) fallback = (
+    startCorner: MosaicStartCorner.bottomRight,
+    serpentine: false,
+  ),
+}) {
+  final known = panels
+      .where(
+        (p) =>
+            p.index >= 0 &&
+            p.index < columns * rows &&
+            p.raHours.isFinite &&
+            p.decDegrees.isFinite,
+      )
+      .toList();
+  if (known.length < 2) return fallback;
+  final origin = known.first;
+  final dec =
+      known.map((p) => p.decDegrees).reduce((a, b) => a + b) / known.length;
+  final cosDec = math.cos(dec * math.pi / 180);
+  final angle = rotationDegrees * math.pi / 180;
+  final cosAngle = math.cos(angle);
+  final sinAngle = math.sin(angle);
+  final offsets = known.map((p) {
+    final east = ((p.raHours - origin.raHours + 12) % 24 - 12) * 15 * cosDec;
+    final north = p.decDegrees - origin.decDegrees;
+    return (
+      x: east * cosAngle + north * sinAngle,
+      y: -east * sinAngle + north * cosAngle,
+    );
+  }).toList();
+
+  double score(({MosaicStartCorner startCorner, bool serpentine}) choice) {
+    final order = mosaicCaptureOrder(
+      columns: columns,
+      rows: rows,
+      startCorner: choice.startCorner,
+      serpentine: choice.serpentine,
+    );
+    return _axisFitError(
+          [for (final p in known) -order[p.index].col.toDouble()],
+          [for (final p in offsets) p.x],
+        ) +
+        _axisFitError(
+          [for (final p in known) -order[p.index].row.toDouble()],
+          [for (final p in offsets) p.y],
+        );
+  }
+
+  var best = fallback;
+  var bestScore = score(best);
+  for (final corner in MosaicStartCorner.values) {
+    for (final serpentine in [false, true]) {
+      final choice = (startCorner: corner, serpentine: serpentine);
+      final error = score(choice);
+      if (error < bestScore - 1e-6) {
+        best = choice;
+        bestScore = error;
+      }
+    }
+  }
+  return best;
+}
+
+// Fit a positive panel spacing and an arbitrary origin. Opposite axis
+// directions must not fit merely by allowing a negative spacing.
+double _axisFitError(List<double> cells, List<double> positions) {
+  final cellMean = cells.reduce((a, b) => a + b) / cells.length;
+  final positionMean = positions.reduce((a, b) => a + b) / positions.length;
+  var cellVariance = 0.0;
+  var positionVariance = 0.0;
+  var covariance = 0.0;
+  for (var i = 0; i < cells.length; i++) {
+    final cell = cells[i] - cellMean;
+    final position = positions[i] - positionMean;
+    cellVariance += cell * cell;
+    positionVariance += position * position;
+    covariance += cell * position;
+  }
+  if (positionVariance < 1e-12) return cellVariance < 1e-12 ? 0 : 1;
+  if (cellVariance < 1e-12 || covariance <= 0) return 1;
+  return 1 - covariance * covariance / (cellVariance * positionVariance);
+}
+
 /// Lay out a rectangular mosaic: every panel's center and number, in capture
-/// order. The single source of truth for panel layout and numbering across
-/// the app (see [MosaicPanel]).
+/// order ([mosaicCaptureOrder]).
 ///
 /// All angular inputs are in **degrees on the sky**:
 ///
@@ -153,42 +273,31 @@ List<MosaicPanel> mosaicPanelCenters({
   final cosRot = hasRotation ? math.cos(rotRad) : 1.0;
   final sinRot = hasRotation ? math.sin(rotRad) : 0.0;
 
-  final fromBottom = startCorner == MosaicStartCorner.bottomLeft ||
-      startCorner == MosaicStartCorner.bottomRight;
-  final fromRight = startCorner == MosaicStartCorner.topRight ||
-      startCorner == MosaicStartCorner.bottomRight;
-
+  final order = mosaicCaptureOrder(
+    columns: columns,
+    rows: rows,
+    startCorner: startCorner,
+    serpentine: serpentine,
+  );
   final centers = <MosaicPanel>[];
-  for (var pass = 0; pass < rows; pass++) {
-    final row = fromBottom ? rows - 1 - pass : pass;
-    final rightToLeft = fromRight != (serpentine && pass.isOdd);
-    for (var step = 0; step < columns; step++) {
-      final col = rightToLeft ? columns - 1 - step : step;
-      final eastDeg = (halfHorizontal - col) * stepRaDegrees;
-      final northDeg = (halfVertical - row) * stepDecDegrees;
-
-      final double dRaDeg;
-      final double dDecDeg;
-      if (hasRotation) {
-        dRaDeg = eastDeg * cosRot - northDeg * sinRot;
-        dDecDeg = eastDeg * sinRot + northDeg * cosRot;
-      } else {
-        dRaDeg = eastDeg;
-        dDecDeg = northDeg;
-      }
-
-      centers.add(
-        MosaicPanel(
-          raHours: normalizeRaHours(
-            centerRaHours + raOffsetHoursFromDegrees(dRaDeg, centerDecDegrees),
-          ),
-          decDegrees: centerDecDegrees + dDecDeg,
-          index: centers.length,
-          row: row,
-          col: col,
+  for (final (index, cell) in order.indexed) {
+    final eastDeg = (halfHorizontal - cell.col) * stepRaDegrees;
+    final northDeg = (halfVertical - cell.row) * stepDecDegrees;
+    final dRaDeg = hasRotation ? eastDeg * cosRot - northDeg * sinRot : eastDeg;
+    final dDecDeg = hasRotation
+        ? eastDeg * sinRot + northDeg * cosRot
+        : northDeg;
+    centers.add(
+      MosaicPanel(
+        raHours: normalizeRaHours(
+          centerRaHours + raOffsetHoursFromDegrees(dRaDeg, centerDecDegrees),
         ),
-      );
-    }
+        decDegrees: centerDecDegrees + dDecDeg,
+        index: index,
+        row: cell.row,
+        col: cell.col,
+      ),
+    );
   }
   return centers;
 }

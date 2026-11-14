@@ -1,28 +1,32 @@
 import 'dart:io';
 
-import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelName;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show mosaicCaptureOrder, mosaicPanelName;
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../utils/image_decode_size.dart';
 
-/// The NxM panel grid: one tile per [MosaicProjectPanel], laid out row-major to
-/// match the grid (`cols` wide), each showing the panel's status, captured
-/// frame count, and — once integrated — a thumbnail of its per-panel master.
+/// The NxM panel grid: one tile per [MosaicProjectPanel], each in its own cell
+/// of the grid as Framing draws it (north up, east left), showing the panel's
+/// number, status, captured frame count, and — once integrated — a thumbnail
+/// of its per-panel master. A cell is placed by the project's own numbering
+/// ([mosaicCaptureOrder] with its start corner and serpentine choice), so the
+/// numbers read the way they did on the Framing canvas.
 ///
 /// Pure presentation: it is handed the panels, the resolved per-panel masters
 /// (keyed by `integrated_master_id`), and the grid dimensions; it never reads
 /// the DB. Status colour + label come from the design system tokens only.
 class MosaicPanelGrid extends StatelessWidget {
-  /// Panels ordered by `panel_index` (row-major).
+  /// The project's panels; a disabled cell has none.
   final List<MosaicProjectPanel> panels;
 
   /// Per-panel masters keyed by `mosaic_panels.integrated_master_id`.
   final Map<int, IntegratedMaster> panelMasters;
 
-  /// Grid columns (panels per row).
-  final int cols;
+  /// The grid and its numbering.
+  final MosaicProject project;
 
   /// When true (the project is published to a hub and a collaborative service
   /// is wired) each tile renders per-panel distributed
@@ -58,7 +62,7 @@ class MosaicPanelGrid extends StatelessWidget {
     super.key,
     required this.panels,
     required this.panelMasters,
-    required this.cols,
+    required this.project,
     this.collaborative = false,
     this.onClaimPanel,
     this.onUploadPanel,
@@ -77,38 +81,77 @@ class MosaicPanelGrid extends StatelessWidget {
       );
     }
 
+    final order = mosaicCaptureOrder(
+      columns: project.cols,
+      rows: project.rows,
+      startCorner: project.startCorner,
+      serpentine: project.serpentine,
+    );
+    final byCell = <({int row, int col}), MosaicProjectPanel>{};
+    final unplaced = <MosaicProjectPanel>[];
+    for (final panel in panels) {
+      if (panel.panelIndex >= 0 && panel.panelIndex < order.length) {
+        byCell[order[panel.panelIndex]] = panel;
+      } else {
+        unplaced.add(panel);
+      }
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = SkotiqTokens.spaceSm;
         const minTileWidth = 120.0;
-        final fitColumns =
-            ((constraints.maxWidth + spacing) / (minTileWidth + spacing))
-                .floor()
-                .clamp(1, panels.length);
-        final columns = cols.clamp(1, panels.length).clamp(1, fitColumns);
-        final tileWidth =
+        final columns = project.cols;
+        final fitted =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final panel in panels)
-              SizedBox(
-                width: tileWidth,
-                child: _PanelTile(
-                  panel: panel,
-                  master: panel.integratedMasterId == null
-                      ? null
-                      : panelMasters[panel.integratedMasterId],
-                  collaborative: collaborative,
-                  onClaim: onClaimPanel,
-                  onUpload: onUploadPanel,
-                  onRelease: onReleasePanel,
-                  onForceRelease: onForceReleasePanel,
-                  collaborativeBusy: collaborativeBusy,
-                ),
+        final tileWidth = fitted < minTileWidth ? minTileWidth : fitted;
+        Widget tile(MosaicProjectPanel panel) => SizedBox(
+              width: tileWidth,
+              child: _PanelTile(
+                panel: panel,
+                master: panel.integratedMasterId == null
+                    ? null
+                    : panelMasters[panel.integratedMasterId],
+                collaborative: collaborative,
+                onClaim: onClaimPanel,
+                onUpload: onUploadPanel,
+                onRelease: onReleasePanel,
+                onForceRelease: onForceReleasePanel,
+                collaborativeBusy: collaborativeBusy,
               ),
+            );
+        final grid = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var row = 0; row < project.rows; row++) ...[
+              if (row > 0) const SizedBox(height: spacing),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var col = 0; col < columns; col++) ...[
+                    if (col > 0) const SizedBox(width: spacing),
+                    switch (byCell[(row: row, col: col)]) {
+                      final panel? => tile(panel),
+                      null => SizedBox(width: tileWidth, height: tileWidth),
+                    },
+                  ],
+                ],
+              ),
+            ],
+            if (unplaced.isNotEmpty) ...[
+              const SizedBox(height: spacing),
+              Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [for (final panel in unplaced) tile(panel)],
+              ),
+            ],
           ],
+        );
+        if (fitted >= minTileWidth) return grid;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: grid,
         );
       },
     );

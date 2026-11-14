@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:skotiq_astro/skotiq_astro.dart'
-    show MosaicPanel, mosaicPanelName, mosaicPanelTargetName;
+    show MosaicPanel, MosaicStartCorner, mosaicPanelName, mosaicPanelTargetName;
 
 import 'package:drift/drift.dart' show Value;
 
@@ -92,8 +92,9 @@ class MosaicProjectService {
   /// Create a durable mosaic project: persist a `mosaic_projects` row, compute
   /// each panel's center RA/Dec from the grid geometry, create one DISTINCT
   /// per-panel capture `targets` row centered on that panel, and persist one
-  /// `mosaic_panels` row per `rows × cols` panel (0-based [MosaicProjectPanel]
-  /// index, row-major) carrying its per-panel `target_id`.
+  /// `mosaic_panels` row per `rows × cols` panel carrying its per-panel
+  /// `target_id`. A panel's index is its place in the capture order that
+  /// [startCorner] and [serpentine] give, which the project keeps.
   ///
   /// The per-panel centers are computed by [MosaicService.generatePanels] — the
   /// existing spherical-grid math — NOT re-derived here. The panel dimensions it
@@ -115,8 +116,8 @@ class MosaicProjectService {
   ///
   /// [disabledCells] holds grid cells (0-based row/col) the caller disabled
   /// (e.g. the wizard's tap-to-disable): those panels are NOT persisted, but the
-  /// grid geometry is unchanged so surviving panels keep their canonical
-  /// row-major `panelIndex` (the stored `panel_index` set is simply sparse).
+  /// grid geometry is unchanged so surviving panels keep their capture-order
+  /// `panelIndex` (the stored `panel_index` set is simply sparse).
   ///
   /// The whole insert (project + per-panel targets + panels) runs in ONE
   /// transaction: a failure midway leaves no half-built project.
@@ -131,6 +132,8 @@ class MosaicProjectService {
     int? targetId,
     double overlapPct = 15.0,
     double positionAngleDeg = 0.0,
+    MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+    bool serpentine = true,
     double? panelWidthArcmin,
     double? panelHeightArcmin,
     double? fovWidthDeg,
@@ -171,6 +174,8 @@ class MosaicProjectService {
       rotation: positionAngleDeg,
       panelsHorizontal: cols,
       panelsVertical: rows,
+      startCorner: startCorner,
+      serpentine: serpentine,
     );
     final panels = _geometry.generatePanels(config);
 
@@ -185,6 +190,8 @@ class MosaicProjectService {
         cols: cols,
         overlapPct: overlapPct,
         positionAngleDeg: positionAngleDeg,
+        startCorner: startCorner,
+        serpentine: serpentine,
       );
 
       for (final panel in panels) {

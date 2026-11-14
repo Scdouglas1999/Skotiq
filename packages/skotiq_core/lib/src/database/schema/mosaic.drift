@@ -5,8 +5,10 @@ import '../tables/targets.dart';
 import 'post_session.drift';
 
 -- A mosaic: grid config, source target, and the stitched output, which is itself
--- an integrated_masters row. hub_mosaic_id / collab_role / collab_status are
--- null unless the project was published to the hub as a collaborative mosaic.
+-- an integrated_masters row. start_corner (a MosaicStartCorner name) and
+-- serpentine set the panel numbering: panel_index is the capture order they
+-- give. hub_mosaic_id / collab_role / collab_status are null unless the project
+-- was published to the hub as a collaborative mosaic.
 CREATE TABLE mosaic_projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
@@ -15,6 +17,8 @@ CREATE TABLE mosaic_projects (
   cols INTEGER NOT NULL,
   overlap_pct REAL NOT NULL DEFAULT 15.0,
   position_angle_deg REAL NOT NULL DEFAULT 0.0,
+  start_corner TEXT NOT NULL DEFAULT 'topLeft',
+  serpentine BOOLEAN NOT NULL DEFAULT TRUE,
   status TEXT NOT NULL DEFAULT 'planning',
   output_master_id INTEGER REFERENCES integrated_masters(id) ON DELETE SET NULL,
   created_at INTEGER NOT NULL,

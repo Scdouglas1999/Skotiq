@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/skotiq_astro.dart' show inferMosaicCaptureOrder;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show pairingDatabaseDirEnv;
 
@@ -111,6 +112,7 @@ part 'database/migration_v65.dart';
 part 'database/migration_v67.dart';
 part 'database/migration_v68.dart';
 part 'database/migration_v69.dart';
+part 'database/migration_v70.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
@@ -208,7 +210,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   SkotiqDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 69;
+  int get schemaVersion => 70;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();
