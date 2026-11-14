@@ -14,7 +14,8 @@ import '../../clock_provider.dart';
 import '../../equipment_provider.dart';
 import '../../imaging_provider.dart' show namingPatternProvider;
 import '../../scheduler_provider.dart' show altitudeFloorProvider;
-import '../../../services/scheduler/horizon_profile.dart' show HorizonProfile;
+import '../../../services/scheduler/horizon_profile.dart'
+    show HorizonProfile, HorizonSample;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
 import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
@@ -102,12 +103,17 @@ class SequenceSerializer {
     );
   }
 
-  /// The site's horizon as a scheduler mask when it is the altitude floor
-  /// (`altitudeFloorProvider`), else null.
-  HorizonProfile? _siteHorizonMask() {
+  /// The effective floor, including learned obstructions at sites that have
+  /// no imported or manually drawn horizon.
+  HorizonProfile _siteHorizonMask() {
     final floor = _ref.read(altitudeFloorProvider);
-    if (!floor.followsHorizon) return null;
-    return floor.horizon!.toSchedulerProfile();
+    return HorizonProfile(
+      name: 'Site altitude floor',
+      samples: [
+        for (final sample in floor.denseSamples())
+          HorizonSample(sample.azimuth, sample.altitude),
+      ],
+    );
   }
 
   /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
@@ -667,6 +673,13 @@ class SequenceSerializer {
           'iterations': n.repeatCount,
           'condition': _loopConditionToString(n.conditionType),
           'condition_value': conditionValue,
+          if (n.conditionType == LoopConditionType.untilAltitude ||
+              n.conditionType == LoopConditionType.altitudeAbove)
+            'horizon_profile': {
+              'samples': _siteHorizonMask().samples
+                  .map((s) => s.toJson())
+                  .toList(),
+            },
         };
       case ParallelNode n:
         return {'type': 'Parallel', 'required_successes': n.requiredSuccesses};
@@ -786,15 +799,11 @@ class SequenceSerializer {
           'swap_hysteresis_secs': n.swapHysteresisSecs,
           'brightness_tier_preferences': n.brightnessTierPreferences.toJson(),
           'max_conditions_score_age_secs': n.maxConditionsScoreAgeSecs,
-          // Azimuth-dependent horizon mask: the node's own, else the site's
-          // when its horizon is the altitude floor. The Rust
-          // `horizon_profile` config takes the samples-only shape; null => no
-          // mask (flat floor).
-          'horizon_profile': switch (n.horizonProfile ?? _siteHorizonMask()) {
-            null => null,
-            final mask => {
-              'samples': mask.samples.map((s) => s.toJson()).toList(),
-            },
+          // Explicit node masks take precedence over the site's effective floor.
+          'horizon_profile': {
+            'samples': (n.horizonProfile ?? _siteHorizonMask()).samples
+                .map((s) => s.toJson())
+                .toList(),
           },
         };
       // Science: SciencePhotometry — cadence-enforced photometric capture.

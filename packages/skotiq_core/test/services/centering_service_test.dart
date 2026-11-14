@@ -2223,12 +2223,100 @@ void main() {
 
         test('an idle guider is left alone', () async {
           connectGuider(guiding: false);
+          mt
+              .when(() => pollBackend.guiderGetStatus())
+              .thenAnswer(
+                (_) async =>
+                    const Phd2Status(state: 'Stopped', connected: true),
+              );
 
           final result = await center();
 
           expect(result.success, isTrue);
           mt.verifyNever(() => pollBackend.guiderStopGuiding());
         });
+
+        for (final state in [
+          'LostLock',
+          'Paused',
+          'Calibrating',
+          'Settling',
+          'Unknown',
+        ]) {
+          test(
+            'stops a $state session before taking a centering frame',
+            () async {
+              connectGuider(guiding: false);
+              mt
+                  .when(() => pollBackend.guiderGetStatus())
+                  .thenAnswer(
+                    (_) async => Phd2Status(state: state, connected: true),
+                  );
+              mt
+                  .when(() => pollBackend.guiderStopGuiding())
+                  .thenAnswer((_) async {});
+
+              final result = await center();
+
+              expect(result.success, isTrue);
+              mt.verify(() => pollBackend.guiderStopGuiding()).called(1);
+            },
+          );
+        }
+
+        test(
+          'a host switch during the status probe cannot stop either host or move',
+          () async {
+            connectGuider(guiding: false);
+            final requested = Completer<void>();
+            final status = Completer<Phd2Status>();
+            mt.when(() => pollBackend.guiderGetStatus()).thenAnswer((_) {
+              requested.complete();
+              return status.future;
+            });
+            final run = center();
+            final refusal = expectLater(
+              run,
+              throwsA(isA<GuidingDidNotStopException>()),
+            );
+            await requested.future;
+            final replacement = _PollBackend();
+            backendNotifier.replaceBackend(replacement);
+            status.complete(
+              const Phd2Status(state: 'LostLock', connected: true),
+            );
+            await refusal;
+            mt.verifyNever(() => pollBackend.guiderStopGuiding());
+            mt.verifyNever(() => replacement.guiderStopGuiding());
+            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
+          },
+        );
+
+        test(
+          'refuses centering when the connected guider cannot report its state',
+          () async {
+            connectGuider(guiding: false);
+            mt
+                .when(() => pollBackend.guiderGetStatus())
+                .thenThrow(Exception('PHD2 did not answer'));
+
+            await expectLater(
+              center(),
+              throwsA(isA<GuidingDidNotStopException>()),
+            );
+
+            verifyNever(
+              mockImagingService.captureUtilityFrame(
+                settings: anyNamed('settings'),
+                targetName: anyNamed('targetName'),
+                purpose: anyNamed('purpose'),
+                purposeStep: anyNamed('purposeStep'),
+                purposeSteps: anyNamed('purposeSteps'),
+              ),
+            );
+            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
+          },
+        );
 
         test(
           'a guider that will not stop keeps the mount where it is',
