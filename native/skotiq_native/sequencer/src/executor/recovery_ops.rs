@@ -499,15 +499,15 @@ pub(crate) async fn run_recovery_attempt(
                 };
             }
 
-            // Actively drive a reconnect for each device. Polling
-            // device_is_connected alone never recovers camera / focuser /
-            // filter-wheel disconnects: those devices default to
-            // auto_reconnect=false, so the background reconnection loop skips them
-            // and the recovery budget burns reporting "still disconnected".
-            // connect_device() flips auto_reconnect on AND issues an immediate
-            // connect. A failed attempt is non-fatal — the is_connected
-            // verification below decides the outcome.
+            // Reconnect only devices that are not known to be connected. A
+            // connect can replace a driver's live handle, including retained
+            // camera files, so an unrelated device fault must leave it alone.
+            // Disconnected or unreadable devices need an active attempt; the
+            // final state check below decides whether recovery succeeded.
             for device_id in device_ids {
+                if matches!(device_ops.device_is_connected(device_id).await, Ok(true)) {
+                    continue;
+                }
                 if let Err(e) = device_ops.connect_device(device_id).await {
                     tracing::warn!(
                         "[RECOVERY] connect_device('{}') attempt failed: {} (will verify state)",

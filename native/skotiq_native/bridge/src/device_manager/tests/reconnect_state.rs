@@ -199,6 +199,7 @@ async fn fresh_connect_does_not_reapply_state() {
 #[derive(Debug, Clone, Default)]
 struct RecordingCoolerCamera {
     calls: Arc<std::sync::Mutex<Vec<(bool, Option<f64>)>>>,
+    retained_capture: bool,
 }
 
 #[async_trait::async_trait]
@@ -225,6 +226,17 @@ impl skotiq_device::DeviceDriver for RecordingCoolerCamera {
 
 #[async_trait::async_trait]
 impl skotiq_device::CameraDriver for RecordingCoolerCamera {
+    fn check_automatic_reconnect(&self) -> Result<(), skotiq_device::DriverError> {
+        if self.retained_capture {
+            Err(skotiq_device::DriverError::SdkError(
+                "Retrieve the retained RAW /store/DCIM/FRAME.CR2, then disconnect and reconnect"
+                    .to_string(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
     fn capabilities(&self) -> skotiq_device::CameraCapabilities {
         skotiq_device::CameraCapabilities {
             can_cool: true,
@@ -356,6 +368,88 @@ fn build_native_camera_info(id: &str) -> DeviceInfo {
         unique_id: None,
         display_name: "Recording Cooler Camera".to_string(),
     }
+}
+
+#[tokio::test]
+async fn a_queued_background_reconnect_leaves_an_already_restored_camera_untouched() {
+    let manager = build_device_manager();
+    let id = "native:test:cooler";
+    let info = build_native_camera_info(id);
+    manager.register_connected_device(info.clone()).await;
+    let camera = RecordingCoolerCamera::default();
+    let calls = camera.calls.clone();
+    manager.hold_vendor_camera(id, Box::new(camera));
+
+    // The queued attempt's stale Error snapshot predates the restored connection.
+    manager.attempt_reconnect(id, &info).await;
+
+    assert!(
+        manager.is_connected(id).await,
+        "a new native open would fail for this fake vendor"
+    );
+    assert_eq!(
+        manager
+            .devices
+            .read()
+            .await
+            .get(id)
+            .unwrap()
+            .reconnect_attempts,
+        0
+    );
+    manager
+        .camera_set_cooler(id, true, Some(-12.0))
+        .await
+        .unwrap();
+    assert_eq!(*calls.lock().unwrap(), [(true, Some(-12.0))]);
+}
+
+#[tokio::test]
+async fn automatic_recovery_preserves_retained_capture_after_heartbeat_loss() {
+    let manager = build_device_manager();
+    let id = "native:test:retained_raw";
+    let info = build_native_camera_info(id);
+    manager.register_connected_device(info.clone()).await;
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained_capture: true,
+            ..Default::default()
+        }),
+    );
+    manager
+        .handle_heartbeat_lost(id, true, 3, "lost connection")
+        .await;
+
+    let error = manager.connect_device_automatically(id).await.unwrap_err();
+    assert!(error.contains("Retrieve the retained RAW"), "{error}");
+    // Dart recovery shares this ordinary connect entry point with the UI.
+    let error = manager.connect_device(id).await.unwrap_err();
+    assert!(error.contains("/store/DCIM/FRAME.CR2"), "{error}");
+    manager.attempt_reconnect(id, &info).await;
+    let devices = manager.devices.read().await;
+    let device = devices.get(id).unwrap();
+    assert_eq!(device.connection_state, ConnectionState::Error);
+    assert!(device
+        .last_error
+        .as_ref()
+        .unwrap()
+        .contains("Retrieve the retained RAW"));
+    drop(devices);
+    assert!(
+        manager
+            .connect_device_automatically(id)
+            .await
+            .unwrap_err()
+            .contains("Retrieve the retained RAW"),
+        "both automatic entry paths must leave the protected driver in place"
+    );
+
+    // Once the operator has retrieved the file, disconnect releases the old
+    // handle. The next connect reaches the vendor open (this fake has no SDK).
+    manager.disconnect_device(id).await.unwrap();
+    let error = manager.connect_device(id).await.unwrap_err();
+    assert!(error.contains("Unknown native camera vendor"), "{error}");
 }
 
 /// `POST /api/camera/cooling {"enabled":false}` carries no setpoint, and the

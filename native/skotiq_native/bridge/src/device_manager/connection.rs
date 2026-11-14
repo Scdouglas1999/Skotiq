@@ -153,6 +153,10 @@ impl DeviceManager {
     /// publishes the device's Error with the reason; the attempt only counts
     /// it, so one failed attempt is one event.
     pub(crate) async fn attempt_reconnect(&self, device_id: &str, info: &DeviceInfo) {
+        // Another recovery can restore the device during this attempt's backoff.
+        if self.is_connected(device_id).await {
+            return;
+        }
         // `connect_device_internal` re-checks the cancel token at additional
         // checkpoints inside the call.
         match self.connect_device_internal(info).await {
@@ -279,6 +283,16 @@ impl DeviceManager {
 
         let _cancel_rx = self.install_reconnect_cancel_token(device_id).await;
         self.connect_device_internal(&device_info).await
+    }
+
+    /// Recovery may restore an unavailable device, but must preserve live
+    /// handles and any captures a driver has retained for manual retrieval.
+    pub(crate) async fn connect_device_automatically(&self, device_id: &str) -> Result<(), String> {
+        if self.is_connected(device_id).await {
+            return Ok(());
+        }
+        self.set_auto_reconnect(device_id, true).await;
+        self.connect_device(device_id).await
     }
 
     /// [`Self::connect_device`], naming the model the caller expects at the

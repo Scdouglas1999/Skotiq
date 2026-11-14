@@ -151,6 +151,15 @@ impl RigDriver for DriverCamera {
 
 #[async_trait]
 impl Camera for DriverCamera {
+    async fn check_automatic_reconnect(&self) -> Result<(), DeviceOpError> {
+        let Some(camera) = self.driver.read().await else {
+            return Ok(());
+        };
+        camera
+            .check_automatic_reconnect()
+            .map_err(DeviceOpError::from)
+    }
+
     fn aborts(&self) -> &ExposureAborts {
         &self.aborts
     }
