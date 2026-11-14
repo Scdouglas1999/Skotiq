@@ -90,6 +90,20 @@ running with seven simulators, normal networking, no profiling or replay, and
 the original unsaved plan unchanged. Physical rig testing remains unavailable,
 and these results do not establish on-sky reliability.
 
+## Default-branch dependency alerts
+
+The final branch push reported four open default-branch Dependabot entries:
+two manifests each report [GHSA-m665-v7pm-7grj](https://github.com/advisories/GHSA-m665-v7pm-7grj)
+and [GHSA-8hxf-qr8p-62x4](https://github.com/advisories/GHSA-8hxf-qr8p-62x4)
+for the Rust `zip` crate. The release already removed that unused dependency
+in `6756a991a`. At application source `4736791e4`, it is absent from the updater
+manifest, the entire native lockfile, and the successful
+`cargo tree --locked --offline -p skotiq_updater --target all` output. Those
+specific alerts therefore do not apply to these release packages. The
+default-branch alerts were not dismissed, and this is not a complete security
+audit. Evidence is `final-4736791/dependency-alert-triage.json` and
+`updater-dependency-tree.txt` under the artifact evidence directory.
+
 ## Test evidence
 
 | Check | Result | Code / evidence |
