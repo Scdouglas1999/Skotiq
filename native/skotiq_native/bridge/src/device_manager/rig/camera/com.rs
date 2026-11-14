@@ -158,7 +158,10 @@ impl Camera for ComCamera {
             .get_status()
             .await
             .map_err(DeviceOpError::from)?;
-        let ascom_caps = camera_guard.get_capabilities().await.ok();
+        let ascom_caps = camera_guard
+            .get_capabilities()
+            .await
+            .map_err(DeviceOpError::from)?;
 
         Ok(crate::device::CameraStatus {
             connected: true,
@@ -178,52 +181,20 @@ impl Camera for ComCamera {
             offset: native_status.offset,
             bin_x: native_status.bin_x,
             bin_y: native_status.bin_y,
-            sensor_width: ascom_caps.as_ref().map(|c| c.max_width).unwrap_or(0),
-            sensor_height: ascom_caps.as_ref().map(|c| c.max_height).unwrap_or(0),
-            pixel_size_x: ascom_caps
-                .as_ref()
-                .and_then(|c| c.pixel_size_x)
-                .unwrap_or(0.0),
-            pixel_size_y: ascom_caps
-                .as_ref()
-                .and_then(|c| c.pixel_size_y)
-                .unwrap_or(0.0),
-            // The driver's own MaxADU, not `2^bit_depth - 1`:
-            // `bit_depth` here is a bucket (8/16/32) inferred FROM
-            // MaxADU, so reconstructing the range from it reported
-            // 65535 for every driver whose MaxADU exceeded 255.
-            max_adu: ascom_caps
-                .as_ref()
-                .map(|c| if c.max_adu == 0 { 65535 } else { c.max_adu })
-                .unwrap_or(65535),
+            sensor_width: ascom_caps.max_width,
+            sensor_height: ascom_caps.max_height,
+            pixel_size_x: ascom_caps.pixel_size_x.unwrap_or(0.0),
+            pixel_size_y: ascom_caps.pixel_size_y.unwrap_or(0.0),
+            // MaxADU is the driver's range; bit depth is only its storage bucket.
+            max_adu: if ascom_caps.max_adu == 0 {
+                65535
+            } else {
+                ascom_caps.max_adu
+            },
             saturation_adu: None,
-            can_cool: ascom_caps
-                .as_ref()
-                .map(|c| c.can_set_ccd_temperature)
-                .unwrap_or(false),
-            // Read from the driver like every other field here,
-            // rather than asserting true. These were hardcoded
-            // while `ascom_caps` — already in hand and used for
-            // `can_cool` directly above — carried the real
-            // answer, so `/api/equipment/camera/status` flatly
-            // contradicted `/api/equipment/camera/capabilities`
-            // for the same device. Observed against the ASCOM
-            // Camera Simulator: capabilities correctly said
-            // `canSetGain: false` (its Gain property throws
-            // 0x80020009 / PropertyNotImplemented) while status
-            // claimed `canSetGain: true`, so a client trusting
-            // status offered a gain control that always failed.
-            // `unwrap_or(false)` matches `can_cool`: if the
-            // capability probe itself failed we must not promise
-            // a control we cannot deliver.
-            can_set_gain: ascom_caps
-                .as_ref()
-                .map(|c| c.controls.gain.is_present())
-                .unwrap_or(false),
-            can_set_offset: ascom_caps
-                .as_ref()
-                .map(|c| c.controls.offset.is_present())
-                .unwrap_or(false),
+            can_cool: ascom_caps.can_set_ccd_temperature,
+            can_set_gain: ascom_caps.controls.gain.is_present(),
+            can_set_offset: ascom_caps.controls.offset.is_present(),
         })
     }
 

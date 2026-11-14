@@ -57,9 +57,9 @@ pub(crate) trait AscomRotatorMembers: RotatorDriver {
 }
 
 /// `Sync`, `MoveMechanical` and `MechanicalPosition` arrived with IRotatorV3;
-/// a driver that does not say its version is taken as V1.
-async fn ascom_rotator_version(rotator: &dyn AscomRotatorMembers) -> i32 {
-    rotator.interface_version().await.unwrap_or(1)
+/// a driver that explicitly lacks InterfaceVersion is V1.
+async fn ascom_rotator_version(rotator: &dyn AscomRotatorMembers) -> Result<i32, DriverError> {
+    Ok(ascom_optional(rotator.interface_version().await)?.unwrap_or(1))
 }
 
 /// Before IRotatorV3 there is no sync offset, so the mechanism is at
@@ -67,27 +67,27 @@ async fn ascom_rotator_version(rotator: &dyn AscomRotatorMembers) -> i32 {
 pub(crate) async fn ascom_mechanical_position(
     rotator: &dyn AscomRotatorMembers,
 ) -> Result<f64, DriverError> {
-    if ascom_rotator_version(rotator).await >= 3 {
+    if ascom_rotator_version(rotator).await? >= 3 {
         rotator.ascom_mechanical_position().await
     } else {
         rotator.position().await
     }
 }
 
-/// An unanswered optional property means the feature is absent. `Reverse` is
-/// read only where `CanReverse` says it exists, as NINA does. `Halt` and
+/// An explicitly unsupported optional property means the feature is absent.
+/// `Reverse` is read only where `CanReverse` says it exists. `Halt` and
 /// `MoveAbsolute` are offered; a driver without them says so when called.
 /// IRotator has no angle limits: positions wrap within 0-360.
 pub(crate) async fn ascom_rotator_capabilities(
     rotator: &dyn AscomRotatorMembers,
-) -> RotatorCapabilities {
-    let version = ascom_rotator_version(rotator).await;
-    let can_reverse = rotator.can_reverse().await.unwrap_or(false);
-    RotatorCapabilities {
+) -> Result<RotatorCapabilities, DriverError> {
+    let version = ascom_rotator_version(rotator).await?;
+    let can_reverse = ascom_optional(rotator.can_reverse().await)?.unwrap_or(false);
+    Ok(RotatorCapabilities {
         can_reverse,
-        reverse: can_reverse && rotator.reverse().await.unwrap_or(false),
+        reverse: can_reverse && rotator.reverse().await?,
         step_size: rotator.step_size().await.ok(),
-        is_moving: rotator.is_moving().await.unwrap_or(false),
+        is_moving: rotator.is_moving().await?,
         mechanical_position: ascom_mechanical_position(rotator).await.ok(),
         position: rotator.position().await.ok(),
         can_move_absolute: true,
@@ -95,7 +95,7 @@ pub(crate) async fn ascom_rotator_capabilities(
         can_sync: version >= 3,
         min_angle_deg: None,
         max_angle_deg: None,
-    }
+    })
 }
 
 #[async_trait]
@@ -116,25 +116,31 @@ pub(crate) trait SafetyMonitor: SafetyMonitorDriver {
 
 /// Every channel of a switch box, read through the operations that drive it.
 ///
-/// A channel property the driver refuses to answer gets the reading a
-/// channel without it has: an unnamed channel is called by its index and an
-/// unreadable range is a plain on/off switch (0 to 1 in steps of 1). A
-/// channel that does not implement `CanWrite` is writable, as every switch of
-/// the ASCOM interface before `CanWrite` was; one whose writability cannot be
-/// read for another reason is read-only, so nothing is written to it before
-/// the user has seen it.
-pub(crate) async fn switch_capabilities(switch: &dyn SwitchDriver) -> SwitchCapabilities {
-    let count = switch.count().await.unwrap_or(0);
+/// Explicitly unsupported ranges use the on/off interface's 0..1 in steps
+/// of 1. A read failure remains a failure, so an analog channel is never
+/// presented as an on/off port because its range was temporarily unreadable.
+/// Before CanWrite existed, every switch was writable; other CanWrite
+/// failures keep a channel read-only.
+pub(crate) async fn switch_capabilities(
+    switch: &dyn SwitchDriver,
+) -> Result<SwitchCapabilities, DriverError> {
+    let count = switch.count().await?;
     let mut switches = Vec::new();
     for index in 0..count {
-        let min_value = switch.min_value(index).await.unwrap_or(0.0);
-        let max_value = switch.max_value(index).await.unwrap_or(1.0);
-        let step = switch
-            .step(index)
-            .await
-            .ok()
-            .filter(|step| step.is_finite() && *step > 0.0)
-            .unwrap_or(1.0);
+        let min_value = ascom_optional(switch.min_value(index).await)?.unwrap_or(0.0);
+        let max_value = ascom_optional(switch.max_value(index).await)?.unwrap_or(1.0);
+        let step = ascom_optional(switch.step(index).await)?.unwrap_or(1.0);
+        let value = match switch.value(index).await {
+            Ok(value) => value,
+            Err(DriverError::NotSupported) => {
+                if switch.state(index).await? {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            Err(error) => return Err(error),
+        };
         let can_write = match switch.can_write(index).await {
             Ok(can_write) => can_write,
             Err(DriverError::NotSupported) => true,
@@ -154,13 +160,13 @@ pub(crate) async fn switch_capabilities(switch: &dyn SwitchDriver) -> SwitchCapa
             max_value,
             step,
             can_write,
-            value: switch.value(index).await.unwrap_or(0.0),
+            value,
         });
     }
-    SwitchCapabilities {
+    Ok(SwitchCapabilities {
         switch_count: count,
         switches,
-    }
+    })
 }
 
 /// The value a switch is sent for `requested`: the nearest whole number of
@@ -182,11 +188,11 @@ pub(crate) fn switch_value_on_step(requested: f64, min: f64, max: f64, step: f64
 }
 
 /// A cover calibrator's cover, panel and brightness, read through the
-/// operations that drive it. A missing maximum brightness is 0: a cover-only
-/// device has no brightness levels.
+/// operations that drive it. Explicitly unsupported maximum brightness is 0:
+/// a cover-only device has no brightness levels. Other read failures propagate.
 pub(crate) async fn cover_calibrator_capabilities(
     device: &dyn CoverCalibratorDriver,
-) -> CoverCalibratorCapabilities {
+) -> Result<CoverCalibratorCapabilities, DriverError> {
     let cover_state = device
         .cover_status()
         .await
@@ -197,14 +203,14 @@ pub(crate) async fn cover_calibrator_capabilities(
         .await
         .ok()
         .map(|s| CalibratorState::from_i32(s as i32));
-    CoverCalibratorCapabilities {
-        max_brightness: device.max_brightness().await.unwrap_or(0),
+    Ok(CoverCalibratorCapabilities {
+        max_brightness: ascom_optional(device.max_brightness().await)?.unwrap_or(0),
         cover_present: cover_state.is_some_and(|s| s != CoverState::NotPresent),
         calibrator_present: calibrator_state.is_some_and(|s| s != CalibratorState::NotPresent),
         cover_state,
         calibrator_state,
         brightness: device.brightness().await.ok(),
-    }
+    })
 }
 
 // Alpaca. The rotator follows `ascom_rotator_capabilities` above, the dome
@@ -232,8 +238,10 @@ impl AscomRotatorMembers for AlpacaRotator {
 
 #[async_trait]
 impl Rotator for AlpacaRotator {
-    async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
-        Ok(ascom_rotator_capabilities(self).await)
+    async fn capabilities(&self, device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
+        ascom_rotator_capabilities(self)
+            .await
+            .map_err(|e| device_error(device_id, e).into())
     }
 
     async fn mechanical_position(&self) -> Result<f64, DriverError> {
@@ -499,10 +507,208 @@ mod tests {
     use super::*;
     use skotiq_device::AccessoryDriver;
 
+    #[derive(Default)]
+    struct SyncedRotator {
+        fail_on: Option<&'static str>,
+        unsupported: bool,
+    }
+
+    impl SyncedRotator {
+        fn check(&self, member: &str) -> Result<(), DriverError> {
+            if self.fail_on != Some(member) {
+                Ok(())
+            } else if self.unsupported {
+                Err(DriverError::NotSupported)
+            } else {
+                Err(DriverError::SdkError(format!("{member} read failed")))
+            }
+        }
+    }
+
+    #[async_trait]
+    impl AccessoryDriver for SyncedRotator {
+        async fn disconnect(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn heartbeat(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RotatorDriver for SyncedRotator {
+        async fn move_absolute(&self, _position_deg: f64) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn position(&self) -> Result<f64, DriverError> {
+            Ok(45.0)
+        }
+        async fn is_moving(&self) -> Result<bool, DriverError> {
+            self.check("IsMoving")?;
+            Ok(true)
+        }
+        async fn halt(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn sync(&self, _position_deg: f64) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn set_reverse(&self, _reverse: bool) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl AscomRotatorMembers for SyncedRotator {
+        async fn interface_version(&self) -> Result<i32, DriverError> {
+            self.check("InterfaceVersion")?;
+            Ok(4)
+        }
+        async fn can_reverse(&self) -> Result<bool, DriverError> {
+            self.check("CanReverse")?;
+            Ok(true)
+        }
+        async fn reverse(&self) -> Result<bool, DriverError> {
+            self.check("Reverse")?;
+            Ok(true)
+        }
+        async fn step_size(&self) -> Result<f64, DriverError> {
+            Ok(0.1)
+        }
+        async fn ascom_mechanical_position(&self) -> Result<f64, DriverError> {
+            Ok(10.0)
+        }
+    }
+
+    #[tokio::test]
+    async fn unreadable_rotator_version_does_not_substitute_synced_position_for_mechanical() {
+        assert_eq!(
+            ascom_mechanical_position(&SyncedRotator::default())
+                .await
+                .unwrap(),
+            10.0
+        );
+        let rotator = SyncedRotator {
+            fail_on: Some("InterfaceVersion"),
+            unsupported: false,
+        };
+        assert!(ascom_mechanical_position(&rotator).await.is_err());
+        let v1 = SyncedRotator {
+            unsupported: true,
+            ..rotator
+        };
+        assert_eq!(ascom_mechanical_position(&v1).await.unwrap(), 45.0);
+    }
+
+    #[tokio::test]
+    async fn rotator_read_failures_do_not_report_unsupported_disabled_or_stopped() {
+        for member in ["InterfaceVersion", "CanReverse", "Reverse", "IsMoving"] {
+            let rotator = SyncedRotator {
+                fail_on: Some(member),
+                unsupported: false,
+            };
+            let error = ascom_rotator_capabilities(&rotator).await.unwrap_err();
+            assert!(error.to_string().contains(member), "{member}: {error}");
+        }
+        let rotator = SyncedRotator {
+            fail_on: Some("CanReverse"),
+            unsupported: true,
+        };
+        let caps = ascom_rotator_capabilities(&rotator).await.unwrap();
+        assert!(!caps.can_reverse && !caps.reverse);
+        assert!(caps.can_sync && caps.is_moving);
+    }
+
+    struct Panel {
+        has_panel: bool,
+    }
+
+    #[async_trait]
+    impl AccessoryDriver for Panel {
+        async fn disconnect(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn heartbeat(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl CoverCalibratorDriver for Panel {
+        async fn open_cover(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn close_cover(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn halt_cover(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn cover_status(&self) -> Result<skotiq_device::ascom::CoverStatus, DriverError> {
+            Ok(skotiq_device::ascom::CoverStatus::NotPresent)
+        }
+        async fn calibrator_on(&self, _brightness: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn calibrator_off(&self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn calibrator_status(
+            &self,
+        ) -> Result<skotiq_device::ascom::CalibratorStatus, DriverError> {
+            Ok(skotiq_device::ascom::CalibratorStatus::Off)
+        }
+        async fn brightness(&self) -> Result<i32, DriverError> {
+            Ok(0)
+        }
+        async fn max_brightness(&self) -> Result<i32, DriverError> {
+            if self.has_panel {
+                Err(DriverError::SdkError("brightness read failed".to_string()))
+            } else {
+                Err(DriverError::NotSupported)
+            }
+        }
+        async fn status(&self) -> Result<skotiq_device::CoverCalibratorState, DriverError> {
+            Err(DriverError::NotSupported)
+        }
+    }
+
+    #[tokio::test]
+    async fn unreadable_brightness_limit_is_not_a_zero_brightness_range() {
+        let panel = Panel { has_panel: true };
+        let error = cover_calibrator_capabilities(&panel).await.unwrap_err();
+        assert!(
+            error.to_string().contains("brightness read failed"),
+            "{error}"
+        );
+        let cover_only = Panel { has_panel: false };
+        assert_eq!(
+            cover_calibrator_capabilities(&cover_only)
+                .await
+                .unwrap()
+                .max_brightness,
+            0
+        );
+    }
+
     /// Channel 0: an `ISwitchV1` switch (nothing but name and state).
     /// Channel 1: a dew heater, 0 to 1 in steps of 0.01.
     /// Channel 2: a power port, 0 to 1 in steps of 1.
-    struct PowerBox;
+    #[derive(Default)]
+    struct PowerBox {
+        fail_on: Option<&'static str>,
+        on: bool,
+    }
+
+    impl PowerBox {
+        fn check(&self, member: &str) -> Result<(), DriverError> {
+            if self.fail_on == Some(member) {
+                Err(DriverError::SdkError(format!("{member} read failed")))
+            } else {
+                Ok(())
+            }
+        }
+    }
 
     #[async_trait]
     impl AccessoryDriver for PowerBox {
@@ -517,6 +723,7 @@ mod tests {
     #[async_trait]
     impl SwitchDriver for PowerBox {
         async fn count(&self) -> Result<i32, DriverError> {
+            self.check("count")?;
             Ok(3)
         }
         async fn switch_name(&self, index: i32) -> Result<String, DriverError> {
@@ -533,12 +740,14 @@ mod tests {
             }
         }
         async fn state(&self, _index: i32) -> Result<bool, DriverError> {
-            Ok(false)
+            self.check("state")?;
+            Ok(self.on)
         }
         async fn set_state(&self, _index: i32, _on: bool) -> Result<(), DriverError> {
             Ok(())
         }
         async fn value(&self, index: i32) -> Result<f64, DriverError> {
+            self.check("value")?;
             if index == 0 {
                 Err(DriverError::NotSupported)
             } else {
@@ -549,6 +758,7 @@ mod tests {
             Ok(())
         }
         async fn min_value(&self, index: i32) -> Result<f64, DriverError> {
+            self.check("min_value")?;
             if index == 0 {
                 Err(DriverError::NotSupported)
             } else {
@@ -556,6 +766,7 @@ mod tests {
             }
         }
         async fn max_value(&self, index: i32) -> Result<f64, DriverError> {
+            self.check("max_value")?;
             if index == 0 {
                 Err(DriverError::NotSupported)
             } else {
@@ -563,6 +774,7 @@ mod tests {
             }
         }
         async fn step(&self, index: i32) -> Result<f64, DriverError> {
+            self.check("step")?;
             match index {
                 0 => Err(DriverError::NotSupported),
                 1 => Ok(0.01),
@@ -573,7 +785,7 @@ mod tests {
 
     #[tokio::test]
     async fn switch_channels_are_read_as_the_ascom_interface_defines_them() {
-        let caps = switch_capabilities(&PowerBox).await;
+        let caps = switch_capabilities(&PowerBox::default()).await.unwrap();
         let [v1, heater, port] = caps.switches.as_slice() else {
             panic!("three channels: {:?}", caps.switches);
         };
@@ -583,6 +795,29 @@ mod tests {
         assert!(!heater.is_boolean, "{heater:?}");
         assert_eq!(heater.step, 0.01);
         assert!(port.is_boolean, "{port:?}");
+    }
+
+    #[tokio::test]
+    async fn switch_read_failures_do_not_create_a_boolean_port_or_an_off_value() {
+        for member in ["count", "min_value", "max_value", "step", "value", "state"] {
+            let error = switch_capabilities(&PowerBox {
+                fail_on: Some(member),
+                on: true,
+            })
+            .await
+            .unwrap_err();
+            assert!(error.to_string().contains(member), "{member}: {error}");
+        }
+        let caps = switch_capabilities(&PowerBox {
+            on: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            caps.switches[0].value, 1.0,
+            "V1 switches read their real boolean state"
+        );
     }
 
     #[test]

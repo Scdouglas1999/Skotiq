@@ -43,7 +43,7 @@ use crate::device_ops::{
 use crate::recovery::{AttemptOutcome, RecoveryCause};
 use crate::{Trigger, TriggerManager, TriggerState, TriggerType};
 use async_trait::async_trait;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -142,6 +142,8 @@ pub(crate) struct ScriptedDeviceOps {
     /// Device ids currently reporting "connected". A disconnect removes the id;
     /// `connect_device` (or a scripted auto-reconnect) re-adds it.
     connected: Arc<Mutex<HashSet<String>>>,
+    /// Explicit connection replies, consumed before the live connected set.
+    connection_answers: Mutex<HashMap<String, VecDeque<DeviceResult<bool>>>>,
     /// When true, `connect_device` actually reconnects (re-adds to `connected`).
     /// When false it records the attempt but leaves the device disconnected —
     /// models a dead USB hub that no reconnect can revive (-> exhaustion).
@@ -227,6 +229,7 @@ impl ScriptedDeviceOps {
             inner: Arc::new(NullDeviceOps),
             calls: Arc::new(Mutex::new(Vec::new())),
             connected: Arc::new(Mutex::new(HashSet::new())),
+            connection_answers: Mutex::new(HashMap::new()),
             connect_succeeds: Arc::new(AtomicBool::new(true)),
             weather_safe: Arc::new(AtomicBool::new(true)),
             guiding: Arc::new(AtomicBool::new(true)),
@@ -688,6 +691,15 @@ impl ConnectionOps for ScriptedDeviceOps {
 
     async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
         self.record(format!("device_is_connected:{device_id}"));
+        if let Some(answer) = self
+            .connection_answers
+            .lock()
+            .unwrap()
+            .get_mut(device_id)
+            .and_then(VecDeque::pop_front)
+        {
+            return answer;
+        }
         Ok(self.connected.lock().unwrap().contains(device_id))
     }
 
@@ -761,8 +773,9 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
     let connect_idx = ops_concrete
         .index_of(&format!("connect_device:{cam}"))
         .expect("recovery must actively call connect_device");
-    let verify_idx = ops_concrete
-        .index_of(&format!("device_is_connected:{cam}"))
+    let verify_idx = calls
+        .iter()
+        .rposition(|call| call == &format!("device_is_connected:{cam}"))
         .expect("recovery must verify the reconnect");
     assert!(
         connect_idx < verify_idx,
@@ -770,6 +783,101 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
     );
     // The device is connected again afterwards (the rig is whole, ready to resume).
     assert!(ops_concrete.connected.lock().unwrap().contains(cam));
+}
+
+#[tokio::test]
+async fn recovery_reconnects_a_lost_focuser_without_replacing_the_connected_camera() {
+    let devices = Arc::new(ScriptedDeviceOps::new());
+    let camera = "native:gphoto2:camera";
+    let focuser = "native:zwo:focuser";
+    devices.set_connected(camera, true);
+    devices.set_connected(focuser, false);
+    let ops: SharedDeviceOps = devices.clone();
+    let (manager, _) = manager_with_state().await;
+
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::DeviceDisconnected,
+        &ops,
+        None,
+        &[camera.to_string(), focuser.to_string()],
+        &manager,
+    )
+    .await;
+
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    assert_eq!(
+        devices.call_count(&format!("connect_device:{camera}")),
+        0,
+        "the connected camera's handle and retained files must stay intact"
+    );
+    assert_eq!(devices.call_count(&format!("connect_device:{focuser}")), 1);
+    assert_eq!(
+        devices.call_count(&format!("device_is_connected:{camera}")),
+        2
+    );
+    assert_eq!(
+        devices.call_count(&format!("device_is_connected:{focuser}")),
+        2
+    );
+    assert!(devices.connected.lock().unwrap().contains(focuser));
+}
+
+#[tokio::test]
+async fn recovery_attempts_reconnect_when_the_initial_connection_query_fails() {
+    let devices = Arc::new(ScriptedDeviceOps::new());
+    let id = "focuser";
+    devices.connection_answers.lock().unwrap().insert(
+        id.to_string(),
+        VecDeque::from([Err("connection query failed".into())]),
+    );
+    let ops: SharedDeviceOps = devices.clone();
+    let (manager, _) = manager_with_state().await;
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::DeviceDisconnected,
+        &ops,
+        None,
+        &[id.to_string()],
+        &manager,
+    )
+    .await;
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    assert_eq!(
+        devices.calls(),
+        [
+            "device_is_connected:focuser",
+            "connect_device:focuser",
+            "device_is_connected:focuser",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn recovery_verifies_even_a_device_that_was_connected_before_the_attempt() {
+    for final_answer in [Ok(false), Err("connection query failed".into())] {
+        let devices = Arc::new(ScriptedDeviceOps::new());
+        let id = "camera";
+        devices
+            .connection_answers
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), VecDeque::from([Ok(true), final_answer]));
+        let ops: SharedDeviceOps = devices.clone();
+        let (manager, _) = manager_with_state().await;
+        let outcome = super::run_recovery_attempt(
+            &RecoveryCause::DeviceDisconnected,
+            &ops,
+            None,
+            &[id.to_string()],
+            &manager,
+        )
+        .await;
+        assert!(
+            matches!(outcome, AttemptOutcome::Failed { .. }),
+            "{outcome:?}"
+        );
+        assert_eq!(devices.call_count("connect_device:"), 0);
+        assert_eq!(devices.call_count("device_is_connected:"), 2);
+    }
 }
 
 #[tokio::test]

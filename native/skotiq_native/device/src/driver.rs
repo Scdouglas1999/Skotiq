@@ -81,6 +81,14 @@ pub trait ExposureAbort: Send + Sync {
 /// camera.
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
+    /// Whether automatic recovery may release or replace this driver.
+    /// A camera holding the only copy of a failed download can require the
+    /// owner to retrieve it first. Check before teardown, even after a lost
+    /// connection; an explicit operator reconnect is a separate decision.
+    fn check_automatic_reconnect(&self) -> Result<(), DriverError> {
+        Ok(())
+    }
+
     /// What the driver keeps of the camera's abilities from its connect. A
     /// client of a server keeps nothing and answers through
     /// [`CameraDriver::describe`] and [`CameraDriver::report`].

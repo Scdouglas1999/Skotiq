@@ -206,8 +206,7 @@ impl Focuser for DriverFocuser {
         ))
     }
 
-    /// A read the driver refuses reads as absent or at rest; the status poll
-    /// corrects it within one tick.
+    /// Optional readings stay absent; movement-read failures remain errors.
     async fn capabilities(&self, device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
         let focuser = self.driver.read().await.ok_or_else(|| {
             SkotiqError::hardware_error(
@@ -228,7 +227,7 @@ impl Focuser for DriverFocuser {
             temp_comp: temp_comp.unwrap_or(false),
             position: focuser.get_position().await.ok(),
             temperature: focuser.get_temperature().await.ok().flatten(),
-            is_moving: focuser.is_moving().await.unwrap_or(false),
+            is_moving: focuser.is_moving().await.map_err(DeviceOpError::from)?,
             can_halt: focuser.can_halt().await,
             ..Default::default()
         })
@@ -243,7 +242,9 @@ mod tests {
     /// A focuser with no stop command, as a camera lens driven through its
     /// body is.
     #[derive(Debug)]
-    struct Lens;
+    struct Lens {
+        motion_read_fails: bool,
+    }
 
     #[async_trait]
     impl DeviceDriver for Lens {
@@ -279,7 +280,11 @@ mod tests {
             Ok(100)
         }
         async fn is_moving(&self) -> Result<bool, DriverError> {
-            Ok(false)
+            if self.motion_read_fails {
+                Err(DriverError::SdkError("motion read failed".to_string()))
+            } else {
+                Ok(false)
+            }
         }
         async fn can_halt(&self) -> bool {
             false
@@ -302,7 +307,12 @@ mod tests {
     /// with success although nothing stops a lens.
     #[tokio::test]
     async fn a_focuser_that_cannot_halt_offers_no_halt_and_refuses_one() {
-        let focuser = DriverFocuser::vendor("native:test_lens:0", Box::new(Lens));
+        let focuser = DriverFocuser::vendor(
+            "native:test_lens:0",
+            Box::new(Lens {
+                motion_read_fails: false,
+            }),
+        );
         let capabilities = focuser
             .capabilities("native:test_lens:0")
             .await
@@ -312,5 +322,20 @@ mod tests {
             focuser.halt().await,
             Err(DeviceOpError::Unsupported { .. })
         ));
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_focuser_is_not_reported_as_stopped() {
+        let focuser = DriverFocuser::vendor(
+            "native:test_lens:0",
+            Box::new(Lens {
+                motion_read_fails: true,
+            }),
+        );
+        let error = focuser
+            .capabilities("native:test_lens:0")
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("motion read failed"), "{error}");
     }
 }

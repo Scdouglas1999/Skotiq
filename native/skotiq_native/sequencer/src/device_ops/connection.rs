@@ -19,8 +19,8 @@ pub trait ConnectionOps: Send + Sync {
 
     /// Actively (re)connect a device by id.
     ///
-    /// The recovery loop calls this on a device-disconnect cause so it
-    /// initiates a reconnect rather than only polling `device_is_connected`.
+    /// The recovery loop calls this for devices not known to be connected on
+    /// a device-disconnect cause, rather than only polling `device_is_connected`.
     /// Camera/focuser/filter-wheel default to `auto_reconnect = false`, so the
     /// background reconnection loop never retries them — without an active
     /// connect the recovery budget would be burned reporting "still

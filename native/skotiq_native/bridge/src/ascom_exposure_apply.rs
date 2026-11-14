@@ -73,7 +73,12 @@ pub fn apply_exposure_params<C: ExposureApplyTarget>(
         cam.camera_y_size()
             .map_err(|e| format!("Failed to read CameraYSize: {e}"))?,
     );
-    let max_bin = (cam.max_bin_x().unwrap_or(1), cam.max_bin_y().unwrap_or(1));
+    let max_bin = (
+        cam.max_bin_x()
+            .map_err(|e| format!("Failed to read MaxBinX: {e}"))?,
+        cam.max_bin_y()
+            .map_err(|e| format!("Failed to read MaxBinY: {e}"))?,
+    );
     let frame = frame_geometry(sensor, max_bin, (bin_x, bin_y), subframe.as_ref())
         .map_err(|e| e.to_string())?;
     cam.set_bin_x(bin_x)
@@ -177,9 +182,11 @@ mod tests {
 
     impl ExposureApplyTarget for SpyCamera {
         fn max_bin_x(&self) -> Result<i32, String> {
+            self.maybe_fail("max_bin_x")?;
             Ok(self.max_bin)
         }
         fn max_bin_y(&self) -> Result<i32, String> {
+            self.maybe_fail("max_bin_y")?;
             Ok(self.max_bin)
         }
         fn camera_x_size(&self) -> Result<i32, String> {
@@ -238,6 +245,23 @@ mod tests {
         CameraControls {
             gain: CameraControl::Value { range: None },
             offset: CameraControl::Value { range: None },
+        }
+    }
+
+    #[test]
+    fn unreadable_binning_limits_prevent_all_exposure_writes() {
+        for member in ["max_bin_x", "max_bin_y"] {
+            let mut camera = SpyCamera::new();
+            camera.fail_on = Some(member);
+            let error =
+                apply_exposure_params(&mut camera, 1, 1, None, None, &None, &value_controls())
+                    .unwrap_err();
+            assert!(error.contains(member));
+            assert!(
+                camera.calls.is_empty(),
+                "no frame settings may be written: {:?}",
+                camera.calls
+            );
         }
     }
 

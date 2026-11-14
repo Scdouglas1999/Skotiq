@@ -252,8 +252,7 @@ impl FilterWheel for DriverFilterWheel {
             // A wheel that keeps no labels (the ZWO EFW) refuses the read
             // on first connect; the app then labels the slots by number.
             filter_names: wheel.get_filter_names().await.unwrap_or_default(),
-            // A busy SDK reads as a wheel at rest; the status poll corrects it.
-            is_moving: wheel.is_moving().await.unwrap_or(false),
+            is_moving: wheel.is_moving().await.map_err(DeviceOpError::from)?,
             can_set_filter_names: wheel.can_set_filter_names().await,
             ..Default::default()
         })
@@ -270,6 +269,7 @@ mod tests {
     #[derive(Debug)]
     struct StuckWheel {
         connected: bool,
+        motion_read_fails: bool,
     }
 
     #[async_trait]
@@ -316,7 +316,11 @@ mod tests {
         }
 
         async fn is_moving(&self) -> Result<bool, DriverError> {
-            Ok(false)
+            if self.motion_read_fails {
+                Err(DriverError::SdkError("motion read failed".to_string()))
+            } else {
+                Ok(false)
+            }
         }
 
         async fn get_filter_count(&self) -> i32 {
@@ -340,7 +344,10 @@ mod tests {
     async fn a_vendor_wheel_is_read_and_closed_while_a_move_waits_for_arrival() {
         let wheel = Arc::new(DriverFilterWheel::vendor(
             "native:test:0",
-            Box::new(StuckWheel { connected: true }),
+            Box::new(StuckWheel {
+                connected: true,
+                motion_read_fails: false,
+            }),
         ));
         let moving = tokio::spawn({
             let wheel = wheel.clone();
@@ -371,5 +378,18 @@ mod tests {
             matches!(ended, Err(DeviceOpError::NotConnected { .. })),
             "{ended:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_wheel_is_not_reported_as_stopped() {
+        let wheel = DriverFilterWheel::vendor(
+            "native:test:0",
+            Box::new(StuckWheel {
+                connected: true,
+                motion_read_fails: true,
+            }),
+        );
+        let error = wheel.capabilities("native:test:0").await.unwrap_err();
+        assert!(error.to_string().contains("motion read failed"), "{error}");
     }
 }

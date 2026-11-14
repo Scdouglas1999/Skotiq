@@ -100,9 +100,11 @@ impl DeviceHandle {
             DeviceHandle::Rotator(d) => {
                 DeviceCapabilities::Rotator(d.capabilities(device_id).await?)
             }
-            DeviceHandle::Switch(d) => {
-                DeviceCapabilities::Switch(accessory::switch_capabilities(d.as_ref()).await)
-            }
+            DeviceHandle::Switch(d) => DeviceCapabilities::Switch(
+                accessory::switch_capabilities(d.as_ref())
+                    .await
+                    .map_err(|e| device_error(device_id, e))?,
+            ),
             DeviceHandle::Weather(d) => {
                 DeviceCapabilities::Weather(d.capabilities(device_id).await?)
             }
@@ -110,7 +112,9 @@ impl DeviceHandle {
                 DeviceCapabilities::SafetyMonitor(d.capabilities(device_id).await?)
             }
             DeviceHandle::CoverCalibrator(d) => DeviceCapabilities::CoverCalibrator(
-                accessory::cover_calibrator_capabilities(d.as_ref()).await,
+                accessory::cover_calibrator_capabilities(d.as_ref())
+                    .await
+                    .map_err(|e| device_error(device_id, e))?,
             ),
             DeviceHandle::FilterWheel(d) => {
                 DeviceCapabilities::FilterWheel(d.capabilities(device_id).await?)

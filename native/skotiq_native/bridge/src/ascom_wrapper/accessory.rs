@@ -98,8 +98,10 @@ impl AscomRotatorMembers for AscomRotatorWrapper {
 
 #[async_trait]
 impl Rotator for AscomRotatorWrapper {
-    async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
-        Ok(ascom_rotator_capabilities(self).await)
+    async fn capabilities(&self, device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
+        ascom_rotator_capabilities(self)
+            .await
+            .map_err(|e| crate::device_manager::handle::device_error(device_id, e).into())
     }
 
     async fn mechanical_position(&self) -> Result<f64, DriverError> {

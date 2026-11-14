@@ -172,10 +172,11 @@ fn cooler_power_supported(
 ///
 /// `ImageArray` is `[NumX][NumY]` and a SAFEARRAY stores its first dimension
 /// fastest, so the copied samples are already row by row. EXPTIME is the
-/// camera's `LastExposureDuration` where it has one; gain, offset and binning
-/// are read back (gain and offset in the camera's mode), and a value that
-/// cannot be read is recorded as unknown so the configured one stands in. The
-/// read mode is the one in force, named as the camera lists it.
+/// camera's `LastExposureDuration` where it has one. Gain and offset are read
+/// back in the camera's mode; an unreadable setting is recorded as unknown so
+/// the configured one stands in. Binning must be readable because it defines
+/// the frame's calibration geometry. The read mode is the one in force,
+/// named as the camera lists it.
 fn download_frame(
     cam: &AscomCamera,
     controls: &CameraControls,
@@ -204,8 +205,8 @@ fn download_frame(
                 .unwrap_or(0.0),
             gain: read_setting(cam.gain(), &controls.gain),
             offset: read_setting(cam.offset(), &controls.offset),
-            bin_x: cam.bin_x().unwrap_or(1),
-            bin_y: cam.bin_y().unwrap_or(1),
+            bin_x: cam.bin_x().map_err(super::ascom_error)?,
+            bin_y: cam.bin_y().map_err(super::ascom_error)?,
             temperature: cam.ccd_temperature().ok(),
             timestamp: chrono::Utc::now(),
             subframe: None,
@@ -578,6 +579,15 @@ impl AscomCameraWrapper {
                                     cam.cooler_power().map_err(|e| e.to_string())
                                 });
 
+                            let can_asymmetric_bin = match skotiq_device::ascom::optional(
+                                cam.can_asymmetric_bin().map_err(super::ascom_error),
+                            ) {
+                                Ok(value) => value.unwrap_or(false),
+                                Err(error) => {
+                                    let _ = reply.send(Err(error));
+                                    return PumpOutcome::DidWork;
+                                }
+                            };
                             let caps = AscomCameraCapabilities {
                                 max_width: width,
                                 max_height: height,
@@ -597,7 +607,7 @@ impl AscomCameraWrapper {
                                 can_stop_exposure: cam.can_stop_exposure().unwrap_or(false),
                                 controls: controls.clone(),
                                 has_cooler: cam.cooler_on().is_ok(),
-                                can_asymmetric_bin: cam.can_asymmetric_bin().unwrap_or(false),
+                                can_asymmetric_bin,
                                 exposure_min: cam.exposure_min().ok(),
                                 exposure_max: cam.exposure_max().ok(),
                                 pixel_size_x: sensor_config.pixel_size_x,
@@ -742,8 +752,11 @@ impl AscomCameraWrapper {
                                         read(cam.camera_x_size(), "CameraXSize")?,
                                         read(cam.camera_y_size(), "CameraYSize")?,
                                     ),
-                                    (cam.max_bin_x().unwrap_or(1), cam.max_bin_y().unwrap_or(1)),
-                                    (cam.bin_x().unwrap_or(1), cam.bin_y().unwrap_or(1)),
+                                    (
+                                        read(cam.max_bin_x(), "MaxBinX")?,
+                                        read(cam.max_bin_y(), "MaxBinY")?,
+                                    ),
+                                    (read(cam.bin_x(), "BinX")?, read(cam.bin_y(), "BinY")?),
                                     subframe.as_ref(),
                                 )?;
                                 cam.set_start_x(frame.start_x)

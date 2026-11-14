@@ -19,6 +19,16 @@ use std::sync::Arc;
 
 impl DeviceManager {
     pub(crate) async fn connect_native(&self, info: &DeviceInfo) -> Result<(), String> {
+        // Dart and native recovery both reach this replacement seam. Retain
+        // the old camera until the operator retrieves protected captures and
+        // explicitly disconnects it, even if heartbeat marked its state Error.
+        if let Some(DeviceHandle::Camera(camera)) = self.handles.get(&info.id) {
+            camera
+                .check_automatic_reconnect()
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {

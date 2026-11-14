@@ -43,6 +43,11 @@ use skotiq_device::{ImageData, SubFrame};
 
 #[async_trait]
 pub(crate) trait Camera: RigDriver {
+    /// Whether recovery may replace this handle without an explicit disconnect.
+    async fn check_automatic_reconnect(&self) -> Result<(), DeviceOpError> {
+        Ok(())
+    }
+
     /// Where an abort of this camera's exposure is announced.
     fn aborts(&self) -> &ExposureAborts;
 

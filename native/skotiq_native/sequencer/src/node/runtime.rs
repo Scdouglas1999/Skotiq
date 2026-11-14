@@ -96,7 +96,7 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
 /// instead:
 /// * detect the pending-recovery flag,
 /// * wait for the recovery driver to engage and finish (it pauses the tree,
-///   reconnects every device, then clears `is_paused` on success or sets
+///   reconnects unavailable devices, then clears `is_paused` on success or sets
 ///   `is_cancelled` on give-up), and
 /// * retry the same instruction once recovery succeeds.
 ///
