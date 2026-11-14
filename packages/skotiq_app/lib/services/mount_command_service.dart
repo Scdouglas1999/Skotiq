@@ -189,7 +189,7 @@ class MountCommandService {
       await core_providers.stopGuidingForMove(_ref);
       return null;
     } on GuidingDidNotStopException catch (e) {
-      return CommandActionResult.failure('$e');
+      return CommandActionResult.failure(userFacingError(e));
     }
   }
 

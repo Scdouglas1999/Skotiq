@@ -37,11 +37,9 @@ abstract class RelayCredentialsStore {
 }
 
 /// JSON-file store, used by the headless daemon (file lives next to the
-/// other appliance state under the app-support directory). World-readable
-/// is acceptable: the secret only grants "pretend to be this appliance's
-/// tunnel endpoint", and a phone still cannot authenticate against an
-/// imposter without the HMAC pairing token. Permissions are tightened to
-/// 600 on POSIX anyway.
+/// other appliance state under the app-support directory). On POSIX the
+/// temporary file is private before it receives the secret, and the atomic
+/// rename preserves those permissions.
 class FileRelayCredentialsStore implements RelayCredentialsStore {
   final String path;
 
@@ -68,15 +66,18 @@ class FileRelayCredentialsStore implements RelayCredentialsStore {
     final file = File(path);
     await file.parent.create(recursive: true);
     final tmp = File('$path.tmp');
-    await tmp.writeAsString(jsonEncode(credentials.toJson()), flush: true);
-    await tmp.rename(path);
     if (!Platform.isWindows) {
-      try {
-        await Process.run('chmod', ['600', path]);
-      } catch (_) {
-        // Best-effort tightening only.
+      await tmp.create();
+      final permissions = await Process.run('chmod', ['600', tmp.path]);
+      if (permissions.exitCode != 0) {
+        throw FileSystemException(
+          'Could not restrict relay credential file permissions',
+          tmp.path,
+        );
       }
     }
+    await tmp.writeAsString(jsonEncode(credentials.toJson()), flush: true);
+    await tmp.rename(path);
   }
 }
 
