@@ -18,8 +18,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
 
         final isRead = request.method == 'GET' || request.method == 'HEAD';
         if (!isRead) {
-          _logInfo(
+          await _logger.logRequest(
+            LogLevel.info,
             '[REQ][$requestId] ${request.method} $path started',
+            source: 'HeadlessApiServer',
             fields: {
               'requestId': requestId,
               'method': request.method,
@@ -36,8 +38,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
             statusCode: response.statusCode,
             elapsedMs: elapsedMs,
           )) {
-            _logInfo(
+            await _logger.logRequest(
+              LogLevel.info,
               '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
+              source: 'HeadlessApiServer',
               fields: {
                 'requestId': requestId,
                 'method': request.method,
@@ -64,8 +68,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           rethrow;
         } catch (e, stackTrace) {
           final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-          _logError(
+          await _logger.logRequest(
+            LogLevel.error,
             '[REQ][$requestId] ${request.method} $path failed ms=$elapsedMs error=$e\n$stackTrace',
+            source: 'HeadlessApiServer',
             fields: {
               'requestId': requestId,
               'method': request.method,
