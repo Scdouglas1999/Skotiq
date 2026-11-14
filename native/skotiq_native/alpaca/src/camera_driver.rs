@@ -6,8 +6,8 @@
 use crate::{AlpacaCamera, AlpacaError};
 use async_trait::async_trait;
 use skotiq_device::ascom::camera::{
-    cooler_setpoint_to_write, exposes_to_light, frame_geometry, recorded_exposure_seconds,
-    SensorMembers,
+    cooler_setpoint_to_write, exposes_to_light, frame_geometry, readout_mode_name,
+    recorded_exposure_seconds, SensorMembers,
 };
 use skotiq_device::ascom::sensor_type::{
     bayer_pattern_from_sensor, has_nameable_bayer_order, warn_debayer_skip_once,
@@ -78,8 +78,7 @@ impl AlpacaCameraDriver {
     /// The name of the read mode in force, for a camera that lists its modes.
     async fn readout_mode_name(&self) -> Option<String> {
         let (mode, modes) = tokio::join!(self.camera.readout_mode(), self.camera.readout_modes());
-        let mode = usize::try_from(mode.ok()?).ok()?;
-        modes.ok()?.into_iter().nth(mode)
+        readout_mode_name(mode.ok(), modes.ok())
     }
 }
 

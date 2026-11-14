@@ -37,7 +37,8 @@ use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomCamera;
 use skotiq_device::ascom::camera::{
-    cooler_setpoint_to_write, exposes_to_light, CameraControl, CameraControls, Probe,
+    cooler_setpoint_to_write, exposes_to_light, readout_mode_name, CameraControl, CameraControls,
+    Probe,
 };
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,
@@ -190,7 +191,8 @@ fn bayer_pattern_from_sensor(
 /// fastest, so the copied samples are already row by row. EXPTIME is the
 /// camera's `LastExposureDuration` where it has one; gain, offset and binning
 /// are read back (gain and offset in the camera's mode), and a value that
-/// cannot be read is recorded as unknown so the configured one stands in.
+/// cannot be read is recorded as unknown so the configured one stands in. The
+/// read mode is the one in force, named as the camera lists it.
 fn download_frame(
     cam: &AscomCamera,
     controls: &CameraControls,
@@ -224,7 +226,7 @@ fn download_frame(
             temperature: cam.ccd_temperature().ok(),
             timestamp: chrono::Utc::now(),
             subframe: None,
-            readout_mode: None,
+            readout_mode: readout_mode_name(cam.readout_mode().ok(), cam.readout_modes().ok()),
             vendor_data: VendorFeatures::default(),
             camera_file: None,
         },
