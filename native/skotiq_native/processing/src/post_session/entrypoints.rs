@@ -104,12 +104,16 @@ pub fn build_master_flat(args_json: String) -> Result<String, String> {
 
 /// The work behind the bridge's `api_build_calibration_master`, which describes the request
 /// and the reply.
-pub fn build_calibration_master(args_json: String) -> Result<String, String> {
+pub fn build_calibration_master(
+    args_json: String,
+) -> Result<String, skotiq_imaging::calibration_master_stream::MasterBuildError> {
+    use skotiq_imaging::calibration_master_stream::MasterBuildError;
     let args: BuildCalibrationMasterArgs = serde_json::from_str(&args_json)
-        .map_err(|e| format!("invalid calibration master args: {e}"))?;
+        .map_err(|e| MasterBuildError::Refused(format!("invalid calibration master args: {e}")))?;
     let result = build_calibration_master_impl(args)
-        .inspect_err(|e| tracing::warn!("calibration master failed: {e}"))?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+        .inspect_err(|e| tracing::warn!("calibration master not built: {e}"))?;
+    serde_json::to_string(&result)
+        .map_err(|e| MasterBuildError::Failed(format!("failed to encode result: {e}")))
 }
 
 /// The work behind the bridge's `api_save_fits_master`, which describes the request

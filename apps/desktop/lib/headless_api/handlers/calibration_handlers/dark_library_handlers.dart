@@ -229,13 +229,22 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       }
     }
     final build = container.read(calibrationMasterBuildProvider);
-    final built = await build(
-      CalibrationMasterBuildRequest(
-        kind: group.frameType,
-        framePaths: framePaths,
-        outputPath: outputPath,
-      ),
-    );
+    final CalibrationMasterBuildResult built;
+    try {
+      built = await build(
+        CalibrationMasterBuildRequest(
+          kind: group.frameType,
+          framePaths: framePaths,
+          outputPath: outputPath,
+        ),
+      );
+    } on CalibrationMasterRefused catch (e) {
+      throw HandlerFailure(
+        code: 'master_refused',
+        message: e.reason,
+        statusCode: HttpStatus.unprocessableEntity,
+      );
+    }
     final id = await container
         .read(darkLibraryServiceProvider)
         .registerMaster(built, frameType: group.frameType);

@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::calibration_master_stream::{
-    build_streamed_master, LightLeakConfig, StreamedMasterConfig, StreamedMasterKind,
+    build_streamed_master, LightLeakConfig, MasterBuildError, StreamedMasterConfig,
+    StreamedMasterKind,
 };
 use std::path::PathBuf;
 
@@ -55,11 +56,15 @@ pub(crate) struct BuildCalibrationMasterResult {
 
 pub(crate) fn build_calibration_master_impl(
     args: BuildCalibrationMasterArgs,
-) -> Result<BuildCalibrationMasterResult, String> {
+) -> Result<BuildCalibrationMasterResult, MasterBuildError> {
     let kind = match args.kind.trim().to_ascii_lowercase().as_str() {
         "dark" => StreamedMasterKind::Dark,
         "bias" => StreamedMasterKind::Bias,
-        other => return Err(format!("kind must be dark or bias, got '{other}'")),
+        other => {
+            return Err(MasterBuildError::Refused(format!(
+                "kind must be dark or bias, got '{other}'"
+            )))
+        }
     };
     let mut config = StreamedMasterConfig::new(kind);
     if let Some(v) = args.low_sigma {
@@ -75,7 +80,9 @@ pub(crate) fn build_calibration_master_impl(
         };
     }
     if !(config.low_sigma > 0.0 && config.high_sigma > 0.0) {
-        return Err("lowSigma and highSigma must be positive".to_string());
+        return Err(MasterBuildError::Refused(
+            "lowSigma and highSigma must be positive".to_string(),
+        ));
     }
     let paths: Vec<PathBuf> = args.frame_paths.iter().map(PathBuf::from).collect();
     let result = build_streamed_master(&paths, &PathBuf::from(&args.output_path), &config)?;
@@ -125,7 +132,10 @@ mod tests {
             leak_min_rise_adu: None,
         })
         .unwrap_err();
-        assert!(err.contains("dark or bias"), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("dark or bias")),
+            "{err}"
+        );
     }
 
     /// Builds a master from a folder of real frames:

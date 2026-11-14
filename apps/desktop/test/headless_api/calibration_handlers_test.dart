@@ -607,6 +607,57 @@ void main() {
     );
 
     test(
+      'create-master answers 422 with the reason when the frames cannot make one master',
+      () async {
+        final refusing = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            defectMapServiceProvider.overrideWithValue(defectMapService),
+            calibrationMasterBuildProvider.overrideWithValue(
+              (request) async => throw const CalibrationMasterRefused(
+                'b.fits was read out in mode High Gain Mode but a.fits in mode '
+                'Photographic DSO',
+              ),
+            ),
+          ],
+        );
+        addTearDown(refusing.dispose);
+        final a = await writeDarkFile('a.fits');
+        final b = await writeDarkFile('b.fits');
+        final response = await translateHandlerErrors(
+          CalibrationHandlers(
+            refusing,
+            dataDirectoryOverride: () async => calibrationDir,
+          ).handleCreateMasterDark(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/calibration/darks/create-master'),
+              body: jsonEncode({
+                'exposureTime': 1,
+                'binX': 1,
+                'binY': 1,
+                'frameType': 'dark',
+                'outputPath': '${tempDir.path}/master.fits',
+                'framePaths': [a.path, b.path],
+              }),
+            ),
+          ),
+        );
+
+        final text = await response.readAsString();
+        expect(
+          response.statusCode,
+          HttpStatus.unprocessableEntity,
+          reason: text,
+        );
+        final body = jsonDecode(text) as Map;
+        expect(body['code'], 'master_refused');
+        expect(body['message'], contains('read out in mode High Gain Mode'));
+        expect(await db.darkLibraryDao.getAllEntries(), isEmpty);
+      },
+    );
+
+    test(
       'create-master from a library group uses the native builder',
       () async {
         final a = await writeDarkFile('a.fits');
