@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/weather/weather_models.dart';
+import '../models/weather/cloud_cover_forecast.dart';
+
 import '../services/weather/transient_http_retry.dart';
 import '../services/weather/providers/metno_cloud_provider.dart';
 import '../services/weather/weather_radar_service.dart';
@@ -422,11 +424,15 @@ RadarProviderType _parseProviderType(String providerString) {
   }
 }
 
-/// Provider for current cloud cover percentage from Open-Meteo
-///
-/// Fetches real-time cloud cover data independent of the visual satellite overlay.
-/// Returns a percentage 0-100 where 0 = clear skies, 100 = fully overcast.
+/// The numerical projection used by existing forecast consumers.
 final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
+  return (await ref.watch(cloudCoverForecastProvider.future))?.percent;
+});
+
+/// Model cloud cover with its source and sample time; not a sky observation.
+final cloudCoverForecastProvider = FutureProvider<CloudCoverForecast?>((
+  ref,
+) async {
   final observerLocation = ref.watch(appObserverLocationProvider);
   if (observerLocation == null) {
     return null;
@@ -447,6 +453,7 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'current': 'cloud_cover',
+        'timezone': 'UTC',
       },
     );
 
@@ -465,14 +472,14 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
         // Open-Meteo returned a non-200 even after transient retries; fall back
         // to MET Norway's independent host before giving up. The client is kept
         // alive by the enclosing finally until this completes.
-        final fallback = await MetNoCloudProvider.fetchCurrentCloudCover(
+        final fallback = await MetNoCloudProvider.fetchCurrentCloudForecast(
           client,
           latitude,
           longitude,
         );
         if (fallback != null) {
           Log.debug(
-            'Current cloud cover: $fallback% (source: MET Norway)',
+            'Forecast cloud cover: ${fallback.percent}% (source: MET Norway)',
             source: 'Weather',
           );
           return fallback;
@@ -481,22 +488,7 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
       }
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final current = json['current'] as Map<String, dynamic>?;
-
-      if (current == null) {
-        return null;
-      }
-
-      final cloudCover = current['cloud_cover'];
-      if (cloudCover is num) {
-        Log.debug(
-          'Current cloud cover: ${cloudCover.toDouble()}%',
-          source: 'Weather',
-        );
-        return cloudCover.toDouble();
-      }
-
-      return null;
+      return CloudCoverForecast.fromOpenMeteo(json);
     } finally {
       client.close();
     }
@@ -510,14 +502,14 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
     // one for the MET Norway fallback.
     final fallbackClient = http.Client();
     try {
-      final fallback = await MetNoCloudProvider.fetchCurrentCloudCover(
+      final fallback = await MetNoCloudProvider.fetchCurrentCloudForecast(
         fallbackClient,
         latitude,
         longitude,
       );
       if (fallback != null) {
         Log.debug(
-          'Current cloud cover: $fallback% (source: MET Norway)',
+          'Forecast cloud cover: ${fallback.percent}% (source: MET Norway)',
           source: 'Weather',
         );
         return fallback;
@@ -776,8 +768,7 @@ final evaluateWeatherConditionsProvider =
       );
       final motion = await ref.watch(analyzeCloudMotionProvider.future);
 
-      // Get actual cloud cover percentage from Open-Meteo API
-      // This is the real-time cloud cover at the user's location
+      // Read the model estimate for the site, independent of satellite imagery.
       final cloudCoverPercent = await ref.watch(
         cloudCoverPercentageProvider.future,
       );

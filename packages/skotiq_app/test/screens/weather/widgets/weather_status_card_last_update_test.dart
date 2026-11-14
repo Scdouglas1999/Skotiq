@@ -52,7 +52,7 @@ void main() {
       lastUpdate: DateTime.now().subtract(const Duration(minutes: 3)),
     );
 
-    expect(find.text('Updated 3 min ago'), findsOneWidget);
+    expect(find.text('Map updated 3 min ago'), findsOneWidget);
     expect(find.text('Waiting for weather data'), findsNothing);
   });
 
@@ -79,7 +79,7 @@ void main() {
       (tester) async {
     await _pumpCard(tester, fetchFailed: true);
 
-    expect(find.text('Clear'), findsNothing);
+    expect(find.text('No forecast alert'), findsNothing);
     expect(find.text('Unknown'), findsOneWidget);
     expect(find.text('No weather data received'), findsOneWidget);
     expect(find.textContaining('Updated'), findsNothing);
@@ -89,7 +89,7 @@ void main() {
       (tester) async {
     await _pumpCard(tester);
 
-    expect(find.text('Clear'), findsNothing);
+    expect(find.text('No forecast alert'), findsNothing);
     expect(find.text('Checking'), findsOneWidget);
   });
 
@@ -108,11 +108,12 @@ void main() {
       ),
     );
 
-    expect(find.text('Clear'), findsOneWidget);
-    expect(find.text('Last data 25 min ago'), findsOneWidget);
+    expect(find.text('No forecast alert'), findsOneWidget);
+    expect(find.text('Last map data 25 min ago'), findsOneWidget);
     expect(find.textContaining('Updated'), findsNothing);
-    final label = tester.widget<Text>(find.text('Clear'));
-    final colors = SkotiqColors.of(tester.element(find.text('Clear')));
+    final label = tester.widget<Text>(find.text('No forecast alert'));
+    final colors =
+        SkotiqColors.of(tester.element(find.text('No forecast alert')));
     expect(label.style?.color, colors.textMuted);
   });
 }

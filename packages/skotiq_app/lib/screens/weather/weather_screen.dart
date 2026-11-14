@@ -122,6 +122,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
     ref.invalidate(weatherRadarFramesProvider);
     ref.invalidate(analyzeCloudMotionProvider);
     ref.invalidate(evaluateWeatherConditionsProvider);
+    ref.invalidate(cloudCoverForecastProvider);
     ref.invalidate(cloudCoverPercentageProvider);
   }
 

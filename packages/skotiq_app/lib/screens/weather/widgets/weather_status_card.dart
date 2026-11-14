@@ -5,7 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../tours/tour_target.dart';
 
-/// The radar's own verdict, inside the Weather screen's conditions HUD.
+/// The forecast advisory, inside the Weather screen's conditions HUD.
 ///
 /// It carries no container of its own: the caller decides whether this sits in
 /// [Glass] over the map or in a [SkotiqPanel] under it, so there is one
@@ -58,13 +58,13 @@ class WeatherStatusCard extends StatelessWidget {
   static String _alertLabel(AlertLevel level) {
     switch (level) {
       case AlertLevel.clear:
-        return 'Clear';
+        return 'No forecast alert';
       case AlertLevel.watch:
-        return 'Watch';
+        return 'Forecast watch';
       case AlertLevel.warning:
-        return 'Warning';
+        return 'Forecast warning';
       case AlertLevel.critical:
-        return 'Critical';
+        return 'Forecast critical';
     }
   }
 
@@ -85,7 +85,7 @@ class WeatherStatusCard extends StatelessWidget {
   String? _freshnessLine() {
     if (lastUpdate != null) {
       final age = _formatLastUpdate(lastUpdate!);
-      return fetchFailed ? 'Last data $age' : 'Updated $age';
+      return fetchFailed ? 'Last map data $age' : 'Map updated $age';
     }
     if (alert != null) return null;
     return fetchFailed

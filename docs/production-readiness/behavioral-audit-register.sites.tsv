@@ -3564,7 +3564,7 @@ packages/skotiq_core/lib/src/services/transients/transient_candidate.dart	Transi
 packages/skotiq_core/lib/src/services/usb_disconnect_log.dart	perDeviceCounts	literal_null_coalesce	1	V0102	counts[entry.deviceId] = (counts[entry.deviceId] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/usb_disconnect_log.dart	perDeviceCountsSince	literal_null_coalesce	1	V0102	counts[entry.deviceId] = (counts[entry.deviceId] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/weather/cloud_motion_analyzer.dart	_estimateCloudDensity	literal_null_coalesce	1	V0121	return bestDensity ?? 0.0;
-packages/skotiq_core/lib/src/services/weather/providers/metno_cloud_provider.dart	fetchCurrentCloudCover	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/services/weather/providers/metno_cloud_provider.dart	fetchCurrentCloudForecast	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/weather/providers/noaa_radar_provider.dart	_parseDuration	literal_null_coalesce	1	V0035	final hours = int.tryParse(match.group(1) ?? '0') ?? 0;
 packages/skotiq_core/lib/src/services/weather/providers/noaa_radar_provider.dart	_parseDuration	literal_null_coalesce	1	V0035	final minutes = int.tryParse(match.group(2) ?? '0') ?? 0;
 packages/skotiq_core/lib/src/services/weather/providers/noaa_radar_provider.dart	_parseDuration	literal_null_coalesce	1	V0035	final seconds = int.tryParse(match.group(3) ?? '0') ?? 0;

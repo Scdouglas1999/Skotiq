@@ -139,11 +139,8 @@ class WeatherAlertService {
   }) {
     switch (level) {
       case AlertLevel.clear:
-        if (distanceKm.isInfinite) {
-          return 'No clouds detected in monitoring range';
-        }
-        final distance = distanceKm.toStringAsFixed(0);
-        return 'Skies clear within ${distance}km radius';
+        return 'Forecast cloud cover: ${densityPercent.toStringAsFixed(0)}%. '
+            'Local conditions may differ.';
 
       case AlertLevel.watch:
         final distance = distanceKm.toStringAsFixed(0);

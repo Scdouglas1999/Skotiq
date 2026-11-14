@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../models/weather/weather_models.dart';
+import '../../../models/weather/cloud_cover_forecast.dart';
 import '../radar_provider.dart';
 import '../transient_http_retry.dart';
 
@@ -184,6 +185,12 @@ class MetNoCloudProvider extends RadarProvider {
     http.Client client,
     double lat,
     double lon,
+  ) async => (await fetchCurrentCloudForecast(client, lat, lon))?.percent;
+
+  static Future<CloudCoverForecast?> fetchCurrentCloudForecast(
+    http.Client client,
+    double lat,
+    double lon,
   ) async {
     try {
       final uri = Uri.parse(_baseUrl).replace(
@@ -204,6 +211,7 @@ class MetNoCloudProvider extends RadarProvider {
 
       final now = DateTime.now().toUtc();
       double? nearestCover;
+      DateTime? nearestTime;
       Duration? nearestGap;
       for (final entry in timeseries) {
         final cover = _cloudCoverFraction(entry);
@@ -214,12 +222,17 @@ class MetNoCloudProvider extends RadarProvider {
         if (nearestGap == null || gap < nearestGap) {
           nearestGap = gap;
           nearestCover = cover;
+          nearestTime = time;
         }
       }
 
       if (nearestCover == null || nearestGap == null) return null;
       if (nearestGap > const Duration(minutes: 90)) return null;
-      return nearestCover.clamp(0.0, 100.0);
+      return CloudCoverForecast(
+        percent: nearestCover.clamp(0.0, 100.0),
+        source: 'MET Norway',
+        validAt: nearestTime,
+      );
     } catch (_) {
       return null;
     }

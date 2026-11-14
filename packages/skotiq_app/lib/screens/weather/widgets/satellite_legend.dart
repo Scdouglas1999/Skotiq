@@ -4,8 +4,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/red_night_filter.dart';
 
-/// The infrared-satellite colour scale: white is a cold, high, thick cloud
-/// top; grey is lower or thinner cloud; dark is clear sky over warm ground.
+/// The infrared brightness-temperature scale, not cloud-cover percentage.
 ///
 /// It carries no container of its own — the compact form rides inside the
 /// radar control bar's glass, and the full form inside a panel — so the tone
@@ -35,8 +34,8 @@ class SatelliteLegend extends StatelessWidget {
   /// is and opacifying it once keeps the gate intact rather than carving a
   /// hole in it for one gradient.
   ///
-  /// Dark is clear sky over warm ground; white is a cold, high, thick cloud
-  /// top.
+  /// Dark is warmer; white is colder. Clouds and ground can have similar
+  /// temperatures, so brightness alone does not identify cloud cover.
   static const List<int> _compactRampRgb = <int>[
     0x0D0D18,
     0x1A1A2E,
@@ -117,7 +116,7 @@ class SatelliteLegend extends StatelessWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
-          'Clear',
+          'Warmer',
           style: SkotiqTypography.monoCaption.copyWith(
             color: colors.textMuted,
           ),
@@ -130,7 +129,7 @@ class SatelliteLegend extends StatelessWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceXs),
         Text(
-          'Cloudy',
+          'Colder',
           style: SkotiqTypography.monoCaption.copyWith(
             color: colors.textMuted,
           ),
@@ -164,15 +163,15 @@ class SatelliteLegend extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _LegendLabel(text: 'Clear', color: colors.textMuted),
-            _LegendLabel(text: 'Thin cloud', color: colors.textMuted),
-            _LegendLabel(text: 'Thick cloud', color: colors.textMuted),
+            _LegendLabel(text: 'Warmer', color: colors.textMuted),
+            _LegendLabel(text: 'Colder', color: colors.textMuted),
           ],
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         Text(
-          'Brighter is a colder cloud top, so a higher and thicker cloud. '
-          'Use the contrast slider to bring it out.',
+          'Brighter infrared areas are colder. Low cloud and ground can have '
+          'similar temperatures; brightness is not a cloud-cover percentage. '
+          'The contrast slider changes appearance only.',
           style: SkotiqTypography.caption.copyWith(
             color: colors.textSecondary,
           ),

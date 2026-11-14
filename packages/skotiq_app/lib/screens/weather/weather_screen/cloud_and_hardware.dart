@@ -8,9 +8,8 @@ part of '../weather_screen.dart';
 /// radar to float over. Same widgets either way — there is one of everything
 /// (02 rule 4).
 class _WeatherConditions extends ConsumerWidget {
-  /// Whether the radar-derived figures (cloud cover, alert level, motion) have
-  /// a site to have been measured for. Without one only the hardware sensors
-  /// and the safety verdict are real.
+  /// Whether the forecast and map have an observing site. Hardware sensors
+  /// and the safety verdict do not depend on a site being set.
   final bool radarAvailable;
 
   final WeatherAlert? alert;
@@ -42,6 +41,10 @@ class _WeatherConditions extends ConsumerWidget {
     final safetyDeviceState = ref.watch(safetyMonitorStateProvider);
     final settings = ref.watch(weatherSettingsProvider);
     final safetyState = ref.watch(weatherSafetyProvider);
+    final forecast = ref.watch(cloudCoverForecastProvider).valueOrNull;
+    final validAt = forecast?.validAt?.toUtc();
+    final forecastSource = '${forecast?.source ?? 'Weather'} model · '
+        '${validAt == null ? 'sample time unavailable' : '${ClockFormat.dateHm(validAt)} UTC'}';
 
     final hasWeatherDevice =
         weatherState.connectionState == DeviceConnectionState.connected;
@@ -97,7 +100,7 @@ class _WeatherConditions extends ConsumerWidget {
                     Readout(
                       value: cloudCoverPercent?.toStringAsFixed(0),
                       unit: '%',
-                      label: 'Cloud cover',
+                      label: 'Forecast cloud cover',
                       valueColor: _cloudCoverTone(colors, cloudCoverPercent),
                     ),
                     Readout(
@@ -121,6 +124,19 @@ class _WeatherConditions extends ConsumerWidget {
                 ),
             ],
           ),
+        if (radarAvailable && cloudCoverPercent != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Text(
+            forecastSource,
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
+          Text(
+            'Model estimate, not an observation. Check the local sky; '
+            'satellite brightness is a separate measurement.',
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
+          ),
+        ],
         if (expanded) ...[
           if (radarAvailable) ...[
             if (showHeadline) const SizedBox(height: SkotiqTokens.spaceMd),

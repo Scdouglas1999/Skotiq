@@ -72,6 +72,7 @@ export 'src/models/annotation_data.dart';
 export 'src/models/annotation_settings.dart';
 export 'src/models/phd2_models.dart';
 export 'src/models/weather/weather_models.dart';
+export 'src/models/weather/cloud_cover_forecast.dart';
 export 'src/models/autofocus_progress.dart';
 export 'src/models/focuser_backlash_calibration.dart';
 export 'src/models/focuser_backlash_progress.dart';
