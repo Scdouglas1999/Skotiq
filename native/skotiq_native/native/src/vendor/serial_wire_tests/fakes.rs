@@ -219,7 +219,7 @@ fn synscan_controller(answer_baud: Option<u32>, initialized: bool, knobs: Arc<Kn
 
         let swallowed = knobs
             .swallow_replies
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .is_ok();
         if swallowed {
             return Vec::new();

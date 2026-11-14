@@ -3053,9 +3053,9 @@ mod tests {
             "B channel of px0 must be untouched (count 4)"
         );
         // The other pixel's channels are all clean too.
-        for slot in 3..slots {
+        for (slot, accumulator) in stacker.accumulators.iter().enumerate().skip(3) {
             assert_eq!(
-                stacker.accumulators[slot].count, 4,
+                accumulator.count, 4,
                 "slot {slot} must accept all four samples"
             );
         }
