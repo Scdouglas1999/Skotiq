@@ -1,7 +1,7 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
@@ -35,7 +35,7 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
         if (syncMount != null) 'syncMount': syncMount,
       },
     );
-    return awaitJobResultOrLegacy(
+    return awaitOperationResult(
       start,
       operation: 'center on target',
       timeout: const Duration(minutes: 10),

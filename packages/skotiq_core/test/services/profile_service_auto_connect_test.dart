@@ -27,6 +27,8 @@ import 'package:skotiq_core/src/models/equipment_profile.dart'
 ///     on the first failure.
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
+class _MockRemoteBackend extends Mock implements NetworkBackend {}
+
 class _MockDeviceService extends Mock implements DeviceService {}
 
 class _FixedBackendNotifier extends BackendNotifier {
@@ -114,6 +116,27 @@ void main() {
     when(() => backend.loadProfile(any())).thenAnswer((_) async {});
     return backend;
   }
+
+  test(
+    'a linked startup uses the profiles list without an older-host retry',
+    () async {
+      final backend = _MockRemoteBackend();
+      when(backend.getProfiles).thenAnswer((_) async => []);
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final ds = _MockDeviceService();
+      final container = buildContainer(
+        backend: backend,
+        deviceService: ds,
+        autoConnectEnabled: true,
+      );
+      await container.read(profileServiceProvider).autoConnectOnStartup();
+      verify(backend.getProfiles).called(1);
+      verifyNever(backend.getActiveProfile);
+      verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
+    },
+  );
 
   test('does nothing when the auto-connect setting is off', () async {
     final backend = healthyBackend();

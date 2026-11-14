@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
+import 'package:skotiq_core/src/models/errors/server_error.dart';
 import 'package:skotiq_core/src/services/phd2_probe.dart';
 
 import '../fakes/fakes.dart';
@@ -30,7 +31,7 @@ Map<String, dynamic> _status({Object? trackedStars}) => {
 void main() {
   group('NetworkBackend guiding contracts', () {
     test(
-      'PHD2 running accepts 404 compatibility but not malformed success',
+      'PHD2 running reports unavailable endpoints and malformed success',
       () async {
         final oldHost = FakeNetworkClient()
           ..setResponse(
@@ -40,7 +41,10 @@ void main() {
           );
         final oldBackend = _backend(oldHost);
         addTearDown(oldBackend.dispose);
-        expect(await oldBackend.isPhd2Running(), isFalse);
+        await expectLater(
+          oldBackend.isPhd2Running(),
+          throwsA(isA<ServerError>()),
+        );
 
         final malformedHost = FakeNetworkClient()
           ..setResponse('/api/phd2/running', body: '{}');
@@ -74,10 +78,8 @@ void main() {
     });
 
     test(
-      'a master without the probe endpoint does not invent a version',
+      'a missing probe endpoint is an error without a second probe',
       () async {
-        // The 404 degrade must not become "PHD2 answered": a host without the
-        // probe endpoint has reported nothing about PHD2's version.
         final oldHost = FakeNetworkClient()
           ..setResponse(
             '/api/phd2/probe',
@@ -88,10 +90,7 @@ void main() {
         final backend = _backend(oldHost);
         addTearDown(backend.dispose);
 
-        final probe = await backend.phd2Probe();
-        expect(probe.outcome, Phd2ProbeOutcome.reachableUnverified);
-        expect(probe.isPhd2, isFalse);
-        expect(probe.version, isNull);
+        await expectLater(backend.phd2Probe(), throwsA(isA<ServerError>()));
       },
     );
 

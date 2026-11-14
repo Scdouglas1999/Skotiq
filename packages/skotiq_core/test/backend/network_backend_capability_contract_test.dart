@@ -87,27 +87,51 @@ void main() {
       );
     });
 
-    test('cloud motion distinguishes old host from malformed host', () async {
-      final fake = FakeNetworkClient()
-        ..setResponse('/api/sequencer/cloud-motion', body: '{}');
-      final backend = _backend(fake);
-      addTearDown(backend.dispose);
+    test(
+      'cloud motion reports unavailable endpoints and malformed success',
+      () async {
+        final fake = FakeNetworkClient()
+          ..setResponse('/api/sequencer/cloud-motion', body: '{}');
+        final backend = _backend(fake);
+        addTearDown(backend.dispose);
 
-      await expectLater(
-        backend.sequencerGetCloudMotionJson(),
-        throwsFormatException,
-      );
+        await expectLater(
+          backend.sequencerGetCloudMotionJson(),
+          throwsFormatException,
+        );
 
-      fake.setResponse(
-        '/api/sequencer/cloud-motion',
-        status: 404,
-        body: '{"code":"not_found","message":"Endpoint unavailable"}',
-      );
-      expect(await backend.sequencerGetCloudMotionJson(), isNull);
-    });
+        fake.setResponse(
+          '/api/sequencer/cloud-motion',
+          status: 404,
+          body: '{"code":"not_found","message":"Endpoint unavailable"}',
+        );
+        await expectLater(
+          backend.sequencerGetCloudMotionJson(),
+          throwsA(isA<ServerError>()),
+        );
+      },
+    );
   });
 
   group('NetworkBackend camera recommended-settings wire parsing', () {
+    test(
+      'a missing recommendation endpoint is not an empty recommendation',
+      () async {
+        final fake = FakeNetworkClient()
+          ..setResponse(
+            '/api/camera/recommended-settings',
+            status: 404,
+            body: '{"code":"not_found","message":"Unknown endpoint"}',
+          );
+        final backend = _backend(fake);
+        addTearDown(backend.dispose);
+        await expectLater(
+          backend.cameraGetRecommendedSettings('cam'),
+          throwsA(isA<ServerError>()),
+        );
+      },
+    );
+
     test('integer or double cooling setpoint normalizes to double', () async {
       final fake = FakeNetworkClient();
       final backend = _backend(fake);
@@ -136,11 +160,12 @@ void main() {
       expect(fromDouble.recommendedCoolingSetpointC, -12.5);
     });
 
-    test('cooling setpoint absent on older hosts decodes as null', () async {
+    test('a camera without a cooling recommendation reports null', () async {
       final fake = FakeNetworkClient()
         ..setResponse(
           '/api/camera/recommended-settings',
-          body: '{"unityGain":120,"defaultOffset":30,"notes":"fixture"}',
+          body:
+              '{"unityGain":120,"defaultOffset":30,"recommendedCoolingSetpointC":null,"notes":"fixture"}',
         );
       final backend = _backend(fake);
       addTearDown(backend.dispose);

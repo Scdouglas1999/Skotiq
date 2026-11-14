@@ -4,7 +4,7 @@ part of '../network_backend.dart';
 // _NetworkBackendRemoteOperations.
 
 mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
@@ -510,43 +510,18 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   Future<CameraRecommendedSettings> cameraGetRecommendedSettings(
     String deviceId,
   ) async {
-    // Network backend: the remote host owns the SDK. Query it via the
-    // headless API, parsing the same struct shape Rust returns.
-    //
-    // Fallback policy:
-    //   * HTTP 404 / `not_implemented` code → host predates this route. Return
-    //     an empty recommendation, logged; the user can still set values
-    //     manually from the profile editor.
-    //   * Anything else (timeout, malformed JSON, 5xx, transport failure)
-    //     rethrows, so the UI shows a real error rather than pretending the
-    //     device has no recommendation.
-    try {
-      final response = await _get(
-        DeviceApi.cameraGetRecommendedSettings,
-        query: {'deviceId': deviceId},
-      );
-      return CameraRecommendedSettings(
-        unityGain: (response['unityGain'] as num?)?.toInt(),
-        hcgGain: (response['hcgGain'] as num?)?.toInt(),
-        defaultOffset: (response['defaultOffset'] as num?)?.toInt(),
-        // `num?.toDouble()` widens an integer JSON value (e.g. `-10`) to the
-        // double the FFI backend reports, and older hosts that omit the field
-        // decode as `null` — preserving the honest "not reported" state.
-        recommendedCoolingSetpointC:
-            (response['recommendedCoolingSetpointC'] as num?)?.toDouble(),
-        notes: (response['notes'] as String?) ?? '',
-      );
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404 || e.code == 'not_implemented') {
-        Log.warning(
-          'cameraGetRecommendedSettings not implemented on remote '
-          '(${e.code}, HTTP ${e.httpStatus}); returning empty recommendation',
-          source: 'NetworkBackend',
-        );
-        return const CameraRecommendedSettings(notes: '');
-      }
-      rethrow;
-    }
+    final response = await _get(
+      DeviceApi.cameraGetRecommendedSettings,
+      query: {'deviceId': deviceId},
+    );
+    return CameraRecommendedSettings(
+      unityGain: (response['unityGain'] as num?)?.toInt(),
+      hcgGain: (response['hcgGain'] as num?)?.toInt(),
+      defaultOffset: (response['defaultOffset'] as num?)?.toInt(),
+      recommendedCoolingSetpointC:
+          (response['recommendedCoolingSetpointC'] as num?)?.toDouble(),
+      notes: response['notes'] as String,
+    );
   }
 
   @override
@@ -811,7 +786,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
           'measuredBacklashIn': measuredBacklashIn,
       },
     );
-    final response = await awaitJobResultOrLegacy(
+    final response = await awaitOperationResult(
       start,
       operation: 'autofocus',
       timeout: const Duration(minutes: 30),
@@ -830,7 +805,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       DeviceApi.focuserBacklashCalibrationStart,
       body: {'deviceId': deviceId, 'cameraId': cameraId, 'config': configJson},
     );
-    final response = await awaitJobResultOrLegacy(
+    final response = await awaitOperationResult(
       start,
       operation: 'focuser backlash calibration',
       timeout: _backlashCalibrationTimeout,
