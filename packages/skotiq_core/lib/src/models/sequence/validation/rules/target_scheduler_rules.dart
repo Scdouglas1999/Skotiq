@@ -21,9 +21,8 @@ class TargetSchedulerNoChildrenRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! TargetSchedulerNode) continue;
-      if (!node.isEnabled) continue;
       if (node.childIds.isEmpty) {
         issues.add(
           ValidationIssue(
@@ -58,9 +57,8 @@ class TargetSchedulerNonTargetChildRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! TargetSchedulerNode) continue;
-      if (!node.isEnabled) continue;
       for (final childId in node.childIds) {
         final child = sequence.nodes[childId];
         if (child == null) continue;
@@ -102,9 +100,8 @@ class TargetSchedulerWeightsRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! TargetSchedulerNode) continue;
-      if (!node.isEnabled) continue;
       if (!node.weightsNormalised) {
         issues.add(
           ValidationIssue(

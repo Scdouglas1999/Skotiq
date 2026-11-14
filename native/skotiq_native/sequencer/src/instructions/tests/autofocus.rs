@@ -1034,3 +1034,40 @@ async fn the_flat_wizard_with_a_dropped_panel_goes_to_disconnect_recovery() {
         result.message
     );
 }
+
+/// The Flat Wizard's bar has one owner, the wizard. The step loop that drives
+/// it also reported `step / plan length` for a plan that grows one search
+/// iteration at a time, so the run's percent went 0, 25, 12, 15, 50, 20, 75,
+/// 34, 80, 39 ... and read 100 "complete" for a search that never converged.
+#[tokio::test(start_paused = true)]
+async fn the_flat_wizard_percent_never_goes_back() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let ctx = ctx_with_ops(ops).await;
+    let config = crate::FlatWizardConfig {
+        panel_location: crate::PanelLocation::DuskSky,
+        filter: Some("L".to_string()),
+        min_exposure: 0.01,
+        max_exposure: 0.2,
+        max_iterations: 6,
+        ..Default::default()
+    };
+    let reports = std::sync::Mutex::new(Vec::<(f64, String)>::new());
+    let record = |percent: f64, message: String| reports.lock().unwrap().push((percent, message));
+
+    let result = crate::flat_wizard::execute_flat_wizard(&config, &ctx, Some(&record)).await;
+
+    let reports = reports.into_inner().unwrap();
+    assert!(reports.len() > 4, "{reports:?}");
+    for pair in reports.windows(2) {
+        assert!(pair[1].0 >= pair[0].0, "the percent went back: {pair:?}");
+    }
+    assert_eq!(
+        result.status,
+        NodeStatus::Failure,
+        "dark frames never converge"
+    );
+    assert!(
+        reports.iter().all(|(percent, _)| *percent < 100.0),
+        "a search that did not converge is not complete: {reports:?}"
+    );
+}

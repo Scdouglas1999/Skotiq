@@ -35,7 +35,7 @@ impl SequenceExecutor {
                 ))
             }
         }
-        let Some(mount_id) = self.mount_id.clone() else {
+        let Some(mount_id) = self.devices().mount_id else {
             return Err("This run has no mount.".to_string());
         };
 

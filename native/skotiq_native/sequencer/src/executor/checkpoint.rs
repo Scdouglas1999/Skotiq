@@ -96,11 +96,13 @@ impl SequenceExecutor {
         if let Some(ref cp) = checkpoint {
             self.current_checkpoint = Some(cp.clone());
 
-            self.camera_id = cp.camera_id.clone();
-            self.mount_id = cp.mount_id.clone();
-            self.focuser_id = cp.focuser_id.clone();
-            self.filterwheel_id = cp.filterwheel_id.clone();
-            self.rotator_id = cp.rotator_id.clone();
+            self.set_devices(
+                cp.camera_id.clone(),
+                cp.mount_id.clone(),
+                cp.focuser_id.clone(),
+                cp.filterwheel_id.clone(),
+                cp.rotator_id.clone(),
+            );
 
             self.handle()
                 .update_run_config(|config| {
@@ -152,6 +154,7 @@ impl SequenceExecutor {
             }
             None => crate::node::resume::ResumeRecord::default(),
         };
+        let devices = self.devices();
         CheckpointWriter::new(
             manager.clone(),
             CheckpointSources {
@@ -159,11 +162,11 @@ impl SequenceExecutor {
                 execution_order: self.build_execution_order(sequence),
                 sequence: sequence.clone(),
                 rig: RunRig {
-                    camera_id: self.camera_id.clone(),
-                    mount_id: self.mount_id.clone(),
-                    focuser_id: self.focuser_id.clone(),
-                    filterwheel_id: self.filterwheel_id.clone(),
-                    rotator_id: self.rotator_id.clone(),
+                    camera_id: devices.camera_id,
+                    mount_id: devices.mount_id,
+                    focuser_id: devices.focuser_id,
+                    filterwheel_id: devices.filterwheel_id,
+                    rotator_id: devices.rotator_id,
                     save_path: self.save_path.clone(),
                     ..RunRig::default()
                 },

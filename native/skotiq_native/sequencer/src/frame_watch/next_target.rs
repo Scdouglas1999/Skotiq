@@ -9,24 +9,14 @@ pub const DEFAULT_MIN_TARGET_ALTITUDE_DEG: f64 = 20.0;
 
 /// The plan's enabled targets in the order the run reaches them.
 pub fn targets_in_order(sequence: &SequenceDefinition) -> Vec<&TargetHeaderConfig> {
-    let mut out = Vec::new();
-    let Some(root) = sequence.root_node_id.as_ref() else {
-        return out;
-    };
-    let mut stack = vec![root];
-    while let Some(id) = stack.pop() {
-        let Some(node) = sequence.nodes.iter().find(|n| &n.id == id) else {
-            continue;
-        };
-        if !node.enabled {
-            continue;
-        }
-        if let NodeType::TargetHeader(config) | NodeType::TargetGroup(config) = &node.node_type {
-            out.push(config);
-        }
-        stack.extend(node.children.iter().rev());
-    }
-    out
+    sequence
+        .enabled_nodes()
+        .into_iter()
+        .filter_map(|node| match &node.node_type {
+            NodeType::TargetHeader(config) | NodeType::TargetGroup(config) => Some(config),
+            _ => None,
+        })
+        .collect()
 }
 
 /// What the run should do once `current` is obstructed.

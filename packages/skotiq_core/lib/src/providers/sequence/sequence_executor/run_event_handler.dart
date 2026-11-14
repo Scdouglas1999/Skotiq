@@ -840,11 +840,12 @@ class RunEventHandler {
         break;
 
       case FlipOutcome.aborted:
+        final reason = error?.trim().replaceFirst(RegExp(r'\.+$'), '');
         final message =
             'Meridian flip for "$targetName" was aborted after $attempts '
             'attempt${attempts == 1 ? "" : "s"}'
-            '${error != null ? ": $error" : ""}. The mount was NOT '
-            'flipped.';
+            '${reason == null || reason.isEmpty ? "" : ": $reason"}. The mount '
+            'was NOT flipped.';
         _logger.warning(message, source: 'SequenceExecutor');
         _stats.update((stats) => stats.recordWarning(message));
         progressNotifier.updateProgress(message: message);

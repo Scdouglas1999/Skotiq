@@ -26,14 +26,13 @@ class LiveStackingNoExposureRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    final liveStackingNodes = sequence.nodes.values
+    final liveStackingNodes = sequence.enabledNodes
         .whereType<LiveStackingNode>()
-        .where((n) => n.isEnabled)
         .toList(growable: false);
     if (liveStackingNodes.isEmpty) return issues;
 
-    final hasExposureNode = sequence.nodes.values.any(
-      (n) => n.isEnabled && (n is ExposureNode || n is SmartExposureNode),
+    final hasExposureNode = sequence.enabledNodes.any(
+      (n) => n is ExposureNode || n is SmartExposureNode,
     );
 
     if (hasExposureNode) return issues;

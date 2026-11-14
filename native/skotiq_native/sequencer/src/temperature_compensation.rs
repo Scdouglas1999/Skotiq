@@ -381,9 +381,10 @@ impl FocusCompensationSettings {
                 return None;
             }
         };
-        let plan_compensates = sequence.nodes.iter().any(|node| {
-            node.enabled && matches!(node.node_type, crate::NodeType::TemperatureCompensation(_))
-        });
+        let plan_compensates = sequence
+            .enabled_nodes()
+            .iter()
+            .any(|node| matches!(node.node_type, crate::NodeType::TemperatureCompensation(_)));
         if plan_compensates {
             tracing::info!(
                 "The plan has its own Temperature Compensation steps; the run does not also \
@@ -950,6 +951,18 @@ mod tests {
                 raw.to_string(),
             );
         }
+        sequence.root_node_id = Some("root".to_string());
+        sequence.nodes.push(crate::NodeDefinition {
+            id: "root".to_string(),
+            name: "Night".to_string(),
+            node_type: crate::NodeType::Loop(Default::default()),
+            enabled: true,
+            children: if compensation_step {
+                vec!["tc".to_string()]
+            } else {
+                vec![]
+            },
+        });
         if compensation_step {
             sequence.nodes.push(crate::NodeDefinition {
                 id: "tc".to_string(),

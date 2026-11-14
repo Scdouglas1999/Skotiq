@@ -29,8 +29,8 @@ class PluginNodeAvailabilityRule implements RefAwareSequenceValidator {
         .map((blueprint) => blueprint.registrationKey)
         .toSet();
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
-      if (node is! PluginInstructionNode || !node.isEnabled) continue;
+    for (final node in sequence.enabledNodes) {
+      if (node is! PluginInstructionNode) continue;
       if (node.pluginId.trim().isEmpty || node.nodeTypeId.trim().isEmpty) {
         // The pure configuration rule provides the more specific identity
         // repair message for this case.

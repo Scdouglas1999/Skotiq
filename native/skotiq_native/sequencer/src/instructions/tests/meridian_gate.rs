@@ -297,6 +297,72 @@ async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
     );
 }
 
+/// A flip that ran and refused to move the mount (the dust cover was closed)
+/// is not coming before the trigger's cooldown ends. The gate held the next
+/// frame for its full 30-minute bound, so the rig sat imaging nothing; it now
+/// lets the frame go once the refusal is recorded, and holds again only while
+/// the trigger's retry is on its way.
+#[tokio::test(start_paused = true)]
+async fn a_refused_flip_releases_the_held_frame() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(0.0);
+
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    {
+        let mut state = trigger_state.write().await;
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(1.0);
+        state.target.target_dec = Some(40.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.target.current_hour_angle = Some(10.0 / 60.0);
+    }
+    ec.run.trigger_state = Some(trigger_state.clone());
+
+    let mut ctx = ec.to_instruction_context("gate-node").await;
+    let lst =
+        crate::meridian::local_sidereal_time(crate::meridian::julian_day(&chrono::Utc::now()), 0.0);
+    ctx.target_ra = Some((lst - 10.0 / 60.0 + 24.0) % 24.0);
+    let ctx = Arc::new(ctx);
+
+    let gate = {
+        let ctx = ctx.clone();
+        tokio::spawn(async move {
+            wait_for_meridian_flip_window(&ctx, 8.0, &BurstControl::default()).await
+        })
+    };
+    tokio::time::sleep(Duration::from_secs(60)).await;
+    assert!(!gate.is_finished(), "a due flip holds the frame");
+
+    trigger_state
+        .write()
+        .await
+        .meridian
+        .mark_refused("Meridian flip refused: cover 'cover-1' is closed.".to_string());
+    let released = tokio::time::timeout(Duration::from_secs(10), gate)
+        .await
+        .expect("a refused flip lets the held frame go")
+        .expect("gate task");
+    assert!(released.is_none(), "the frame is exposed, not cancelled");
+
+    // The trigger's retry, once dispatched, holds the next frame again.
+    trigger_state
+        .write()
+        .await
+        .record_evaluation(crate::triggers::RunMode::Running, true);
+    let retry = tokio::time::timeout(
+        Duration::from_secs(60),
+        wait_for_meridian_flip_window(&ctx, 8.0, &BurstControl::default()),
+    )
+    .await;
+    assert!(retry.is_err(), "a retry on its way holds the frame");
+}
+
 /// `MeridianFlipOutcome` is the only wire a flip travels to reach the run
 /// vitals' `meridianFlips` count and the session report. Emitting it from the
 /// TRIGGER call site alone means a sequence that flips via an explicit

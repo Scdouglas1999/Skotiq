@@ -10,7 +10,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -228,6 +229,27 @@ void main() {
     expect(stats.meridianFlips, 0);
     expect(stats.errorMessages, isEmpty);
     expect(stats.warningMessages.single, contains('was aborted'));
+  });
+
+  test('a refusal that ends in a period is not given a second one', () {
+    final (container, executor) = build();
+
+    executor.handleSequencerEventForTest(
+      flipEvent(
+        outcome: 'aborted',
+        attempts: 0,
+        error:
+            "Meridian flip refused: cover 'cover-1' is closed (state=1). Open "
+            'the cover before flipping or post-flip plate solve will fail.',
+      ),
+    );
+
+    final warning = container
+        .read(liveSequenceStatsProvider)!
+        .warningMessages
+        .single;
+    expect(warning, contains('plate solve will fail. The mount was NOT'));
+    expect(warning, isNot(contains('..')));
   });
 
   test('the flip verdict survives the stats JSON round-trip', () {

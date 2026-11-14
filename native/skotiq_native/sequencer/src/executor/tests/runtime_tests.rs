@@ -1859,8 +1859,13 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     // The autofocus arm only runs for a rig that has both devices; without
     // them the trigger takes the skip branch and there is no interlude at all.
-    executor.camera_id = Some("sim_camera_1".to_string());
-    executor.focuser_id = Some("sim_focuser_1".to_string());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        None,
+        Some("sim_focuser_1".to_string()),
+        None,
+        None,
+    );
     {
         let mut manager = executor.trigger_manager.write().await;
         // Leave exactly one trigger armed so nothing else steers the run, and
@@ -2371,11 +2376,15 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops.clone());
-    executor.camera_id = Some("sim_camera_1".to_string());
-    executor.focuser_id = Some("sim_focuser_1".to_string());
-    executor.mount_id = Some("mount-1".to_string());
-    executor.cover_calibrator_id = Some("cover-1".to_string());
-    executor.dome_id = Some("dome-1".to_string());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        Some("mount-1".to_string()),
+        Some("sim_focuser_1".to_string()),
+        None,
+        None,
+    );
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
     let mut config = serde_json::json!({
         "number_of_attempts": 1,
         "steps_out": 1,
@@ -2685,11 +2694,15 @@ async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocus
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops.clone());
-    executor.camera_id = Some("sim_camera_1".to_string());
-    executor.focuser_id = Some("sim_focuser_1".to_string());
-    executor.mount_id = Some("mount-1".to_string());
-    executor.cover_calibrator_id = Some("cover-1".to_string());
-    executor.dome_id = Some("dome-1".to_string());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        Some("mount-1".to_string()),
+        Some("sim_focuser_1".to_string()),
+        None,
+        None,
+    );
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
     {
         let mut manager = executor.trigger_manager.write().await;
         for id in [
@@ -3327,8 +3340,13 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
     ops.plate_solve_fails.store(true, Ordering::SeqCst);
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops);
-    executor.camera_id = Some("sim_camera_1".to_string());
-    executor.mount_id = Some("mount-1".to_string());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
     {
         let mut manager = executor.trigger_manager.write().await;
         let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();

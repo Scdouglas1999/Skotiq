@@ -39,6 +39,10 @@ pub struct MeridianFlipState {
     /// for the imaging train or running. The monitor runs the action inline,
     /// so the tick that clears this comes only after the flip has finished.
     dispatch_pending: bool,
+    /// Why the last flip the trigger ran for this target did not move the
+    /// mount (a closed cover, a target too low to flip for). The mount stays on
+    /// its side and the trigger tries again when its cooldown ends.
+    refusal: Option<String>,
 }
 
 impl MeridianFlipState {
@@ -64,6 +68,16 @@ impl MeridianFlipState {
         };
         self.flipped = Some(Flipped { origin });
         self.requested = false;
+        self.refusal = None;
+    }
+
+    /// The flip ran and left the mount where it was, for `reason`.
+    pub fn mark_refused(&mut self, reason: String) {
+        self.refusal = Some(reason);
+    }
+
+    pub fn refusal(&self) -> Option<&str> {
+        self.refusal.as_deref()
     }
 
     pub fn snapshot(&self) -> MeridianFlipSnapshot {
@@ -126,13 +140,15 @@ impl MeridianFlipState {
     pub fn target_changed(&mut self) {
         self.flipped = None;
         self.requested = false;
+        self.refusal = None;
     }
 
-    /// Forget the flip and the request; the dispatch latch belongs to the
-    /// monitor tick and is left alone.
+    /// Forget the flip, the refusal and the request; the dispatch latch
+    /// belongs to the monitor tick and is left alone.
     pub fn clear(&mut self) {
         self.flipped = None;
         self.requested = false;
+        self.refusal = None;
     }
 
     pub fn reset_for_new_run(&mut self) {
@@ -162,6 +178,10 @@ pub enum FlipProgress {
     Flipped,
     /// The trigger fired or the operator asked; the flip is on its way.
     Starting,
+    /// The flip ran and refused to move the mount
+    /// ([`MeridianFlipState::refusal`]). Nothing will flip it before the
+    /// trigger's cooldown ends.
+    Refused,
     /// The trigger had a running evaluation and did not fire, or no monitor is
     /// running at all.
     NotComing,
@@ -217,6 +237,8 @@ impl TriggerState {
             FlipProgress::Flipped
         } else if self.meridian.dispatch_pending() || self.flip_request_pending() {
             FlipProgress::Starting
+        } else if self.meridian.refusal().is_some() {
+            FlipProgress::Refused
         } else if self.run.last_evaluation() == TriggerEvaluation::AwaitingRunningTick {
             FlipProgress::AwaitingEvaluation
         } else {
@@ -412,5 +434,26 @@ mod tests {
         assert_eq!(state.flip_progress(), FlipProgress::Starting);
         state.mark_flip_performed();
         assert_eq!(state.flip_progress(), FlipProgress::Flipped);
+    }
+
+    #[test]
+    fn a_refusal_lasts_until_a_retry_a_flip_or_a_new_target() {
+        let mut state = due_state();
+        state.record_evaluation(RunMode::Running, false);
+        state
+            .meridian
+            .mark_refused("the cover is closed".to_string());
+        assert_eq!(state.flip_progress(), FlipProgress::Refused);
+        state.record_evaluation(RunMode::Running, true);
+        assert_eq!(state.flip_progress(), FlipProgress::Starting, "the retry");
+        state.record_evaluation(RunMode::Running, false);
+        assert_eq!(state.flip_progress(), FlipProgress::Refused);
+        state.meridian.target_changed();
+        assert_eq!(state.meridian.refusal(), None);
+        state
+            .meridian
+            .mark_refused("the cover is closed".to_string());
+        state.mark_flip_performed();
+        assert_eq!(state.meridian.refusal(), None);
     }
 }

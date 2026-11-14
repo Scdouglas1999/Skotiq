@@ -358,6 +358,100 @@ fn instructions_parented_under_a_leaf_are_reported_as_unreachable() {
     );
 }
 
+/// A plan with a switched-off Center step, and another Center (plus a stranded
+/// slew under a leaf) inside a switched-off group. With no plate solver
+/// installed, Start refused it ("centers on a target but no plate solver") and
+/// only deleting the step let it run.
+fn plan_with_switched_off_centering() -> SequenceDefinition {
+    let node = |id: &str, node_type: crate::NodeType, enabled: bool, children: &[&str]| {
+        crate::NodeDefinition {
+            id: id.to_string(),
+            name: id.to_string(),
+            node_type,
+            enabled,
+            children: children.iter().map(|c| c.to_string()).collect(),
+        }
+    };
+    let mut sequence = SequenceDefinition::new("Switched off".to_string());
+    sequence.root_node_id = Some("root".to_string());
+    sequence.nodes = vec![
+        node(
+            "root",
+            crate::NodeType::Loop(crate::LoopConfig::default()),
+            true,
+            &["center", "group", "dark"],
+        ),
+        node(
+            "center",
+            crate::NodeType::CenterTarget(crate::CenterConfig::default()),
+            false,
+            &[],
+        ),
+        node(
+            "group",
+            crate::NodeType::Loop(crate::LoopConfig::default()),
+            false,
+            &["group-center", "group-unpark"],
+        ),
+        node(
+            "group-center",
+            crate::NodeType::CenterTarget(crate::CenterConfig::default()),
+            true,
+            &[],
+        ),
+        node("group-unpark", crate::NodeType::Unpark, true, &["stranded"]),
+        node(
+            "stranded",
+            crate::NodeType::SlewToTarget(crate::SlewConfig::default()),
+            true,
+            &[],
+        ),
+        node(
+            "dark",
+            crate::NodeType::TakeExposure(crate::ExposureConfig {
+                frame_type: crate::FrameType::Dark,
+                save_to: Some("/abs/darks".to_string()),
+                ..Default::default()
+            }),
+            true,
+            &[],
+        ),
+    ];
+    sequence
+}
+
+#[test]
+fn switched_off_steps_block_and_check_nothing_at_start() {
+    let mut executor = SequenceExecutor::new();
+    executor
+        .load_sequence(plan_with_switched_off_centering())
+        .expect("sequence loads");
+    let root = &**executor.root_node.as_ref().expect("root");
+
+    assert!(
+        !tree_contains_centering(root),
+        "a switched-off Center step needs no plate solver"
+    );
+    let mut required = std::collections::BTreeMap::new();
+    collect_required_devices(root, &mut required);
+    assert_eq!(
+        required.keys().copied().collect::<Vec<_>>(),
+        vec![RequiredDevice::Camera],
+        "only the enabled dark needs hardware"
+    );
+    let mut names = Vec::new();
+    unreachable_instructions(root, &mut names);
+    assert!(
+        names.is_empty(),
+        "nothing switched off is reported: {names:?}"
+    );
+    assert!(!tree_needs_base_save_path(root));
+
+    let plan = plan_with_switched_off_centering();
+    let ids: Vec<&str> = plan.enabled_nodes().iter().map(|n| n.id.as_str()).collect();
+    assert_eq!(ids, vec!["root", "dark"]);
+}
+
 /// A run that walked one instruction of four must not report Completed: the
 /// Session Report would show a green Completed badge, 0 frames and
 /// `errorMessages: []` against a header chip reading "3 frames".
@@ -1816,4 +1910,31 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
         state.telemetry.dawn_time, None,
         "the old site's dawn must not survive"
     );
+}
+
+/// The motion guard's recovery frame finds the run's camera through the
+/// handle; reading it from the executor waited behind a start or a stop that
+/// had the executor taken.
+#[tokio::test]
+async fn the_handle_reads_the_assigned_devices_while_the_executor_is_taken() {
+    let executor = SequenceExecutor::new();
+    let handle = executor.handle();
+    let executor = Arc::new(RwLock::new(executor));
+    executor.write().await.set_devices(
+        Some("camera-1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
+    executor
+        .write()
+        .await
+        .set_cover_calibrator(Some("panel-1".to_string()));
+
+    let _taken = executor.write().await;
+    let devices = handle.devices();
+    assert_eq!(devices.camera_id.as_deref(), Some("camera-1"));
+    assert_eq!(devices.mount_id.as_deref(), Some("mount-1"));
+    assert_eq!(devices.cover_calibrator_id.as_deref(), Some("panel-1"));
 }

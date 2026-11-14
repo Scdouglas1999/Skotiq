@@ -135,9 +135,8 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     var anyPlannedByNode = false;
 
     final requirements = <DarkFrameRequirement>{};
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! ExposureNode) continue;
-      if (!node.isEnabled) continue;
       if (node.frameType != FrameType.light) continue;
       if (node.durationSecs <= 0) continue;
       if (node.count <= 0) continue;
@@ -342,9 +341,8 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     Sequence sequence,
     ValidationContext ctx,
   ) async {
-    final targetNodes = sequence.nodes.values
+    final targetNodes = sequence.enabledNodes
         .whereType<TargetHeaderNode>()
-        .where((node) => node.isEnabled)
         .toList(growable: false);
     if (targetNodes.isEmpty) return const [];
 
@@ -457,7 +455,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     final filters = <String>{};
     for (final childId in sequence.descendantsOf(target.id)) {
       final child = sequence.nodes[childId];
-      if (child == null || !child.isEnabled) continue;
+      if (child == null || !sequence.isNodeEnabled(child)) continue;
       if (child is ExposureNode) {
         filters.add(_filterKey(child.filter));
       } else if (child is SmartExposureNode) {
@@ -570,8 +568,8 @@ class IsoSpeedRule implements RefAwareSequenceValidator {
         ?.preflightStrictness;
     final lowest = sensitivity.speeds.first;
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
-      if (node is! ExposureNode || !node.isEnabled) continue;
+    for (final node in sequence.enabledNodes) {
+      if (node is! ExposureNode) continue;
       final gain = node.gain;
       if (gain == null) continue;
       final taken = sensitivity.accept(gain);
@@ -627,10 +625,9 @@ class FocuserRangeRule implements RefAwareSequenceValidator {
     // Only relevant if the sequence will touch the focuser (autofocus
     // node or any node that requires focuser). Don't pester users
     // running an exposure-only sequence with no focus mention.
-    final requiresFocuser = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.focuser);
-    });
+    final requiresFocuser = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.focuser),
+    );
     if (!requiresFocuser) return const [];
 
     final focuser = ref.read(focuserStateProvider);
@@ -701,10 +698,9 @@ class PolarAlignmentFreshnessRule implements RefAwareSequenceValidator {
     if (settings == null) return const [];
     if (settings.polarAlignmentMaxAgeDays <= 0) return const [];
 
-    final requiresMount = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.mount);
-    });
+    final requiresMount = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.mount),
+    );
     if (!requiresMount) return const [];
 
     final lastAsync = ref.read(lastPolarAlignmentAnywhereProvider);
@@ -916,10 +912,9 @@ class FilterWheelHomingRule implements RefAwareSequenceValidator {
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (settings == null) return const [];
 
-    final requiresFw = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.filterWheel);
-    });
+    final requiresFw = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.filterWheel),
+    );
     if (!requiresFw) return const [];
 
     final fw = ref.read(filterWheelStateProvider);

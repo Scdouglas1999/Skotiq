@@ -33,7 +33,7 @@ pub(crate) mod runtime;
 
 pub use context::{CloudMotionSnapshot, ExecutionContext};
 pub use progress::{ProgressDetail, ProgressUpdate};
-pub use runtime::{Node, RuntimeNode};
+pub use runtime::{enabled_nodes, Node, RuntimeNode};
 
 pub use registry::{instruction_for, InstructionNode};
 

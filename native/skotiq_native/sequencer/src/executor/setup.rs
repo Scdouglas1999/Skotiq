@@ -89,24 +89,25 @@ impl SequenceExecutor {
         filterwheel: Option<String>,
         rotator: Option<String>,
     ) {
-        self.camera_id = camera;
-        self.mount_id = mount;
-        self.focuser_id = focuser;
-        self.filterwheel_id = filterwheel;
-        self.rotator_id = rotator;
+        let mut devices = self.devices.write();
+        devices.camera_id = camera;
+        devices.mount_id = mount;
+        devices.focuser_id = focuser;
+        devices.filterwheel_id = filterwheel;
+        devices.rotator_id = rotator;
     }
 
     /// Set the dome device id. Separate from [`Self::set_devices`]
     /// because dome integration was added after the core five and
     /// keeping the signatures stable matters more than tidying up.
     pub fn set_dome(&mut self, dome_id: Option<String>) {
-        self.dome_id = dome_id;
+        self.devices.write().dome_id = dome_id;
     }
 
     /// Set the cover-calibrator (flat panel) device id. Separate setter
     /// for the same reason as [`Self::set_dome`].
     pub fn set_cover_calibrator(&mut self, cover_calibrator_id: Option<String>) {
-        self.cover_calibrator_id = cover_calibrator_id;
+        self.devices.write().cover_calibrator_id = cover_calibrator_id;
     }
 
     /// Set the base save path for captured images. The exposure

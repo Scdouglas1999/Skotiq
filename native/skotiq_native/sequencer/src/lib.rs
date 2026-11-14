@@ -173,6 +173,30 @@ impl SequenceDefinition {
             metadata: HashMap::new(),
         }
     }
+
+    /// The nodes a run of this plan executes, in tree order: those reached
+    /// from the root through enabled nodes only. A disabled node is skipped
+    /// with everything under it, as the run skips it (`RuntimeNode::execute`
+    /// returns before it descends), so nothing under it may block, check or
+    /// shape the run.
+    pub fn enabled_nodes(&self) -> Vec<&NodeDefinition> {
+        let by_id: HashMap<&str, &NodeDefinition> =
+            self.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        let mut out = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut stack: Vec<&str> = self.root_node_id.iter().map(String::as_str).collect();
+        while let Some(id) = stack.pop() {
+            let Some(node) = by_id.get(id) else {
+                continue;
+            };
+            if !node.enabled || !seen.insert(id) {
+                continue;
+            }
+            out.push(*node);
+            stack.extend(node.children.iter().rev().map(String::as_str));
+        }
+        out
+    }
 }
 
 /// Definition of a node that can be serialized
@@ -3366,9 +3390,10 @@ mod recovery_action_serde_tests {
             "save_to": null
         }"#;
         assert!(serde_json::from_str::<NodeType>(without).is_err());
-        assert!(serde_json::from_str::<NodeType>(
-            &without.replace("\"save_to\": null", "\"save_to\": null, \"frame_type\": \"dark\"")
-        )
+        assert!(serde_json::from_str::<NodeType>(&without.replace(
+            "\"save_to\": null",
+            "\"save_to\": null, \"frame_type\": \"dark\""
+        ))
         .is_err());
 
         let dark = r#"{

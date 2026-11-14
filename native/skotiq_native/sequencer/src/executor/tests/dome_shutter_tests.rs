@@ -78,7 +78,7 @@ async fn start(sequence: SequenceDefinition) -> DomeRun {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops.clone());
-    executor.dome_id = Some("dome-1".to_string());
+    executor.set_dome(Some("dome-1".to_string()));
     executor
         .handle()
         .update_run_config(|config| config.safety_check_interval_secs = 5)

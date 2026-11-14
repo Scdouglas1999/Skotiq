@@ -17,9 +17,9 @@ class SmartExposureFilterWheelMissingRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    final hasSmartExposureNode = sequence.nodes.values
+    final hasSmartExposureNode = sequence.enabledNodes
         .whereType<SmartExposureNode>()
-        .any((n) => n.isEnabled);
+        .isNotEmpty;
     if (!hasSmartExposureNode) return const [];
 
     if (ctx.ref.read(effectiveFiltersProvider).isNotEmpty) return const [];
@@ -54,9 +54,8 @@ class SmartExposureFilterWheelMissingRule implements RefAwareSequenceValidator {
     }
 
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! SmartExposureNode) continue;
-      if (!node.isEnabled) continue;
       issues.add(
         ValidationIssue(
           severity: ValidationSeverity.error,
@@ -87,9 +86,8 @@ class SmartExposureFilterUnknownRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    final smartExposureNodes = sequence.nodes.values
+    final smartExposureNodes = sequence.enabledNodes
         .whereType<SmartExposureNode>()
-        .where((n) => n.isEnabled)
         .toList();
     if (smartExposureNodes.isEmpty) return const [];
 

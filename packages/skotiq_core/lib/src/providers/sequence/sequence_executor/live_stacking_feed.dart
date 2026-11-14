@@ -116,8 +116,8 @@ class LiveStackingFeed {
   LiveStackingNode? _activeNode() {
     final sequence = _sequence();
     if (sequence == null) return null;
-    for (final node in sequence.nodes.values) {
-      if (node is LiveStackingNode && node.isEnabled) return node;
+    for (final node in sequence.enabledNodes) {
+      if (node is LiveStackingNode) return node;
     }
     return null;
   }

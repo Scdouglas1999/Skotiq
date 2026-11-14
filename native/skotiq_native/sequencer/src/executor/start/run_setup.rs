@@ -50,7 +50,7 @@ impl SequenceExecutor {
             manager.state().write().await.latches.focus_compensation =
                 compensation.map(crate::temperature_compensation::FocusCompensation::new);
         }
-        if self.focuser_id.is_none() {
+        if self.devices().focuser_id.is_none() {
             let disarmed = {
                 let mut manager = self.trigger_manager.write().await;
                 manager.disarm_autofocus_triggers()

@@ -48,9 +48,8 @@ class WaitTimeUnconfiguredRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! WaitTimeNode) continue;
-      if (!node.isEnabled) continue;
       if (node.waitUntil != null || node.waitForTwilight != null) continue;
       issues.add(
         ValidationIssue(
@@ -85,9 +84,8 @@ class LoopUntilTimeUnsetRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! LoopNode) continue;
-      if (!node.isEnabled) continue;
       if (node.conditionType != LoopConditionType.untilTime) continue;
       if (node.repeatUntil != null) continue;
       issues.add(

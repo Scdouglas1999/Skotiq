@@ -130,7 +130,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
       // still worth flagging in the tree, but blocking an unrelated run on it
       // would train the operator to ignore the pre-flight dialog.
       final consumed =
-          _isLive(sequence, target) &&
+          sequence.isNodeEnabled(target) &&
           (_hasEnabledInstruction(sequence, target) ||
               _hasExternalPointingConsumer(sequence, target));
 
@@ -161,37 +161,16 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
     return issues;
   }
 
-  /// True when [node] and every ancestor up to the root are enabled — i.e.
-  /// the node is reachable on this run. A disabled container silences
-  /// everything beneath it, so its subtree can never move the mount.
-  static bool _isLive(Sequence sequence, SequenceNode node) {
-    final seen = <String>{};
-    SequenceNode? cursor = node;
-    while (cursor != null && seen.add(cursor.id)) {
-      if (!cursor.isEnabled) return false;
-      final parentId = cursor.parentId;
-      cursor = parentId == null ? null : sequence.nodes[parentId];
-    }
-    return true;
-  }
-
-  /// True when at least one enabled leaf instruction sits under [parent] with
-  /// no disabled container in between. Containers alone execute nothing, so
-  /// an empty (or fully disabled) target never consumes its own coordinates.
-  static bool _hasEnabledInstruction(
-    Sequence sequence,
-    SequenceNode parent, [
-    Set<String>? seen,
-  ]) {
-    final visited = seen ?? <String>{parent.id};
-    for (final id in parent.childIds) {
-      final child = sequence.nodes[id];
-      if (child == null || !child.isEnabled) continue;
-      if (!visited.add(child.id)) continue;
-      if (!child.kind.isContainer) return true;
-      if (_hasEnabledInstruction(sequence, child, visited)) return true;
-    }
-    return false;
+  /// True when at least one enabled leaf instruction sits under [parent].
+  /// Containers alone execute nothing, so an empty (or fully disabled) target
+  /// never consumes its own coordinates.
+  static bool _hasEnabledInstruction(Sequence sequence, SequenceNode parent) {
+    return sequence.descendantsOf(parent.id).any((id) {
+      final node = sequence.nodes[id];
+      return node != null &&
+          !node.kind.isContainer &&
+          sequence.isNodeEnabled(node);
+    });
   }
 
   /// True when an enabled Slew/Center that inherits its pointing resolves to
@@ -210,7 +189,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
         _ => false,
       };
       if (!inheritsPointing) continue;
-      if (!_isLive(sequence, node)) continue;
+      if (!sequence.isNodeEnabled(node)) continue;
       if (_resolvePointingSource(sequence, node)?.id != target.id) continue;
       return true;
     }

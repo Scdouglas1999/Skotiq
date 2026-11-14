@@ -120,6 +120,15 @@ abstract class Sequence with _$Sequence {
   /// [SequenceTreeIndex.invariants] for the full set of checks.
   List<String> invariants() => treeIndex.invariants();
 
+  /// Whether a run executes [node]: it and every ancestor are enabled. See
+  /// [SequenceTreeIndex.isEnabled].
+  bool isNodeEnabled(SequenceNode node) => treeIndex.isEnabled(node.id);
+
+  /// The steps a run executes ([isNodeEnabled]). Every pre-flight and start
+  /// check reads the plan through this, so a switched-off step, or one inside
+  /// a switched-off container, blocks and checks nothing.
+  Iterable<SequenceNode> get enabledNodes => nodes.values.where(isNodeEnabled);
+
   /// Frames the plan takes, with count loops multiplied (see
   /// [plannedCaptureUnder]). Without a root node, the sum over every enabled
   /// step.

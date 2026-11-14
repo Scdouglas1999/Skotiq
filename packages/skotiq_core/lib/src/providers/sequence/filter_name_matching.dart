@@ -7,8 +7,7 @@ const String kFilterNameMismatchCode = 'filter_name_mismatch';
 
 /// Every filter name [sequence]'s enabled steps use.
 Set<String> filterNamesUsedBy(Sequence sequence) => {
-  for (final node in sequence.nodes.values)
-    if (node.isEnabled) ...node.kind.filtersOf(node),
+  for (final node in sequence.enabledNodes) ...node.kind.filtersOf(node),
 };
 
 /// The renames that make [sequence] call its filters what [available] calls

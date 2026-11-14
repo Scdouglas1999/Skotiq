@@ -18,8 +18,8 @@ class PluginNodeConfigurationRule implements SequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
-      if (node is! PluginInstructionNode || !node.isEnabled) continue;
+    for (final node in sequence.enabledNodes) {
+      if (node is! PluginInstructionNode) continue;
 
       if (node.pluginId.trim().isEmpty || node.nodeTypeId.trim().isEmpty) {
         issues.add(

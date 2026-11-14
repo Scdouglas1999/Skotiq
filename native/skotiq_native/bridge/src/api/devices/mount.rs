@@ -285,7 +285,14 @@ mod tests {
             ));
             // The run's monitor must not read the null mount's tracking and
             // clear the stop before it is checked.
-            executor.mount_id = None;
+            let devices = executor.devices();
+            executor.set_devices(
+                devices.camera_id,
+                None,
+                devices.focuser_id,
+                devices.filterwheel_id,
+                devices.rotator_id,
+            );
             executor.load_sequence(sequence).expect("sequence loads");
         }
         api_sequencer_start().await.expect("run starts");

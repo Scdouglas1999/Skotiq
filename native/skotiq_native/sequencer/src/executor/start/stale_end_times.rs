@@ -69,10 +69,15 @@ fn roll_trigger(trigger: &mut TargetTrigger, now: i64, found: &mut Vec<(i64, i64
 }
 
 fn targets_mut(sequence: &mut SequenceDefinition) -> impl Iterator<Item = &mut TargetHeaderConfig> {
+    let enabled: std::collections::HashSet<String> = sequence
+        .enabled_nodes()
+        .into_iter()
+        .map(|node| node.id.clone())
+        .collect();
     sequence
         .nodes
         .iter_mut()
-        .filter(|node| node.enabled)
+        .filter(move |node| enabled.contains(&node.id))
         .filter_map(|node| match &mut node.node_type {
             NodeType::TargetHeader(config) | NodeType::TargetGroup(config) => Some(config),
             _ => None,
@@ -143,7 +148,7 @@ fn met_by_clock(trigger: &TargetTrigger, now: i64) -> Option<bool> {
 /// steps. None when any target can still image.
 pub(crate) fn nothing_left_to_image(sequence: &SequenceDefinition, now: i64) -> Option<String> {
     let mut ended = Vec::new();
-    for node in sequence.nodes.iter().filter(|n| n.enabled) {
+    for node in sequence.enabled_nodes() {
         let (NodeType::TargetHeader(config) | NodeType::TargetGroup(config)) = &node.node_type
         else {
             continue;
