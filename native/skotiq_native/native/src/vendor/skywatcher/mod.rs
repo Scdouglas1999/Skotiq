@@ -419,6 +419,10 @@ impl SkyWatcherMount {
     /// Stops `axis` with its deceleration ramp and waits until it stands.
     async fn stop_and_wait(&self, axis: Axis) -> Result<AxisStatus, DriverError> {
         self.ask(command::STOP, axis, "")?;
+        self.wait_for_stop(axis).await
+    }
+
+    async fn wait_for_stop(&self, axis: Axis) -> Result<AxisStatus, DriverError> {
         let started = tokio::time::Instant::now();
         loop {
             let status = self.status(axis)?;
@@ -434,6 +438,49 @@ impl SkyWatcherMount {
             }
             tokio::time::sleep(STOP_POLL).await;
         }
+    }
+
+    pub(crate) async fn park_with_limit(&mut self, limit: Duration) -> Result<(), DriverError> {
+        self.controller()?;
+        if self.lock().parked {
+            return Ok(());
+        }
+        tracing::info!("Parking the Sky-Watcher mount at its home position");
+        self.start_home_goto(Motion::Parking).await?;
+        let started = tokio::time::Instant::now();
+        while self.is_slewing().await? {
+            if started.elapsed() > limit {
+                self.state_mut().motion = Motion::Idle;
+                let mut failures = Vec::new();
+                let mut commanded = Vec::new();
+                // Ask both axes to stop before waiting for either one.
+                for axis in Axis::BOTH {
+                    match self.ask(command::STOP, axis, "") {
+                        Ok(_) => commanded.push(axis),
+                        Err(error) => failures.push(format!("{}: {error}", axis.name())),
+                    }
+                }
+                for axis in commanded {
+                    if let Err(error) = self.wait_for_stop(axis).await {
+                        failures.push(format!("{}: {error}", axis.name()));
+                    }
+                }
+                let stopped = if failures.is_empty() {
+                    "both axes confirmed stopped".to_string()
+                } else {
+                    format!(
+                        "could not confirm the mount stopped ({})",
+                        failures.join("; ")
+                    )
+                };
+                return Err(DriverError::Timeout(format!(
+                    "the Sky-Watcher mount had not reached its park position after {} s; {stopped}",
+                    limit.as_secs()
+                )));
+            }
+            tokio::time::sleep(PARK_POLL).await;
+        }
+        Ok(())
     }
 
     async fn stop_both(&self) -> Result<(), DriverError> {
@@ -716,10 +763,17 @@ impl DeviceDriver for SkyWatcherMount {
                 return Err(err);
             }
         };
-        let tracking = self
-            .status(Axis::Ra)
-            .map(|s| s.tracking_like() && !s.high_speed)
-            .unwrap_or(false);
+        let tracking = match self.status(Axis::Ra) {
+            Ok(status) => status.tracking_like() && !status.high_speed,
+            Err(error) => {
+                if let Err(cleanup) = self.link.detach() {
+                    tracing::warn!(
+                        "Sky-Watcher could not release the failed connection: {cleanup}"
+                    );
+                }
+                return Err(error);
+            }
+        };
         let described = controller.version.describe();
         tracing::info!(
             "Connected to {described} on {port} at {baud_rate} baud: {} and {} steps per turn, {} Hz timer; {}",
@@ -827,27 +881,7 @@ impl MountDriver for SkyWatcherMount {
     /// Sends the mount to its home position (counterweight down, telescope
     /// at the pole) and waits for it to arrive.
     async fn park(&mut self) -> Result<(), DriverError> {
-        self.controller()?;
-        if self.lock().parked {
-            return Ok(());
-        }
-        tracing::info!("Parking the Sky-Watcher mount at its home position");
-        self.start_home_goto(Motion::Parking).await?;
-        let started = tokio::time::Instant::now();
-        while self.is_slewing().await? {
-            if started.elapsed() > PARK_LIMIT {
-                self.state_mut().motion = Motion::Idle;
-                for axis in Axis::BOTH {
-                    let _ = self.ask(command::STOP, axis, "");
-                }
-                return Err(DriverError::Timeout(format!(
-                    "the Sky-Watcher mount had not reached its park position after {} s; stopped it",
-                    PARK_LIMIT.as_secs()
-                )));
-            }
-            tokio::time::sleep(PARK_POLL).await;
-        }
-        Ok(())
+        self.park_with_limit(PARK_LIMIT).await
     }
 
     async fn unpark(&mut self) -> Result<(), DriverError> {

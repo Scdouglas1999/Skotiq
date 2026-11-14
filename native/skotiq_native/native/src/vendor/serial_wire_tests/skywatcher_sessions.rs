@@ -260,3 +260,62 @@ async fn skywatcher_refuses_an_alt_azimuth_mount_and_a_missing_site() {
     lines.extend(fake.lines());
     check_transcript("skywatcher_refusals", &lines);
 }
+
+#[tokio::test]
+async fn a_failed_initial_tracking_read_does_not_connect_as_tracking_off() {
+    let mut base = fakes::synscan(None, Arc::new(Knobs::default()));
+    let mut ra_reads = 0;
+    let fake = FakeMount::spawn(
+        b'\r',
+        Box::new(move |command, baud| {
+            if command == b":f1\r" {
+                ra_reads += 1;
+                if ra_reads >= 2 {
+                    return b"!0\r".to_vec();
+                }
+            }
+            base(command, baud)
+        }),
+    );
+    let mut mount = SkyWatcherMount::new_serial(fake.path.clone(), None, philadelphia());
+    assert!(mount.connect().await.is_err());
+    assert!(!mount.is_connected());
+}
+
+#[tokio::test]
+async fn a_park_timeout_reports_whether_both_axes_actually_stopped() {
+    for refuse_stop in [false, true] {
+        let mut base = fakes::synscan_initialized(Arc::new(Knobs::default()));
+        let mut started = false;
+        let fake = FakeMount::spawn(
+            b'\r',
+            Box::new(move |command, baud| {
+                if command == b":J2\r" {
+                    started = true;
+                }
+                if started && refuse_stop && command == b":K1\r" {
+                    return b"!2\r".to_vec();
+                }
+                base(command, baud)
+            }),
+        );
+        let mut mount = connected(&fake, philadelphia()).await;
+        let error = mount
+            .park_with_limit(std::time::Duration::ZERO)
+            .await
+            .unwrap_err();
+        let text = error.to_string();
+        if refuse_stop {
+            assert!(
+                text.contains("could not confirm the mount stopped"),
+                "{text}"
+            );
+        } else {
+            assert!(text.contains("both axes confirmed stopped"), "{text}");
+        }
+        assert!(!mount.is_parked().await.unwrap());
+        let lines = fake.lines().join("\n");
+        assert!(lines.contains(":K1") && lines.contains(":K2"), "{lines}");
+        mount.disconnect().await.unwrap();
+    }
+}
