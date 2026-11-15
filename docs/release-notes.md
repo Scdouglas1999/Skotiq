@@ -40,8 +40,6 @@ Other link and mount changes in 9.0.1:
   with `409 guider_not_answering` until the request carries
   `"guiderSilentOk": true`.
 
-## Release
-
 ## 9.0.0
 
 - Version `9.0.0`, build 37, channel `stable`; previous release 8.2.1.
