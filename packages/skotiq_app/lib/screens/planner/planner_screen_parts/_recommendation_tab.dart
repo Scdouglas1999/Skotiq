@@ -1,4 +1,4 @@
-// Owns the Tonight tab: its selection state, scroll-driven pagination, and the
+// Owns the Best tonight tab: its selection state, scroll-driven pagination, and the
 // two-column body (candidate list | 380px detail column) with the single
 // empty / loading / error pattern around it.
 part of '../planner_screen.dart';
@@ -8,7 +8,7 @@ part of '../planner_screen.dart';
 const int _kNarrowDetailFlex = 4;
 const int _kNarrowListFlex = 6;
 
-/// "Tonight" tab — the planner's scoring surface.
+/// Best tonight: the planner's scoring surface.
 ///
 /// Two columns: the filtered candidate list on the left, and the selected
 /// target's detail column on the right. Kept as a separate widget so the
@@ -30,6 +30,29 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
   /// that reorders the list keeps the same target selected.
   int? _selectedTargetId;
 
+  late final ImageTonightController _imageTonight = ImageTonightController(
+    preflight: _imageTonightBlocker,
+    frame: (target) =>
+        ref.read(framingProvider.notifier).setTargetSuggestion(target),
+    // An unattended night cools the camera and unparks first, then warms the
+    // camera and parks at the end, as every other "plan this target" path
+    // does.
+    plan: (target) => buildPlanTonightTargetSequenceFromSuggestion(
+      ref: ref,
+      target: target,
+      includeSessionPreamble: true,
+    ),
+    run: (plan) async {
+      // takeOwnership keeps any unsaved manual sequence and restores it when
+      // the run stops, instead of discarding the operator's draft.
+      ref.read(currentSequenceProvider.notifier).takeOwnership(
+            plan.sequence,
+            ActivePlanOwner.smartNight,
+          );
+      await ref.read(sequenceExecutorProvider).start();
+    },
+  )..addListener(_onImageTonightChanged);
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +65,48 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       ..removeListener(_maybeLoadMore)
       ..dispose();
     _searchController.dispose();
+    _imageTonight
+      ..removeListener(_onImageTonightChanged)
+      ..dispose();
     super.dispose();
+  }
+
+  /// What stops tonight's run from starting on this rig, in words for the
+  /// operator, or null.
+  Future<String?> _imageTonightBlocker() async {
+    final execution = ref.read(sequenceExecutionStateProvider);
+    if (execution == SequenceExecutionState.running ||
+        execution == SequenceExecutionState.paused) {
+      return 'A sequence is already running. Stop it on Tonight before '
+          'starting another.';
+    }
+    // The plan centers every target by plate solving; the sequencer refuses
+    // to start it on a rig without a solver.
+    final detection = await readHeld(ref, plateSolverDetectionProvider);
+    final preference = await readHeld(ref, plateSolverPreferenceProvider);
+    if (detection.supports(preference.choice)) return null;
+    final rig = ref.read(remoteLaunchTargetProvider)?.name;
+    return 'Image tonight centers the target by plate solving, and no plate '
+        'solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '
+        'Set one up in Settings > Plate solving'
+        '${rig == null ? '' : ' on $rig'}, then try again.';
+  }
+
+  /// Once the run is live, Tonight is where it is watched.
+  void _onImageTonightChanged() {
+    final state = _imageTonight.state;
+    setState(() {});
+    if (state.phase != ImageTonightPhase.running || !mounted) return;
+    final name = state.target?.targetName;
+    _imageTonight.reset();
+    if (name != null) {
+      context.showSuccessSnackBar(
+        context.l10n.text('plannerImageTonightStarted', params: {
+          'target': name,
+        }),
+      );
+    }
+    context.go(AppRoute.tonight.path);
   }
 
   void _maybeLoadMore() {
@@ -78,6 +142,14 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
     }
 
+    // With no site or no catalog the tab is one empty state with its fix;
+    // filters over nothing would only be dead controls (§1: an empty page
+    // hides its filters).
+    final nothingToFilter =
+        plannerSiteUnset(ref.watch(appObserverLocationProvider)) ||
+            (candidatesAsync.valueOrNull?.isEmpty == true &&
+                _plannerCatalogMissing(ref));
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Column(
@@ -86,13 +158,14 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
             // sees them, so the height actually left over — not MediaQuery —
             // is what the bar sizes itself against; it is the only signal that
             // survives an outer shell resizing for the keyboard on our behalf.
-            _PlannerControlsBar(
-              colors: colors,
-              controller: _searchController,
-              filters: filtersState,
-              candidatesAsync: candidatesAsync,
-              availableHeight: constraints.maxHeight,
-            ),
+            if (!nothingToFilter)
+              _PlannerControlsBar(
+                colors: colors,
+                controller: _searchController,
+                filters: filtersState,
+                candidatesAsync: candidatesAsync,
+                availableHeight: constraints.maxHeight,
+              ),
             Expanded(
               // NEVER FLASH: the optimization plan refreshes whenever its
               // inputs change (location, the 30s state re-hydration, a real
@@ -186,8 +259,10 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       scrollController: _scrollController,
       selectedTargetId: selected?.targetId,
       onSelect: (target) => setState(() => _selectedTargetId = target.targetId),
-      onImageTonight: (target) =>
-          _createSequence(context, colors, target, plan),
+      imageTonight: _imageTonight.state,
+      onImageTonight: _imageTonight.go,
+      onCancelImageTonight: _imageTonight.cancel,
+      onDismissImageTonight: _imageTonight.reset,
       riskFactors: plan.riskFactors,
     );
 

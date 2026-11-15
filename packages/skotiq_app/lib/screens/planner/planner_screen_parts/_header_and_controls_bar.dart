@@ -212,8 +212,7 @@ class _PlannerControlsBar extends ConsumerWidget {
                   return Row(children: [Expanded(child: searchField)]);
                 }
 
-                final sort = _SortDropdown(
-                  colors: colors,
+                final sort = _SortChip(
                   value: filters.plannerSort ?? PlannerSortMode.score,
                 );
 
@@ -425,10 +424,7 @@ class _ControlsBarChips {
         colors: colors,
         value: filters.minMoonDistance,
       ),
-      _SortDropdown(
-        colors: colors,
-        value: filters.plannerSort ?? PlannerSortMode.score,
-      ),
+      _SortChip(value: filters.plannerSort ?? PlannerSortMode.score),
       if (filters.activeCount > 0)
         _ResetChip(colors: colors, onPressed: resetFilters),
     ];

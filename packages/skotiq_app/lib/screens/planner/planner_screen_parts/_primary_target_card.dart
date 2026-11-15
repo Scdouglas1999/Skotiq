@@ -4,8 +4,9 @@ part of '../planner_screen.dart';
 
 /// The 380px column beside the candidate list.
 ///
-/// Everything on it describes the ONE selected target. The page's single
-/// primary action — "Build sequence" — lives at the bottom of it (06 §Plan).
+/// Everything on it describes the ONE selected target. Its two actions are
+/// the alternatives to the selected row's "Image tonight": frame the target
+/// first, or build the sequence with its options shown before it runs.
 class _TargetDetailColumn extends ConsumerWidget {
   final TargetSuggestion target;
   final SessionOptimizationPlan plan;
@@ -147,7 +148,7 @@ class _TargetDetailColumn extends ConsumerWidget {
           child: SkotiqButton(
             label: l10n.text('plannerBuildSequence'),
             icon: LucideIcons.listOrdered,
-            variant: ButtonVariant.primary,
+            variant: ButtonVariant.secondary,
             onPressed: onBuildSequence,
           ),
         ),
@@ -211,6 +212,11 @@ class _TargetDetailColumn extends ConsumerWidget {
         ),
       if (target.sizeArcmin != null && target.sizeArcmin! > 0)
         (l10n.text('plannerKvSize'), _formatSizeLabel(target.sizeArcmin)),
+      (l10n.text('plannerKvRa'), CoordinateFormat.raReadout(target.raHours)),
+      (
+        l10n.text('plannerKvDec'),
+        CoordinateFormat.decReadout(target.decDegrees),
+      ),
       if (filters != null) (l10n.text('plannerKvSuggestedFilters'), filters),
       if (exposureSeconds != null && exposureSeconds > 0)
         (l10n.text('plannerKvExposure'), '${exposureSeconds.round()} s'),

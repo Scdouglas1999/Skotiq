@@ -262,14 +262,12 @@ class _MinAltitudeControl extends ConsumerWidget {
     final active = value != null;
     final label =
         active ? 'Alt now ≥ ${value!.toStringAsFixed(0)}°' : 'Alt now: any';
-    final siteUnset = plannerSiteUnset(ref.watch(appObserverLocationProvider));
 
     return _ControlChip(
       colors: colors,
       icon: LucideIcons.mountain,
       label: label,
       active: active,
-      unavailableReason: siteUnset ? kPlannerSiteFilterRefusal : null,
       onTap: () async {
         // Why: derive a sensible default from the user's horizon profile so
         // first-time users land on something that matches their site.
@@ -320,14 +318,12 @@ class _MoonSeparationControl extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final active = value != null;
     final label = active ? 'Moon ≥ ${value!.toStringAsFixed(0)}°' : 'Moon: any';
-    final siteUnset = plannerSiteUnset(ref.watch(appObserverLocationProvider));
 
     return _ControlChip(
       colors: colors,
       icon: LucideIcons.moon,
       label: label,
       active: active,
-      unavailableReason: siteUnset ? kPlannerSiteFilterRefusal : null,
       onTap: () async {
         final result = await _showAngleSlider(
           context: context,
@@ -352,57 +348,35 @@ class _MoonSeparationControl extends ConsumerWidget {
   }
 }
 
-class _SortDropdown extends ConsumerWidget {
-  final SkotiqColors colors;
+class _SortChip extends ConsumerWidget {
   final PlannerSortMode value;
 
-  const _SortDropdown({required this.colors, required this.value});
+  const _SortChip({required this.value});
+
+  static const _labels = {
+    PlannerSortMode.score: 'Score',
+    PlannerSortMode.altitude: 'Altitude',
+    PlannerSortMode.magnitude: 'Magnitude',
+    PlannerSortMode.size: 'Size (largest)',
+    PlannerSortMode.constellation: 'Constellation',
+    PlannerSortMode.objectType: 'Object type',
+    PlannerSortMode.catalogId: 'Catalog ID',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const labels = {
-      PlannerSortMode.score: 'Score',
-      PlannerSortMode.altitude: 'Altitude',
-      PlannerSortMode.magnitude: 'Magnitude',
-      PlannerSortMode.size: 'Size (largest)',
-      PlannerSortMode.constellation: 'Constellation',
-      PlannerSortMode.objectType: 'Object type',
-      PlannerSortMode.catalogId: 'Catalog ID',
-    };
-
-    // The mockup right-aligns this as prose, not a control pill: a muted
-    // "Sort:" and the current mode in `textPrimary`, with the menu behind it.
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.l10n.text('plannerSortPrefix'),
-          style: SkotiqTypography.bodySm.copyWith(
-            color: colors.textMuted,
-          ),
-        ),
-        const SizedBox(width: SkotiqTokens.spaceXs),
-        DropdownButtonHideUnderline(
-          child: AccessibleDropdown<PlannerSortMode>(
-            value: value,
-            items: [
-              for (final m in PlannerSortMode.values)
-                DropdownMenuItem(value: m, child: Text(labels[m]!)),
-            ],
-            isDense: true,
-            style: SkotiqTypography.buttonSm.copyWith(
-              color: colors.textPrimary,
-            ),
-            dropdownColor: colors.surfaceElevated,
-            iconSize: SkotiqTokens.iconSm,
-            onChanged: (v) {
-              if (v == null) return;
-              final notifier = ref.read(suggestionFilterProvider.notifier);
-              notifier.state = notifier.state.copyWith(plannerSort: () => v);
-            },
-          ),
-        ),
+    return SkotiqMenuChip<PlannerSortMode>(
+      key: const ValueKey('planner-sort-chip'),
+      label: '${context.l10n.text('plannerSortPrefix')} ${_labels[value]}',
+      value: value,
+      choices: [
+        for (final mode in PlannerSortMode.values)
+          SkotiqMenuChoice(mode, _labels[mode]!),
       ],
+      onSelected: (mode) {
+        final notifier = ref.read(suggestionFilterProvider.notifier);
+        notifier.state = notifier.state.copyWith(plannerSort: () => mode);
+      },
     );
   }
 }
@@ -432,53 +406,35 @@ class _ControlChip extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  /// Why this filter cannot be applied, or null when it can.
-  ///
-  /// A chip with a reason is dead on the row: no tap, no sheet, and the reason
-  /// rides on the accessible NAME as well as on the tooltip — the convention
-  /// [unavailableControlName] documents, because the Linux AT-SPI bridge drops
-  /// `tooltip:` and a reason only a pointer can reach is no reason at all.
-  final String? unavailableReason;
-
   const _ControlChip({
     required this.colors,
     required this.icon,
     required this.label,
     required this.active,
     required this.onTap,
-    this.unavailableReason,
   });
 
   @override
   Widget build(BuildContext context) {
-    final reason = unavailableReason;
-    final unavailable = reason != null;
-
-    // Declare the chip. A bare tap target publishes a focusable node that
-    // never sets isEnabled, and nothing in the subtree carries the on/off
-    // state either, so a screen-reader user is told the filter row is dead and
-    // is never told which filters are applied. The wrapper below is the
-    // accessible node; the component's own Semantics is excluded so AT reads
+    // The wrapper is the accessible node, so a screen reader hears which
+    // filters are applied; the chip's own Semantics is excluded so it reads
     // one node, not two.
-    final chip = Semantics(
+    return Semantics(
       container: true,
       button: true,
-      enabled: !unavailable,
+      enabled: true,
       selected: active,
-      label: unavailable ? unavailableControlName(label, reason) : label,
-      onTap: unavailable ? null : onTap,
+      label: label,
+      onTap: onTap,
       child: ExcludeSemantics(
         child: SkotiqFilterChip(
           label: label,
           icon: icon,
-          trailingIcon: unavailable ? null : LucideIcons.chevronDown,
-          onTap: unavailable ? null : onTap,
+          trailingIcon: LucideIcons.chevronDown,
+          onTap: onTap,
         ),
       ),
     );
-    // The tooltip is what a mouse user gets; the same words are in the name
-    // above for everyone else.
-    return unavailable ? Tooltip(message: reason, child: chip) : chip;
   }
 }
 
@@ -575,21 +531,6 @@ Future<double?> _showAngleSlider({
     return value;
   });
 }
-
-/// Test-only seam exposing the two filter chips that need an observing site.
-///
-/// Same rationale as [showAngleSliderForTest]: they are private widgets inside
-/// a `part` file, and pumping the whole `PlannerScreen` runs a 1 s periodic sky
-/// clock that never settles. Both are built unset, which is the state a fresh
-/// install shows them in. Nothing in production calls this.
-@visibleForTesting
-Widget plannerSiteFilterChipsForTest(SkotiqColors colors) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _MinAltitudeControl(colors: colors, value: null),
-        _MoonSeparationControl(colors: colors, value: null),
-      ],
-    );
 
 /// Test-only seam exposing the shared angle-filter sheet.
 ///

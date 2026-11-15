@@ -1,15 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/tonight/one_tap_tonight_controller.dart';
+import 'package:skotiq_app/screens/planner/image_tonight_controller.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 
-/// Controller-level test of the one-tap chain (pick -> frame -> plan -> GO)
-/// using fake service seams. No DB / network / native bridge — the chain logic
-/// and its phase/error transitions are exercised in isolation, mirroring the
-/// fake-service contract used by `smart_night_plan_launcher_test.dart`.
+/// The Image tonight chain (check -> frame -> plan -> start) on fake seams: no
+/// database, network or native bridge, only the chain's order, phases and
+/// failures.
 void main() {
   TargetSuggestion suggestion() => const TargetSuggestion(
         targetId: 42,
@@ -66,10 +65,10 @@ void main() {
     TargetSuggestion? framedWith;
     SingleTargetSequenceResult? ranWith;
 
-    final controller = OneTapTonightController(
-      pick: () async {
-        calls.add('pick');
-        return target;
+    final controller = ImageTonightController(
+      preflight: () async {
+        calls.add('check');
+        return null;
       },
       frame: (t) {
         calls.add('frame');
@@ -86,42 +85,20 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await controller.go();
+    await controller.go(target);
 
-    // The four phases fired exactly once, in dependency order.
-    expect(calls, ['pick', 'frame', 'plan', 'run']);
-    expect(controller.state.phase, OneTapPhase.running);
+    expect(calls, ['check', 'frame', 'plan', 'run']);
+    expect(controller.state.phase, ImageTonightPhase.running);
     expect(controller.state.target, target);
     expect(framedWith, target);
     expect(ranWith?.sequence.name, 'Smart Night M51');
     expect(controller.state.error, isNull);
   });
 
-  test('go() surfaces a loud failure when nothing is imageable', () async {
-    var planCalled = false;
-    final controller = OneTapTonightController(
-      pick: () async => null,
-      frame: (_) => fail('frame must not run without a target'),
-      plan: (_) async {
-        planCalled = true;
-        return result(suggestion());
-      },
-      run: (_) async => fail('run must not run without a plan'),
-    );
-    addTearDown(controller.dispose);
-
-    await controller.go();
-
-    expect(controller.state.phase, OneTapPhase.failed);
-    expect(controller.state.error, isNotNull);
-    expect(planCalled, isFalse);
-  });
-
   test('go() stops at planning and never starts a run when the build fails',
       () async {
     var ranCalled = false;
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (_) async => throw const SmartNightBuildException(
         'No filters configured on the equipment profile.',
@@ -130,73 +107,69 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await controller.go();
+    await controller.go(suggestion());
 
-    expect(controller.state.phase, OneTapPhase.failed);
-    expect(
-      controller.state.error,
-      contains('No filters configured'),
-    );
+    expect(controller.state.phase, ImageTonightPhase.failed);
+    expect(controller.state.error, contains('No filters configured'));
     expect(ranCalled, isFalse);
   });
 
-  test('a failed run re-arms via reset() then re-runs cleanly', () async {
-    var pickCount = 0;
+  test('a failed chain re-arms via reset() then runs cleanly', () async {
+    var plans = 0;
     final target = suggestion();
-    final controller = OneTapTonightController(
-      pick: () async {
-        pickCount++;
-        if (pickCount == 1) return null; // first attempt: nothing imageable
-        return target; // retry: sky cleared
-      },
+    final controller = ImageTonightController(
       frame: (_) {},
-      plan: (t) async => result(t),
+      plan: (t) async {
+        plans++;
+        if (plans == 1) {
+          throw const SmartNightBuildException('No filter wheel connected.');
+        }
+        return result(t);
+      },
       run: (_) async {},
     );
     addTearDown(controller.dispose);
 
-    await controller.go();
-    expect(controller.state.phase, OneTapPhase.failed);
+    await controller.go(target);
+    expect(controller.state.phase, ImageTonightPhase.failed);
 
     controller.reset();
-    expect(controller.state.phase, OneTapPhase.idle);
+    expect(controller.state.phase, ImageTonightPhase.idle);
     expect(controller.state.error, isNull);
 
-    await controller.go();
-    expect(controller.state.phase, OneTapPhase.running);
+    await controller.go(target);
+    expect(controller.state.phase, ImageTonightPhase.running);
     expect(controller.state.target, target);
-    expect(pickCount, 2);
+    expect(plans, 2);
   });
 
   test('go() swallows its post-await publish after dispose mid-run', () async {
     final runGate = Completer<void>();
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (t) async => result(t),
       run: (_) => runGate.future,
     );
 
-    final chain = controller.go();
-    // Drain the chain up to the awaited run.
+    final chain = controller.go(suggestion());
     await Future<void>.delayed(Duration.zero);
-    expect(controller.state.phase, OneTapPhase.starting);
+    expect(controller.state.phase, ImageTonightPhase.starting);
 
-    // The screen navigates away while the run is still awaiting; the trailing
-    // `value = running` must be swallowed, not thrown on a disposed notifier.
+    // The page goes away while the run is still awaiting; the trailing
+    // publish must be swallowed, not thrown on a disposed notifier.
     controller.dispose();
     runGate.complete();
 
     await expectLater(chain, completes);
-    expect(controller.state.phase, OneTapPhase.starting);
+    expect(controller.state.phase, ImageTonightPhase.starting);
   });
 
   test('go() is a no-op while a chain is already busy', () async {
-    final gate = Completer<TargetSuggestion?>();
-    var pickStarts = 0;
-    final controller = OneTapTonightController(
-      pick: () {
-        pickStarts++;
+    final gate = Completer<String?>();
+    var checks = 0;
+    final controller = ImageTonightController(
+      preflight: () {
+        checks++;
         return gate.future;
       },
       frame: (_) {},
@@ -205,22 +178,20 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    final first = controller.go();
-    expect(controller.state.phase, OneTapPhase.picking);
+    final first = controller.go(suggestion());
+    expect(controller.state.phase, ImageTonightPhase.checking);
 
-    // Second tap while the first is mid-flight must not start a new chain.
-    await controller.go();
-    expect(pickStarts, 1);
+    await controller.go(suggestion());
+    expect(checks, 1);
 
-    gate.complete(suggestion());
+    gate.complete(null);
     await first;
-    expect(controller.state.phase, OneTapPhase.running);
+    expect(controller.state.phase, ImageTonightPhase.running);
   });
 
   test('planning that never answers ends failed with a plain reason', () async {
     var ranCalled = false;
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (_) => Completer<SingleTargetSequenceResult>().future,
       run: (_) async => ranCalled = true,
@@ -228,9 +199,9 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await controller.go();
+    await controller.go(suggestion());
 
-    expect(controller.state.phase, OneTapPhase.failed);
+    expect(controller.state.phase, ImageTonightPhase.failed);
     expect(controller.state.error, contains('Planning the night'));
     expect(controller.state.error, contains('try again'));
     expect(ranCalled, isFalse);
@@ -240,57 +211,54 @@ void main() {
       () async {
     final planGate = Completer<SingleTargetSequenceResult>();
     var ranCalled = false;
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (_) => planGate.future,
       run: (_) async => ranCalled = true,
     );
     addTearDown(controller.dispose);
 
-    final chain = controller.go();
+    final chain = controller.go(suggestion());
     await Future<void>.delayed(Duration.zero);
-    expect(controller.state.phase, OneTapPhase.planning);
+    expect(controller.state.phase, ImageTonightPhase.planning);
     expect(controller.state.canCancel, isTrue);
 
     controller.cancel();
-    expect(controller.state.phase, OneTapPhase.idle);
+    expect(controller.state.phase, ImageTonightPhase.idle);
     expect(controller.state.error, isNull);
 
     planGate.complete(result(suggestion()));
     await chain;
     expect(ranCalled, isFalse);
-    expect(controller.state.phase, OneTapPhase.idle);
+    expect(controller.state.phase, ImageTonightPhase.idle);
   });
 
   test('a run that is starting cannot be canceled from here', () async {
     final runGate = Completer<void>();
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (t) async => result(t),
       run: (_) => runGate.future,
     );
     addTearDown(controller.dispose);
 
-    final chain = controller.go();
+    final chain = controller.go(suggestion());
     await Future<void>.delayed(Duration.zero);
-    expect(controller.state.phase, OneTapPhase.starting);
+    expect(controller.state.phase, ImageTonightPhase.starting);
     expect(controller.state.canCancel, isFalse);
 
     controller.cancel();
-    expect(controller.state.phase, OneTapPhase.starting);
+    expect(controller.state.phase, ImageTonightPhase.starting);
 
     runGate.complete();
     await chain;
-    expect(controller.state.phase, OneTapPhase.running);
+    expect(controller.state.phase, ImageTonightPhase.running);
   });
 
-  test('a new tap after a cancel runs a fresh chain', () async {
+  test('a new press after a cancel runs a fresh chain', () async {
     final firstPlan = Completer<SingleTargetSequenceResult>();
     var plans = 0;
-    final controller = OneTapTonightController(
-      pick: () async => suggestion(),
+    final controller = ImageTonightController(
       frame: (_) {},
       plan: (t) {
         plans++;
@@ -300,28 +268,24 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    final abandoned = controller.go();
+    final abandoned = controller.go(suggestion());
     await Future<void>.delayed(Duration.zero);
     controller.cancel();
 
-    await controller.go();
-    expect(controller.state.phase, OneTapPhase.running);
+    await controller.go(suggestion());
+    expect(controller.state.phase, ImageTonightPhase.running);
 
     firstPlan.complete(result(suggestion()));
     await abandoned;
-    expect(controller.state.phase, OneTapPhase.running);
+    expect(controller.state.phase, ImageTonightPhase.running);
     expect(plans, 2);
   });
 
-  test('a rig that cannot run the plan says so before picking or planning',
+  test('a rig that cannot run the plan says so before framing or planning',
       () async {
     final calls = <String>[];
-    final controller = OneTapTonightController(
+    final controller = ImageTonightController(
       preflight: () async => 'No plate solver is set up on home.',
-      pick: () async {
-        calls.add('pick');
-        return suggestion();
-      },
       frame: (_) => calls.add('frame'),
       plan: (t) async {
         calls.add('plan');
@@ -331,10 +295,12 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await controller.go();
+    await controller.go(suggestion());
 
-    expect(controller.state.phase, OneTapPhase.failed);
+    expect(controller.state.phase, ImageTonightPhase.failed);
     expect(controller.state.error, 'No plate solver is set up on home.');
+    expect(controller.state.target?.targetName, 'M51',
+        reason: 'the failure names the target it was for');
     expect(calls, isEmpty);
   });
 }
