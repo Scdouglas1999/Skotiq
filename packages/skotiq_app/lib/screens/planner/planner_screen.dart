@@ -264,10 +264,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                                     label: 'Done',
                                     onPressed: () => Navigator.pop(context))
                               ],
-                              child: SizedBox(
-                                  width: 420,
-                                  height: 500,
-                                  child: CameraPanel(colors: colors)),
+                              child: CameraPanel(
+                                  colors: colors, scrollable: false),
                             )),
                   ),
                 ],

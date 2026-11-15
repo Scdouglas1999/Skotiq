@@ -54,6 +54,45 @@ final darkroomTargetsProvider =
   );
 });
 
+/// The masters the Targets tab files under the targets [imageIds] belong to,
+/// newest first. A night's Workbench lists these, so the two places agree on
+/// which masters are a target's.
+Future<List<IntegratedMaster>> darkroomMastersOfFrames(
+  SkotiqDatabase db,
+  IntegratedMastersDao mastersDao,
+  Set<int> imageIds,
+) async {
+  if (imageIds.isEmpty) return const [];
+  final framesByTarget = await loadDarkroomTargets(db);
+  final rowsByName = {
+    for (final t in await db.targetsDao.getAllTargets()) t.name: t,
+  };
+  final masters = await mastersDao.getAll();
+  final folded = <int, Set<int>>{
+    for (final m in masters)
+      m.id: {
+        for (final r in await mastersDao.getFramesForMaster(m.id)) r.imageId,
+      },
+  };
+  final own = <IntegratedMaster>{};
+  for (final MapEntry(key: key, value: frames) in framesByTarget.entries) {
+    final frameIds = {for (final f in frames) f.id};
+    if (!frameIds.any(imageIds.contains)) continue;
+    for (final m in masters) {
+      if (darkroomMasterBelongsTo(
+        m,
+        key,
+        row: rowsByName[key],
+        frameIds: frameIds,
+        foldedIds: folded[m.id] ?? const {},
+      )) {
+        own.add(m);
+      }
+    }
+  }
+  return own.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+}
+
 /// The calibration masters the library offers one filter of a target.
 class DarkroomFilterCalibration {
   const DarkroomFilterCalibration({

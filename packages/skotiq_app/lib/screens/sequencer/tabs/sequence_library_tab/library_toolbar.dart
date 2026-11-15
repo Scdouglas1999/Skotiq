@@ -60,7 +60,6 @@ class _LibraryToolbarState extends ConsumerState<_LibraryToolbar> {
     final chips = <Widget>[
       SkotiqMenuChip<SequenceSortOrder>(
         label: 'Sort: ${sortOrder.label.toLowerCase()}',
-        name: 'Sort order',
         roomy: compact,
         entries: [
           for (final order in SequenceSortOrder.values)

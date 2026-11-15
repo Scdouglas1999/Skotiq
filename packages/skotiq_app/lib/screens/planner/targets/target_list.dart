@@ -450,7 +450,6 @@ class _TargetListColumn extends ConsumerWidget {
     final sortChip = SkotiqMenuChip<PlanTargetSort>(
       key: const ValueKey('plan-targets-sort-chip'),
       label: 'Sort: ${sort.label}',
-      name: 'Sort order',
       entries: [
         for (final s in PlanTargetSort.values)
           SkotiqMenuChoice(s, s.label, checked: s == sort),

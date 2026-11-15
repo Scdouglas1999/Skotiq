@@ -50,7 +50,6 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
     return SkotiqDialog(
       title: 'Version history',
       width: SkotiqDialog.widthForm,
@@ -71,11 +70,6 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
             overflow: TextOverflow.ellipsis,
             style:
                 SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Text(
-            'Restoring loads the version into the editor; save to keep it.',
-            style: muted,
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           _buildBody(colors),
@@ -115,6 +109,11 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'Restoring loads a version into the editor; save to keep it.',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
             for (var index = 0; index < versions.length; index++)
               _VersionRow(
                 colors: colors,

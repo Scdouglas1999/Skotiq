@@ -86,12 +86,8 @@ class _ObjectTypeMultiSelect extends ConsumerWidget {
     );
   }
 
-  static String _displayLabel(String key) {
-    return key
-        .split(' ')
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
+  static String _displayLabel(String key) =>
+      key.isEmpty ? key : '${key[0].toUpperCase()}${key.substring(1)}';
 }
 
 /// Object-type multi-select sheet.

@@ -356,7 +356,6 @@ class _SortChip extends ConsumerWidget {
     return SkotiqMenuChip<PlannerSortMode>(
       key: const ValueKey('planner-sort-chip'),
       label: '${context.l10n.text('plannerSortPrefix')} ${_labels[value]}',
-      name: 'Sort order',
       entries: [
         for (final mode in PlannerSortMode.values)
           SkotiqMenuChoice(mode, _labels[mode]!, checked: mode == value),

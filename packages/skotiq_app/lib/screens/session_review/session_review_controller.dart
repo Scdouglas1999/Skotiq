@@ -11,6 +11,9 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../darkroom/targets/darkroom_targets_providers.dart'
+    show darkroomMastersOfFrames;
+
 part 'session_review_controller_parts/_models.dart';
 part 'session_review_controller_parts/_state.dart';
 part 'session_review_controller_parts/_helpers.dart';
