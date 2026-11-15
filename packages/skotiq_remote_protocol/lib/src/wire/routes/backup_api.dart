@@ -26,6 +26,29 @@ enum BackupApi implements ApiEndpoint {
       audit: 'backup_restore',
     ),
   ),
+  restoreState(
+    ApiRoute.get(
+      '/api/backup/restore-state',
+      resource: ApiResource.backup,
+      scope: ApiScope.admin,
+    ),
+  ),
+  cancelReplace(
+    ApiRoute.post(
+      '/api/backup/replace/cancel',
+      resource: ApiResource.backup,
+      scope: ApiScope.admin,
+      rate: ApiRateTier.control,
+    ),
+  ),
+  acknowledgeReplace(
+    ApiRoute.post(
+      '/api/backup/replace/acknowledge',
+      resource: ApiResource.backup,
+      scope: ApiScope.admin,
+      rate: ApiRateTier.control,
+    ),
+  ),
   autoSaveBackup(
     ApiRoute.post(
       '/api/backup/auto-save',

@@ -824,14 +824,21 @@ Future<List<String>> findQuarantinedDatabases(Directory dbDirectory) async {
   return backups.map((e) => e.path).toList();
 }
 
-/// Records the user's request to put [backupPath] back as the live database.
+/// Records the request to make [backupPath] the live database.
 ///
 /// The swap itself is deferred to the next launch ([applyPendingRestore]):
 /// drift holds the current file open in a background isolate, so renaming it
 /// underneath a live connection would either fail or silently strand writes.
+///
+/// [label] names what the file is to the operator (the backup a replace was
+/// built from) and makes the swap leave a record of how it went
+/// ([readRestoreOutcome]); [safetyBackup] is the backup of the live database
+/// written before the request.
 Future<String> stageDatabaseRestore({
   required File dbFile,
   required String backupPath,
+  String? label,
+  String? safetyBackup,
 }) async {
   if (!await File(backupPath).exists()) {
     throw FileSystemException(
@@ -842,25 +849,56 @@ Future<String> stageDatabaseRestore({
   final requestPath = p.join(dbFile.parent.path, _restoreRequestName);
   await File(requestPath).writeAsString(
     'restore_from=$backupPath\n'
+    '${label == null ? '' : 'label=$label\n'}'
+    '${safetyBackup == null ? '' : 'safety_backup=$safetyBackup\n'}'
     'requested_at_utc=${DateTime.now().toUtc().toIso8601String()}\n',
     flush: true,
   );
   return requestPath;
 }
 
-/// The quarantined path a pending restore names, or null when none is staged.
-Future<String?> readPendingRestore(Directory dbDirectory) async {
-  final request = File(p.join(dbDirectory.path, _restoreRequestName));
-  if (!await request.exists()) return null;
-  for (final line in (await request.readAsString()).split(RegExp(r'\r?\n'))) {
-    final idx = line.indexOf('=');
-    if (idx <= 0) continue;
-    if (line.substring(0, idx) == 'restore_from') {
-      return line.substring(idx + 1);
-    }
-  }
-  return null;
+/// A staged restore: the file to swap in and what was recorded with it.
+class PendingDatabaseRestore {
+  const PendingDatabaseRestore({
+    required this.source,
+    this.label,
+    this.safetyBackup,
+  });
+
+  final String source;
+  final String? label;
+  final String? safetyBackup;
 }
+
+Future<Map<String, String>> _readFields(File file) async {
+  final fields = <String, String>{};
+  if (!await file.exists()) return fields;
+  for (final line in (await file.readAsString()).split(RegExp(r'\r?\n'))) {
+    final idx = line.indexOf('=');
+    if (idx > 0) fields[line.substring(0, idx)] = line.substring(idx + 1);
+  }
+  return fields;
+}
+
+/// The staged restore, or null when none is.
+Future<PendingDatabaseRestore?> readPendingRestoreRequest(
+  Directory dbDirectory,
+) async {
+  final fields = await _readFields(
+    File(p.join(dbDirectory.path, _restoreRequestName)),
+  );
+  final source = fields['restore_from'];
+  if (source == null) return null;
+  return PendingDatabaseRestore(
+    source: source,
+    label: fields['label'],
+    safetyBackup: fields['safety_backup'],
+  );
+}
+
+/// The path a pending restore names, or null when none is staged.
+Future<String?> readPendingRestore(Directory dbDirectory) async =>
+    (await readPendingRestoreRequest(dbDirectory))?.source;
 
 /// Drops a staged restore request without performing it.
 Future<void> cancelPendingRestore(Directory dbDirectory) async {
@@ -870,11 +908,15 @@ Future<void> cancelPendingRestore(Directory dbDirectory) async {
   }
 }
 
+/// Name of the record [applyPendingRestore] leaves of a labeled restore, for
+/// the app to tell the operator once it is up.
+const String _restoreOutcomeName = '.restore-outcome.txt';
+
 /// Result of the restore pre-flight.
 class DatabaseRestoreOutcome {
   final bool restored;
 
-  /// The quarantined file that was swapped in. Null when [restored] is false.
+  /// The file that was swapped in. Null when [restored] is false.
   final String? restoredFrom;
 
   /// Where the database that was live at restore time got moved to, so a
@@ -884,88 +926,198 @@ class DatabaseRestoreOutcome {
   /// Why the restore did not happen. Null when [restored].
   final String? failureReason;
 
+  /// What the request called the file (the backup's name), if it said.
+  final String? label;
+
+  /// The backup of the displaced database the request named.
+  final String? safetyBackup;
+
+  /// The start that made it has told the operator.
+  final bool announced;
+
   const DatabaseRestoreOutcome({
     required this.restored,
     this.restoredFrom,
     this.replacedPath,
     this.failureReason,
+    this.label,
+    this.safetyBackup,
+    this.announced = false,
   });
+
+  /// The outcome for the operator.
+  String get report {
+    final what = label == null ? 'the chosen database' : 'the backup $label';
+    if (!restored) {
+      return 'This database was not replaced with $what: $failureReason '
+          'It is unchanged.';
+    }
+    return [
+      'This database is now $what.',
+      if (replacedPath != null)
+        'The database it replaced is kept as ${p.basename(replacedPath!)} '
+            'beside it'
+            '${safetyBackup == null ? '.' : ', and as the backup ${p.basename(safetyBackup!)}.'}',
+    ].join(' ');
+  }
+
+  Map<String, Object?> toJson() => {'restored': restored, 'report': report};
+}
+
+/// What the last start did with a labeled restore; null when there was none
+/// or it was cleared.
+Future<DatabaseRestoreOutcome?> readRestoreOutcome(
+  Directory dbDirectory,
+) async {
+  final fields = await _readFields(
+    File(p.join(dbDirectory.path, _restoreOutcomeName)),
+  );
+  if (!fields.containsKey('restored')) return null;
+  return DatabaseRestoreOutcome(
+    restored: fields['restored'] == 'true',
+    restoredFrom: fields['restored_from'],
+    replacedPath: fields['replaced_path'],
+    failureReason: fields['reason'],
+    label: fields['label'],
+    safetyBackup: fields['safety_backup'],
+    announced: fields['announced'] == 'true',
+  );
+}
+
+/// Records that the outcome was shown, so the next start does not show it
+/// again; it stays readable until [clearRestoreOutcome].
+Future<void> markRestoreOutcomeAnnounced(Directory dbDirectory) async {
+  final record = File(p.join(dbDirectory.path, _restoreOutcomeName));
+  if (await record.exists()) {
+    await record.writeAsString(
+      'announced=true\n',
+      mode: FileMode.append,
+      flush: true,
+    );
+  }
+}
+
+Future<void> clearRestoreOutcome(Directory dbDirectory) async {
+  final record = File(p.join(dbDirectory.path, _restoreOutcomeName));
+  if (await record.exists()) await record.delete();
+}
+
+const _companionSuffixes = ['-wal', '-shm', '-journal'];
+
+/// Renames [from] and its companion files to [to]; on a failure puts back
+/// what it had moved and rethrows.
+Future<void> _moveDatabase(String from, String to) async {
+  final moved = <(String, String)>[];
+  try {
+    for (final suffix in const ['', ..._companionSuffixes]) {
+      final file = File('$from$suffix');
+      if (!await file.exists()) continue;
+      await file.rename('$to$suffix');
+      moved.add(('$to$suffix', '$from$suffix'));
+    }
+  } on FileSystemException {
+    for (final (now, before) in moved.reversed) {
+      await File(now).rename(before);
+    }
+    rethrow;
+  }
 }
 
 /// Performs a restore staged by [stageDatabaseRestore], if one is pending.
 ///
-/// Must run BEFORE anything opens the database. Ordering is: move the live
-/// database aside (never delete — a wrong restore has to be undoable), then
-/// rename the quarantined file into place along with its companions.
+/// Must run BEFORE anything opens the database. The live database is moved
+/// aside whole, with its journal files (never deleted: a wrong restore has
+/// to be undoable), the staged file takes its name, and if it cannot, the
+/// live database is moved back. A labeled restore is checked first and
+/// leaves a record of the outcome.
 ///
 /// Returns null when no restore was staged. Clears the request either way so
 /// a failing restore cannot wedge every subsequent launch.
 Future<DatabaseRestoreOutcome?> applyPendingRestore(File dbFile) async {
   final dir = dbFile.parent;
-  final source = await readPendingRestore(dir);
-  if (source == null) return null;
+  final request = await readPendingRestoreRequest(dir);
+  if (request == null) return null;
   await cancelPendingRestore(dir);
-
-  final backup = File(source);
-  if (!await backup.exists()) {
-    return DatabaseRestoreOutcome(
-      restored: false,
-      failureReason: 'The database to restore is no longer at $source.',
+  final outcome = await _applyRestore(dbFile, request);
+  if (request.label != null) {
+    await File(p.join(dir.path, _restoreOutcomeName)).writeAsString(
+      'restored=${outcome.restored}\n'
+      'label=${request.label}\n'
+      '${outcome.restoredFrom == null ? '' : 'restored_from=${outcome.restoredFrom}\n'}'
+      '${outcome.replacedPath == null ? '' : 'replaced_path=${outcome.replacedPath}\n'}'
+      '${request.safetyBackup == null ? '' : 'safety_backup=${request.safetyBackup}\n'}'
+      '${outcome.failureReason == null ? '' : 'reason=${outcome.failureReason!.replaceAll('\n', ' ')}\n'}',
+      flush: true,
     );
+  }
+  return outcome;
+}
+
+Future<DatabaseRestoreOutcome> _applyRestore(
+  File dbFile,
+  PendingDatabaseRestore request,
+) async {
+  final dir = dbFile.parent;
+  final source = request.source;
+  DatabaseRestoreOutcome failed(String reason) => DatabaseRestoreOutcome(
+    restored: false,
+    failureReason: reason,
+    label: request.label,
+    safetyBackup: request.safetyBackup,
+  );
+  if (!await File(source).exists()) {
+    return failed('The database to restore is no longer at $source.');
+  }
+  if (request.label != null) {
+    try {
+      final problems = await _checkIntegrity(
+        source,
+        mode: OpenMode.readOnly,
+        full: false,
+      );
+      if (problems.isNotEmpty) {
+        return failed(
+          'The database built from it did not pass its check '
+          '(${problems.join('; ')}).',
+        );
+      }
+    } on SqliteException catch (e) {
+      return failed(
+        'The database built from it cannot be read (${e.message}).',
+      );
+    }
   }
 
   final ts = DateTime.now().toUtc().millisecondsSinceEpoch;
-  final baseName = p.basename(dbFile.path);
   String? replacedPath;
   if (await dbFile.exists()) {
-    replacedPath = p.join(dir.path, '$_replacedBackupPrefix$ts-$baseName');
-    await dbFile.rename(replacedPath);
-    for (final suffix in const ['-wal', '-shm', '-journal']) {
-      final companion = File('${dbFile.path}$suffix');
-      if (await companion.exists()) {
-        try {
-          await companion.rename('$replacedPath$suffix');
-        } on FileSystemException {
-          // Best effort. The main file is preserved, which is what makes the
-          // restore reversible; a stranded -shm is rebuilt by SQLite.
-        }
-      }
+    replacedPath = p.join(
+      dir.path,
+      '$_replacedBackupPrefix$ts-${p.basename(dbFile.path)}',
+    );
+    try {
+      await _moveDatabase(dbFile.path, replacedPath);
+    } on FileSystemException catch (e) {
+      return failed(
+        'The current database could not be moved aside (${e.message}).',
+      );
     }
   }
-
-  await backup.rename(dbFile.path);
-  // The rotation moved `-wal`/`-shm`/`-journal` alongside the main file, so
-  // bring the matched set back too — a database and its WAL are one unit.
-  for (final suffix in const ['-wal', '-shm', '-journal']) {
-    final companion = File('$source$suffix');
-    if (await companion.exists()) {
-      try {
-        await companion.rename('${dbFile.path}$suffix');
-      } on FileSystemException {
-        // Tolerable: SQLite rebuilds a missing -shm, and a WAL we could not
-        // move just means the restored database is at its last checkpoint.
-      }
-    }
+  try {
+    await _moveDatabase(source, dbFile.path);
+  } on FileSystemException catch (e) {
+    if (replacedPath != null) await _moveDatabase(replacedPath, dbFile.path);
+    return failed('The new database could not be put in place (${e.message}).');
   }
 
-  // The recovery marker says exactly one thing: "the database you are using
-  // now is not yours." The swap above makes that false, so the marker goes
-  // with it. A marker left behind after a restore that put back a profile,
-  // five sequences and fifty frames makes every subsequent launch announce
-  // "your existing settings, profiles, sessions and captures are not in the
-  // new database" about a database that holds all of them — and the
-  // quarantined file is by then named `skotiq-replaced-*`, so
-  // `_findMostRecentBackup` finds nothing to offer and the notice degrades to
-  // an alarm the user cannot act on.
-  //
-  // Only on success. A restore that failed leaves the user on the wrong
-  // database, where the marker is accurate and must survive.
+  // A recovery marker says "the database you are using now is not yours".
+  // The swap makes that false, so the marker goes with it; a restore that
+  // failed leaves the operator on the database the marker is about.
   for (final marker in await _recoveryMarkerFiles(dir)) {
     try {
       await marker.delete();
     } on FileSystemException {
-      // Best effort, matching acknowledgeRecoveryMarker: an undeletable marker
-      // repeats the notice, but the restored database is intact either way.
+      // An undeletable marker repeats the notice; the database is intact.
     }
   }
 
@@ -973,5 +1125,7 @@ Future<DatabaseRestoreOutcome?> applyPendingRestore(File dbFile) async {
     restored: true,
     restoredFrom: source,
     replacedPath: replacedPath,
+    label: request.label,
+    safetyBackup: request.safetyBackup,
   );
 }
