@@ -68,24 +68,22 @@ class _FilterChangeProperties extends ConsumerWidget {
         (index: i, name: filterNames[i]),
     ];
 
-    // Find current selection. If the stored filter is no longer available
-    // we surface it as an explicit "(not available)" option and select it,
-    // rather than silently snapping to the first filter (which would quietly
-    // rewrite the node's filter on open).
-    final matched = filterOptions.firstWhereOrNull(
-      (f) => f.name == node.filterName || f.index == node.filterPosition,
+    final choice = _stepFilterChoice(
+      node.filterName,
+      node.filterPosition,
+      filterNames,
     );
-    final bool missingFromList = filterOptions.isNotEmpty &&
-        matched == null &&
-        node.filterName.isNotEmpty;
+    final bool missingFromList =
+        filterOptions.isNotEmpty && choice.missing != null;
     if (missingFromList) {
-      filterOptions.add((
-        index: _kMissingFilterSentinel,
-        name: '${node.filterName} (not available)'
-      ));
+      filterOptions.add((index: _kMissingFilterSentinel, name: choice.missing!));
     }
-    final currentFilter =
-        filterOptions.isEmpty ? null : (matched ?? filterOptions.last);
+    final currentFilter = filterOptions.isEmpty
+        ? null
+        : missingFromList
+        ? filterOptions.last
+        : filterOptions.firstWhereOrNull((f) => f.index == choice.slot) ??
+              filterOptions.first;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,7 +159,7 @@ class _FilterChangeProperties extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
                 child: Text(
-                  'Filter is not on the wheel or in the profile.',
+                  choice.note!,
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.warning,
                   ),

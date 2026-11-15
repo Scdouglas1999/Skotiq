@@ -12,7 +12,9 @@ pub struct Lx200Mount {
     pub(crate) connected: Mutex<bool>,
     pub(crate) is_tracking: Mutex<bool>,
     pub(crate) is_slewing: Mutex<bool>,
-    pub(crate) tracking_rate: Mutex<TrackingRate>,
+    /// The rate last commanded on this connection, for a mount whose
+    /// protocol cannot report its rate; `None` until one is commanded.
+    pub(crate) commanded_tracking_rate: Mutex<Option<TrackingRate>>,
     pub(crate) product_name: Mutex<String>,
     /// The coordinate format the mount was found in at connect, which is the
     /// one it takes goto and sync targets in.
@@ -87,7 +89,7 @@ impl Lx200Mount {
             connected: Mutex::new(false),
             is_tracking: Mutex::new(true),
             is_slewing: Mutex::new(false),
-            tracking_rate: Mutex::new(TrackingRate::Sidereal),
+            commanded_tracking_rate: Mutex::new(None),
             product_name: Mutex::new(String::new()),
             precision: Mutex::new(CoordinatePrecision::High),
             park_state: Mutex::new(park_state_initial),

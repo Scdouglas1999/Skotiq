@@ -59,7 +59,6 @@ void main() {
     test('maps canonical tab names', () {
       expect(AnalyticsTab.fromQuery('session'), AnalyticsTab.session);
       expect(AnalyticsTab.fromQuery('history'), AnalyticsTab.history);
-      expect(AnalyticsTab.fromQuery('projects'), AnalyticsTab.projects);
       expect(AnalyticsTab.fromQuery('equipment'), AnalyticsTab.equipment);
       expect(AnalyticsTab.fromQuery('science'), AnalyticsTab.science);
       expect(AnalyticsTab.fromQuery('diagnostics'), AnalyticsTab.diagnostics);
@@ -113,7 +112,6 @@ void main() {
       const [
         'Session',
         'History',
-        'Projects',
         // 06 names this tab 'Equipment'; the copy rules put it in
         // sentence case.
         'Equipment',

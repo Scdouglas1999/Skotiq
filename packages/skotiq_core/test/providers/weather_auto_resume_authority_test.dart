@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
+import 'package:skotiq_core/src/models/equipment/guider_for_move.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart';
 import 'package:skotiq_core/src/models/weather/weather_models.dart';
@@ -106,8 +107,11 @@ void main() {
         if (!unparkStarted.isCompleted) unparkStarted.complete();
         return unparkGate.future;
       });
-      when(() => backend.mountPark('mount-1')).thenAnswer((_) async {
+      when(() => backend.mountPark('mount-1', forSafety: true)).thenAnswer((
+        _,
+      ) async {
         if (!parkStarted.isCompleted) parkStarted.complete();
+        return GuiderForMove.idle;
       });
       when(() => backend.sequencerResume()).thenAnswer((_) async {});
       when(() => backend.sequencerPause()).thenAnswer((_) async {});
@@ -192,7 +196,7 @@ void main() {
       unparkGate.complete();
       await _pumpUntil(() => parkStarted.isCompleted);
 
-      verify(() => backend.mountPark('mount-1')).called(1);
+      verify(() => backend.mountPark('mount-1', forSafety: true)).called(1);
       verifyNever(() => backend.sequencerResume());
     },
   );

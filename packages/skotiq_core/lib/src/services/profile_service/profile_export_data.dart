@@ -125,6 +125,7 @@ const Set<String> _legacyProfileFields = {
   'defaultBinY',
   'defaultGain',
   'defaultOffset',
+  'defaultReadoutMode',
   'defaultCoolingTemp',
   'coolOnConnect',
   'defaultCenteringExposure',
@@ -223,6 +224,7 @@ class ProfileExportData {
   final double? focalRatio;
   final int? defaultGain;
   final int? defaultOffset;
+  final String? defaultReadoutMode;
   final int defaultBinX;
   final int defaultBinY;
   final double? defaultCoolingTemp;
@@ -267,6 +269,7 @@ class ProfileExportData {
     this.focalRatio,
     this.defaultGain,
     this.defaultOffset,
+    this.defaultReadoutMode,
     required this.defaultBinX,
     required this.defaultBinY,
     this.defaultCoolingTemp,
@@ -349,6 +352,7 @@ class ProfileExportData {
       focalRatio: profile.focalRatio,
       defaultGain: profile.defaultGain,
       defaultOffset: profile.defaultOffset,
+      defaultReadoutMode: profile.defaultReadoutMode,
       defaultBinX: profile.defaultBinX,
       defaultBinY: profile.defaultBinY,
       defaultCoolingTemp: profile.defaultCoolingTemp,
@@ -396,6 +400,7 @@ class ProfileExportData {
       focalRatio: profile.focalRatio,
       defaultGain: profile.defaultGain,
       defaultOffset: profile.defaultOffset,
+      defaultReadoutMode: profile.defaultReadoutMode,
       defaultBinX: profile.defaultBinX,
       defaultBinY: profile.defaultBinY,
       defaultCoolingTemp: profile.defaultCoolingTemp,
@@ -464,6 +469,10 @@ class ProfileExportData {
       focalRatio: _profileDouble(json['focalRatio'], 'focalRatio'),
       defaultGain: _profileInt(json['defaultGain'], 'defaultGain'),
       defaultOffset: _profileInt(json['defaultOffset'], 'defaultOffset'),
+      defaultReadoutMode: _profileText(
+        json['defaultReadoutMode'],
+        'defaultReadoutMode',
+      ),
       defaultBinX: _profileInt(json['defaultBinX'], 'defaultBinX') ?? 1,
       defaultBinY: _profileInt(json['defaultBinY'], 'defaultBinY') ?? 1,
       defaultCoolingTemp: _profileDouble(
@@ -594,6 +603,7 @@ class ProfileExportData {
       'focalRatio': focalRatio,
       'defaultGain': defaultGain,
       'defaultOffset': defaultOffset,
+      'defaultReadoutMode': defaultReadoutMode,
       'defaultBinX': defaultBinX,
       'defaultBinY': defaultBinY,
       'defaultCoolingTemp': defaultCoolingTemp,

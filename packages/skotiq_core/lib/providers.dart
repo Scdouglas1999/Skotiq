@@ -146,6 +146,7 @@ export 'src/providers/live_stacking_provider.dart';
 // Stack-and-Share Loop (component C7): orchestrator state + result viewer.
 export 'src/providers/stack_and_share_provider.dart';
 export 'src/providers/project_tracking_provider.dart';
+export 'src/providers/plan_targets_provider.dart';
 export 'src/providers/equipment_health_provider.dart';
 export 'src/providers/device_heartbeat_health_provider.dart';
 export 'src/providers/device_last_contact_provider.dart';

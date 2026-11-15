@@ -7,6 +7,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
+import '../mount_move.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'centering_request.dart';
@@ -62,9 +63,22 @@ class FramingHandlers implements RouteSource {
       return jsonBadRequest({'error': 'No mount connected'});
     }
 
-    await backend.mountSlewToCoordinates(mount.id, ra, dec);
+    final guider = await mountMoveFields(
+      'GoTo',
+      () => backend.mountSlewToCoordinates(
+        mount.id,
+        ra,
+        dec,
+        guiderSilentOk: guiderSilentOk(payload),
+      ),
+    );
 
-    return jsonOk({'status': 'slewing', 'targetRa': ra, 'targetDec': dec});
+    return jsonOk({
+      'status': 'slewing',
+      'targetRa': ra,
+      'targetDec': dec,
+      ...guider,
+    });
   }
 
   Future<Response> handleCenterOnTarget(Request request) async {
@@ -207,7 +221,7 @@ class FramingHandlers implements RouteSource {
       'slewing': status.slewing,
       'atPark': status.parked,
       'atHome': status.atHome,
-      'trackingRate': status.trackingRate.name,
+      'trackingRate': status.trackingRate?.name,
     });
   }
 
@@ -294,9 +308,12 @@ class FramingHandlers implements RouteSource {
       return jsonBadRequest({'error': 'No mount connected'});
     }
 
-    await backend.mountPark(mount.id);
+    final guider = await mountMoveFields(
+      'park',
+      () => backend.mountPark(mount.id),
+    );
 
-    return jsonOk({'status': 'parking'});
+    return jsonOk({'status': 'parking', ...guider});
   }
 
   Future<Response> handleUnparkMount(Request request) async {

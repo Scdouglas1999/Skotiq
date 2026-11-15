@@ -5,6 +5,7 @@ import '../screens/onboarding/steps/capture_dir_step.dart';
 import 'plugin_enablement_wiring.dart';
 import 'plugin_node_dispatcher_wiring.dart';
 import 'plugin_node_palette_wiring.dart';
+import 'silent_guider_ask_wiring.dart';
 
 /// The provider overrides every Skotiq process starts with, whatever its
 /// role: the desktop window, the daemon and the phone app.
@@ -20,6 +21,8 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
       pluginNodePaletteBlueprintsOverride(),
       // A plugin the user disabled stays disabled across launches.
       pluginEnablementStoreOverride(),
+      // A GoTo with the guider silent asks the operator on the app's window.
+      moveWithSilentGuiderAskOverride(),
       // First-run setup starts with a capture folder made and checked.
       onboardingDefaultCaptureDirectoryProvider
           .overrideWithValue(prepareDefaultCaptureDirectory),

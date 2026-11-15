@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../utils/snackbar_helper.dart';
 
 part 'target_constraints_editor/constraint_rows.dart';
@@ -194,8 +194,8 @@ class _TargetConstraintsEditorState
         }
         if (snap.hasError) {
           return Text(
-            'Failed to load constraints: ${snap.error}',
-            style: SkotiqTypography.caption.copyWith(color: colors.error),
+            'Could not load the limits: ${userFacingError(snap.error!)}',
+            style: SkotiqTypography.bodySm.copyWith(color: colors.error),
           );
         }
         final loaded = snap.data!;
@@ -203,25 +203,34 @@ class _TargetConstraintsEditorState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Icon(LucideIcons.filter,
-                    size: SkotiqTokens.iconSm, color: colors.primary),
-                const SizedBox(width: SkotiqTokens.spaceSm),
                 Text(
-                  'Hard constraints',
-                  style: SkotiqTypography.bodyStrong.copyWith(
-                    color: colors.textPrimary,
+                  'Limits',
+                  style: SkotiqTypography.sectionTitle
+                      .copyWith(color: colors.textPrimary),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                Expanded(
+                  child: Text(
+                    'the autopilot skips it outside these',
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textMuted),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
-            Text(
-              'A failing constraint excludes ${widget.targetName} from selection regardless of score.',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: SkotiqTokens.spaceMd),
+            if (loaded.constraints.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+                child: Text(
+                  'None. Only the site\'s altitude floor applies.',
+                  style: SkotiqTypography.bodySm
+                      .copyWith(color: colors.textMuted),
+                ),
+              ),
             for (final c in loaded.constraints)
               _ConstraintRow(
                 constraint: c,

@@ -81,13 +81,24 @@ pub trait ExposureAbort: Send + Sync {
 /// camera.
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
-    /// Whether automatic recovery may release or replace this driver.
-    /// A camera holding the only copy of a failed download can require the
-    /// owner to retrieve it first. Check before teardown, even after a lost
-    /// connection. An explicit disconnect after retrieval clears the old
-    /// driver so a subsequent connect can open a fresh one.
-    fn check_automatic_reconnect(&self) -> Result<(), DriverError> {
-        Ok(())
+    /// What the driver has to tell the user since the last call, oldest
+    /// first. Asked after an exposure is started and after a frame is read.
+    fn take_notices(&mut self) -> Vec<DriverNotice> {
+        Vec::new()
+    }
+
+    /// The captures whose files this driver left on the camera or holds
+    /// undecoded. They never stop an exposure or a reconnect.
+    fn retained_captures(&self) -> Vec<RetainedCapture> {
+        Vec::new()
+    }
+
+    /// Read the file at `location` on the camera (or hand over the bytes the
+    /// driver holds for it), for a capture that was retained. A file read
+    /// from the camera's memory is removed from it once it is read.
+    async fn retrieve_capture(&mut self, location: &str) -> Result<CameraFile, DriverError> {
+        let _ = location;
+        Err(DriverError::NotSupported)
     }
 
     /// What the driver keeps of the camera's abilities from its connect. A
@@ -198,6 +209,12 @@ pub trait CameraDriver: DeviceDriver {
 
     /// Set readout mode (vendor-specific)
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError>;
+
+    /// The read mode the camera is in now, by the name it lists; `None` for
+    /// a camera with one mode, or one that does not say.
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(None)
+    }
 
     /// Get vendor-specific features (e.g., QHY sensor chamber readings)
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError>;

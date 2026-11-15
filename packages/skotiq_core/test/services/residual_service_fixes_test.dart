@@ -26,6 +26,8 @@ import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
+
+import 'backup_restore_support.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/services/logging_service.dart';
@@ -33,7 +35,6 @@ import 'package:skotiq_core/src/services/plate_solve_service.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/profile_service.dart';
 import 'package:skotiq_core/src/services/quick_start_service.dart';
-import 'package:skotiq_core/src/services/sequence_repository.dart';
 import 'package:skotiq_core/src/services/sky_brightness_tracker.dart';
 
 import '../mocks/mock_backend.dart';
@@ -51,8 +52,6 @@ class _MockSequencesDao extends Mock implements SequencesDao {}
 
 class _MockSequenceCheckpointsDao extends Mock
     implements SequenceCheckpointsDao {}
-
-class _MockSequenceRepository extends Mock implements SequenceRepository {}
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -250,9 +249,6 @@ void main() {
     test(
       'backup restore coerces legacy non-string setting values instead of crashing',
       () async {
-        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-        addTearDown(database.close);
-
         final tempDir = await Directory.systemTemp.createTemp(
           'backup_restore_',
         );
@@ -280,16 +276,14 @@ void main() {
           }),
         );
 
-        final service = BackupService(
-          database: database,
-          sequenceRepository: _MockSequenceRepository(),
-          logger: LoggingService(),
+        final replaced = await replacedDatabase(
+          tempDir,
+          backupFile.path,
+          LoggingService(),
         );
+        addTearDown(replaced.close);
+        final settings = await SettingsDao(replaced).getAllSettings();
 
-        final result = await service.restoreBackup(filePath: backupFile.path);
-        final settings = await SettingsDao(database).getAllSettings();
-
-        expect(result.success, isTrue);
         expect(settings['notifications_enabled'], 'true');
         expect(settings['plate_solve_timeout'], '45');
       },
@@ -334,7 +328,6 @@ void main() {
 
         final service = BackupService(
           database: database,
-          sequenceRepository: _MockSequenceRepository(),
           logger: LoggingService(),
         );
 
@@ -408,7 +401,6 @@ void main() {
         final repository = LocalSequenceRepository(SequencesDao(database));
         final service = BackupService(
           database: database,
-          sequenceRepository: repository,
           logger: LoggingService(),
         );
 
@@ -450,13 +442,12 @@ void main() {
 
         final service = BackupService(
           database: database,
-          sequenceRepository: LocalSequenceRepository(SequencesDao(database)),
           logger: LoggingService(),
         );
 
         final result = await service.restoreBackup(
           filePath: backupFile.path,
-          replaceExisting: true,
+          mode: RestoreMode.replace,
         );
 
         expect(result.success, isFalse);

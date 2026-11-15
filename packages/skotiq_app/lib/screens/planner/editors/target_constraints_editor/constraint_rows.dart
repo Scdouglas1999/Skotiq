@@ -35,50 +35,43 @@ class _ConstraintRowState extends State<_ConstraintRow> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final c = widget.constraint;
+    // The kind and its switch on one line, its values on the next, so the
+    // row fits the detail column as well as a dialog.
     return Padding(
-      padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.spaceMd,
-          vertical: SkotiqTokens.spaceSm,
-        ),
-        decoration: BoxDecoration(
-          color: c.enabled ? colors.well : colors.surfaceHover,
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            SkotiqSwitch(
-              value: c.enabled,
-              onChanged: (v) => widget.onChange(c.copyWith(enabled: v)),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SizedBox(
-              width: 150,
-              child: Text(
-                _kindLabel(c.kind),
-                style: SkotiqTypography.labelStrong.copyWith(
-                  color: colors.textPrimary,
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              SkotiqSwitch(
+                value: c.enabled,
+                onChanged: (v) => widget.onChange(c.copyWith(enabled: v)),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  _kindLabel(c.kind),
+                  style: SkotiqTypography.bodyStrong.copyWith(
+                    color: c.enabled ? colors.textPrimary : colors.textMuted,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: _ConstraintBody(
-                constraint: c,
-                horizonProfiles: widget.horizonProfiles,
-                onChange: widget.onChange,
+              SkotiqIconButton(
+                icon: LucideIcons.trash2,
+                tooltip: 'Remove constraint',
+                size: IconButtonSize.sm,
+                onPressed: widget.onDelete,
               ),
-            ),
-            SkotiqIconButton(
-              icon: LucideIcons.trash2,
-              tooltip: 'Remove constraint',
-              size: IconButtonSize.sm,
-              color: colors.error,
-              onPressed: widget.onDelete,
-            ),
-          ],
-        ),
+            ],
+          ),
+          _ConstraintBody(
+            constraint: c,
+            horizonProfiles: widget.horizonProfiles,
+            onChange: widget.onChange,
+          ),
+        ],
       ),
     );
   }

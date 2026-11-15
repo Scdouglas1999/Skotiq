@@ -1779,6 +1779,17 @@ pub struct ImageValidation {
     pub is_valid: bool,
     pub warnings: Vec<String>,
     pub errors: Vec<String>,
+    /// Set when the frame's brightest pixel is under the signal floor: the
+    /// frame is kept, and whoever took it tells the user.
+    pub below_signal_floor: Option<BelowSignalFloor>,
+}
+
+/// A frame with almost no signal: its brightest pixel and the floor it is
+/// under, in ADU.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BelowSignalFloor {
+    pub max_value: u16,
+    pub floor: u16,
 }
 
 impl ImageValidation {
@@ -1787,6 +1798,7 @@ impl ImageValidation {
             is_valid: true,
             warnings: Vec::new(),
             errors: Vec::new(),
+            below_signal_floor: None,
         }
     }
 
@@ -2361,6 +2373,10 @@ pub fn validate_image_comprehensive(
                     increase the exposure time, or check the shutter, cap and dome",
                     max_value, signal_floor
                 ));
+                validation.below_signal_floor = Some(BelowSignalFloor {
+                    max_value,
+                    floor: signal_floor,
+                });
                 tracing::warn!(
                     "[IMAGE_VALIDATION] WARNING: Severely underexposed (max={} < {})",
                     max_value,

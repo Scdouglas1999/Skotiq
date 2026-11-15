@@ -39,6 +39,29 @@ const T_MODE_CODES: &[(i32, u32)] = &[
     (64000180, 60),
 ];
 
+/// The speed the camera shows for a binary-stepped code, where that differs
+/// from the code's own time by more than a rounding: XAPI.h comments
+/// `XSDK_SHUTTER_15` (16000000) as 15", `XSDK_SHUTTER_30` (32000000) as 30"
+/// and `XSDK_SHUTTER_60` (64000000) as 60". A request for the shown speed is a
+/// request for that timed speed, as it is in the owner's FujiCOM driver
+/// (`FujifilmCapabilities.SelectShutterCode` over `UniversalShutterMap`),
+/// which takes every exposure up to the body's longest timed speed with a
+/// timed code and uses bulb only above it. The codes of 80 s and more are
+/// left out: the header names them 100, 125, 160 and comments them 110",
+/// 140", 170", so no request is known to mean them.
+const SHOWN_SPEEDS: &[(i32, f64)] = &[
+    (1259921, 1.3),
+    (1587401, 1.6),
+    (2519842, 2.5),
+    (3174802, 3.0),
+    (6349604, 6.0),
+    (12699208, 13.0),
+    (16000000, 15.0),
+    (25398416, 25.0),
+    (32000000, 30.0),
+    (64000000, 60.0),
+];
+
 /// How close a timed code must be to the request to be used instead of bulb.
 const TIMED_MATCH_TOLERANCE: f64 = 0.01;
 
@@ -92,13 +115,32 @@ impl ShutterSpeeds {
         Self { timed }
     }
 
+    /// The timed speed nearest to `seconds`: what an exposure falls back to
+    /// when the body refuses bulb. Above the longest timed speed that is the
+    /// longest one.
+    pub(crate) fn nearest_timed(&self, seconds: f64) -> Option<Shutter> {
+        self.timed
+            .iter()
+            .copied()
+            .min_by(|a, b| {
+                (a.1 / seconds)
+                    .ln()
+                    .abs()
+                    .total_cmp(&(b.1 / seconds).ln().abs())
+                    .then(a.1.total_cmp(&b.1))
+            })
+            .map(|(code, seconds)| Shutter::Timed { code, seconds })
+    }
+
     /// The shutter setting for a requested exposure.
     ///
-    /// A timed code within 1% of the request is used as is. Otherwise a request
-    /// of a second or more is a bulb exposure of exactly that length, so a
-    /// sub-exposure is never shortened or lengthened to the nearest step; a
-    /// shorter request takes the nearest timed code, and the frame records that
-    /// code's time.
+    /// A timed code within 1% of the request is used as is, and so is the
+    /// code of a speed the camera shows as the request (15, 30 and 60 s on
+    /// the dial are 16, 32 and 64 s codes); the frame records the code's
+    /// time. Otherwise a request of a second or more is a bulb exposure of
+    /// exactly that length, so a sub-exposure is never shortened or
+    /// lengthened to the nearest step; a shorter request takes the nearest
+    /// timed code.
     pub(crate) fn choose(&self, seconds: f64) -> Result<Shutter, String> {
         if seconds.is_nan() || seconds <= 0.0 {
             return Err(format!("An exposure of {seconds} s is not possible."));
@@ -114,13 +156,18 @@ impl ShutterSpeeds {
                 .total_cmp(&(b.1 - seconds).abs())
                 .then(a.1.total_cmp(&b.1))
         });
+        if let Some((code, timed)) =
+            nearest.filter(|(_, timed)| (timed - seconds).abs() <= seconds * TIMED_MATCH_TOLERANCE)
+        {
+            return Ok(Shutter::Timed {
+                code,
+                seconds: timed,
+            });
+        }
+        if let Some(shown) = self.shown_as(seconds) {
+            return Ok(shown);
+        }
         match nearest {
-            Some((code, timed)) if (timed - seconds).abs() <= seconds * TIMED_MATCH_TOLERANCE => {
-                Ok(Shutter::Timed {
-                    code,
-                    seconds: timed,
-                })
-            }
             _ if seconds >= SHORTEST_BULB_SECONDS => Ok(Shutter::Bulb { seconds }),
             Some((code, timed)) => Ok(Shutter::Timed {
                 code,
@@ -131,6 +178,19 @@ impl ShutterSpeeds {
                  Set the shutter speed dial to T and the exposure mode to M, then reconnect."
             )),
         }
+    }
+}
+
+impl ShutterSpeeds {
+    /// The timed speed the camera shows as `seconds`, when the body lists it.
+    fn shown_as(&self, seconds: f64) -> Option<Shutter> {
+        let (code, _) = SHOWN_SPEEDS
+            .iter()
+            .find(|(_, shown)| (shown - seconds).abs() <= seconds * TIMED_MATCH_TOLERANCE)?;
+        self.timed
+            .iter()
+            .find(|(listed, _)| listed == code)
+            .map(|&(code, seconds)| Shutter::Timed { code, seconds })
     }
 }
 
@@ -217,9 +277,68 @@ mod tests {
         );
     }
 
+    /// The owner's FujiCOM driver takes these with the timed code; a bulb
+    /// exposure for them depended on the body accepting bulb over USB.
+    #[test]
+    fn the_speeds_the_dial_shows_are_timed_and_record_their_code() {
+        for (shown, code, seconds) in [
+            (15.0, 16000000, 16.0),
+            (30.0, 32000000, 32.0),
+            (25.0, 25398416, 25.398416),
+        ] {
+            assert_eq!(
+                body().choose(shown),
+                Ok(Shutter::Timed { code, seconds }),
+                "{shown} s"
+            );
+        }
+        // A body without the exact 60 s code takes the 60 it shows.
+        let no_60s = ShutterSpeeds::from_reported(&[32000000, 64000000, 64000030]);
+        assert_eq!(
+            no_60s.choose(60.0),
+            Ok(Shutter::Timed {
+                code: 64000000,
+                seconds: 64.0
+            })
+        );
+        // A speed the body does not list is not invented.
+        assert_eq!(
+            ShutterSpeeds::from_reported(&[8000000, 64000030]).choose(15.0),
+            Ok(Shutter::Bulb { seconds: 15.0 })
+        );
+    }
+
+    #[test]
+    fn a_refused_bulb_falls_back_to_the_nearest_timed_speed() {
+        assert_eq!(
+            body().nearest_timed(47.0),
+            Some(Shutter::Timed {
+                code: 45000000,
+                seconds: 45.0
+            })
+        );
+        assert_eq!(
+            body().nearest_timed(300.0),
+            Some(Shutter::Timed {
+                code: 64000060,
+                seconds: 240.0
+            })
+        );
+        // Above the longest timed speed that is the longest one.
+        let short = ShutterSpeeds::from_reported(&[1000000, 32000000]);
+        assert_eq!(
+            short.nearest_timed(300.0),
+            Some(Shutter::Timed {
+                code: 32000000,
+                seconds: 32.0
+            })
+        );
+        assert_eq!(ShutterSpeeds::from_reported(&[-1]).nearest_timed(30.0), None);
+    }
+
     #[test]
     fn a_request_between_timed_codes_is_a_bulb_exposure_of_exactly_that_length() {
-        for seconds in [7.0, 30.0, 47.0, 90.0, 180.0, 300.0, 600.0] {
+        for seconds in [7.0, 47.0, 90.0, 180.0, 300.0, 600.0] {
             assert_eq!(
                 body().choose(seconds),
                 Ok(Shutter::Bulb { seconds }),

@@ -5,6 +5,7 @@ library;
 
 export 'src/discovery.dart';
 export 'src/enhanced_discovery.dart';
+export 'src/host_info.dart';
 export 'src/push/lan_push_broadcaster.dart'
     show LanPushDecodeFailure, LanPushDecodeResult, PushNotificationFrame;
 export 'src/remote_pairing_client.dart';

@@ -794,32 +794,6 @@ extension CameraDeviceHandlers on DeviceHandlers {
     });
   }
 
-  /// GET /api/camera/readout-modes — list available readout modes.
-  ///
-  /// Why a focused endpoint vs. /api/equipment/camera/capabilities: the
-  /// readout-mode dropdown only needs the string list, not the full
-  /// capabilities payload (bayer pattern, sensor geometry, supported binning,
-  /// etc.). Source of truth remains CameraCapabilities — we project the
-  /// `readoutModes` field out of it.
-  Future<Response> handleCameraGetReadoutModes(Request request) async {
-    final deviceId = request.url.queryParameters['deviceId'] ?? '';
-    if (deviceId.isEmpty) {
-      throw BadRequestError(
-        field: 'deviceId',
-        expected: 'string',
-        message: "Missing 'deviceId' query parameter",
-      );
-    }
-    final backend = container.read(deviceBackendProvider);
-    final caps = await backend.getCameraCapabilities(deviceId);
-    if (caps == null) {
-      return jsonNotFound({
-        'error': 'Device not found or capabilities unavailable',
-      });
-    }
-    return jsonOk({'readoutModes': caps.readoutModes});
-  }
-
   /// GET /api/camera/recommended-settings — manufacturer-recommended
   /// gain/offset values, when the vendor SDK exposes them.
   ///
@@ -853,19 +827,33 @@ extension CameraDeviceHandlers on DeviceHandlers {
     });
   }
 
-  Future<Response> handleCameraSetReadoutMode(Request request) async {
-    _logInfo('[API] POST /api/camera/readoutMode');
+  /// GET /api/camera/retained-captures: the captures cameras are keeping
+  /// because their download failed.
+  Future<Response> handleCameraGetRetainedCaptures(Request request) async {
+    final kept = await container
+        .read(deviceBackendProvider)
+        .cameraRetainedCaptures();
+    return jsonOk({
+      'captures': [for (final capture in kept) capture.toJson()],
+    });
+  }
+
+  /// POST /api/camera/retained-captures/retrieve: read one kept capture off
+  /// its camera and save the camera's file on the host.
+  Future<Response> handleCameraRetrieveRetainedCapture(Request request) async {
+    _logInfo('[API] POST /api/camera/retained-captures/retrieve');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
-    final modeIndex = requireInt(payload, 'modeIndex', min: 0);
+    final location = requireString(payload, 'location');
 
-    await runDeviceCommand(
-      deviceId,
-      () =>
-          deviceCommandsOf(container).cameraSetReadoutMode(deviceId, modeIndex),
-    );
+    late final String savedTo;
+    await runDeviceCommand(deviceId, () async {
+      savedTo = await container
+          .read(deviceBackendProvider)
+          .cameraRetrieveRetainedCapture(deviceId, location);
+    });
 
-    return jsonOk({'status': 'ok'});
+    return jsonOk({'status': 'ok', 'savedTo': savedTo});
   }
 
   Future<Response> handleCameraSetGain(Request request) async {

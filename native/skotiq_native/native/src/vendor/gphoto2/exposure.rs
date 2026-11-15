@@ -63,7 +63,9 @@ impl ShutterSpeeds {
         self.timed.first().map(|s| s.seconds)
     }
 
-    fn nearest(&self, seconds: f64) -> Option<&ShutterSpeed> {
+    /// The timed speed nearest to `seconds`; above the longest one, that is
+    /// the longest.
+    pub(crate) fn nearest_timed(&self, seconds: f64) -> Option<&ShutterSpeed> {
         self.timed.iter().min_by(|a, b| {
             let da = (a.seconds / seconds).ln().abs();
             let db = (b.seconds / seconds).ln().abs();
@@ -144,8 +146,13 @@ const SAME_DURATION: f64 = 0.01;
 /// capture holds the camera (and libgphoto2) until it ends and cannot be
 /// aborted, so longer frames are bulb, as NINA makes them (EDCamera.cs:689,
 /// bulb above 30 s) and INDI makes every frame of a second or more by
-/// default (gphoto_driver.cpp:1165, force bulb on). Fujifilm bodies list
-/// timed speeds up to "60m".
+/// default (gphoto_driver.cpp:1165, force bulb on).
+///
+/// Fujifilm bodies are the exception. They list timed speeds up to "60m",
+/// and the owner's FujiCOM driver takes every exposure a listed speed can
+/// make with that speed, bulb only for the rest
+/// (`FujifilmCapabilities.SelectShutterCode`): timed speeds are what is
+/// known to work on those bodies over USB.
 const LONGEST_TIMED_WITH_BULB_SECONDS: f64 = 30.0;
 
 /// Bulb is timed by the host, which cannot hold a sub-second release
@@ -154,13 +161,15 @@ const LONGEST_TIMED_WITH_BULB_SECONDS: f64 = 30.0;
 const SHORTEST_BULB_SECONDS: f64 = 1.0;
 
 /// The way to make an exposure of `seconds`: a timed speed of the same
-/// duration (up to 30 s on a body that can also do bulb), else bulb for
-/// exactly the request when the body can do it,
-/// else the nearest timed speed (the frame then records that speed).
+/// duration (up to 30 s on a body that can also do bulb, at any length when
+/// `timed_at_any_length`), else bulb for exactly the request when the body
+/// can do it, else the nearest timed speed (the frame then records that
+/// speed).
 pub(crate) fn plan_exposure(
     model: &str,
     speeds: &ShutterSpeeds,
     can_bulb: bool,
+    timed_at_any_length: bool,
     seconds: f64,
 ) -> Result<ExposurePlan, DriverError> {
     if !seconds.is_finite() || seconds <= 0.0 {
@@ -168,8 +177,9 @@ pub(crate) fn plan_exposure(
             "an exposure lasts longer than 0 s; {seconds} s was requested"
         )));
     }
-    let bulb_instead =
-        can_bulb && seconds > LONGEST_TIMED_WITH_BULB_SECONDS * (1.0 + SAME_DURATION);
+    let bulb_instead = can_bulb
+        && !timed_at_any_length
+        && seconds > LONGEST_TIMED_WITH_BULB_SECONDS * (1.0 + SAME_DURATION);
     if let Some(same) = speeds
         .timed
         .iter()
@@ -181,7 +191,7 @@ pub(crate) fn plan_exposure(
     if can_bulb && (seconds >= SHORTEST_BULB_SECONDS || speeds.timed.is_empty()) {
         return Ok(ExposurePlan::Bulb);
     }
-    let Some(nearest) = speeds.nearest(seconds) else {
+    let Some(nearest) = speeds.nearest_timed(seconds) else {
         return Err(DriverError::SdkError(format!(
             "gPhoto2: {model} lists no shutter speeds and offers no bulb control over USB, so \
              Skotiq cannot set an exposure time. Set the camera's mode dial to M."

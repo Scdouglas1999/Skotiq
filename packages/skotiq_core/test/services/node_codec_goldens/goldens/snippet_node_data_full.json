@@ -205,6 +205,7 @@
     "name": "Ha subs",
     "nodeType": "TakeExposure",
     "offset": 30,
+    "readoutMode": "High speed",
     "triggers": [
       {
         "action": "Autofocus",

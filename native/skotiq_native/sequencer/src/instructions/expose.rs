@@ -470,7 +470,8 @@ async fn take_burst(
                         .gain(config.gain)
                         .offset(config.offset)
                         .binning(bin_x, bin_y)
-                        .frame_type(config.frame_type.as_str()),
+                        .frame_type(config.frame_type.as_str())
+                        .readout_mode(config.readout_mode.as_deref()),
                 ) => {
                     abort_guard.disarm();
                     result

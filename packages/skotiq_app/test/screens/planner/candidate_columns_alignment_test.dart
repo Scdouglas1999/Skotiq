@@ -93,8 +93,6 @@ Future<void> _pumpTonight(
       loggingServiceProvider.overrideWithValue(_MockLogger()),
       activeTransientAlertsProvider
           .overrideWith((ref) => Stream.value(const <TransientAlert>[])),
-      allTargetProgressProvider
-          .overrideWith((ref) async => <int, TargetProgress>{}),
       schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
       schedulerStatusProvider.overrideWith((ref) => FakeSchedulerStatusNotifier(
           const SchedulerStatus(state: SchedulerState.idle))),

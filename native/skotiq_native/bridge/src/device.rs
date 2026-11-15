@@ -147,8 +147,11 @@ pub struct CameraStatus {
     /// `None` when the camera does not say and this connection has not set
     /// it; see `skotiq_device::CameraStatus::cooler_on`.
     pub cooler_on: Option<bool>,
-    pub gain: i32,
-    pub offset: i32,
+    /// `None` when the camera has the setting and would not report its
+    /// value: unknown, which is not zero.
+    pub gain: Option<i32>,
+    /// As [`Self::gain`].
+    pub offset: Option<i32>,
     pub bin_x: i32,
     pub bin_y: i32,
     pub sensor_width: u32,

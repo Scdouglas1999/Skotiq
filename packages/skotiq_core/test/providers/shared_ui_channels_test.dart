@@ -217,7 +217,6 @@ void main() {
         binningX: 2,
         binningY: 2,
         filter: 'G',
-        readoutModeIndex: 1,
       );
       final json =
           jsonDecode(

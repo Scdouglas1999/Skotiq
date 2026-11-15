@@ -176,12 +176,6 @@ extension _CenteringLoop on CenteringService {
     _ownedImagingService = imagingService;
     _ownedDeviceService = deviceService;
 
-    // A guider cannot guide while centering moves the mount: it fights every
-    // correction slew and trails the plate-solve frames. Centering does not
-    // move the mount when guiding will not stop.
-    await stopGuidingForMove(_ref);
-    if (_abortRequested) return _abortedResult(0, iterations);
-
     // Fail before taking a throwaway exposure when the selected solver is not
     // usable. This also catches the case where another solver is installed but
     // the explicitly selected one is not configured.
@@ -540,6 +534,12 @@ extension _CenteringLoop on CenteringService {
         );
       } on CenteringSlewTimeoutException catch (e) {
         if (_abortRequested) return _abortedResult(iteration, iterations);
+        return CenteringResult.failure(
+          errorMessage: e.toString(),
+          iterations: iteration,
+          iterationHistory: iterations,
+        );
+      } on GuiderNotAnsweringException catch (e) {
         return CenteringResult.failure(
           errorMessage: e.toString(),
           iterations: iteration,

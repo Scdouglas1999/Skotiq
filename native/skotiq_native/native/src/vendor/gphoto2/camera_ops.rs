@@ -82,6 +82,8 @@ impl DeviceDriver for GPhoto2Camera {
             self.close(&sdk);
         }
         self.core.connected = false;
+        // The next connection asks the body for bulb again.
+        self.bulb_refused = false;
         tracing::info!("Disconnected from gPhoto2 camera: {}", self.core.name);
         Ok(())
     }
@@ -89,8 +91,57 @@ impl DeviceDriver for GPhoto2Camera {
 
 #[async_trait]
 impl CameraDriver for GPhoto2Camera {
-    fn check_automatic_reconnect(&self) -> Result<(), DriverError> {
-        self.require_recovered_capture()
+    fn take_notices(&mut self) -> Vec<skotiq_device::DriverNotice> {
+        std::mem::take(&mut self.notices)
+    }
+
+    fn retained_captures(&self) -> Vec<skotiq_device::RetainedCapture> {
+        self.retained
+            .iter()
+            .map(|kept| skotiq_device::RetainedCapture {
+                location: Self::file_location(&kept.file),
+                in_camera_memory: kept.bytes.is_none() && self.facts.captures_to_ram(),
+                in_hand: kept.bytes.is_some(),
+                reason: kept.reason.clone(),
+            })
+            .collect()
+    }
+
+    async fn retrieve_capture(
+        &mut self,
+        location: &str,
+    ) -> Result<skotiq_device::CameraFile, DriverError> {
+        let file_name = location.rsplit('/').next().unwrap_or(location).to_string();
+        let known = self
+            .retained
+            .iter()
+            .position(|kept| Self::file_location(&kept.file) == location);
+        if let Some(bytes) = known.and_then(|index| self.retained[index].bytes.clone()) {
+            self.retained.remove(known.expect("found above"));
+            return Ok(skotiq_device::CameraFile { file_name, bytes });
+        }
+        self.core.require_connected()?;
+        if !matches!(self.exposure, ExposureState::Idle) {
+            return Err(DriverError::SdkError(format!(
+                "gPhoto2: {} is exposing; retrieve {location} when the exposure has ended",
+                self.core.name
+            )));
+        }
+        let file = Self::file_at(location).ok_or_else(|| {
+            DriverError::InvalidParameter(format!("{location} is not a file on the camera"))
+        })?;
+        let sdk = GPhoto2Sdk::lock().await?;
+        let bytes = self.download_file(&sdk, &file)?;
+        if let Some(index) = known {
+            self.retained.remove(index);
+        }
+        if self.facts.captures_to_ram() {
+            self.delete_file(&sdk, &file);
+        }
+        Ok(skotiq_device::CameraFile {
+            file_name,
+            bytes: std::sync::Arc::new(bytes),
+        })
     }
 
     fn capabilities(&self) -> CameraCapabilities {
@@ -135,7 +186,6 @@ impl CameraDriver for GPhoto2Camera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        self.require_recovered_capture()?;
         if !matches!(self.exposure, ExposureState::Idle) {
             return Err(DriverError::SdkError(format!(
                 "gPhoto2: {} is still taking the last exposure",
@@ -144,6 +194,7 @@ impl CameraDriver for GPhoto2Camera {
         }
 
         let sdk = GPhoto2Sdk::lock().await?;
+        self.rescue_retained(&sdk);
         self.discard_stray_events(&sdk)?;
         if let Some(iso) = params.gain {
             self.apply_iso(&sdk, iso)?;
@@ -154,12 +205,19 @@ impl CameraDriver for GPhoto2Camera {
         self.refresh_shutter_speeds(&sdk)?;
 
         let requested = params.duration_secs;
-        match plan_exposure(
-            &self.core.name,
-            &self.shutter,
-            self.bulb_widget.is_some(),
-            requested,
-        )? {
+        let plan = match self.shutter.nearest_timed(requested) {
+            // The body refused bulb on this connection: what bulb would have
+            // made is made with the nearest timed speed.
+            Some(speed) if self.bulb_refused => ExposurePlan::Timed(speed.clone()),
+            _ => plan_exposure(
+                &self.core.name,
+                &self.shutter,
+                self.bulb_widget.is_some(),
+                self.facts.is_fujifilm(),
+                requested,
+            )?,
+        };
+        match plan {
             ExposurePlan::Timed(speed) => {
                 if ((speed.seconds - requested) / requested).abs() > 0.01 {
                     tracing::info!(
@@ -172,7 +230,40 @@ impl CameraDriver for GPhoto2Camera {
                 self.start_timed(sdk, &speed)?;
                 tracing::info!("gPhoto2: timed exposure {} started", speed.choice);
             }
-            ExposurePlan::Bulb => self.open_bulb(&sdk, requested)?,
+            ExposurePlan::Bulb => {
+                let Err(refusal) = self.open_bulb(&sdk, requested) else {
+                    return Ok(());
+                };
+                // A camera that has gone is not one that refused bulb.
+                let fallback = self.shutter.nearest_timed(requested).cloned();
+                let (Some(speed), false) = (
+                    fallback,
+                    matches!(
+                        refusal,
+                        DriverError::Disconnected | DriverError::NotConnected
+                    ),
+                ) else {
+                    return Err(refusal);
+                };
+                self.bulb_refused = true;
+                self.notices.push(skotiq_device::DriverNotice {
+                    title: "Camera refused bulb".to_string(),
+                    message: format!(
+                        "{} did not open its shutter for a bulb exposure, so the {requested} s \
+                         exposure was taken with the camera's nearest shutter speed, {} s. \
+                         Until the camera is reconnected, every exposure that needs bulb is \
+                         taken with the nearest shutter speed the camera has. For bulb, set \
+                         the camera's mode dial to M or B (on a Fujifilm body, the shutter \
+                         dial to B or T). What the camera said: {refusal}",
+                        self.core.name, speed.seconds
+                    ),
+                });
+                self.start_timed(sdk, &speed)?;
+                tracing::warn!(
+                    "gPhoto2: bulb refused; timed exposure {} started instead",
+                    speed.choice
+                );
+            }
         }
         Ok(())
     }
@@ -252,47 +343,59 @@ impl CameraDriver for GPhoto2Camera {
 
         let names: Vec<String> = files.iter().map(|f| cstr_from_array(&f.name)).collect();
         let read = raw_file_index(&names);
-        // A file that could not be read stays on the camera; one left in its
-        // memory goes before the next exposure. Files on the memory card are
-        // the owner's copy and stay there, as the INDI driver leaves them
+        // A file that could not be read or decoded is kept, on the camera or
+        // in hand, and the next exposure goes ahead. Files on the memory card
+        // are the owner's copy and stay there, as the INDI driver leaves them
         // (gphoto_driver.cpp:1008-1022).
         let bytes = match self.download_file(&sdk, &files[read]) {
-            Ok(bytes) => bytes,
-            Err(error) => return Err(self.protect_failed_capture(&files, error)),
+            Ok(bytes) => std::sync::Arc::new(bytes),
+            Err(error) => {
+                let retained = self.retain_capture(&files[read], None, error);
+                // The capture's other files in the camera's memory (a JPEG
+                // beside the raw) are cleared as after any capture.
+                if self.facts.captures_to_ram() {
+                    for file in &files {
+                        self.delete_file(&sdk, file);
+                    }
+                }
+                return Err(retained);
+            }
         };
         drop(sdk);
-        let image = match self.decode_raw_to_image_data(
+        let decoded = self.decode_raw_to_image_data(
             skotiq_device::CameraFile {
                 file_name: names[read].clone(),
-                bytes: std::sync::Arc::new(bytes),
+                bytes: bytes.clone(),
             },
             made,
-        ) {
-            Ok(image) => image,
-            Err(error) => return Err(self.protect_failed_capture(&files, error)),
-        };
-        // Only a decoded frame owns the original bytes independently of the
-        // camera. Failed downloads keep their camera files and block a retry
-        // that could reuse the body's RAM filename.
+        );
+        // The bytes are in hand whether or not they decoded, so the camera's
+        // memory is cleared either way.
         let reset_session = matches!(made, MadeExposure::Timed(_))
             && self.facts.needs_session_reset_after_capture();
         if self.facts.captures_to_ram() || reset_session {
-            let sdk = GPhoto2Sdk::lock()
-                .await
-                .map_err(|error| self.protect_failed_capture(&files, error))?;
-            if self.facts.captures_to_ram() {
-                for file in &files {
-                    self.delete_file(&sdk, file);
+            match GPhoto2Sdk::lock().await {
+                Ok(sdk) => {
+                    if self.facts.captures_to_ram() {
+                        for file in &files {
+                            self.delete_file(&sdk, file);
+                        }
+                    }
+                    if reset_session {
+                        // SAFETY: the SDK lock is held and the camera is open;
+                        // libgphoto2 opens the session again on the next call.
+                        unsafe {
+                            (sdk.camera_exit)(self.gp_camera, self.gp_context);
+                        }
+                    }
                 }
-            }
-            if reset_session {
-                // SAFETY: the SDK lock is held and the camera is open;
-                // libgphoto2 opens the session again on the next call.
-                unsafe {
-                    (sdk.camera_exit)(self.gp_camera, self.gp_context);
-                }
+                Err(error) => tracing::warn!(
+                    "gPhoto2: the capture's files were not cleared from {}: {error}",
+                    self.core.name
+                ),
             }
         }
+        let image = decoded.map_err(|error| self.retain_capture(&files[read], Some(bytes), error))?;
         Ok(image)
     }
 

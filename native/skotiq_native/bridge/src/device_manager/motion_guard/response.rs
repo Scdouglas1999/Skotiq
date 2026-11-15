@@ -279,13 +279,12 @@ async fn hold_run_or_stop_guiding(message: &str) -> bool {
 
 async fn stop_guiding() {
     let ops = crate::unified_device_ops::create_unified_device_ops();
-    if matches!(ops.guider_is_active().await, Ok(true)) {
-        ops.guider_note_stop_reason(Some(skotiq_sequencer::GuidingStopReason::MountFault))
-            .await;
-        if let Err(e) = ops.guider_stop().await {
-            tracing::warn!("[MOTION GUARD] The guider did not stop: {e}");
-        }
-    }
+    skotiq_sequencer::stop_guider_for_move(
+        &ops,
+        "mount fault",
+        skotiq_sequencer::GuidingStopReason::MountFault,
+    )
+    .await;
 }
 
 fn announce_fault_update(device_id: &str) {

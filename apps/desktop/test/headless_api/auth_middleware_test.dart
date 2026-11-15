@@ -187,14 +187,100 @@ void main() {
           baseUri,
           '/api/openapi.json',
           token: 'view-token',
+          release: null,
           oldApiVersion: '2.6.0',
         );
         expect(response.statusCode, HttpStatus.upgradeRequired);
         expect(response.body['code'], 'release_required');
         expect(response.body['message'], contains('Skotiq 2.5.0'));
-        expect(response.body['message'], contains('reload the dashboard'));
       },
     );
+
+    test('an API request that does not name its release is refused', () async {
+      for (final token in [null, 'view-token']) {
+        final response = await _request(
+          client,
+          baseUri,
+          '/api/status',
+          token: token,
+          release: null,
+        );
+        expect(response.statusCode, HttpStatus.upgradeRequired);
+        expect(response.body['code'], LinkVersion.releaseRequiredCode);
+        expect(response.body['hostVersion'], '2.5.0');
+        expect(
+          response.body['message'],
+          contains('${LinkVersion.header}: 2.5.0'),
+        );
+      }
+    });
+
+    test('a page this host served needs no release header', () async {
+      final own = await _request(
+        client,
+        baseUri,
+        '/api/status',
+        release: null,
+        referer: '$baseUri/dashboard/',
+      );
+      final foreign = await _request(
+        client,
+        baseUri,
+        '/api/status',
+        release: null,
+        referer: 'http://elsewhere.example/dashboard/',
+      );
+
+      expect(own.statusCode, HttpStatus.unauthorized, reason: 'reached auth');
+      expect(foreign.statusCode, HttpStatus.upgradeRequired);
+      expect(foreign.body['code'], LinkVersion.releaseRequiredCode);
+    });
+
+    test('a client of another release reaches the info and update routes '
+        'and nothing else', () async {
+      for (final path in [
+        '/api/info',
+        '/api/system/version',
+        '/api/system/update/status',
+      ]) {
+        final response = await _request(
+          client,
+          baseUri,
+          path,
+          token: 'admin-token',
+          release: '2.6.0',
+        );
+        expect(
+          response.statusCode,
+          isNot(HttpStatus.upgradeRequired),
+          reason: path,
+        );
+        expect(response.body['code'], isNot(LinkVersion.mismatchCode));
+      }
+      final check = await _request(
+        client,
+        baseUri,
+        '/api/system/update/check',
+        method: 'POST',
+        release: '2.6.0',
+      );
+      expect(
+        check.statusCode,
+        HttpStatus.unauthorized,
+        reason: 'an update route still needs the host\'s credential',
+      );
+      for (final path in ['/api/status', '/api/devices', '/api/system/logs']) {
+        final response = await _request(
+          client,
+          baseUri,
+          path,
+          token: 'admin-token',
+          release: '2.6.0',
+        );
+        expect(response.statusCode, HttpStatus.upgradeRequired, reason: path);
+        expect(response.body['code'], LinkVersion.mismatchCode, reason: path);
+      }
+    });
 
     test('a stale dashboard WebSocket cannot bypass release checks', () async {
       final response = await _rawSocketRequest(baseUri, [
@@ -252,6 +338,7 @@ void main() {
       final response = await _rawSocketRequest(baseUri, [
         'POST /api/mount/slew HTTP/1.1',
         'Host: 127.0.0.1:${server.actualPort}',
+        '${LinkVersion.header}: $_hostRelease',
         'Authorization: Bearer admin-token',
         'Content-Type: application/json',
         'Transfer-Encoding: chunked',
@@ -837,15 +924,19 @@ void _expectReleaseScopedDriverMatrix(Map<String, dynamic> report) {
   expect(simulator['notes'], contains('workflow-specific'));
 }
 
+/// The release the host under test says it runs.
+const _hostRelease = '2.5.0';
+
 Future<_TestResponse> _request(
   HttpClient client,
   Uri baseUri,
   String path, {
   String method = 'GET',
   String? token,
-  String? release,
+  String? release = _hostRelease,
   String? oldApiVersion,
   String? requestId,
+  String? referer,
   Map<String, dynamic>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
@@ -858,6 +949,9 @@ Future<_TestResponse> _request(
   }
   if (oldApiVersion != null) {
     request.headers.set('x-skotiq-api-version', oldApiVersion);
+  }
+  if (referer != null) {
+    request.headers.set(HttpHeaders.refererHeader, referer);
   }
   if (token != null) {
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');

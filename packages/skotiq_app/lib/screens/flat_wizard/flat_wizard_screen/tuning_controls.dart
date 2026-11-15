@@ -1,94 +1,147 @@
 part of '../flat_wizard_screen.dart';
 
-class _HistogramTargetSlider extends StatelessWidget {
+/// A slider with its value at the right, in a fixed column so two sliders in
+/// one form end at the same place.
+class _SliderWithReadout extends StatelessWidget {
+  const _SliderWithReadout({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.readout,
+    required this.onChanged,
+  });
+
   final double value;
+  final double min;
+  final double max;
+  final String readout;
   final ValueChanged<double> onChanged;
 
-  /// Effective, capability-resolved camera config. The target is shown as an
-  /// absolute ADU against the DETECTED full scale (e.g. 4095 for a 12-bit
-  /// camera) so the operator never targets an impossible level.
-  final FlatCaptureConfig config;
-
-  const _HistogramTargetSlider({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    required this.config,
-  });
+  static const double _readoutWidth = 48;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
-
-    final targetAdu = config.targetAduFor(value).round();
-    final depthLabel =
-        config.bitDepth != null ? ' · ${config.bitDepth}-bit' : '';
-    // "of the detected range": target ADU shown against the effective full
-    // scale, so the percentage's real meaning is explicit for any bit depth.
-    final aduLabel = '~$targetAdu / ${config.maxAdu} ADU$depthLabel';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final colors = context.skotiqColors;
+    return Row(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // The value is a readout, not a 24px bold heading: numbers are
-            // loud and labels are quiet, and the unit rides on the number
-            // (02 rule 3).
-            Readout(
-              value: value.toStringAsFixed(0),
-              unit: '%',
-              size: ReadoutSize.sm,
-            ),
-            const Spacer(),
-            Flexible(
-              child: Text(
-                aduLabel,
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-                style: SkotiqTypography.monoCaption.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-            ),
-          ],
+        Expanded(
+          child: SkotiqSlider(
+            value: value,
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
         ),
-        // The kit slider, so the track, thumb and disabled state come from the
-        // tokens instead of a per-call-site SliderTheme.
-        SkotiqSlider(
-          value: value,
-          min: 10,
-          max: 90,
-          onChanged: onChanged,
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        SizedBox(
+          width: _readoutWidth,
+          child: Text(
+            readout,
+            textAlign: TextAlign.right,
+            style:
+                SkotiqTypography.readoutSm.copyWith(color: colors.textPrimary),
+          ),
         ),
       ],
     );
   }
 }
 
-/// The gain / offset / binning the wizard will actually command, plus an
-/// explicit warning when they disagree with the light-frame settings.
+/// How the exposure for each filter is found: the level to reach, how close
+/// counts, and how many test exposures the search may take.
+class _ExposurePanel extends ConsumerWidget {
+  const _ExposurePanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(flatWizardProvider);
+    final notifier = ref.read(flatWizardProvider.notifier);
+    final config = ref.watch(flatCameraConfigProvider);
+    final target = state.globalSettings.histogramTarget;
+
+    // The target as an ADU against the camera's detected full scale, so a
+    // 12-bit camera reads 4095 and the percentage has a plain meaning.
+    final depth = config.bitDepth != null ? ' · ${config.bitDepth}-bit' : '';
+    final targetAdu = '~${config.targetAduFor(target).round()} of '
+        '${config.maxAdu} ADU$depth';
+
+    return FlatWizardPanel(
+      title: 'Exposure',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (state.mode == FlatWizardMode.skyFlats) ...[
+            FormRow(
+              label: 'Twilight',
+              labelWidth: _formLabelWidth,
+              help: state.twilightMode == TwilightMode.dawn
+                  ? 'The sky is brightening, so exposures shorten.'
+                  : 'The sky is darkening, so exposures lengthen.',
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedControl(
+                  segments: const ['Dawn', 'Dusk'],
+                  selectedIndex: state.twilightMode.index,
+                  semanticLabel: 'Twilight',
+                  onSelected: (i) =>
+                      notifier.setTwilightMode(TwilightMode.values[i]),
+                ),
+              ),
+            ),
+            const SizedBox(height: FormRow.rowGap),
+          ],
+          FormRow(
+            key: TourTarget.flatTargetAdu.key,
+            label: 'Histogram target',
+            labelWidth: _formLabelWidth,
+            help: targetAdu,
+            child: _SliderWithReadout(
+              value: target,
+              min: 10,
+              max: 90,
+              readout: '${target.toStringAsFixed(0)}%',
+              onChanged: notifier.setHistogramTarget,
+            ),
+          ),
+          const SizedBox(height: FormRow.rowGap),
+          FormRow(
+            label: 'Tolerance',
+            labelWidth: _formLabelWidth,
+            child: _SliderWithReadout(
+              value: state.globalSettings.tolerancePercent,
+              min: 1,
+              max: 25,
+              readout:
+                  '±${state.globalSettings.tolerancePercent.toStringAsFixed(0)}%',
+              onChanged: notifier.setTolerance,
+            ),
+          ),
+          const SizedBox(height: FormRow.rowGap),
+          const _CalibrationAttemptsRow(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The gain, offset and binning the run commands when a filter sets none of
+/// its own, with a warning when they differ from the light-frame settings.
 ///
-/// The flat wizard resolves its capture config from the equipment profile and
-/// the camera's live values (`FlatWizardService.resolveCaptureConfig`), while
-/// light frames use the app-settings exposure defaults. When those two sources
-/// disagree the flats carry a different bias pedestal from the lights and the
-/// library matcher rejects them outright (`flat_library_dao.dart`: "gain,
-/// offset, and binning must match exactly"), so the numbers are shown here
-/// rather than left to surface as a rejected calibration library.
-class _CaptureConfigSummary extends ConsumerWidget {
-  const _CaptureConfigSummary();
+/// Flats resolve these from the equipment profile and the camera's live
+/// values; lights use the exposure settings. When the two differ the flats
+/// carry another pedestal and the library matcher refuses them (gain, offset
+/// and binning must match exactly), so the numbers are shown before the run.
+class _CameraPanel extends ConsumerWidget {
+  const _CameraPanel();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(flatCameraConfigProvider);
     final lights = ref.watch(exposureSettingsProvider);
-    final colors = SkotiqColors.of(context);
 
-    // An unknown value is an em dash, never 'n/a' (02 rule 3). 'driver
-    // default' stays: it is a real, distinct state — the camera WILL be
-    // commanded, just not with a number this screen chose.
+    // "driver default" is a real state: the camera is commanded, with a value
+    // this screen did not choose. An unknown value is an em dash.
     const String driverDefault = 'driver default';
     final sensitivity = config.sensitivity;
     final rows = <(String, String)>[
@@ -123,60 +176,25 @@ class _CaptureConfigSummary extends ConsumerWidget {
             '${lights.binningX}×${lights.binningY}',
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Key/value rows, not one run-on mono line reading
-        // "Gain n/a · Offset n/a · Bin 1×1".
-        KeyValueList(rows: rows),
-        const SizedBox(height: SkotiqTokens.spaceXs),
-        Text(
-          _cameraDefaultsNote(sensitivity),
-          style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
-        ),
-        if (mismatches.isNotEmpty) ...[
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          // The one banner style (05 §11), not a bespoke emphasis surface.
-          SkotiqBanner(
-            tone: BannerTone.warning,
-            title: 'Camera settings differ from current light settings',
-            message: '${mismatches.join(', ')}. Set per-filter overrides above '
-                'to match the lights you want to calibrate.',
-          ),
+    return FlatWizardPanel(
+      title: 'Camera',
+      note: _cameraDefaultsNote(sensitivity),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (mismatches.isNotEmpty) ...[
+            SkotiqBanner(
+              tone: BannerTone.warning,
+              title: 'These differ from the light settings',
+              message: '${mismatches.join(', ')}. Set each filter above to '
+                  'match the lights it calibrates.',
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+          ],
+          KeyValueList(rows: rows),
         ],
-      ],
-    );
-  }
-}
-
-class _ToleranceSlider extends StatelessWidget {
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  const _ToleranceSlider({
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Readout(
-          value: '±${value.toStringAsFixed(0)}',
-          unit: '%',
-          size: ReadoutSize.sm,
-        ),
-        const SizedBox(width: SkotiqTokens.spaceMd),
-        Expanded(
-          child: SkotiqSlider(
-            value: value,
-            min: 1,
-            max: 25,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -271,18 +289,11 @@ class _FrameCountInputState extends State<_FrameCountInput> {
 
   @override
   Widget build(BuildContext context) {
-    // A stepper around a typed field: the count runs to 999, so the buttons
-    // alone would be 998 clicks. The label lives in the FormRow that wraps
-    // this, so the "Frames:" caption is gone.
+    // A stepper around a typed field: the count runs to 999.
     //
-    // Flutter's default only drops focus on a tap outside on DESKTOP:
-    // `_EditableTextTapOutsideAction` deliberately ignores a touch on
-    // Android/iOS so a mobile keyboard stays up. That default is wrong for a
-    // numeric field the operator types into and then reaches straight for
-    // "Start capture": the tap would never unfocus, the commit would never
-    // fire, and the run would use the old count while the field on screen
-    // showed the new one. The TapRegion drops focus on every platform, so what
-    // the field says is what the run gets.
+    // The TapRegion drops focus on a tap anywhere else on every platform
+    // (Flutter keeps focus on a touch outside so a phone keyboard stays up),
+    // so the field commits before a press on Start reads the count.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -293,8 +304,7 @@ class _FrameCountInputState extends State<_FrameCountInput> {
           onPressed: widget.value > widget.minValue ? () => _step(-1) : null,
         ),
         const SizedBox(width: SkotiqTokens.spaceXs),
-        // Flexible, not a fixed width: FormRow squeezes its control column to
-        // 72px on a 360px phone, and a rigid field overflowed the row by 43px.
+        // Flexible: a form row's control column narrows to 72 px on a phone.
         Flexible(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _fieldWidth),
@@ -330,108 +340,9 @@ class _FrameCountInputState extends State<_FrameCountInput> {
   }
 }
 
-class _TwilightModeSelector extends StatelessWidget {
-  final TwilightMode mode;
-  final ValueChanged<TwilightMode> onChanged;
-
-  const _TwilightModeSelector({
-    required this.mode,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _TwilightOption(
-            icon: LucideIcons.sunrise,
-            label: 'Dawn',
-            description: 'Brightening sky',
-            isSelected: mode == TwilightMode.dawn,
-            onTap: () => onChanged(TwilightMode.dawn),
-            colors: colors,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _TwilightOption(
-            icon: LucideIcons.sunset,
-            label: 'Dusk',
-            description: 'Darkening sky',
-            isSelected: mode == TwilightMode.dusk,
-            onTap: () => onChanged(TwilightMode.dusk),
-            colors: colors,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TwilightOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String description;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final SkotiqColors colors;
-
-  const _TwilightOption({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.isSelected,
-    required this.onTap,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-        decoration: BoxDecoration(
-          color: isSelected ? colors.surfaceHover : colors.well,
-          borderRadius: SkotiqTokens.borderRadiusSm,
-          border: Border.all(
-            color: isSelected ? colors.primary : colors.borderHighlight,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: SkotiqTokens.iconMd,
-              color: isSelected ? colors.primary : colors.textMuted,
-            ),
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            Text(
-              label,
-              style: SkotiqTypography.bodyStrong.copyWith(
-                color: isSelected ? colors.textPrimary : colors.textSecondary,
-              ),
-            ),
-            Text(
-              description,
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// "Exposure calibration attempts": how many test exposures each filter's
-/// exposure search may take. An app setting, so the imaging computer and a
-/// linked desktop share one value and every flat path (sky, panel, a
-/// sequence's flat step, an API run) uses it. Sky flats used to stop after 3.
+/// How many test exposures each filter's exposure search may take. An app
+/// setting, so the imaging computer and a linked desktop share one value and
+/// every flat path (sky, panel, a sequence's flat step, an API run) uses it.
 class _CalibrationAttemptsRow extends ConsumerWidget {
   const _CalibrationAttemptsRow();
 
@@ -446,7 +357,8 @@ class _CalibrationAttemptsRow extends ConsumerWidget {
       ),
     );
     return FormRow(
-      label: 'Exposure calibration attempts',
+      label: FlatWizardService.attemptsSettingName,
+      labelWidth: _formLabelWidth,
       child: _FrameCountInput(
         key: const ValueKey('flat-calibration-attempts'),
         value: attempts,

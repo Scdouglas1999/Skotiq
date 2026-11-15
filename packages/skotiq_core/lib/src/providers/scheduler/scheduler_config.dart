@@ -67,7 +67,7 @@ final schedulerConfigUserDirtyProvider = StateProvider<bool>((ref) => false);
 /// How high a target must stand at this site: the one altitude-floor rule
 /// ([AltitudeFloor]). The operator's horizon when one is set, otherwise the
 /// minimum altitude ([SchedulerConfig.minAltitudeDegrees], Plan Tonight →
-/// Schedule → Scoring weights), with learned obstructions merged in. The
+/// Targets → Autopilot settings), with learned obstructions merged in. The
 /// scheduler, target scoring, Smart Night, the sequence builders, the plan
 /// timer and pre-flight, Best Targets, the altitude charts, the time-to-set
 /// readouts and the run (through its configuration) all read it here.

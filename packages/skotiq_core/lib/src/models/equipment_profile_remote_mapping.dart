@@ -45,6 +45,7 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.DbEquipmentProfile row) {
 
     defaultGain: row.defaultGain,
     defaultOffset: row.defaultOffset,
+    defaultReadoutMode: row.defaultReadoutMode,
     defaultBinX: row.defaultBinX,
     defaultBinY: row.defaultBinY,
     defaultCoolingTemp: row.defaultCoolingTemp,
@@ -143,6 +144,7 @@ db.DbEquipmentProfile remoteProfileToDbRow(
 
     defaultGain: profile.defaultGain,
     defaultOffset: profile.defaultOffset,
+    defaultReadoutMode: profile.defaultReadoutMode,
     defaultBinX: profile.defaultBinX,
     defaultBinY: profile.defaultBinY,
     defaultCoolingTemp: profile.defaultCoolingTemp,

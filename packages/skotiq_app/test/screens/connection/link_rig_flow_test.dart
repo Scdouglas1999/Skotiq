@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
 import 'package:skotiq_app/screens/connection/link_rig_dialog.dart';
 import 'package:skotiq_app/screens/connection/linked_rig_panel.dart';
 import 'package:skotiq_app/screens/connection/disconnected_backend_banner.dart';
@@ -129,7 +130,20 @@ void main() {
     service = _FakeLinkService(store);
     relauncher = _Relauncher();
   });
-  tearDown(() => dir.delete(recursive: true));
+  tearDown(() async {
+    await store.settled;
+    await dir.delete(recursive: true);
+  });
+
+  // Saving the pairing syncs the record to disk, which can take seconds on a
+  // busy machine, so the wait is for the restart, not for a fixed time.
+  Future<void> untilRelaunched(WidgetTester tester) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (relauncher.reasons.isEmpty && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await tester.pump();
+    }
+  }
 
   Widget app(Widget child, {List<Override> extra = const []}) => ProviderScope(
         overrides: [
@@ -169,10 +183,7 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.oneTap')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
 
     expect(service.calls.single, startsWith('oneTap:192.168.1.32:Skotiq on'));
@@ -237,6 +248,115 @@ void main() {
     expect(find.byKey(const ValueKey('link.pairCode')), findsNothing);
   });
 
+  testWidgets('an older host is offered "Update the host", with the token '
+      'this device holds for it', (tester) async {
+    await setSize(tester);
+    final older = _host.copyWith(version: '0.0.1', authToken: 'paired-token');
+    final opened = <(DiscoveredServer, String)>[];
+    await tester.pumpWidget(
+      app(
+        LinkRigDialog(request: LinkRigRequest.pair(older)),
+        extra: [
+          hostUpdateOpenerProvider.overrideWithValue(
+            (context, host, token) async => opened.add((host, token)),
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('link.updateThisApp')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('link.updateHost')));
+    await tester.pumpAndSettle();
+
+    expect(opened, hasLength(1));
+    expect(opened.single.$1.host, older.host);
+    expect(opened.single.$2, 'paired-token');
+  });
+
+  testWidgets('an older host this device never paired with is updated there',
+      (tester) async {
+    await setSize(tester);
+    await tester.pumpWidget(
+      app(
+        LinkRigDialog(
+          request: LinkRigRequest.pair(
+            _host.copyWith(version: '0.0.1', authRequired: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // The remembered rig is read from disk, which needs real time.
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link.updateHost')));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('is not paired with DESKTOP-MMAJGAK yet'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a newer host is answered with "Update this app"', (
+    tester,
+  ) async {
+    await setSize(tester);
+    await tester.pumpWidget(
+      app(
+        LinkRigDialog(
+          request: LinkRigRequest.pair(_host.copyWith(version: '99.0.0')),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('link.updateThisApp')), findsOneWidget);
+    expect(find.byKey(const ValueKey('link.updateHost')), findsNothing);
+  });
+
+  testWidgets('a remembered host that does not answer is unreachable, not a '
+      'release mismatch', (tester) async {
+    await setSize(tester);
+    final remembered = LinkedRig(
+      host: '192.168.1.32',
+      port: 8099,
+      name: 'DESKTOP-MMAJGAK',
+      version: '0.0.1',
+      tokenScope: 'control',
+      pairedAt: DateTime.utc(2026, 11, 7),
+    );
+    await tester.pumpWidget(
+      app(
+        LinkRigDialog(request: LinkRigRequest.repair(remembered)),
+        extra: [
+          rigInfoFetcherProvider.overrideWithValue(
+            (host) async => ServerRead(
+              host,
+              const LinkProblem.unreachable('192.168.1.32:8099'),
+            ),
+          ),
+        ],
+      ),
+    );
+    // The remembered record is read from disk, which needs real time.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('link.versionMismatch')), findsNothing);
+    expect(find.byKey(const ValueKey('link.updateHost')), findsNothing);
+    expect(
+      find.textContaining('No answer from 192.168.1.32:8099'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('a host that wants a code says so, and the code asks for admin',
       (tester) async {
     await setSize(tester);
@@ -266,10 +386,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
     expect(service.calls.last, 'code:orbit nebula 4821:true');
     final saved = await tester.runAsync(store.load);
@@ -322,10 +439,7 @@ void main() {
     );
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
     expect(service.calls.last, startsWith('code:ORBIT-NEBULA-4821:'));
     expect(relauncher.reasons, ['Linked to observatory-pi']);

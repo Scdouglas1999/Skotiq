@@ -30,6 +30,7 @@ abstract class EquipmentProfile with _$EquipmentProfile {
 
     int? defaultGain,
     int? defaultOffset,
+    String? defaultReadoutMode,
     @Default(1) int defaultBinX,
     @Default(1) int defaultBinY,
     double? defaultCoolingTemp,

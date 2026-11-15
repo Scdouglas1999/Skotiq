@@ -151,8 +151,8 @@ async fn gain_and_cooler_are_written_and_read_in_the_cameras_terms() {
         .await
         .expect("cooler on at -12");
     let status = manager.camera_get_status(&id).await.expect("status");
-    assert_eq!(status.gain, 800);
-    assert_eq!(status.offset, 30);
+    assert_eq!(status.gain, Some(800));
+    assert_eq!(status.offset, Some(30));
     assert_eq!(status.target_temp, Some(-12.0));
     assert_eq!(status.cooler_on, Some(true));
     assert!(status.can_set_gain && status.can_set_offset);

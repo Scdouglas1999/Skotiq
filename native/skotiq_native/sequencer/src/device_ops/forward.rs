@@ -356,8 +356,8 @@ macro_rules! forward_device_ops {
             use $crate::device_ops::ConnectionOps as _;
             #[$crate::device_ops::forward::async_trait]
             impl $crate::device_ops::ConnectionOps for $ty {
-                async fn device_is_connected(&self, device_id: &str) -> $crate::device_ops::DeviceResult<bool> {
-                    self.$field.device_is_connected(device_id).await
+                async fn device_answers(&self, device_id: &str) -> $crate::device_ops::DeviceResult<bool> {
+                    self.$field.device_answers(device_id).await
                 }
                 async fn connect_device(&self, device_id: &str) -> $crate::device_ops::DeviceResult<()> {
                     self.$field.connect_device(device_id).await

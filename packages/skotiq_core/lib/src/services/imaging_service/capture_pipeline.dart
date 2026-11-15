@@ -98,34 +98,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
       _activeCaptureDeviceId = deviceId;
       _activeAbortFuture = null;
 
-      // Apply readout mode before starting exposure.
-      //
-      // C6/C9: honour the user's explicit `readoutModeIndex` choice from the
-      // camera panel. The index is resolved against the camera's *actual*
-      // reported readout-mode count so a middle mode on a >2-mode sensor
-      // (e.g. index 2 of 4) is sent verbatim rather than being collapsed to
-      // the legacy 0/1 binary. `resolveReadoutModeIndex` returns the explicit
-      // index when set, otherwise maps the legacy `fastReadout` flag (slow ->
-      // first mode, fast -> last mode) using the same mode count.
-      //
-      // When the camera reports no readout modes (unknown to the driver, or a
-      // protocol that doesn't expose them) we fall back to the legacy
-      // `fastReadout ? 1 : 0` mapping — the same behaviour the panel uses when
-      // it hides the read-mode dropdown — rather than forcing index 0.
-      final int? readoutModeIndex = await _resolveReadoutModeIndex(
-        deviceId,
-        settings,
-      );
-      if (!_hasBackendAuthority(backend)) return null;
-      if (readoutModeIndex != null) {
-        // A reported readout-mode list means the setting is part of the
-        // requested capture configuration. If the driver rejects it, abort the
-        // exposure instead of producing a frame in an unknown mode while the
-        // FITS metadata and UI still claim the user's selection.
-        await backend.cameraSetReadoutMode(deviceId, readoutModeIndex);
-        if (!_hasBackendAuthority(backend)) return null;
-      }
-
       _activeCameraNotifier = cameraNotifier;
       _activeProgressNotifier = progressNotifier;
       _ownsSharedExposureState = true;

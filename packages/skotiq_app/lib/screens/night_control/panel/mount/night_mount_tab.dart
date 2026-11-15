@@ -242,12 +242,13 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                 ? (l10n.text('nightScopeParked'), null)
                 : mount.isTracking
                     ? (
-                        l10n.text(
-                          'nightScopeTrackingAt',
-                          params: {
-                            'rate': l10n.text(_rateKey(mount.trackingRate))
-                          },
-                        ),
+                        switch (mount.trackingRate) {
+                          null => l10n.text('nightScopeTrackingRateUnknown'),
+                          final rate => l10n.text(
+                              'nightScopeTrackingAt',
+                              params: {'rate': l10n.text(_rateKey(rate))},
+                            ),
+                        },
                         MetricGridTone.good,
                       )
                     : (
@@ -347,12 +348,14 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
         mount.isTracking &&
         !mount.isParked &&
         mount.trackingRate == rate;
+    // A mount that does not offer the rate can still be started at it when
+    // that is the rate it reports: the button then only starts tracking.
+    final offered = caps != null &&
+        caps.canSetTrackingRate &&
+        caps.supportedTrackingRates.contains(rate);
     String? reason = facts.baseReason(l10n);
     if (reason == null && caps != null) {
-      final needsRateChange = mount.trackingRate != rate;
-      if (needsRateChange &&
-          !(caps.canSetTrackingRate &&
-              caps.supportedTrackingRates.contains(rate))) {
+      if (!offered && mount.trackingRate != rate) {
         reason = l10n.text(
           'nightScopeWhyRateUnsupported',
           params: {'rate': l10n.text(_rateKey(rate))},
@@ -370,7 +373,7 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       disabledReason: reason,
       onPressed: reason != null || _busy != null
           ? null
-          : () => _run(id, () => _trackAt(rate)),
+          : () => _run(id, () => _trackAt(rate, sendRate: offered)),
     );
   }
 
@@ -399,10 +402,15 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     );
   }
 
-  /// Sets [rate] when it differs, then makes sure the mount tracks.
-  Future<CommandActionResult> _trackAt(TrackingRate rate) async {
+  /// Sends [rate] to a mount that offers it, then makes sure the mount
+  /// tracks. The rate is sent even when the mount last reported the same one:
+  /// what the app shows can be older than a change made at the handset.
+  Future<CommandActionResult> _trackAt(
+    TrackingRate rate, {
+    required bool sendRate,
+  }) async {
     final commands = ref.read(mountCommandServiceProvider);
-    if (ref.read(mountStateProvider).trackingRate != rate) {
+    if (sendRate) {
       final result = await commands.setTrackingRate(rate);
       if (!result.isSuccess) return result;
     }

@@ -9,7 +9,7 @@ String altitudeFloorRuleLabel(AltitudeFloor floor) => floor.followsHorizon
 /// Where the floor in force is set.
 String altitudeFloorRuleDetail(AltitudeFloor floor) => floor.followsHorizon
     ? 'Targets are held to your horizon, direction by direction. Edit it '
-          'in Settings > Location.'
+        'in Settings > Location.'
     : 'No horizon is set, so targets are held to the minimum altitude. '
-          'Edit it in Plan Tonight > Schedule, or set a horizon in '
-          'Settings > Location.';
+        'Edit it in Plan Tonight > Targets > Autopilot settings, or set a '
+        'horizon in Settings > Location.';

@@ -166,15 +166,14 @@ void main() {
     expect(find.text('Go to Imaging'), findsOneWidget);
   });
 
-  // The other four tabs need a live database to reach their empty branch at
+  // The other three tabs need a live database to reach their empty branch at
   // all (run stats, project progress, sessionless PSF tiles), so the pin that
-  // they share the one widget is structural. Both halves matter: five call
+  // they share the one widget is structural. Both halves matter: four call
   // sites using it, and no call site keeping a hand-rolled column.
-  test('all five Analytics empty states go through AnalyticsEmptyState', () {
+  test('all four Analytics empty states go through AnalyticsEmptyState', () {
     const sites = <String, String>{
       'Session': 'lib/screens/analytics/analytics_screen/session_tab.dart',
       'History': 'lib/screens/analytics/analytics_screen/history_tab.dart',
-      'Projects': 'lib/screens/analytics/widgets/project_tracking_panel.dart',
       'Equipment Stats':
           'lib/screens/analytics/analytics_screen/equipment_stats.dart',
       'Diagnostics': 'lib/screens/diagnostics/diagnostics_screen.dart',

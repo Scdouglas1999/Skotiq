@@ -1,10 +1,8 @@
-// The per-filter row has to reach the filter that is actually running.
+// The per-filter results have to reach the filter that is running.
 //
-// With the profile's seven filters the Visualizations row runs past the window
-// edge after `B` (a fifth card sliced in half). Without a scrollbar, arrow or
-// any other affordance saying more cards exist, `Ha` — the filter with live data
-// (`Ha / 7.86s / 13/30`) — plus OIII and SII are unreachable at the default
-// 1600x900 window.
+// A batch over the profile's seven filters lists more rows than the results
+// panel shows at once. The list scrolls and follows the run, so the filter
+// with live counts is on screen.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/flat_wizard/widgets/flat_preview_panel.dart';
@@ -30,6 +28,7 @@ class _SeededWizard extends FlatWizardNotifier {
                 : FilterCalibrationStatus.pending,
           ),
       ],
+      mode: FlatWizardMode.batch,
       showFilterCards: true,
       showAduGraph: false,
     );
@@ -44,9 +43,8 @@ void main() {
     await pumpAppScreen(
       tester,
       const FlatPreviewPanel(),
-      // Narrower than seven 108px cards, which is the situation the row is in
-      // on a real window once the wizard's settings column takes its share.
-      size: const Size(520, 700),
+      // Short enough that seven rows do not fit the results panel.
+      size: const Size(520, 600),
       settle: false,
       extraOverrides: [
         flatWizardProvider.overrideWith(
@@ -57,16 +55,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 400));
 
-    // The row is scrollable and says so.
-    expect(find.byType(Scrollbar), findsWidgets);
-
-    final row = tester.getRect(find.byType(ListView).first);
-    final active = tester.getRect(find.text('Ha'));
-    expect(
-      active.left >= row.left && active.right <= row.right,
-      isTrue,
-      reason:
-          'the filter with live data was off-screen with no way to reach it',
+    final active = find.text('Ha');
+    final list = tester.getRect(
+      find.ancestor(of: active, matching: find.byType(Scrollable)).first,
     );
+    final row = tester.getRect(active);
+    expect(
+      row.top >= list.top && row.bottom <= list.bottom,
+      isTrue,
+      reason: 'the filter with live data must be inside the visible list',
+    );
+    expect(find.text('13 / 30'), findsOneWidget);
+    expect(find.text('Capturing'), findsOneWidget);
   });
 }

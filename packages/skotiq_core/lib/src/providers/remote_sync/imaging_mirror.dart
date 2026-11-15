@@ -251,8 +251,6 @@ Future<void> _publishRemoteCurrentFrame(
       binningY: baseSettings.binningY,
       filter: filterState.currentFilterName ?? baseSettings.filter,
       frameType: baseSettings.frameType,
-      fastReadout: baseSettings.fastReadout,
-      readoutModeIndex: baseSettings.readoutModeIndex,
     );
 
     final hint = fetchState.hint;

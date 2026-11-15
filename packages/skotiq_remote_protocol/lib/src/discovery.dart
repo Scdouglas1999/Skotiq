@@ -112,9 +112,13 @@ class DiscoveredServer {
   /// `GET /api/info` which carries the canonical answer.
   bool get isTls => scheme == 'https';
 
-  /// Why this client cannot link to the host, or null when they run the same
-  /// release ([LinkVersion]).
-  LinkVersionMismatch? get linkMismatch => LinkVersion.check(host: version);
+  /// Why this client cannot link to the host: it reported another release
+  /// ([LinkVersion]). Null when the releases match, and when the host has not
+  /// said which release it runs ([version] is null until it answers).
+  LinkVersionMismatch? get linkMismatch {
+    final release = version;
+    return release == null ? null : LinkVersion.check(host: release);
+  }
 
   String get webUrl => buildSkotiqServerUri(
     scheme: scheme,

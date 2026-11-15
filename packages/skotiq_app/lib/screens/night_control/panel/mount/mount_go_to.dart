@@ -338,9 +338,6 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
-    final refused =
-        await ref.read(mountCommandServiceProvider).stopGuidingForMove();
-    if (refused != null) return refused;
     final centering = ManualCentering.of(
       await ref.read(appSettingsProvider.future),
       ref.read(activeEquipmentProfileProvider),

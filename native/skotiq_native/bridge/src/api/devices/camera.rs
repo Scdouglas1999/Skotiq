@@ -47,21 +47,54 @@ pub async fn set_camera_offset(device_id: String, offset: i32) -> Result<(), Sko
         .map_err(SkotiqError::from)
 }
 
-/// Set camera readout mode by index
-///
-/// mode_index: 0 = default/high quality, 1 = fast readout, etc.
-/// The available modes are camera-dependent.
-pub async fn api_camera_set_readout_mode(
+/// State the read mode a camera is to take its frames in: its equipment
+/// profile's default, by the name the camera lists. Nothing is written to
+/// the camera now; the next exposure puts it in the mode if it is in
+/// another. `None` leaves the camera in the mode it is in.
+#[flutter_rust_bridge::frb(sync)]
+pub fn api_camera_state_readout_mode(device_id: String, mode: Option<String>) {
+    get_device_manager().camera_state_readout_mode(&device_id, mode);
+}
+
+/// One capture a camera is keeping because its download failed.
+pub struct RetainedCaptureInfo {
+    pub device_id: String,
+    pub camera_name: String,
+    /// Where the file is on the camera.
+    pub location: String,
+    /// In the camera's memory rather than on its card.
+    pub in_camera_memory: bool,
+    /// Why the capture did not become a frame.
+    pub reason: String,
+    /// Milliseconds since the Unix epoch (UTC).
+    pub retained_at_ms: i64,
+}
+
+/// The captures cameras are keeping, oldest first.
+#[flutter_rust_bridge::frb(sync)]
+pub fn api_camera_retained_captures() -> Vec<RetainedCaptureInfo> {
+    get_device_manager()
+        .camera_retained_captures()
+        .into_iter()
+        .map(|kept| RetainedCaptureInfo {
+            device_id: kept.device_id,
+            camera_name: kept.camera_name,
+            location: kept.location,
+            in_camera_memory: kept.in_camera_memory,
+            reason: kept.reason,
+            retained_at_ms: kept.retained_at_ms,
+        })
+        .collect()
+}
+
+/// Read a retained capture off its camera and save the camera's file.
+/// Answers the path it was saved to.
+pub async fn api_camera_retrieve_retained_capture(
     device_id: String,
-    mode_index: i32,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Setting camera readout mode for {}: index={}",
-        device_id,
-        mode_index
-    );
-    let mgr = get_device_manager();
-    mgr.camera_set_readout_mode(&device_id, mode_index)
+    location: String,
+) -> Result<String, SkotiqError> {
+    get_device_manager()
+        .camera_retrieve_retained_capture(&device_id, &location)
         .await
         .map_err(SkotiqError::from)
 }

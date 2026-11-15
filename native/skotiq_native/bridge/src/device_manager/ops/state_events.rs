@@ -179,6 +179,80 @@ impl DeviceManager {
         }
     }
 
+    /// Tell the user something about a device that nothing in the app acts
+    /// on: a notification with `title`, at warning level.
+    pub(crate) fn publish_notice(&self, title: &str, message: String) {
+        tracing::warn!("{title}: {message}");
+        self.app_state
+            .publish_event(crate::event::correlation::create_event_auto_id(
+                EventSeverity::Warning,
+                crate::event::equipment::EventCategory::Equipment,
+                crate::event::bus::EventPayload::System(
+                    crate::event::system::SystemEvent::Notification {
+                        title: title.to_string(),
+                        message,
+                        level: "warning".to_string(),
+                        explicit_transports: None,
+                    },
+                ),
+            ));
+    }
+
+    /// Record whether a light or flat frame from `camera_id` had signal, and
+    /// tell the user when a run of frames without it begins. The frame is
+    /// kept either way: a capped telescope or a closed shutter is the user's
+    /// to fix, and one notice per run of dark frames says so without one per
+    /// sub.
+    pub(crate) async fn note_frame_signal(
+        &self,
+        camera_id: &str,
+        duration_secs: f64,
+        below_floor: Option<skotiq_imaging::BelowSignalFloor>,
+    ) {
+        let begins_a_dim_run = {
+            let mut dim = self
+                .dim_frame_cameras
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            match below_floor {
+                Some(_) => dim.insert(camera_id.to_string()),
+                None => {
+                    dim.remove(camera_id);
+                    false
+                }
+            }
+        };
+        let Some(below) = below_floor.filter(|_| begins_a_dim_run) else {
+            return;
+        };
+        let camera_name = self
+            .devices
+            .read()
+            .await
+            .get(camera_id)
+            .map_or_else(|| camera_id.to_string(), |d| d.info.shown_name());
+        self.publish_notice(
+            "Frame has almost no signal",
+            format!(
+                "The {} s frame from {camera_name} peaks at {} ADU, under the \
+                 {} ADU a frame with signal reaches. It was kept. Check the cap, the shutter, \
+                 the dome and the exposure time. Skotiq says this once, until a frame has \
+                 signal again.",
+                // Whole seconds for a sub, two decimals for a short frame.
+                if duration_secs >= 10.0 {
+                    format!("{duration_secs:.0}")
+                } else {
+                    format!("{duration_secs:.2}")
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
+                        .to_string()
+                },
+                below.max_value,
+                below.floor
+            ),
+        );
+    }
+
     /// Publish `MountSlewCompleted` once a commanded slew has actually
     /// arrived, watched in the background so the caller is not held up. A
     /// slew that stops short, is aborted or times out publishes nothing: the

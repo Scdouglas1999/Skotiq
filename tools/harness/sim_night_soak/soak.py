@@ -65,10 +65,19 @@ class Soak:
         print(f"[soak {time.strftime('%H:%M:%S')}] {what} "
               + (json.dumps(extra) if extra else ""), flush=True)
 
+    def release(self):
+        """The host's Skotiq release. Every API request names it in
+        x-skotiq-version; a host refuses a request that does not."""
+        if getattr(self, "_release", None) is None:
+            with urllib.request.urlopen(self.base + "/api/info", timeout=10) as resp:
+                self._release = json.load(resp)["version"]
+        return self._release
+
     def api(self, method, path, body=None, timeout=20, ok_statuses=(200,)):
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(self.base + path, data=data, method=method,
                                      headers={"Authorization": "Bearer " + TOKEN,
+                                              "x-skotiq-version": self.release(),
                                               "Content-Type": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:

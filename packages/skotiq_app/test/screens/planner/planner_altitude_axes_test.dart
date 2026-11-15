@@ -44,9 +44,6 @@ List<Override> _overrides() {
     tonightSuggestionsProvider.overrideWith((ref) async => [_ngc6015]),
     smartNightExposureContextProvider.overrideWith((ref) async => null),
     appSettingsProvider.overrideWith(_StubAppSettingsNotifier.new),
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(
       (ref) => FakeSchedulerStatusNotifier(

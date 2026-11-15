@@ -1240,6 +1240,16 @@ const Map<String, Object?> _changedOnPurpose = {
   'mqtt transport': {
     'reads': {'empty': _SameAs('missing')},
   },
+  // The read mode is the equipment profile's, so the capture row holds none.
+  'capture settings': {
+    'writes': {
+      'exposure 20': {
+        'imaging_capture_settings_profile_1':
+            '{"exposureTime":20.0,"gain":100,"offset":50,"binningX":1,'
+            '"binningY":1,"filter":null,"frameType":"light"}',
+      },
+    },
+  },
 };
 
 /// A change to the value the base build read from the rows labeled [label].
