@@ -204,7 +204,7 @@ class BackupArchiveContents {
 
   final String version;
 
-  /// Every top-level value of the archive except `tables`.
+  /// Every top-level value of the archive except `tables` and `settings`.
   final Map<String, dynamic> sections;
 
   /// Rows written into the database file, by table.
@@ -215,14 +215,16 @@ class BackupArchiveContents {
 }
 
 /// Reads the archive at [archivePath] and writes the rows of its `tables`
-/// section into the database file at [databasePath], which holds the schema
-/// and no rows in those tables. Tables in [never] and tables or columns the
-/// schema does not have are left out. One transaction: a file that cannot be
-/// read to its end leaves the database file as it was.
+/// section and its settings (but for [omitSettings]) into the database file
+/// at [databasePath], which holds the schema and no rows in those tables.
+/// Tables in [never] and tables or columns the schema does not have are left
+/// out. One transaction: a file that cannot be read to its end leaves the
+/// database file as it was.
 Future<BackupArchiveContents> readBackupArchive({
   required String archivePath,
   required String databasePath,
   required Set<String> never,
+  required Set<String> omitSettings,
   required void Function(double fraction) report,
 }) async {
   final file = File(archivePath);
@@ -268,6 +270,25 @@ Future<BackupArchiveContents> readBackupArchive({
       if (tables != null) loader.loadDecoded(tables);
     }
     checkBackupVersion(sections['version']);
+    if (sections.remove('settings') case final settings?) {
+      if (settings is! Map<String, dynamic>) {
+        throw const BackupArchiveException(
+          'Invalid backup file: "settings" is not an object',
+        );
+      }
+      final write = db.prepare(
+        'INSERT INTO app_settings (key, value) VALUES (?, ?) '
+        'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+      );
+      try {
+        for (final MapEntry(:key, :value) in settings.entries) {
+          if (omitSettings.contains(key) || value == null) continue;
+          write.execute([key, '$value']);
+        }
+      } finally {
+        write.close();
+      }
+    }
     db.execute('COMMIT');
     report(1);
     return BackupArchiveContents(

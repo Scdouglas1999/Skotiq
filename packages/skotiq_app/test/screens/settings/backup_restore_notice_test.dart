@@ -44,6 +44,10 @@ void main() {
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();
+
+    when(service.pendingReplace).thenAnswer((_) async => null);
+
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => [backupFile]);
     when(
       () => service.restoreBackup(
@@ -116,6 +120,10 @@ void main() {
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();
+
+    when(service.pendingReplace).thenAnswer((_) async => null);
+
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => [backupFile]);
     when(
       () => service.restoreBackup(

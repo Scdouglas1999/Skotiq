@@ -232,15 +232,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           final state = await hostBackups.restoreState();
           final progress = state['progress'];
           if (mounted && _progress != null && progress is Map) {
-            setState(
-              () => _progress = RestoreProgress(
-                progress['step'] as String? ?? 'Working',
-                (progress['fraction'] as num?)?.toDouble() ?? 0,
-              ),
-            );
+            setState(() => _progress = RestoreProgress.fromJson(progress));
           }
-        } catch (_) {
+        } on Exception catch (error) {
           // The operation's own answer says how it went.
+          Log.debug(
+            'Could not read the host\'s backup progress: $error',
+            source: 'BackupScreen',
+          );
         }
       });
 
@@ -273,8 +272,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         );
       }
       if (mounted) setState(() => _replace = state);
-    } catch (_) {
+    } on Exception catch (error) {
       // The list load reports a host that cannot be reached.
+      Log.debug(
+        'Could not read the state of a database replace: $error',
+        source: 'BackupScreen',
+      );
     }
   }
 
@@ -303,8 +306,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       } else {
         await ref.read(backupServiceProvider).dismissReplaceOutcome();
       }
-    } catch (_) {
+    } on Exception catch (error) {
       // It is shown again next time.
+      Log.debug(
+        'Could not clear the record of a database replace: $error',
+        source: 'BackupScreen',
+      );
     }
     await _loadReplaceState(hostBackups);
   }

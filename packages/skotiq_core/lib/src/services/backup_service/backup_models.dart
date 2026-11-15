@@ -91,6 +91,12 @@ class RestoreProgress {
   final double fraction;
 
   Map<String, Object?> toJson() => {'step': step, 'fraction': fraction};
+
+  factory RestoreProgress.fromJson(Map<dynamic, dynamic> json) =>
+      RestoreProgress(
+        json['step'] as String,
+        (json['fraction'] as num).toDouble(),
+      );
 }
 
 class RestoreResult {
@@ -177,8 +183,8 @@ String restoreReportFromWire(Map<String, dynamic> body) {
   final reasons = counts(body['leftOut']);
   return restoreReport(
     mode: RestoreMode.fromWire(body['mode']),
-    itemsRestored: body['itemsRestored'] as int? ?? 0,
-    alreadyHere: body['alreadyHere'] as int? ?? 0,
+    itemsRestored: body['itemsRestored'] as int,
+    alreadyHere: body['alreadyHere'] as int,
     notRestored: counts(body['notRestored']),
     leftOut: {
       for (final reason in RestoreLeftOut.values)

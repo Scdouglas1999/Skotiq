@@ -1,24 +1,21 @@
 part of '../backup_service.dart';
 
 extension _BackupSections on BackupService {
-  /// Write the sections of a backup other than `tables` into this (staged,
-  /// otherwise empty) database: the settings, and what a backup older than
-  /// 3.1 holds under keys of its own.
+  /// Whether [backup] holds a section only a backup older than 3.1 has.
+  bool _hasOwnSections(Map<String, dynamic> backup) => [
+    'equipmentProfiles',
+    'sequences',
+    'targets',
+    ..._legacyTableImporters.keys,
+  ].any(backup.containsKey);
+
+  /// Write the sections a backup older than 3.1 holds under keys of its own
+  /// into this (staged, otherwise empty) database.
   ///
-  /// Every section is checked before the first write: `settings` is an
-  /// object, `equipmentProfiles` and `targets` are lists of objects with a
-  /// name, every entry of `sequences` decodes to its last node.
+  /// Every section is checked before the first write: `equipmentProfiles`
+  /// and `targets` are lists of objects with a name, every entry of
+  /// `sequences` decodes to its last node.
   Future<void> _applySections(Map<String, dynamic> backup) async {
-    Map<String, dynamic>? settings;
-    if (backup.containsKey('settings')) {
-      final raw = backup['settings'];
-      if (raw is! Map<String, dynamic>) {
-        throw const BackupArchiveException(
-          'Invalid backup file: "settings" is not an object',
-        );
-      }
-      settings = raw;
-    }
     final profiles = backup.containsKey('equipmentProfiles')
         ? _namedRows(backup['equipmentProfiles'], 'equipmentProfiles')
         : null;
@@ -60,7 +57,6 @@ extension _BackupSections on BackupService {
     }
 
     await database.transaction(() async {
-      if (settings != null) await _importSettings(settings);
       if (profiles != null) await _importProfiles(profiles);
       final repository = LocalSequenceRepository(database.sequencesDao);
       for (final sequence in sequences ?? const <Sequence>[]) {

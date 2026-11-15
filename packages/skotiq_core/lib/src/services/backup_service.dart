@@ -48,6 +48,7 @@ Future<BackupArchiveContents> Function(void Function(double)) _archiveReader({
       archivePath: archivePath,
       databasePath: databasePath,
       never: never,
+      omitSettings: const {BackupService.backupDirectorySettingKey},
       report: report,
     );
 
@@ -213,7 +214,7 @@ class BackupService {
       await _sweepScratch();
       staged = await _scratchFile('restore');
       final replace = mode == RestoreMode.replace;
-      await _stage(
+      final contents = await _stage(
         file,
         staged,
         (fraction) => onProgress?.call(
@@ -229,6 +230,7 @@ class BackupService {
         result = await _replaceWith(
           staged,
           backupName: path.basename(file.path),
+          backupCreatedAt: contents.sections['createdAt'],
           onProgress: (step, fraction) =>
               onProgress?.call(RestoreProgress(step, 0.7 + 0.3 * fraction)),
         );
@@ -284,7 +286,7 @@ class BackupService {
   /// Build in [staged] the database the backup [archive] describes: this
   /// build's schema, the archive's table rows as they are, and its settings.
   /// Nothing of the live database is read or written.
-  Future<void> _stage(
+  Future<BackupArchiveContents> _stage(
     File archive,
     File staged,
     void Function(double fraction) onProgress,
@@ -318,23 +320,34 @@ class BackupService {
         source: 'BackupService',
       );
     }
-    db = SkotiqDatabase.onFile(staged);
-    try {
-      // A 2.x section can hold rows of a session the backup does not; what
-      // they point at is settled by the merge or the replace, not here.
-      await db.customStatement('PRAGMA foreign_keys = OFF');
-      await BackupService(
-        database: db,
-        logger: _logger,
-      )._applySections(contents.sections);
-    } finally {
-      await db.close();
+    // What a backup older than 3.1 holds under keys of its own goes in
+    // through the importers of its day.
+    if (_hasOwnSections(contents.sections)) {
+      db = SkotiqDatabase.onFile(staged);
+      try {
+        // A 2.x section can hold rows of a session the backup does not; what
+        // they point at is settled by the merge or the replace, not here.
+        await db.customStatement('PRAGMA foreign_keys = OFF');
+        await BackupService(
+          database: db,
+          logger: _logger,
+        )._applySections(contents.sections);
+      } finally {
+        await db.close();
+      }
     }
+    return contents;
   }
+
+  /// Where the database is, asked once: the answers below are read from
+  /// files beside it and must not wait behind a restore that holds the
+  /// connection.
+  late final Future<Directory?> _databaseDirectory = database
+      .databaseDirectory();
 
   /// The replace that waits for the next start, or null.
   Future<PendingReplace?> pendingReplace() async {
-    final directory = await database.databaseDirectory();
+    final directory = await _databaseDirectory;
     if (directory == null) return null;
     final request = await readPendingRestoreRequest(directory);
     final label = request?.label;
@@ -350,7 +363,7 @@ class BackupService {
   /// Withdraws the replace that waits for the next start: this database
   /// stays. The safety backup written for it is kept.
   Future<void> cancelPendingReplace() async {
-    final directory = await database.databaseDirectory();
+    final directory = await _databaseDirectory;
     if (directory == null) return;
     final request = await readPendingRestoreRequest(directory);
     if (request == null || request.label == null) return;
@@ -363,17 +376,17 @@ class BackupService {
   /// What the last start did with a replace that was waiting, until
   /// [dismissReplaceOutcome].
   Future<DatabaseRestoreOutcome?> replaceOutcome() async {
-    final directory = await database.databaseDirectory();
+    final directory = await _databaseDirectory;
     return directory == null ? null : readRestoreOutcome(directory);
   }
 
   Future<void> markReplaceOutcomeAnnounced() async {
-    final directory = await database.databaseDirectory();
+    final directory = await _databaseDirectory;
     if (directory != null) await markRestoreOutcomeAnnounced(directory);
   }
 
   Future<void> dismissReplaceOutcome() async {
-    final directory = await database.databaseDirectory();
+    final directory = await _databaseDirectory;
     if (directory != null) await clearRestoreOutcome(directory);
   }
 
@@ -395,7 +408,7 @@ class BackupService {
   /// database (the same disk, so a replace is a rename), or the system's
   /// temporary folder for a database with no file.
   Future<Directory> _scratchDirectory() async =>
-      await database.databaseDirectory() ?? Directory.systemTemp;
+      await _databaseDirectory ?? Directory.systemTemp;
 
   Future<File> _scratchFile(String purpose) async => File(
     path.join(

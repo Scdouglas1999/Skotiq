@@ -1,16 +1,6 @@
 part of '../backup_service.dart';
 
 extension _BackupSequenceCodec on BackupService {
-  /// The backup's settings, but for this machine's backup folder: where
-  /// backups are written and pruned is never a backup's to say.
-  Future<void> _importSettings(Map<String, dynamic> settingsMap) async {
-    final settingsDao = SettingsDao(database);
-    for (final entry in settingsMap.entries) {
-      if (entry.key == BackupService.backupDirectorySettingKey) continue;
-      await settingsDao.setSetting(entry.key, entry.value?.toString() ?? '');
-    }
-  }
-
   /// The `equipmentProfiles` section of a backup older than 3.1, under the
   /// ids the backup gave them, so the rows that point at a profile still do.
   /// One profile is the default and one the active one.

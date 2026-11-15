@@ -42,6 +42,8 @@ void main() {
   testWidgets('backup import picker is single-flight and rejects host switch',
       (tester) async {
     final service = _MockBackupService();
+    when(service.pendingReplace).thenAnswer((_) async => null);
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => []);
     final pick = Completer<XFile?>();
     var pickerCalls = 0;
@@ -104,6 +106,8 @@ void main() {
   testWidgets('local backup import confirms, restores, and reports success',
       (tester) async {
     final service = _MockBackupService();
+    when(service.pendingReplace).thenAnswer((_) async => null);
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => []);
     when(
       () => service.restoreBackup(
@@ -164,6 +168,8 @@ void main() {
   testWidgets('backup picker failures are visible and unlock retry',
       (tester) async {
     final service = _MockBackupService();
+    when(service.pendingReplace).thenAnswer((_) async => null);
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => []);
     await pumpAppScreen(
       tester,

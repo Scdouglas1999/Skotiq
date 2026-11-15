@@ -32,6 +32,7 @@ extension _BackupReplace on BackupService {
   Future<RestoreResult> _replaceWith(
     File staged, {
     required String backupName,
+    required Object? backupCreatedAt,
     required void Function(String step, double fraction) onProgress,
   }) async {
     RestoreResult failed(String message) => RestoreResult(
@@ -51,6 +52,11 @@ extension _BackupReplace on BackupService {
       // Where this machine keeps its backups is not a backup's to say.
       for (final key in const [BackupService.backupDirectorySettingKey])
         if (await settings.getSetting(key) case final value?) key: value,
+      // The database this becomes was last backed up when the backup was
+      // made.
+      if (backupCreatedAt is String &&
+          DateTime.tryParse(backupCreatedAt) != null)
+        BackupService.lastBackupSettingKey: backupCreatedAt,
     };
     final counts = <String, int>{};
     final leftOut = <String, int>{};
@@ -134,7 +140,7 @@ extension _BackupReplace on BackupService {
         label: backupName,
         safetyBackup: safety.filePath,
       );
-    } catch (_) {
+    } on Object {
       await _deleteQuietly(ready);
       rethrow;
     }

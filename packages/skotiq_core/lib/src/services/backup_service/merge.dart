@@ -501,7 +501,6 @@ extension _BackupMerge on BackupService {
       final outcome = await database.transaction(() async {
         await database.customStatement('PRAGMA defer_foreign_keys = ON');
         final plan = await _mergePlan();
-        final brokenBefore = await _brokenLinks();
         final rows = <String, int>{
           for (final table in plan)
             table.name: await _count('$_bk.${_q(table.name)}'),
@@ -525,41 +524,43 @@ extension _BackupMerge on BackupService {
         final outcome = _MergeOutcome();
         var done = 0;
         for (final table in plan) {
-          progress(
-            table.name.replaceAll('_', ' '),
-            total == 0 ? 1 : done / total,
-          );
-          done += rows[table.name]!;
-          if (rows[table.name] == 0) continue;
+          final name = table.name;
+          final step = name.replaceAll('_', ' ');
+          final size = rows[name]!;
+          progress(step, total == 0 ? 1 : done / total);
+          if (size == 0) continue;
+          final watch = Stopwatch()..start();
+          // A table without a row id of its own cannot say which of its rows
+          // the merge added, so its broken links are counted before and
+          // after.
+          final brokenBefore = table.rowId == null
+              ? await _brokenLinks(name)
+              : 0;
           await _mergeTable(
             table,
-            liveIsEmpty: liveRows[table.name] == 0,
+            liveIsEmpty: liveRows[name] == 0,
             yoursOnly: groupsInUse.contains(table.rule.group),
             // Which profile is in use is this install's choice.
-            overrides:
-                table.name == 'equipment_profiles' && liveRows[table.name]! > 0
+            overrides: name == 'equipment_profiles' && liveRows[name]! > 0
                 ? const {'is_active': '0', 'is_default': '0'}
                 : const {},
+            tick: (part) => progress(step, (done + size * part) / total),
           );
+          done += size;
           final fates = await database
               .customSelect(
-                'SELECT fate, count(*) AS n FROM ${_m(table.name)} '
-                'GROUP BY fate',
+                'SELECT fate, count(*) AS n FROM ${_m(name)} GROUP BY fate',
               )
               .get();
           for (final row in fates) {
             final fate = row.read<int>('fate');
             final n = row.read<int>('n');
             if (fate == _Fate.added) {
-              outcome.added[table.name] = n;
+              outcome.added[name] = n;
             } else if (fate == _Fate.same) {
               outcome.alreadyHere += n;
             } else {
-              outcome.notRestored.update(
-                table.name,
-                (v) => v + n,
-                ifAbsent: () => n,
-              );
+              outcome.notRestored.update(name, (v) => v + n, ifAbsent: () => n);
               outcome.leftOut.update(
                 _Fate.leftOut[fate]!,
                 (v) => v + n,
@@ -567,12 +568,26 @@ extension _BackupMerge on BackupService {
               );
             }
           }
-        }
-        final broken = (await _brokenLinks()).difference(brokenBefore);
-        if (broken.isNotEmpty) {
-          throw StateError(
-            'The merge would leave ${broken.length} rows pointing at records '
-            'that are not there (${broken.take(5).join(', ')})',
+          // Every link of an added row was read as a row that is here, so
+          // none can be broken; a merge that broke one is not kept.
+          if (outcome.added.containsKey(name)) {
+            final broken = table.rowId == null
+                ? await _brokenLinks(name) - brokenBefore
+                : await _count(
+                    "pragma_foreign_key_check('$name') v JOIN ${_m(name)} m "
+                    'ON m.live = v.rowid AND m.fate = ${_Fate.added}',
+                  );
+            if (broken > 0) {
+              throw StateError(
+                'The merge would leave $broken rows of "$name" pointing at '
+                'records that are not there',
+              );
+            }
+          }
+          _logger.debug(
+            'Merged $name: $size backup rows in ${watch.elapsedMilliseconds} '
+            'ms',
+            source: 'BackupService',
           );
         }
         return outcome;
@@ -590,18 +605,16 @@ extension _BackupMerge on BackupService {
               .getSingle())
           .read<int>('n');
 
-  Future<Set<String>> _brokenLinks() async => {
-    for (final v
-        in await database.customSelect('PRAGMA main.foreign_key_check').get())
-      '${v.read<String>('table')} row ${v.readNullable<int>('rowid')} '
-          '-> ${v.read<String>('parent')}',
-  };
+  /// How many rows of the live [table] point at a record that is not there.
+  Future<int> _brokenLinks(String table) =>
+      _count("pragma_foreign_key_check('$table')");
 
   Future<void> _mergeTable(
     _MergeTable t, {
     required bool liveIsEmpty,
     required bool yoursOnly,
     required Map<String, String> overrides,
+    required void Function(double part) tick,
   }) async {
     final x = _x(t.name);
     final m = _m(t.name);
@@ -715,6 +728,8 @@ extension _BackupMerge on BackupService {
       }
     }
 
+    tick(0.3);
+
     Future<void> settle(int round) async {
       if (!liveIsEmpty) {
         final same = t.content
@@ -734,6 +749,7 @@ extension _BackupMerge on BackupService {
           );
         }
       }
+      tick(0.7);
       const unsettled = 'NOT EXISTS (SELECT 1 FROM';
       final rest =
           'x.$_out = 0 AND x.$_round = $round '
