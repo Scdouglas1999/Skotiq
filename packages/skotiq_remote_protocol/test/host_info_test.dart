@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_remote_protocol/client.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 Future<HostInfoRead> _read(
