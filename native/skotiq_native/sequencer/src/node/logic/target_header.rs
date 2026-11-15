@@ -152,7 +152,7 @@ async fn run_target_body(
             emit_below_floor_skipped_at_entry(context, node.id(), &display_name);
             return NodeStatus::Skipped;
         }
-        match wait_for_trigger(config, context, start, poll_interval).await {
+        match wait_for_trigger(config, context, node.id(), start, poll_interval).await {
             NodeStatus::Success => {}
             other => return other,
         }
@@ -608,6 +608,39 @@ fn start_when_with_site_floor(
     })
 }
 
+/// Whether `start` is, or includes, the wait for the site's altitude floor.
+fn waits_for_floor(start: &TargetTrigger) -> bool {
+    match start {
+        TargetTrigger::AboveAltitudeFloor => true,
+        TargetTrigger::And(terms) => terms.contains(&TargetTrigger::AboveAltitudeFloor),
+        _ => false,
+    }
+}
+
+/// What the run says while a target waits to start: the floor it is held
+/// behind, with its altitude and the floor's in that direction, when that is
+/// what holds it; otherwise the condition it waits for.
+fn waiting_message(
+    target: &str,
+    start: &TargetTrigger,
+    label: &str,
+    observer: &TriggerObserverContext,
+) -> String {
+    if waits_for_floor(start) {
+        if let Some(floor) = observer.altitude_floor.as_ref() {
+            let (altitude, azimuth) = observer.floor_target().alt_az(observer.now);
+            if !floor.clears(altitude, azimuth) {
+                return format!(
+                    "Waiting for {target} to clear the site's altitude floor: it is \
+                     {altitude:.0}° up and the floor in that direction is {:.0}°",
+                    floor.at_azimuth(azimuth)
+                );
+            }
+        }
+    }
+    format!("Waiting for {target}: {label}")
+}
+
 /// Whether `start` waits for the altitude floor and the target does not clear
 /// it before the next astronomical dawn: waiting would hold the plan's later
 /// targets behind one that cannot be imaged tonight.
@@ -616,12 +649,7 @@ fn stays_below_floor_until_dawn(
     context: &ExecutionContext,
     start: &TargetTrigger,
 ) -> bool {
-    let waits_for_floor = match start {
-        TargetTrigger::AboveAltitudeFloor => true,
-        TargetTrigger::And(terms) => terms.contains(&TargetTrigger::AboveAltitudeFloor),
-        _ => false,
-    };
-    if !waits_for_floor {
+    if !waits_for_floor(start) {
         return false;
     }
     let Ok(observer) = trigger_observer_ctx(config, context, start, TriggerRole::StartWhen) else {
@@ -714,6 +742,7 @@ fn refuse_unevaluable_trigger(
 async fn wait_for_trigger(
     config: &TargetHeaderConfig,
     context: &ExecutionContext,
+    node_id: &crate::NodeId,
     trigger: &TargetTrigger,
     poll_secs: u32,
 ) -> NodeStatus {
@@ -765,12 +794,14 @@ async fn wait_for_trigger(
 
         if !emitted_initial {
             emitted_initial = true;
-            tracing::info!(
-                "Waiting for {} on {} — current altitude {:.1}°",
-                label,
-                target_label,
-                trig_ctx.current_altitude_deg()
-            );
+            let message = waiting_message(&target_label, trigger, &label, &trig_ctx);
+            tracing::info!("{message}");
+            // The operator sees why the target has not started.
+            context.send_progress(ProgressUpdate::lifecycle(
+                node_id.clone(),
+                NodeStatus::Running,
+                message,
+            ));
         }
 
         tokio::time::sleep(poll).await;
@@ -1410,7 +1441,7 @@ mod tests {
         });
 
         let trigger = TargetTrigger::TimeAfter(target_ts);
-        let status = wait_for_trigger(&cfg, &ctx, &trigger, 1).await;
+        let status = wait_for_trigger(&cfg, &ctx, &"tgt".to_string(), &trigger, 1).await;
         advancer.await.unwrap();
         assert_eq!(status, NodeStatus::Success);
         // Verify the clock was actually advanced (sanity check).
@@ -1439,7 +1470,7 @@ mod tests {
 
         // Trigger that's far in the (mock) future.
         let trigger = TargetTrigger::TimeAfter(clock.now_utc().timestamp() + 86_400);
-        let status = wait_for_trigger(&cfg, &ctx, &trigger, 1).await;
+        let status = wait_for_trigger(&cfg, &ctx, &"tgt".to_string(), &trigger, 1).await;
         canceller.await.unwrap();
         assert_eq!(status, NodeStatus::Cancelled);
     }
@@ -2233,6 +2264,20 @@ mod site_floor_tests {
             ]))
         );
         assert!(!satisfied(&config, &ctx));
+    }
+
+    #[test]
+    fn a_waiting_target_says_how_high_it_is_and_how_high_the_floor_is_there() {
+        let ctx = context(Some(tree_line()), MockClock::at(NIGHT));
+        let start = start_when_with_site_floor(&eastern(), &ctx).unwrap();
+        let observer =
+            trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
+        let message = waiting_message("East", &start, &start.label(), &observer);
+        assert!(
+            message.starts_with("Waiting for East to clear the site's altitude floor: it is ")
+                && message.ends_with("the floor in that direction is 40°"),
+            "{message}"
+        );
     }
 
     #[tokio::test]
