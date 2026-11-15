@@ -89,10 +89,25 @@ pub struct GPhoto2Camera {
     pub(crate) raw_format: Option<(String, String)>,
 
     pub(crate) exposure: ExposureState,
-    /// Failed RAM downloads remain on the camera. Do not let event cleanup or
-    /// another capture delete/overwrite them before the owner retrieves them.
-    pub(crate) protected_files: Vec<CameraFilePath>,
+    /// Captures whose file did not become a frame. One still on the camera
+    /// is never deleted by this driver's cleanup; none of them stops an
+    /// exposure or a reconnect.
+    pub(crate) retained: Vec<Retained>,
+    /// What the user is to be told; see `CameraDriver::take_notices`.
+    pub(crate) notices: Vec<skotiq_device::DriverNotice>,
+    /// The body refused to open its shutter for bulb on this connection, so
+    /// later exposures go straight to a timed speed.
+    pub(crate) bulb_refused: bool,
     pub(crate) last_probe: std::sync::Mutex<Option<Instant>>,
+}
+
+/// One retained capture: its raw file on the camera, and the file's bytes
+/// once they have been read.
+#[derive(Debug, Clone)]
+pub(crate) struct Retained {
+    pub(crate) file: CameraFilePath,
+    pub(crate) bytes: Option<std::sync::Arc<Vec<u8>>>,
+    pub(crate) reason: String,
 }
 
 // Implement Debug manually since raw pointers don't implement Debug
@@ -332,7 +347,9 @@ impl GPhoto2Camera {
             bulb_widget: None,
             raw_format: None,
             exposure: ExposureState::Idle,
-            protected_files: Vec::new(),
+            retained: Vec::new(),
+            notices: Vec::new(),
+            bulb_refused: false,
             last_probe: std::sync::Mutex::new(None),
         }
     }
@@ -933,7 +950,7 @@ impl GPhoto2Camera {
     }
 
     fn discard_stray_file(&self, sdk: &GPhoto2Sdk, path: &CameraFilePath) {
-        if self.protected_files.contains(path) {
+        if self.is_retained_on_camera(path) {
             tracing::warn!(
                 "gPhoto2: retaining {} on the camera after a failed download",
                 Self::file_location(path)
@@ -978,39 +995,87 @@ impl GPhoto2Camera {
         )
     }
 
-    pub(crate) fn protect_failed_capture(
+    /// A camera file's place from the `folder/name` a retained capture is
+    /// known by.
+    pub(crate) fn file_at(location: &str) -> Option<CameraFilePath> {
+        let (folder, name) = location.rsplit_once('/')?;
+        let folder = if folder.is_empty() { "/" } else { folder };
+        let mut path = CameraFilePath::default();
+        if name.is_empty() || name.len() >= path.name.len() || folder.len() >= path.folder.len() {
+            return None;
+        }
+        for (dst, byte) in path.folder.iter_mut().zip(folder.bytes()) {
+            *dst = byte as c_char;
+        }
+        for (dst, byte) in path.name.iter_mut().zip(name.bytes()) {
+            *dst = byte as c_char;
+        }
+        Some(path)
+    }
+
+    /// Whether `path` is a retained capture whose only copy is on the camera.
+    pub(crate) fn is_retained_on_camera(&self, path: &CameraFilePath) -> bool {
+        self.retained
+            .iter()
+            .any(|kept| kept.bytes.is_none() && &kept.file == path)
+    }
+
+    /// Record a capture whose raw file `file` did not become a frame, and
+    /// word the error of the exposure it belonged to. `bytes` is the file
+    /// when it was read and could not be decoded. The exposure fails; the
+    /// capture is kept and the camera goes on to the next one.
+    pub(crate) fn retain_capture(
         &mut self,
-        files: &[CameraFilePath],
+        file: &CameraFilePath,
+        bytes: Option<std::sync::Arc<Vec<u8>>>,
         error: DriverError,
     ) -> DriverError {
-        let locations = files
-            .iter()
-            .map(Self::file_location)
-            .collect::<Vec<_>>()
-            .join(", ");
-        if self.facts.captures_to_ram() {
-            self.protected_files.extend_from_slice(files);
-        }
+        let location = Self::file_location(file);
+        let kept = if bytes.is_some() {
+            "Skotiq has the camera's file and saves it as it is".to_string()
+        } else if self.facts.captures_to_ram() {
+            format!(
+                "the camera still holds it in its memory at {location}, where a later exposure \
+                 can take its place"
+            )
+        } else {
+            format!("it is on the camera's card at {location}")
+        };
+        self.retained.push(Retained {
+            file: file.clone(),
+            bytes,
+            reason: error.to_string(),
+        });
         DriverError::SdkError(format!(
-            "{error}. The original capture remains on camera '{}' at {locations}. Retrieve it before disconnecting or reconnecting the camera.",
+            "{error}. The capture from '{}' is not lost: {kept}.",
             self.core.name
         ))
     }
 
-    pub(crate) fn require_recovered_capture(&self) -> Result<(), DriverError> {
-        if self.protected_files.is_empty() {
-            return Ok(());
+    /// Before the next exposure on a body that captures to its memory, read
+    /// the retained files it still holds: the exposure can take their place.
+    /// One that still cannot be read stays retained and the exposure goes
+    /// ahead.
+    pub(crate) fn rescue_retained(&mut self, sdk: &GPhoto2Sdk) {
+        if !self.facts.captures_to_ram() {
+            return;
         }
-        let locations = self
-            .protected_files
-            .iter()
-            .map(Self::file_location)
-            .collect::<Vec<_>>()
-            .join(", ");
-        Err(DriverError::SdkError(format!(
-            "gPhoto2: retrieve the failed capture from camera '{}' at {locations}, then disconnect and reconnect the camera. Another exposure could overwrite its only camera-memory copy.",
-            self.core.name
-        )))
+        for index in 0..self.retained.len() {
+            if self.retained[index].bytes.is_some() {
+                continue;
+            }
+            let file = self.retained[index].file.clone();
+            match self.download_file(sdk, &file) {
+                Ok(bytes) => {
+                    self.retained[index].bytes = Some(std::sync::Arc::new(bytes));
+                    self.delete_file(sdk, &file);
+                }
+                Err(error) => tracing::warn!(
+                    "gPhoto2: {} still cannot be read before the next exposure: {error}",
+                    Self::file_location(&file)
+                ),
+            }
+        }
     }
 
     /// Read one file of a capture. Runs under the SDK lock the caller holds.
@@ -1068,7 +1133,7 @@ impl GPhoto2Camera {
 
     /// Delete one file from the camera. Runs under the SDK lock the caller holds.
     pub(crate) fn delete_file(&self, sdk: &GPhoto2Sdk, path: &CameraFilePath) {
-        if self.protected_files.contains(path) {
+        if self.is_retained_on_camera(path) {
             tracing::warn!(
                 "gPhoto2: keeping failed download {} on the camera",
                 Self::file_location(path)
@@ -1106,7 +1171,7 @@ impl GPhoto2Camera {
     pub(crate) fn discard_files(&self, sdk: &GPhoto2Sdk, files: &[CameraFilePath]) {
         let unprotected: Vec<_> = files
             .iter()
-            .filter(|file| !self.protected_files.contains(file))
+            .filter(|file| !self.is_retained_on_camera(file))
             .collect();
         for file in &unprotected {
             self.delete_file(sdk, file);

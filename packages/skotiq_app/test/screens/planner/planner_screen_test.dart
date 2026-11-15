@@ -59,9 +59,6 @@ List<Override> _commonOverrides() {
       (ref) => Stream.value(const <TransientAlert>[]),
     ),
     // Progress tab dependency.
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     // Scheduler tab dependencies (mirror the scheduler_screen tests).
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(
@@ -262,15 +259,15 @@ void main() {
     test('maps canonical tab names', () {
       expect(PlannerTab.fromQuery('recommendation'), PlannerTab.recommendation);
       // Scheduler folded into Schedule; Progress folded into Projects.
-      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.targets);
     });
 
     test('accepts case-insensitive aliases', () {
-      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.targets);
       expect(PlannerTab.fromQuery('recommend'), PlannerTab.recommendation);
     });
 
@@ -289,7 +286,7 @@ void main() {
       'renders all sub-tabs (Tonight, Projects, Schedule, '
       'Framing, Planetarium, Your sky)', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -313,9 +310,8 @@ void main() {
     expect(
       bar.tabs.map((t) => t.label).toList(),
       const [
-        'Tonight',
-        'Projects',
-        'Schedule',
+        'Best tonight',
+        'Targets',
         'Framing',
         'Planetarium',
         'Your sky',
@@ -358,7 +354,7 @@ void main() {
   testWidgets('defaults to Recommendation when no query param is supplied',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -387,7 +383,7 @@ void main() {
   testWidgets('Tonight no longer carries the transient-alerts card',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -415,7 +411,7 @@ void main() {
       '?tab=scheduler (folded) selects the Schedule tab on initial '
       'render', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -434,7 +430,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(_selectedTabIndex(tester), PlannerTab.schedule.index);
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index);
 
     await settleProviderTeardown(tester);
   });
@@ -443,7 +439,7 @@ void main() {
       '?tab=progress (folded) selects the Projects tab on initial '
       'render', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -462,7 +458,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(_selectedTabIndex(tester), PlannerTab.projects.index);
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index);
 
     await settleProviderTeardown(tester);
   });
@@ -481,7 +477,7 @@ void main() {
     // the static "?tab=" tests but silently freeze the user on whichever
     // tab they landed on.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -503,11 +499,11 @@ void main() {
         reason: 'Sanity: Recommendation must be selected by default.');
 
     // Tap Schedule. find.text matches the tab's label text.
-    await _tapTab(tester, 'Schedule');
+    await _tapTab(tester, 'Targets');
     await tester.pump(const Duration(milliseconds: 200));
 
     // Post-condition: Schedule is selected (single-selection model).
-    expect(_selectedTabIndex(tester), PlannerTab.schedule.index,
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index,
         reason: 'Tapping the Schedule tab must mark it as selected; if the '
             'onSelected callback or setState pathway is broken the strip would '
             'continue to show Recommendation as selected.');
@@ -522,7 +518,7 @@ void main() {
     // regression that dropped the last entry's onSelected (e.g. a missing index
     // in the asMap().entries loop) would pass the Schedule test but fail here.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -553,7 +549,7 @@ void main() {
 
   testWidgets('the selected target exposes a Frame it action', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -620,7 +616,7 @@ void main() {
       'every candidate row carries its own action, not only the top one',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -707,7 +703,7 @@ void main() {
   testWidgets('Image tonight on the selected row pre-fills its own sub length',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -791,7 +787,7 @@ void main() {
   testWidgets('the selected target shows its altitude, with no expand toggle',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -853,7 +849,7 @@ void main() {
       'candidate create-and-add rolls back a partial list and keeps the dialog open',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -949,7 +945,7 @@ void main() {
   testWidgets('candidate add dialog closes on host switch without touching B',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1055,7 +1051,7 @@ void main() {
       'a duplicate add closes with a plain-language outcome, not a '
       'raw Dart exception', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1150,7 +1146,7 @@ void main() {
       'a list that already holds the target says so instead of '
       'offering a no-op add', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1231,7 +1227,7 @@ void main() {
   testWidgets('the altitude the target reaches is stated once, and named',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

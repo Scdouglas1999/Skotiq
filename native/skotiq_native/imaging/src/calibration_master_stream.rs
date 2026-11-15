@@ -5,11 +5,14 @@
 //! whole stack: each band is read from disk with a seek, combined, and dropped.
 //! Fifty full-size bias frames therefore fit in the same few hundred megabytes
 //! as five. A FITS frame is read in place; a frame in another format (XISF, a
-//! camera raw file) is decoded once into a FITS copy in the system's temporary
-//! folder ([`FitsCopy`]), read the same way, and removed when the build ends.
-//! Every frame's band is needed at once for the rejection, so the decoded
-//! frames are either all held in memory or all spilled to disk; the copies
-//! are that spill.
+//! camera raw file) is decoded once into a FITS copy ([`FitsCopy`]), read the
+//! same way, and removed when the build ends. Every frame's band is needed at
+//! once for the rejection, so the decoded frames are either all held in
+//! memory or all spilled to disk; the copies are that spill. They go into a
+//! work folder beside the master ([`WorkFolder`]), on the disk the master is
+//! written to: the system's temporary folder is memory on most Linux
+//! desktops, and forty raw darks from a 40-megapixel body are 3 GB. The build
+//! checks that the disk has room before it decodes anything.
 //!
 //! The combine is a winsorized sigma-clipped mean (3σ low and high), the
 //! PixInsight default for calibration masters. The master is written as
@@ -190,11 +193,15 @@ struct BandSource {
 }
 
 impl BandSource {
-    fn open(path: &Path) -> Result<Self, String> {
+    /// `work` is where a frame that is not FITS is decoded to.
+    fn open(path: &Path, work: &WorkFolder) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
         let copy = match frame_format(path).map_err(|e| format!("{}: {e}", path.display()))? {
             ImageFormat::Fits => None,
-            _ => Some(FitsCopy::new(path).map_err(|e| format!("{}: {e}", path.display()))?),
+            _ => Some(
+                FitsCopy::new_in(path, work.path()?)
+                    .map_err(|e| format!("{}: {e}", path.display()))?,
+            ),
         };
         let fits = copy.as_ref().map_or(path, FitsCopy::path);
         let file = File::open(fits).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -238,6 +245,95 @@ impl BandSource {
                 )
             })
     }
+}
+
+/// The folder a build decodes its non-FITS frames into: a hidden sibling of
+/// the master, made when the first copy needs it and removed with everything
+/// in it when the build ends, however it ends.
+struct WorkFolder {
+    path: PathBuf,
+    made: std::cell::Cell<bool>,
+}
+
+const WORK_FOLDER_PREFIX: &str = ".skotiq-master-work-";
+
+impl WorkFolder {
+    /// The work folder of the build that writes `output`. Folders an earlier
+    /// run of the app left beside it (a crash, a power cut) are removed: the
+    /// calibration library has one writer, so a folder with another process
+    /// id in its name belongs to no build.
+    fn beside(output: &Path) -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let parent = output.parent().unwrap_or(Path::new(""));
+        let mine = format!("{WORK_FOLDER_PREFIX}{}-", std::process::id());
+        if let Ok(entries) = std::fs::read_dir(if parent.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            parent
+        }) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if name.starts_with(WORK_FOLDER_PREFIX) && !name.starts_with(&mine) {
+                    let _ = std::fs::remove_dir_all(entry.path());
+                }
+            }
+        }
+        Self {
+            path: parent.join(format!(
+                "{mine}{}",
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            )),
+            made: std::cell::Cell::new(false),
+        }
+    }
+
+    fn path(&self) -> Result<&Path, String> {
+        if !self.made.get() {
+            std::fs::create_dir_all(&self.path)
+                .map_err(|e| format!("creating {}: {e}", self.path.display()))?;
+            self.made.set(true);
+        }
+        Ok(&self.path)
+    }
+}
+
+impl Drop for WorkFolder {
+    fn drop(&mut self) {
+        if self.made.get() {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
+/// Bytes the FITS copies of the frames in `paths` that are not FITS will
+/// take, from each frame's header: no frame is decoded to find out. A frame
+/// whose header does not give its size counts as three times its file.
+fn working_copy_bytes(paths: &[PathBuf]) -> u64 {
+    paths
+        .iter()
+        .filter(|path| !matches!(frame_format(path), Ok(ImageFormat::Fits)))
+        .map(|path| {
+            let from_header = crate::read_frame_header(path).ok().and_then(|header| {
+                let axis = |key: &str| header.get_int(key).filter(|n| *n > 0).map(|n| n as u64);
+                let samples = axis("NAXIS1")? * axis("NAXIS2")? * axis("NAXIS3").unwrap_or(1);
+                let bytes = header.get_int("BITPIX").map_or(2, |b| b.unsigned_abs() / 8);
+                Some(samples * bytes.max(2))
+            });
+            from_header
+                .unwrap_or_else(|| std::fs::metadata(path).map_or(0, |file| file.len() * 3))
+        })
+        .sum()
+}
+
+/// Free bytes on the disk that holds `folder`; `None` when the system will
+/// not say.
+fn free_bytes(folder: &Path) -> Option<u64> {
+    fs2::available_space(folder).ok()
+}
+
+fn gigabytes(bytes: u64) -> String {
+    format!("{:.1} GB", bytes as f64 / 1e9)
 }
 
 /// Sigma-clipped mean and robust σ of `values` (reordered in place).
@@ -364,6 +460,15 @@ pub fn build_streamed_master(
     output: &Path,
     config: &StreamedMasterConfig,
 ) -> Result<StreamedMasterResult, MasterBuildError> {
+    build_with_free_space(paths, output, config, free_bytes)
+}
+
+fn build_with_free_space(
+    paths: &[PathBuf],
+    output: &Path,
+    config: &StreamedMasterConfig,
+    free_bytes: impl Fn(&Path) -> Option<u64>,
+) -> Result<StreamedMasterResult, MasterBuildError> {
     use MasterBuildError::{Failed, Refused};
     if paths.len() < 2 {
         return Err(Refused(format!(
@@ -376,9 +481,31 @@ pub fn build_streamed_master(
         std::fs::create_dir_all(output_dir)
             .map_err(|e| Failed(format!("creating {}: {e}", output_dir.display())))?;
     }
+    let space_folder = if output_dir.as_os_str().is_empty() {
+        Path::new(".")
+    } else {
+        output_dir
+    };
+    let needed = working_copy_bytes(paths);
+    if let Some(free) = free_bytes(space_folder).filter(|free| needed > 0 && *free < needed) {
+        return Err(Failed(format!(
+            "Building this master needs about {} of working space in {} to decode {} frames \
+             that are not FITS, and {} is free. Free some space there and build again.",
+            gigabytes(needed),
+            space_folder.display(),
+            paths
+                .iter()
+                .filter(|path| !matches!(frame_format(path), Ok(ImageFormat::Fits)))
+                .count(),
+            gigabytes(free)
+        )));
+    }
+    // Declared before the sources so it is dropped after them: a copy's file
+    // is closed and removed before its folder is.
+    let work = WorkFolder::beside(output);
     let mut sources: Vec<BandSource> = paths
         .iter()
-        .map(|p| BandSource::open(p))
+        .map(|p| BandSource::open(p, &work))
         .collect::<Result<_, _>>()
         .map_err(Refused)?;
     check_agreement(&sources).map_err(Refused)?;
@@ -738,6 +865,130 @@ mod tests {
             .filter(|n| n.starts_with('.'))
             .collect();
         assert!(left.is_empty(), "{left:?}");
+    }
+
+    fn hidden_entries(folder: &Path) -> Vec<String> {
+        std::fs::read_dir(folder)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .map(|e| e.file_name().to_string_lossy().into_owned())
+                    .filter(|n| n.starts_with('.'))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// The system's temporary folder is memory on most Linux desktops, so
+    /// the decoded copies of a raw or XISF group must never be written
+    /// there: they go beside the master while the build runs.
+    #[test]
+    fn decoded_copies_are_spilled_beside_the_master_not_into_the_system_temp_folder() {
+        let dir = tempdir();
+        let (w, h) = (1200, 900);
+        let paths: Vec<PathBuf> = (0..6)
+            .map(|i| {
+                write_frame(
+                    dir.path(),
+                    &format!("s{i}.xisf"),
+                    &noisy(i + 70, w, h, 400.0),
+                    w,
+                    h,
+                    CARDS,
+                )
+            })
+            .collect();
+        let masters = dir.path().join("Masters");
+        std::fs::create_dir_all(&masters).unwrap();
+        let in_temp = format!(".skotiq-fits-copy-{}-", std::process::id());
+        let done = std::sync::atomic::AtomicBool::new(false);
+        let (seen_in_temp, seen_beside_master) = std::thread::scope(|scope| {
+            let watcher = scope.spawn(|| {
+                let (mut in_system_temp, mut beside_master) = (false, false);
+                while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                    in_system_temp |= std::fs::read_dir(std::env::temp_dir())
+                        .map(|entries| {
+                            entries
+                                .flatten()
+                                .any(|e| e.file_name().to_string_lossy().starts_with(&in_temp))
+                        })
+                        .unwrap_or(false);
+                    beside_master |= hidden_entries(&masters)
+                        .iter()
+                        .any(|n| n.starts_with(WORK_FOLDER_PREFIX));
+                    std::thread::sleep(std::time::Duration::from_micros(200));
+                }
+                (in_system_temp, beside_master)
+            });
+            let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+            build_streamed_master(&paths, &masters.join("m.fits"), &config).unwrap();
+            done.store(true, std::sync::atomic::Ordering::Relaxed);
+            watcher.join().unwrap()
+        });
+        assert!(
+            !seen_in_temp,
+            "a decoded copy was written to the system temp folder"
+        );
+        assert!(
+            seen_beside_master,
+            "no work folder was seen beside the master"
+        );
+        assert!(hidden_entries(&masters).is_empty());
+    }
+
+    #[test]
+    fn a_build_without_room_for_the_decoded_copies_says_so_and_decodes_nothing() {
+        let dir = tempdir();
+        let (w, h) = (40, 30);
+        let frame = |name: &str, seed: u64| {
+            write_frame(dir.path(), name, &noisy(seed, w, h, 300.0), w, h, CARDS)
+        };
+        let xisf: Vec<PathBuf> = (0..3).map(|i| frame(&format!("x{i}.xisf"), i)).collect();
+        let fits: Vec<PathBuf> = (0..3).map(|i| frame(&format!("x{i}.fits"), i)).collect();
+        let masters = dir.path().join("Masters");
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        assert_eq!(working_copy_bytes(&xisf), 3 * 40 * 30 * 2);
+        assert_eq!(working_copy_bytes(&fits), 0);
+
+        let no_room =
+            build_with_free_space(&xisf, &masters.join("no.fits"), &config, |_| Some(7000));
+        assert!(
+            matches!(&no_room, Err(MasterBuildError::Failed(m)) if m.contains("working space")),
+            "{no_room:?}"
+        );
+        assert!(!masters.join("no.fits").exists());
+        assert!(hidden_entries(&masters).is_empty());
+
+        // FITS frames are read in place and need no working space.
+        build_with_free_space(&fits, &masters.join("fits.fits"), &config, |_| Some(0)).unwrap();
+        // A system that will not say how much is free does not stop a build.
+        build_with_free_space(&xisf, &masters.join("xisf.fits"), &config, |_| None).unwrap();
+    }
+
+    #[test]
+    fn a_work_folder_an_earlier_run_left_behind_is_removed_by_the_next_build() {
+        let dir = tempdir();
+        let (w, h) = (16, 11);
+        let paths: Vec<PathBuf> = (0..3)
+            .map(|i| {
+                write_frame(
+                    dir.path(),
+                    &format!("w{i}.xisf"),
+                    &noisy(i, w, h, 300.0),
+                    w,
+                    h,
+                    CARDS,
+                )
+            })
+            .collect();
+        let masters = dir.path().join("Masters");
+        let stale = masters.join(format!("{WORK_FOLDER_PREFIX}1-0"));
+        std::fs::create_dir_all(&stale).unwrap();
+        std::fs::write(stale.join(".skotiq-fits-copy-1-0.fits"), b"left by a crash").unwrap();
+
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        build_streamed_master(&paths, &masters.join("m.fits"), &config).unwrap();
+        assert!(hidden_entries(&masters).is_empty());
     }
 
     #[test]

@@ -21,7 +21,29 @@ extension _DeviceServiceMountControls on DeviceService {
   /// the mount arrives, so completion is decided by [MountSlewWatcher] from the
   /// mount's own status. While it watches, [mountSlewProgressProvider] and the
   /// slew operation's step say how far the mount still has to go.
-  Future<void> _slewMountToCoordinates(double ra, double dec) async {
+  /// Tells the operator when a [move] went ahead with the guider silent. A
+  /// guider that answered ends the operator's consent to move without it.
+  void _noteGuiderForMove(GuiderForMove guider, String move) {
+    final notice = guider.noticeFor(move);
+    if (notice == null) {
+      _ref.read(guiderSilentMoveAcceptedProvider.notifier).state = false;
+      return;
+    }
+    _ref.read(loggingServiceProvider).warning(notice, source: 'DeviceService');
+    _ref
+        .read(uiNotificationProvider.notifier)
+        .show(
+          title: 'Guider',
+          message: notice,
+          level: UiNotificationLevel.warning,
+        );
+  }
+
+  Future<void> _slewMountToCoordinates(
+    double ra,
+    double dec, {
+    required bool guiderSilentOk,
+  }) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
       throw Exception('No mount connected');
@@ -44,7 +66,16 @@ extension _DeviceServiceMountControls on DeviceService {
     );
 
     try {
-      await _backend.mountSlewToCoordinates(deviceId, ra, dec);
+      _noteGuiderForMove(
+        await _backend.mountSlewToCoordinates(
+          deviceId,
+          ra,
+          dec,
+          guiderSilentOk:
+              guiderSilentOk || _ref.read(guiderSilentMoveAcceptedProvider),
+        ),
+        'GoTo',
+      );
       mountNotifier.setParked(false);
       final watcher = _ref.read(mountSlewWatcherFactoryProvider)(
         readStatus: () => _backend.getMountStatus(deviceId),
@@ -124,7 +155,7 @@ extension _DeviceServiceMountControls on DeviceService {
     );
 
     try {
-      await _backend.mountPark(deviceId);
+      _noteGuiderForMove(await _backend.mountPark(deviceId), 'park');
       mountNotifier.setParked(true);
       mountNotifier.setTracking(false);
     } finally {
@@ -221,7 +252,15 @@ extension _DeviceServiceMountControls on DeviceService {
     );
 
     try {
-      await _backend.mountSlewAltAz(deviceId, altitude, azimuth);
+      _noteGuiderForMove(
+        await _backend.mountSlewAltAz(
+          deviceId,
+          altitude,
+          azimuth,
+          guiderSilentOk: _ref.read(guiderSilentMoveAcceptedProvider),
+        ),
+        'GoTo',
+      );
       mountNotifier.setParked(false);
     } finally {
       mountNotifier.setSlewing(false);
@@ -265,7 +304,7 @@ extension _DeviceServiceMountControls on DeviceService {
     );
 
     try {
-      await _backend.mountFindHome(deviceId);
+      _noteGuiderForMove(await _backend.mountFindHome(deviceId), 'home');
       final watcher = _ref.read(mountHomeWatcherFactoryProvider)(
         readStatus: () => _backend.getMountStatus(deviceId),
         // Abort slew clears the homing flag; that is the operator stopping it.

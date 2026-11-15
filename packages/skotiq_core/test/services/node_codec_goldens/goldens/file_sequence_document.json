@@ -529,6 +529,7 @@
       "offset": 30,
       "orderIndex": 9,
       "parentId": "root",
+      "readoutMode": "High speed",
       "triggers": [
         {
           "action": "Autofocus",

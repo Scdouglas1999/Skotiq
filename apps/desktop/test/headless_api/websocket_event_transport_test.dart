@@ -37,7 +37,7 @@ void main() {
     await server.start();
     socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=admin-token',
+      '/events?token=admin-token&version=6.0.0',
     );
     messages = StreamIterator<dynamic>(socket);
     expect(await messages.moveNext(), isTrue);
@@ -125,7 +125,7 @@ void main() {
     }) async {
       final linked = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}'
-        '/events?token=$token${since ?? ''}',
+        '/events?token=$token&version=6.0.0${since ?? ''}',
       );
       addTearDown(linked.close);
       final frames = StreamIterator<dynamic>(linked);
@@ -180,6 +180,7 @@ void main() {
             'http://127.0.0.1:${server.actualPort}/api/runtime/recent-events',
           ),
         );
+        request.headers.set('x-skotiq-version', '6.0.0');
         request.headers.set('Authorization', 'Bearer $token');
         final response = await request.close();
         expect(response.statusCode, HttpStatus.ok);

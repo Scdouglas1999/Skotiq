@@ -15,7 +15,6 @@ import '../screens/darkroom/darkroom_screen.dart';
 import '../screens/stack_result/stack_result_screen.dart';
 import '../screens/flat_wizard/flat_wizard_screen.dart';
 import '../screens/discover/mosaic/mosaic_project_screen.dart';
-import '../screens/discover/mosaic/mosaic_projects_list_screen.dart';
 import '../screens/weather/weather_screen.dart';
 import '../screens/settings/pairing_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -104,6 +103,8 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.guiding => const GuidingScreen(),
     AppRoute.planner => PlannerScreen(
         initialTab: PlannerTab.fromQuery(query['tab']),
+        initialGroup: query['group'],
+        initialTargetId: int.tryParse(query['target'] ?? ''),
         initialDiscoverView: DiscoverView.fromQuery(query['view']),
       ),
     AppRoute.equipment =>
@@ -127,7 +128,6 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.plateSolvingSettings => const PlateSolvingSettingsScreen(),
     AppRoute.polarAlignment => const PolarAlignmentScreen(),
     AppRoute.oneTapTonight => const TonightScreen(),
-    AppRoute.mosaicProjects => const MosaicProjectsListScreen(),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
     AppRoute.pairing => const PairingScreen(),
@@ -145,6 +145,7 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.constellation ||
     AppRoute.collaborativeSky ||
     AppRoute.scheduler ||
+    AppRoute.mosaicProjects ||
     AppRoute.diagnostics ||
     AppRoute.sessionReplay ||
     AppRoute.sessionReplayRun ||

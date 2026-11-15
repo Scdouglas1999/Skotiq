@@ -89,18 +89,28 @@ Get server information and capabilities.
 
 ## Release check
 
-A client and its host run the same Skotiq release. Every request to `/api/*`
-other than `GET /api/info`, and the WebSocket upgrade, names the client's
-release in the `X-Skotiq-Version` header (the WebSocket upgrade may use the
-`version` query parameter instead). `GET /api/info` answers `version`, the
-host's release, so a client can check before it links.
+A client links only to a host of its own Skotiq release. `GET /api/info`
+reports the host's release as `version` and is answered to everyone.
 
-A request from another release is refused with `426 Upgrade Required` and an
-error body whose `code` is `version_mismatch`; its message says which side to
-update. A request with no `X-Skotiq-Version` is handled, so a script that
-sends only its token works; one that still sends the old
-`X-Skotiq-API-Version` header is refused with `426` and code
-`release_required`.
+Every other `/api/*` request must say which release sent it, in the
+`x-skotiq-version` header (a WebSocket upgrade may use the `version` query
+parameter instead). The host answers:
+
+- `426` with code `release_required` when the request does not name a release.
+  Pages the host serves itself (the dashboard, run-watch) are exempt: a request
+  whose `Origin` or `Referer` is the host needs no header.
+- `426` with code `version_mismatch`, `hostVersion` and `clientVersion` when
+  the named release is not the host's. Three routes stay open to another
+  release so that either side can be updated from the other: `/api/info`,
+  `/api/system/version` and `/api/system/update/*`.
+
+A script sends the release it read from `/api/info`:
+
+```sh
+release=$(curl -s http://rig:8080/api/info | jq -r .version)
+curl -H "x-skotiq-version: $release" -H "Authorization: Bearer $TOKEN" \
+  http://rig:8080/api/status
+```
 
 ## Authentication Scopes
 

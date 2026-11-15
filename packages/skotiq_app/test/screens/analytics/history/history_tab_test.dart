@@ -48,7 +48,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('Rig run-through'), findsOneWidget);
     expect(
@@ -87,7 +87,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     ChipTone toneOf(String label) =>
         tester.widget<SkotiqChip>(find.widgetWithText(SkotiqChip, label)).tone;
@@ -108,7 +108,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.widgetWithText(SkotiqChip, 'Interrupted'), findsOneWidget);
     expect(find.widgetWithText(SkotiqChip, 'Running'), findsOneWidget);
@@ -131,7 +131,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('20m'), findsOneWidget);
     expect(find.textContaining('20m to last frame'), findsOneWidget);
@@ -148,7 +148,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('New Sequence'), findsOneWidget);
     expect(find.text('Quick captures'), findsOneWidget);
@@ -162,7 +162,7 @@ void main() {
     final built =
         historyApp(standalone: [frame(1, at: DateTime(2026, 11, 1, 21))]);
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.byType(AnalyticsEmptyState), findsNothing);
     expect(find.text('Quick captures'), findsOneWidget);
@@ -172,7 +172,7 @@ void main() {
       (tester) async {
     useWindow(tester, _desktop);
     await tester.pumpWidget(historyApp().app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('No nights recorded yet'), findsOneWidget);
     expect(find.byType(SkotiqSearchField), findsNothing);
@@ -186,7 +186,7 @@ void main() {
       sessionStream: Stream.error(StateError('session database unavailable')),
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('History did not load'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
@@ -215,7 +215,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(_readout(tester, 'Exposures').value, '3');
     expect(_readout(tester, 'Accepted integration').value, '1h');
@@ -237,15 +237,15 @@ void main() {
       sessions: [session(1, name: 'M74 Plan', start: evening)],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     await tester.enterText(find.byType(EditableText), 'andromeda');
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
     expect(find.text('M74 Plan'), findsNothing);
     expect(find.text('No nights match'), findsOneWidget);
 
     await tester.tap(find.text('Clear filters'));
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
     expect(find.text('M74 Plan'), findsOneWidget);
   });
 
@@ -264,7 +264,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     await tester.tap(find.text('Status: any'));
     await settle(tester);
@@ -291,7 +291,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(find.text('Mine'), findsOneWidget);
     expect(find.text('Other'), findsNothing);
@@ -311,7 +311,7 @@ void main() {
       sessions: [session(7, name: 'M74 Plan', start: evening)],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     await tester.tap(find.text('M74 Plan'));
     await settle(tester);
@@ -340,7 +340,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(built.app);
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Rig run-through NGC 7814 2026-11-03'), findsOneWidget);

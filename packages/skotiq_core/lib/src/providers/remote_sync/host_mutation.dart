@@ -133,6 +133,5 @@ void _invalidateHostSessions(ProviderContainer container) {
 }
 
 void _invalidateTargetProgress(ProviderContainer container) {
-  container.invalidate(allTargetProgressProvider);
   container.invalidate(targetProgressProvider);
 }

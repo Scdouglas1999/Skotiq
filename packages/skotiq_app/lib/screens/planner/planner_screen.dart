@@ -29,11 +29,8 @@ import '../../widgets/auto_build_options_dialog.dart';
 import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 import '../imaging/widgets/camera_panel.dart';
 import '../night_control/center/chart_axes.dart';
+import 'targets/plan_targets_tab.dart';
 import 'widgets/planning_risks_banner.dart';
-import 'widgets/progress_tab_content.dart';
-import 'widgets/projects_tab_content.dart';
-import 'widgets/scheduler_tab_content.dart';
-import 'widgets/week_forecast_strip.dart';
 import '../../router/planner_route.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
@@ -46,15 +43,12 @@ export '../../router/planner_route.dart' show PlannerTab, DiscoverView;
 // inherit the same symbol scope.
 
 part 'planner_screen_parts/_recommendation_tab.dart';
-part 'planner_screen_parts/_autopilot_preview_banner.dart';
 part 'planner_screen_parts/_header_and_controls_bar.dart';
 part 'planner_screen_parts/_filter_controls.dart';
 part 'planner_screen_parts/_candidate_list.dart';
 part 'planner_screen_parts/_filtered_empty_state.dart';
 part 'planner_screen_parts/_primary_target_card.dart';
 part 'planner_screen_parts/_search_results.dart';
-part 'planner_screen_parts/_projects_tab.dart';
-part 'planner_screen_parts/_schedule_tab.dart';
 part 'planner_screen_parts/_discover_tab.dart';
 part 'planner_screen_parts/_candidate_observing_list.dart';
 part 'planner_screen_parts/_range_controls.dart';
@@ -152,21 +146,15 @@ final _plannerVisibleCountProvider = StateProvider.autoDispose<int>(
   (_) => _kPlannerPageSize,
 );
 
-/// Full "Plan Tonight" workspace.
+/// The Plan destination.
 ///
-/// Six sub-tabs:
-///   * Recommendation — the primary scoring engine: best target right now,
-///     filterable / sortable / searchable candidate list, SIMBAD fallback,
-///     risk factors and rationale.
-///   * Projects — the multi-night campaign workspace ([_ProjectsTab]): a scope
-///     switch between the active campaign's per-target integration goals
-///     ([ProjectsTabContent], with the "Plan in Smart Night" handoff) and the
-///     global all-targets progress roll-up ([ProgressTabContent]).
-///   * Schedule — the seven-night forecast strip ([WeekForecastStrip]) pinned
-///     above the RoboTarget-class dynamic scheduler ([SchedulerTabContent]):
-///     which nights to run, and the queue that runs them.
-///   * Framing / Planetarium — the sky-work surfaces.
-///   * Discover — the Your Sky / Constellation discovery surfaces.
+/// Five tabs:
+///   * Best tonight: the scoring engine's pick for right now, with the
+///     filterable candidate list, SIMBAD fallback, risks and rationale.
+///   * Targets: the owner's targets, their progress and goals, and the
+///     autopilot that works through them ([PlanTargetsTab]).
+///   * Framing / Planetarium: the sky-work surfaces.
+///   * Your sky: the discovery surfaces.
 class PlannerScreen extends ConsumerStatefulWidget {
   /// The tab a link asked for; null opens Recommendation.
   final PlannerTab? initialTab;
@@ -174,10 +162,16 @@ class PlannerScreen extends ConsumerStatefulWidget {
   /// The Discover view a link asked for; null keeps Your sky.
   final DiscoverView? initialDiscoverView;
 
+  /// The Targets group (`?group=`) and target (`?target=`) a link asked for.
+  final String? initialGroup;
+  final int? initialTargetId;
+
   const PlannerScreen({
     super.key,
     this.initialTab,
     this.initialDiscoverView,
+    this.initialGroup,
+    this.initialTargetId,
   });
 
   @override
@@ -313,13 +307,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
             label: l10n.text('plannerTabTonight'),
             icon: LucideIcons.sparkles,
           ),
-        PlannerTab.projects => AdaptiveTab(
-            label: l10n.text('plannerTabProjects'),
-            icon: LucideIcons.folderKanban,
-          ),
-        PlannerTab.schedule => AdaptiveTab(
-            label: l10n.text('plannerTabSchedule'),
-            icon: LucideIcons.calendarDays,
+        PlannerTab.targets => AdaptiveTab(
+            label: l10n.text('plannerTabTargets'),
+            icon: LucideIcons.target,
           ),
         PlannerTab.framing => AdaptiveTab(
             label: l10n.text('plannerTabFraming'),
@@ -337,18 +327,20 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           ),
       };
 
-  /// Schedule and Discover read host state (scheduler snapshot, atlas
-  /// regions, coverage and per-region timelines) for as long as they are
-  /// mounted, which on a companion means requests to the imaging host. They
-  /// are built only while selected, so a hidden tab never polls; the other
-  /// tabs keep their state. Framing and Planetarium stay built for instant
-  /// switching but sit under a TickerMode, so their sky animations stop while
-  /// off-tab.
+  /// Targets and Discover read host state (the autopilot, atlas regions,
+  /// coverage and timelines) for as long as they are mounted, which on a
+  /// linked client means requests to the imaging host. They are built only
+  /// while selected, so a hidden tab never polls; the other tabs keep their
+  /// state. Framing and Planetarium stay built for instant switching but sit
+  /// under a TickerMode, so their sky animations stop while off-tab.
   Widget _bodyFor(PlannerTab tab, {required bool selected}) => switch (tab) {
         PlannerTab.recommendation => const _RecommendationTab(),
-        PlannerTab.projects => const _ProjectsTab(),
-        PlannerTab.schedule =>
-          selected ? const _ScheduleTab() : const SizedBox.shrink(),
+        PlannerTab.targets => selected
+            ? PlanTargetsTab(
+                initialGroup: widget.initialGroup,
+                initialTargetId: widget.initialTargetId,
+              )
+            : const SizedBox.shrink(),
         PlannerTab.framing =>
           TickerMode(enabled: selected, child: const FramingView()),
         PlannerTab.planetarium =>

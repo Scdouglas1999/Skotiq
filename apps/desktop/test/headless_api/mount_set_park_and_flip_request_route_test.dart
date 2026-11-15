@@ -193,8 +193,12 @@ class _SetParkBackend extends DisconnectedBackend {
   }
 
   @override
-  Future<void> mountPark(String deviceId) async {
+  Future<GuiderForMove> mountPark(
+    String deviceId, {
+    bool forSafety = false,
+  }) async {
     parkCalls.add(deviceId);
+    return GuiderForMove.idle;
   }
 }
 

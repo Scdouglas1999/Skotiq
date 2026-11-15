@@ -186,3 +186,62 @@ async fn a_camera_whose_status_read_finds_it_gone_fails_the_probe() {
         "{result:?}"
     );
 }
+
+fn camera_info(device_id: &str) -> DeviceInfo {
+    DeviceInfo {
+        id: device_id.to_string(),
+        name: "Mirrorless body".to_string(),
+        device_type: DeviceType::Camera,
+        driver_type: DriverType::Native,
+        description: "Native camera without a thermometer".to_string(),
+        driver_version: "1.0".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "Mirrorless body".to_string(),
+    }
+}
+
+/// A camera that left the bus still reads connected in the registry until
+/// three heartbeats have failed. Recovery asks before then, and an answer
+/// taken from the registry made it report a dead camera recovered.
+#[tokio::test]
+async fn a_camera_that_left_the_bus_does_not_answer_although_the_registry_calls_it_connected() {
+    let device_id = "native:test:mirrorless_left";
+    let manager = build_device_manager();
+    manager
+        .register_connected_device(camera_info(device_id))
+        .await;
+    manager.hold_vendor_camera(
+        device_id,
+        Box::new(ThermometerlessCamera { status: unplugged }),
+    );
+    assert!(manager.is_connected(device_id).await);
+
+    assert!(!manager.answers_now(device_id).await);
+
+    let devices = manager.devices.read().await;
+    let device = devices.get(device_id).unwrap();
+    assert_eq!(device.connection_state, ConnectionState::Error);
+    assert!(
+        device
+            .last_error
+            .as_deref()
+            .is_some_and(|e| e.starts_with("Stopped answering")),
+        "{:?}",
+        device.last_error
+    );
+}
+
+#[tokio::test]
+async fn a_camera_that_answers_is_left_connected_by_the_probe_and_by_recovery() {
+    let device_id = "native:test:mirrorless_answers";
+    let manager = build_device_manager();
+    manager
+        .register_connected_device(camera_info(device_id))
+        .await;
+    manager.hold_vendor_camera(device_id, Box::new(ThermometerlessCamera { status: idle }));
+
+    assert!(manager.answers_now(device_id).await);
+    assert_eq!(manager.connect_device_automatically(device_id).await, Ok(()));
+    assert!(manager.is_connected(device_id).await);
+}

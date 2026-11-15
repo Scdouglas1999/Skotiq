@@ -167,9 +167,6 @@ class DeviceCommands {
   Future<void> cameraSetOffset(String deviceId, int offset) =>
       _backend.cameraSetOffset(deviceId, offset);
 
-  Future<void> cameraSetReadoutMode(String deviceId, int modeIndex) =>
-      _backend.cameraSetReadoutMode(deviceId, modeIndex);
-
   // Dome: the backend command, then a status re-read so the dome card shows
   // the command at once instead of after the next 5 s poll.
 

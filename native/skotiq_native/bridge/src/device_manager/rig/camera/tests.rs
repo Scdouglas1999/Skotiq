@@ -28,6 +28,10 @@ struct SlowCamera {
     gives_up: bool,
     give_up: Arc<GiveUp>,
     connected: bool,
+    /// The read modes the camera lists, and the one it is in (`None`: it
+    /// will not say).
+    modes: Vec<&'static str>,
+    mode: Option<usize>,
 }
 
 impl std::fmt::Debug for GiveUp {
@@ -46,6 +50,8 @@ impl SlowCamera {
                 gives_up,
                 give_up: Arc::new(GiveUp(AtomicBool::new(false))),
                 connected: true,
+                modes: Vec::new(),
+                mode: None,
             },
             calls,
         )
@@ -188,10 +194,28 @@ impl CameraDriver for SlowCamera {
         SensorInfo::default()
     }
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        Ok(Vec::new())
+        Ok(self
+            .modes
+            .iter()
+            .zip(0..)
+            .map(|(name, index)| ReadoutMode {
+                name: name.to_string(),
+                description: name.to_string(),
+                index,
+                gain_min: None,
+                gain_max: None,
+                offset_min: None,
+                offset_max: None,
+            })
+            .collect())
     }
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
+        self.saw("set_readout_mode");
+        self.mode = Some(mode.index as usize);
         Ok(())
+    }
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.mode.map(|index| self.modes[index].to_string()))
     }
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
@@ -356,4 +380,50 @@ async fn a_disconnect_during_a_frame_read_closes_the_camera_after_it() {
         matches!(error, DeviceOpError::NotConnected { .. }),
         "{error:?}"
     );
+}
+
+/// The read mode is written to the camera only when the camera is in
+/// another: a write costs some cameras a re-initialization, and a frame
+/// taken in the stated mode needs none.
+#[tokio::test]
+async fn a_read_mode_is_written_only_when_the_camera_is_in_another() {
+    let (mut camera, calls) = SlowCamera::new(Duration::ZERO, false);
+    let writes = || calls.lock().unwrap().len();
+    assert_eq!(
+        use_readout_mode(&mut camera, "High speed").await.unwrap(),
+        ReadModeUse::NoModes,
+        "a camera with one read mode has nothing to choose"
+    );
+
+    camera.modes = vec!["Normal", "High speed"];
+    camera.mode = Some(0);
+    assert_eq!(
+        use_readout_mode(&mut camera, " normal ").await.unwrap(),
+        ReadModeUse::AlreadyIn
+    );
+    assert_eq!(writes(), 0);
+
+    assert_eq!(
+        use_readout_mode(&mut camera, "High speed").await.unwrap(),
+        ReadModeUse::Switched
+    );
+    assert_eq!(
+        use_readout_mode(&mut camera, "High speed").await.unwrap(),
+        ReadModeUse::AlreadyIn
+    );
+    assert_eq!(writes(), 1);
+
+    assert_eq!(
+        use_readout_mode(&mut camera, "Turbo").await.unwrap(),
+        ReadModeUse::NotListed(vec!["Normal".to_string(), "High speed".to_string()])
+    );
+    assert_eq!(writes(), 1, "a mode the camera does not list writes nothing");
+
+    // A camera that will not say which mode it is in is put in the one asked for.
+    camera.mode = None;
+    assert_eq!(
+        use_readout_mode(&mut camera, "Normal").await.unwrap(),
+        ReadModeUse::Switched
+    );
+    assert_eq!(writes(), 2);
 }

@@ -54,6 +54,7 @@ void main() {
     final request = await client.getUrl(
       Uri.parse('http://127.0.0.1:${server.actualPort}/api/run-watch/events'),
     );
+    request.headers.set('x-skotiq-version', '6.0.0');
     request.headers.set('Authorization', 'Bearer admin-token');
     final response = await request.close();
     expect(response.statusCode, 200);

@@ -169,15 +169,12 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     if (_running) return;
 
     final fwState = ref.read(filterWheelStateProvider);
-    final filterNames = ref.read(effectiveFiltersProvider);
-    if (filterNames.isEmpty) {
-      _filterRevision++;
-      if (_loadedFilterKey != null) {
-        _loadedFilterKey = null;
-        state = state.copyWith(filterSettings: const [], currentFilterIndex: 0);
-      }
-      return;
-    }
+    // A camera with no wheel and no profile filters gets one unfiltered row,
+    // so it can take flats like any other.
+    final effectiveFilters = ref.read(effectiveFiltersProvider);
+    final filterNames = effectiveFilters.isEmpty
+        ? const [flatNoFilterName]
+        : effectiveFilters;
 
     final remote = ref.read(linkedHostCalibrationFramesProvider);
     final db = ref.read(databaseProvider);
@@ -433,6 +430,10 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
   void toggleFilterCards(bool show) {
     state = state.copyWith(showFilterCards: show);
+  }
+
+  void toggleHistogramOverlay(bool show) {
+    state = state.copyWith(showHistogramOverlay: show);
   }
 
   /// Reserve startup before the UI awaits a save-location dialog. The capture

@@ -48,7 +48,6 @@ void main() {
     test('maps canonical tab names', () {
       expect(AnalyticsTab.fromQuery('session'), AnalyticsTab.session);
       expect(AnalyticsTab.fromQuery('history'), AnalyticsTab.history);
-      expect(AnalyticsTab.fromQuery('projects'), AnalyticsTab.projects);
       expect(AnalyticsTab.fromQuery('science'), AnalyticsTab.science);
     });
 
@@ -92,7 +91,6 @@ void main() {
       const [
         'Session',
         'History',
-        'Projects',
         'Science',
       ],
     );

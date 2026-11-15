@@ -352,7 +352,7 @@ async fn camera_settings_publish_once_per_change() {
         .unwrap();
 
     // One event per change, each carrying the camera's full settings.
-    let settings: Vec<(i32, i32, i32, i32)> = drain(&mut rx)
+    let settings: Vec<(Option<i32>, Option<i32>, i32, i32)> = drain(&mut rx)
         .into_iter()
         .filter_map(|e| match e {
             EquipmentEvent::CameraSettingsChanged {
@@ -367,26 +367,9 @@ async fn camera_settings_publish_once_per_change() {
         })
         .collect();
     assert_eq!(settings.len(), 3, "{settings:?}");
-    assert_eq!(settings[0].0, 139);
-    assert_eq!(settings[1].0, 140);
-    assert_eq!((settings[2].0, settings[2].1), (140, 21));
-}
-
-/// A setting the camera refuses changes nothing, so it publishes nothing.
-#[tokio::test]
-async fn a_refused_setting_publishes_nothing() {
-    let _serialized = sim::sim_singleton_test_lock().lock().await;
-    attach(CAMERA, DeviceType::Camera).await;
-    let mut rx = get_state().event_bus.subscribe();
-
-    // The simulator has no readout modes.
-    assert!(
-        crate::api::devices::camera::api_camera_set_readout_mode(CAMERA.to_string(), 1)
-            .await
-            .is_err()
-    );
-
-    assert!(property_values(&drain(&mut rx), CAMERA, property::READOUT_MODE).is_empty());
+    assert_eq!(settings[0].0, Some(139));
+    assert_eq!(settings[1].0, Some(140));
+    assert_eq!((settings[2].0, settings[2].1), (Some(140), Some(21)));
 }
 
 #[tokio::test]
@@ -530,7 +513,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    crate::api::devices::mount::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0)
+    crate::api::devices::mount::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0, false)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -596,7 +579,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    crate::api::devices::mount::api_mount_park(MOUNT.to_string())
+    crate::api::devices::mount::api_mount_park(MOUNT.to_string(), false)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -715,4 +698,61 @@ fn a_camera_without_a_pixel_size_gets_a_notice_and_one_with_it_does_not() {
         None
     );
     assert!(super::unknown_pixel_size_notice("half", 12.0, 0.0).is_some());
+}
+
+/// The notices published since the last drain whose text names `camera`.
+fn notices_about(rx: &mut Receiver<SkotiqEvent>, camera: &str) -> Vec<String> {
+    let mut notices = Vec::new();
+    loop {
+        match rx.try_recv() {
+            Ok(event) => {
+                if let EventPayload::System(crate::event::system::SystemEvent::Notification {
+                    title,
+                    message,
+                    ..
+                }) = event.payload
+                {
+                    if message.contains(camera) {
+                        notices.push(format!("{title}: {message}"));
+                    }
+                }
+            }
+            Err(TryRecvError::Lagged(_)) => continue,
+            Err(TryRecvError::Empty) | Err(TryRecvError::Closed) => break,
+        }
+    }
+    notices
+}
+
+/// A frame under the signal floor is kept, and the user is told: once when a
+/// run of such frames begins, not with every sub of a capped night, and again
+/// if it happens after frames with signal.
+#[tokio::test]
+async fn a_run_of_frames_with_almost_no_signal_is_told_once_until_signal_returns() {
+    let manager = get_device_manager();
+    let camera = "native:test:capped_scope";
+    let mut rx = get_state().event_bus.subscribe();
+    let dim = Some(skotiq_imaging::BelowSignalFloor {
+        max_value: 4,
+        floor: 100,
+    });
+
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    let told = notices_about(&mut rx, camera);
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert!(
+        told[0].starts_with("Frame has almost no signal")
+            && told[0].contains("4 ADU")
+            && told[0].contains("It was kept"),
+        "{told:?}"
+    );
+
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    assert!(notices_about(&mut rx, camera).is_empty());
+
+    manager.note_frame_signal(camera, 120.0, None).await;
+    assert!(notices_about(&mut rx, camera).is_empty());
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    assert_eq!(notices_about(&mut rx, camera).len(), 1);
 }

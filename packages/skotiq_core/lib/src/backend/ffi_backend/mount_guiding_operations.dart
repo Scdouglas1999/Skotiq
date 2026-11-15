@@ -2,20 +2,35 @@ part of '../ffi_backend.dart';
 
 mixin _FfiMountGuidingOperations on _FfiBackendBase {
   @override
-  Future<void> mountSlewToCoordinates(
+  Future<GuiderForMove> mountSlewToCoordinates(
     String deviceId,
     double ra,
-    double dec,
-  ) async {
-    await _native(
-      'mountSlewToCoordinates',
-      () => bridge.apiMountSlewToCoordinates(
-        deviceId: deviceId,
-        ra: ra,
-        dec: dec,
+    double dec, {
+    bool guiderSilentOk = false,
+  }) async {
+    return _guiderForMove(
+      await _native(
+        'mountSlewToCoordinates',
+        () => bridge.apiMountSlewToCoordinates(
+          deviceId: deviceId,
+          ra: ra,
+          dec: dec,
+          guiderSilentOk: guiderSilentOk,
+        ),
       ),
     );
   }
+
+  /// The native answer to a move as the app's [GuiderForMove]; a refused
+  /// move is the typed refusal.
+  GuiderForMove _guiderForMove(bridge.MountMoveGuider guider) =>
+      switch (guider) {
+        bridge.MountMoveGuider_Idle() => GuiderForMove.idle,
+        bridge.MountMoveGuider_Stopped() => GuiderForMove.stopped,
+        bridge.MountMoveGuider_Unanswered() => GuiderForMove.unanswered,
+        bridge.MountMoveGuider_Refused(:final reason) =>
+          throw GuiderNotAnsweringException(reason),
+      };
 
   @override
   Future<void> mountSync(String deviceId, double ra, double dec) async {
@@ -30,8 +45,16 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> mountPark(String deviceId) async {
-    await _native('mountPark', () => bridge.apiMountPark(deviceId: deviceId));
+  Future<GuiderForMove> mountPark(
+    String deviceId, {
+    bool forSafety = false,
+  }) async {
+    return _guiderForMove(
+      await _native(
+        'mountPark',
+        () => bridge.apiMountPark(deviceId: deviceId, forSafety: forSafety),
+      ),
+    );
   }
 
   @override
@@ -64,21 +87,25 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> mountSlewAltAz(
+  Future<GuiderForMove> mountSlewAltAz(
     String deviceId,
     double altitude,
-    double azimuth,
-  ) async {
-    await bridge.mountSlewAltAz(
-      deviceId: deviceId,
-      altitude: altitude,
-      azimuth: azimuth,
+    double azimuth, {
+    bool guiderSilentOk = false,
+  }) async {
+    return _guiderForMove(
+      await bridge.mountSlewAltAz(
+        deviceId: deviceId,
+        altitude: altitude,
+        azimuth: azimuth,
+        guiderSilentOk: guiderSilentOk,
+      ),
     );
   }
 
   @override
-  Future<void> mountFindHome(String deviceId) async {
-    await bridge.mountFindHome(deviceId: deviceId);
+  Future<GuiderForMove> mountFindHome(String deviceId) async {
+    return _guiderForMove(await bridge.mountFindHome(deviceId: deviceId));
   }
 
   @override

@@ -139,7 +139,7 @@ class _MoonField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Slider(
+          child: SkotiqSlider(
             value: value.clamp(0.0, 1.0),
             min: 0.0,
             max: 1.0,
@@ -176,7 +176,7 @@ class _MoonSeparationField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Slider(
+          child: SkotiqSlider(
             value: degrees.clamp(0.0, 180.0),
             min: 0.0,
             max: 180.0,
@@ -221,16 +221,15 @@ class _HorizonField extends StatelessWidget {
         style: SkotiqTypography.caption.copyWith(color: colors.warning),
       );
     }
-    return AccessibleDropdown<int>(
-      value: selectedId,
+    return SkotiqDropdown(
+      value: selectedId?.toString(),
       isExpanded: true,
-      hint: const Text('Choose horizon profile'),
-      items: [
-        for (final p in profiles)
-          DropdownMenuItem(value: p.id!, child: Text(p.name)),
-      ],
+      hint: 'Choose horizon profile',
+      items: [for (final p in profiles) '${p.id!}'],
+      itemLabels: [for (final p in profiles) p.name],
       onChanged: (id) {
-        if (id != null) onChange(id);
+        final parsed = id == null ? null : int.tryParse(id);
+        if (parsed != null) onChange(parsed);
       },
     );
   }
@@ -281,7 +280,7 @@ class _ScheduledWindowField extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Slider(
+              child: SkotiqSlider(
                 value: window.priorityBoost.clamp(0.1, 1.0),
                 min: 0.1,
                 max: 1.0,

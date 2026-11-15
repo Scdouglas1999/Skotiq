@@ -44,11 +44,21 @@ class Rig:
         self.timeout = timeout
         self.log = []
 
+    def release(self):
+        """The host's Skotiq release. Every API request names it in
+        x-skotiq-version; a host refuses a request that does not."""
+        if getattr(self, "_release", None) is None:
+            with urllib.request.urlopen(self.base + "/api/info", timeout=10) as resp:
+                self._release = json.load(resp)["version"]
+        return self._release
+
     def call(self, method, path, body=None, timeout=None):
         url = self.base + path
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header('Content-Type', 'application/json')
+        if path != '/api/info':
+            req.add_header('x-skotiq-version', self.release())
         if self.token:
             req.add_header('Authorization', 'Bearer ' + self.token)
         started = time.time()

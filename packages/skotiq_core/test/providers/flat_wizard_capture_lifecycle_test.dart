@@ -273,6 +273,35 @@ void main() {
       },
     );
 
+    test('a new run starts every queued filter without the last run\'s '
+        'exposure and level', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, filterNames: const ['L', 'R']);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.setMode(FlatWizardMode.batch);
+
+      await notifier.runCapture();
+      expect(
+        container
+            .read(flatWizardProvider)
+            .filterSettings
+            .map((f) => f.calibratedExposure),
+        everyElement(isNotNull),
+      );
+
+      // Stopped before the first exposure: neither filter is reached.
+      final second = notifier.runCapture();
+      notifier.requestCancel();
+      await second;
+
+      for (final f in container.read(flatWizardProvider).filterSettings) {
+        expect(f.capturedCount, 0);
+        expect(f.calibratedExposure, isNull, reason: f.filterName);
+        expect(f.currentAdu, isNull, reason: f.filterName);
+      }
+    });
+
     test('final status PERSISTS after a fully successful run', () async {
       final backend = _AutoBackend();
       addTearDown(backend.dispose);
@@ -482,6 +511,45 @@ void main() {
     });
   });
 
+  test('a camera with no filter wheel and no profile filters takes flats '
+      'under no filter', () async {
+    final backend = _AutoBackend();
+    addTearDown(backend.dispose);
+    final container = makeContainer(backend, filterNames: const []);
+    final notifier = await primeWizard(
+      container,
+      frameCount: 2,
+      filterSubfolders: true,
+    );
+    notifier.setMode(FlatWizardMode.quick);
+
+    final row = container.read(flatWizardProvider).filterSettings.single;
+    expect(row.hasFilter, isFalse);
+    expect(row.label, 'No filter');
+
+    await notifier.runCapture();
+
+    final state = container.read(flatWizardProvider);
+    expect(state.errorMessage, isNull);
+    expect(state.filterSettings.single.status, FilterCalibrationStatus.complete);
+    expect(state.filterSettings.single.capturedCount, 2);
+    // No filter subfolder: the frames sit in the chosen folder itself.
+    expect(backend.savedPaths, hasLength(2));
+    for (final path in backend.savedPaths) {
+      expect(File(path).parent.path, tempDir.path);
+    }
+    expect(backend.savedHeaders.map((h) => h.filter), everyElement(isNull));
+    final rows = await (db.select(
+      db.capturedImages,
+    )..where((t) => t.frameType.equals('flat'))).get();
+    expect(rows, hasLength(2));
+    expect(rows.map((r) => r.filter), everyElement(isNull));
+    expect(
+      container.read(flatRunOutputProvider).filters.keys,
+      ['No filter'],
+    );
+  });
+
   test(
     'flats saved on a remote host are kept but not recorded locally',
     () async {
@@ -568,6 +636,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   int saveCount = 0;
   int _saveAttempts = 0;
   final List<String> savedPaths = [];
+  final List<FitsWriteHeader> savedHeaders = [];
   final List<bool> keptCameraFiles = [];
   int _seq = 0;
 
@@ -642,6 +711,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     }
     saveCount++;
     savedPaths.add(filePath);
+    savedHeaders.add(headerData);
     keptCameraFiles.add(keepCameraFile);
     return filePath;
   }

@@ -23,12 +23,12 @@ class _SwappableBackendNotifier extends BackendNotifier {
 }
 
 void main() {
-  testWidgets('manual path edits immediately update Continue availability',
+  testWidgets('manual path edits immediately update Use this folder availability',
       (tester) async {
     await pumpAppScreen(tester, const SavePathDialog());
 
     SkotiqButton continueButton() => tester.widget<SkotiqButton>(
-          find.widgetWithText(SkotiqButton, 'Continue'),
+          find.widgetWithText(SkotiqButton, 'Use this folder'),
         );
 
     expect(continueButton().onPressed, isNull);
@@ -60,7 +60,7 @@ void main() {
       ],
     );
 
-    final browseButton = find.widgetWithText(SkotiqButton, 'Browse...');
+    final browseButton = find.widgetWithText(SkotiqButton, 'Browse');
     await tester.tap(browseButton);
     await tester.tap(browseButton);
     await tester.pump();
@@ -94,7 +94,7 @@ void main() {
       ],
     );
 
-    final browseButton = find.widgetWithText(SkotiqButton, 'Browse...');
+    final browseButton = find.widgetWithText(SkotiqButton, 'Browse');
     await tester.tap(browseButton);
     await tester.pump();
     expect(tester.widget<SkotiqButton>(browseButton).isLoading, isTrue);

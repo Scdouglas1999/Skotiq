@@ -67,7 +67,9 @@ void main() {
         () => backend.polarAlignmentEvents,
       ).thenAnswer((_) => const Stream.empty());
       when(() => backend.sequencerPause()).thenAnswer((_) async {});
-      when(() => backend.mountPark(any())).thenAnswer((_) async {});
+      when(
+        () => backend.mountPark(any(), forSafety: true),
+      ).thenAnswer((_) async => GuiderForMove.idle);
       when(() => backend.cameraAbortExposure(any())).thenAnswer((_) async {});
       when(
         () => backend.cameraSetCooling(
@@ -174,7 +176,9 @@ void main() {
           .safeTheRig(reason: 'test', park: true);
 
       verify(() => backend.sequencerPause()).called(1);
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verify(
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+      ).called(1);
       expect(result.sequencePaused, isTrue);
       expect(result.mountParked, isTrue);
       expect(result.hasFailures, isFalse);
@@ -185,8 +189,11 @@ void main() {
 
     test('quiesces the secondary rig before moving the mount', () async {
       final order = <String>[];
-      when(() => backend.mountPark(any())).thenAnswer((_) async {
+      when(() => backend.mountPark(any(), forSafety: true)).thenAnswer((
+        _,
+      ) async {
         order.add('park');
+        return GuiderForMove.idle;
       });
       late _RecordingSafeRig recording;
       final container = makeContainer(
@@ -241,9 +248,9 @@ void main() {
         ),
       );
       verifyNever(() => backend.sequencerPause());
-      verifyNever(() => backend.mountPark(any()));
+      verifyNever(() => backend.mountPark(any(), forSafety: true));
       verifyNever(() => backendB.sequencerPause());
-      verifyNever(() => backendB.mountPark(any()));
+      verifyNever(() => backendB.mountPark(any(), forSafety: true));
     });
 
     test('reports secondary stop failure but still parks', () async {
@@ -265,7 +272,9 @@ void main() {
       } on SafeRigException catch (error) {
         expect(error.result.failures, contains('secondaryRig'));
       }
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verify(
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+      ).called(1);
     });
 
     test(
@@ -279,7 +288,7 @@ void main() {
             .safeTheRig(reason: 'test', park: true);
 
         verify(() => backend.sequencerPause()).called(1);
-        verifyNever(() => backend.mountPark(any()));
+        verifyNever(() => backend.mountPark(any(), forSafety: true));
         expect(result.mountParked, isFalse);
         expect(result.mountAlreadySafe, isTrue);
         expect(result.hasFailures, isFalse);
@@ -296,7 +305,7 @@ void main() {
             .read(safeRigServiceProvider)
             .safeTheRig(reason: 'test', park: true);
 
-        verifyNever(() => backend.mountPark(any()));
+        verifyNever(() => backend.mountPark(any(), forSafety: true));
         expect(result.mountAlreadySafe, isTrue);
         expect(result.hasFailures, isFalse);
       },
@@ -311,7 +320,7 @@ void main() {
           .safeTheRig(reason: 'test', park: false);
 
       verify(() => backend.sequencerPause()).called(1);
-      verifyNever(() => backend.mountPark(any()));
+      verifyNever(() => backend.mountPark(any(), forSafety: true));
       expect(result.sequencePaused, isTrue);
       expect(result.mountParked, isFalse);
     });
@@ -330,7 +339,7 @@ void main() {
           .safeTheRig(reason: 'test', park: true);
 
       verifyNever(() => backend.sequencerPause());
-      verifyNever(() => backend.mountPark(any()));
+      verifyNever(() => backend.mountPark(any(), forSafety: true));
       verifyNever(() => backend.mountSetTracking(any(), any()));
       expect(result.sequencePaused, isFalse);
       expect(result.mountParked, isFalse);
@@ -356,7 +365,7 @@ void main() {
             idleMount: IdleMountPolicy.stopTracking,
           );
 
-      verifyNever(() => backend.mountPark(any()));
+      verifyNever(() => backend.mountPark(any(), forSafety: true));
       verify(
         () => backend.mountSetTracking('simulator:test-mount-1', false),
       ).called(1);
@@ -382,7 +391,9 @@ void main() {
             idleMount: IdleMountPolicy.park,
           );
 
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verify(
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+      ).called(1);
       expect(result.mountParked, isTrue);
       expect(result.mountLeftIdle, isFalse);
     });
@@ -398,7 +409,9 @@ void main() {
           .safeTheRig(reason: 'test', park: true);
 
       verifyNever(() => backend.sequencerPause());
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verify(
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+      ).called(1);
       expect(result.mountParked, isTrue);
     });
 
@@ -414,7 +427,9 @@ void main() {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: 'test', park: true);
 
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verify(
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+      ).called(1);
       expect(result.secondaryRigQuiesced, isTrue);
       expect(result.mountParked, isTrue);
     });
@@ -466,7 +481,7 @@ void main() {
       verifyInOrder([
         () => backend.cameraAbortExposure('simulator:test-camera-1'),
         () => backend.sequencerPause(),
-        () => backend.mountPark('simulator:test-mount-1'),
+        () => backend.mountPark('simulator:test-mount-1', forSafety: true),
         () => backend.cameraSetCooling(
           deviceId: 'simulator:test-camera-1',
           enabled: false,
@@ -546,7 +561,9 @@ void main() {
           expect(error.result.failures, contains('dome'));
         }
         expect(recording.domeClosedFor, isEmpty);
-        verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+        verify(
+          () => backend.mountPark('simulator:test-mount-1', forSafety: true),
+        ).called(1);
       },
     );
 
@@ -570,7 +587,7 @@ void main() {
 
     test('attempts every step then throws when park fails', () async {
       when(
-        () => backend.mountPark(any()),
+        () => backend.mountPark(any(), forSafety: true),
       ).thenThrow(Exception('park motor fault'));
       late _RecordingSafeRig recording;
       final container = makeContainer(
@@ -597,7 +614,9 @@ void main() {
       when(
         () => backend.sequencerPause(),
       ).thenThrow(Exception('no sequence running'));
-      when(() => backend.mountPark(any())).thenThrow(Exception('park fault'));
+      when(
+        () => backend.mountPark(any(), forSafety: true),
+      ).thenThrow(Exception('park fault'));
       final container = makeContainer(
         safeRigBuilder: (ref) => _RecordingSafeRig(ref, failDome: true),
         domeConnected: true,

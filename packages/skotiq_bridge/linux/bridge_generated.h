@@ -672,12 +672,17 @@ typedef struct wire_cst_EquipmentEvent_CameraTemperatureChanged {
 
 typedef struct wire_cst_EquipmentEvent_CameraSettingsChanged {
   struct wire_cst_list_prim_u_8_strict *device_id;
-  int32_t gain;
+  int32_t *gain;
   bool gain_is_iso;
-  int32_t offset;
+  int32_t *offset;
   int32_t bin_x;
   int32_t bin_y;
 } wire_cst_EquipmentEvent_CameraSettingsChanged;
+
+typedef struct wire_cst_EquipmentEvent_CameraRetainedCapturesChanged {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+  uint32_t count;
+} wire_cst_EquipmentEvent_CameraRetainedCapturesChanged;
 
 typedef struct wire_cst_EquipmentEvent_HeartbeatStarted {
   struct wire_cst_list_prim_u_8_strict *device_type;
@@ -751,6 +756,7 @@ typedef union EquipmentEventKind {
   struct wire_cst_EquipmentEvent_CameraWarmingCompleted CameraWarmingCompleted;
   struct wire_cst_EquipmentEvent_CameraTemperatureChanged CameraTemperatureChanged;
   struct wire_cst_EquipmentEvent_CameraSettingsChanged CameraSettingsChanged;
+  struct wire_cst_EquipmentEvent_CameraRetainedCapturesChanged CameraRetainedCapturesChanged;
   struct wire_cst_EquipmentEvent_HeartbeatStarted HeartbeatStarted;
   struct wire_cst_EquipmentEvent_HeartbeatStopped HeartbeatStopped;
   struct wire_cst_EquipmentEvent_HeartbeatStatusChanged HeartbeatStatusChanged;
@@ -1725,6 +1731,20 @@ typedef struct wire_cst_list_record_string_field_availability {
   int32_t len;
 } wire_cst_list_record_string_field_availability;
 
+typedef struct wire_cst_retained_capture_info {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+  struct wire_cst_list_prim_u_8_strict *camera_name;
+  struct wire_cst_list_prim_u_8_strict *location;
+  bool in_camera_memory;
+  struct wire_cst_list_prim_u_8_strict *reason;
+  int64_t retained_at_ms;
+} wire_cst_retained_capture_info;
+
+typedef struct wire_cst_list_retained_capture_info {
+  struct wire_cst_retained_capture_info *ptr;
+  int32_t len;
+} wire_cst_list_retained_capture_info;
+
 typedef struct wire_cst_star_crop_api {
   struct wire_cst_list_prim_u_8_strict *pixels_base64;
   uint32_t width;
@@ -1858,8 +1878,8 @@ typedef struct wire_cst_camera_status {
   double *cooler_power;
   double *target_temp;
   bool *cooler_on;
-  int32_t gain;
-  int32_t offset;
+  int32_t *gain;
+  int32_t *offset;
   int32_t bin_x;
   int32_t bin_y;
   uint32_t sensor_width;
@@ -2135,6 +2155,24 @@ typedef struct wire_cst_mount_guard_solve {
   double mount_dec_degrees;
   double separation_degrees;
 } wire_cst_mount_guard_solve;
+
+typedef struct wire_cst_MountMoveGuider_Unanswered {
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_MountMoveGuider_Unanswered;
+
+typedef struct wire_cst_MountMoveGuider_Refused {
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_MountMoveGuider_Refused;
+
+typedef union MountMoveGuiderKind {
+  struct wire_cst_MountMoveGuider_Unanswered Unanswered;
+  struct wire_cst_MountMoveGuider_Refused Refused;
+} MountMoveGuiderKind;
+
+typedef struct wire_cst_mount_move_guider {
+  int32_t tag;
+  union MountMoveGuiderKind kind;
+} wire_cst_mount_move_guider;
 
 typedef struct wire_cst_mount_site {
   double latitude_deg;
@@ -2612,9 +2650,11 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_capture_
 void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_get_recommended_settings(int64_t port_,
                                                                                                  struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_set_readout_mode(int64_t port_,
-                                                                                         struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                         int32_t mode_index);
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retained_captures(void);
+
+void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retrieve_retained_capture(int64_t port_,
+                                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                                  struct wire_cst_list_prim_u_8_strict *location);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure(int64_t port_,
                                                                                struct wire_cst_list_prim_u_8_strict *device_id,
@@ -2636,6 +2676,9 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure_c
                                                                                           uint32_t *width,
                                                                                           uint32_t *height,
                                                                                           struct wire_cst_list_prim_u_8_strict *frame_type);
+
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode(struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                                           struct wire_cst_list_prim_u_8_strict *mode);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_autofocus(int64_t port_);
 
@@ -3062,7 +3105,8 @@ void frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve(i
                                                                                double exposure_secs);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park(int64_t port_,
-                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
+                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                           bool for_safety);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide(int64_t port_,
                                                                                   struct wire_cst_list_prim_u_8_strict *device_id,
@@ -3076,7 +3120,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracki
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                           double ra,
-                                                                                          double dec);
+                                                                                          double dec,
+                                                                                          bool guider_silent_ok);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
@@ -3517,7 +3562,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_site_capabilit
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew_alt_az(int64_t port_,
                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
                                                                               double altitude,
-                                                                              double azimuth);
+                                                                              double azimuth,
+                                                                              bool guider_silent_ok);
 
 void frbgen_skotiq_bridge_wire__crate__api__secondary_rig__secondary_rig_status_api_default(int64_t port_);
 
@@ -3708,6 +3754,8 @@ struct wire_cst_list_record_string_map_string_f_64_none *frbgen_skotiq_bridge_cs
 
 struct wire_cst_list_record_string_u_32 *frbgen_skotiq_bridge_cst_new_list_record_string_u_32(int32_t len);
 
+struct wire_cst_list_retained_capture_info *frbgen_skotiq_bridge_cst_new_list_retained_capture_info(int32_t len);
+
 struct wire_cst_list_scheduler_score_entry *frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry(int32_t len);
 
 struct wire_cst_list_star_crop_api *frbgen_skotiq_bridge_cst_new_list_star_crop_api(int32_t len);
@@ -3804,6 +3852,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_field_availability);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_u_32);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_retained_capture_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_star_crop_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);
@@ -3839,7 +3888,9 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__depthlock__api_depthlock_suggest_floor);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_capture_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_get_recommended_settings);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_set_readout_mode);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retained_captures);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retrieve_retained_capture);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__get_camera_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_cooler);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain);

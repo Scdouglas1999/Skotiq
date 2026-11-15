@@ -103,6 +103,7 @@ use crate::simulator::capture::{
 
 pub(crate) mod download;
 pub(crate) mod exposure;
+pub(crate) mod retained;
 pub(crate) mod settings;
 pub(crate) mod status;
 #[cfg(test)]

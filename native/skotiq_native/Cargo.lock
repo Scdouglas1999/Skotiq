@@ -2155,6 +2155,7 @@ dependencies = [
  "cc",
  "chrono",
  "flate2",
+ "fs2",
  "image",
  "libm",
  "lz4",

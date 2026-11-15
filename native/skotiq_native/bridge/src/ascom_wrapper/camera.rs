@@ -174,14 +174,16 @@ fn cooler_power_supported(
 /// fastest, so the copied samples are already row by row. EXPTIME is the
 /// camera's `LastExposureDuration` where it has one. Gain and offset are read
 /// back in the camera's mode; an unreadable setting is recorded as unknown so
-/// the configured one stands in. Binning must be readable because it defines
-/// the frame's calibration geometry. The read mode is the one in force,
-/// named as the camera lists it.
+/// the configured one stands in. A frame is never dropped for its metadata:
+/// binning the camera will not read back is the binning the exposure was
+/// started with. The read mode is the one in force, named as the camera
+/// lists it.
 fn download_frame(
     cam: &AscomCamera,
     controls: &CameraControls,
     bayer_pattern: Option<ColorFilterArray>,
     commanded_secs: Option<f64>,
+    commanded_bin: Option<(i32, i32)>,
 ) -> Result<ImageData, DriverError> {
     use skotiq_device::UNKNOWN_CAMERA_SETTING;
     let (data, width, height) = cam
@@ -205,8 +207,8 @@ fn download_frame(
                 .unwrap_or(0.0),
             gain: read_setting(cam.gain(), &controls.gain),
             offset: read_setting(cam.offset(), &controls.offset),
-            bin_x: cam.bin_x().map_err(super::ascom_error)?,
-            bin_y: cam.bin_y().map_err(super::ascom_error)?,
+            bin_x: bin_or_commanded("BinX", cam.bin_x(), commanded_bin.map(|bin| bin.0)),
+            bin_y: bin_or_commanded("BinY", cam.bin_y(), commanded_bin.map(|bin| bin.1)),
             temperature: cam.ccd_temperature().ok(),
             timestamp: chrono::Utc::now(),
             subframe: None,
@@ -214,6 +216,22 @@ fn download_frame(
             vendor_data: VendorFeatures::default(),
             camera_file: None,
         },
+    })
+}
+
+/// One axis of a frame's binning: the camera's report, else the binning the
+/// exposure was started with, else the 1 a camera connects at.
+fn bin_or_commanded(
+    what: &str,
+    reported: skotiq_ascom::AscomResult<i32>,
+    commanded: Option<i32>,
+) -> i32 {
+    reported.unwrap_or_else(|error| {
+        tracing::warn!(
+            "ASCOM camera did not report {what} for the frame: {error}. Recording the binning \
+             the exposure was started with."
+        );
+        commanded.unwrap_or(1)
     })
 }
 
@@ -282,6 +300,7 @@ enum AscomCommand {
     SetGain(i32, oneshot::Sender<Result<(), DriverError>>),
     SetOffset(i32, oneshot::Sender<Result<(), DriverError>>),
     SetReadoutMode(i32, oneshot::Sender<Result<(), DriverError>>),
+    GetReadoutMode(oneshot::Sender<Result<Option<String>, DriverError>>),
     SetCooler(bool, Option<f64>, oneshot::Sender<Result<(), DriverError>>),
     /// Heartbeat check to verify device is still responding
     Heartbeat(oneshot::Sender<Result<CameraConnectionHealth, DriverError>>),
@@ -331,6 +350,7 @@ impl AscomCameraWrapper {
             // `PercentCompleted` (0..100) into a wall-clock seconds-remaining
             // value. Cleared on abort/stop/disconnect.
             let mut last_exposure_duration: Option<f64> = None;
+            let mut last_exposure_bin: Option<(i32, i32)> = None;
             // Try-once-cache for the `CanGetCoolerPower` capability.
             // `None` = not yet resolved; `Some(_)` = cached result.
             let mut cooler_power_cache: Option<bool> = None;
@@ -670,6 +690,7 @@ impl AscomCameraWrapper {
                                     // GetStatus can convert ASCOM `PercentCompleted`
                                     // into a wall-clock seconds-remaining figure.
                                     last_exposure_duration = Some(params.duration_secs);
+                                    last_exposure_bin = Some((params.bin_x, params.bin_y));
                                     let _ = reply.send(Ok(()));
                                 }
                                 Err(e) => {
@@ -730,6 +751,7 @@ impl AscomCameraWrapper {
                                 &controls,
                                 bayer_pattern,
                                 last_exposure_duration,
+                                last_exposure_bin,
                             );
                             last_exposure_duration = None;
                             let _ = reply.send(result);
@@ -840,6 +862,15 @@ impl AscomCameraWrapper {
                             let _ = reply
                                 .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
+                    }
+                    AscomCommand::GetReadoutMode(reply) => {
+                        let _ = reply.send(match &camera {
+                            Some(cam) => Ok(readout_mode_name(
+                                cam.readout_mode().ok(),
+                                cam.readout_modes().ok(),
+                            )),
+                            None => Err(DriverError::SdkError("Camera not created".to_string())),
+                        });
                     }
                     AscomCommand::SetCooler(enabled, target_temp, reply) => {
                         tracing::info!(
@@ -1332,6 +1363,15 @@ impl CameraDriver for AscomCameraWrapper {
             .read()
             .map(|modes| modes.clone())
             .map_err(|_| DriverError::Unknown("Failed to read readout mode cache".to_string()))
+    }
+
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomCommand::GetReadoutMode(tx))
+            .await
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
+        super::recv_with_timeout("Camera", rx, Timeouts::property_read(), "get_readout_mode").await
     }
 
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {

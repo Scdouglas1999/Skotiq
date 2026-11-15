@@ -762,6 +762,7 @@ Future<_TestResponse> _request(
   Map<String, dynamic>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.replace(path: path));
+  request.headers.set('x-skotiq-version', '2.5.0');
   if (token != null) {
     request.headers.set('Authorization', 'Bearer $token');
   }

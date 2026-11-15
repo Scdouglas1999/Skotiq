@@ -166,7 +166,6 @@ void main() {
     const sites = <String, String>{
       'Session': 'lib/screens/analytics/analytics_screen/session_tab.dart',
       'History': 'lib/screens/analytics/history/history_tab.dart',
-      'Projects': 'lib/screens/analytics/widgets/project_tracking_panel.dart',
       'Optics': 'lib/screens/diagnostics/diagnostics_screen.dart',
     };
     final missing = <String>[];

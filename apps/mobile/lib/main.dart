@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/backend.dart';
@@ -603,6 +604,15 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                             ),
                           ),
                         ),
+                        if (_mismatchedHost?.linkMismatch case final mismatch?
+                            when mismatch.message == _error)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: LinkMismatchActions(
+                              host: _mismatchedHost!,
+                              mismatch: mismatch,
+                            ),
+                          ),
                       ],
                     ],
                   ),

@@ -19,8 +19,12 @@ class CameraStatus {
   /// and the host has not set it since connecting (the camera may still be
   /// cooling from an earlier session).
   final bool? coolerOn;
-  final int gain;
-  final int offset;
+
+  /// Null when the camera has the setting and would not report its value.
+  final int? gain;
+
+  /// As [gain].
+  final int? offset;
   final int binX;
   final int binY;
   final int sensorWidth;
@@ -45,8 +49,8 @@ class CameraStatus {
     this.coolerPower,
     this.targetTemp,
     this.coolerOn,
-    required this.gain,
-    required this.offset,
+    this.gain,
+    this.offset,
     required this.binX,
     required this.binY,
     required this.sensorWidth,
@@ -72,8 +76,8 @@ class CameraStatus {
           (json['target_temp'] ?? json['targetTemp'] ?? json['setpoint'])
               ?.toDouble(),
       coolerOn: (json['cooler_on'] ?? json['coolerOn']) as bool?,
-      gain: json['gain'] as int? ?? 0,
-      offset: json['offset'] as int? ?? 0,
+      gain: json['gain'] as int?,
+      offset: json['offset'] as int?,
       binX: (json['bin_x'] ?? json['binX']) as int? ?? 1,
       binY: (json['bin_y'] ?? json['binY']) as int? ?? 1,
       sensorWidth: (json['sensor_width'] ?? json['sensorWidth']) as int? ?? 0,
@@ -154,7 +158,9 @@ class MountStatus {
   /// Local sidereal time in hours, or null when the mount cannot say. See
   /// [altitude] for why this is nullable.
   final double? siderealTime;
-  final TrackingRate trackingRate;
+
+  /// Null when the mount cannot report its rate.
+  final TrackingRate? trackingRate;
   final bool canPark;
   final bool canSlew;
   final bool canSync;
@@ -232,7 +238,7 @@ class MountStatus {
     'altitude': altitude,
     'azimuth': azimuth,
     'siderealTime': siderealTime,
-    'trackingRate': trackingRate.name,
+    'trackingRate': trackingRate?.name,
     'canPark': canPark,
     'canSlew': canSlew,
     'canSync': canSync,
@@ -251,15 +257,64 @@ class MountStatus {
     );
   }
 
-  static TrackingRate _parseTrackingRate(dynamic value) {
-    if (value == null) return TrackingRate.sidereal;
+  static TrackingRate? _parseTrackingRate(dynamic value) {
+    if (value == null) return null;
     if (value is TrackingRate) return value;
     final str = value.toString().toLowerCase();
-    return TrackingRate.values.firstWhere(
-      (e) => e.name.toLowerCase() == str,
-      orElse: () => TrackingRate.sidereal,
-    );
+    for (final rate in TrackingRate.values) {
+      if (rate.name.toLowerCase() == str) return rate;
+    }
+    return null;
   }
+}
+
+/// A capture a camera is keeping because its download failed. It never
+/// stops an exposure; it is read off the camera when the user asks.
+class RetainedCapture {
+  const RetainedCapture({
+    required this.deviceId,
+    required this.cameraName,
+    required this.location,
+    required this.inCameraMemory,
+    required this.reason,
+    required this.retainedAt,
+  });
+
+  final String deviceId;
+  final String cameraName;
+
+  /// Where the file is on the camera.
+  final String location;
+
+  /// In the camera's memory rather than on its card: gone when the camera
+  /// is switched off, and a later exposure can take its place.
+  final bool inCameraMemory;
+
+  /// Why the capture did not become a frame.
+  final String reason;
+  final DateTime retainedAt;
+
+  factory RetainedCapture.fromJson(Map<String, dynamic> json) =>
+      RetainedCapture(
+        deviceId: json['deviceId'] as String? ?? '',
+        cameraName: json['cameraName'] as String? ?? '',
+        location: json['location'] as String? ?? '',
+        inCameraMemory: json['inCameraMemory'] as bool? ?? false,
+        reason: json['reason'] as String? ?? '',
+        retainedAt: DateTime.fromMillisecondsSinceEpoch(
+          (json['retainedAtMs'] as num?)?.toInt() ?? 0,
+          isUtc: true,
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'deviceId': deviceId,
+    'cameraName': cameraName,
+    'location': location,
+    'inCameraMemory': inCameraMemory,
+    'reason': reason,
+    'retainedAtMs': retainedAt.millisecondsSinceEpoch,
+  };
 }
 
 /// Current status of a connected focuser

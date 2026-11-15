@@ -12,7 +12,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
 import '../../widgets/accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
@@ -28,14 +27,12 @@ import 'widgets/analytics_empty_state.dart';
 import 'widgets/session_chart.dart';
 import 'widgets/session_chart_grid.dart';
 import 'widgets/image_thumbnail_strip.dart';
-import 'widgets/project_tracking_panel.dart';
 import '../../router/app_routes.dart';
 export '../../router/analytics_route.dart'
     show AnalyticsTab, NightRef, NightView, ScienceTab, SessionView;
 export 'analytics_providers.dart';
 
 part 'analytics_screen/session_tab.dart';
-part 'analytics_screen/projects_tab.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   /// The tab a link asked for; null opens Session.
@@ -147,10 +144,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         buttonKey: TourTarget.analyticsHistoryTab.key,
       ),
       AdaptiveTab(
-        label: l10n.text('analyticsProjects'),
-        icon: LucideIcons.folderKanban,
-      ),
-      AdaptiveTab(
         label: l10n.text('analyticsScience'),
         icon: LucideIcons.flaskConical,
       ),
@@ -217,7 +210,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         const SizedBox.shrink(),
                     ],
                   ),
-                  const _ProjectsTab(),
                   ScienceWorkspaceView(
                     initialView: widget.initialScienceView,
                     onViewPicked: (view) =>
