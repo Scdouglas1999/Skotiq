@@ -247,7 +247,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
         Tooltip(
           message: _panelSizeKnown
               ? 'Add these panels to the current sequence now'
-              : 'Panel size unknown — set a focal length and connect the '
+              : 'Panel size unknown: set a focal length and connect the '
                   'camera, or enter it under Advanced',
           child: GatedAction(
             label: 'Load into Sequencer',
@@ -272,7 +272,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
               : isDisconnected
                   ? 'Connect to an imaging host before creating a durable project'
                   : !_panelSizeKnown
-                      ? 'Panel size unknown — set a focal length and connect '
+                      ? 'Panel size unknown: set a focal length and connect '
                           'the camera, or enter it under Advanced'
                       : 'Save a reusable project and track its progress',
           child: GatedAction(
@@ -524,7 +524,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
                 Text(
                   '$reason Set a focal length in Settings and connect the '
                   'camera, or enter the panel width and height yourself under '
-                  'Advanced (numerical) below — either one lets the grid be '
+                  'Advanced (numerical) below: either one lets the grid be '
                   'laid out.',
                   style: TextStyle(
                     color: colors.textSecondary,

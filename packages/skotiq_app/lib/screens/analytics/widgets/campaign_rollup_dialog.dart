@@ -176,7 +176,7 @@ class _Body extends StatelessWidget {
                   // The table counts accepted frames, so "no frames
                   // captured" would be false for a target whose whole
                   // night was rejected in the grader.
-                  ? 'No accepted frames yet — '
+                  ? 'No accepted frames yet. '
                       '${DurationFormat.decimalHours(capturedSecs)} captured across '
                       '${rollup.nightCount} '
                       '${rollup.nightCount == 1 ? 'night' : 'nights'}'

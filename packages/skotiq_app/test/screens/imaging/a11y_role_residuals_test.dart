@@ -84,7 +84,7 @@ void main() {
     expect(
       overlays.length,
       1,
-      reason: 'one control, one node — not a named panel beside a button',
+      reason: 'one control, one node. Not a named panel beside a button',
     );
 
     await tester.pumpWidget(const SizedBox.shrink());

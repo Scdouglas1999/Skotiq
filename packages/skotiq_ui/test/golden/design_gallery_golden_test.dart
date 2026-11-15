@@ -17,7 +17,7 @@ void main() {
   // the whole board is in-frame (no scroll clipping in the rasterised PNG).
   const boardSize = Size(1360, 2600);
 
-  testWidgets('design gallery — light theme', (tester) async {
+  testWidgets('design gallery: light theme', (tester) async {
     final file = await GoldenHarness.capture(
       tester,
       fileName: 'gallery-light.png',
@@ -30,7 +30,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('design gallery — dark theme', (tester) async {
+  testWidgets('design gallery: dark theme', (tester) async {
     final file = await GoldenHarness.capture(
       tester,
       fileName: 'gallery-dark.png',
@@ -43,7 +43,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('design gallery — red night theme', (tester) async {
+  testWidgets('design gallery: red night theme', (tester) async {
     final file = await GoldenHarness.capture(
       tester,
       fileName: 'gallery-rednight.png',
@@ -73,7 +73,7 @@ void main() {
     'light': SkotiqTheme.light,
     'rednight': SkotiqTheme.redNight,
   }.entries) {
-    testWidgets('observatory component sheet — ${entry.key} theme', (
+    testWidgets('observatory component sheet: ${entry.key} theme', (
       tester,
     ) async {
       final file = await GoldenHarness.capture(

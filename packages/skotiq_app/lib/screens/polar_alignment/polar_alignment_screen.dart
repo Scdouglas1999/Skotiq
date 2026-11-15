@@ -157,7 +157,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       ref.read(polarAlignmentStateProvider.notifier).reset();
       context.showErrorSnackBar(
         'No observing location set. Polar error is measured relative to your '
-        'site latitude — set an observing location in Settings first.',
+        'site latitude. Set an observing location in Settings first.',
       );
       return;
     }
@@ -189,7 +189,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     if (mountState.isParked) {
       ref.read(polarAlignmentStateProvider.notifier).reset();
       context.showErrorSnackBar(
-        'Mount is parked — unpark it before aligning. A parked mount cannot '
+        'Mount is parked: unpark it before aligning. A parked mount cannot '
         'slew between the three measurement points.',
       );
       return;

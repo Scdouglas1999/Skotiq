@@ -291,7 +291,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
             message: isConnected
                 ? 'Disconnect this device now.'
                 : 'Connect for this session only. It is NOT saved to a '
-                    'profile and will not reconnect on the next launch — use '
+                    'profile and will not reconnect on the next launch. Use '
                     '"Add to profile" for that.',
             child: compact
                 ? SkotiqIconButton(

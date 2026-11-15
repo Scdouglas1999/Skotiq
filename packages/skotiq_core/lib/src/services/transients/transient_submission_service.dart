@@ -129,7 +129,7 @@ class TransientSubmissionService {
   }) async {
     if (!creds.isComplete) {
       return TnsSubmissionResult.failure(
-        'TNS credentials are incomplete — set the bot id/name/group/source, '
+        'TNS credentials are incomplete. Set the bot id/name/group/source, '
         'reporter, and api key in Settings > Science.',
       );
     }
@@ -237,7 +237,7 @@ class TransientSubmissionService {
             reportId: reportId,
             message:
                 'Submitted to TNS (report $reportId). The AT name will be '
-                'assigned shortly — check the TNS report page.',
+                'assigned shortly. Check the TNS report page.',
             rawReply: decoded,
           );
         }
@@ -252,8 +252,8 @@ class TransientSubmissionService {
       success: true,
       reportId: reportId,
       message:
-          'Submitted to TNS (report $reportId). Processing is still pending — '
-          'check the TNS report page for the assigned AT name.',
+          'Submitted to TNS (report $reportId). Processing is still pending. '
+          'Check the TNS report page for the assigned AT name.',
       rawReply: lastReply,
     );
   }

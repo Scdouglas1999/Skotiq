@@ -17,7 +17,7 @@ class OnboardingMountStep extends ConsumerWidget {
     return OnboardingDevicePickerBody(
       title: 'Pick your mount',
       subtitle:
-          "Tracking mode and park position settings can be tuned later from the Equipment screen — we'll save sensible defaults for now.",
+          "Tracking mode and park position settings can be tuned later from the Equipment screen. We'll save sensible defaults for now.",
       icon: SkotiqIcons.compass,
       deviceType: DeviceType.mount,
       selectedDeviceId: draft.mountId,

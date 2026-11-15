@@ -375,7 +375,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Labels faint galaxies on solved images. Optional — only needed '
+                  'Labels faint galaxies on solved images. Optional: only needed '
                   'for deep-field annotation, not for capture or plate solving.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary.withValues(alpha: 0.9),

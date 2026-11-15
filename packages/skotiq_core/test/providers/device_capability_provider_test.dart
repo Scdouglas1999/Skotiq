@@ -186,7 +186,7 @@ void main() {
       );
     });
 
-    test('returns false on error (driver crash) — fail closed', () {
+    test('returns false on error (driver crash): fail closed', () {
       final value = gateCapability<CameraCapabilities>(
         AsyncValue<CameraCapabilities?>.error(
           Exception('bridge crashed'),

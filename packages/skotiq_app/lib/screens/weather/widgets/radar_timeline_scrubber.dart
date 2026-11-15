@@ -373,9 +373,9 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
         Expanded(
           child: Text(
             frame.isForecast
-                ? 'Forecast snapshot — this source gives one frame, so there '
+                ? 'Forecast snapshot: this source gives one frame, so there '
                     'is no loop to play.'
-                : 'Latest image — this source gives one frame, so there is no '
+                : 'Latest image: this source gives one frame, so there is no '
                     'loop to play.',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

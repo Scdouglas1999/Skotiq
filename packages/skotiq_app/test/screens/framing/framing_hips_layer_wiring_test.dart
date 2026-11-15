@@ -207,7 +207,7 @@ void main() {
   }
 
   testWidgets(
-      'inactive (feature off): wiring contributes nothing — no tile layer, no '
+      'inactive (feature off): wiring contributes nothing: no tile layer, no '
       'badge', (tester) async {
     await tester.pumpWidget(hostUnder([
       framingProvider
@@ -269,7 +269,7 @@ void main() {
     // composed inside FramingCanvas (not present in this isolated wiring host).
     expect(find.byType(HipsTileLayer), findsNothing,
         reason:
-            'The wiring no longer mounts the tile layer — that lives inside '
+            'The wiring no longer mounts the tile layer. That lives inside '
             'FramingCanvas, under the FOV overlays.');
     expect(find.byType(HipsAttributionBadge), findsOneWidget,
         reason: 'Active → the attribution badge is mounted (it gates its own '

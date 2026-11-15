@@ -114,7 +114,7 @@ void main() {
     });
 
     test(
-      'upsert keys on (master_type, master_id) — no duplicate rows',
+      'upsert keys on (master_type, master_id): no duplicate rows',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(
           'skotiq_v45_v46_upsert_',

@@ -70,7 +70,7 @@ List<File> _libraryDartSources() {
     result.length,
     greaterThan(500),
     reason:
-        'source scan found almost nothing — the walk is broken, and a '
+        'source scan found almost nothing. The walk is broken, and a '
         'broken walk would pass this file vacuously',
   );
   return result;

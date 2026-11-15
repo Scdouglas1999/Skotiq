@@ -292,8 +292,8 @@ class _IntroPanel extends StatelessWidget {
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
-          'Skotiq will scan focus twice — once approaching every point '
-          'from below, once from above — fit both curves and report the '
+          'Skotiq will scan focus twice. Once approaching every point '
+          'from below, once from above. Fit both curves and report the '
           "distance between them. That distance is your focuser's backlash, "
           'and autofocus uses it to compensate the final move.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
@@ -608,8 +608,8 @@ class _ResultPanel extends StatelessWidget {
         if (state.isSaved) ...[
           SkotiqBanner(
             title: measured
-                ? 'Saved — autofocus will compensate ${c.steps} steps'
-                : 'Saved — this focuser is on record as checked',
+                ? 'Saved: autofocus will compensate ${c.steps} steps'
+                : 'Saved: this focuser is on record as checked',
             tone: BannerTone.success,
             icon: LucideIcons.check,
           ),
@@ -705,7 +705,7 @@ class _NoBacklashHeadline extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
           'No backlash larger than ${limit.toStringAsFixed(0)} steps was '
-          'detectable — that is the smallest difference these two scans could '
+          'detectable. That is the smallest difference these two scans could '
           'resolve. Compensation stays at 0.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
@@ -801,8 +801,8 @@ class _ScanDetails extends StatelessWidget {
           _FactRow(
             label: 'Reversal budget',
             value: '${calibration.reversalBudgetSteps} steps total, '
-                '${calibration.reversalBudgetAtVertexSteps} by the vertex — '
-                'the widest backlash this run could expose',
+                '${calibration.reversalBudgetAtVertexSteps} by the vertex. '
+                'The widest backlash this run could expose',
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           _FactRow(
@@ -930,7 +930,7 @@ class _FailurePanel extends StatelessWidget {
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
         Text(
-          'This is not a refusal — the run did not get far enough to have an '
+          'This is not a refusal. The run did not get far enough to have an '
           'opinion. Nothing was saved and your backlash setting is untouched.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
         ),
@@ -1090,7 +1090,7 @@ class _LegendEntry extends StatelessWidget {
         StatusDot(color: color),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
-          '$label — $detail',
+          '$label: $detail',
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ],

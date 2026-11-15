@@ -127,7 +127,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
   String _hubTimeoutMessage(String action, Duration bound) {
     final elapsed =
         bound.inSeconds < 60 ? '${bound.inSeconds}s' : '${bound.inMinutes} min';
-    return '$action timed out after $elapsed — the hub did not answer. '
+    return '$action timed out after $elapsed. The hub did not answer. '
         'Check the hub is reachable and try again.';
   }
 
@@ -181,7 +181,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       state = state.copyWith(
         isLoading: false,
         error: 'Timed out reading mosaic project $_projectId after '
-            '${loadTimeout.inSeconds}s — the project database did not respond. '
+            '${loadTimeout.inSeconds}s. The project database did not respond. '
             'Close any other Skotiq instance using it and try again.',
       );
     } catch (e) {
@@ -292,7 +292,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
         state = state.copyWith(
           isIntegrating: false,
           error: 'Integrated ${outcomes.length - failed.length} of '
-              '${outcomes.length} panels; ${failed.length} failed — $detail',
+              '${outcomes.length} panels; ${failed.length} failed. $detail',
         );
       }
     } catch (e) {
@@ -500,7 +500,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
         state = state.copyWith(
           isClaiming: false,
           error:
-              '${mosaicPanelName(panelIndex)} was not released — the hub no longer '
+              '${mosaicPanelName(panelIndex)} was not released. The hub no longer '
               'holds a claim for this device.',
         );
       }

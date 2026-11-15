@@ -110,7 +110,7 @@ void main() {
     expect(service.startedFrom, '/data/m42/light_0001.fits');
   });
 
-  test('stopping clears it — an idle stack is aligned to nothing', () async {
+  test('stopping clears it: an idle stack is aligned to nothing', () async {
     final container = _localContainer(_FakeLocalStackingService.new);
     final notifier = container.read(liveStackingProvider.notifier);
 

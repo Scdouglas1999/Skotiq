@@ -406,7 +406,7 @@ void main() {
           pinned.single.fingerprint,
           ed.fingerprint,
           reason:
-              'the trusted fingerprint is unchanged — what is written is '
+              'the trusted fingerprint is unchanged. What is written is '
               'the key behind it, so the next delivery needs no scan',
         );
         await t.close();
@@ -487,7 +487,7 @@ void main() {
     });
 
     test('uploads to a temporary name, verifies it, then renames it into '
-        'place — in that order', () async {
+        'place. In that order', () async {
       runner.when(
         (c) => c.executable == 'ssh' && c.args.contains('-e'),
         exitCode: 1,

@@ -306,7 +306,7 @@ class _MasterOverlayViewState extends State<MasterOverlayView> {
               vertical: SkotiqTokens.spaceXs,
             ),
             child: Text(
-              'Showing ${active.label} preview — toggle off for the raw master',
+              'Showing ${active.label} preview: toggle off for the raw master',
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),

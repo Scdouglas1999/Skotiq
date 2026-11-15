@@ -782,7 +782,7 @@ class _CopyCodeButtonState extends State<_CopyCodeButton> {
         if (!mounted) return;
         setState(() => _copied = false);
         context.showErrorSnackBar(
-          'Could not copy the code — read it off the screen instead.',
+          'Could not copy the code. Read it off the screen instead.',
         );
       }),
     );

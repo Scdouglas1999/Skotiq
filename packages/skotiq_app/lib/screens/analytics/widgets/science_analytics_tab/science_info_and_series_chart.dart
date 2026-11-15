@@ -3,7 +3,7 @@ part of '../science_analytics_tab.dart';
 const _kCalibrationInfo = '''
 Photometric calibration is the process of converting raw pixel values in your images into standardized astronomical magnitudes. This lets you make scientifically meaningful brightness measurements rather than working with arbitrary intensity numbers.
 
-When Skotiq plate-solves a frame, it identifies known stars in the field and compares their measured brightness (in pixel counts) against their cataloged magnitudes. This comparison produces a zero-point (ZP) — a single number that anchors your instrumental magnitudes to the standard magnitude scale.
+When Skotiq plate-solves a frame, it identifies known stars in the field and compares their measured brightness (in pixel counts) against their cataloged magnitudes. This comparison produces a zero-point (ZP): a single number that anchors your instrumental magnitudes to the standard magnitude scale.
 
 A "Calibrated" status means Skotiq successfully matched enough catalog stars to compute a reliable zero-point. "Uncalibrated" means either the plate solve failed, too few stars were matched, or the fit residuals were too large to trust.
 
@@ -11,7 +11,7 @@ The zero-point value itself tells you about your system's overall sensitivity fo
 ''';
 
 const _kLimMagInfo = '''
-Limiting magnitude (5-sigma) tells you the faintest star your imaging system can reliably detect in the current conditions, at a 5-sigma confidence level. In other words, a star at this magnitude would produce a signal five times stronger than the background noise — the standard threshold astronomers use to distinguish real detections from noise.
+Limiting magnitude (5-sigma) tells you the faintest star your imaging system can reliably detect in the current conditions, at a 5-sigma confidence level. In other words, a star at this magnitude would produce a signal five times stronger than the background noise. The standard threshold astronomers use to distinguish real detections from noise.
 
 This is one of the most important single numbers for evaluating your imaging setup's performance on a given night. It combines the effects of your telescope's aperture, camera sensitivity, sky brightness, atmospheric transparency, tracking accuracy, and focus quality into a single metric.
 
@@ -35,15 +35,15 @@ The moving object detector searches for sources that shift position between cons
 
 Skotiq compares the positions of detected sources across multiple exposures. Objects that show consistent linear motion (within expected velocity ranges for solar system objects) are flagged as candidates. Each candidate is assigned a confidence score based on how well its apparent motion fits expected trajectories and how clearly it stands out from noise or image artifacts.
 
-The count shown here represents the number of distinct candidate objects found. A high count doesn't necessarily mean many real asteroids — some candidates may be hot pixels, cosmic ray hits, or other artifacts that mimic motion. The confidence percentage of the top candidate helps you gauge how likely the best detection is to be a real object.
+The count shown here represents the number of distinct candidate objects found. A high count doesn't necessarily mean many real asteroids. Some candidates may be hot pixels, cosmic ray hits, or other artifacts that mimic motion. The confidence percentage of the top candidate helps you gauge how likely the best detection is to be a real object.
 
-If you detect a high-confidence moving object that doesn't match known solar system bodies, it could be a previously undiscovered asteroid — a genuinely exciting find that you can report to the Minor Planet Center (MPC).
+If you detect a high-confidence moving object that doesn't match known solar system bodies, it could be a previously undiscovered asteroid. A genuinely exciting find that you can report to the Minor Planet Center (MPC).
 ''';
 
 const _kDifferentialPhotometryInfo = '''
 Differential photometry measures how a target object's brightness changes over time relative to stable comparison stars in the same field of view. By measuring the target and comparison stars simultaneously in each frame, most atmospheric and instrumental effects cancel out, enabling very precise brightness measurements.
 
-The Y-axis shows differential magnitude (dMag) — the difference between the target star's magnitude and the comparison ensemble. The axis is inverted so that brighter values appear higher on the chart, following the astronomical convention where lower magnitude numbers mean brighter objects.
+The Y-axis shows differential magnitude (dMag): the difference between the target star's magnitude and the comparison ensemble. The axis is inverted so that brighter values appear higher on the chart, following the astronomical convention where lower magnitude numbers mean brighter objects.
 
 The error bars on each data point show the measurement uncertainty. Smaller error bars indicate more precise measurements. Factors that reduce uncertainty include longer exposures, better focus, higher transparency, and more comparison stars.
 
@@ -55,11 +55,11 @@ For the most accurate results, ensure your comparison stars are non-variable, si
 const _kTransparencyTrendInfo = '''
 The transparency trend chart tracks how atmospheric clarity changes throughout your imaging session. Each point represents a transparency measurement derived from comparing measured star brightnesses to their catalog values.
 
-A flat, high line (near 90-100%) indicates stable, clear conditions — ideal for photometry and deep imaging. A downward trend suggests increasing cloud cover, rising humidity, or the target moving to lower altitude where atmospheric extinction is greater.
+A flat, high line (near 90-100%) indicates stable, clear conditions. Ideal for photometry and deep imaging. A downward trend suggests increasing cloud cover, rising humidity, or the target moving to lower altitude where atmospheric extinction is greater.
 
 Sudden drops usually indicate thin clouds passing through the field. Gradual declines over the session may reflect changing atmospheric conditions, increasing dew formation on optics, or the target descending toward the horizon.
 
-This chart helps you identify which portions of your session had the best conditions, so you can selectively stack only the frames captured during optimal transparency. It's also useful for explaining unexpected scatter in your photometry data — periods of poor transparency will naturally produce noisier magnitude measurements.
+This chart helps you identify which portions of your session had the best conditions, so you can selectively stack only the frames captured during optimal transparency. It's also useful for explaining unexpected scatter in your photometry data. Periods of poor transparency will naturally produce noisier magnitude measurements.
 
 The X-axis shows elapsed time from the start of the session in minutes.
 ''';
@@ -75,7 +75,7 @@ Common patterns you might see:
 - Corners redder than center: field curvature or coma from your optical train. Consider a field flattener or coma corrector.
 - One side redder: tilt in your imaging train (camera not square to the optical axis). Check your adapters and spacers.
 - Everything red: poor focus or poor seeing conditions.
-- Uniform green: excellent optics and focus — the ideal result.
+- Uniform green: excellent optics and focus. The ideal result.
 
 The color scale is normalized to the 5th and 95th percentiles of your data, so it automatically adapts to show the variation present in your specific setup.
 ''';
@@ -103,7 +103,7 @@ The list shows up to 6 candidates. If many low-confidence candidates appear, it 
 ''';
 
 const _kNarrowbandRatiosInfo = '''
-Narrowband emission line ratios compare the relative intensities of specific wavelengths of light emitted by ionized gas in nebulae. These ratios reveal the physical conditions — temperature, density, and ionization state — of the gas you're imaging.
+Narrowband emission line ratios compare the relative intensities of specific wavelengths of light emitted by ionized gas in nebulae. These ratios reveal the physical conditions (temperature, density, and ionization state) of the gas you're imaging.
 
 The three ratios shown are:
 
@@ -119,7 +119,7 @@ These ratios are widely used in professional astronomy for classifying nebulae, 
 ''';
 
 const _kPhotometricTransformsInfo = '''
-Photometric transformation coefficients convert your instrumental magnitudes into a standard photometric system (such as Johnson-Cousins UBVRI or Sloan ugriz). Without these coefficients, your brightness measurements are only relative — useful for differential photometry, but not directly comparable to catalog values or measurements from other observatories.
+Photometric transformation coefficients convert your instrumental magnitudes into a standard photometric system (such as Johnson-Cousins UBVRI or Sloan ugriz). Without these coefficients, your brightness measurements are only relative. Useful for differential photometry, but not directly comparable to catalog values or measurements from other observatories.
 
 The transformation equation is: M_std = m_inst - k*X + T*(B-V) + ZP
 

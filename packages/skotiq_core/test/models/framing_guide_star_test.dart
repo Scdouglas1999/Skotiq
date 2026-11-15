@@ -79,7 +79,7 @@ void main() {
     fovHeightDeg: 1.0,
   );
 
-  group('findGuideStarCandidates — seeded FOV selection', () {
+  group('findGuideStarCandidates: seeded FOV selection', () {
     test('keeps only bright stars inside the FOV, brightest first', () {
       final stars = <GuideStarInput>[
         // Inside the FOV, bright -> KEEP.
@@ -198,7 +198,7 @@ void main() {
     });
   });
 
-  group('findGuideStarCandidates — query center (dragged aim)', () {
+  group('findGuideStarCandidates: query center (dragged aim)', () {
     // The FOV box dragged 0.4deg east / 0.3deg north of the view centre. The
     // inside-FOV test must measure around THIS point while the projection that
     // places the markers stays centred on the view (the sky the user sees).
@@ -329,7 +329,7 @@ void main() {
     );
   });
 
-  group('findGuideStarCandidates — screen registration', () {
+  group('findGuideStarCandidates: screen registration', () {
     test('candidate screen position matches the shared projection exactly', () {
       final proj = _projection();
       final star = _starAtOffset(

@@ -403,8 +403,8 @@ class _ActionRow extends StatelessWidget {
               isContributing
                   ? 'You are pooling light here'
                   : sharingOff
-                      ? 'Joined — not contributing (sharing off)'
-                      : 'Joined — checking sharing…',
+                      ? 'Joined: not contributing (sharing off)'
+                      : 'Joined: checking sharing…',
               style: SkotiqTypography.captionSm.copyWith(
                 color: captionColor,
               ),

@@ -355,7 +355,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
           name: 'Flats reminder',
           title: 'No flat panel detected',
           message:
-              'No flat panel detected — remember to shoot manual flats next '
+              'No flat panel detected. Remember to shoot manual flats next '
               'session for this equipment profile.',
           level: NotificationLevel.info,
           explicitTransports: const [NotificationTransportKind.inApp],
@@ -399,7 +399,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
             title: 'Cover the OTA',
             message:
                 'Dark library refresh is about to start. Cover the OTA '
-                'to block all stray light before continuing — uncovered '
+                'to block all stray light before continuing. Uncovered '
                 '"darks" will corrupt the library.',
             level: NotificationLevel.warning,
             explicitTransports: const [NotificationTransportKind.inApp],
@@ -415,7 +415,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
           ExposureNode(
             id: SmartNightService._uuid.v4(),
             name:
-                'Darks — ${req.durationSecs.toStringAsFixed(0)}s '
+                'Darks: ${req.durationSecs.toStringAsFixed(0)}s '
                 '@ ${context.sensitivity.describe(req.gain)} '
                 '($tempLabel, bin ${req.binX}x${req.binY})',
             durationSecs: req.durationSecs,
@@ -445,7 +445,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       final darkGroup = InstructionSetNode(
         id: darkGroupId,
         name:
-            'Dark Library Refresh — '
+            'Dark Library Refresh: '
             '${context.missingDarkRequirements.length} combinations',
         parentId: rootId,
         orderIndex: childOrder.length,
@@ -482,7 +482,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       addRootChild(
         RecoveryNode(
           id: SmartNightService._uuid.v4(),
-          name: 'Cloud arriving — auto-park',
+          name: 'Cloud arriving: auto-park',
           triggerType: TriggerType.weatherUnsafe,
           recoveryAction: RecoveryActionType.parkAndAbort,
           maxRetries: 1,
@@ -499,7 +499,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final root = InstructionSetNode(
       id: rootId,
       name:
-          'Smart Night — '
+          'Smart Night: '
           '${planned.map((p) => p.suggestion.targetName).join(", ")}',
       childIds: childOrder,
     );
@@ -558,7 +558,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
         NotificationNode(
           id: SmartNightService._uuid.v4(),
           name: 'Flats need calibration',
-          title: 'Automated flats skipped — no calibrated exposures',
+          title: 'Automated flats skipped: no calibrated exposures',
           message:
               'Smart Night will not shoot blind flats. Run the flat wizard '
               'once for ${uncalibrated.isEmpty ? "your filters" : uncalibrated.map(smartNightFilterLabel).join(", ")} '
@@ -576,7 +576,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final flatGroupId = SmartNightService._uuid.v4();
     final flatGroup = InstructionSetNode(
       id: flatGroupId,
-      name: 'Flats — ${calibrated.length} filters',
+      name: 'Flats: ${calibrated.length} filters',
       parentId: rootId,
       orderIndex: childOrder.length,
       childIds: const [],
@@ -635,7 +635,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
           ExposureNode(
             id: SmartNightService._uuid.v4(),
             name:
-                'Flats — ${smartNightFilterLabel(exposure.filterName)} '
+                'Flats: ${smartNightFilterLabel(exposure.filterName)} '
                 '(${exposure.exposureSecs.toStringAsFixed(2)}s @ '
                 '${exposure.histogramTargetPercent.toStringAsFixed(0)}% hist)',
             durationSecs: exposure.exposureSecs,
@@ -836,7 +836,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
 
     final header = TargetHeaderNode(
       id: headerId,
-      name: 'Target — ${planned.suggestion.targetName}',
+      name: 'Target: ${planned.suggestion.targetName}',
       targetName: planned.suggestion.targetName,
       raHours: planned.suggestion.raHours,
       decDegrees: planned.suggestion.decDegrees,
@@ -890,7 +890,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     return SmartExposureNode(
       id: SmartNightService._uuid.v4(),
       name:
-          'Smart Exposure — '
+          'Smart Exposure: '
           '${planned.filterPlans.map((p) => p.filterName).join("+")}',
       plans: plans,
       rotateFilters: true,
@@ -924,7 +924,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     return ExposureNode(
       id: SmartNightService._uuid.v4(),
       name:
-          'Exposures — ${plan.count} × '
+          'Exposures: ${plan.count} × '
           '${plan.durationSecs.toStringAsFixed(0)}s (no filter)',
       durationSecs: plan.durationSecs,
       gain: settings.gainOverride ?? defaults.gain,

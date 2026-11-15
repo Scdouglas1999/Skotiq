@@ -3,7 +3,7 @@ import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart';
 
 void main() {
-  group('diagnoseConnectionFailure — classification by marker', () {
+  group('diagnoseConnectionFailure: classification by marker', () {
     test('ASCOM RPC server unavailable HRESULT maps to driver', () {
       final d = diagnoseConnectionFailure(
         deviceType: DeviceType.camera,
@@ -82,7 +82,7 @@ void main() {
       final d = diagnoseConnectionFailure(
         deviceType: DeviceType.focuser,
         driverType: DriverType.indi,
-        rawError: 'No route to host — host unreachable',
+        rawError: 'No route to host. Host unreachable',
       );
       expect(d.category, DiagnosticCategory.network);
     });
@@ -249,7 +249,7 @@ void main() {
     });
   });
 
-  group('diagnoseConnectionFailure — raw error is always carried through', () {
+  group('diagnoseConnectionFailure: raw error is always carried through', () {
     test('recognized error preserves raw verbatim', () {
       const raw = 'CCD: 0x800706BA The RPC server is unavailable';
       final d = diagnoseConnectionFailure(
@@ -282,7 +282,7 @@ void main() {
   });
 
   group(
-    'diagnoseConnectionFailure — every category yields non-empty steps',
+    'diagnoseConnectionFailure: every category yields non-empty steps',
     () {
       for (final category in DiagnosticCategory.values) {
         test('$category produces concrete steps', () {
@@ -314,7 +314,7 @@ void main() {
     },
   );
 
-  group('diagnoseConnectionFailure — device-specific copy', () {
+  group('diagnoseConnectionFailure: device-specific copy', () {
     test('camera USB steps mention 12V power supply; mount does not', () {
       final camera = diagnoseConnectionFailure(
         deviceType: DeviceType.camera,
@@ -362,7 +362,7 @@ void main() {
     });
   });
 
-  group('diagnoseConnectionFailure — driver-specific copy', () {
+  group('diagnoseConnectionFailure: driver-specific copy', () {
     test('native USB steps mention reinstalling the SDK/driver', () {
       final d = diagnoseConnectionFailure(
         deviceType: DeviceType.camera,
@@ -406,7 +406,7 @@ void main() {
     });
   });
 
-  group('diagnoseConnectionFailure — determinism', () {
+  group('diagnoseConnectionFailure: determinism', () {
     test('identical inputs produce equal diagnoses', () {
       ConnectionDiagnosis make() => diagnoseConnectionFailure(
         deviceType: DeviceType.camera,

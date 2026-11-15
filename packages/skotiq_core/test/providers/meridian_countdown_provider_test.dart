@@ -67,7 +67,7 @@ MountState _mountAtHourAngle(
 }
 
 void main() {
-  group('computeMeridianCountdown — arming preconditions', () {
+  group('computeMeridianCountdown: arming preconditions', () {
     test('(a) disconnected mount -> not armed with reason', () {
       final result = computeMeridianCountdown(
         mount: const MountState(
@@ -182,7 +182,7 @@ void main() {
     });
   });
 
-  group('computeMeridianCountdown — minutesPastMeridian method', () {
+  group('computeMeridianCountdown: minutesPastMeridian method', () {
     test('(c) HA just before meridian -> positive timeToFlip', () {
       // HA = -0.1h (6 minutes before the meridian). Threshold is 5 minutes
       // PAST the meridian => thresholdHours = 5/60. Minutes to flip should be
@@ -233,7 +233,7 @@ void main() {
       expect(result.isArmed, isTrue);
       expect(result.timeToFlip, Duration.zero);
       expect(result.isFlipImminent, isTrue);
-      expect(result.disabledReason, 'Already past meridian — flip imminent');
+      expect(result.disabledReason, 'Already past meridian: flip imminent');
     });
 
     test('hourAngleThreshold method computes against HA hours directly', () {
@@ -261,7 +261,7 @@ void main() {
     });
   });
 
-  group('computeMeridianCountdown — the post-flip side', () {
+  group('computeMeridianCountdown: the post-flip side', () {
     const settings = MeridianFlipSettings(
       triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
       minutesPastMeridian: 20.0,
@@ -309,7 +309,7 @@ void main() {
     });
   });
 
-  group('computeMeridianCountdown — tracking-limit methods are Rust-owned', () {
+  group('computeMeridianCountdown: tracking-limit methods are Rust-owned', () {
     test(
       '(e) minutesBeforeLimit -> timeToFlip null + sequencer-owned reason',
       () {
@@ -361,7 +361,7 @@ void main() {
     });
   });
 
-  group('computeMeridianCountdown — sequence ownership', () {
+  group('computeMeridianCountdown: sequence ownership', () {
     test(
       '(f) sequence running -> isSequencerOwned true but countdown still shown',
       () {
@@ -459,7 +459,7 @@ void main() {
     });
   });
 
-  group('meridianCountdownProvider — Provider wiring', () {
+  group('meridianCountdownProvider: Provider wiring', () {
     late SkotiqDatabase db;
     late ProviderContainer container;
 

@@ -82,7 +82,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(SizedBox), findsWidgets,
-        reason: 'A widget should render — preferring SizedBox.shrink over '
+        reason: 'A widget should render. Preferring SizedBox.shrink over '
             'throwing for overlays without quantitative gradients.');
     expect(find.textContaining('Safe'), findsNothing);
   });

@@ -142,7 +142,7 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
             ? 'Connected. Found $n device${n == 1 ? '' : 's'}.'
             : 'No Alpaca devices at ${inputs.host}:${inputs.port}. If an '
                 'Alpaca/ASCOM Remote server is running there it has nothing '
-                'published — otherwise check the host and port.';
+                'published. Otherwise check the host and port.';
       });
     } catch (e) {
       if (!mounted) return;

@@ -362,15 +362,15 @@ const List<ContributionLicense> _shareableLicenses = <ContributionLicense>[
 String _licenseLabel(ContributionLicense license) {
   switch (license) {
     case ContributionLicense.cc0:
-      return 'CC0 — public domain (no attribution required)';
+      return 'CC0: public domain (no attribution required)';
     case ContributionLicense.ccBy:
-      return 'CC BY — credit required, any use';
+      return 'CC BY: credit required, any use';
     case ContributionLicense.ccBySa:
-      return 'CC BY-SA — credit + share-alike';
+      return 'CC BY-SA: credit + share-alike';
     case ContributionLicense.ccByNc:
-      return 'CC BY-NC — credit, non-commercial only';
+      return 'CC BY-NC: credit, non-commercial only';
     case ContributionLicense.private:
-      return 'Private — not shared';
+      return 'Private: not shared';
   }
 }
 

@@ -637,7 +637,7 @@ class _SciencePhotometryPropertiesState
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Expanded(
                   child: Text(
-                    'Negative cadence gap is impossible — the executor '
+                    'Negative cadence gap is impossible. The executor '
                     'will reject this node at validation.',
                     style: SkotiqTypography.labelStrongSm
                         .copyWith(color: colors.warning),

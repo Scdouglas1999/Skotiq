@@ -328,7 +328,7 @@ void main() {
           1,
           reason:
               'the cause is now the FIRST fault, so there are later entries '
-              'behind it — comparing only the last entry would append it again '
+              'behind it. Comparing only the last entry would append it again '
               'and stack two identical critical banners',
         );
       },

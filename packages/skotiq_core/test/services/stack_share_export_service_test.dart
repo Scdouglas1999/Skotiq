@@ -202,7 +202,7 @@ void main() {
     });
   });
 
-  group('exportImage — format coverage', () {
+  group('exportImage: format coverage', () {
     test(
       'PNG export writes a non-empty, decodable file via the save path',
       () async {
@@ -323,7 +323,7 @@ void main() {
     });
   });
 
-  group('exportImage — persistence + validation', () {
+  group('exportImage: persistence + validation', () {
     test('stamps the exported path onto a persisted result', () async {
       final id = await resultsDao.insertResult(_sampleResult(id: null));
       final result = _sampleResult(id: id, width: 8, height: 8);

@@ -76,7 +76,7 @@ void main() {
       expect(
         eccentricityOnly.gradeStats(const ImageStats(hfr: 2.0)),
         isNull,
-        reason: 'null means no detector ran — that is ignorance, not evidence',
+        reason: 'null means no detector ran. That is ignorance, not evidence',
       );
     });
 

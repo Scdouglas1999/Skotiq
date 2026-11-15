@@ -347,13 +347,13 @@ class SmartNightService {
     if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
       throw SmartNightBuildException(
         'Equipment profile "${profile.name}" is missing aperture, focal '
-        'length, or pixel size — these are required to compute exposure '
+        'length, or pixel size. These are required to compute exposure '
         'recommendations. Aperture=$aperture mm, '
         'focal length=$focalLength mm, '
         'pixel size=$pixelSizeUm µm.'
         '${pixelSizeUm <= 0 ? ' The camera '
                   '"${profile.cameraName ?? profile.cameraId ?? "<unknown>"}" is not '
-                  'in the bundled hardware catalog — connect the camera so its real '
+                  'in the bundled hardware catalog. Connect the camera so its real '
                   'pixel size is read, or add it to the Smart Night camera '
                   'overrides. Smart Night will not guess a pixel size.' : ''}',
       );
@@ -507,7 +507,7 @@ class SmartNightService {
       warnings.add(
         'Dark library is missing matching frames for: '
         '${context.missingDarkLibraryNotes.join(", ")}. '
-        'Smart Night does not auto-schedule dark capture — consider a '
+        'Smart Night does not auto-schedule dark capture. Consider a '
         'cloudy night for a dark library run.',
       );
     } else if (autoDarksActive) {
@@ -515,7 +515,7 @@ class SmartNightService {
       final totalFrames =
           context.missingDarkRequirements.length * framesPerCombo;
       warnings.add(
-        'Dark library refresh scheduled — $totalFrames dark frames '
+        'Dark library refresh scheduled. $totalFrames dark frames '
         '(${context.missingDarkRequirements.length} combinations × '
         '$framesPerCombo frames each) will be captured after lights '
         'because auto-schedule is enabled.',
@@ -536,14 +536,14 @@ class SmartNightService {
       warnings.add(
         'Cloud / rain probability '
         '${(context.rainOrCloudProbability! * 100).toStringAsFixed(0)}% '
-        'within tonight\'s window — a Cloud Arriving recovery node was '
+        'within tonight\'s window. A Cloud Arriving recovery node was '
         'added so the executor can safely park if the storm rolls in.',
       );
     }
     if (context.adaptiveExposuresRecommended) {
       warnings.add(
         'Sky brightness tracker reports your site is brighter than '
-        'reference — adaptive exposures will be enabled on each target.',
+        'reference. Adaptive exposures will be enabled on each target.',
       );
     }
     if (settings.includeFlatsAtEnd && settings.hasCoverCalibrator) {
@@ -560,14 +560,14 @@ class SmartNightService {
         warnings.add(
           'No ADU-calibrated flat exposure exists for: '
           '${missingFlatCalibration.join(", ")}. Smart Night will NOT shoot '
-          'blind flats — run the flat wizard once for these filters so the '
+          'blind flats. Run the flat wizard once for these filters so the '
           'target-ADU exposure + panel brightness are learned and reused.',
         );
       }
     }
     if (recentGuideRmsArcsec == null || recentGuideSamples < 3) {
       warnings.add(
-        'Mount guide-RMS history is sparse — exposure recommendations '
+        'Mount guide-RMS history is sparse. Exposure recommendations '
         'use the user cap rather than the mount-tracking ceiling. The '
         'ceiling becomes active after ~3 guided sessions on this mount.',
       );
@@ -756,7 +756,7 @@ class SmartNightService {
     if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
       throw SmartNightBuildException(
         'Equipment profile "${profile.name}" is missing aperture, focal '
-        'length, or pixel size — these are required to compute exposure '
+        'length, or pixel size. These are required to compute exposure '
         'recommendations.',
       );
     }
@@ -871,7 +871,7 @@ class SmartNightService {
   }) {
     if (profile.name.trim().isEmpty) {
       throw const SmartNightBuildException(
-        'No equipment profile selected — Smart Night needs to know which '
+        'No equipment profile selected. Smart Night needs to know which '
         'rig you\'re using so it can compose filter rotation, gain, and '
         'cooling sub-trees.',
       );
@@ -880,13 +880,13 @@ class SmartNightService {
         !longitudeDeg.isFinite ||
         (latitudeDeg == 0.0 && longitudeDeg == 0.0)) {
       throw const SmartNightBuildException(
-        'No observer location set — Smart Night needs your latitude / '
+        'No observer location set. Smart Night needs your latitude / '
         'longitude to compute the dark window and target altitudes.',
       );
     }
     if (selectedSuggestions.isEmpty) {
       throw const SmartNightBuildException(
-        'No targets selected — pick at least one target on step 3 or let '
+        'No targets selected: pick at least one target on step 3 or let '
         'Smart Night auto-select the top-scoring candidates.',
       );
     }
@@ -1000,7 +1000,7 @@ class SmartNightService {
         '${today.year}-${today.month.toString().padLeft(2, '0')}-'
         '${today.day.toString().padLeft(2, '0')}';
     final names = planned.map((p) => p.suggestion.targetName).join(' · ');
-    return 'Smart Night $dateStr — $names (${_strategyLabel(strategy)})';
+    return 'Smart Night $dateStr: $names (${_strategyLabel(strategy)})';
   }
 
   String _composeSequenceDescription(

@@ -23,7 +23,7 @@ double panelWidthFromFraction(
 }
 
 @Deprecated(
-  'Renamed to panelWidthFromFraction — it was indistinguishable at the call '
+  'Renamed to panelWidthFromFraction: it was indistinguishable at the call '
   'site from AdaptiveDialogConstraints.clampPanelWidth, which does something '
   'else. Will be removed one release after 6.1.0.',
 )

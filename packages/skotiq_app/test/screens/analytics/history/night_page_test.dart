@@ -280,7 +280,7 @@ void main() {
       final handle = tester.ensureSemantics();
       await open(tester, resolver: _ScriptedResolver(_noMaster()));
 
-      expect(nameOf(tester), startsWith('Open in Darkroom — '));
+      expect(nameOf(tester), startsWith('Open in Darkroom: '));
       expect(nameOf(tester), contains('no integrated master'));
       expect(enabled(tester), isFalse);
       handle.dispose();

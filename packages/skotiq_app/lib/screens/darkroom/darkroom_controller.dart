@@ -991,7 +991,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       final refused = verdict.steps.where((issue) => !issue.isClean).length;
       lines.add(
         'This build refuses $refused of them; each card says which and why. '
-        'Nothing was dropped on the way in — the recipe is stored exactly as '
+        'Nothing was dropped on the way in. The recipe is stored exactly as '
         'the file holds it.',
       );
     }
@@ -1150,9 +1150,9 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
                 candidate,
                 counted: 'the stack the added step would have produced',
                 undone: 'the step was not added',
-                nextStep: 'Answer what the sentence names — a step whose '
+                nextStep: 'Answer what the sentence names. A step whose '
                     'parameters the engine refuses, or one this build does not '
-                    'register — and add the step again.',
+                    'register, and add the step again.',
               ),
       );
       return false;
@@ -1488,7 +1488,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       return '$message. The stack on screen is unchanged, because $undone. '
           '$nextStep';
     }
-    return '$message. Those step numbers count $counted, from 1 — not the '
+    return '$message. Those step numbers count $counted, from 1. Not the '
         'stack on screen, which is unchanged because $undone. $nextStep';
   }
 

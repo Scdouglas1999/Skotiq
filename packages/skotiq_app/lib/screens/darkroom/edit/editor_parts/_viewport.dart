@@ -296,7 +296,7 @@ class _DarkroomZoomControls extends StatelessWidget {
             // No pixels: the readout says the same thing the four controls
             // say, rather than "unknown" over a row whose refusal is a
             // different sentence.
-            (final String reason, _) => 'Zoom is unavailable — $reason',
+            (final String reason, _) => 'Zoom is unavailable: $reason',
             (null, null) => 'Zoom relative to the master is unknown',
             (null, final double scale) =>
               'Zoom ${(scale * 100).round()} percent of the master$on',
@@ -686,7 +686,7 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
             right: SkotiqTokens.spaceMd,
             child: Glass(
               child: _DarkroomTag(
-                label: 'Stale — the render did not finish',
+                label: 'Stale: the render did not finish',
                 tooltip:
                     'The picture below is the last render that finished, not '
                     'the stack as it stands now: $failure',

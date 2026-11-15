@@ -38,7 +38,7 @@ void main() {
       NightReport.ungraded(
         sessionId: 7,
         headline:
-            'Not graded — this session captured no light frames, so there '
+            'Not graded: this session captured no light frames, so there '
             'is nothing to analyze.',
         createdAt: createdAt,
       ),
@@ -72,7 +72,7 @@ void main() {
       NightReport(
         sessionId: 7,
         score: 100,
-        headline: 'A clean night — no problems detected.',
+        headline: 'A clean night: no problems detected.',
         createdAt: createdAt,
       ),
     );
@@ -86,7 +86,7 @@ void main() {
 
   test('the un-graded flag survives the score-column round trip', () {
     final report = NightReport.ungraded(
-      headline: 'Not graded — nothing to analyze.',
+      headline: 'Not graded: nothing to analyze.',
       createdAt: createdAt,
     );
     expect(report.graded, isFalse);

@@ -15,7 +15,7 @@ import 'package:skotiq_core/src/services/phd2_status_poll.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
 
 void main() {
-  group('isPhd2WireToken — the shared token list', () {
+  group('isPhd2WireToken: the shared token list', () {
     test('accepts exactly the four canonical spellings', () {
       expect(isPhd2WireToken('phd2_guider'), isTrue);
       expect(isPhd2WireToken('phd2'), isTrue);

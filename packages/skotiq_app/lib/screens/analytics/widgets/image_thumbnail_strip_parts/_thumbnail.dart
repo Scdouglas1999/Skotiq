@@ -388,7 +388,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
 
   String _qualityTooltip() {
     if (widget.assessment == null) {
-      return 'Not rated — this frame has no HFR, star count, guiding RMS or '
+      return 'Not rated: this frame has no HFR, star count, guiding RMS or '
           'stored quality score to judge';
     }
     return '${widget.assessment!.summaryLine}\n'

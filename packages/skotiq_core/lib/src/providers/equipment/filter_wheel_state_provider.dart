@@ -277,7 +277,7 @@ final effectiveFiltersProvider = Provider<List<String>>((ref) {
 
 /// What a filter picker says when [effectiveFiltersProvider] is empty.
 const String noFiltersToPickHint =
-    'No filters — connect a filter wheel or add them to the profile';
+    'No filters: connect a filter wheel or add them to the profile';
 
 /// Session-only filter names (no profile required).
 ///

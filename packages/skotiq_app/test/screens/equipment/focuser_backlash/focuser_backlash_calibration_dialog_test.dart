@@ -387,8 +387,8 @@ void main() {
       expect(chart.series[0].vertexPosition, 6620);
       expect(chart.series[1].vertexPosition, 6515);
       expect(chart.series[0].color, isNot(chart.series[1].color));
-      expect(find.textContaining('From below — optimum 6620'), findsOneWidget);
-      expect(find.textContaining('From above — optimum 6515'), findsOneWidget);
+      expect(find.textContaining('From below: optimum 6620'), findsOneWidget);
+      expect(find.textContaining('From above: optimum 6515'), findsOneWidget);
       // The per-scan evidence, including the ceiling the run could expose.
       expect(find.textContaining('R² 0.987'), findsOneWidget);
       expect(find.textContaining('105 steps (resolution limit 15)'),
@@ -450,7 +450,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('Saved — autofocus will compensate 105 steps'),
+        find.textContaining('Saved: autofocus will compensate 105 steps'),
         findsOneWidget,
       );
       expect(find.widgetWithText(SkotiqButton, 'Done'), findsOneWidget);
@@ -507,7 +507,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('Saved — this focuser is on record as checked'),
+        find.textContaining('Saved: this focuser is on record as checked'),
         findsOneWidget,
       );
     });

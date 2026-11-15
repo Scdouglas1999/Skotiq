@@ -194,7 +194,7 @@ void main() {
           expect(
             _isTruncated(tester, label),
             isFalse,
-            reason: '"$label" is ellipsized — this is exactly the "Frami.../'
+            reason: '"$label" is ellipsized: this is exactly the "Frami.../'
                 'Sequ..." defect',
           );
         }

@@ -56,7 +56,7 @@ class _DarkroomAddStep extends StatelessWidget {
     // The accessible name carries the refusal, because a disabled control that
     // says only "Add step" leaves the reason on screen for sighted readers and
     // nowhere else.
-    final name = blocked == null ? label : 'Add step — $blocked';
+    final name = blocked == null ? label : 'Add step: $blocked';
     void open() => unawaited(_choose(context));
     return Semantics(
       container: true,
@@ -139,7 +139,7 @@ class _DarkroomAddStepDialog extends StatelessWidget {
           Text(
             'Every operation this build registers, whether or not this stack '
             'already carries one. A step arrives switched on and adjustable, '
-            'and nothing is written to the master — the recipe replays over '
+            'and nothing is written to the master. The recipe replays over '
             'its pixels.',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
@@ -185,8 +185,8 @@ class _DarkroomAddStepDialog extends StatelessWidget {
     // the children that paint it.
     final name = [
       refusal == null
-          ? 'Add $title v${op.version} — ${op.stage.label} stage.'
-          : 'Add $title v${op.version} — $refusal',
+          ? 'Add $title v${op.version}: ${op.stage.label} stage.'
+          : 'Add $title v${op.version}: $refusal',
       if (op.summary.isNotEmpty) op.summary,
       if (refusal == null) placement!,
       if (measured != null) measured,
@@ -307,7 +307,7 @@ class _DarkroomAddStepDialog extends StatelessWidget {
         : '${unmeasured.take(unmeasured.length - 1).join(', ')} and '
             '${unmeasured.last}';
     return 'This build documents no default for $names, so adding it asks the '
-        'registry to measure this master first — the same measurement "Draft '
+        'registry to measure this master first. The same measurement "Draft '
         'for me" makes, and it takes as long.';
   }
 

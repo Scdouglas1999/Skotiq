@@ -91,7 +91,7 @@ void main() {
       1,
       reason:
           'none of these changed the sensor, its name, or whether it is '
-          'connected — but each one re-ran the whole async provider, which is '
+          'connected, but each one re-ran the whole async provider, which is '
           'what made the Equipment card read as permanently loading',
     );
   });
@@ -135,7 +135,7 @@ void main() {
       after.message,
       contains('remembered'),
       reason:
-          'narrowing the watch must not make the card go stale — pulling '
+          'narrowing the watch must not make the card go stale. Pulling '
           'the camera has to be noticed, and the card has to say the specs '
           'are now last-seen values rather than live ones',
     );

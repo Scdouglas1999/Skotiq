@@ -54,12 +54,12 @@ String? _hfrInertNote(double? value) {
   if (value == null) return null;
   if (value < _hfrFloorPx) {
     return 'Heads up: at ${value.toStringAsFixed(2)} px this rejects every '
-        'frame — the detector never reports an HFR below '
+        'frame. The detector never reports an HFR below '
         '${_hfrFloorPx.toStringAsFixed(2)} px.';
   }
   if (value >= _hfrCeilingPx) {
     return 'Heads up: at ${value.toStringAsFixed(2)} px this check never '
-        'fires — HFR is measured inside a '
+        'fires. HFR is measured inside a '
         '${_hfrCeilingPx.toStringAsFixed(0)} px window, so no frame reports '
         'more.';
   }
@@ -69,8 +69,8 @@ String? _hfrInertNote(double? value) {
 /// Eccentricity counterpart to [_hfrInertNote].
 String? _eccentricityInertNote(double? value) {
   if (value == null || value < _eccentricityCeiling) return null;
-  return 'Heads up: at ${value.toStringAsFixed(2)} this check never fires — '
-      'the detector stops measuring past '
+  return 'Heads up: at ${value.toStringAsFixed(2)} this check never fires. '
+      'The detector stops measuring past '
       '${_eccentricityCeiling.toStringAsFixed(2)} and reads anything more '
       'elongated as a streak, not a star.';
 }

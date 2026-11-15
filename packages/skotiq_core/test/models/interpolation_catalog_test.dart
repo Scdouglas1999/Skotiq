@@ -93,7 +93,7 @@ void main() {
     });
 
     test('passes through plain text unchanged', () {
-      const original = 'plain literal — no placeholders here';
+      const original = 'plain literal: no placeholders here';
       expect(previewInterpolation(original), original);
     });
   });

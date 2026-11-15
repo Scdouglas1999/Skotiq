@@ -198,7 +198,7 @@ class _ReportBody extends ConsumerWidget {
             // capture, not only what it did not.
             _muted(report.calibration.isEmpty
                 ? 'No accepted light frames recorded.'
-                : 'Calibration only — no light frames. See Calibration below.'),
+                : 'Calibration only: no light frames. See Calibration below.'),
           for (final target in report.targets) ...[
             const SizedBox(height: 8),
             _TargetBlock(target: target, colors: colors),
@@ -718,7 +718,7 @@ class _ReportBody extends ConsumerWidget {
         await tmpFile.writeAsString(text);
         await Share.shareXFiles(
           [XFile(tmpFile.path, mimeType: 'text/plain')],
-          subject: 'Session report — ${report.sessionName}',
+          subject: 'Session report: ${report.sessionName}',
         );
         return;
       }

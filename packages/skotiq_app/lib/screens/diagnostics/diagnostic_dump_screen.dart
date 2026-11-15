@@ -134,7 +134,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
           Text(
             'Bundle logs, the active equipment profile, the currently '
             'loaded sequence, and system info into a single .zip suitable '
-            'for attaching to bug reports. No telemetry is sent — the file '
+            'for attaching to bug reports. No telemetry is sent. The file '
             'stays on your machine until you share it.',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize13,
@@ -256,18 +256,18 @@ class _ContentsCard extends StatelessWidget {
     final items = [
       (
         'Log files',
-        'logs/exported_logs.txt — native logs from the last $logHours hours '
+        'logs/exported_logs.txt: native logs from the last $logHours hours '
             '+ in-app entries. Worth a look before you attach it to a '
             'public issue.'
       ),
-      ('Active equipment profile', 'profile.json — devices, optics, defaults'),
-      ('Current sequence', 'sequence.json — name, tree shape, node metadata'),
-      ('System info', 'system_info.json — OS, Dart version, app version'),
+      ('Active equipment profile', 'profile.json: devices, optics, defaults'),
+      ('Current sequence', 'sequence.json: name, tree shape, node metadata'),
+      ('System info', 'system_info.json: OS, Dart version, app version'),
       (
         'Device connection list',
-        'devices.json — role + connection state per device'
+        'devices.json: role + connection state per device'
       ),
-      ('Manifest', 'manifest.json — bundle version and per-entry status'),
+      ('Manifest', 'manifest.json: bundle version and per-entry status'),
     ];
 
     return SkotiqCard(

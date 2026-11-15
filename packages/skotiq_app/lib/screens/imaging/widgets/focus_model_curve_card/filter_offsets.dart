@@ -40,7 +40,7 @@ class _FilterOffsetsStrip extends ConsumerWidget {
     }
     if (offsets.offsets.isEmpty) {
       return Text(
-        'No filter offsets yet — collect autofocus data on multiple filters '
+        'No filter offsets yet. Collect autofocus data on multiple filters '
         'and pick a reference to populate.',
         style: TextStyle(
             fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),

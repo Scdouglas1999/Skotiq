@@ -50,7 +50,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('SNR: 0.0'), findsNothing);
-    expect(find.text('SNR: —'), findsOneWidget);
+    expect(find.text('SNR::'), findsOneWidget);
   });
 
   testWidgets('a measured SNR is still printed', (tester) async {

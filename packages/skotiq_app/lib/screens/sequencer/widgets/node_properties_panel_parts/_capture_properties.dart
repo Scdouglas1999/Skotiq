@@ -150,7 +150,7 @@ class _DitherProperties extends ConsumerWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Text(
             node.pattern == DitherPattern.grid
-                ? 'Walks a ${node.gridSize}x${node.gridSize} grid — visits ${node.gridSize * node.gridSize} positions before cycling. Best for uniform sky coverage.'
+                ? 'Walks a ${node.gridSize}x${node.gridSize} grid. Visits ${node.gridSize * node.gridSize} positions before cycling. Best for uniform sky coverage.'
                 : 'Random offsets each dither. Best for averaging out fixed-pattern noise; classic choice.',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,

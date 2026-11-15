@@ -143,7 +143,7 @@ class _YourSkyAtlas extends ConsumerWidget {
               SectionHeader(
                 title: 'Regions',
                 subtitle: regions.isEmpty
-                    ? 'Tiles are accumulating — name a region to track its depth.'
+                    ? 'Tiles are accumulating: name a region to track its depth.'
                     : _regionsSubtitle(regions),
                 trailing: canNameRegions
                     ? SkotiqButton(
@@ -200,7 +200,7 @@ class _YourSkyAtlas extends ConsumerWidget {
                   child: Text(
                     canNameRegions
                         ? 'Your atlas is filling in tile by tile. Image a target '
-                            'and it becomes a named region automatically — or '
+                            'and it becomes a named region automatically, or '
                             'name one yourself (a target, mosaic, or polar field) '
                             'to track its depth and scrub it through time.'
                         : 'Your atlas is filling in tile by tile. Regions appear '
@@ -239,7 +239,7 @@ class _YourSkyAtlas extends ConsumerWidget {
         const SizedBox(height: SkotiqTokens.spaceXl),
         EmptyState(
           icon: LucideIcons.orbit,
-          title: 'Your sky is dark — for now',
+          title: 'Your sky is dark. For now',
           body: 'Image and plate-solve a target and it folds into Your Sky '
               'automatically. Each frame deepens a permanent tile you can '
               'revisit and scrub through time.',

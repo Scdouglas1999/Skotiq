@@ -389,7 +389,7 @@ class FlatWizardService {
             error: quiescent
                 ? 'Exposure timed out (camera aborted and idle)'
                 : 'Exposure timed out and the camera could not be confirmed '
-                      'idle — check the camera',
+                      'idle. Check the camera',
           );
         }
 

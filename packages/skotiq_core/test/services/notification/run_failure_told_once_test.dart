@@ -134,7 +134,7 @@ void main() {
 
     expect(failures(), isEmpty);
     expect(problems(), hasLength(1));
-    expect(problems().single.title, 'Problem noticed — the run continues');
+    expect(problems().single.title, 'Problem noticed: the run continues');
     expect(
       problems().single.body,
       'Sequence: Dome shutter status unavailable; cannot confirm open',

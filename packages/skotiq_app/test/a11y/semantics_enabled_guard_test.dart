@@ -40,7 +40,7 @@ void main() {
       expect(
         root.existsSync(),
         isTrue,
-        reason: '$path is missing — run from the skotiq_app package root',
+        reason: '$path is missing: run from the skotiq_app package root',
       );
 
       for (final entity in root.listSync(recursive: true)) {

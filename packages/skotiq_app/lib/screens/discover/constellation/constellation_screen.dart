@@ -132,7 +132,7 @@ class _SignedOutBody extends ConsumerWidget {
           title: 'Image together, go deeper',
           body: 'Connect to a self-hosted Constellation hub to pool your '
               'integration with other imagers. You always choose what leaves '
-              'your device — by default, only the additive co-add sums your '
+              'your device. By default, only the additive co-add sums your '
               'atlas already keeps, never your raw subframes.',
           action: SkotiqButton(
             label: 'Connect to a hub',
@@ -427,7 +427,7 @@ class _FollowTheNightCardWiredState
           );
       if (!mounted) return;
       messenger.showInfoSnackBar(
-        '${s.targetName} is queued in your planner — open Planning to '
+        '${s.targetName} is queued in your planner. Open Planning to '
         'schedule it tonight.',
       );
     } catch (error) {
@@ -541,7 +541,7 @@ class _EmptySwarmHint extends StatelessWidget {
                         'imaged targets to seed the first field the whole swarm '
                         'can deepen.'
                     : 'No shared targets on this hub yet. Seeding a field runs '
-                        'on your imaging host — share a target from there to '
+                        'on your imaging host. Share a target from there to '
                         'start the swarm.',
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,

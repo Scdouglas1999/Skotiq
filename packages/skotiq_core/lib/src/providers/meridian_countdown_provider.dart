@@ -260,7 +260,7 @@ MeridianCountdownState computeMeridianCountdown({
       timeToFlip: Duration.zero,
       isAutomaticWatchdog: true,
       isSequencerOwned: sequencerActive,
-      disabledReason: 'Already past meridian — flip imminent',
+      disabledReason: 'Already past meridian: flip imminent',
       method: method,
       hourAngleHours: ha,
       sideOfPier: sideOfPier,

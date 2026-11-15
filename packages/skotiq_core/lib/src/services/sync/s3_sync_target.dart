@@ -350,7 +350,7 @@ class S3SyncTarget implements SyncTarget {
     };
     final detail = switch (kind) {
       SyncTargetErrorKind.auth =>
-        'authentication failed — check access key/secret and permissions',
+        'authentication failed: check access key/secret and permissions',
       SyncTargetErrorKind.notFound => 'remote key or bucket not found',
       SyncTargetErrorKind.conflict => 'remote state conflict',
       SyncTargetErrorKind.server => 'server error',

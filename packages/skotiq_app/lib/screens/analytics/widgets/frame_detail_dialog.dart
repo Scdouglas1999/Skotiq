@@ -174,7 +174,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
                     const SizedBox(height: SkotiqTokens.spaceSm),
                     Text(
                       payload.fileExists
-                          ? 'No cached preview for this frame — the file is on '
+                          ? 'No cached preview for this frame. The file is on '
                               'disk but has no thumbnail.'
                           : 'No preview available for this frame.',
                       textAlign: TextAlign.center,

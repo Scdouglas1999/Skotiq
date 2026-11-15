@@ -45,7 +45,7 @@ class ClippingDetector extends NarratorDetector {
             severity: NarratorSeverity.warning,
             headline:
                 'Highlights clipping ${last.toStringAsFixed(1)}% for '
-                '$consecutive frames — burning in bright stars',
+                '$consecutive frames. Burning in bright stars',
             body:
                 'Reduce exposure or gain to protect star cores before more '
                 'frames saturate.',
@@ -76,7 +76,7 @@ class ClippingDetector extends NarratorDetector {
             severity: NarratorSeverity.info,
             headline:
                 'Shadow clipping ${last.toStringAsFixed(1)}% for $consecutive '
-                'frames — losing faint detail',
+                'frames. Losing faint detail',
             body:
                 'Lengthen exposures or relax the black point so dim signal '
                 "isn't crushed.",
@@ -235,7 +235,7 @@ class SolveDropDetector extends NarratorDetector {
         headline: 'Plate-solving dropped to $pct% over the last $window frames',
         body:
             'Solves were healthy and have collapsed. Clouds, lost focus, or a '
-            'mount slip can all cause it — check the field before science '
+            'mount slip can all cause it. Check the field before science '
             'products stall.',
         evidence: NarratorEvidence.scalar(
           value: pct.toDouble(),
@@ -286,7 +286,7 @@ class PipelineFailureDetector extends NarratorDetector {
         headline: '${failure.stage.displayName} failed on the latest frame',
         body:
             failure.note ??
-            'The capture itself is unaffected — only this science derivative '
+            'The capture itself is unaffected. Only this science derivative '
                 'failed. Check the science log if it persists.',
         dedupeKey: key,
         capturedImageId: failure.capturedImageId ?? ctx.capturedImageId,

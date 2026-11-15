@@ -18,7 +18,7 @@ part 'period_analysis_panel/result_widgets.dart';
 part 'period_analysis_panel/period_charts.dart';
 
 const _kPeriodAnalysisInfo = '''
-Period analysis searches your light curve for a repeating signal — the rotation period of a variable star, the orbital period of an eclipsing binary, or the period of a transiting exoplanet. Skotiq runs two complementary algorithms.
+Period analysis searches your light curve for a repeating signal. The rotation period of a variable star, the orbital period of an eclipsing binary, or the period of a transiting exoplanet. Skotiq runs two complementary algorithms.
 
 Lomb-Scargle is a frequency-domain method that finds sinusoidal periodicity, well suited to smoothly varying stars (pulsators, spotted rotators). Box Least Squares (BLS) instead fits a flat-bottomed box dip and is the standard tool for finding the brief, periodic dimming of a planetary transit.
 
@@ -26,7 +26,7 @@ The False Alarm Probability (FAP) reported for the Lomb-Scargle peak is the chan
 
 For BLS, the Signal Detection Efficiency (SDE) measures how far the best period stands above the surrounding spectrum. SDE > 6 is noteworthy; SDE > 7 is a strong transit candidate worth following up.
 
-The phase-folded plots wrap every data point onto a single cycle at the best period, so a real signal collapses into a clean shape. As with all photometry charts here, magnitude is inverted — brighter points sit higher on the plot.
+The phase-folded plots wrap every data point onto a single cycle at the best period, so a real signal collapses into a clean shape. As with all photometry charts here, magnitude is inverted. Brighter points sit higher on the plot.
 ''';
 
 /// The one way this panel writes a period.
@@ -621,7 +621,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           : '≥ ${_formatPeriod(ls.bestPeriod)}',
       detail: constrained
           ? 'Peak power: ${ls.peakPower.toStringAsFixed(2)}  |  FAP: ${_formatFap(fap)}'
-          : 'Only ${ls.observedCycles.toStringAsFixed(2)} cycles observed — '
+          : 'Only ${ls.observedCycles.toStringAsFixed(2)} cycles observed: '
               'this run is too short to measure the period',
       verdict: lsVerdict,
     );
@@ -696,7 +696,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
                 Expanded(
                   child: Text(
                     'Searched ${_formatPeriodDays(ls.searchedMinPeriod)}'
-                    '–${_formatPeriodDays(ls.searchedMaxPeriod)} d — '
+                    '–${_formatPeriodDays(ls.searchedMaxPeriod)} d: '
                     '${clampedHigh ? 'capped by the ${_formatPeriodDays(ls.timeBaseline)} d baseline' : 'raised to twice the sampling interval'}'
                     '${clampedHigh && clampedLow ? ' and by the sampling interval' : ''}.',
                     style: SkotiqTypography.caption

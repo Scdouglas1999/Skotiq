@@ -28,7 +28,7 @@ void main() {
       lessThan(DeviceService.environmentPollInterval),
       reason:
           'an age label that ticks at the poll period displays the constant '
-          'phase offset between the two timers, not the elapsed time — this is '
+          'phase offset between the two timers, not the elapsed time. This is '
           'the "0s ago" forever defect',
     );
   });

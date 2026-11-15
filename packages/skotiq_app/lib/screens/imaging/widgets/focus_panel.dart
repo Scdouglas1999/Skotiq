@@ -156,7 +156,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
         ? ''
         : hasKnownMax
             ? ' / $rawMaxPosition'
-            : ' / —';
+            : ' /:';
     final temperature = focuserState.temperature;
     final isMoving = focuserState.isMoving;
     final autofocusRunning = sessionState.isAutofocusing || _isRunningAutofocus;

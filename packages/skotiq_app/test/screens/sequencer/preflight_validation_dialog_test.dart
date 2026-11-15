@@ -599,7 +599,7 @@ void main() {
     expect(node.hasFlag(SemanticsFlag.isEnabled), isFalse);
     expect(
       node.label.trim(),
-      'Start sequence — unavailable: fix the 1 pre-flight error above first',
+      'Start sequence: unavailable: fix the 1 pre-flight error above first',
     );
     expect(
       node.getSemanticsData().hasAction(SemanticsAction.tap),

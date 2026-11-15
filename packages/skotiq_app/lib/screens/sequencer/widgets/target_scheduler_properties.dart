@@ -392,7 +392,7 @@ class _WeightSumIndicator extends StatelessWidget {
             child: Text(
               normalised
                   ? 'Weights normalized (sum ${sum.toStringAsFixed(2)})'
-                  : 'Weights do not sum to ~1.0 (sum ${sum.toStringAsFixed(2)}) — '
+                  : 'Weights do not sum to ~1.0 (sum ${sum.toStringAsFixed(2)}): '
                       'the scheduler still works, but the ranking will be biased.',
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
@@ -620,7 +620,7 @@ class _AdaptiveSwapSection extends StatelessWidget {
           const SizedBox(height: 8),
           NodePropertyField(
             colors: colors,
-            label: 'Faint (galaxies, dim nebulae) — min score',
+            label: 'Faint (galaxies, dim nebulae): min score',
             child: NodeNumberInput(
               colors: colors,
               value: prefs.faintMinScore,
@@ -634,7 +634,7 @@ class _AdaptiveSwapSection extends StatelessWidget {
           ),
           NodePropertyField(
             colors: colors,
-            label: 'Medium (bright galaxies, dim nebulae) — min score',
+            label: 'Medium (bright galaxies, dim nebulae). Min score',
             child: NodeNumberInput(
               colors: colors,
               value: prefs.mediumMinScore,
@@ -648,7 +648,7 @@ class _AdaptiveSwapSection extends StatelessWidget {
           ),
           NodePropertyField(
             colors: colors,
-            label: 'Bright (planetaries, open clusters) — min score',
+            label: 'Bright (planetaries, open clusters): min score',
             child: NodeNumberInput(
               colors: colors,
               value: prefs.brightMinScore,

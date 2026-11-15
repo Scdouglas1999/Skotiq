@@ -599,7 +599,7 @@ void main() {
       tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch).first).value,
       isFalse,
     );
-    expect(find.text('Off — the render skipped it'), findsOneWidget);
+    expect(find.text('Off: the render skipped it'), findsOneWidget);
     await drain(tester);
   });
 
@@ -662,7 +662,7 @@ void main() {
     await pump(tester, DarkroomScope.recipe(id));
 
     final handle = tester.ensureSemantics();
-    final compare = find.bySemanticsLabel(RegExp('^Compare — '));
+    final compare = find.bySemanticsLabel(RegExp('^Compare: '));
     expect(compare, findsOneWidget);
     final flags = tester.getSemantics(compare).flagsCollection;
     expect(flags.isButton, isTrue);
@@ -985,7 +985,7 @@ void main() {
     // On the viewport itself, not only in the Recipe panel: the tag, the
     // engine's own sentence, and a strip that stops describing the stale frame
     // as the current stack's.
-    expect(find.text('Stale — the render did not finish'), findsOneWidget);
+    expect(find.text('Stale: the render did not finish'), findsOneWidget);
     expect(
       find.textContaining('No such file or directory'),
       findsWidgets,
@@ -1037,7 +1037,7 @@ void main() {
     await tester.tap(find.text('Image'));
     await tester.pump();
     expect(find.byKey(kDarkroomPreviewSurfaceKey), findsOneWidget);
-    expect(find.text('Stale — the render did not finish'), findsOneWidget);
+    expect(find.text('Stale: the render did not finish'), findsOneWidget);
     expect(find.textContaining('No such file or directory'), findsWidgets);
     await drain(tester);
   });
@@ -1155,7 +1155,7 @@ void main() {
     // that it is disabled rather than going quiet.
     final upNode = publishedNode(
       tester,
-      'Move Background extract up — it is already first in the stack (1 of 2)',
+      'Move Background extract up. It is already first in the stack (1 of 2)',
     );
     expect(upNode, isNotNull);
     final upData = upNode!.getSemanticsData();
@@ -1479,7 +1479,7 @@ void main() {
         .widgetList<SkotiqBanner>(find.byType(SkotiqBanner))
         .map((banner) => banner.message)
         .whereType<String>()
-        .firstWhere((data) => data.startsWith('Color calibrate — omitted:'));
+        .firstWhere((data) => data.startsWith('Color calibrate: omitted:'));
     expect(collapsed.endsWith('…'), isTrue, reason: collapsed);
     expect(collapsed, isNot(contains('draft that composite')));
     expect(collapsed.length, lessThan(reason.length));
@@ -1497,7 +1497,7 @@ void main() {
     // viewport whatever the panel's height.
     final alert = find.ancestor(
       of: find.textContaining(
-        'Color calibrate — omitted:',
+        'Color calibrate: omitted:',
         findRichText: true,
       ),
       matching: find.byType(SkotiqBanner),

@@ -656,7 +656,7 @@ class _TargetResolutionPreview extends ConsumerWidget {
                     ? 'No target group found in sequence'
                     : coordinatesUnset
                         ? 'Target "${targetGroup.targetName}" has no '
-                            'coordinates set — this node has nowhere to point.\n'
+                            'coordinates set. This node has nowhere to point.\n'
                             'Look up or enter RA/Dec in the target editor.'
                         : 'Will use target: ${targetGroup.targetName}\n'
                             '${CoordinateFormat.raReadout(targetGroup.raHours)}   '

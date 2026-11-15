@@ -303,7 +303,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       semanticsHint: saveLoopFrames
                           ? 'Loop frames are saved to the image folder and counted in '
                               'the session'
-                          : 'Loop frames are live view only — not saved, not counted',
+                          : 'Loop frames are live view only. Not saved, not counted',
                       // Changing it mid-loop would split one run across two
                       // destinations, so it locks while the loop is live.
                       onPressed: isLooping || isStoppingCapture

@@ -111,7 +111,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
         ref.read(showDeepStarsProvider.notifier).state = true;
         context.showSuccessSnackBar('Deep-star tiles installed');
       } else {
-        context.showInfoSnackBar('Download paused — resume any time');
+        context.showInfoSnackBar('Download paused: resume any time');
       }
     } catch (e) {
       if (mounted)
@@ -267,7 +267,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
             if (_urlController.text.trim().isEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'No official tileset is published yet — point this at a '
+                'No official tileset is published yet. Point this at a '
                 'tileset you host yourself (see tools/catalog_prep in the '
                 'Skotiq repository).',
                 style: SkotiqTypography.captionSm.copyWith(

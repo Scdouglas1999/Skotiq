@@ -213,7 +213,7 @@ void main() {
       rejectPath: '/x.fits',
       reason: 'eccentricity 0.75 exceeds threshold 0.60',
       likelyCause: LikelyCause.satellitePass,
-      evidence: const ['Isolated rejection — no nearby frames bad'],
+      evidence: const ['Isolated rejection: no nearby frames bad'],
       environment: const ForensicEnvironment(),
       hfr: 3.5,
       eccentricity: 0.75,
@@ -232,6 +232,6 @@ void main() {
     expect(
         find.text('No telemetry available at capture time.'), findsOneWidget);
     expect(
-        find.text('Isolated rejection — no nearby frames bad'), findsOneWidget);
+        find.text('Isolated rejection: no nearby frames bad'), findsOneWidget);
   });
 }

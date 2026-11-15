@@ -240,7 +240,7 @@ class FirstLightOrchestrator {
 
   /// Message shown on the positive end when ASTAP is not yet configured.
   static const solverNotConfiguredNote =
-      'Plate solver not configured — set it up to label your image';
+      'Plate solver not configured. Set it up to label your image';
 
   /// Abort an in-flight run AT THE CAMERA.
   ///

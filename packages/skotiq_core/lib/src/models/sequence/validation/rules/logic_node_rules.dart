@@ -415,7 +415,7 @@ class NoOpLogicNodeRule implements SequenceValidator {
             title: 'Loop Repeats Once',
             description:
                 'Loop "${node.name}" is set to ${node.repeatCount ?? 1} '
-                'iteration, so it runs its children exactly once — the same '
+                'iteration, so it runs its children exactly once. The same '
                 'as not having the loop at all.',
             affectedNodeId: node.id,
             resolutionHint:

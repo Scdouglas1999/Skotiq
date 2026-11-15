@@ -177,7 +177,7 @@ void main() {
       escape,
       findsOneWidget,
       reason: 'both actions can keep throwing, and the barrier cannot be '
-          'dismissed — without this the app is wedged',
+          'dismissed. Without this the app is wedged',
     );
 
     await tester.tap(escape);

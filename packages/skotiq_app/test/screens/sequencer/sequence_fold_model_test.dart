@@ -65,7 +65,7 @@ FoldGroup _foldedGroup(List<TreeEntry> entries) =>
     (entries.whereType<FoldedEntry>().single).group;
 
 void main() {
-  group('foldChildren — filter runs', () {
+  group('foldChildren: filter runs', () {
     test('three matching exposures fold into one group', () {
       final ha = _exp('Ha');
       final oiii = _exp('OIII');
@@ -241,7 +241,7 @@ void main() {
     });
   });
 
-  group('foldChildren — acquire target', () {
+  group('foldChildren: acquire target', () {
     test('the quartet folds, and a shuffled order still folds', () {
       final sequence = _sequenceOf([
         AutofocusNode(),

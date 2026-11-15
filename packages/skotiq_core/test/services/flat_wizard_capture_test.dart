@@ -34,7 +34,7 @@ Future<void> _pump() async {
 void main() {
   const cam = 'native:asi:0';
 
-  group('exposeAndAwait — authoritative completion', () {
+  group('exposeAndAwait: authoritative completion', () {
     test('waits for the completion EVENT, not a fixed delay', () async {
       final backend = _ManualBackend();
       addTearDown(backend.dispose);
@@ -122,7 +122,7 @@ void main() {
     );
   });
 
-  group('exposeAndAwait — cooperative cancel', () {
+  group('exposeAndAwait: cooperative cancel', () {
     test(
       'cancel mid-exposure aborts EXACTLY once and reports canceled',
       () async {
@@ -174,7 +174,7 @@ void main() {
     });
   });
 
-  group('calibrateFilter — cancel-aware', () {
+  group('calibrateFilter: cancel-aware', () {
     test(
       'cancel during the calibration exposure returns a canceled result',
       () async {
@@ -213,7 +213,7 @@ void main() {
     );
   });
 
-  group('captureTestFrame — outcome travels with the call', () {
+  group('captureTestFrame: outcome travels with the call', () {
     test('two overlapping captures each get their own outcome', () async {
       // `flatWizardServiceProvider` is a plain Provider, so the GUI wizard and
       // the headless API drive ONE instance with nothing serialising them. The

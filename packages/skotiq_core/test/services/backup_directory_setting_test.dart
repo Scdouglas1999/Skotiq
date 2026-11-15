@@ -133,7 +133,7 @@ void main() {
       isFalse,
       reason:
           'restoring this bundle elsewhere would repoint that install’s '
-          'backup folder — and its retention deletes — at this machine’s '
+          'backup folder (and its retention deletes) at this machine’s '
           'path',
     );
   });

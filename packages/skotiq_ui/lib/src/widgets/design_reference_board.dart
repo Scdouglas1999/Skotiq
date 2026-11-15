@@ -125,7 +125,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
-          'Precision-instrument visual baseline — semantic palette, domain '
+          'Precision-instrument visual baseline: semantic palette, domain '
           'colors, full type scale, and the component library on one canvas.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),

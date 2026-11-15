@@ -108,7 +108,7 @@ void main() {
       lessThan(800),
       reason:
           'queryFov against 133k synthetic catalog rows took '
-          '${stopwatch.elapsedMilliseconds}ms — investigate quadratic loops',
+          '${stopwatch.elapsedMilliseconds}ms. Investigate quadratic loops',
     );
   });
 }

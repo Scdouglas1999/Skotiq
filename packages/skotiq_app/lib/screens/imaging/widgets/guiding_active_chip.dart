@@ -76,8 +76,8 @@ class GuidingActiveChip extends ConsumerWidget {
 
     final tooltip = SkotiqTooltip(
       message: lostLock
-          ? 'PHD2 lost the guide star — guiding paused'
-          : 'PHD2 guiding active — total RMS shown in '
+          ? 'PHD2 lost the guide star. Guiding paused'
+          : 'PHD2 guiding active: total RMS shown in '
               '${scale == null ? 'guide-camera pixels' : 'arcseconds'}',
       child: DecoratedBox(
         decoration: BoxDecoration(

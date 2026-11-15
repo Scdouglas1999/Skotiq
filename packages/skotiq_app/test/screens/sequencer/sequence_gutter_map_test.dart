@@ -320,7 +320,7 @@ void main() {
     }
     expect(probe, isNotNull,
         reason: 'the two mappings agree everywhere, so this case proves '
-            'nothing — the fixture has stopped being a scrolling tree');
+            'nothing. The fixture has stopped being a scrolling tree');
 
     await tester.tapAt(Offset(gutter.center.dx, gutter.top + probe!));
     await _drain(tester);

@@ -45,7 +45,7 @@ void main() {
       tester.binding.hasScheduledFrame,
       isFalse,
       reason:
-          'the status rail requested another frame while idle — something in '
+          'the status rail requested another frame while idle. Something in '
           'System Health / Ready-to-image is repainting continuously',
     );
 

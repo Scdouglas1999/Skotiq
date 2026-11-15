@@ -69,7 +69,7 @@ void main() {
       expect(
         line[14],
         'C',
-        reason: 'column 15 is Note 2 — the observation type the MPC reads',
+        reason: 'column 15 is Note 2. The observation type the MPC reads',
       );
     });
 

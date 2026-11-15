@@ -32,7 +32,7 @@ void main() {
       isTrue,
       reason:
           'design-tokens.json is missing at ${tokensFile.path}. If the design '
-          'folder moved, this test moves with it — do not delete it.',
+          'folder moved, this test moves with it. Do not delete it.',
     );
     tokens = json.decode(tokensFile.readAsStringSync()) as Map<String, dynamic>;
     palettes = tokens['palettes'] as Map<String, dynamic>;
@@ -454,7 +454,7 @@ void main() {
           tabular,
           reason:
               '${entry.key} ${tabular ? "must" : "must not"} carry tabular '
-              'figures — a readout that reflows as its digits change is the '
+              'figures. A readout that reflows as its digits change is the '
               'reason this feature exists',
         );
       }

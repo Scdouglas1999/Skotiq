@@ -50,7 +50,7 @@ void main() {
       expect(err.httpStatus, 404);
     });
 
-    test('parses the legacy prose-only {error} shape — treating error as the '
+    test('parses the legacy prose-only {error} shape. Treating error as the '
         'message and synthesizing a non-empty code from the status', () {
       // The bare prose `{error: ...}` shape, with no code field to read.
       final err = ServerError.tryFromJson({

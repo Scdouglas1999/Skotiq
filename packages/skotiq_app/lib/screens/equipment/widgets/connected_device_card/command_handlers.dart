@@ -399,7 +399,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         final verb = closing ? 'Close' : 'Open';
         context.showSuccessSnackBar(
           observed == ShutterStatus.unknown
-              ? '$verb shutter command sent — dome is not reporting '
+              ? '$verb shutter command sent. Dome is not reporting '
                   'shutter state'
               : closing
                   ? 'Closing dome shutter'

@@ -189,7 +189,7 @@ const List<TourStep> _imagingTour = [
     id: 'it_loop_btn',
     title: 'Loop capture',
     description:
-        'Start continuous exposures that repeat until stopped. Essential for focusing — watch the stars tighten as you adjust. HFR updates with each frame.',
+        'Start continuous exposures that repeat until stopped. Essential for focusing: watch the stars tighten as you adjust. HFR updates with each frame.',
     target: TourTarget.imagingLoopButton,
     side: TourCardSide.top,
   ),

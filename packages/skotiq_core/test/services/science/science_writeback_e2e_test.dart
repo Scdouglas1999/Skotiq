@@ -125,7 +125,7 @@ void main() {
   });
 
   test(
-    'warm-up transparency (no airmass fit) must NOT stamp EXTINCT — the '
+    'warm-up transparency (no airmass fit) must NOT stamp EXTINCT. The '
     'fallback value is a baseline ZP depression in mag, not mag/airmass',
     () async {
       final updates = ScienceProcessingService.buildScienceWritebackKeywords(

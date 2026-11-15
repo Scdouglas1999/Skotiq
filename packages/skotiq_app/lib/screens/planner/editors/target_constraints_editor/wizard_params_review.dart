@@ -41,7 +41,7 @@ class _Step2Params extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Default 22:00 – 02:00 local — a typical imaging session. '
+              'Default 22:00 – 02:00 local. A typical imaging session. '
               'Tap a time to adjust.',
               style: SkotiqTypography.caption
                   .copyWith(color: colors.textSecondary),
@@ -59,7 +59,7 @@ class _Step2Params extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Default 30% max illumination — typical for narrowband and '
+              'Default 30% max illumination. Typical for narrowband and '
               'most broadband DSO work. Increase the cap if your target '
               'tolerates more moon.',
               style: SkotiqTypography.caption
@@ -75,7 +75,7 @@ class _Step2Params extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Default 30° — below that the moon\'s glow reaches the frame '
+              'Default 30°: below that the moon\'s glow reaches the frame '
               'even at modest phase. Narrowband tolerates less separation; '
               'broadband wants more, especially past first quarter.',
               style: SkotiqTypography.caption
@@ -129,7 +129,7 @@ class _Step2Params extends StatelessWidget {
             Text(
               'Forces the scheduler onto $targetName during the window, '
               'bypassing hysteresis. Defaults to tonight 20:00 → 06:00 '
-              'local — adjust as needed.',
+              'local. Adjust as needed.',
               style: SkotiqTypography.caption
                   .copyWith(color: colors.textSecondary),
             ),

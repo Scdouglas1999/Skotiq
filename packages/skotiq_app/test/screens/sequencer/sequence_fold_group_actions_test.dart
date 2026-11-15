@@ -128,7 +128,7 @@ FoldGroup _group(ProviderContainer container, String parentId) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('moveFoldGroup — the block lands contiguous and in order', () {
+  group('moveFoldGroup: the block lands contiguous and in order', () {
     testWidgets('Move Down inside its own parent', (tester) async {
       final built = _tree(['A', 'B', 'C', 'Y', 'Z']);
       final m = await _mount(tester, built.sequence);

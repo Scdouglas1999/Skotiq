@@ -34,32 +34,32 @@ class NarratorAction {
 /// `null`, and the detail sheet simply hides the explainer block.
 const Map<String, String> narratorExplainers = <String, String>{
   'discovery.moving_object':
-      "Something in your field moved between frames against the fixed stars — "
-          "usually an asteroid, a comet, or a satellite caught mid-pass. The rate "
+      "Something in your field moved between frames against the fixed stars. "
+          "Usually an asteroid, a comet, or a satellite caught mid-pass. The rate "
           "and brightness tell you which. If it's a real minor planet, a short "
           "follow-up set of frames can turn this into a genuine astrometric "
           "contribution.",
   'discovery.lightcurve_event':
       "Your target's brightness has drifted well beyond its usual scatter for "
-          "several frames running — not noise, a real change in the star itself. "
+          "several frames running. Not noise, a real change in the star itself. "
           "A steady fade or brightening like this is exactly the signature of an "
           "eclipse, a transit, or a flare. Keep the cadence steady; the shape of "
           "the curve is the science.",
   'discovery.period_found':
       "The photometry you've been gathering now folds onto a clean, repeating "
           "cycle, and the statistics say it's very unlikely to be chance. That "
-          "period is a physical clock — an orbit, a rotation, or a pulsation. "
+          "period is a physical clock. An orbit, a rotation, or a pulsation. "
           "It's the kind of result that makes a night's worth of subs worth it.",
   'first_light.transient':
       "A clean, round point of light is sitting in your difference image where "
-          "your deep template of this field was empty — and it matches nothing in "
+          "your deep template of this field was empty, and it matches nothing in "
           "the catalog. That's the classic signature of a genuine transient: a "
           "nova, a supernova, or an outburst nobody has logged yet. Re-image to "
           "confirm it's real and not a cosmic-ray hit, then it's worth a report "
           "to AAVSO or the TNS.",
   'first_light.brightening':
       "A source you've imaged before has jumped well above its usual brightness "
-          "in this frame's difference image — a real change, not measurement "
+          "in this frame's difference image. A real change, not measurement "
           "scatter. Sudden brightening like this is how dwarf-nova outbursts, "
           "stellar flares, and AGN flickers announce themselves. Keep watching "
           "it: the rise and fall is the science.",
@@ -81,7 +81,7 @@ const Map<String, String> narratorExplainers = <String, String>{
           "foundation under every light curve and magnitude you'll report from "
           "tonight.",
   'milestone.best_seeing':
-      "The atmosphere just handed you your tightest stars of the night — this "
+      "The atmosphere just handed you your tightest stars of the night. This "
           "frame's FWHM is in the best slice of everything you've captured. These "
           "are the moments worth pointing your sharpest, faintest targets at. "
           "Seeing comes in pockets, so enjoy it while it lasts.",
@@ -99,7 +99,7 @@ const Map<String, String> narratorExplainers = <String, String>{
           "is heading.",
   'conditions.sky_darkness':
       "Your sky-quality meter shows the background getting measurably darker "
-          "as the night settles — light domes fade, the Moon sets, the air "
+          "as the night settles. Light domes fade, the Moon sets, the air "
           "steadies. A darker sky directly extends how faint you can go. This is "
           "the window to chase your most demanding targets.",
   'conditions.clouds_vs_focus':
@@ -111,14 +111,14 @@ const Map<String, String> narratorExplainers = <String, String>{
           "transparency or weather data it only reports what it measured, "
           "because a star-count drop alone cannot tell cloud from focus.",
   'conditions.excellent':
-      "Transparency has been excellent and steady for a good stretch — the "
+      "Transparency has been excellent and steady for a good stretch. The "
           "kind of clean, dark window that doesn't come every night. This is when "
           "your narrowest filters and faintest objects pay off the most. If "
           "you've been saving a hard target, now is the moment.",
   'equipment.tilt':
       "Stars toward one side of the frame are consistently softer than the "
           "rest, which points to the sensor sitting slightly out of plane with "
-          "the optical axis — sensor tilt. It robs sharpness from part of every "
+          "the optical axis. Sensor tilt. It robs sharpness from part of every "
           "sub and won't fix itself. The Diagnostics screen shows the per-corner "
           "map you'd use to chase it down.",
   'equipment.focus_drift':
@@ -129,7 +129,7 @@ const Map<String, String> narratorExplainers = <String, String>{
           "quick refocus pulls the stars back to where they belong.",
   'equipment.gradient':
       "A brightness gradient has been sitting on the same edge of your frames "
-          "for several subs — typically stray light, a neighbor's window, or a "
+          "for several subs. Typically stray light, a neighbor's window, or a "
           "light-pollution dome leaking in from one direction. It complicates "
           "calibration and flattening later. Worth chasing the source or flagging "
           "the offending frames.",
@@ -141,14 +141,14 @@ const Map<String, String> narratorExplainers = <String, String>{
           "stars and can trip your frame grader into rejecting subs; the guide "
           "graph usually shows whether it is balance, wind, or seeing.",
   'quality.clipping':
-      "Several frames in a row are clipping — pixels pinned at the bright or "
+      "Several frames in a row are clipping. Pixels pinned at the bright or "
           "dark rail where real data should be. Clipped highlights burn out star "
           "cores and clipped shadows crush faint structure, and neither comes "
           "back in processing. Easing exposure, gain, or offset usually recovers "
           "the headroom.",
   'quality.reject_burst':
       "Your auto-grader just rejected several consecutive frames for the same "
-          "reason, so this isn't one unlucky sub — something changed. The named "
+          "reason, so this isn't one unlucky sub. Something changed. The named "
           "cause points straight at the fix, whether that's focus, guiding, or a "
           "passing cloud. Catching a reject burst early saves a chunk of the "
           "night.",

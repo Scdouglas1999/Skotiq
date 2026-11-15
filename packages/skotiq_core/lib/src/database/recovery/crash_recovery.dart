@@ -556,7 +556,7 @@ extension _CrashRecovery on SkotiqDatabase {
     }
     if (incomplete.isNotEmpty) {
       sentences.add(
-        'These master files are incomplete — delete them before re-running: '
+        'These master files are incomplete. Delete them before re-running: '
         '${incomplete.map((f) => '${f.path} (${f.detail})').join('; ')}.',
       );
     }
@@ -644,7 +644,7 @@ extension _CrashRecovery on SkotiqDatabase {
             'drafting this session, '
             '${(darkroomPass.progress * 100).round()}% of the way through (the '
             'pass started at $startedAt UTC). The integration itself had '
-            'already finished — the Darkroom job is queued only once the '
+            'already finished. The Darkroom job is queued only once the '
             'masters exist.'
       else if (integrateFinished)
         'The integration finished: every master it set out to write was on '
@@ -654,7 +654,7 @@ extension _CrashRecovery on SkotiqDatabase {
         'Skotiq closed while integrating this session (started '
             '$startedAt UTC).',
       if (passIsOwed)
-        'What had not happened yet is the Darkroom pass — the drafts, the '
+        'What had not happened yet is the Darkroom pass. The drafts, the '
             'night report, the delivery and the morning message. It had not '
             'been queued when the process exited.',
       if (orphanText.isNotEmpty) orphanText,
@@ -670,13 +670,13 @@ extension _CrashRecovery on SkotiqDatabase {
             'Darkroom instead. The masters are untouched.'
       else if (passIsOwed && owedJobId != null)
         'It is queued now as Darkroom job #$owedJobId and runs at this '
-            'startup. Do not run the integration again — it is the one part of '
+            'startup. Do not run the integration again. It is the one part of '
             'this night that did finish.'
       else if (passIsOwed)
         'It could not be queued here either, so the drafts, the night report '
             'and the delivery are not coming from this pass; build the '
             'target\'s masters in the Darkroom instead. Do not run the '
-            'integration again — it is the one part of this night that did '
+            'integration again. It is the one part of this night that did '
             'finish.'
       else if (integrateFinished)
         'The subs are all still on disk and still graded, so re-run the '

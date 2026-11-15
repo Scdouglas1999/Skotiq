@@ -145,7 +145,7 @@ void main() {
     );
 
     expect(
-      find.text('Error floor 0.42 ADU — from your masters'),
+      find.text('Error floor 0.42 ADU. From your masters'),
       findsOneWidget,
     );
     expect(backend.lastFloorScaleArcsec, 7.5);
@@ -229,14 +229,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Error floor 1.10 ADU — yours (masters suggest 0.42)'),
+      find.text('Error floor 1.10 ADU. Yours (masters suggest 0.42)'),
       findsOneWidget,
     );
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'Use suggested'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Error floor 0.42 ADU — from your masters'),
+      find.text('Error floor 0.42 ADU. From your masters'),
       findsOneWidget,
     );
   });
@@ -442,7 +442,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Error floor 0.42 ADU — from your masters'),
+        find.text('Error floor 0.42 ADU. From your masters'),
         findsOneWidget,
       );
       expect(find.textContaining('yours (masters suggest'), findsNothing);
@@ -470,7 +470,7 @@ void main() {
       flat: const DepthLockMasterChoice(path: '/data/masters/flat.fits'),
     );
     expect(
-      find.text('Error floor 0.90 ADU — yours (masters suggest 0.42)'),
+      find.text('Error floor 0.90 ADU. Yours (masters suggest 0.42)'),
       findsOneWidget,
     );
   });

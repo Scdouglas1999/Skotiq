@@ -143,7 +143,7 @@ void main() {
     expect(
       identical(tester.widget(find.byType(ScienceInsightsPanel)), panelBefore),
       isFalse,
-      reason: 'The health readout must still track device state — scoping the '
+      reason: 'The health readout must still track device state. Scoping the '
           'rebuild must not turn it into a stale snapshot.',
     );
   });

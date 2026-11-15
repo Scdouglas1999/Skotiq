@@ -214,7 +214,7 @@ void main() {
       handle.container.read(previewDisplayScaleProvider),
       closeTo(ImagingViewerStateNotifier.maxDisplayScale, 0.001),
       reason: 'the bounds used to be multipliers on fit, so on this frame the '
-          'maximum reachable magnification was 8 * fitScale — under 2x actual — '
+          'maximum reachable magnification was 8 * fitScale (under 2x actual)'
           'and on a larger sensor true 1:1 sat outside the clamp entirely',
     );
   });

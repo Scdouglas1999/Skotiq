@@ -128,7 +128,7 @@ class SmartNightSafetyWatchdogsSection extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: '${w.title} — ',
+                          text: '${w.title}: ',
                           style: SkotiqTypography.h6
                               .copyWith(color: colors.textSecondary),
                         ),

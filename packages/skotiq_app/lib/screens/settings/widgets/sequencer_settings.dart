@@ -25,7 +25,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.shieldOff,
           title: 'Disable broadcast everywhere',
-          subtitle: 'Master kill switch — every LiveStacking node will '
+          subtitle: 'Master kill switch: every LiveStacking node will '
               'build the stack in memory but refuse public requests. '
               'Useful when you want to test without exposing imagery.',
           trailing: SettingsSwitch(
@@ -56,13 +56,13 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           icon: LucideIcons.type,
           title: 'Default watermark template',
           subtitle: 'Rendered on the broadcast JPEG. Variable interpolation '
-              r'(e.g. "${target.name} — L ${integration.hms}") applied at '
+              r'(e.g. "${target.name}: L ${integration.hms}") applied at '
               'render time. Leave empty for no watermark.',
           trailing: settingsTrailingTextInput(
             context: context,
             authoritativeValue: defaults.livestackingDefaultWatermark ?? '',
             authorityKey: authority,
-            hint: 'e.g. M42 — \${integration.hms}',
+            hint: 'e.g. M42: \${integration.hms}',
             designWidth: 240,
             onChanged: (value) {
               // Persist empty string as cleared (null in memory). The

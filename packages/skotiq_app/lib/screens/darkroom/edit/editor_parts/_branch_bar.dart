@@ -344,7 +344,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
           : () => context.go(darkroomEditLocation(recipeId: branch.id)),
     );
     return Tooltip(
-      message: '${branch.label} — $author, $steps, $diverged.'
+      message: '${branch.label}: $author, $steps, $diverged.'
           '${comparing ? ' Shown as B in the compare pane.' : ''}',
       // A tappable chip publishes its OWN node, carrying the label, the button
       // role, the enabled flag and the selected state. Wrapping that in a
@@ -357,7 +357,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
           ? Semantics(
               container: true,
               selected: true,
-              label: '$label — the recipe this editor is showing',
+              label: '$label: the recipe this editor is showing',
               excludeSemantics: true,
               child: chip,
             )
@@ -411,13 +411,13 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
               message: sibling.recipeId == null
                   ? '${sibling.masterName} has no recipe yet. Opening it '
                       'offers a draft or an empty stack.'
-                  : '${sibling.masterName} — '
+                  : '${sibling.masterName}: '
                       '"${sibling.recipeName ?? 'Recipe '
                           '${sibling.recipeId}'}", '
                       '${darkroomSiblingAuthorPhrase(sibling)}.',
               child: SkotiqChip(
                 label: sibling.recipeId == null
-                    ? '${sibling.label} — no recipe yet'
+                    ? '${sibling.label}: no recipe yet'
                     : sibling.label,
                 icon: darkroomSiblingIcon(sibling),
                 onTap: () => context
@@ -518,7 +518,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
               container: true,
               button: true,
               enabled: false,
-              label: 'Compare — $_kCompareNeedsSibling',
+              label: 'Compare: $_kCompareNeedsSibling',
               child: const ExcludeSemantics(
                 child: SkotiqButton(
                   label: 'Compare',
@@ -903,7 +903,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
       // row armed the comparison. `_add_step.dart` and the Back control both
       // carry the field for the same reason.
       enabled: true,
-      label: autopilot ? '${branch.label} — the autopilot draft' : branch.label,
+      label: autopilot ? '${branch.label}: the autopilot draft' : branch.label,
       excludeSemantics: true,
       onTap: choose,
       child: SkotiqCard(

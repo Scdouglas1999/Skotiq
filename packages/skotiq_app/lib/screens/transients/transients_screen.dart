@@ -355,7 +355,7 @@ class _SourceStatusStrip extends ConsumerWidget {
         if (source == TransientSource.tns && tnsReady == false) {
           // Enabling TNS here does nothing on its own: the key lives in
           // Settings > Science, and this sheet has no field for it.
-          parts.add('$label: skipped — no API key');
+          parts.add('$label: skipped: no API key');
           continue;
         }
         if (alertsAsync.hasError) {
@@ -576,7 +576,7 @@ class _TransientSettingsDialogState
               return SkotiqChip(
                 label: available
                     ? _sourceLabel(source)
-                    : '${_sourceLabel(source)} — not available',
+                    : '${_sourceLabel(source)}: not available',
                 // Never rendered as monitored: the service would ignore the
                 // stored flag anyway, and showing it selected was the lie.
                 selected: available && settings.enabledSources.contains(source),

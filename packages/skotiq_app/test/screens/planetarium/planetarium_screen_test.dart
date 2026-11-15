@@ -167,7 +167,7 @@ void main() {
       expect(fast.speedMultiplier, 2.0,
           reason: 'Speed multiplier must persist exactly so the periodic '
               'timer applies `Duration(seconds: multiplier.round())` per '
-              'tick — getting this wrong would silently speed up or slow '
+              'tick: getting this wrong would silently speed up or slow '
               'down the simulated sky.');
     });
   });
@@ -303,7 +303,7 @@ void main() {
         final allResults = container.read(objectSearchProvider);
         expect(allResults.results.length, 3,
             reason: 'typeFilter=all must include galaxies, nebulae, and '
-                'clusters — three fixtures, three results.');
+                'clusters. Three fixtures, three results.');
 
         // Narrow to galaxies. updateFilters re-runs search internally when
         // there is an active query, so the result list updates without an
@@ -315,7 +315,7 @@ void main() {
           final galaxyOnly = container.read(objectSearchProvider);
           expect(galaxyOnly.results.length, 1,
               reason: 'Galaxy-only filter must exclude the nebula and '
-                  'cluster fixtures — only NGC1234 remains.');
+                  'cluster fixtures. Only NGC1234 remains.');
           expect((galaxyOnly.results.single as DeepSkyObject).id, 'NGC1234',
               reason: 'The retained result must be the galaxy fixture; '
                   'a mismatch means the DsoType.isGalaxy predicate '
@@ -365,7 +365,7 @@ void main() {
       final first = results.first;
       expect(first, isA<DeepSkyObject>(),
           reason: 'A DSO query must surface a DeepSkyObject, not a '
-              'Star — the type filter is "all" so a stray star match '
+              'Star. The type filter is "all" so a stray star match '
               'would be a regression.');
       expect((first as DeepSkyObject).id, 'NGC224',
           reason: 'The top match for "Andromeda Galaxy" must be the '

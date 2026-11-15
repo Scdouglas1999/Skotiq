@@ -207,7 +207,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget _backControl({required bool savePending, required String? target}) {
     final where = darkroomEditBackDestination(context, target: target);
     final label = savePending
-        ? '$where — this edit is still being written to the recipe, and '
+        ? '$where: this edit is still being written to the recipe, and '
             'leaving issues that write'
         : where;
     return Semantics(
@@ -718,7 +718,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
                 body: 'This linear master is ${offer.width}×${offer.height}, '
                     '${offer.channels} channel${offer.channels == 1 ? '' : 's'}. '
                     'Nothing interpretive has been applied to it. Choose where '
-                    'to start — either way the master itself is untouched.',
+                    'to start. Either way the master itself is untouched.',
               ),
               if (message != null) ...[
                 const SizedBox(height: SkotiqTokens.spaceMd),
@@ -752,7 +752,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
                 // step the draft does not always carry, and the operator read
                 // the promise before the draft existed to contradict it.
                 'Skotiq measures this master and proposes a first set of '
-                'steps — a background fit, denoise, '
+                'steps. A background fit, denoise, '
                 '${offer.isColor ? 'a color calibration' : ''
                     'no color calibration, because the fit needs three '
                     'channels and this master has '
@@ -774,7 +774,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
                 'An empty recipe over the master\'s own pixels. Nothing is '
-                'proposed and nothing is applied until you add a step — the '
+                'proposed and nothing is applied until you add a step. The '
                 'History stack\'s "Add step" lists every operation this build '
                 'registers, with the stage each one runs in.',
                 style: SkotiqTypography.bodySm.copyWith(
@@ -792,7 +792,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
               Text(
                 'Read back the sidecar an export writes beside its file. The '
                 'steps arrive exactly as the file stores them, checked against '
-                'this build — an operation this build does not register is '
+                'this build. An operation this build does not register is '
                 'kept and its card says so, rather than being dropped on the '
                 'way in.',
                 style: SkotiqTypography.bodySm.copyWith(
@@ -843,7 +843,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
           for (final sibling in siblings)
             SkotiqChip(
               label: sibling.recipeId == null
-                  ? '${sibling.label} — no recipe yet'
+                  ? '${sibling.label}: no recipe yet'
                   : sibling.label,
               icon: darkroomSiblingIcon(sibling),
               onTap: () =>

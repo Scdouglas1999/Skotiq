@@ -78,7 +78,7 @@ class _ConstellationSignInSheetState
         children: [
           Text(
             'Sign in to a Constellation hub you or your group self-hosts. '
-            'Your photons stay yours — nothing is shared until you contribute a '
+            'Your photons stay yours. Nothing is shared until you contribute a '
             'target, and even then only the additive co-add sums by default.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,

@@ -306,7 +306,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Translates menus, navigation, the status bar, Settings and the',
   ],
   'help': [
-    '7-step guided wizard for your first imaging session —',
+    '7-step guided wizard for your first imaging session.',
     'Advanced features',
     'Automated imaging',
     'Calibration frames',
@@ -323,7 +323,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Replay the first-launch spotlight tour that highlights',
     'Reset all progress',
     'Reset progress',
-    'Run the one-click first-light flow again — short exposure,',
+    'Run the one-click first-light flow again. Short exposure,',
     'Target planning',
     'Tutorial tours',
     'Walk back through the equipment onboarding wizard to scan',
@@ -566,7 +566,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Click re-scan',
     'Download a star catalog',
     'Failed to load solve parameters',
-    'Fast offline solver — recommended for almost all setups.',
+    'Fast offline solver: recommended for almost all setups.',
     'How far around the expected position to search',
     'Install ASTAP',
     'Loading…',
@@ -729,7 +729,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Include flats at end',
     'Integration budget per target',
     'Live stacking & broadcast',
-    'Master kill switch — every LiveStacking node will',
+    'Master kill switch: every LiveStacking node will',
     'Max retries',
     'Meridian flip',
     'Minutes before limit',
@@ -932,14 +932,14 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Enable sequence auto-save',
   },
   'help': {
-    '7-step guided wizard for your first imaging session —':
+    '7-step guided wizard for your first imaging session.':
         'First night walkthrough',
     'Clear all tutorial progress and start fresh': 'Reset all progress',
     'Package logs, settings, profile metadata, and system details for support.':
         'Generate diagnostic dump',
     'Replay the first-launch spotlight tour that highlights':
         'Re-run onboarding tour',
-    'Run the one-click first-light flow again — short exposure,':
+    'Run the one-click first-light flow again. Short exposure,':
         'Capture your first light',
     'Walk back through the equipment onboarding wizard to scan':
         'Re-run equipment setup',
@@ -1116,7 +1116,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Flip when hour angle exceeds this value': 'Hour angle threshold',
     'How many exposures between autofocus runs': 'Autofocus cadence (frames)',
     'If the last polar alignment is older than': 'Polar alignment stale after',
-    'Master kill switch — every LiveStacking node will':
+    'Master kill switch: every LiveStacking node will':
         'Disable broadcast everywhere',
     'Move mount slightly between exposures': 'Enable dithering',
     'Number of frames between dithers': 'Dither every',

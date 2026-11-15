@@ -152,7 +152,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
     try {
       await step();
     } catch (e) {
-      report.warnings.add('could not $what: $e — left in place');
+      report.warnings.add('could not $what: $e. Left in place');
     }
   }
 
@@ -161,7 +161,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   for (final legacyVar in [legacyDataDirEnv, legacyDatabaseDirEnv]) {
     if ((env[legacyVar] ?? '').trim().isNotEmpty) {
       report.warnings.add(
-        '$legacyVar is set but is no longer read — the SKOTIQ_* variables '
+        '$legacyVar is set but is no longer read. The SKOTIQ_* variables '
         'replaced it. Update the launch environment.',
       );
     }
@@ -183,7 +183,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
     for (final candidate in _legacyDataRootCandidates(os, env)) {
       if (candidate != movedFrom && await Directory(candidate).exists()) {
         report.warnings.add(
-          'additional legacy data root left at $candidate — merge by hand if '
+          'additional legacy data root left at $candidate. Merge by hand if '
           'it holds anything the first candidate did not',
         );
       }
@@ -193,7 +193,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
       if (await Directory(candidate).exists()) {
         report.warnings.add(
           'legacy data root exists at $candidate but this instance is '
-          'relocated by $skotiqDataDirEnv; not merging — point the variable '
+          'relocated by $skotiqDataDirEnv; not merging. Point the variable '
           'at it or move it by hand',
         );
       }
@@ -290,7 +290,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
     });
     if (await File(legacyUnit).exists()) {
       report.warnings.add(
-        'pre-rename systemd unit still installed at $legacyUnit — it can '
+        'pre-rename systemd unit still installed at $legacyUnit. It can '
         'bind the same port on boot. Run: sudo systemctl disable --now '
         '${p.basenameWithoutExtension(legacyUnit)} && sudo rm $legacyUnit',
       );
@@ -448,7 +448,7 @@ Future<void> _migrateApplianceEnv(
   if (!await File(src).exists()) return;
   if (await File(dst).exists()) {
     report.warnings.add(
-      'pre-rename $src exists but $dst already does — merge any custom '
+      'pre-rename $src exists but $dst already does. Merge any custom '
       'values by hand, then remove the old file',
     );
     return;
@@ -527,7 +527,7 @@ Future<void> _moveOrMerge(
       } else {
         report.warnings.add(
           'copy of $src to $dst did not verify ($srcFiles files/$srcBytes B '
-          'vs $dstFiles files/$dstBytes B) — original left in place',
+          'vs $dstFiles files/$dstBytes B). Original left in place',
         );
       }
       return;
@@ -564,7 +564,7 @@ Future<void> _mergeTree(
         await Directory(target).exists() ||
         await Link(target).exists()) {
       report.warnings.add(
-        'kept both: ${entity.path} and existing $target — merge by hand',
+        'kept both: ${entity.path} and existing $target. Merge by hand',
       );
     } else {
       try {

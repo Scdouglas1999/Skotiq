@@ -53,7 +53,7 @@ void main() {
   const node1 = '7837c026-node-one';
   const node2 = '9617e5f0-node-two';
 
-  test('the wire shape — detail_json as a JSON String — reaches the tally', () {
+  test('the wire shape (detail_json as a JSON String) reaches the tally', () {
     final tally = RunRecordNotifier();
     _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     for (var frame = 1; frame <= 4; frame++) {

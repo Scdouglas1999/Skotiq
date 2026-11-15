@@ -393,7 +393,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _publishBlockingReason();
     context.showSuccessSnackBar(
       'Coordinates set to ${detection.where}. ${fix.explanation}'
-      '${detection.keptElevation ? '' : ' Elevation cleared — enter the '
+      '${detection.keptElevation ? '' : ' Elevation cleared: enter the '
           'elevation for this site.'}'
       // The wizard has no map and no place search, so the nudge points at the
       // fields directly below.
@@ -412,7 +412,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         icon: LucideIcons.globe,
         title: 'Approximate location from your IP address.',
         message: '${_trimNumber(estimate.$1)}°, ${_trimNumber(estimate.$2)}°'
-            '${estimate.$3 != null ? ' — ${estimate.$3}' : ''}. '
+            '${estimate.$3 != null ? ': ${estimate.$3}' : ''}. '
             'This is where your internet provider appears to be, not where '
             'your telescope is, so it can be tens of kilometers out. Use it '
             'as a starting point and correct it if you can.',
@@ -442,7 +442,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
       icon: LucideIcons.globe,
       title: 'No site on record yet.',
       message: 'Skotiq can ask a third-party service to estimate your '
-          'position from your public IP address — city-level, about 10 km. '
+          'position from your public IP address. City-level, about 10 km. '
           'Nothing is sent until you ask.',
       action: SkotiqButton(
         label: 'Estimate from IP',

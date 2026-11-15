@@ -47,7 +47,7 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
           category: ValidationCategory.settings,
           title: 'Settings Not Loaded',
           description:
-              'Cannot validate image output path — app settings are still loading.',
+              'Cannot validate image output path. App settings are still loading.',
         ),
       ];
     }

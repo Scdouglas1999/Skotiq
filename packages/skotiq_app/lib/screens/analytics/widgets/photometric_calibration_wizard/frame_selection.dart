@@ -411,7 +411,7 @@ extension _PhotometricWizardFrameSelection
   /// `Alt 52.3° · X 1.26`, or a statement that the frame cannot be fitted.
   String _altitudeLabel(double? altitudeDeg) {
     final airmass = airmassForFrame(altitudeDeg);
-    if (airmass == null) return 'no recorded altitude — cannot fit';
+    if (airmass == null) return 'no recorded altitude: cannot fit';
     return 'Alt ${altitudeDeg!.toStringAsFixed(1)}° · X '
         '${airmass.toStringAsFixed(2)}';
   }

@@ -67,7 +67,7 @@ class _TransientSettingsDialogState
                     // and then report "No active alerts" from a feed nobody
                     // ever asked.
                     _ when !kFetchableTransientSources.contains(source) => Text(
-                        'Not polled — this build has no live feed for it; '
+                        'Not polled: this build has no live feed for it; '
                         'alerts from it can still be entered by hand',
                         style: TextStyle(
                           fontSize: SkotiqTypography.fontSize11,

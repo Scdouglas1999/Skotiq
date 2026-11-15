@@ -241,7 +241,7 @@ class ScienceSessionSummary extends ConsumerWidget {
                             ? colors.warning
                             : colors.success,
                     tooltip:
-                        'Coefficient of variation of background brightness across the frame. Lower is flatter — values above 0.28 suggest gradients.',
+                        'Coefficient of variation of background brightness across the frame. Lower is flatter: values above 0.28 suggest gradients.',
                   ),
                 ),
               ],

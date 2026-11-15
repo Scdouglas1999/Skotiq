@@ -241,7 +241,7 @@ class SmartExposureProperties extends ConsumerWidget {
                         child: Text(
                           'Nothing bounds this loop. Set an integration budget '
                           'below, or place this node under a target with an end '
-                          'condition (ends-when / ends-before) — otherwise the '
+                          'condition (ends-when / ends-before): otherwise the '
                           'run will refuse to start.',
                           style: TextStyle(
                             fontSize: Responsive.fontSize(context, 11),
@@ -357,7 +357,7 @@ class _PlanList extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'No filter plans yet — add one below.',
+                'No filter plans yet. Add one below.',
                 style: TextStyle(
                   fontSize: Responsive.fontSize(context, 12),
                   color: colors.textMuted,
@@ -1120,7 +1120,7 @@ class DepthGoalSelector extends ConsumerWidget {
             !bound.definition.automaticCompletion)
           _DepthGoalNote(
             colors: colors,
-            text: 'Advisory only — enable automatic completion on the goal to '
+            text: 'Advisory only: enable automatic completion on the goal to '
                 'let this plan finish early.',
             tone: ChipTone.neutral,
           ),
@@ -1314,7 +1314,7 @@ class _PlanCountsFromGoalsButtonState
         if (untouched.isNotEmpty) 'Left alone: ${untouched.join(', ')}.',
       ];
       _summary = parts.isEmpty
-          ? 'Nothing to set — no row is bound to a goal with a forecast.'
+          ? 'Nothing to set: no row is bound to a goal with a forecast.'
           : parts.join(' ');
     });
   }

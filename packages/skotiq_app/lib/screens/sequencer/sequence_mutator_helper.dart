@@ -91,7 +91,7 @@ Future<void> _showSnippetRejectedDialog(
       ],
       child: Text(
         'Snippet "${e.snippetName}" contains unknown node type '
-        '"${e.unknownType}" — this may be from a newer version of '
+        '"${e.unknownType}". This may be from a newer version of '
         'Skotiq. The snippet was not imported.',
         style: TextStyle(
             color: colors.textSecondary, fontSize: SkotiqTypography.fontSize13),

@@ -117,7 +117,7 @@ class CollabMosaicCard extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             mosaic.isAssembling
-                ? 'All panels in — the owner is stitching the mosaic'
+                ? 'All panels in: the owner is stitching the mosaic'
                 : formatPanelProgress(uploaded: uploaded, total: total),
             style: SkotiqTypography.captionSm.copyWith(
               color: colors.textSecondary,

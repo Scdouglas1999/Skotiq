@@ -171,7 +171,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Import Sequence — ${result.sourceFormat.displayName}',
+                  'Import Sequence: ${result.sourceFormat.displayName}',
                   style:
                       SkotiqTypography.h4.copyWith(color: colors.textPrimary),
                 ),
@@ -407,7 +407,7 @@ class _DroppedSection extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '${d.sourceType} — ${d.name} (${_reasonLabel(d.reason)})',
+                    '${d.sourceType}: ${d.name} (${_reasonLabel(d.reason)})',
                     style: TextStyle(
                         fontSize: SkotiqTypography.fontSize12,
                         color: colors.textSecondary),
@@ -458,7 +458,7 @@ class _UnsupportedSection extends StatelessWidget {
         for (final u in unsupported)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text('• ${u.sourceType} — ${u.name}',
+            child: Text('• ${u.sourceType}: ${u.name}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize12,
                     color: colors.textSecondary)),

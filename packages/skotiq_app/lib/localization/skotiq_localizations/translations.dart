@@ -51,7 +51,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     // v4 couch-grade remote: self-hosted relay connect (connection-screen).
     'relayConnect': 'Connect via Relay',
     'tailscaleConnectSubtitle':
-        'Reach this rig from anywhere — no port forwarding.',
+        'Reach this rig from anywhere. No port forwarding.',
     'tailscaleClose': 'Close',
     'tailscaleStep1Title': 'Install Tailscale on this phone',
     'tailscaleStep1Body':
@@ -81,7 +81,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersAdd': 'Add server',
     'savedServersUnreachable': 'Could not reach {name} at {host}',
     'savedServersPairingExpired':
-        '{name} is online but rejected this device — pair again',
+        '{name} is online but rejected this device. Pair again',
     'savedServersRelayUnavailable':
         'Relay reconnect is not available right now. Open the app from the connection screen and try again.',
     'savedServersOpenError': 'Failed to open {name}: {error}',
@@ -394,7 +394,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingRenameDevice': 'Rename device',
     'pairingRenameTitle': 'Rename device',
     'pairingRenameBody':
-        'Every phone pairs under the same name, so give this one a name you will recognize later. Only the label changes — the device stays connected.',
+        'Every phone pairs under the same name, so give this one a name you will recognize later. Only the label changes. The device stays connected.',
     'pairingRenameLabel': 'Device name',
     'pairingErrorRename': 'Skotiq could not rename that device.',
     'pairingRevokeTitle': 'Revoke device access',
@@ -415,7 +415,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingErrorLoad': 'Skotiq could not load your paired devices.',
     'pairingErrorRevoke': 'Skotiq could not revoke access for that device.',
     'pairingErrorRevokeAll':
-        'Skotiq could not revoke access for every device. Check the list — some devices may still be paired.',
+        'Skotiq could not revoke access for every device. Check the list: some devices may still be paired.',
     'pairingErrorDelete': 'Skotiq could not delete that paired device.',
     'plannerRationaleSubtitleNamed': 'Why {target} was chosen',
     'plannerDraftCreated':
@@ -539,7 +539,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusTempCompActiveNoPrediction': 'Temp comp active: {slope} steps/°C',
     'statusLstLoading': 'Loading your observing site…',
     'statusLstTooltip': 'Local sidereal time at your observing site',
-    'statusLstNoSite': 'No observing site set — sidereal time is unknown. '
+    'statusLstNoSite': 'No observing site set. Sidereal time is unknown. '
         'Set it in Settings → Location.',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Plan',
@@ -1732,7 +1732,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersAdd': 'Agregar servidor',
     'savedServersUnreachable': 'No se pudo acceder a {name} en {host}',
     'savedServersPairingExpired':
-        '{name} está en línea pero rechazó este dispositivo — vuelve a emparejar',
+        '{name} está en línea pero rechazó este dispositivo. Vuelve a emparejar',
     'savedServersRelayUnavailable':
         'La reconexión por relay no está disponible ahora. Abre la app desde la pantalla de conexión e inténtalo de nuevo.',
     'savedServersOpenError': 'No se pudo abrir {name}: {error}',

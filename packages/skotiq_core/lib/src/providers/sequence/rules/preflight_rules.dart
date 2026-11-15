@@ -239,7 +239,7 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
       final lines = underCovered.entries
           .map(
             (e) =>
-                '  • ${e.key.describe()} — ${e.value} of ${settings.darkLibraryMinCoverage} frames',
+                '  • ${e.key.describe()}: ${e.value} of ${settings.darkLibraryMinCoverage} frames',
           )
           .join('\n');
       issues.add(
@@ -888,7 +888,7 @@ class CoolerDeltaRule implements RefAwareSequenceValidator {
         title: 'Cooler May Not Reach Setpoint',
         description:
             'Ambient/sensor is ${formatCelsius(ambient)}, target '
-            'is ${formatCelsius(cam.targetTemp)} — '
+            'is ${formatCelsius(cam.targetTemp)}: '
             '${formatCelsius(delta, decimals: 0)} below ambient exceeds typical '
             'TEC headroom (~${formatCelsius(maxRealisticDeltaC, decimals: 0)}).',
         resolutionHint:
@@ -1011,7 +1011,7 @@ class OpticalTrainPreflightRule implements RefAwareSequenceValidator {
             'collimation Δ ${dColl.toStringAsFixed(1)}.',
         resolutionHint:
             'Recheck spacers, tilter, and focuser backfocus before a long '
-            'run — or accept the baseline shift in Analytics → Optical Train.',
+            'run, or accept the baseline shift in Analytics → Optical Train.',
       ),
     ];
   }

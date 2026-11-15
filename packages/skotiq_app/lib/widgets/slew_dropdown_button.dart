@@ -425,7 +425,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         context: context,
         title: 'Target is below the horizon',
         message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
-            'horizon right now ($where) — it is under the ground. Slewing '
+            'horizon right now ($where): it is under the ground. Slewing '
             'there can drive the telescope into the pier, a tripod leg or the '
             'ground. Check the coordinates, and check your site in '
             'Settings → Location.',

@@ -127,7 +127,7 @@ void main() {
       expect(find.text('7m'), findsOneWidget);
       expect(
         find.text(
-          'Automatic — the meridian-flip watchdog will run this for you. '
+          'Automatic: the meridian-flip watchdog will run this for you. '
           'No action needed.',
         ),
         findsOneWidget,

@@ -121,7 +121,7 @@ void main() {
   tearDown(() => db.close());
 
   test(
-    'only joined hub ids are queried — a local-only id is never queried',
+    'only joined hub ids are queried. A local-only id is never queried',
     () async {
       // A local target whose db id (999) is NOT a joined hub target.
       final service = buildService(

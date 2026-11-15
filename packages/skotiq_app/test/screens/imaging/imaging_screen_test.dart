@@ -323,8 +323,8 @@ void main() {
     );
     expect(disconnectedBtn.onPressed, isNull,
         reason:
-            'Snapshot button must be disabled when no camera is connected — '
-            'firing _takeSnapshot would call the imaging service against null.');
+            'Snapshot button must be disabled when no camera is connected. '
+            'Firing _takeSnapshot would call the imaging service against null.');
     addTearDown(() async {
       await disconnectedHandle.database.close();
     });
@@ -500,7 +500,7 @@ void main() {
             'frame-info pill arrives with the first frame');
     expect(find.text('17.3°C'), findsWidgets,
         reason: 'The connected camera temperature must surface on the Capture '
-            'section chip — a missing match means the cameraStateProvider '
+            'section chip. A missing match means the cameraStateProvider '
             'binding has drifted.');
   });
 
@@ -577,8 +577,8 @@ void main() {
 
     expect(find.text('Calibrated'), findsOneWidget,
         reason: 'A frame whose saved path ends in _cal.fits is the only signal '
-            'the imaging pipeline has that calibration actually succeeded — '
-            'the badge MUST render so users can tell raw vs calibrated.');
+            'the imaging pipeline has that calibration actually succeeded. '
+            'The badge MUST render so users can tell raw vs calibrated.');
   });
 
   testWidgets(
@@ -611,7 +611,7 @@ void main() {
 
     expect(find.text('Calibrated'), findsNothing,
         reason:
-            'A raw .fits frame must not display the Calibrated badge — doing '
+            'A raw .fits frame must not display the Calibrated badge. Doing '
             'so would lie to the operator about a frame that never went '
             'through dark/flat/bias subtraction.');
   });

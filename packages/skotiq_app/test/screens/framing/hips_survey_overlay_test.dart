@@ -178,12 +178,12 @@ void main() {
     expect(painterScore, greaterThan(flipScore + 0.1),
         reason:
             'The painter convention (tx=v, ty=u) must join real neighboring '
-            'tiles strictly better than the flipped (tx=v, ty=1-u) map — got '
+            'tiles strictly better than the flipped (tx=v, ty=1-u) map: got '
             'painter=$painterScore vs flip=$flipScore. A flip re-opens the '
             'diagonal content seams that shear stars at high declination.');
     expect(painterScore, greaterThan(otherScore + 0.1),
         reason: 'The painter convention must beat the other transpose '
-            '(tx=u, ty=v) — got painter=$painterScore vs other=$otherScore.');
+            '(tx=u, ty=v): got painter=$painterScore vs other=$otherScore.');
     expect(painterScore, greaterThan(0.4),
         reason: 'Adjacent real-tile edges should correlate well under the '
             'correct convention; got $painterScore.');

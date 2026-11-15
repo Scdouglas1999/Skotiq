@@ -294,7 +294,7 @@ class _DelayProperties extends ConsumerWidget {
           _LongValueWarning(
             colors: colors,
             message:
-                'This is an unusually long delay — confirm this is intentional.',
+                'This is an unusually long delay. Confirm this is intentional.',
           ),
       ],
     );

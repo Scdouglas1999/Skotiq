@@ -32,7 +32,7 @@ DbCapturedImage _standalone(int id) => DbCapturedImage(
 
 ImagingSession _session(int id) => ImagingSession(
       id: id,
-      name: 'Night A — M31',
+      name: 'Night A: M31',
       startTime: DateTime.utc(2026, 7, 14),
       totalExposures: 0,
       successfulExposures: 0,

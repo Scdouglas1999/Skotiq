@@ -18,7 +18,7 @@ const List<TourStep> _firstLaunchTour = [
         '(Windows), INDI, and Alpaca work against drivers you already '
         'have. Native vendor paths (ZWO, QHY, Player One, SVBony, Atik, '
         'FLI, Moravian, Touptek) need that vendor\'s own library '
-        'installed — Skotiq does not ship it.',
+        'installed. Skotiq does not ship it.',
     target: TourTarget.navEquipment,
     side: TourCardSide.right,
   ),
@@ -38,7 +38,7 @@ const List<TourStep> _firstLaunchTour = [
     description:
         'Build automated imaging sequences here. The Templates tab has '
         'ready-made starting points for narrowband, LRGB, mosaics, and '
-        'lunar work — load one and customize.',
+        'lunar work. Load one and customize.',
     target: TourTarget.navSequencer,
     side: TourCardSide.right,
   ),
@@ -57,7 +57,7 @@ const List<TourStep> _firstLaunchTour = [
     title: 'Set up plate solving',
     description:
         'Plate solving needs ASTAP or Astrometry.net installed. Set it '
-        'up under Settings → Plate Solving — Skotiq auto-detects '
+        'up under Settings → Plate Solving. Skotiq auto-detects '
         'standard install paths.',
     target: TourTarget.navSettings,
   ),
@@ -94,7 +94,7 @@ const List<TourStep> _equipmentSetup = [
     id: 'eq_create_profile',
     title: 'Create a profile',
     description:
-        'The + button at the top of the Profiles panel opens a new configuration. Enter focal length, aperture and your camera details — those are what the field-of-view and pixel-scale figures are computed from.',
+        'The + button at the top of the Profiles panel opens a new configuration. Enter focal length, aperture and your camera details. Those are what the field-of-view and pixel-scale figures are computed from.',
     target: TourTarget.equipmentCreateProfileButton,
     side: TourCardSide.bottom,
   ),

@@ -341,7 +341,7 @@ void main() {
       expect(
         (await DeliveryJournalDao(db).listPendingRetry()).single.state,
         DeliveryAttemptState.retrying,
-        reason: 'the row is still pending — it is pending on the peer',
+        reason: 'the row is still pending. It is pending on the peer',
       );
       expect(
         await real.hasDueRetries(),

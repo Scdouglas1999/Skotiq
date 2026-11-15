@@ -158,7 +158,7 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
     return Material(
       color: Colors.transparent,
       child: Tooltip(
-        message: 'Transient alerts — targets of opportunity',
+        message: 'Transient alerts: targets of opportunity',
         child: Semantics(
           button: true,
           // Without an enabled state a button node reads as disabled to

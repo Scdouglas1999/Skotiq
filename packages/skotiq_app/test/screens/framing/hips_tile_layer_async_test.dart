@@ -248,7 +248,7 @@ void main() {
             'subdivided drawVertices mesh.');
     expect(recorder.nDrawRect, 0,
         reason:
-            'The painter draws no solid fills — it composites imagery only, '
+            'The painter draws no solid fills. It composites imagery only, '
             'staying transparent where no tile is resident.');
     // Structural framing: exactly one save/clip/restore around the mosaic.
     expect(recorder.nSaves, 1);

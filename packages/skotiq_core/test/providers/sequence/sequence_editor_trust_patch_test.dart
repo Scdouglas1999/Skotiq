@@ -275,7 +275,7 @@ void main() {
   });
 
   group('SnippetDeserializationException', () {
-    test('unknown nodeType throws — does NOT silently fall through', () {
+    test('unknown nodeType throws: does NOT silently fall through', () {
       final c = _newContainer();
       _notifier(c).createSequence();
       final snippet = TemplateSnippet(

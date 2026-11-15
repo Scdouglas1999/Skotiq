@@ -142,7 +142,7 @@ void main() {
         reason: 'Compositing the full committed mosaic took '
             '${sw.elapsedMicroseconds}us, over the ${_frameBudgetMicros}us '
             '60fps frame budget. The painter must do no per-frame CPU pixel '
-            'work — a blowout this large indicates a software blend / getBytes '
+            'work. A blowout this large indicates a software blend / getBytes '
             'crept in.');
 
     // The GPU upload itself (Picture.toImage) must also produce a real image —
@@ -183,7 +183,7 @@ void main() {
 
     expect(p1Same.shouldRepaint(p1), isFalse,
         reason: 'A stationary view (identical snapshot version + allsky order) '
-            'must NOT repaint — no wasted frames.');
+            'must NOT repaint. No wasted frames.');
     expect(p2.shouldRepaint(p1), isTrue,
         reason: 'A view movement / tile arrival (new version) must repaint '
             'exactly once.');

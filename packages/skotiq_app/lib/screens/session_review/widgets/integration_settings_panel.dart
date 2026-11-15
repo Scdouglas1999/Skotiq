@@ -273,7 +273,7 @@ class _IntegrationSettingsPanelState extends State<IntegrationSettingsPanel> {
           tooltip:
               'Variable-pixel reconstruction onto a finer grid instead of plain '
               'resample-and-combine. Pays off only with dithered, undersampled '
-              'data — off by default.',
+              'data. Off by default.',
           value: _s.drizzle,
           onChanged: (v) =>
               _emit(_s.copyWith(drizzle: v, clearSourcePreset: true)),

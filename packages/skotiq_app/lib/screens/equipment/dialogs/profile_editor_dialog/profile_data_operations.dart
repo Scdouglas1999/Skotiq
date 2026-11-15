@@ -467,7 +467,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       // The banner inside the dialog is now the primary surface. The toast is
       // kept only as a secondary cue for a user whose focus is elsewhere.
       context.showErrorSnackBar(
-        'Profile not saved — see the highlighted fields.',
+        'Profile not saved: see the highlighted fields.',
       );
       return null;
     }

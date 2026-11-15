@@ -198,7 +198,7 @@ class _VerdictHeader extends StatelessWidget {
                   report.headline.isEmpty
                       ? (graded
                           ? 'Your night, summarized.'
-                          : 'Not graded — this night had nothing to analyze.')
+                          : 'Not graded: this night had nothing to analyze.')
                       : report.headline,
                   style: SkotiqTypography.sectionTitle.copyWith(
                     color: colors.textPrimary,
@@ -754,7 +754,7 @@ class _NoFindings extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceMd),
           Expanded(
             child: Text(
-              'No issues detected — a clean night. Every sub looks usable.',
+              'No issues detected: a clean night. Every sub looks usable.',
               style: SkotiqTypography.bodySm.copyWith(
                 color: colors.textSecondary,
               ),

@@ -29,7 +29,7 @@ void main() {
     expect(find.text('Design System Gallery'), findsOneWidget);
     expect(find.text('Color Palette'), findsOneWidget);
     expect(find.text('Typography'), findsOneWidget);
-    expect(find.text('readoutLg — hero numbers'), findsOneWidget);
+    expect(find.text('readoutLg: hero numbers'), findsOneWidget);
     // Every remaining section is a component from 05 (plus the palette and
     // type reference). The pre-Observatory ones are gone, and none of them is
     // shown twice: the sheet's own sections are what the gallery teaches.

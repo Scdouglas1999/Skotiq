@@ -41,7 +41,7 @@ class GatedAction extends StatelessWidget {
   /// pin-tests assert the exact string a screen reader (and the audit harness)
   /// will read.
   static String announce(String label, String? blockedReason) =>
-      blockedReason == null ? label : '$label — unavailable: $blockedReason';
+      blockedReason == null ? label : '$label: unavailable: $blockedReason';
 
   @override
   Widget build(BuildContext context) {

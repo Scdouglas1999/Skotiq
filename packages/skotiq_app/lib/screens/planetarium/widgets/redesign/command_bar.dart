@@ -87,8 +87,8 @@ class PlanetariumCommandBar extends ConsumerWidget {
               // by anyone using a screen reader, and "tap" was true for exactly
               // one of them.
               tooltip: viewState.viewMode == SkyViewMode.horizontal
-                  ? 'Alt/Az view — switch to Equatorial'
-                  : 'Equatorial view — switch to Alt/Az',
+                  ? 'Alt/Az view: switch to Equatorial'
+                  : 'Equatorial view: switch to Alt/Az',
               isActive: viewState.viewMode == SkyViewMode.horizontal,
               onTap: () {
                 final notifier = ref.read(skyViewStateProvider.notifier);

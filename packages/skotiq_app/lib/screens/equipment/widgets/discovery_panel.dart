@@ -528,7 +528,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       icon: LucideIcons.radio,
       title: isDiscovering ? 'Scanning' : 'No devices found',
       body: '$detail Devices on another machine are reached over Alpaca or '
-          'INDI — set the server address in Settings.',
+          'INDI. Set the server address in Settings.',
       action: SkotiqButton(
         label: 'Scan all',
         icon: LucideIcons.search,

@@ -342,7 +342,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
             if (!_isActiveRun(generation, token) || token.isCancelled) return;
             setState(() {
               _calculationStatus =
-                  '$filter (${i + 1}/${snapshot.filters.length}) — iteration '
+                  '$filter (${i + 1}/${snapshot.filters.length}): iteration '
                   '$iteration: ${exposure.toStringAsFixed(3)}s, ADU '
                   '${adu.toStringAsFixed(0)}';
             });

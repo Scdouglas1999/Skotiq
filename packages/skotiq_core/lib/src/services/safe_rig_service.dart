@@ -545,7 +545,7 @@ class SafeRigService {
     if (result.coverClosed) steps.add('cover closed');
     if (result.coolerDisabled) steps.add('cooler disabled');
     final gap = result.mountAbsent
-        ? ' NO MOUNT CONNECTED — nothing was parked; if a mount is tracking '
+        ? ' NO MOUNT CONNECTED: nothing was parked; if a mount is tracking '
               'under another program it is still exposed.'
         : result.mountLeftIdle
         ? ' Nothing was running, so the mount was not parked and was left '

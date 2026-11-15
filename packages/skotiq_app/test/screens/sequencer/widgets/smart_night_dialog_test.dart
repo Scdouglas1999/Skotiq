@@ -101,7 +101,7 @@ void main() {
   testWidgets('SmartNightDialog renders header + step indicator',
       (tester) async {
     await _pumpDialog(tester);
-    expect(find.text('Smart Night — Plan Tonight'), findsOneWidget);
+    expect(find.text('Smart Night: Plan Tonight'), findsOneWidget);
     // The six step labels are visible in the indicator strip.
     expect(find.text('1. Window'), findsOneWidget);
     expect(find.text('2. Equipment'), findsOneWidget);

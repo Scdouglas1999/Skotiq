@@ -278,7 +278,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                   subtitle:
                       'After each light frame, reject captures that exceed '
                       'the thresholds set in Analytics → Science → Grade frames. '
-                      'Files are never deleted — only excluded from stacks.',
+                      'Files are never deleted. Only excluded from stacks.',
                   trailing: SettingsSwitch(
                     value: science.autoFrameGradingEnabled,
                     onChanged: scienceNotifier.setAutoFrameGradingEnabled,
@@ -679,7 +679,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
           (_hasKey
               ? 'Stored securely in the keyring. Enter a new value to replace '
                   'it.'
-              : 'Your TNS bot API key — stored securely, never in backups.'),
+              : 'Your TNS bot API key. Stored securely, never in backups.'),
       trailing: SettingsTextInput(
         authoritativeValue: '',
         authorityKey: _authority,
@@ -818,7 +818,7 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
             ? 'Read noise, gain, and saturation follow the connected camera '
                 'or active profile'
             : 'Following: $source')
-        : 'Manual — values below are user-set and will not be overwritten';
+        : 'Manual: values below are user-set and will not be overwritten';
     return SettingRow(
       icon: LucideIcons.wand2,
       title: 'Auto-configure from camera',

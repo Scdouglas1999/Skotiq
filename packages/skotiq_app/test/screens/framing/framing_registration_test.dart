@@ -264,7 +264,7 @@ void main() {
             'framing provider published for the loaded cutout.');
     expect(extracted.fov.plateScale, equals(_surveyPlateScale),
         reason: 'FOV reticle painter must use the SAME survey-registered '
-            'plate scale as the background — not a hardcoded 60px/deg or a '
+            'plate scale as the background. Not a hardcoded 60px/deg or a '
             'synthetic fallback. This is the core co-registration guard.');
     expect(extracted.fov.plateScale, equals(extracted.survey.plateScale),
         reason: 'Reticle and background must agree on one astrometric scale.');

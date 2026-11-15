@@ -130,7 +130,7 @@ void main() {
 
       for (final label in const ['AAVSO', 'MPEC', 'CBAT']) {
         final chip = tester.widget<SkotiqChip>(
-          find.widgetWithText(SkotiqChip, '$label — not available'),
+          find.widgetWithText(SkotiqChip, '$label: not available'),
         );
         expect(chip.selected, isFalse, reason: '$label must not read as ON');
         expect(chip.onTap, isNull, reason: '$label must not be togglable');
@@ -182,7 +182,7 @@ void main() {
       alerts: const <TransientAlert>[],
     );
 
-    expect(find.textContaining('TNS: skipped — no API key'), findsOneWidget);
+    expect(find.textContaining('TNS: skipped: no API key'), findsOneWidget);
     expect(find.textContaining('TNS: 0 alerts'), findsNothing);
   });
 

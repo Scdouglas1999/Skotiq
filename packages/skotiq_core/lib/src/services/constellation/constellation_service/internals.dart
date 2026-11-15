@@ -84,8 +84,8 @@ extension _ConstellationServiceInternals on ConstellationService {
       }
     }
     throw ConstellationException(
-      'Cannot resolve sky coordinates for target #$targetId — '
-      'join it or add it to the local catalog first.',
+      'Cannot resolve sky coordinates for target #$targetId. '
+      'Join it or add it to the local catalog first.',
       kind: ConstellationErrorKind.notFound,
     );
   }

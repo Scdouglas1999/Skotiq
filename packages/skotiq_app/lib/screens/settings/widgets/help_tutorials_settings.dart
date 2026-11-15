@@ -51,8 +51,8 @@ class HelpTutorialsSettings extends ConsumerWidget {
               icon: LucideIcons.sparkles,
               iconColor: colors.primary,
               title: 'First night walkthrough',
-              subtitle: '7-step guided wizard for your first imaging session — '
-                  'connect, polar align, focus, frame, guide, sequence.',
+              subtitle: '7-step guided wizard for your first imaging session. '
+                  'Connect, polar align, focus, frame, guide, sequence.',
               trailing: _AsyncActionButton(
                 label: startOrResume(Tour.firstNight),
                 variant: ButtonVariant.secondary,
@@ -68,7 +68,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               iconColor: colors.primary,
               title: 'Capture your first light',
               subtitle:
-                  'Run the one-click first-light flow again — short exposure, '
+                  'Run the one-click first-light flow again. Short exposure, '
                   'auto-stretch, plate-solve, and label the field. Make sure a '
                   'camera is connected first.',
               trailing: SkotiqButton(

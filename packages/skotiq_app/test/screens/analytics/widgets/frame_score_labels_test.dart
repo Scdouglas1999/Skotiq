@@ -107,7 +107,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Good — Low star count (39)'), findsNothing);
+    expect(find.text('Good: Low star count (39)'), findsNothing);
     expect(find.textContaining('not disqualifying'), findsOneWidget);
 
     // Both numbers on one screen, each with its own name.

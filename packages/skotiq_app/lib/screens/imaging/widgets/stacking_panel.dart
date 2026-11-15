@@ -279,8 +279,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           'Stopping releases the stacker, and the '
           '${frames == 1 ? '1 stacked frame' : '$frames stacked frames'} '
           'accumulated so far cannot be recovered afterwards. Save the '
-          'stacked master first — a FITS master carrying the integration time '
-          'and frame count — or discard it and stop.',
+          'stacked master first. A FITS master carrying the integration time '
+          'and frame count, or discard it and stop.',
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ),
@@ -673,7 +673,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                     child: Text(
                       isRemoteMode
                           ? 'Stacking runs on the imaging host. Press Start to '
-                              'arm it — the next captured frame becomes the '
+                              'arm it. The next captured frame becomes the '
                               'reference and every frame after is stacked '
                               'automatically, even while this device is asleep.'
                           : _sessionStackLine(plan),

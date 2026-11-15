@@ -378,7 +378,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
                     'ownCloud, generic WebDAV) or an S3-compatible object '
                     'store (AWS S3, MinIO, Backblaze B2) and restore them on '
                     'another machine. Sync is bundle-based: restoring replaces '
-                    'local configuration — nothing is merged.',
+                    'local configuration. Nothing is merged.',
                     style: SkotiqTypography.caption.copyWith(
                       color: colors.textSecondary,
                     ),

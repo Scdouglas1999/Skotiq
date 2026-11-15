@@ -186,7 +186,7 @@ void main() {
         reason:
             'border measures ${ratio.toStringAsFixed(2)}:1 on surfaceElevated. '
             'If it has been widened to clear the component floor, this test is '
-            'the wrong shape now — but every control that reached for it must '
+            'the wrong shape now, but every control that reached for it must '
             'still be checked, because a token that is legal for one is not '
             'automatically legal for the other',
       );

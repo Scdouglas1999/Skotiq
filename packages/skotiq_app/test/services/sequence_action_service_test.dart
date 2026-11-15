@@ -183,7 +183,7 @@ void main() {
   });
 
   test(
-      'concurrent pause() joins — one executor pause, both callers succeed '
+      'concurrent pause() joins: one executor pause, both callers succeed '
       '(no "already in progress" error)', () async {
     final h = _harness(state: SequenceExecutionState.running);
     addTearDown(h.container.dispose);

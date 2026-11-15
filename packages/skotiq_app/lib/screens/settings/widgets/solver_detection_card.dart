@@ -84,7 +84,7 @@ class SolverDetectionCard extends StatelessWidget {
       icon: LucideIcons.checkCircle,
       iconColor: colors.success,
       title: autoFallback
-          ? 'Astrometry.net ready — Auto fallback active'
+          ? 'Astrometry.net ready: Auto fallback active'
           : 'Astrometry.net selected and ready',
       body: [
         Text(
@@ -262,7 +262,7 @@ class SolverDetectionCard extends StatelessWidget {
       borderColor: colors.warning,
       icon: LucideIcons.alertTriangle,
       iconColor: colors.warning,
-      title: 'ASTAP detected — catalog missing',
+      title: 'ASTAP detected: catalog missing',
       body: [
         Text(
           detection.astapPath!,
@@ -297,8 +297,8 @@ class SolverDetectionCard extends StatelessWidget {
       icon: LucideIcons.xCircle,
       iconColor: colors.error,
       title: hasAstrometry
-          ? 'ASTAP not installed — only Astrometry.net available'
-          : 'ASTAP not installed — Skotiq cannot plate-solve',
+          ? 'ASTAP not installed: only Astrometry.net available'
+          : 'ASTAP not installed: Skotiq cannot plate-solve',
       body: [
         if (!hasAstrometry)
           Text(
@@ -313,7 +313,7 @@ class SolverDetectionCard extends StatelessWidget {
           Text(
             'Astrometry.net is reachable at '
             '${detection.astrometryPath!}, but ASTAP is the recommended '
-            'solver — it is faster and works fully offline. Install ASTAP '
+            'solver. It is faster and works fully offline. Install ASTAP '
             'and re-scan to switch.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: colors.textPrimary,
@@ -322,7 +322,7 @@ class SolverDetectionCard extends StatelessWidget {
         const SizedBox(height: 6),
         const _LinkText(
           url: astapDownloadUrl,
-          label: 'Download ASTAP — hnsky.org',
+          label: 'Download ASTAP: hnsky.org',
         ),
         const SizedBox(height: 2),
         const _LinkText(

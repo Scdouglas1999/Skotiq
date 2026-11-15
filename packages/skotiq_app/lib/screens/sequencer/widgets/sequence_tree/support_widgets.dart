@@ -24,7 +24,7 @@ class _WatchdogBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return SkotiqTooltip(
       message:
-          'Runs in parallel as a safety watchdog — fires on meridian-crossing '
+          'Runs in parallel as a safety watchdog. Fires on meridian-crossing '
           'regardless of its position in the list',
       child: LayoutBuilder(
         builder: (context, constraints) {

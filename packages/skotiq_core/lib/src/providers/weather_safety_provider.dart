@@ -463,7 +463,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       // carries the same statement in words for anything that only shows text.
       finalStatus = WeatherSafetyStatus.safe;
       finalActions = const WeatherSafetyActions(
-        reason: 'Weather safety is off — conditions are not being checked',
+        reason: 'Weather safety is off. Conditions are not being checked',
       );
     } else if (useFailMode) {
       // The no-data fail-mode resolution comes from the single shared truth

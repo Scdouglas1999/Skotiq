@@ -94,7 +94,7 @@ void main() {
     }
   }
 
-  group('forTarget — baseline scenario', () {
+  group('forTarget: baseline scenario', () {
     test('30 Lum frames across 3 nights yields 20% complete, 10 frames/night, '
         '12-night ETA', () async {
       // Three distinct noon-to-noon nights inside the 7-night window:
@@ -146,7 +146,7 @@ void main() {
     });
   });
 
-  group('forTarget — edge cases', () {
+  group('forTarget: edge cases', () {
     test('zero captured frames => estimatedNightsRemaining is null', () async {
       final progress = await progressService.forTarget(
         targetId: targetId,
@@ -245,7 +245,7 @@ void main() {
     });
   });
 
-  group('forTargets — bulk path', () {
+  group('forTargets: bulk path', () {
     test('returns one entry per requested target', () async {
       final secondId = await database
           .into(database.targets)

@@ -251,7 +251,7 @@ class _DestinationEditorDialogState
       SkotiqTextField(
         label: 'Rig name in delivered files',
         hint: _rigIdIsSet
-            ? 'no prefix — the rig\'s own file names'
+            ? 'no prefix: the rig\'s own file names'
             : 'this computer\'s name',
         controller: _rigIdController,
         onChanged: (_) => setState(() => _rigIdIsSet = true),
@@ -259,8 +259,8 @@ class _DestinationEditorDialogState
       const SizedBox(height: SkotiqTokens.spaceXs),
       Text(
         'Files arrive here named "<rig>-<the file the rig wrote>". Two rigs '
-        'that deliver into one folder write the same file names — job_1_'
-        'report.json on both — and the second one is refused, because '
+        'that deliver into one folder write the same file names. Job_1_'
+        'report.json on both, and the second one is refused, because '
         'delivery never overwrites. Leave this empty to use this computer\'s '
         'name. Files already delivered keep the names they have.',
         style: SkotiqTypography.captionSm.copyWith(
@@ -382,8 +382,8 @@ class _DestinationEditorDialogState
       ),
       const SizedBox(height: SkotiqTokens.spaceXs),
       Text(
-        'The key goes to the OS keyring, never into the profile database — '
-        'that column rides export and backup. Paste a new key to replace the '
+        'The key goes to the OS keyring, never into the profile database. '
+        'That column rides export and backup. Paste a new key to replace the '
         'stored one; leave this empty to keep it. Password authentication is '
         'not offered: OpenSSH refuses to read one from a pipe, so a password '
         'destination would hang on a prompt instead of delivering.',
@@ -649,7 +649,7 @@ class _DestinationEditorDialogState
       title: 'Delete ${view.destination.name}?',
       message:
           'The destination and its delivery journal are removed. Files already '
-          'delivered there are left alone — delivery copies, it never moves.',
+          'delivered there are left alone. Delivery copies, it never moves.',
       confirmLabel: 'Delete',
       isDestructive: true,
     );

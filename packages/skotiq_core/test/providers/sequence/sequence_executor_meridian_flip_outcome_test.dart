@@ -102,7 +102,7 @@ void main() {
       1,
       reason:
           'the counter stayed at 0 for a flip that physically swapped pier '
-          'sides — this is the defect being regressed',
+          'sides. This is the defect being regressed',
     );
     expect(stats.errorMessages, isEmpty);
     expect(stats.warningMessages, isEmpty);
@@ -198,8 +198,8 @@ void main() {
       stats.errorMessages,
       hasLength(1),
       reason:
-          'the run persisted errorMessages: [] after a total flip failure — '
-          'silent data loss reported as success',
+          'the run persisted errorMessages: [] after a total flip failure. '
+          'Silent data loss reported as success',
     );
     expect(
       stats.errorMessages.single,

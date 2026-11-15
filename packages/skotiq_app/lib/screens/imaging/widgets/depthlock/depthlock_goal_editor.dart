@@ -874,10 +874,10 @@ class _FloorLine extends StatelessWidget {
             Expanded(
               child: Text(
                 manual
-                    ? 'Error floor ${manualAdu.toStringAsFixed(2)} ADU — '
+                    ? 'Error floor ${manualAdu.toStringAsFixed(2)} ADU: '
                         'yours (masters suggest '
                         '${value.floorAdu.toStringAsFixed(2)})'
-                    : 'Error floor ${value.floorAdu.toStringAsFixed(2)} ADU — '
+                    : 'Error floor ${value.floorAdu.toStringAsFixed(2)} ADU: '
                         'from your masters',
                 style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textPrimary,

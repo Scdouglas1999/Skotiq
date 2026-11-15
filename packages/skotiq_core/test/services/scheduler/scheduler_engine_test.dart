@@ -801,7 +801,7 @@ void main() {
         expect(
           engine.lastDecision!.chosenTargetId,
           isNull,
-          reason: 'Sun is up — no candidate is eligible',
+          reason: 'Sun is up: no candidate is eligible',
         );
         expect(
           sink.dispatched,
@@ -900,7 +900,7 @@ void main() {
         sink.parkCount,
         0,
         reason:
-            'a transient mid-night empty must NEVER park — the night '
+            'a transient mid-night empty must NEVER park. The night '
             'is not over',
       );
       expect(
@@ -1014,7 +1014,7 @@ void main() {
       expect(
         sink.parkCount,
         0,
-        reason: 'an idle engine must not park — it is not driving the rig',
+        reason: 'an idle engine must not park. It is not driving the rig',
       );
     });
   });
@@ -1762,7 +1762,7 @@ void main() {
         isNull,
         reason:
             'currentTargetId must NOT be committed to a target that never '
-            'started — otherwise hysteresis suppresses the re-dispatch',
+            'started. Otherwise hysteresis suppresses the re-dispatch',
       );
       expect(
         engine.status.lastError,
@@ -1849,7 +1849,7 @@ void main() {
           engine.status.state,
           SchedulerState.running,
           reason:
-              'status must not diverge from reality — a failed pause must not '
+              'status must not diverge from reality. A failed pause must not '
               'leave the engine claiming it is paused',
         );
         await engine.dispose();

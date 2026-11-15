@@ -123,7 +123,7 @@ void main() {
       expect(
         await integrationMarkerFile(tempDir).exists(),
         isFalse,
-        reason: 'reported once — the marker is consumed after the report lands',
+        reason: 'reported once: the marker is consumed after the report lands',
       );
     },
   );

@@ -324,9 +324,9 @@ class _CutoutPanel extends ConsumerWidget {
                   const SizedBox(height: SkotiqTokens.spaceXs),
                   Text(
                     anchor == null
-                        ? 'Showing latest depth — all ${allDays.length} '
+                        ? 'Showing latest depth: all ${allDays.length} '
                             'session${allDays.length == 1 ? '' : 's'}.'
-                        : 'Showing latest depth — ${shownDays.length} of '
+                        : 'Showing latest depth: ${shownDays.length} of '
                             '${allDays.length} sessions by ${_dateLabel(anchor!)}.',
                     style: SkotiqTypography.captionSm
                         .copyWith(color: colors.textMuted),
@@ -507,7 +507,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
       }
       await ref.read(yourSkyRegionShareProvider)(
         sharePath,
-        text: '$regionName — co-added in Your Sky',
+        text: '$regionName: co-added in Your Sky',
       );
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;

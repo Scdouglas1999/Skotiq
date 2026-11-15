@@ -102,7 +102,7 @@ void main() {
     expect(
       profile.coolOnConnect,
       isFalse,
-      reason: 'auto-cooling stays opt-in — a noon setup must not run the TEC',
+      reason: 'auto-cooling stays opt-in: a noon setup must not run the TEC',
     );
   });
 

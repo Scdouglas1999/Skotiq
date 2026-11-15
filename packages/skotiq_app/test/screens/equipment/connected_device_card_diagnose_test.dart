@@ -48,7 +48,7 @@ Future<void> _pumpCard(
 }
 
 void main() {
-  group('ConnectedDeviceCard — Diagnose wiring', () {
+  group('ConnectedDeviceCard: Diagnose wiring', () {
     testWidgets('healthy card renders no error subtitle and no Diagnose button',
         (tester) async {
       final container =

@@ -395,7 +395,7 @@ void main() {
       offenders,
       isEmpty,
       reason:
-          'use AccessibleDropdown / AccessibleDropdownFormField — Material\'s '
+          'use AccessibleDropdown / AccessibleDropdownFormField. Material\'s '
           'dropdown announces every live entry as disabled and marks none as '
           'selected:\n${offenders.join('\n')}',
     );

@@ -913,7 +913,7 @@ void main() {
       expect(railState('Configured'), findsNWidgets(6));
       // Passed with nothing on record: focuser, filter wheel, guider, camera
       // defaults, observing site.
-      expect(railState('Skipped — nothing was set'), findsNWidgets(5));
+      expect(railState('Skipped: nothing was set'), findsNWidgets(5));
       expect(railState('Current step'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());

@@ -386,7 +386,7 @@ class _StepRailItem extends StatelessWidget {
       glyph = SkotiqIcons.remove;
       glyphColor = colors.textMuted;
       labelColor = colors.textMuted;
-      state = 'Skipped — nothing was set';
+      state = 'Skipped: nothing was set';
     } else if (isActive) {
       glyph = icon;
       glyphColor = colors.primary;

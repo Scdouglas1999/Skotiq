@@ -184,7 +184,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
         _status.skipStage(
           ScienceStage.calibration,
           note: wcs == null
-              ? 'No plate solve — calibration skipped'
+              ? 'No plate solve: calibration skipped'
               : 'Calibration disabled in settings',
         );
       }
@@ -441,7 +441,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
               ScienceStage.psfMap,
               ScienceStageOutcome.noData,
               stopwatch: sw,
-              note: 'Sessionless capture — PSF map needs a captured-image id',
+              note: 'Sessionless capture: PSF map needs a captured-image id',
             );
           }
         } catch (error) {

@@ -75,7 +75,7 @@ void main() {
     });
   });
 
-  group('buildReadinessReport — all green', () {
+  group('buildReadinessReport: all green', () {
     test('all-true inputs produce overall ready and every item ready', () {
       final report = _report();
 
@@ -102,7 +102,7 @@ void main() {
     });
   });
 
-  group('criticalDevices — fail-closed', () {
+  group('criticalDevices: fail-closed', () {
     test(
       'camera disconnected blocks the whole report (explicit fail-closed)',
       () {
@@ -179,7 +179,7 @@ void main() {
     });
   });
 
-  group('location — blocking', () {
+  group('location: blocking', () {
     test('location unset blocks the report', () {
       final report = _report(locationSet: false);
       final item = report.itemFor(ReadinessItemId.location)!;
@@ -189,7 +189,7 @@ void main() {
     });
   });
 
-  group('outputPath — blocking', () {
+  group('outputPath: blocking', () {
     test('output path unset blocks the report', () {
       final report = _report(outputPathSet: false);
       final item = report.itemFor(ReadinessItemId.outputPath)!;
@@ -244,7 +244,7 @@ void main() {
     );
   });
 
-  group('profileDevices — no vacuous green over an empty profile', () {
+  group('profileDevices: no vacuous green over an empty profile', () {
     test('an empty profile is caution, not an all-connected pass', () {
       // A profile with nothing assigned has an empty offline set, which used to
       // satisfy "every device is connected" and render GREEN on a fresh install

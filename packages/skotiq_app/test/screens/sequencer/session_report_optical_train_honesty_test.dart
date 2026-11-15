@@ -258,7 +258,7 @@ void main() {
       expect(
         find.textContaining('Collimation was not measured'),
         findsOneWidget,
-        reason: 'tilt WAS measured — only collimation may be called missing',
+        reason: 'tilt WAS measured: only collimation may be called missing',
       );
       expect(
         find.textContaining('Field tilt'),

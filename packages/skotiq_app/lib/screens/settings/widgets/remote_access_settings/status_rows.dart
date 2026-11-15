@@ -58,7 +58,7 @@ String explainRemoteAccessError(String rawError, int configuredPort) {
   }
   if (lower.contains('permission denied') || lower.contains('errno = 13')) {
     return 'The system refused to open port $configuredPort. Ports below 1024 '
-        'usually need elevated privileges — pick a higher port.';
+        'usually need elevated privileges. Pick a higher port.';
   }
   if (lower.contains('cannot assign requested address') ||
       lower.contains('errno = 99')) {

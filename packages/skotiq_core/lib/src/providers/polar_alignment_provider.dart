@@ -675,7 +675,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       if (mounted && generation == _backendGeneration) {
         state = state.copyWith(
           errorMessage: 'Failed to stop polar alignment: ${userFacingError(e)}',
-          statusMessage: 'Stop failed — retry to make the rig safe',
+          statusMessage: 'Stop failed: retry to make the rig safe',
         );
       }
       rethrow;
@@ -773,7 +773,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
         state = state.copyWith(
           errorMessage:
               'Failed to stop before completing: ${userFacingError(e)}',
-          statusMessage: 'Stop failed — retry before leaving alignment',
+          statusMessage: 'Stop failed: retry before leaving alignment',
         );
       }
       rethrow; // no save, no complete
@@ -800,7 +800,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
             phase: PolarAlignPhase.error,
             errorMessage:
                 'Polar alignment stopped, but its result could not be saved: ${userFacingError(e)}',
-            statusMessage: 'Alignment stopped — result was not saved',
+            statusMessage: 'Alignment stopped: result was not saved',
           );
         }
         rethrow;

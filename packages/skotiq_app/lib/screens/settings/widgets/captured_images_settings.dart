@@ -254,7 +254,7 @@ class _CapturedImagesSettingsState
                   // inline. Say so rather than passing the thumbnail off as
                   // the capture.
                   Text(
-                    'Full-frame preview unavailable — showing the thumbnail. '
+                    'Full-frame preview unavailable: showing the thumbnail. '
                     'Download the frame to inspect it at full resolution.',
                     textAlign: TextAlign.center,
                     style: SkotiqTypography.captionSm.copyWith(

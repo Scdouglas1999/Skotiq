@@ -285,7 +285,7 @@ void main() {
       expect(
         result.warnings.any((w) => w.contains('not consulted')),
         isFalse,
-        reason: 'the hub WAS consulted — it simply had nothing to offer',
+        reason: 'the hub WAS consulted. It simply had nothing to offer',
       );
     });
   });

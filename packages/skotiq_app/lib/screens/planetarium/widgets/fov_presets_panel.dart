@@ -406,7 +406,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
                     DropdownMenuItem(
                       value: t,
                       child: Text(
-                        '${_isFromProfile(t) ? 'My rig — ' : ''}${t.name} · '
+                        '${_isFromProfile(t) ? 'My rig: ' : ''}${t.name} · '
                         '${t.focalLengthMm.toStringAsFixed(0)}mm'
                         '${t.apertureMm > 0 ? ' f/${t.focalRatio.toStringAsFixed(1)}' : ''}',
                         overflow: TextOverflow.ellipsis,
@@ -427,7 +427,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
                     DropdownMenuItem(
                       value: c,
                       child: Text(
-                        '${_isFromProfile(c) ? 'My rig — ' : ''}${c.name} · '
+                        '${_isFromProfile(c) ? 'My rig: ' : ''}${c.name} · '
                         '${c.widthMm.toStringAsFixed(1)}×'
                         '${c.heightMm.toStringAsFixed(1)}mm',
                         overflow: TextOverflow.ellipsis,

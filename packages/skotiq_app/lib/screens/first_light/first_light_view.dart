@@ -121,7 +121,7 @@ class _IntroStrip extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Every solved frame is differenced against your deep sky '
-                  'atlas — but only where the atlas is at least 5 frames deep, '
+                  'atlas, but only where the atlas is at least 5 frames deep, '
                   'so a fresh patch of sky stays quiet until it builds up. '
                   'Anything that appeared, moved, or brightened on a deep patch '
                   'lands here to review, then submit to the TNS or export an '
@@ -165,7 +165,7 @@ class _CoverageReadout extends StatelessWidget {
             'could not be validated from the reference stars; those areas were '
             'not searched.'
         : thin
-            ? 'Atlas not deep enough here yet — '
+            ? 'Atlas not deep enough here yet. '
                 '${coverage.tilesSkippedThin + coverage.tilesNoTemplate} of '
                 '${coverage.tilesCovered} covered tiles still need more frames '
                 'before differencing can run.'
@@ -374,7 +374,7 @@ class _EmptyState extends StatelessWidget {
       case FirstLightFilter.unnamed:
         return (
           'No unnamed candidates',
-          'An unnamed clean point source — one with no catalog match — is the '
+          'An unnamed clean point source (one with no catalog match) is the '
               'headline possible-transient. None are flagged right now.',
           LucideIcons.radar,
         );

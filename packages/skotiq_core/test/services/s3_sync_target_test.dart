@@ -28,7 +28,7 @@ void main() {
         client: client,
       );
 
-  group('SigV4 — AWS published example vector (GET Object)', () {
+  group('SigV4: AWS published example vector (GET Object)', () {
     // https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
     test('matches AWS\'s documented signature', () {
       const emptyHash =

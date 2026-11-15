@@ -74,7 +74,7 @@ class Phd2Launcher {
       }
 
       notifications.showInfo(
-        'PHD2 not running — launching $configuredPath...',
+        'PHD2 not running: launching $configuredPath...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),
       );
@@ -96,7 +96,7 @@ class Phd2Launcher {
       }
     } else {
       notifications.showInfo(
-        'PHD2 not running — searching for installed PHD2...',
+        'PHD2 not running: searching for installed PHD2...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),
       );

@@ -581,7 +581,7 @@ void main() {
         hasLength(1),
         reason:
             'A single user toggle must produce exactly one bridge '
-            'write — no retries, no double-fires.',
+            'write. No retries, no double-fires.',
       );
       expect(bridge.setStateCalls.single, (deviceId, 0, true));
       expect(container.read(switchStateProvider).channelStates.single, isTrue);

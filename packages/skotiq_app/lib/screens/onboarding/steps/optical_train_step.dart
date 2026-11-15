@@ -50,7 +50,7 @@ String? telescopeSummaryLabel(
     final focalLength = draft.focalLengthMm;
     return focalLength == null ? null : '${focalLength.toStringAsFixed(0)} mm';
   }
-  return draftMatchesTelescopePreset(draft, presets) ? name : '$name — edited';
+  return draftMatchesTelescopePreset(draft, presets) ? name : '$name: edited';
 }
 
 /// Optical train step — pixel size (microns), focal length (mm),
@@ -339,7 +339,7 @@ class _OnboardingOpticalTrainStepState
                             child: Text(
                               matchesLibrary
                                   ? draft.telescopeName!
-                                  : '${draft.telescopeName!} — edited',
+                                  : '${draft.telescopeName!}: edited',
                               style: SkotiqTypography.bodyStrong.copyWith(
                                 color: matchesLibrary
                                     ? colors.textPrimary
@@ -361,7 +361,7 @@ class _OnboardingOpticalTrainStepState
             controller: _focalLengthController,
             label: 'Telescope focal length',
             help:
-                "Focal length is the telescope's focal length in mm — found in its specs or on the OTA label.",
+                "Focal length is the telescope's focal length in mm. Found in its specs or on the OTA label.",
             hint: 'e.g. 500, 1000, 2000',
             suffix: 'mm',
             errorText: _focalLengthError,
@@ -372,7 +372,7 @@ class _OnboardingOpticalTrainStepState
             controller: _apertureController,
             label: 'Aperture',
             help:
-                'Aperture is the diameter of the telescope in mm — it sets the focal ratio (focal length ÷ aperture) and how much light you gather.',
+                'Aperture is the diameter of the telescope in mm. It sets the focal ratio (focal length ÷ aperture) and how much light you gather.',
             hint: 'e.g. 80, 102, 200',
             suffix: 'mm',
             errorText: _apertureError,
@@ -394,7 +394,7 @@ class _OnboardingOpticalTrainStepState
             controller: _pixelSizeController,
             label: 'Camera pixel size',
             help:
-                "Pixel size in microns — from your camera's datasheet; sets your image scale.",
+                "Pixel size in microns. From your camera's datasheet; sets your image scale.",
             // Not "not in the camera library": the next step's library supplies
             // this very number, and the two screens contradicting each other
             // about whether it can be looked up is what sent users to a

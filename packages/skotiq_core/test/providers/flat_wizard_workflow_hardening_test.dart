@@ -436,7 +436,7 @@ void main() {
     expect(state.isCapturing, isFalse);
   });
 
-  test('a filter-wheel move FAILURE stops the run — no flat through an unknown '
+  test('a filter-wheel move FAILURE stops the run. No flat through an unknown '
       'filter', () async {
     final backend = _WorkflowBackend(failWheelMove: true);
     addTearDown(backend.dispose);
@@ -609,7 +609,7 @@ void main() {
       [1],
       reason:
           'the move is commanded against the device, not skipped on a '
-          'stale cache — otherwise the flat is shot through the wrong filter',
+          'stale cache. Otherwise the flat is shot through the wrong filter',
     );
   });
 

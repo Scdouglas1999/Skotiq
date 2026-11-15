@@ -307,7 +307,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
     // otherwise.
     final tooltip = structurallyDisabled
         ? disabledReason
-        : (lockedByExecution ? 'Sequence is running — stop it first.' : null);
+        : (lockedByExecution ? 'Sequence is running: stop it first.' : null);
 
     final row = Row(
       children: [
@@ -662,7 +662,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
       if (sharedParent != p) {
         _showSnackBar(
             context,
-            'Selection spans multiple parents — move the selected nodes '
+            'Selection spans multiple parents. Move the selected nodes '
             'under one container before grouping.');
         return;
       }

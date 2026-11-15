@@ -53,7 +53,7 @@ SkotiqEvent get _rejectStreak => _sequencer(
   'DecisionLogged',
   data: const {
     'category': 'system_event',
-    'summary': 'Frames rejected in a row — the run continues',
+    'summary': 'Frames rejected in a row. The run continues',
     'details_json':
         '{"consecutive_rejects":3,"limit":3,"frame":7,"total":40,'
         '"reason":"eccentricity 0.83 exceeds threshold 0.80",'
@@ -109,7 +109,7 @@ void main() {
         'DecisionLogged',
         data: const {
           'category': 'system_event',
-          'summary': 'Autofocus failed — continuing with last-good focus',
+          'summary': 'Autofocus failed: continuing with last-good focus',
           'details_json': '{"source":"Autofocus","node_id":"af-1"}',
           'notice': 'autofocus_continued',
         },
@@ -175,7 +175,7 @@ void main() {
     'DecisionLogged',
     data: const {
       'category': 'system_event',
-      'summary': 'Problem noticed — the run continues',
+      'summary': 'Problem noticed: the run continues',
       'details_json':
           '{"source":"Center","problem":"Failed to center within 5.0\\" '
           'after 5 attempts on M31. The mount stays where the last correction '
@@ -220,7 +220,7 @@ void main() {
       expect(inApp.sent, hasLength(1), reason: '${inApp.sent}');
       final notice = inApp.sent.single;
       expect(notice.category, NotificationCategory.problemNoticed);
-      expect(notice.title, 'Problem noticed — the run continues');
+      expect(notice.title, 'Problem noticed: the run continues');
       expect(notice.body, contains('Center: Failed to center'));
       router.dispose();
       async.elapse(const Duration(seconds: 1));

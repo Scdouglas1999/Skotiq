@@ -150,7 +150,7 @@ class NotificationPresentation {
     // 2026-08-14). Muted by the same switch as autofocusFailed, but at the
     // ordinary tier: the run surviving is news, not an emergency.
     NotificationCategory.autofocusContinued => const NotificationPresentation(
-      title: 'Autofocus failed — continuing',
+      title: 'Autofocus failed: continuing',
       body:
           'Autofocus could not converge; the sequence continues on the '
           'restored last-good focus.',
@@ -180,7 +180,7 @@ class NotificationPresentation {
     // A quality problem the run carried on through (owner decision
     // 2026-10-06): news for the person asleep, not an alarm.
     NotificationCategory.problemNoticed => const NotificationPresentation(
-      title: 'Problem noticed — the run continues',
+      title: 'Problem noticed: the run continues',
       body: '\${problem.source}: \${problem.message}',
       eventCategory: EventCategory.sequencer,
       push: PhonePush(_normal),

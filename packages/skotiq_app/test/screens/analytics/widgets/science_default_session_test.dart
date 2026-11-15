@@ -39,9 +39,9 @@ ImagingSession _session(int id, String name, DateTime start) => ImagingSession(
 
 /// Newest first, the way the session picker beside the tab orders them.
 final _sessions = [
-  _session(5, 'Night E — M13', DateTime.utc(2026, 8, 2, 3)),
-  _session(4, 'Night D — photometry', DateTime.utc(2026, 8, 1, 3)),
-  _session(3, 'Night C — darks', DateTime.utc(2026, 7, 31, 3)),
+  _session(5, 'Night E: M13', DateTime.utc(2026, 8, 2, 3)),
+  _session(4, 'Night D: photometry', DateTime.utc(2026, 8, 1, 3)),
+  _session(3, 'Night C: darks', DateTime.utc(2026, 7, 31, 3)),
 ];
 
 ProviderContainer _container({
@@ -146,7 +146,7 @@ void main() {
     expect(
       analysed.last,
       4,
-      reason: 'session 5 is the newest session, but the default is 4 — the '
+      reason: 'session 5 is the newest session, but the default is 4. The '
           'tab has to settle on it or the operator lands on the never-started '
           'empty state again',
     );

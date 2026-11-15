@@ -361,7 +361,7 @@ class _DatabaseRecoveryLauncherState
   String _dialogNextStep(QuarantinedDatabaseCheck? check) {
     if (check != null && check.canRestore) {
       return 'The file that was set aside has just been re-checked and it is '
-          'intact — it was not corrupt. You can put it back, which replaces '
+          'intact. It was not corrupt. You can put it back, which replaces '
           'the database you are using now (that one is kept too).';
     }
     if (check != null && check.exists) {

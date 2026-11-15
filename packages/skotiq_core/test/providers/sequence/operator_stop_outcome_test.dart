@@ -157,7 +157,7 @@ void main() {
       container.read(sequenceTerminalRunResultProvider)!.runStatus,
       SequenceRunStatus.stoppedResumable,
       reason:
-          'the run is over and its verdict was the operator\'s stop — a late '
+          'the run is over and its verdict was the operator\'s stop. A late '
           'terminal for that same run must not re-open finalization and '
           'republish it as Failed (which is what raises the Critical toast and '
           'files the run as Failed in Execution History)',

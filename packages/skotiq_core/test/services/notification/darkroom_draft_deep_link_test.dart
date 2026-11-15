@@ -84,7 +84,7 @@ void main() {
 
       rig.router.routeRendered(
         category: NotificationCategory.darkroomDraftReady,
-        title: 'M31 — 3h 42m integrated',
+        title: 'M31: 3h 42m integrated',
         body: '112 frames used, 8 rejected.',
         deepLink: 'darkroom_draft:412',
       );

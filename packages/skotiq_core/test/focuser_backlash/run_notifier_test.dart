@@ -293,7 +293,7 @@ void main() {
             'The from above scan fitted R² 0.410, below the 0.900 required '
             'to locate an optimum',
         remedy:
-            'Start from rough focus and wait for steadier seeing — the '
+            'Start from rough focus and wait for steadier seeing. The '
             'samples did not trace a focus curve.',
       ),
     );

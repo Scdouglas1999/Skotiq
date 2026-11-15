@@ -337,7 +337,7 @@ void main() {
     expect(
       find.textContaining(
         'Approximate only: from your internet address (ipinfo.io). City '
-        'level — typically tens of kilometers.',
+        'level: typically tens of kilometers.',
       ),
       findsOneWidget,
     );

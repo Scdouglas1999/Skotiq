@@ -375,13 +375,13 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
   String _actionNote(TransientReportFormat fmt) {
     switch (fmt) {
       case TransientReportFormat.tns:
-        return 'Submits live to the TNS via your bot API key — creates a '
+        return 'Submits live to the TNS via your bot API key. Creates a '
             'public AT record.';
       case TransientReportFormat.aavso:
-        return 'Exports an ingestible .txt — upload it to AAVSO WebObs '
+        return 'Exports an ingestible .txt. Upload it to AAVSO WebObs '
             'manually.';
       case TransientReportFormat.mpc:
-        return 'Exports an ADES .psv — submit it via the MPC web form.';
+        return 'Exports an ADES .psv. Submit it via the MPC web form.';
     }
   }
 
@@ -441,7 +441,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     ScienceSettings settings,
   ) {
     if (!d.reviewed) {
-      return 'Not yet confirmed — mark this detection as confirmed before '
+      return 'Not yet confirmed: mark this detection as confirmed before '
           'submitting, so an artifact cannot be reported as a discovery.';
     }
     final kindBlocker = TransientKind.fromWire(d.kind).submissionBlockedReason;
@@ -456,14 +456,14 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
             '';
       case TransientReportFormat.mpc:
         if (!TransientKind.fromWire(d.kind).isPlausibleMover) {
-          return 'MPC astrometry is for moving objects — this detection is not '
+          return 'MPC astrometry is for moving objects. This detection is not '
               'a plausible mover.';
         }
         return 'Set your 3-character MPC observatory code in '
             'Settings > Science first.';
       case TransientReportFormat.tns:
         return 'TNS submission needs your bot id/name, reporting group, data '
-            'source, reporter, and api key — configure them in '
+            'source, reporter, and api key. Configure them in '
             'Settings > Science.';
     }
   }

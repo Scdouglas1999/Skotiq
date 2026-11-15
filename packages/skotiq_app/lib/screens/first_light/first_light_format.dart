@@ -9,7 +9,7 @@ import 'package:skotiq_core/errors.dart' show userFacingError;
 /// because support needs it, but it is not the whole message.
 String firstLightErrorBody(Object error) {
   return 'Skotiq could not read the candidate list. Your frames and any '
-      'detections already found are untouched — this is a read problem, not '
+      'detections already found are untouched. This is a read problem, not '
       'lost data. Retry re-runs the query.\n\n'
       'Details: ${userFacingError(error)}';
 }

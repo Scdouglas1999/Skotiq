@@ -494,7 +494,7 @@ class _EmptyDataState extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'No focus data yet — tap for autofocus settings',
+              'No focus data yet. Tap for autofocus settings',
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize12,
                   color: colors.textSecondary),

@@ -1179,11 +1179,11 @@ void main() {
         isTrue,
         reason:
             "the freshly-written master FITS on the shared path must "
-            "SURVIVE supersession — it is the live file, not an orphan",
+            "SURVIVE supersession. It is the live file, not an orphan",
       );
     });
 
-    test('after a same-path re-integration the panel can still be stitched — the '
+    test('after a same-path re-integration the panel can still be stitched. The '
         'preserved master FITS is on disk, not a dead path', () async {
       // End-to-end guard (findings #1/#3/#4): the failure class the WCS gate was
       // added to prevent is "one panel hands the native stitcher a path to a
@@ -1255,7 +1255,7 @@ void main() {
         outcome.panelCount,
         2,
         reason:
-            'both re-integrated panels must contribute — neither was '
+            'both re-integrated panels must contribute. Neither was '
             'skipped for a missing FITS',
       );
       expect(seam.stitchCalls, hasLength(1));

@@ -309,7 +309,7 @@ void main() {
     });
 
     test('NINA script triggers, plugin nodes, and dome plugins are NOT '
-        'imported (no Skotiq equivalent — audit follow-up)', () async {
+        'imported (no Skotiq equivalent: audit follow-up)', () async {
       // Pin the documented unsupported set. If a future Skotiq version
       // adds support for any of these, this test must be updated AND the
       // release notes' fidelity claim updated alongside.
@@ -498,7 +498,7 @@ void main() {
         result.unsupportedNodes,
         isEmpty,
         reason:
-            'SGP has no extensibility surface — every Event must map. If '
+            'SGP has no extensibility surface. Every Event must map. If '
             'this fails, a previously-supported SGP construct regressed.',
       );
       // M42 has 2 events (Lum, Red) -> 2 FilterChange + 2 Exposure.

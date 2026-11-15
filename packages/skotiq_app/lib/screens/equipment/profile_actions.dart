@@ -471,7 +471,7 @@ Future<void> restoreDeletedProfile(
     messenger
       ..hideCurrentSnackBar()
       ..showWarningSnackBar(
-          'Undo expired — profiles changed after the delete.');
+          'Undo expired: profiles changed after the delete.');
     return;
   }
 
@@ -479,7 +479,7 @@ Future<void> restoreDeletedProfile(
     messenger
       ..hideCurrentSnackBar()
       ..showWarningSnackBar(
-          'Undo expired — the connected imaging host changed.');
+          'Undo expired: the connected imaging host changed.');
     return;
   }
 

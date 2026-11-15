@@ -109,7 +109,7 @@ class HfrTrendCard extends StatelessWidget {
       yLabel: 'HFR (px)',
       formatY: (v) => v.toStringAsFixed(2),
       emptyMessage: rejectedWithHfr > 0
-          ? 'No accepted frames with star metrics — '
+          ? 'No accepted frames with star metrics. '
               '$rejectedWithHfr frame${rejectedWithHfr == 1 ? '' : 's'} '
               'with HFR ${rejectedWithHfr == 1 ? 'was' : 'were'} rejected.'
           : 'HFR appears once star metrics are recorded on captures.',
@@ -163,7 +163,7 @@ class UniformityTrendCard extends StatelessWidget {
       yLabel: 'CV',
       formatY: (v) => v.toStringAsFixed(3),
       emptyMessage: excluded > 0
-          ? 'No accepted frames with uniformity maps — '
+          ? 'No accepted frames with uniformity maps. '
               '$excluded frame${excluded == 1 ? '' : 's'} '
               '${excluded == 1 ? 'was' : 'were'} rejected.'
           : 'Uniformity maps appear once frame-quality processing is enabled.',

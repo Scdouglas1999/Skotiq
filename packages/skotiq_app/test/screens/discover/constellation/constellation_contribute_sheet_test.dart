@@ -216,8 +216,8 @@ void main() {
       await tester.pumpAndSettle();
       // The full non-private set is offered — both ends of the permissiveness
       // range are present.
-      expect(find.textContaining('CC0 —'), findsWidgets);
-      expect(find.textContaining('CC BY-NC —'), findsWidgets);
+      expect(find.textContaining('CC0:'), findsWidgets);
+      expect(find.textContaining('CC BY-NC:'), findsWidgets);
     },
   );
 
@@ -276,7 +276,7 @@ void main() {
 
       await tester.tap(find.byType(SkotiqDropdown));
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('CC0 —').last);
+      await tester.tap(find.textContaining('CC0:').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.textContaining(baseConsent));

@@ -14,7 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('trails geometry — reference port', () {
+  group('trails geometry: reference port', () {
     // (start, waist, end) per lane, computed by the reference's lane() and
     // printed to 10 decimals.
     const expected = <TrailsLevel, List<List<double>>>{
@@ -197,7 +197,7 @@ void main() {
     });
   });
 
-  group('TrailsMotion — reference port', () {
+  group('TrailsMotion: reference port', () {
     final spec = trailsLevels[TrailsLevel.full]!;
 
     test('draw staggers lanes 90 ms apart over 1176 ms each', () {

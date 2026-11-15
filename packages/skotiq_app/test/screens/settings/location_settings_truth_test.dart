@@ -290,7 +290,7 @@ void main() {
       expect(
         find.textContaining(
           'Approximate only: from your internet address (ipinfo.io). City '
-          'level — typically tens of kilometers.',
+          'level: typically tens of kilometers.',
         ),
         findsOneWidget,
       );
@@ -695,7 +695,7 @@ void main() {
       expect(
         candidates.any(
           (hhmm) => find
-              .textContaining('UTC+05:00 — now $hhmm')
+              .textContaining('UTC+05:00: now $hhmm')
               .evaluate()
               .isNotEmpty,
         ),

@@ -31,7 +31,7 @@ class ScienceOverlayLegend {
       label: 'Clip high',
       icon: LucideIcons.arrowUpRightSquare,
       summary:
-          'Tiles where pixels saturate. Red regions are losing highlight detail — drop exposure or gain.',
+          'Tiles where pixels saturate. Red regions are losing highlight detail. Drop exposure or gain.',
       gradientStops: ['Safe', 'Some clip', 'Saturated'],
       gradientColors: SkotiqChartColors.clipHighGradient,
     ),
@@ -39,7 +39,7 @@ class ScienceOverlayLegend {
       label: 'Clip low',
       icon: LucideIcons.arrowDownLeftSquare,
       summary:
-          'Tiles where pixels hit the noise floor. Blue regions show lost shadow signal — increase exposure.',
+          'Tiles where pixels hit the noise floor. Blue regions show lost shadow signal. Increase exposure.',
       gradientStops: ['Safe', 'Some clip', 'Floor'],
       gradientColors: SkotiqChartColors.clipLowGradient,
     ),

@@ -117,7 +117,7 @@ class _CompactStretchControls extends StatelessWidget {
       children: [
         SkotiqTooltip(
           message: rawLoading
-              ? 'Loading HQ raw — stretch will apply when ready'
+              ? 'Loading HQ raw: stretch will apply when ready'
               : 'On: the frame stretched to show faint detail. Off: linear, '
                   'as recorded.',
           position: SkotiqTooltipPosition.bottom,

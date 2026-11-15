@@ -285,7 +285,7 @@ class EquipmentHealthService {
           message:
               'Your equipment profile assigns $names but '
               '${offlineProfileDevices.length == 1 ? 'it is' : 'they are'} not '
-              'connected. Reconnect before an unattended run — the rig cannot '
+              'connected. Reconnect before an unattended run. The rig cannot '
               'use hardware it never reached.',
           severity: EquipmentHealthSeverity.critical,
         ),

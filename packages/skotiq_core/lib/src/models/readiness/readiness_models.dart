@@ -423,7 +423,7 @@ ReadinessItem _buildCriticalDevices({
       id: ReadinessItemId.criticalDevices,
       title: 'Critical devices',
       detail:
-          'Camera connected. Mount is not connected — you can capture '
+          'Camera connected. Mount is not connected. You can capture '
           'but cannot slew or track until the mount is online.',
       level: ReadinessLevel.caution,
       fixRoute: _routeEquipment,
@@ -487,7 +487,7 @@ ReadinessItem _buildProfileDevices({
         title: 'Profile devices',
         detail:
             'This profile assigns no accessories beyond the camera and '
-            'mount — nothing else to connect.',
+            'mount. Nothing else to connect.',
         level: ReadinessLevel.ready,
       );
     }

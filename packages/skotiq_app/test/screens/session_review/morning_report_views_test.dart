@@ -82,7 +82,7 @@ void main() {
     expect(tester.takeException(), isNull);
     // Verdict headline + section headers render off the seeded model.
     expect(
-      find.text('Solid night — focus drifted late, but most subs are keepers.'),
+      find.text('Solid night: focus drifted late, but most subs are keepers.'),
       findsOneWidget,
     );
     expect(find.text('How deep is deep enough?'), findsOneWidget);
