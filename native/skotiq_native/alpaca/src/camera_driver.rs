@@ -27,6 +27,10 @@ pub struct AlpacaCameraDriver {
     /// Seconds the exposure in progress or last taken was started with,
     /// for a frame whose camera does not report `LastExposureDuration`.
     commanded_seconds: Arc<Mutex<Option<f64>>>,
+    /// The binning this connection last wrote, for a camera that will not
+    /// read `BinX`/`BinY` back. `None` until one is written: a camera then
+    /// holds the binning of 1 the interface gives it at connect.
+    commanded_bin: Arc<Mutex<Option<(i32, i32)>>>,
 }
 
 impl AlpacaCameraDriver {
@@ -41,7 +45,30 @@ impl AlpacaCameraDriver {
             camera: Arc::new(camera),
             id,
             commanded_seconds: Arc::default(),
+            commanded_bin: Arc::default(),
         }
+    }
+
+    /// One axis of the binning in force: the camera's report, else the
+    /// binning this connection last wrote, else the 1 a camera connects at.
+    fn bin_or_commanded(
+        &self,
+        what: &str,
+        reported: Result<i32, AlpacaError>,
+        axis: fn((i32, i32)) -> i32,
+    ) -> i32 {
+        reported.unwrap_or_else(|error| {
+            let commanded = *self.commanded_bin.lock().unwrap_or_else(|e| e.into_inner());
+            tracing::warn!(
+                "Alpaca camera {} did not report {what}: {error}. Using the binning last written.",
+                self.id
+            );
+            commanded.map_or(1, axis)
+        })
+    }
+
+    fn remember_bin(&self, bin: (i32, i32)) {
+        *self.commanded_bin.lock().unwrap_or_else(|e| e.into_inner()) = Some(bin);
     }
 
     pub fn camera(&self) -> &AlpacaCamera {
@@ -85,6 +112,24 @@ impl AlpacaCameraDriver {
 impl std::fmt::Debug for AlpacaCameraDriver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("AlpacaCameraDriver").field(&self.id).finish()
+    }
+}
+
+/// The value of a setting for a status or a frame: unknown when the camera
+/// has the control and would not read it. An absent control has no value;
+/// `can_set_gain` and `can_set_offset` hide it.
+fn read_setting(
+    what: &str,
+    read: Result<i32, AlpacaError>,
+    control: &skotiq_device::ascom::camera::CameraControl,
+) -> i32 {
+    match read {
+        Ok(wire) => control.from_wire(wire),
+        Err(error) if control.is_present() => {
+            tracing::debug!("Alpaca camera did not report its {what}: {error}");
+            UNKNOWN_CAMERA_SETTING
+        }
+        Err(_) => 0,
     }
 }
 
@@ -177,22 +222,10 @@ impl CameraDriver for AlpacaCameraDriver {
                 None
             }
         });
-        let gain = match gain {
-            Ok(wire) => controls.gain.from_wire(wire),
-            Err(error) if controls.gain.is_present() => {
-                return Err(failed("read Alpaca camera gain", error));
-            }
-            // The shared status has required integers; an absent control is
-            // hidden by can_set_gain rather than presented as a measurement.
-            Err(_) => 0,
-        };
-        let offset = match offset {
-            Ok(wire) => controls.offset.from_wire(wire),
-            Err(error) if controls.offset.is_present() => {
-                return Err(failed("read Alpaca camera offset", error));
-            }
-            Err(_) => 0,
-        };
+        // A setting the camera has but would not read is unknown, not a
+        // failed status: three failed statuses mark the camera lost.
+        let gain = read_setting("gain", gain, &controls.gain);
+        let offset = read_setting("offset", offset, &controls.offset);
         Ok(CameraReport {
             status: CameraStatus {
                 state: match status.state {
@@ -209,8 +242,8 @@ impl CameraDriver for AlpacaCameraDriver {
                 cooler_on: status.cooler_on,
                 gain,
                 offset,
-                bin_x: status.bin_x,
-                bin_y: status.bin_y,
+                bin_x: self.bin_or_commanded("BinX", status.bin_x, |bin| bin.0),
+                bin_y: self.bin_or_commanded("BinY", status.bin_y, |bin| bin.1),
                 exposure_remaining: None,
             },
             sensor,
@@ -297,6 +330,7 @@ impl CameraDriver for AlpacaCameraDriver {
             .set_bin_y(bin.1)
             .await
             .map_err(|e| failed("set BinY", e))?;
+        self.remember_bin(bin);
         camera
             .set_start_x(frame.start_x)
             .await
@@ -390,14 +424,8 @@ impl CameraDriver for AlpacaCameraDriver {
                 UNKNOWN_CAMERA_SETTING
             }
         };
-        let bin_x = camera.bin_x().await.unwrap_or_else(|e| {
-            tracing::warn!("Failed to read camera bin_x for {id}: {e}. Using default 1.");
-            1
-        });
-        let bin_y = camera.bin_y().await.unwrap_or_else(|e| {
-            tracing::warn!("Failed to read camera bin_y for {id}: {e}. Using default 1.");
-            1
-        });
+        let bin_x = self.bin_or_commanded("BinX", camera.bin_x().await, |bin| bin.0);
+        let bin_y = self.bin_or_commanded("BinY", camera.bin_y().await, |bin| bin.1);
         let temperature = camera.ccd_temperature().await.ok();
         let commanded = *self
             .commanded_seconds
@@ -518,7 +546,9 @@ impl CameraDriver for AlpacaCameraDriver {
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         self.camera.set_bin_x(bin_x).await.map_err(own)?;
-        self.camera.set_bin_y(bin_y).await.map_err(own)
+        self.camera.set_bin_y(bin_y).await.map_err(own)?;
+        self.remember_bin((bin_x, bin_y));
+        Ok(())
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {

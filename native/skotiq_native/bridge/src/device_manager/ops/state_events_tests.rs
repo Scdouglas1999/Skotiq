@@ -352,7 +352,7 @@ async fn camera_settings_publish_once_per_change() {
         .unwrap();
 
     // One event per change, each carrying the camera's full settings.
-    let settings: Vec<(i32, i32, i32, i32)> = drain(&mut rx)
+    let settings: Vec<(Option<i32>, Option<i32>, i32, i32)> = drain(&mut rx)
         .into_iter()
         .filter_map(|e| match e {
             EquipmentEvent::CameraSettingsChanged {
@@ -367,9 +367,9 @@ async fn camera_settings_publish_once_per_change() {
         })
         .collect();
     assert_eq!(settings.len(), 3, "{settings:?}");
-    assert_eq!(settings[0].0, 139);
-    assert_eq!(settings[1].0, 140);
-    assert_eq!((settings[2].0, settings[2].1), (140, 21));
+    assert_eq!(settings[0].0, Some(139));
+    assert_eq!(settings[1].0, Some(140));
+    assert_eq!((settings[2].0, settings[2].1), (Some(140), Some(21)));
 }
 
 /// A setting the camera refuses changes nothing, so it publishes nothing.

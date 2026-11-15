@@ -435,9 +435,9 @@ EquipmentEvent? _decodeEquipmentEvent(
     case 'CameraSettingsChanged':
       return EquipmentEvent.cameraSettingsChanged(
         deviceId: wireString(d, 'device_id'),
-        gain: wireInt(d, 'gain'),
+        gain: wireOptInt(d, 'gain'),
         gainIsIso: wireBool(d, 'gain_is_iso'),
-        offset: wireInt(d, 'offset'),
+        offset: wireOptInt(d, 'offset'),
         binX: wireInt(d, 'bin_x'),
         binY: wireInt(d, 'bin_y'),
       );

@@ -4106,8 +4106,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.cooler_power = cst_encode_opt_box_autoadd_f_64(apiObj.coolerPower);
     wireObj.target_temp = cst_encode_opt_box_autoadd_f_64(apiObj.targetTemp);
     wireObj.cooler_on = cst_encode_opt_box_autoadd_bool(apiObj.coolerOn);
-    wireObj.gain = cst_encode_i_32(apiObj.gain);
-    wireObj.offset = cst_encode_i_32(apiObj.offset);
+    wireObj.gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
+    wireObj.offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
     wireObj.bin_x = cst_encode_i_32(apiObj.binX);
     wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.sensor_width = cst_encode_u_32(apiObj.sensorWidth);
@@ -4639,9 +4639,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is EquipmentEvent_CameraSettingsChanged) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_gain = cst_encode_i_32(apiObj.gain);
+      var pre_gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
       var pre_gain_is_iso = cst_encode_bool(apiObj.gainIsIso);
-      var pre_offset = cst_encode_i_32(apiObj.offset);
+      var pre_offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
       var pre_bin_x = cst_encode_i_32(apiObj.binX);
       var pre_bin_y = cst_encode_i_32(apiObj.binY);
       wireObj.tag = 23;
@@ -18685,14 +18685,12 @@ final class wire_cst_EquipmentEvent_CameraTemperatureChanged
 final class wire_cst_EquipmentEvent_CameraSettingsChanged extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
 
-  @ffi.Int32()
-  external int gain;
+  external ffi.Pointer<ffi.Int32> gain;
 
   @ffi.Bool()
   external bool gain_is_iso;
 
-  @ffi.Int32()
-  external int offset;
+  external ffi.Pointer<ffi.Int32> offset;
 
   @ffi.Int32()
   external int bin_x;
@@ -20784,11 +20782,9 @@ final class wire_cst_camera_status extends ffi.Struct {
 
   external ffi.Pointer<ffi.Bool> cooler_on;
 
-  @ffi.Int32()
-  external int gain;
+  external ffi.Pointer<ffi.Int32> gain;
 
-  @ffi.Int32()
-  external int offset;
+  external ffi.Pointer<ffi.Int32> offset;
 
   @ffi.Int32()
   external int bin_x;

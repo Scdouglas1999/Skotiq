@@ -672,9 +672,9 @@ typedef struct wire_cst_EquipmentEvent_CameraTemperatureChanged {
 
 typedef struct wire_cst_EquipmentEvent_CameraSettingsChanged {
   struct wire_cst_list_prim_u_8_strict *device_id;
-  int32_t gain;
+  int32_t *gain;
   bool gain_is_iso;
-  int32_t offset;
+  int32_t *offset;
   int32_t bin_x;
   int32_t bin_y;
 } wire_cst_EquipmentEvent_CameraSettingsChanged;
@@ -1858,8 +1858,8 @@ typedef struct wire_cst_camera_status {
   double *cooler_power;
   double *target_temp;
   bool *cooler_on;
-  int32_t gain;
-  int32_t offset;
+  int32_t *gain;
+  int32_t *offset;
   int32_t bin_x;
   int32_t bin_y;
   uint32_t sensor_width;

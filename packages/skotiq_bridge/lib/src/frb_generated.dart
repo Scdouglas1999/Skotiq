@@ -11392,8 +11392,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       coolerPower: dco_decode_opt_box_autoadd_f_64(arr[3]),
       targetTemp: dco_decode_opt_box_autoadd_f_64(arr[4]),
       coolerOn: dco_decode_opt_box_autoadd_bool(arr[5]),
-      gain: dco_decode_i_32(arr[6]),
-      offset: dco_decode_i_32(arr[7]),
+      gain: dco_decode_opt_box_autoadd_i_32(arr[6]),
+      offset: dco_decode_opt_box_autoadd_i_32(arr[7]),
       binX: dco_decode_i_32(arr[8]),
       binY: dco_decode_i_32(arr[9]),
       sensorWidth: dco_decode_u_32(arr[10]),
@@ -11815,9 +11815,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 23:
         return EquipmentEvent_CameraSettingsChanged(
           deviceId: dco_decode_String(raw[1]),
-          gain: dco_decode_i_32(raw[2]),
+          gain: dco_decode_opt_box_autoadd_i_32(raw[2]),
           gainIsIso: dco_decode_bool(raw[3]),
-          offset: dco_decode_i_32(raw[4]),
+          offset: dco_decode_opt_box_autoadd_i_32(raw[4]),
           binX: dco_decode_i_32(raw[5]),
           binY: dco_decode_i_32(raw[6]),
         );
@@ -15541,8 +15541,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_coolerPower = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_targetTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_coolerOn = sse_decode_opt_box_autoadd_bool(deserializer);
-    var var_gain = sse_decode_i_32(deserializer);
-    var var_offset = sse_decode_i_32(deserializer);
+    var var_gain = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_offset = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_binX = sse_decode_i_32(deserializer);
     var var_binY = sse_decode_i_32(deserializer);
     var var_sensorWidth = sse_decode_u_32(deserializer);
@@ -16124,9 +16124,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 23:
         var var_deviceId = sse_decode_String(deserializer);
-        var var_gain = sse_decode_i_32(deserializer);
+        var var_gain = sse_decode_opt_box_autoadd_i_32(deserializer);
         var var_gainIsIso = sse_decode_bool(deserializer);
-        var var_offset = sse_decode_i_32(deserializer);
+        var var_offset = sse_decode_opt_box_autoadd_i_32(deserializer);
         var var_binX = sse_decode_i_32(deserializer);
         var var_binY = sse_decode_i_32(deserializer);
         return EquipmentEvent_CameraSettingsChanged(
@@ -20913,8 +20913,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_64(self.coolerPower, serializer);
     sse_encode_opt_box_autoadd_f_64(self.targetTemp, serializer);
     sse_encode_opt_box_autoadd_bool(self.coolerOn, serializer);
-    sse_encode_i_32(self.gain, serializer);
-    sse_encode_i_32(self.offset, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.gain, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.offset, serializer);
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_u_32(self.sensorWidth, serializer);
@@ -21378,9 +21378,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ):
         sse_encode_i_32(23, serializer);
         sse_encode_String(deviceId, serializer);
-        sse_encode_i_32(gain, serializer);
+        sse_encode_opt_box_autoadd_i_32(gain, serializer);
         sse_encode_bool(gainIsIso, serializer);
-        sse_encode_i_32(offset, serializer);
+        sse_encode_opt_box_autoadd_i_32(offset, serializer);
         sse_encode_i_32(binX, serializer);
         sse_encode_i_32(binY, serializer);
       case EquipmentEvent_HeartbeatStarted(

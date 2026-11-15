@@ -2691,7 +2691,7 @@
 > GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(CameraStatus { state: Exposing, connected: true, image_ready: true, percent_completed: Some(50), ccd_temperature: Some(-10.5), cooler_on: Some(true), cooler_power: Some(42.5), bin_x: 2, bin_y: 1 })
+= Ok(CameraStatus { state: Exposing, connected: true, image_ready: true, percent_completed: Some(50), ccd_temperature: Some(-10.5), cooler_on: Some(true), cooler_power: Some(42.5), bin_x: Ok(2), bin_y: Ok(1) })
 
 ## camera.get_status [ascom 0x400]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]

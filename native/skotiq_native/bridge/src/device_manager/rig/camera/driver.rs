@@ -12,6 +12,7 @@ use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
+use crate::device_manager::ops::camera::camera_setting_or_unknown;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -276,8 +277,8 @@ impl Camera for DriverCamera {
             cooler_power: status.cooler_power,
             target_temp: status.target_temp,
             cooler_on: status.cooler_on,
-            gain: status.gain,
-            offset: status.offset,
+            gain: camera_setting_or_unknown(status.gain),
+            offset: camera_setting_or_unknown(status.offset),
             bin_x: status.bin_x,
             bin_y: status.bin_y,
             sensor_width: sensor.width,

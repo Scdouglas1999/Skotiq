@@ -43,15 +43,19 @@ class CameraStateNotifier extends DeviceSlotNotifier<CameraStateSnapshot> {
   }
 
   /// Record the gain, offset and binning the camera reports it is using.
+  /// A null [gain] or [offset] is a value the camera would not report: it is
+  /// shown as unknown, not as the last value read.
   void updateReadout({
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
   }) {
     state = state.copyWith(
       gain: gain,
+      clearGain: gain == null,
       offset: offset,
+      clearOffset: offset == null,
       binning: '${binX}x$binY',
     );
   }
