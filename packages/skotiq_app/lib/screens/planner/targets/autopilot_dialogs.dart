@@ -26,11 +26,43 @@ class _WhyDialogState extends State<_WhyDialog> {
     final colors = SkotiqColors.of(context);
     final decision = widget.view.decision;
     final blockers = widget.view.readiness?.blockers ?? const [];
-    final scored = decision?.scoredCandidates ?? const <TargetScore>[];
     final rejected = {
       for (final r in decision?.rejected ?? const <RejectedCandidate>[])
         r.targetId: r,
     };
+    final scoredIds = {
+      for (final s in decision?.scoredCandidates ?? const <TargetScore>[])
+        s.targetId,
+    };
+    final weighed = <_Weighed>[
+      for (final s in decision?.scoredCandidates ?? const <TargetScore>[])
+        _Weighed(
+          targetId: s.targetId,
+          name: s.targetName,
+          score: s.hardConstraintFailed ? null : s.totalScore,
+          reason: s.targetId == decision?.chosenTargetId
+              ? 'Chosen'
+              : rejected[s.targetId]?.primaryReason ??
+                  (s.hardConstraintFailed
+                      ? s.rejectionReasons.firstOrNull ?? 'Ruled out'
+                      : 'Could be imaged'),
+          failures: rejected[s.targetId]?.hardConstraintFailures ??
+              s.rejectionReasons,
+          factors: s.factors.isNotEmpty
+              ? s.factors
+              : rejected[s.targetId]?.factors ?? const [],
+        ),
+      for (final r in rejected.values)
+        if (!scoredIds.contains(r.targetId))
+          _Weighed(
+            targetId: r.targetId,
+            name: r.targetName,
+            score: r.hardConstraintFailures.isEmpty ? r.score : null,
+            reason: r.primaryReason,
+            failures: r.hardConstraintFailures,
+            factors: r.factors,
+          ),
+    ];
     final eyebrow = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
     final muted = SkotiqTypography.bodySm.copyWith(color: colors.textSecondary);
 
@@ -75,20 +107,18 @@ class _WhyDialogState extends State<_WhyDialog> {
               style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
             ),
           ],
-          if (scored.isNotEmpty) ...[
+          if (weighed.isNotEmpty) ...[
             const SizedBox(height: SkotiqTokens.spaceLg),
             Text('TARGETS IT WEIGHED', style: eyebrow),
             const SizedBox(height: SkotiqTokens.spaceXs),
-            for (var i = 0; i < scored.length; i++)
+            for (var i = 0; i < weighed.length; i++)
               _ScoredTarget(
-                key: ValueKey('why-target-${scored[i].targetId}'),
-                score: scored[i],
-                rejection: rejected[scored[i].targetId],
-                chosen: scored[i].targetId == decision?.chosenTargetId,
-                open: _open.contains(scored[i].targetId),
-                showDivider: i < scored.length - 1,
+                key: ValueKey('why-target-${weighed[i].targetId}'),
+                target: weighed[i],
+                open: _open.contains(weighed[i].targetId),
+                showDivider: i < weighed.length - 1,
                 onToggle: () => setState(() {
-                  final id = scored[i].targetId;
+                  final id = weighed[i].targetId;
                   if (!_open.remove(id)) _open.add(id);
                 }),
               ),
@@ -99,20 +129,37 @@ class _WhyDialogState extends State<_WhyDialog> {
   }
 }
 
+/// One target the autopilot weighed: its score (none when it was ruled
+/// out), the short reason, and what the reason rests on.
+@immutable
+class _Weighed {
+  const _Weighed({
+    required this.targetId,
+    required this.name,
+    required this.score,
+    required this.reason,
+    required this.failures,
+    required this.factors,
+  });
+
+  final int targetId;
+  final String name;
+  final double? score;
+  final String reason;
+  final List<String> failures;
+  final List<ScoreFactor> factors;
+}
+
 class _ScoredTarget extends StatelessWidget {
   const _ScoredTarget({
     super.key,
-    required this.score,
-    required this.rejection,
-    required this.chosen,
+    required this.target,
     required this.open,
     required this.showDivider,
     required this.onToggle,
   });
 
-  final TargetScore score;
-  final RejectedCandidate? rejection;
-  final bool chosen;
+  final _Weighed target;
   final bool open;
   final bool showDivider;
   final VoidCallback onToggle;
@@ -120,13 +167,6 @@ class _ScoredTarget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final ruledOut = score.hardConstraintFailed;
-    final reason = chosen
-        ? 'Chosen'
-        : ruledOut
-            ? (score.rejectionReasons.firstOrNull ?? 'Ruled out')
-            : rejection?.primaryReason ?? 'Could be imaged';
-    final failures = rejection?.hardConstraintFailures ?? score.rejectionReasons;
     final mono = SkotiqTypography.monoCaption.copyWith(
       color: colors.textSecondary,
     );
@@ -135,10 +175,9 @@ class _ScoredTarget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         ListRow(
-          title: score.targetName,
-          subtitle: reason,
-          // A ruled-out target has no meaningful score.
-          trailing: ruledOut ? null : score.totalScore.toStringAsFixed(1),
+          title: target.name,
+          subtitle: target.reason,
+          trailing: target.score?.toStringAsFixed(1),
           showDivider: showDivider && !open,
           onTap: onToggle,
         ),
@@ -153,13 +192,13 @@ class _ScoredTarget extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final failure in failures)
+                for (final failure in target.failures)
                   Text(
                     failure,
                     style: SkotiqTypography.bodySm
                         .copyWith(color: colors.textSecondary),
                   ),
-                for (final f in score.factors)
+                for (final f in target.factors)
                   Text(
                     '${f.name.padRight(16)} ${f.value.toStringAsFixed(2)}'
                     ' × ${f.weight.toStringAsFixed(1)}'
@@ -178,7 +217,7 @@ class _ScoredTarget extends StatelessWidget {
 /// The autopilot's scoring weights and switching rules.
 void _showAutopilotSettings(
   BuildContext context, {
-  required SchedulerConfig config,
+  required ValueListenable<SchedulerConfig> config,
   required ValueChanged<SchedulerConfig> onChanged,
 }) {
   showDialog<void>(
@@ -190,7 +229,7 @@ void _showAutopilotSettings(
 class _AutopilotSettingsDialog extends ConsumerStatefulWidget {
   const _AutopilotSettingsDialog({required this.config, required this.onChanged});
 
-  final SchedulerConfig config;
+  final ValueListenable<SchedulerConfig> config;
   final ValueChanged<SchedulerConfig> onChanged;
 
   @override
@@ -200,15 +239,15 @@ class _AutopilotSettingsDialog extends ConsumerStatefulWidget {
 
 class _AutopilotSettingsDialogState
     extends ConsumerState<_AutopilotSettingsDialog> {
-  late SchedulerConfig _config = widget.config;
-
-  void _set(SchedulerConfig config) {
-    setState(() => _config = config);
-    widget.onChanged(config);
-  }
+  void _set(SchedulerConfig config) => widget.onChanged(config);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder(
+        valueListenable: widget.config,
+        builder: (context, config, _) => _body(context, config),
+      );
+
+  Widget _body(BuildContext context, SchedulerConfig _config) {
     final colors = SkotiqColors.of(context);
     final w = _config.weights;
     final eyebrow = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);

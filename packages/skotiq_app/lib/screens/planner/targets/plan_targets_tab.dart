@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -113,6 +114,10 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
   SchedulerConfig? _requestedConfig;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
+  /// The settings in force as the tab shows them, for the settings dialog,
+  /// which stays open across saves and host changes.
+  final _shownConfig = ValueNotifier<SchedulerConfig>(SchedulerConfig.defaults);
+
   @override
   void initState() {
     super.initState();
@@ -193,6 +198,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     WidgetsBinding.instance.removeObserver(this);
     _backendSubscription?.close();
     _remotePoll?.cancel();
+    _shownConfig.dispose();
     super.dispose();
   }
 
@@ -379,8 +385,11 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     if (ref.read(activeProjectIdProvider) == id) return;
     try {
       await ref.read(activeProjectIdProvider.notifier).setActiveProject(id);
-    } catch (_) {
-      if (mounted) context.showErrorSnackBar('Could not save the group choice.');
+    } catch (error) {
+      if (!mounted) return;
+      context.showErrorSnackBar(
+        'Could not save the group choice: ${userFacingError(error)}',
+      );
     }
   }
 
@@ -396,11 +405,11 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
       await edit(ref.read(projectServiceProvider));
       ref.invalidate(groupMembersProvider);
       return true;
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         context.showErrorSnackBar(
           ref.scopeOver<Object>(backendProvider, backend).isCurrent
-              ? failure
+              ? '$failure ${userFacingError(error)}'
               : 'The imaging host changed. Try again.',
         );
       }
@@ -593,6 +602,13 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     if (_requestedConfig == null && autopilot.config != null) {
       _confirmedConfig = autopilot.config;
     }
+    final shownConfig = _requestedConfig ?? autopilot.config ?? _baseConfig;
+    if (shownConfig != _shownConfig.value) {
+      // The dialog listening to this is outside this build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _shownConfig.value = shownConfig;
+      });
+    }
     final targetsAsync = ref.watch(planTargetsProvider);
     final groups = ref.watch(projectListProvider).valueOrNull ?? const [];
     final activeId = ref.watch(activeProjectIdProvider);
@@ -635,7 +651,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           onWhy: () => _showWhy(context, autopilot),
           onSettings: () => _showAutopilotSettings(
             context,
-            config: _requestedConfig ?? autopilot.config ?? _baseConfig,
+            config: _shownConfig,
             onChanged: _applyConfig,
           ),
         );
@@ -767,14 +783,11 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     return SkotiqBanner(
       key: const ValueKey('autopilot-start-blocked-banner'),
       tone: BannerTone.warning,
-      title: first == null
-          ? 'Cannot run unattended yet'
-          : 'Cannot run unattended: ${_lowerFirst(first.title)}',
+      title: 'Cannot run unattended yet',
       message: first == null
           ? 'The imaging host did not report whether the rig is ready.'
-          : more > 0
-              ? '${first.detail} $more more under Why.'
-              : first.detail,
+          : '${first.title}. ${first.detail}'
+              '${more > 0 ? ' $more more under Why.' : ''}',
       action: fix == null
           ? null
           : SkotiqButton(
@@ -800,9 +813,6 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
       SchedulerReadinessIssueId.weather => ('Open Weather', AppRoute.weather.path),
       _ => null,
     };
-
-String _lowerFirst(String s) =>
-    s.isEmpty ? s : s[0].toLowerCase() + s.substring(1);
 
 /// Hours the way the Darkroom and Analytics print them.
 String _hours(double seconds) => DurationFormat.decimalHours(seconds);
