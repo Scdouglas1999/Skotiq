@@ -305,7 +305,9 @@ class TonightTab extends ConsumerWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'Usable hours above 30\u00b0 in darkness, and when each peaks',
+            'Usable hours above '
+            '${ref.watch(planetariumAltitudeFloorProvider).phrase} in '
+            'darkness, and when each peaks',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textMuted,
@@ -360,7 +362,9 @@ class TonightTab extends ConsumerWidget {
                             size: 32, color: colors.textMuted),
                         const SizedBox(height: 8),
                         Text(
-                          'Nothing clears 30\u00b0 during tonight\u2019s darkness',
+                          'Nothing clears '
+                          '${ref.watch(planetariumAltitudeFloorProvider).phrase} '
+                          'during tonight\u2019s darkness',
                           style: TextStyle(
                             fontSize: SkotiqTypography.fontSize12,
                             color: colors.textMuted,

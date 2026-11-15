@@ -186,11 +186,9 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     }
 
     // The label says what the times are measured against.
-    final headerLabel = !floor.isFlat
-        ? 'Rise / Transit / Set (above your horizon)'
-        : floor.at(0) > 0
-        ? 'Rise / Transit / Set (≥${floor.at(0).toStringAsFixed(0)}°)'
-        : 'Rise / Transit / Set';
+    final headerLabel = floor.isFlat && floor.at(0) <= 0
+        ? 'Rise / Transit / Set'
+        : 'Rise / Transit / Set (above ${floor.phrase})';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

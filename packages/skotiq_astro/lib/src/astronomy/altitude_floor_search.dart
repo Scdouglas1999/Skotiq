@@ -25,6 +25,13 @@ class AltitudeFloorSamples {
   /// Whether the floor is the same in every direction.
   bool get isFlat => _flatAltitude != null;
 
+  /// What a target must be above, in a few words for a label: "30°" for a
+  /// floor that is the same all round, "your horizon" for one that is not.
+  String get phrase {
+    final flat = _flatAltitude;
+    return flat == null ? 'your horizon' : '${flat.round()}\u00b0';
+  }
+
   /// The floor in degrees toward [azimuthDeg].
   double at(double azimuthDeg) {
     final flat = _flatAltitude;

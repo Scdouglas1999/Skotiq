@@ -148,10 +148,6 @@ async fn run_target_body(
     // seconds using `ctx.clock.now_utc()` so MockClock-driven tests can
     // advance time deterministically.
     if let Some(start) = &start_when {
-        if stays_below_floor_until_dawn(config, context, start) {
-            emit_below_floor_skipped_at_entry(context, node.id(), &display_name);
-            return NodeStatus::Skipped;
-        }
         match wait_for_trigger(config, context, node.id(), start, poll_interval).await {
             NodeStatus::Success => {}
             other => return other,
@@ -682,9 +678,10 @@ fn stays_below_floor_until_dawn(
 pub const TARGET_BELOW_FLOOR_TRIGGER_ID: &str = "target_below_floor";
 
 /// The target stays below the site's altitude floor until dawn, so it is
-/// skipped. Published as [`emit_end_when_skipped_at_entry`] publishes its
-/// skip: a trigger that fired, on the run record and on the node.
-fn emit_below_floor_skipped_at_entry(
+/// skipped instead of waited for. Published as
+/// [`emit_end_when_skipped_at_entry`] publishes its skip: a trigger that
+/// fired, on the run record and on the node.
+fn emit_below_floor_skipped(
     context: &ExecutionContext,
     node_id: &crate::NodeId,
     display_name: &str,
@@ -790,6 +787,12 @@ async fn wait_for_trigger(
         if trigger.is_satisfied(&trig_ctx) {
             tracing::info!("start_when fired for {} ({})", target_label, label);
             return NodeStatus::Success;
+        }
+        // Checked at every poll, not only on arrival: a target can drop
+        // below the floor while it waits for its start time.
+        if stays_below_floor_until_dawn(config, context, trigger) {
+            emit_below_floor_skipped(context, node_id, &target_label);
+            return NodeStatus::Skipped;
         }
 
         if !emitted_initial {
@@ -2278,6 +2281,31 @@ mod site_floor_tests {
                 && message.ends_with("the floor in that direction is 40°"),
             "{message}"
         );
+    }
+
+    /// A target above the floor now, with a start time after it has set for
+    /// the night, is skipped when it sets instead of waited for until dawn.
+    #[tokio::test]
+    async fn a_target_that_sets_while_it_waits_for_its_start_time_is_skipped() {
+        let clock = MockClock::at(NIGHT);
+        let ctx = context(Some(AltitudeFloor::flat(30.0)), clock.clone());
+        let mut config = western();
+        // Three hours from now the western target is long below 30 degrees.
+        config.start_after = Some(clock.now_utc().timestamp() + 3 * 3600);
+        let start = start_when_with_site_floor(&config, &ctx).unwrap();
+        assert!(satisfied(&western(), &ctx), "it is above the floor now");
+        assert!(!stays_below_floor_until_dawn(&config, &ctx, &start));
+
+        let advancer = {
+            let clock = clock.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                clock.advance(std::time::Duration::from_secs(2 * 3600));
+            })
+        };
+        let status = wait_for_trigger(&config, &ctx, &"west".to_string(), &start, 1).await;
+        advancer.await.unwrap();
+        assert_eq!(status, NodeStatus::Skipped);
     }
 
     #[tokio::test]
