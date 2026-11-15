@@ -145,7 +145,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navSequencerShort': 'Sequencer',
     'navGuidingShort': 'Guiding',
     'navMore': 'More',
-    'navSessionReplay': 'Session replay',
     'save': 'Save',
     'searchForServer': 'Search for Server',
     'settingsAbout': 'About',
@@ -190,7 +189,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsCurrentSession': 'Current Session',
     'analyticsDiagnostics': 'Diagnostics',
     'analyticsDuration': 'Duration',
-    'analyticsEditGoal': 'Edit Goal',
     'analyticsAcceptedLights': 'Accepted',
     'analyticsExposureCountsLightOnly':
         'Exposure counts are light frames only. "Total exposures" is what the '
@@ -209,23 +207,16 @@ final Map<String, Map<String, String>> _localizedValues = {
     // cannot be read as disagreeing versions of one count.
     'analyticsFrameMix': '{light} light \u00B7 {calibration} calibration',
     'analyticsHistory': 'History',
-    'analyticsImages': 'Images ({count})',
     'analyticsIntegration': 'Integration',
     'analyticsNoActiveSession': 'No Active Session',
-    'analyticsNoSessionHistory': 'No session history',
-    'analyticsNoSessionHistoryDesc':
-        'Complete an imaging session to see history here',
     'analyticsNoSessionInProgress': 'No session in progress',
     'analyticsQuickCapture': 'Quick Capture',
     'analyticsQuickCaptureSubtitle':
         'Standalone snapshots taken outside sequences',
     'analyticsScience': 'Science',
-    'analyticsSearchSessions': 'Search sessions...',
     'analyticsSession': 'Session',
     'analyticsSessionInProgress': 'Session in progress',
-    'analyticsSetGoal': 'Set Goal',
     'analyticsStarted': 'Started: {time}',
-    'analyticsStatistics': 'Statistics',
     'analyticsTotalExposures': 'Total exposures',
     'analyticsUnnamedSession': 'Unnamed Session',
     'weatherSafetyActions': 'Safety Actions',
@@ -325,16 +316,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessActiveViewers': 'Active viewers',
     'remoteAccessLastError': 'Last error',
     'remoteAccessNoErrors': 'None',
-    'remoteAccessPairTitle': 'Pair remote browsers',
-    'remoteAccessPairDesc':
-        'Generate a short-lived pairing code and review paired devices.',
-    'remoteAccessManagePairing': 'Manage Pairing',
-    'remoteAccessQrTitle': 'Pair phones and tablets',
-    'remoteAccessQrBody':
-        'Scan this QR code from the Skotiq mobile app. Verify the fingerprint on both screens before connecting.',
     'remoteAccessFingerprint': 'Fingerprint',
-    'remoteAccessQrStartHint':
-        'Start pairing mode to show a QR code and pairing phrase on this screen.',
     'remoteAccessQrNoLanIp':
         'Could not detect a LAN IP for this PC. QR pairing needs your Wi‑Fi address (e.g. 192.168.x.x). Check network settings, then restart remote access.',
     'remoteAccessCopiedUrl': 'Copied {url} to clipboard',
@@ -360,17 +342,12 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessHostActiveBody':
         'This device is connected through the imaging host\'s remote-access server. The settings above apply to the host; its web dashboard is reachable at the same address this app uses.',
     'remoteAccessDetailsTitle': 'Connection details',
-    'remoteAccessDetailsBody':
-        'Open this section when you need viewer counts, authentication state, or the last runtime error.',
     'remoteAccessOpenLocal': 'Open',
     'remoteAccessCopyLink': 'Copy link',
     'remoteAccessCopyLan': 'Copy link',
     'remoteAccessOpenLink': 'Open',
     'remoteAccessOpenFailed':
         'Skotiq could not open the link, so it copied it instead.',
-    'pairingTitle': 'Pairing',
-    'pairingContext': 'Remote connection',
-    'pairingNewDeviceTitle': 'Pair new device',
     'pairingStartDesc':
         'Shows a code that works for 5 minutes. A phone scans its QR code; a browser asks for the code.',
     'pairingStartButton': 'Start pairing',
@@ -408,7 +385,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingDeleteTitle': 'Delete device',
     'pairingDeleteBody':
         'Are you sure you want to permanently delete "{name}"? This action cannot be undone.',
-    'pairingDismissError': 'Dismiss',
     'pairingErrorStart': 'Skotiq could not start pairing mode. Try again.',
     'pairingErrorCancel':
         'Skotiq could not cancel pairing. The code is still active; try again.',
@@ -424,10 +400,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerPlanFailedBody':
         'Skotiq could not generate tonight\'s plan. Try again or review your observing settings and saved targets.',
     'plannerOpenPlanetarium': 'Open Planetarium',
-    'diagnosticsTitle': 'Optical train diagnostics',
-    'diagnosticsLoadSessionsFailed': 'Could not load sessions',
-    'diagnosticsNoSessions': 'No sessions available',
-    'diagnosticsSelectSession': 'Select session',
     'diagnosticsNoSessionTitle': 'Select an imaging session to analyze',
     'diagnosticsNoSessionBody':
         'Optical diagnostics require plate-solved frames with PSF and residual data.',
@@ -602,7 +574,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
     // rules require sentence case, so this replaces 'Equipment Stats' at the
     // call site. The old key stays; other surfaces still read it.
-    'analyticsEquipmentTab': 'Equipment',
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
     'analyticsLive': 'Live',
@@ -1792,7 +1763,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navSequencerShort': 'Secuencia',
     'navGuidingShort': 'Guiado',
     'navMore': 'Mas',
-    'navSessionReplay': 'Repetici\u00F3n de sesi\u00F3n',
     'save': 'Guardar',
     'searchForServer': 'Buscar servidor',
     'settingsAbout': 'Acerca de',
@@ -1834,7 +1804,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsCurrentSession': 'Sesi\u00F3n actual',
     'analyticsDiagnostics': 'Diagn\u00F3stico',
     'analyticsDuration': 'Duraci\u00F3n',
-    'analyticsEditGoal': 'Editar meta',
     'analyticsAcceptedLights': 'Aceptadas',
     'analyticsExposureCountsLightOnly':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
@@ -1854,23 +1823,16 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsFrameMix':
         '{light} de luz \u00B7 {calibration} de calibraci\u00F3n',
     'analyticsHistory': 'Historial',
-    'analyticsImages': 'Im\u00E1genes ({count})',
     'analyticsIntegration': 'Integraci\u00F3n',
     'analyticsNoActiveSession': 'Sin sesi\u00F3n activa',
-    'analyticsNoSessionHistory': 'Sin historial de sesiones',
-    'analyticsNoSessionHistoryDesc':
-        'Completa una sesi\u00F3n para ver el historial aqu\u00ED',
     'analyticsNoSessionInProgress': 'No hay una sesi\u00F3n en curso',
     'analyticsQuickCapture': 'Captura r\u00E1pida',
     'analyticsQuickCaptureSubtitle':
         'Instant\u00E1neas hechas fuera de las secuencias',
     'analyticsScience': 'Ciencia',
-    'analyticsSearchSessions': 'Buscar sesiones...',
     'analyticsSession': 'Sesi\u00F3n',
     'analyticsSessionInProgress': 'Sesi\u00F3n en curso',
-    'analyticsSetGoal': 'Definir meta',
     'analyticsStarted': 'Inicio: {time}',
-    'analyticsStatistics': 'Estad\u00EDsticas',
     'analyticsTotalExposures': 'Exposiciones totales',
     'analyticsUnnamedSession': 'Sesi\u00F3n sin nombre',
     'weatherSafetyActions': 'Acciones de seguridad',
@@ -1945,14 +1907,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'tracking': 'Siguiendo',
     'remoteAccessTitle': 'Acceso remoto',
     'remoteAccessDescription':
-        'Configura el panel web y el servidor de control remoto.',
+        'El panel web y los teléfonos y navegadores que pueden conectarse a este ordenador.',
     'remoteAccessWebServer': 'Servidor web',
     'remoteAccessEnableTitle': 'Activar acceso remoto',
     'remoteAccessEnableDesc':
-        'Sirve el panel y la API de control para acceso autenticado por LAN.',
+        'Sirve el panel a los teléfonos y navegadores emparejados de tu red.',
     'remoteAccessPortTitle': 'Puerto del servidor',
     'remoteAccessPortDesc':
-        'Puerto del servidor de acceso remoto. Los cambios vuelven a enlazar el servidor automaticamente.',
+        'El puerto en el que se sirve el panel. Un cambio se aplica al momento.',
     'remoteAccessServerStatus': 'Estado del servidor',
     'remoteAccessRunning': 'En ejecucion',
     'remoteAccessStopped': 'Detenido',
@@ -1974,16 +1936,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessActiveViewers': 'Visores activos',
     'remoteAccessLastError': 'Ultimo error',
     'remoteAccessNoErrors': 'Ninguno',
-    'remoteAccessPairTitle': 'Emparejar navegadores remotos',
-    'remoteAccessPairDesc':
-        'Genera un codigo temporal de emparejamiento y revisa los dispositivos emparejados.',
-    'remoteAccessManagePairing': 'Gestionar emparejamiento',
-    'remoteAccessQrTitle': 'Emparejar telefonos y tabletas',
-    'remoteAccessQrBody':
-        'Escanea este codigo QR desde la app movil de Skotiq. Verifica la huella en ambas pantallas antes de conectar.',
     'remoteAccessFingerprint': 'Huella',
-    'remoteAccessQrStartHint':
-        'Inicia el emparejamiento para mostrar un codigo QR y la frase en esta pantalla.',
     'remoteAccessQrNoLanIp':
         'No se detecto una IP LAN en este PC. El QR necesita la direccion Wi-Fi (p. ej. 192.168.x.x). Revisa la red y reinicia el acceso remoto.',
     'remoteAccessCopiedUrl': 'Se copio {url} al portapapeles',
@@ -1994,7 +1947,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessIssueBody':
         'Si otro programa usa el puerto, elige un puerto distinto arriba.',
     'remoteAccessLocalActionTitle': 'Abrir en este equipo',
-    'remoteAccessLanActionTitle': 'Compartir en tu red',
+    'remoteAccessLanActionTitle': 'Desde otro dispositivo de tu red',
     'remoteAccessLanActionBodyPaired':
         'Comparte este enlace con un dispositivo emparejado en tu red local.',
     'remoteAccessLanActionBodyOpen':
@@ -2009,20 +1962,15 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessHostActiveBody':
         'Este dispositivo esta conectado a traves del servidor de acceso remoto del host. Los ajustes de arriba aplican al host; su panel web esta disponible en la misma direccion que usa esta app.',
     'remoteAccessDetailsTitle': 'Detalles de conexion',
-    'remoteAccessDetailsBody':
-        'Abre esta seccion cuando necesites recuento de visores, estado de autenticacion o el ultimo error.',
-    'remoteAccessOpenLocal': 'Abrir panel local',
+    'remoteAccessOpenLocal': 'Abrir',
     'remoteAccessCopyLink': 'Copiar enlace',
-    'remoteAccessCopyLan': 'Copiar enlace LAN',
-    'remoteAccessOpenLink': 'Abrir enlace',
+    'remoteAccessCopyLan': 'Copiar enlace',
+    'remoteAccessOpenLink': 'Abrir',
     'remoteAccessOpenFailed':
         'Skotiq no pudo abrir el enlace, asi que lo copio.',
-    'pairingTitle': 'Emparejamiento',
     // TODO(l10n): copied from English, needs a translation.
-    'pairingContext': 'Remote connection',
-    'pairingNewDeviceTitle': 'Emparejar nuevo dispositivo',
     'pairingStartDesc':
-        'Inicia el modo de emparejamiento para permitir que un nuevo dispositivo se conecte. El codigo sera valido durante 5 minutos.',
+        'Muestra un código válido durante 5 minutos. Un teléfono escanea su código QR; un navegador pide el código.',
     'pairingStartButton': 'Iniciar emparejamiento',
     'pairingEnterCode': 'Introduce este codigo en tu dispositivo:',
     'pairingCopyCode': 'Copiar codigo',
@@ -2033,7 +1981,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingRefresh': 'Actualizar',
     'pairingNoDevices': 'No hay dispositivos emparejados',
     'pairingNoDevicesDesc':
-        'Inicia el modo de emparejamiento para conectar un dispositivo',
+        'Empareja arriba un teléfono, una tableta o un navegador.',
     'pairingPairedAt': 'Emparejado: {time}',
     'pairingLastConnected': 'Ultima conexion: {time}',
     'pairingJustNow': 'Ahora mismo',
@@ -2059,7 +2007,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingDeleteTitle': 'Eliminar dispositivo',
     'pairingDeleteBody':
         '¿Seguro que quieres eliminar permanentemente "{name}"? Esta accion no se puede deshacer.',
-    'pairingDismissError': 'Cerrar',
     'pairingErrorStart':
         'Skotiq no pudo iniciar el modo de emparejamiento. Intentalo de nuevo.',
     'pairingErrorCancel':
@@ -2077,10 +2024,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerPlanFailedBody':
         'Skotiq no pudo generar el plan de esta noche. Intentalo de nuevo o revisa tus ajustes y objetivos guardados.',
     'plannerOpenPlanetarium': 'Abrir planetario',
-    'diagnosticsTitle': 'Diagnostico del tren optico',
-    'diagnosticsLoadSessionsFailed': 'No se pudieron cargar las sesiones',
-    'diagnosticsNoSessions': 'No hay sesiones disponibles',
-    'diagnosticsSelectSession': 'Seleccionar sesion',
     'diagnosticsNoSessionTitle':
         'Selecciona una sesion de imagen para analizar',
     'diagnosticsNoSessionBody':
@@ -2209,7 +2152,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerCandidateCountOne': '1 candidato',
     'plannerImageTonight': 'Fotografiar esta noche',
     'plannerImageTonightTitle': 'Iniciando {target} esta noche',
-    'plannerImageTonightChecking': 'Comprobando que el equipo puede ejecutar la noche.',
+    'plannerImageTonightChecking':
+        'Comprobando que el equipo puede ejecutar la noche.',
     'plannerImageTonightFraming': 'Encuadrando el objetivo.',
     'plannerImageTonightPlanning': 'Planificando la noche.',
     'plannerImageTonightStarting': 'Iniciando la sesión.',
@@ -2249,7 +2193,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Se puntuaron {total} candidatos y {passed} pasaron los filtros.',
     'plannerNoMatchesAction': 'Restablecer filtros',
     'plannerPlanFailedAction': 'Reintentar',
-    'analyticsEquipmentTab': 'Equipo',
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
     'nightPlanDrawerClose': 'Cerrar plan',
