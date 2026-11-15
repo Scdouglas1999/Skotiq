@@ -333,15 +333,15 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _FixedBackendNotifier(ref, backend),
           ),
-          allTargetProgressProvider.overrideWith((ref) async {
+          targetProgressProvider.overrideWith((ref, targetId) async {
             progressReads++;
-            return {};
+            return null;
           }),
         ],
       );
       addTearDown(container.dispose);
 
-      await container.read(allTargetProgressProvider.future);
+      await container.read(targetProgressProvider(1).future);
       final readsBefore = progressReads;
 
       applyHostLocalSyncEvent(
@@ -355,7 +355,7 @@ void main() {
         ),
       );
 
-      await container.read(allTargetProgressProvider.future);
+      await container.read(targetProgressProvider(1).future);
       expect(progressReads, greaterThan(readsBefore));
     });
 
