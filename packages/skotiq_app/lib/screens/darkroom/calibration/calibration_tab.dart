@@ -9,6 +9,7 @@ import 'calibration_match_panel.dart';
 import 'calibration_settings_panel.dart';
 import 'calibration_waiting_panel.dart';
 import '../../../router/app_routes.dart';
+import '../../../tours/tour_target.dart';
 import '../../../utils/darkroom_navigation.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -113,6 +114,7 @@ class _CaptureLinks extends StatelessWidget {
           style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
         ),
         SkotiqButton(
+          key: TourTarget.darkroomTakeFlats.key,
           label: 'Take flats',
           icon: LucideIcons.sun,
           variant: ButtonVariant.ghost,

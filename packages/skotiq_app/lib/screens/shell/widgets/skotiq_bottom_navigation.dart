@@ -28,8 +28,8 @@ class SkotiqBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final overflowIsCurrent =
-        ShellNavigation.moreSheet.any((d) => d.contains(currentRoute));
+    final overflowIsCurrent = ShellNavigation.moreSheet
+        .any((d) => ShellNavigation.hosts(d, currentRoute));
 
     return Container(
       decoration: BoxDecoration(
@@ -52,7 +52,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
                     // (/imaging/preview/:id) renders the Imaging screen, so
                     // the Imaging slot must own it. Exact matching left the
                     // whole bar unlit on those routes.
-                    isSelected: dest.contains(currentRoute),
+                    isSelected: ShellNavigation.hosts(dest, currentRoute),
                     colors: colors,
                     onTap: () => onRouteSelected(dest),
                   ),
@@ -74,12 +74,12 @@ class SkotiqBottomNavigation extends StatelessWidget {
     );
   }
 
-  /// The sheet behind "More": Plan, Equipment, Weather, Darkroom, Analytics
+  /// The sheet behind "More": Plan, Equipment, Weather, Analytics, Darkroom
   /// and Settings, in rail order.
   ///
   /// Every top-level surface is reachable on a phone this way, which is what
-  /// lets the bar hold five slots instead of seven — five is what a thumb can
-  /// hit without looking.
+  /// lets the bar hold five slots instead of ten: five is what a thumb can hit
+  /// without looking.
   void _showMoreSheet(
     BuildContext context,
     SkotiqLocalizations l10n,
@@ -101,7 +101,8 @@ class SkotiqBottomNavigation extends StatelessWidget {
                 for (final dest in ShellNavigation.moreSheet)
                   Builder(
                     builder: (context) {
-                      final isCurrent = dest.contains(currentRoute);
+                      final isCurrent =
+                          ShellNavigation.hosts(dest, currentRoute);
                       return ListTile(
                         leading: Icon(
                           dest.icon,

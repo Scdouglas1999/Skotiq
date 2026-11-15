@@ -8,7 +8,7 @@ export '../../router/app_routes.dart' show AppRoute, ShellNavGroup;
 abstract final class ShellNavigation {
   ShellNavigation._();
 
-  /// The rail, in rail order, grouped Observe / Prepare / Review.
+  /// The rail, in rail order: Tonight, then Prepare / Observe / Review.
   ///
   /// Settings is deliberately not here: it lives in the top bar, because it is
   /// a place you go to change the app rather than a place you observe from.
@@ -27,12 +27,19 @@ abstract final class ShellNavigation {
   ];
 
   /// Everything the More sheet lists: every rail destination without a phone
-  /// slot, then Settings, which has no rail slot.
+  /// slot, in rail order, then Settings, which has no rail slot.
   static final List<AppRoute> moreSheet = [
     for (final route in rail)
       if (!phoneBar.contains(route)) route,
     AppRoute.settings,
   ];
+
+  /// Whether [destination] is where the operator is at [location]: the
+  /// route there, a route nested below it, or a route it hosts on the rail
+  /// (the Flat wizard is a Darkroom tool).
+  static bool hosts(AppRoute destination, String location) =>
+      destination.contains(location) ||
+      AppRoute.of(location)?.railHost == destination;
 
   /// Index into [rail] of the destination that hosts [location], or -1 when
   /// none does.
@@ -43,7 +50,10 @@ abstract final class ShellNavigation {
 }
 
 extension ShellNavGroupLabel on ShellNavGroup {
-  String label(SkotiqLocalizations l10n) => switch (this) {
+  /// The heading above the group, or null for [ShellNavGroup.home], which
+  /// has none.
+  String? label(SkotiqLocalizations l10n) => switch (this) {
+        ShellNavGroup.home => null,
         ShellNavGroup.observe => l10n.text('navGroupObserve'),
         ShellNavGroup.prepare => l10n.text('navGroupPrepare'),
         ShellNavGroup.review => l10n.text('navGroupReview'),

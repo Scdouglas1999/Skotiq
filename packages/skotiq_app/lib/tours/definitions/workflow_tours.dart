@@ -205,9 +205,9 @@ const List<TourStep> _calibrationFrames = [
     id: 'cf_what_are_flats',
     title: 'What are flat frames?',
     description:
-        'Flat frames correct for vignetting and dust spots in your optical system. Navigate to the Flat Wizard tab to capture them easily.',
-    target: TourTarget.navFlatWizard,
-    side: TourCardSide.right,
+        'Flat frames correct for vignetting and dust spots in your optical system. Take flats, in the Darkroom\'s Calibration tab, opens the flat wizard that captures them.',
+    target: TourTarget.darkroomTakeFlats,
+    side: TourCardSide.bottom,
   ),
   TourStep(
     id: 'cf_wizard_setup',
