@@ -127,12 +127,10 @@ void main() {
 
     final request = fake.requestsFor('/api/suggestions/ranked').single;
     const config = TargetSuggestionConfig(
-      minAltitude: 30.0,
       minScore: 50.0,
       prioritizeIncomplete: true,
     );
     expect(request.url.queryParameters, {
-      'minAltitude': '${config.minAltitude}',
       'minScore': '${config.minScore}',
       'sortMode': 'bestScore',
       'prioritizeIncomplete': 'true',

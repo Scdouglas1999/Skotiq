@@ -7,6 +7,8 @@ void main() {
   const latitude = 40.0;
   const longitude = -105.0;
   final nightDate = DateTime(2026, 8, 2);
+  // No horizon set: the minimum altitude in every direction.
+  final floor = AltitudeFloorSamples.flat(30);
 
   final twilight = AstronomyCalculations.calculateTwilightTimes(
     date: nightDate,
@@ -44,6 +46,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
     );
 
     expect(ranked, isNotEmpty);
@@ -75,6 +78,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
     );
 
     expect(ranked, isNotEmpty);
@@ -105,6 +109,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
     );
 
     expect(ranked, isEmpty);
@@ -120,6 +125,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
     );
 
     final v = ranked.single.visibility;
@@ -140,6 +146,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
       magnitudes: [8, 15],
     );
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
@@ -153,6 +160,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
       objectTypes: [DsoType.galaxy.index, DsoType.star.index],
     );
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
@@ -166,6 +174,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
       sizesArcMin: [2, 200],
       fovWidthDeg: 0.57,
       fovHeightDeg: 0.57,
@@ -176,6 +185,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
       sizesArcMin: [2, 200],
       fovWidthDeg: 5.7,
       fovHeightDeg: 5.7,
@@ -192,6 +202,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
     );
     final explicitNulls = rankTonightTargets(
       raDeg: [ra, ra],
@@ -199,6 +210,7 @@ void main() {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: nightDate,
+      floor: floor,
       magnitudes: [null, null],
       sizesArcMin: [null, null],
       objectTypes: [null, null],
@@ -274,6 +286,7 @@ void main() {
         latitudeDeg: latitude,
         longitudeDeg: longitude,
         nightDate: nightDate,
+        floor: floor,
       );
       expect(ranked, hasLength(2));
 
@@ -295,6 +308,7 @@ void main() {
         moonPosition: (moonRa, moonDec),
         moonIllumination: AstronomyCalculations.moonIllumination(mid),
         twilight: twilight,
+        floorAt: floor.at,
       );
       double nightScore(double raDeg, double decDeg) => scorer
           .scoreTargetForNight(
@@ -309,7 +323,6 @@ void main() {
             ),
             nightStart: window.start,
             nightEnd: window.end,
-            minAltitude: kTonightMinAltitudeDeg,
           )
           .totalScore;
 

@@ -60,7 +60,13 @@ void main() {
 
   ProviderContainer createContainer(List<DeepSkyObject> dsos) {
     final container = ProviderContainer(
-      overrides: [loadedDsosProvider.overrideWith((ref) async => dsos)],
+      overrides: [
+        loadedDsosProvider.overrideWith((ref) async => dsos),
+        // The site's floor as the app pumps it: no horizon, 30 degrees.
+        planetariumAltitudeFloorProvider.overrideWith(
+          (ref) => AltitudeFloorSamples.flat(30),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     container

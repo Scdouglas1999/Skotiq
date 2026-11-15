@@ -366,10 +366,10 @@ void main() {
 
     /// Files a draft under tonight's night, as the dialog keys it.
     Future<SmartNightDraft> saveDraft(ProviderContainer container) {
-      final night = SmartNightService(
-        suggestionService: container.read(targetSuggestionServiceProvider),
-        logging: container.read(loggingServiceProvider),
-      ).calculateWindow(latitudeDeg: lat, longitudeDeg: lon).start;
+      final night = container
+          .read(smartNightServiceProvider)
+          .calculateWindow(latitudeDeg: lat, longitudeDeg: lon)
+          .start;
       return container.read(smartNightDraftServiceProvider).savePending(
             profileId: '${profile.id}',
             astronomicalDay: night,

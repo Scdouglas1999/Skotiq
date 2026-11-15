@@ -236,6 +236,7 @@ void main() {
           loggingService: _MockLoggingService(),
         ),
         logging: _MockLoggingService(),
+        floor: const AltitudeFloor(horizon: null, minimumDeg: -90),
       );
       profile = const EquipmentProfileModel(
         id: 1,

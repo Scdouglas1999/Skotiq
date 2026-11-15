@@ -327,40 +327,6 @@ void main() {
     });
   });
 
-  group('LowAltitudeLimitRule', () {
-    final rule = LowAltitudeLimitRule();
-
-    test('fires when minAltitude < 10', () {
-      final t = TargetHeaderNode(
-        targetName: 'M31',
-        raHours: 0,
-        decDegrees: 0,
-        minAltitude: 5,
-      );
-      final s = _sequenceWith([t]);
-      final issues = rule.validate(s);
-      expect(issues.single.severity, ValidationSeverity.warning);
-      expect(issues.single.title, 'Very Low Altitude Limit');
-    });
-
-    test('clean when minAltitude >= 10', () {
-      final t = TargetHeaderNode(
-        targetName: 'M31',
-        raHours: 0,
-        decDegrees: 0,
-        minAltitude: 20,
-      );
-      final s = _sequenceWith([t]);
-      expect(rule.validate(s), isEmpty);
-    });
-
-    test('clean when minAltitude is null', () {
-      final t = TargetHeaderNode(targetName: 'M31', raHours: 0, decDegrees: 0);
-      final s = _sequenceWith([t]);
-      expect(rule.validate(s), isEmpty);
-    });
-  });
-
   group('NoTargetForExposuresRule', () {
     final rule = NoTargetForExposuresRule();
 

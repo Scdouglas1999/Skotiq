@@ -57,9 +57,6 @@ pub enum TargetTrigger {
     /// stands (see [`crate::scheduling::AltitudeFloor`]). True when the run
     /// holds no floor.
     AboveAltitudeFloor,
-    /// The target is below the site's altitude floor in the direction it
-    /// stands. False when the run holds no floor.
-    BelowAltitudeFloor,
     /// Wall-clock time is at or after the given Unix timestamp (seconds).
     TimeAfter(i64),
     /// Wall-clock time is strictly before the given Unix timestamp (seconds).
@@ -152,7 +149,6 @@ impl TargetTrigger {
             TargetTrigger::AltitudeAbove(threshold) => ctx.current_altitude_deg() >= *threshold,
             TargetTrigger::AltitudeBelow(threshold) => ctx.current_altitude_deg() <= *threshold,
             TargetTrigger::AboveAltitudeFloor => ctx.is_above_altitude_floor().unwrap_or(true),
-            TargetTrigger::BelowAltitudeFloor => !ctx.is_above_altitude_floor().unwrap_or(true),
             TargetTrigger::TimeAfter(ts) => ctx.now.timestamp() >= *ts,
             TargetTrigger::TimeBefore(ts) => ctx.now.timestamp() < *ts,
             TargetTrigger::And(children) => {
@@ -181,8 +177,7 @@ impl TargetTrigger {
         match self {
             TargetTrigger::AltitudeAbove(_)
             | TargetTrigger::AltitudeBelow(_)
-            | TargetTrigger::AboveAltitudeFloor
-            | TargetTrigger::BelowAltitudeFloor => true,
+            | TargetTrigger::AboveAltitudeFloor => true,
             TargetTrigger::And(v) | TargetTrigger::Or(v) => {
                 v.iter().any(|t| t.references_altitude())
             }
@@ -225,7 +220,6 @@ impl TargetTrigger {
             TargetTrigger::AltitudeAbove(n) => format!("altitude ≥ {:.1}°", n),
             TargetTrigger::AltitudeBelow(n) => format!("altitude ≤ {:.1}°", n),
             TargetTrigger::AboveAltitudeFloor => "above the site's altitude floor".to_string(),
-            TargetTrigger::BelowAltitudeFloor => "below the site's altitude floor".to_string(),
             TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", ts),
             TargetTrigger::TimeBefore(ts) => format!("time < {}", ts),
             TargetTrigger::And(v) => format!(

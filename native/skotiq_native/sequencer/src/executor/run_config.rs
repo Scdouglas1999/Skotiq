@@ -1053,6 +1053,46 @@ mod tests {
         ));
     }
 
+    /// The altitude floor the app sends reaches the trigger monitor at once,
+    /// and a run that starts later has it too.
+    #[tokio::test]
+    async fn the_altitude_floor_reaches_the_trigger_state_when_sent_and_at_start() {
+        let rig = rig();
+        let floor = crate::scheduling::AltitudeFloor::flat(27.0);
+        rig.update(|config| config.altitude_floor = Some(floor.clone()))
+            .await;
+        assert_eq!(
+            rig.trigger_state(|state| state.settings.altitude_floor.clone())
+                .await,
+            Some(floor.clone())
+        );
+        assert_eq!(rig.store.altitude_floor(), Some(floor.clone()));
+
+        {
+            let mut manager = rig.triggers.write().await;
+            manager.state().write().await.settings.altitude_floor = None;
+            rig.store.project_at_start(&mut manager).await;
+        }
+        assert_eq!(
+            rig.trigger_state(|state| state.settings.altitude_floor.clone())
+                .await,
+            Some(floor)
+        );
+    }
+
+    /// The floor is sent as samples by azimuth, as the app's `AltitudeFloor`
+    /// writes it.
+    #[test]
+    fn the_altitude_floor_is_read_from_the_apps_wire_form() {
+        let config: RunConfig = serde_json::from_str(
+            r#"{"altitude_floor": {"samples": [{"az": 0.0, "alt": 0.0}, {"az": 90.0, "alt": 40.0}]}}"#,
+        )
+        .expect("the wire form");
+        let floor = config.altitude_floor.expect("a floor");
+        assert_eq!(floor.at_azimuth(90.0), 40.0);
+        assert_eq!(floor.at_azimuth(45.0), 20.0);
+    }
+
     #[tokio::test]
     async fn a_start_keeps_the_trigger_states_site_when_none_is_configured() {
         let rig = rig();

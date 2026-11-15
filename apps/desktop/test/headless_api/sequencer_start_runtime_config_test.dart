@@ -151,14 +151,12 @@ void main() {
         // The operator's own numbers, and pushed BEFORE the executor is told to
         // go: thresholds that arrive afterwards are too late for the first
         // frame, which is the frame a start under cloud most needs graded.
-        verifyInOrder([
-          () => host.sequencerApplyRunConfig(any()),
-          () => host.sequencerStart(),
-        ]);
-        final sent = verify(
+        final sent = verifyInOrder([
           () => host.sequencerApplyRunConfig(captureAny()),
-        ).captured;
-        final config = jsonDecode(sent.last as String) as Map<String, dynamic>;
+          () => host.sequencerStart(),
+        ]).captured;
+        final config =
+            jsonDecode(sent.first.last as String) as Map<String, dynamic>;
         expect(config['default_quality_check'], {
           'hfr_threshold': _gradingOn.imageGradingHfrThresholdPx,
           'hfr_baseline_percent': _gradingOn.imageGradingHfrBaselinePercent,

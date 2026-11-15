@@ -64,10 +64,10 @@ void main() {
       ];
       final start = DateTime.utc(2026, 10, 31, 23);
       final end = start.add(const Duration(hours: 10));
-      for (final horizon in <HorizonMask?>[
+      for (final horizon in <AltitudeFloorAt?>[
         null,
         (_) => 90,
-        (az) => az > 180 ? 55 : 10,
+        (az) => az > 180 ? 55 : 30,
       ]) {
         final scorer = TargetScoringService(
           latitude: 39.9719,
@@ -75,7 +75,7 @@ void main() {
           observationTime: start,
           moonPosition: (80, 20),
           moonIllumination: 0.7,
-          horizonMask: horizon,
+          floorAt: horizon,
         );
         final expected = targets
             .map(
@@ -84,7 +84,6 @@ void main() {
                   target: t,
                   nightStart: start,
                   nightEnd: end,
-                  minAltitude: 30,
                 ),
               ),
             )
@@ -94,7 +93,6 @@ void main() {
               targets: targets,
               nightStart: start,
               nightEnd: end,
-              minAltitude: 30,
             )
             .map(scoreFields)
             .toList();

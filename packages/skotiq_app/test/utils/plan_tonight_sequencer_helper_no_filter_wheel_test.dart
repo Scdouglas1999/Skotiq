@@ -162,7 +162,8 @@ void main() {
     final window = SmartNightService(
             suggestionService:
                 TargetSuggestionService(loggingService: LoggingService()),
-            logging: LoggingService())
+            logging: LoggingService(),
+            floor: const AltitudeFloor(horizon: null, minimumDeg: 30))
         .calculateWindow(latitudeDeg: 40, longitudeDeg: -75);
     expect(header.endBefore, window.twilight.nauticalDawn);
     expect(nodes.whereType<LoopNode>().single.repeatUntil, header.endBefore);

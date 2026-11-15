@@ -525,6 +525,70 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final (name, horizon, key) in [
+    ('no horizon: the minimum is in force', null, 'scheduler.minAltitudeInForce'),
+    (
+      'a horizon set: the minimum is not in force',
+      '{"E":40}',
+      'scheduler.minAltitudeNotInForce',
+    ),
+  ]) {
+    testWidgets('the minimum altitude says which rule is in force: $name', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1280, 800);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final backend = _MockNetworkBackend();
+      when(backend.getSchedulerState).thenAnswer(
+        (_) async => _remoteSchedulerState(),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            ..._commonOverrides(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            schedulerEngineProvider.overrideWith(
+              (ref) => throw StateError('remote client created an engine'),
+            ),
+            allIntegrationGoalsProvider.overrideWith(
+              (ref) async => <IntegrationGoal>[],
+            ),
+            if (horizon != null)
+              horizonProfileProvider.overrideWithValue(
+                SiteHorizonProfile.fromJson(horizon),
+              ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(body: SchedulerTabContent()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scoring weights'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key(key)), findsOneWidget);
+      expect(
+        find.byKey(
+          Key(
+            key == 'scheduler.minAltitudeInForce'
+                ? 'scheduler.minAltitudeNotInForce'
+                : 'scheduler.minAltitudeInForce',
+          ),
+        ),
+        findsNothing,
+      );
+    });
+  }
+
   testWidgets(
       'a config save the old host answers after a host switch changes nothing '
       'on the new host', (tester) async {

@@ -71,6 +71,10 @@ class RunConfigSync {
   void Function(String message)? _onRunSendFailure;
 
   String? _lastSent;
+
+  /// The config waiting to be sent or being sent. A source that settles to
+  /// the same values while it is in flight is not sent a second time.
+  String? _queued;
   bool _sendScheduled = false;
   Future<void> _sending = Future<void>.value();
 
@@ -284,7 +288,8 @@ class RunConfigSync {
         _reportSendFailure('The sequencer settings could not be read: $e');
         return;
       }
-      if (jsonEncode(config) == _lastSent) return;
+      final json = jsonEncode(config);
+      if (json == _lastSent || json == _queued) return;
       unawaited(
         _enqueue(config).catchError((Object e) {
           _reportSendFailure(
@@ -299,6 +304,7 @@ class RunConfigSync {
   /// Sends run one after another, so the last change is the one that stays.
   Future<void> _enqueue(Map<String, Object?> config) {
     final json = jsonEncode(config);
+    _queued = json;
     final send = _sending.catchError((Object _) {}).then((_) async {
       try {
         await _ref.read(sequencerBackendProvider).sequencerApplyRunConfig(json);
@@ -306,6 +312,8 @@ class RunConfigSync {
       } catch (_) {
         _lastSent = null;
         rethrow;
+      } finally {
+        if (identical(_queued, json)) _queued = null;
       }
     });
     _sending = send;

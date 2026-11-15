@@ -340,18 +340,14 @@ pub(super) async fn position_for_flats(
                     format!("Slewing for {:?} sky flats", config.panel_location),
                 );
 
-                let (target_altitude, target_azimuth) = sky_flat_alt_az(&config.panel_location)
-                    .ok_or_else(|| {
-                        DeviceError::Failed(
-                            "Invalid panel location for sky-flat positioning".to_string(),
-                        )
-                    })?;
+                let now = chrono::Utc::now();
+                let (target_altitude, target_azimuth) = sky_flat_alt_az(lat, lon, now);
                 let (ra, dec) = crate::meridian::alt_az_to_ra_dec(
                     target_altitude,
                     target_azimuth,
                     lat,
                     lon,
-                    chrono::Utc::now(),
+                    now,
                 );
 
                 tracing::info!(
@@ -379,13 +375,23 @@ pub(super) async fn position_for_flats(
     }
 }
 
-/// Where sky flats are taken: 65° up, on the side of the sky away from the
-/// Sun (east at dusk, west at dawn), where the twilight sky is most even.
-/// `None` for a flat panel.
-pub(super) fn sky_flat_alt_az(location: &PanelLocation) -> Option<(f64, f64)> {
-    match location {
-        PanelLocation::DuskSky => Some((65.0, 90.0)),
-        PanelLocation::DawnSky => Some((65.0, 270.0)),
-        PanelLocation::FlatPanel => None,
-    }
+/// How far from the zenith sky flats are taken, toward the azimuth opposite
+/// the Sun. The twilight sky's brightness gradient vanishes at a null point
+/// 15° to 20° from the zenith on the side away from the Sun (Chromey &
+/// Hasselbacher 1996, "The Flat Sky: Calibration and Background Uniformity in
+/// Wide Field Astronomical Images", PASP 108, 944); this is the middle of
+/// that range.
+pub(super) const SKY_FLAT_ZENITH_DISTANCE_DEG: f64 = 17.5;
+
+/// Where sky flats are taken at `now`: `(altitude, azimuth)` of the twilight
+/// sky's null point, [`SKY_FLAT_ZENITH_DISTANCE_DEG`] from the zenith toward
+/// the azimuth opposite the Sun's, whichever twilight it is.
+pub(super) fn sky_flat_alt_az(
+    latitude: f64,
+    longitude: f64,
+    now: chrono::DateTime<chrono::Utc>,
+) -> (f64, f64) {
+    let away_from_sun =
+        (crate::solar::sun_azimuth_degrees(latitude, longitude, &now) + 180.0).rem_euclid(360.0);
+    (90.0 - SKY_FLAT_ZENITH_DISTANCE_DEG, away_from_sun)
 }

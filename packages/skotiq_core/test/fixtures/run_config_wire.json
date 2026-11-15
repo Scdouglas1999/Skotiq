@@ -32,6 +32,14 @@
   "autofocus_interval_frames": 25,
   "latitude": null,
   "longitude": null,
+  "altitude_floor": {
+    "samples": [
+      {
+        "az": 0.0,
+        "alt": 30.0
+      }
+    ]
+  },
   "filter_focus_offsets": {},
   "safety_fail_mode": "FailClosed",
   "weather_resume_after_safe_secs": 300,

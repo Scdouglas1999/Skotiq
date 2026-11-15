@@ -2111,7 +2111,10 @@ mod site_floor_tests {
         )
     }
 
-    fn context(floor: Option<AltitudeFloor>, clock: MockClock) -> ExecutionContext {
+    fn context(
+        floor: Option<AltitudeFloor>,
+        clock: std::sync::Arc<MockClock>,
+    ) -> ExecutionContext {
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
         ctx.run.rig.latitude = Some(40.0);
         ctx.run.rig.longitude = Some(-75.0);
