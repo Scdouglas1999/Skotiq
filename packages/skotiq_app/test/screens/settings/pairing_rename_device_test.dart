@@ -10,6 +10,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
@@ -46,7 +47,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       size: const Size(1200, 1600),
       extraOverrides: [
         pairingProvider.overrideWith((ref) => notifier),
@@ -69,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The dialog is gone and the list now distinguishes the two rows.
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
     expect(find.text("Sean's Pixel"), findsOneWidget);
     expect(find.text('Android companion'), findsOneWidget);
 
@@ -93,7 +94,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       size: const Size(1200, 1600),
       extraOverrides: [
         pairingProvider.overrideWith((ref) => notifier),
@@ -111,7 +112,7 @@ void main() {
 
     // Still open, and the row is unchanged: a blank label would be less
     // identifiable than the duplicate it was meant to fix.
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     final stored = await database.getPairedDevice('phone-one');
     expect(stored!.deviceName, 'Android companion');
   });

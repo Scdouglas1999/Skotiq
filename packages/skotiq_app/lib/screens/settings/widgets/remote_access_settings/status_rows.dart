@@ -1,78 +1,5 @@
 part of '../remote_access_settings.dart';
 
-class _PairingCallout extends StatelessWidget {
-  final String title;
-  final String description;
-  final VoidCallback onPressed;
-
-  const _PairingCallout({
-    required this.title,
-    required this.description,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.well,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: SkotiqTypography.labelStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: SkotiqTypography.caption.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SkotiqButton(
-            label: context.l10n.text('remoteAccessManagePairing'),
-            icon: LucideIcons.link,
-            variant: ButtonVariant.primary,
-            onPressed: onPressed,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Who has to pair before the dashboard will show anything.
-///
-/// NOT `remoteAccessInfoBody`: that string promises "Localhost stays
-/// frictionless for this machine, while non-local clients must pair", and the
-/// auth middleware has no loopback branch anywhere. From 127.0.0.1,
-/// `/api/status`, `/api/images/recent` and `/api/auth/csrf` return the same 401
-/// they return to a LAN address — only the static `/dashboard` shell is 200,
-/// and it can load no data. Kept as a literal here rather than a new l10n key
-/// because the translation table is owned elsewhere; lifting these two strings
-/// into `translations.dart` (en + es) is tracked as a follow-up.
-///
-/// On a computer linked to an imaging host the page is about that host's
-/// server, not this app's own (which is not running): [linkedHost] names it
-/// and [hostRequiresPairing] is what it said when this app connected, null
-/// when it did not say. It used to read this app's idle server, so a host
-/// that demanded a token was described as open to anything that could reach
-/// it.
 @visibleForTesting
 String describeRemoteAccessPairing({
   required bool requiresAuthentication,
@@ -146,7 +73,6 @@ class _StatusRow extends StatelessWidget {
   final Color iconColor;
   final String label;
   final String value;
-  final bool isLast;
 
   /// Raw text to put on the clipboard. When non-null a copy button is shown —
   /// used for diagnostics the operator needs to paste elsewhere.
@@ -160,7 +86,6 @@ class _StatusRow extends StatelessWidget {
     required this.iconColor,
     required this.label,
     required this.value,
-    this.isLast = false,
     this.copyValue,
     this.valueMaxLines = 2,
   });
@@ -169,16 +94,10 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final copyable = copyValue;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: colors.border.withValues(alpha: 0.5),
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceLg,
+        vertical: SkotiqTokens.spaceMd,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +130,7 @@ class _StatusRow extends StatelessWidget {
                 if (!context.mounted) return;
                 context.showInfoSnackBar(
                   'Error copied to clipboard',
-                  duration: Duration(seconds: 2),
+                  duration: const Duration(seconds: 2),
                 );
               },
               size: IconButtonSize.sm,

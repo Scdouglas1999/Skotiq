@@ -48,45 +48,47 @@ class _RenameDeviceDialogState extends State<_RenameDeviceDialog> {
     final l10n = context.l10n;
     return PopScope(
       canPop: !_busy,
-      child: AlertDialog(
-        title: Text(l10n.text('pairingRenameTitle')),
-        content: Column(
+      child: SkotiqDialog(
+        title: l10n.text('pairingRenameTitle'),
+        width: SkotiqDialog.widthConfirm,
+        closeEnabled: !_busy,
+        onClose: () => Navigator.of(context).pop(),
+        actions: [
+          SkotiqButton(
+            label: l10n.text('cancel'),
+            variant: ButtonVariant.ghost,
+            onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          ),
+          SkotiqButton(
+            label: l10n.text('save'),
+            isLoading: _busy,
+            onPressed:
+                _busy || _controller.text.trim().isEmpty ? null : _submit,
+          ),
+        ],
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(l10n.text('pairingRenameBody')),
-            const SizedBox(height: 16),
-            TextField(
+            Text(
+              l10n.text('pairingRenameBody'),
+              style: SkotiqTypography.body.copyWith(
+                color: SkotiqColors.of(context).textSecondary,
+              ),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            SkotiqTextField(
               controller: _controller,
+              label: l10n.text('pairingRenameLabel'),
               autofocus: true,
               enabled: !_busy,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               // Rebuild so Save disables the moment the field is emptied.
               onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: l10n.text('pairingRenameLabel'),
-                border: const OutlineInputBorder(),
-              ),
             ),
           ],
         ),
-        actions: [
-          SkotiqButton(
-            label: l10n.text('cancel'),
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-            onPressed: _busy ? null : () => Navigator.of(context).pop(),
-          ),
-          SkotiqButton(
-            label: l10n.text('save'),
-            variant: ButtonVariant.primary,
-            size: ButtonSize.small,
-            isLoading: _busy,
-            onPressed:
-                _busy || _controller.text.trim().isEmpty ? null : _submit,
-          ),
-        ],
       ),
     );
   }
@@ -138,93 +140,4 @@ class _AccessBadge extends StatelessWidget {
 /// `<device> paired` confirmation shown the moment the outstanding code is
 /// consumed. Names the device because that is what tells the operator the phone
 /// in their hand — and not something else on the network — is what connected.
-class _PairedConfirmation extends StatelessWidget {
-  final PairedDevice device;
-  final VoidCallback onDismiss;
-
-  const _PairedConfirmation({
-    required this.device,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.success.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(SkotiqIcons.check, color: colors.success, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '${device.deviceName} paired',
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textPrimary,
-                height: 1.4,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: onDismiss,
-            child: Text(context.l10n.text('pairingDismissError')),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PairingErrorBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onDismiss;
-
-  const _PairingErrorBanner({
-    required this.message,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(SkotiqIcons.error, color: colors.error, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              context.l10n.text(message),
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textPrimary,
-                height: 1.4,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: onDismiss,
-            child: Text(context.l10n.text('pairingDismissError')),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 const Object _pairingUnset = Object();

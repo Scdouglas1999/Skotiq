@@ -13,6 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
@@ -41,7 +42,7 @@ Future<PairingNotifier> _pumpPairing(
   late PairingNotifier notifier;
   await pumpAppScreen(
     tester,
-    const PairingScreen(),
+    const SingleChildScrollView(child: PairingSettings()),
     size: const Size(900, 1400),
     settle: false,
     extraOverrides: [
@@ -129,7 +130,7 @@ void main() {
     await tester.tap(find.text('Revoke all'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     expect(find.textContaining('all 1 paired devices'), findsNothing);
     expect(find.textContaining('WaveD Test Phone'), findsWidgets);
     // The action behind it is unchanged — revoking every row — and is covered

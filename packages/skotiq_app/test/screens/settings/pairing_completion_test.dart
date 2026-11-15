@@ -120,7 +120,7 @@ void main() {
     late PairingNotifier notifier;
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       size: const Size(900, 1400),
       settle: false,
       extraOverrides: [

@@ -1,13 +1,12 @@
-// "Start pairing mode to show a QR code and pairing phrase on this screen" must
-// produce all of it. A QR and nothing else — no phrase, no expiry, no way to
-// leave pairing mode, and a card that reduces in the accessibility tree to
-// "panel: Pair phones and tablets" plus a disabled empty text node — leaves a
+// Start pairing on Settings > Remote access must produce all of it: the QR,
+// the code as text, its expiry and a way out. A QR and nothing else leaves a
 // blind operator no path to pair a phone at all.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
 import 'package:skotiq_app/screens/settings/widgets/remote_access_settings.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -108,11 +107,11 @@ void main() {
     expect(
       find.text('NOVA-NEBULA-2638'),
       findsOneWidget,
-      reason: 'the card promises a pairing phrase alongside the QR',
+      reason: 'the code is shown as text beside the QR',
     );
-    expect(find.textContaining('Expires in 4:01'), findsOneWidget);
+    expect(find.textContaining('Expires in 04:01'), findsOneWidget);
     expect(
-      find.widgetWithText(SkotiqButton, 'Stop pairing mode'),
+      find.widgetWithText(SkotiqButton, 'Cancel pairing'),
       findsOneWidget,
       reason: 'navigating away was the only exit from pairing mode',
     );
@@ -133,7 +132,7 @@ void main() {
       contains('NOVA-NEBULA-2638'),
       reason: 'the QR image is the one part of this card AT cannot convey',
     );
-    expect(find.bySemanticsLabel(RegExp('Expires in 4:01')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Expires in 04:01')), findsOneWidget);
     handle.dispose();
   });
 
@@ -142,7 +141,7 @@ void main() {
     await _pumpRemoteAccess(tester, pairingCode: null);
 
     expect(
-      find.widgetWithText(SkotiqButton, 'Stop pairing mode'),
+      find.widgetWithText(SkotiqButton, 'Cancel pairing'),
       findsNothing,
     );
   });
@@ -170,35 +169,24 @@ void main() {
     handle.dispose();
   });
 
-  // The card must not shrink-wrap to ~530 px of a ~1150 px column while idle
-  // and snap to full width once pairing starts.
-  group('the card keeps one width', () {
-    Future<double> cardWidth(WidgetTester tester) async {
-      final card = find.ancestor(
-        of: find.text('Pair phones and tablets'),
-        matching: find.byType(Container),
-      );
-      return tester.getSize(card.first).width;
-    }
+  // The group must not shrink-wrap while idle and snap to full width once
+  // pairing starts: the page would reflow under the operator.
+  group('the pairing group keeps one width', () {
+    double groupWidth(WidgetTester tester, String eyebrow) => tester
+        .getSize(find.ancestor(
+          of: find.text(eyebrow),
+          matching: find.byType(SettingsSection),
+        ))
+        .width;
 
-    testWidgets('idle and pairing draw the same card', (tester) async {
+    testWidgets('idle and pairing draw the same group', (tester) async {
       await _pumpRemoteAccess(
         tester,
         pairingCode: null,
         size: const Size(1600, 1200),
       );
-      final idle = await cardWidth(tester);
-      // The full-width neighbour on the same leaf.
-      final browsersCard = tester
-          .getSize(
-            find
-                .ancestor(
-                  of: find.text('Pair remote browsers'),
-                  matching: find.byType(Container),
-                )
-                .first,
-          )
-          .width;
+      final idle = groupWidth(tester, 'PAIR A DEVICE');
+      final webServer = groupWidth(tester, 'WEB SERVER');
 
       await _pumpRemoteAccess(
         tester,
@@ -206,18 +194,12 @@ void main() {
         remaining: const Duration(minutes: 4, seconds: 49),
         size: const Size(1600, 1200),
       );
-      final pairing = await cardWidth(tester);
+      final pairing = groupWidth(tester, 'PAIR A DEVICE');
 
-      expect(
-        idle,
-        pairing,
-        reason: 'the leaf reflowed under the operator when pairing started',
-      );
-      expect(
-        idle,
-        greaterThan(browsersCard * 0.8),
-        reason: 'every other card on this leaf runs the full content width',
-      );
+      expect(idle, pairing,
+          reason: 'the page reflowed under the operator when pairing started');
+      expect(idle, webServer,
+          reason: 'every group on the page runs the full content width');
     });
   });
 }

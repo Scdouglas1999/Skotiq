@@ -28,7 +28,7 @@ Future<void> _pumpPairing(
 ) async {
   await pumpAppScreen(
     tester,
-    const PairingScreen(),
+    const SingleChildScrollView(child: PairingSettings()),
     size: const Size(1200, 1600),
     extraOverrides: [
       pairingProvider.overrideWith((ref) => notifier),
@@ -86,10 +86,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final text = tester.widget<Text>(
-      find.text('Start pairing mode to connect a device'),
+      find.text('Pair a phone, tablet or browser above.'),
     );
     final context = tester.element(
-      find.text('Start pairing mode to connect a device'),
+      find.text('Pair a phone, tablet or browser above.'),
     );
     final colors = SkotiqColors.of(context);
     final colour = text.style!.color!;
@@ -192,7 +192,9 @@ void main() {
         )
         .map((c) => (c.decoration as BoxDecoration?)?.color)
         .firstWhere((c) => c != null && c.a > 0.99, orElse: () => null);
-    final behind = buttonFill ?? Theme.of(context).colorScheme.primaryContainer;
+    // A secondary paints no opaque fill: the label sits on the Settings
+    // panel's surface.
+    final behind = buttonFill ?? SkotiqColors.of(context).surface;
 
     expect(
       _contrast(ink, behind),
