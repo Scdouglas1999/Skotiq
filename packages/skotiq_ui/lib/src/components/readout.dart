@@ -197,8 +197,9 @@ class KeyValueList extends StatelessWidget {
         for (var i = 0; i < rows.length; i++) ...<Widget>[
           if (i > 0) const SizedBox(height: rowGap),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Expanded(
+              Flexible(
                 child: Text(
                   rows[i].$1,
                   style: SkotiqTypography.bodySm.copyWith(

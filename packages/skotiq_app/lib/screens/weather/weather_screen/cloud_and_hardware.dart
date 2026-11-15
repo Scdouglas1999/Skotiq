@@ -224,8 +224,12 @@ class _SafetyPolicy extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        const _SafetyDisclosure(),
+        // With safety off the no-data rule already says nothing is checked;
+        // the disclosure would only repeat it.
+        if (!noData || safetyState.monitoringEnabled) ...[
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          const _SafetyDisclosure(),
+        ],
       ],
     );
   }
