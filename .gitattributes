@@ -46,3 +46,12 @@ scripts/pre-commit.sh text eol=lf
 # at install, so a checkout must never rewrite its line endings.
 # ---------------------------------------------------------------------------
 packages/skotiq_core/assets/catalogs/NGC.csv -text
+
+# ---------------------------------------------------------------------------
+# Recorded test output that tests compare byte for byte (wire transcripts,
+# driver contracts, output pins): a Windows checkout must not turn LF into CRLF.
+# ---------------------------------------------------------------------------
+native/skotiq_native/*/tests/golden/** -text
+native/skotiq_native/*/tests/pins/** -text
+native/skotiq_native/*/tests/fixtures/** -text
+native/skotiq_native/bridge/src/device_manager/tests/golden/** -text
