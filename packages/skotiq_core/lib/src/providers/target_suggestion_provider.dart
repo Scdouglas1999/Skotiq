@@ -5,9 +5,12 @@ import 'linked_host.dart';
 import '../database/database.dart' as db;
 import '../models/planning/target_suggestion.dart';
 import '../services/logging_service.dart';
+import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
 import 'database_provider.dart';
+import 'hardware_presets_provider.dart';
 import 'profiles_provider.dart';
+import 'scheduler_provider.dart' show altitudeFloorProvider;
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
 
@@ -18,6 +21,16 @@ final targetSuggestionServiceProvider = Provider<TargetSuggestionService>((
   return TargetSuggestionService(loggingService: logging);
 });
 
+/// Smart Night, planning against the site's altitude floor.
+final smartNightServiceProvider = Provider<SmartNightService>((ref) {
+  return SmartNightService(
+    suggestionService: ref.watch(targetSuggestionServiceProvider),
+    logging: ref.watch(loggingServiceProvider),
+    floor: ref.watch(altitudeFloorProvider),
+    cameraLibrary: ref.watch(hardwarePresetsServiceProvider),
+  );
+});
+
 /// Provider for target suggestion configuration.
 ///
 /// This allows the UI to modify filter and sort settings for suggestions.
@@ -26,7 +39,6 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
   ref,
 ) {
   return const TargetSuggestionConfig(
-    minAltitude: 30.0,
     minScore: 50.0,
     prioritizeIncomplete: true,
     sortMode: SuggestionSortMode.bestScore,
@@ -144,9 +156,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           source: 'TargetSuggestionProvider',
         );
 
-        // Get custom horizon profile for obstruction filtering
-        final horizonProfile = ref.read(horizonProfileProvider);
-
         final suggestions = await service.getSuggestionsForTonight(
           config: config,
           latitude: latitude,
@@ -154,7 +163,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           targets: allTargets,
           sessions: sessions,
           opticalConfig: opticalConfig,
-          horizonProfile: horizonProfile.isFlat ? null : horizonProfile,
+          floor: ref.read(altitudeFloorProvider),
         );
 
         return suggestions;

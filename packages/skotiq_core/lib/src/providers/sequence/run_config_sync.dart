@@ -13,6 +13,8 @@ import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
 import '../replay_debug_provider.dart';
+import '../scheduler_provider.dart'
+    show altitudeFloorProvider, schedulerPersistedConfigProvider;
 import '../settings_provider.dart';
 import '../weather_providers.dart'
     show
@@ -69,6 +71,10 @@ class RunConfigSync {
   void Function(String message)? _onRunSendFailure;
 
   String? _lastSent;
+
+  /// The config waiting to be sent or being sent. A source that settles to
+  /// the same values while it is in flight is not sent a second time.
+  String? _queued;
   bool _sendScheduled = false;
   Future<void> _sending = Future<void>.value();
 
@@ -133,6 +139,9 @@ class RunConfigSync {
       // the executor keeps the site it has (a resumed run's).
       'latitude': settings.hasObserverLocation ? settings.latitude : null,
       'longitude': settings.hasObserverLocation ? settings.longitude : null,
+      // How high a target must stand, by azimuth: the property horizon when
+      // one is set, otherwise the minimum altitude.
+      'altitude_floor': _ref.read(altitudeFloorProvider).toWire(),
       'filter_focus_offsets': _filterFocusOffsets(settings),
       // With weather safety off, the native poll would fail closed on a rig
       // with no safety monitor and park the mount within moments of launch.
@@ -242,6 +251,10 @@ class RunConfigSync {
     await _ref.read(replayDebugEnabledProvider.future);
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
     await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
+    // The minimum altitude; the floor falls back to the default without it.
+    try {
+      await _ref.read(schedulerPersistedConfigProvider.future);
+    } catch (_) {}
   }
 
   void _listenToSources() {
@@ -255,6 +268,7 @@ class RunConfigSync {
       savedFocuserBacklashProvider,
       replayDebugEnabledProvider,
       globalMeridianFlipSettingsProvider,
+      altitudeFloorProvider,
     ]) {
       _ref.listen<Object?>(source, changed);
     }
@@ -274,7 +288,8 @@ class RunConfigSync {
         _reportSendFailure('The sequencer settings could not be read: $e');
         return;
       }
-      if (jsonEncode(config) == _lastSent) return;
+      final json = jsonEncode(config);
+      if (json == _lastSent || json == _queued) return;
       unawaited(
         _enqueue(config).catchError((Object e) {
           _reportSendFailure(
@@ -289,6 +304,7 @@ class RunConfigSync {
   /// Sends run one after another, so the last change is the one that stays.
   Future<void> _enqueue(Map<String, Object?> config) {
     final json = jsonEncode(config);
+    _queued = json;
     final send = _sending.catchError((Object _) {}).then((_) async {
       try {
         await _ref.read(sequencerBackendProvider).sequencerApplyRunConfig(json);
@@ -296,6 +312,8 @@ class RunConfigSync {
       } catch (_) {
         _lastSent = null;
         rethrow;
+      } finally {
+        if (identical(_queued, json)) _queued = null;
       }
     });
     _sending = send;

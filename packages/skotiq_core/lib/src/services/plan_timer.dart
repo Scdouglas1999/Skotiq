@@ -46,7 +46,6 @@ class PlanTimer {
     this.runEndsBy = _nothingEndsTheRun,
     this.autoFocusOnFilterChange = false,
     this.autoFocusEveryMinutes = 0,
-    this.minAltitude = 20.0,
   });
 
   final SequenceTimeEstimator estimator;
@@ -59,9 +58,6 @@ class PlanTimer {
 
   final bool autoFocusOnFilterChange;
   final int autoFocusEveryMinutes;
-
-  /// The horizon the visibility checks use, in degrees.
-  final double minAltitude;
 
   static DateTime? _nothingEndsTheRun(DateTime start) => null;
 
@@ -102,7 +98,6 @@ class PlanTimer {
     start: start,
     latitude: site?.latitude,
     longitude: site?.longitude,
-    minAltitude: minAltitude,
     darkWindowStart: darkWindowStart,
     darkWindowEnd: darkWindowEnd,
     runEndsBy: site == null ? null : runEndsBy(start),

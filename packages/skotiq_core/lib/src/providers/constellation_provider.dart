@@ -13,7 +13,8 @@ import '../services/constellation/constellation_service.dart';
 import '../services/mosaic/collaborative_mosaic_service.dart';
 import '../services/mosaic/mosaic_upload_consent.dart';
 import '../services/mosaic_project_service.dart';
-import 'scheduler_provider.dart' show schedulerEngineProvider;
+import 'scheduler_provider.dart'
+    show altitudeFloorProvider, schedulerEngineProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'sky_atlas_provider.dart';
 import '../utils/skotiq_data_directory.dart';
@@ -196,6 +197,7 @@ final coImagingBatonSchedulerProvider = Provider<CoImagingBatonScheduler>((
   final scheduler = CoImagingBatonScheduler(
     service: ref.watch(coImagingSessionServiceProvider),
     logger: ref.watch(loggingServiceProvider),
+    floor: () => ref.read(altitudeFloorProvider),
     // Resolve the rig's site each tick from app settings (degrees). A (0,0)
     // null-island default means "no site configured" -> skip without churning
     // the baton.

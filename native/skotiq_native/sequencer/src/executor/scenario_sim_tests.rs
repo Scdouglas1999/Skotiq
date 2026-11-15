@@ -3935,3 +3935,81 @@ async fn a_stopped_run_checkpoint_says_stopped_with_its_final_counts() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
+
+/// A run that has a target and no observing site cannot work out how high the
+/// target stands or when it crosses the meridian. It carries on, and the
+/// operator is told once, as a notice (a decision row carrying the notice and
+/// the run's warning for it), not in a log line alone. The site set during
+/// the run takes effect at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_run_with_a_target_and_no_site_says_so_once_as_a_notice() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    let mut decisions = executor.subscribe_decisions();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+    assert_eq!(executor.observer_location(), (None, None));
+    {
+        let manager = executor.trigger_manager.read().await;
+        manager.state().write().await.set_target(150.0, 20.0);
+    }
+
+    let is_site_notice = |notice: &crate::decision::RunNotice| {
+        matches!(
+            notice,
+            crate::decision::RunNotice::ProblemNoticed { source, .. }
+                if source == "No observing site"
+        )
+    };
+    let mut warnings = 0;
+    let mut rows = 0;
+    // Several monitor ticks: the notice is given on the first and not again.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(6);
+    while tokio::time::Instant::now() < deadline {
+        while let Ok(event) = events.try_recv() {
+            if let super::ExecutorEvent::NoticedWarning { notice, message } = event {
+                if is_site_notice(&notice) {
+                    assert!(message.contains("Settings > Location"), "{message}");
+                    warnings += 1;
+                }
+            }
+        }
+        while let Ok(decision) = decisions.try_recv() {
+            if decision.notice.as_ref().is_some_and(is_site_notice) {
+                assert_eq!(decision.summary, super::NO_OBSERVING_SITE_SUMMARY);
+                rows += 1;
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert_eq!((warnings, rows), (1, 1));
+    assert_eq!(
+        trigger_state_of(&executor.trigger_manager)
+            .await
+            .target
+            .current_altitude,
+        None
+    );
+
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(40.0);
+            config.longitude = Some(-75.0);
+        })
+        .await
+        .expect("the site is accepted");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut altitude = None;
+    while altitude.is_none() && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        altitude = trigger_state_of(&executor.trigger_manager)
+            .await
+            .target
+            .current_altitude;
+    }
+    let _ = executor.stop().await;
+    assert!(altitude.is_some(), "the site set during the run was not used");
+}

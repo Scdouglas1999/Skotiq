@@ -108,6 +108,11 @@ impl SequenceExecutor {
                 .update_run_config(|config| {
                     config.latitude = cp.latitude;
                     config.longitude = cp.longitude;
+                    // Settings sent since the app started are newer than
+                    // the interrupted run's.
+                    if config.altitude_floor.is_none() {
+                        config.altitude_floor = cp.altitude_floor.clone();
+                    }
                 })
                 .await?;
 

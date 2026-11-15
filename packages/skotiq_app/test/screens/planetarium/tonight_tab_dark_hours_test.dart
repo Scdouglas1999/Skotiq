@@ -64,9 +64,13 @@ final _zenithGalaxy = TonightTarget(
   score: 41,
 );
 
-Widget _wrap() {
+Widget _wrap({AltitudeFloorSamples? floor}) {
   return ProviderScope(
     overrides: [
+      // The site's floor as the app pumps it: no horizon, 30 degrees.
+      planetariumAltitudeFloorProvider.overrideWith(
+        (ref) => floor ?? AltitudeFloorSamples.flat(30),
+      ),
       appSettingsProvider.overrideWith(
         () => _StubAppSettingsNotifier(
           AppSettingsState(
@@ -143,6 +147,21 @@ void main() {
     expect(
       tooltips.where((m) => (m ?? '').contains('same score the planner')),
       isEmpty,
+    );
+  });
+
+  testWidgets('with a horizon set the panel says the hours are above it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(floor: const AltitudeFloorSamples([0, 90, 180], [0, 40, 0])),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Usable hours above your horizon in darkness, and when each peaks',
+      ),
+      findsOneWidget,
     );
   });
 }

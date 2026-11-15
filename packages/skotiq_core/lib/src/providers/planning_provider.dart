@@ -369,6 +369,7 @@ final weekForecastProvider = FutureProvider.autoDispose<WeekForecast>((
   final service = ForecastPlanningService(
     latitudeDegrees: lat,
     longitudeDegrees: lng,
+    floor: ref.watch(altitudeFloorProvider),
   );
   return service.buildWeek(
     cloudResult: cloudResult,
@@ -381,9 +382,7 @@ final weekForecastProvider = FutureProvider.autoDispose<WeekForecast>((
 ///
 /// When [activeProjectId] is non-null we use that project's incomplete
 /// targets (via [ProjectService.buildProgress]); otherwise we fall back to
-/// every catalog target carrying an unmet integration goal. In both cases each
-/// candidate's `minAltitude` comes from the live `targets` row so the
-/// "is it up?" test honors the operator's per-target altitude floor.
+/// every catalog target carrying an unmet integration goal.
 Future<List<ProjectTargetCandidate>> _incompleteCandidates(
   Ref ref,
   int? activeProjectId,
@@ -415,7 +414,6 @@ Future<List<ProjectTargetCandidate>> _incompleteCandidates(
           name: tp.targetName,
           raHours: tp.raHours,
           decDegrees: tp.decDegrees,
-          minAltitudeDeg: row.minAltitude,
         ),
       );
     }
@@ -468,7 +466,6 @@ Future<List<ProjectTargetCandidate>> _incompleteCandidates(
         name: row.name,
         raHours: row.ra,
         decDegrees: row.dec,
-        minAltitudeDeg: row.minAltitude,
       ),
     );
   }

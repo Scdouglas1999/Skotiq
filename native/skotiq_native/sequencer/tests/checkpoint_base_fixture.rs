@@ -62,6 +62,10 @@ const TRIGGER_STATE_FIELDS: [&str; 45] = [
     "last_applied_filter_offset",
 ];
 
+/// Fields the snapshot gained after c04d55c8d. The base checkpoint has none
+/// of them, so each restores as nothing.
+const FIELDS_ADDED_SINCE: [&str; 1] = ["current_azimuth"];
+
 /// Read and ignored: no checkpoint may turn off dawn or weather parking.
 const IGNORED_FIELD: &str = "triggers_enabled";
 
@@ -178,5 +182,17 @@ fn every_trigger_state_field_of_a_base_checkpoint_is_restored() {
             "trigger-state field '{name}' did not survive the restore"
         );
     }
-    assert_eq!(again.len(), expected.len(), "fields: {:?}", again.keys());
+    for name in FIELDS_ADDED_SINCE {
+        assert_eq!(
+            again.get(name),
+            Some(&serde_json::Value::Null),
+            "a field the base checkpoint lacks, '{name}', did not restore as nothing"
+        );
+    }
+    assert_eq!(
+        again.len(),
+        expected.len() + FIELDS_ADDED_SINCE.len(),
+        "fields: {:?}",
+        again.keys()
+    );
 }

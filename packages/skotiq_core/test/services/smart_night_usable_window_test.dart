@@ -7,16 +7,16 @@ import 'package:skotiq_astro/skotiq_astro.dart'
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
-/// The Plan Tonight / "Image this target tonight" builder must not refuse every
-/// non-circumpolar target with "no usable imaging window".
-///
-/// [TargetVisibilityInfo]'s rise/set describe ONE noon-to-noon day, chosen by
-/// whatever date the scorer passed in — the night scorer passes the night
-/// MIDPOINT, which for a night straddling midnight is the morning-after date.
-/// The crossings that come back then belong to the following diurnal cycle, and
-/// clipping tonight's dark window with them deletes the whole window. These
-/// tests pin the crossing-to-interval mapping in both directions, and pin that
-/// real clipping still happens.
+/// The window a target is planned into is the longest stretch it stands above
+/// the site's altitude floor inside the dark window, worked out from where the
+/// target is in the sky. What a suggestion says about rise and set (one
+/// noon-to-noon day, chosen by whoever scored it) does not decide it.
+/// No horizon set and a 30 degree minimum altitude.
+const _minimum30 = AltitudeFloor(horizon: null, minimumDeg: 30);
+
+const _siteLatitude = 40.0;
+const _siteLongitude = -75.0;
+
 void main() {
   const profile = EquipmentProfileModel(
     id: 1,
@@ -42,6 +42,7 @@ void main() {
         loggingService: _MockLoggingService(),
       ),
       logging: _MockLoggingService(),
+      floor: _minimum30,
     );
   });
 
@@ -76,252 +77,170 @@ void main() {
   TargetHeaderNode headerOf(SingleTargetSequenceResult result) =>
       result.sequence.nodes.values.whereType<TargetHeaderNode>().single;
 
+  // 22:01 to 04:11 local at the site, in UTC so the test reads the same sky
+  // on any machine.
+  final darkStart = DateTime.utc(2026, 8, 2, 2, 1);
+  final darkEnd = DateTime.utc(2026, 8, 2, 8, 11);
+
+  /// Every stretch inside the dark window that a target stands above
+  /// [floor], minute by minute from the ephemeris.
+  List<(DateTime, DateTime)> stretchesAbove(
+    AltitudeFloor floor,
+    double raHours,
+    double decDegrees,
+  ) {
+    final stretches = <(DateTime, DateTime)>[];
+    DateTime? open;
+    for (
+      var t = darkStart;
+      !t.isAfter(darkEnd);
+      t = t.add(const Duration(minutes: 1))
+    ) {
+      final (alt, az) = AstronomyCalculations.objectAltAz(
+        raDeg: raHours * 15,
+        decDeg: decDegrees,
+        dt: t,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+      );
+      final above = alt >= floor.atAzimuth(az);
+      if (above) {
+        open ??= t;
+      } else if (open != null) {
+        stretches.add((open, t));
+        open = null;
+      }
+    }
+    if (open != null) stretches.add((open, darkEnd));
+    return stretches;
+  }
+
+  SingleTargetSequenceResult build(
+    SmartNightService service,
+    double raHours,
+    double decDegrees, {
+    DateTime? rise,
+    DateTime? set,
+  }) => service.buildSingleTargetSequence(
+    profile: profile,
+    suggestion: suggestionWith(
+      rise: rise,
+      set: set,
+      raHours: raHours,
+      decDegrees: decDegrees,
+    ),
+    windowStart: darkStart,
+    windowEnd: darkEnd,
+    latitudeDeg: _siteLatitude,
+    longitudeDeg: _siteLongitude,
+    availableFilters: profile.filterNames,
+    settings: settings,
+  );
+
+  SmartNightService serviceWith(AltitudeFloor floor) => SmartNightService(
+    suggestionService: TargetSuggestionService(
+      loggingService: _MockLoggingService(),
+    ),
+    logging: _MockLoggingService(),
+    floor: floor,
+  );
+
   group('usable target window', () {
-    test('builds when the scorer reported the NEXT cycle\'s crossings '
-        '(the M92 "no usable imaging window" P0)', () {
-      // Verbatim from the live failure: site 40.0N/-75.0W, dark window
-      // 22:01:44 -> 04:11:18, and a visibility scored from the night
-      // midpoint, so the rise it carries is the *following* midday.
-      final windowStart = DateTime(2026, 8, 1, 22, 1, 44);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11, 18);
-
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestionWith(
-          rise: DateTime(2026, 8, 2, 12, 1),
-          set: DateTime(2026, 8, 3, 5, 41),
-        ),
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
-
-      expect(result.plannedTarget.windowStart, windowStart);
-      expect(headerOf(result).startAfter, windowStart);
-      // The night is 6h10m; the target is up for all of it.
-      expect(
-        result.plannedTarget.windowEnd.isAfter(
-          windowStart.add(const Duration(hours: 1)),
-        ),
-        isTrue,
-        reason: 'the whole dark window is usable for this target',
-      );
-    });
-
-    test('builds when the scorer reported the PREVIOUS cycle\'s crossings', () {
-      final windowStart = DateTime(2026, 8, 1, 22, 1, 44);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11, 18);
-
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestionWith(
-          rise: DateTime(2026, 7, 31, 12, 5),
-          set: DateTime(2026, 8, 1, 5, 45),
-        ),
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
-
-      expect(result.plannedTarget.windowStart, windowStart);
-    });
-
-    test('still clips the window at a set that falls inside it', () {
-      final windowStart = DateTime(2026, 8, 1, 22, 1);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11);
-      final set = DateTime(2026, 8, 1, 23);
-
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestionWith(
-          rise: DateTime(2026, 8, 1, 14),
-          set: set,
-          peakAltitude: 60,
-        ),
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
-
-      expect(result.plannedTarget.windowStart, windowStart);
-      expect(
-        result.plannedTarget.windowEnd.isAfter(set),
-        isFalse,
-        reason: 'imaging must stop when the target sets',
-      );
-      expect(headerOf(result).endBefore!.isAfter(set), isFalse);
-    });
-
-    test('still clips the window at a rise that falls inside it', () {
-      final windowStart = DateTime(2026, 8, 1, 22, 1);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11);
-      final rise = DateTime(2026, 8, 2, 1);
-
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestionWith(
-          rise: rise,
-          set: DateTime(2026, 8, 2, 10),
-          peakAltitude: 55,
-        ),
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
-
-      expect(result.plannedTarget.windowStart, rise);
-      expect(headerOf(result).startAfter, rise);
-    });
-
-    test('takes the longer span when the target dips mid-window', () {
-      // High declination, lower culmination inside the dark window: the target
-      // is up at both ends and below the horizon in the middle, so there are
-      // two disjoint usable spans. The builder returns one contiguous window,
-      // so it must be the longer of the two (22:01 -> 23:30, not 03:30 ->
-      // 04:11).
-      final windowStart = DateTime(2026, 8, 1, 22, 1);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11);
-
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestionWith(
-          rise: DateTime(2026, 8, 2, 3, 30),
-          set: DateTime(2026, 8, 1, 23, 30),
-          peakAltitude: 70,
-        ),
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
-
-      expect(result.plannedTarget.windowStart, windowStart);
-      expect(
-        result.plannedTarget.windowEnd.isAfter(DateTime(2026, 8, 1, 23, 30)),
-        isFalse,
-      );
-    });
-
-    test('rejects a target whose peak stays below the minimum altitude', () {
-      expect(
-        () => service.buildSingleTargetSequence(
-          profile: profile,
-          suggestion: suggestionWith(
-            rise: DateTime(2026, 8, 1, 20),
-            set: DateTime(2026, 8, 2, 6),
-            peakAltitude: 12,
-          ),
-          windowStart: DateTime(2026, 8, 1, 22, 1),
-          windowEnd: DateTime(2026, 8, 2, 4, 11),
-          availableFilters: profile.filterNames,
-          settings: settings,
-        ),
-        throwsA(isA<SmartNightBuildException>()),
-      );
-    });
-
-    // End-to-end cover against real astronomy rather than hand-written
-    // crossings: score the visibility exactly the way
-    // TargetScoringService.scoreTargetForNight does (anchored on the night
-    // MIDPOINT) and feed the result straight to the builder. Because the
-    // midpoint of a midnight-straddling window always lands on the morning
-    // date, the scored crossings belong to the next 24h day whatever wall
-    // clock the host runs in — which is what made the interval unclippable.
-    // Ground truth (peak altitude, minutes above the floor) is sampled from
-    // the same ephemeris so the expectation holds in any timezone.
-    test('M92 at 40N builds from a scorer-produced visibility', () {
-      const raDeg = 259.28; // M92
-      const decDeg = 43.136;
-      const latitude = 40.0;
-      const longitude = -75.0;
-      const minAltitude = 30.0;
-
-      final windowStart = DateTime(2026, 8, 1, 22, 1, 44);
-      final windowEnd = DateTime(2026, 8, 2, 4, 11, 18);
-      final nightMid = windowStart.add(
-        Duration(seconds: windowEnd.difference(windowStart).inSeconds ~/ 2),
-      );
-
-      final scored = AstronomyCalculations.calculateObjectVisibility(
-        raDeg: raDeg,
-        decDeg: decDeg,
-        date: nightMid,
-        latitudeDeg: latitude,
-        longitudeDeg: longitude,
-      );
-
-      // Premise: the scored crossings sit a whole diurnal cycle away from the
-      // interval they are about to be clipped against.
-      expect(scored.riseTime, isNotNull);
-      expect(scored.riseTime!.isAfter(windowEnd), isTrue);
-
-      // Ground truth from the same ephemeris.
-      var peakAlt = -90.0;
-      DateTime? peakTime;
-      var minutesAbove = 0;
-      for (
-        var t = windowStart;
-        !t.isAfter(windowEnd);
-        t = t.add(const Duration(minutes: 1))
-      ) {
-        final (alt, _) = AstronomyCalculations.objectAltAz(
-          raDeg: raDeg,
-          decDeg: decDeg,
-          dt: t,
-          latitudeDeg: latitude,
-          longitudeDeg: longitude,
-        );
-        if (alt > peakAlt) {
-          peakAlt = alt;
-          peakTime = t;
-        }
-        if (alt >= minAltitude) minutesAbove++;
-      }
-
-      final suggestion = suggestionWith(
-        rise: scored.riseTime,
-        set: scored.setTime,
-        peakAltitude: peakAlt,
-        hoursAboveMinAlt: minutesAbove / 60,
-      );
-
-      if (peakAlt < minAltitude) {
-        // Only reachable from a wall clock where this window is daytime at the
-        // site; the builder is right to refuse.
+    test('a target above the floor all night gets the whole dark window, '
+        'whatever day the suggestion\'s rise and set belong to', () {
+      // Five degrees from the pole: 35 to 45 degrees up all night from 40 N.
+      expect(stretchesAbove(_minimum30, 17.285, 85), [(darkStart, darkEnd)]);
+      for (final (rise, set) in [
+        (null, null),
+        // The following day's crossings, as a scorer anchored on the night's
+        // midpoint reports them.
+        (DateTime.utc(2026, 8, 2, 16, 1), DateTime.utc(2026, 8, 3, 9, 41)),
+        // The previous day's.
+        (DateTime.utc(2026, 7, 31, 16, 5), DateTime.utc(2026, 8, 1, 9, 45)),
+      ]) {
+        final result = build(service, 17.285, 85, rise: rise, set: set);
+        expect(result.plannedTarget.windowStart, darkStart);
+        expect(headerOf(result).startAfter, darkStart);
+        // Its integration budget, not the sky, ends the plan.
         expect(
-          () => service.buildSingleTargetSequence(
-            profile: profile,
-            suggestion: suggestion,
-            windowStart: windowStart,
-            windowEnd: windowEnd,
-            availableFilters: profile.filterNames,
-            settings: settings,
+          result.plannedTarget.windowEnd.isAfter(
+            darkStart.add(const Duration(hours: 1)),
           ),
-          throwsA(isA<SmartNightBuildException>()),
+          isTrue,
         );
-        return;
       }
+    });
 
-      final result = service.buildSingleTargetSequence(
-        profile: profile,
-        suggestion: suggestion,
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        availableFilters: profile.filterNames,
-        settings: settings,
-      );
+    test('the window ends when the target drops below the floor', () {
+      // Arcturus is in the west and sinking through 30 degrees.
+      final truth = stretchesAbove(_minimum30, 14.26, 19.18).single;
+      expect(truth.$1, darkStart);
+      expect(truth.$2.isBefore(darkEnd), isTrue);
 
-      // The usable window must have opened by the moment the target is
-      // highest — anything later means the crossings clipped real dark time
-      // away again.
+      final result = build(service, 14.26, 19.18);
+      expect(result.plannedTarget.windowStart, darkStart);
+      // The plan stops a few seconds short of the crossing.
       expect(
-        result.plannedTarget.windowStart.isAfter(peakTime!),
-        isFalse,
-        reason: 'imaging must have started by the target\'s peak',
+        truth.$2.difference(result.plannedTarget.windowEnd).abs(),
+        lessThan(const Duration(minutes: 1)),
+      );
+      expect(headerOf(result).endBefore, result.plannedTarget.windowEnd);
+    });
+
+    test('the window starts when the target clears the floor', () {
+      // The Pleiades rise through 30 degrees before dawn.
+      final truth = stretchesAbove(_minimum30, 3.79, 24.1).single;
+      expect(truth.$1.isAfter(darkStart), isTrue);
+      expect(truth.$2, darkEnd);
+
+      final result = build(service, 3.79, 24.1);
+      expect(result.plannedTarget.windowStart, truth.$1);
+      expect(headerOf(result).startAfter, truth.$1);
+    });
+
+    test('takes the longest stretch when the horizon hides the target for a '
+        'while', () {
+      // A chimney 80 degrees tall and 6 degrees wide where M92 stands an
+      // hour and a half into the night; open sky elsewhere.
+      final (_, chimney) = AstronomyCalculations.objectAltAz(
+        raDeg: 17.285 * 15,
+        decDeg: 43.136,
+        dt: darkStart.add(const Duration(minutes: 90)),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+      );
+      final floor = AltitudeFloor(
+        horizon: SiteHorizonProfile.fromSamples([
+          (azimuth: 0, altitude: 0),
+          (azimuth: chimney - 3.1, altitude: 0),
+          (azimuth: chimney - 3, altitude: 80),
+          (azimuth: chimney + 3, altitude: 80),
+          (azimuth: chimney + 3.1, altitude: 0),
+          (azimuth: 359, altitude: 0),
+        ]),
+        minimumDeg: 30,
+      );
+      final truth = stretchesAbove(floor, 17.285, 43.136);
+      expect(truth.length, 2, reason: 'before the chimney and after it');
+      final longest = truth.reduce(
+        (a, b) => b.$2.difference(b.$1) > a.$2.difference(a.$1) ? b : a,
+      );
+      expect(longest, truth.last);
+
+      final result = build(serviceWith(floor), 17.285, 43.136);
+      expect(result.plannedTarget.windowStart, longest.$1);
+      expect(
+        longest.$2.difference(result.plannedTarget.windowEnd).abs(),
+        lessThan(const Duration(minutes: 1)),
+      );
+    });
+
+    test('refuses a target that never clears the floor', () {
+      // Declination -45 culminates 5 degrees up from 40 N.
+      expect(stretchesAbove(_minimum30, 18, -45), isEmpty);
+      expect(
+        () => build(service, 18, -45),
+        throwsA(isA<SmartNightBuildException>()),
       );
     });
   });

@@ -20,8 +20,9 @@ pub(super) struct DevicePoller {
     last_mount_poll_at: Option<std::time::Instant>,
     /// The stale-verdict warning has been given for the current stale spell.
     verdict_stale_warned: bool,
-    /// The "no observing site" warning is given once per run.
+    /// The "no observing site" notice is given once per run.
     altitude_warned_no_location: bool,
+    decisions: super::super::run::DecisionLog,
 }
 
 /// How this tick's safety-cadence polls are configured.
@@ -37,6 +38,7 @@ impl DevicePoller {
         trigger_manager: Arc<RwLock<TriggerManager>>,
         runtime_config: RunConfigStore,
         events: broadcast::Sender<ExecutorEvent>,
+        decisions: super::super::run::DecisionLog,
         rig: &RunRig,
     ) -> Self {
         Self {
@@ -52,6 +54,7 @@ impl DevicePoller {
             last_mount_poll_at: None,
             verdict_stale_warned: false,
             altitude_warned_no_location: false,
+            decisions,
         }
     }
 
@@ -298,6 +301,7 @@ impl DevicePoller {
         ) {
             Some(sky) => {
                 state.target.current_altitude = Some(sky.altitude_degrees);
+                state.target.current_azimuth = Some(sky.azimuth_degrees);
                 state.update_hour_angle(sky.hour_angle_hours);
                 tracing::trace!(
                     "Computed target sky state: altitude {:.2}°, hour angle {:+.4}h",
@@ -309,23 +313,21 @@ impl DevicePoller {
                 // Nothing to compute from: drop values left by a checkpoint or
                 // another target rather than let the triggers judge them.
                 state.target.current_altitude = None;
+                state.target.current_azimuth = None;
                 state.target.current_hour_angle = None;
 
-                // A target without a site leaves altitude and meridian
-                // protection off. A Warning, not an Error (the run is fine;
-                // protection is missing), given once.
+                // A target without a site leaves the altitude floor and the
+                // meridian flip off. The run carries on and the operator is
+                // told once, as a notice.
                 if state.target.target_ra.is_some()
                     && state.target.target_dec.is_some()
                     && !self.altitude_warned_no_location
                 {
-                    let msg = "AltitudeLimit and meridian-flip triggers need \
-                         an observing site, but observer location is not set \
-                         — altitude and meridian-flip protection are \
-                         INACTIVE. Set location in Profile to enable.";
-                    tracing::warn!("{}", msg);
-                    let _ = self.events.send(ExecutorEvent::Warning {
-                        message: msg.to_string(),
-                    });
+                    let continuation = crate::executor::no_observing_site_continuation();
+                    tracing::warn!("{}", continuation.operator_message);
+                    let (decision, line) = continuation.split();
+                    self.decisions.send(decision);
+                    let _ = self.events.send(line.into_event());
                     self.altitude_warned_no_location = true;
                 }
             }

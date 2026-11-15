@@ -108,6 +108,9 @@ pub(super) async fn trigger_monitor_stall_watchdog(
 pub(super) struct TargetSkyState {
     /// Degrees above the horizon; feeds `AltitudeLimit`.
     pub altitude_degrees: f64,
+    /// Degrees from north through east: the direction `AltitudeLimit` reads
+    /// the altitude floor in.
+    pub azimuth_degrees: f64,
     /// Signed hour angle in hours, normalized to `[-12, +12]` — negative is
     /// east of the meridian. Feeds every `MeridianFlip` trigger method that
     /// reasons about transit, and the exposure gate that holds a frame the
@@ -152,14 +155,11 @@ pub(super) fn target_sky_state(
     let (ra_hours, dec_degrees) =
         crate::meridian::target_of_date(ra_degrees / 15.0, dec_degrees, now);
     let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), longitude);
+    let (altitude_degrees, azimuth_degrees) =
+        crate::meridian::calculate_alt_az(ra_hours, dec_degrees, latitude, longitude, now);
     Some(TargetSkyState {
-        altitude_degrees: crate::meridian::calculate_altitude(
-            ra_hours,
-            dec_degrees,
-            latitude,
-            longitude,
-            now,
-        ),
+        altitude_degrees,
+        azimuth_degrees,
         hour_angle_hours: crate::meridian::hour_angle(ra_hours, lst),
     })
 }

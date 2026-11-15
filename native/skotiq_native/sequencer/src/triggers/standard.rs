@@ -208,7 +208,7 @@ impl StandardTrigger {
                 duration_secs: 30.0,
                 rms_retention_secs: crate::default_guiding_rms_retention_secs(),
             },
-            Self::AltitudeLimit => TriggerType::AltitudeLimit { min_altitude: 30.0 },
+            Self::AltitudeLimit => TriggerType::AltitudeLimit { min_altitude: None },
             Self::WeatherUnsafe => TriggerType::WeatherUnsafe,
             Self::TemperatureShift => TriggerType::TemperatureShift { degrees: 2.0 },
             Self::FilterChange => TriggerType::FilterChange,

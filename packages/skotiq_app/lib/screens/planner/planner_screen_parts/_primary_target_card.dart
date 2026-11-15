@@ -37,9 +37,6 @@ class _TargetDetailColumn extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     final visibility = target.visibility;
-    final minAltitude =
-        ref.watch(suggestionFilterProvider).minCurrentAltitude ??
-            _kPlannerDefaultMinAltitude;
 
     final content = <Widget>[
       SizedBox(
@@ -91,7 +88,7 @@ class _TargetDetailColumn extends ConsumerWidget {
       const SizedBox(height: SkotiqTokens.spaceMd),
       SizedBox(
         height: _altitudeHeight,
-        child: _TargetAltitudeWell(target: target, minAltitude: minAltitude),
+        child: _TargetAltitudeWell(target: target),
       ),
       const SizedBox(height: SkotiqTokens.spaceMd),
       KeyValueList(rows: _facts(context, ref)),
@@ -246,9 +243,8 @@ class _TargetDetailColumn extends ConsumerWidget {
 /// 110px slot and repeat the four readouts directly above it.
 class _TargetAltitudeWell extends ConsumerWidget {
   final TargetSuggestion target;
-  final double minAltitude;
 
-  const _TargetAltitudeWell({required this.target, required this.minAltitude});
+  const _TargetAltitudeWell({required this.target});
 
   /// How many points the curve is sampled at across the night.
   static const int _samples = 60;
@@ -283,11 +279,15 @@ class _TargetAltitudeWell extends ConsumerWidget {
     final to = night.end.add(_margin);
     final span = to.difference(from).inSeconds;
     final points = <(DateTime, double?)>[];
+    // The site's altitude floor in the direction the target stands at each
+    // sampled time.
+    final floor = ref.watch(altitudeFloorProvider);
+    final floorPoints = <(DateTime, double?)>[];
     for (var i = 0; i < _samples; i++) {
       final t = from.add(
         Duration(seconds: (span * i / (_samples - 1)).round()),
       );
-      final (alt, _) = AstronomyCalculations.objectAltAz(
+      final (alt, az) = AstronomyCalculations.objectAltAz(
         raDeg: target.raHours * 15.0,
         decDeg: target.decDegrees,
         dt: t,
@@ -295,6 +295,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
         longitudeDeg: location.longitude,
       );
       points.add((t, alt.clamp(0.0, 90.0)));
+      floorPoints.add((t, floor.atAzimuth(az).clamp(0.0, 90.0)));
     }
 
     final now = DateTime.now();
@@ -305,10 +306,16 @@ class _TargetAltitudeWell extends ConsumerWidget {
         child: NightChartAxes(
           from: from,
           to: to,
-          zeroLineY: minAltitude,
           leftTicks: const <double>[0, 30, 60, 90],
           leftUnit: '°',
           lines: <SeriesChartLine>[
+            SeriesChartLine(
+              points: floorPoints,
+              tone: SeriesChartTone.muted,
+              dashed: true,
+              minY: 0,
+              maxY: 90,
+            ),
             SeriesChartLine(
               points: points,
               tone: SeriesChartTone.primary,
@@ -324,10 +331,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
           ],
           semanticLabel: context.l10n.text(
             'plannerAltitudeChartSem',
-            params: {
-              'name': target.targetName,
-              'deg': minAltitude.round().toString(),
-            },
+            params: {'name': target.targetName},
           ),
         ),
       ),

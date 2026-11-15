@@ -5,6 +5,7 @@ library;
 export 'src/celestial_object.dart';
 export 'src/coordinate_system.dart';
 
+export 'src/astronomy/altitude_floor_search.dart';
 export 'src/astronomy/astronomy_calculations.dart';
 export 'src/astronomy/observability.dart';
 export 'src/astronomy/planetary_positions.dart';

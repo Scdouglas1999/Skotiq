@@ -113,7 +113,6 @@ void main() {
     final bare = bareTargetHeadersForMosaicPanels(
       target: target,
       framingState: framingState,
-      minAltitude: 25,
     );
 
     String describe(TargetHeaderNode h) =>
@@ -123,7 +122,7 @@ void main() {
     // Panel 1 is the panel the canvas numbers first, where the run starts.
     expect(built.first.raHours, _generatedPanels.first.raHours);
     expect(built.first.decDegrees, _generatedPanels.first.decDegrees);
-    expect(built.first.minAltitude, 25);
+    expect(built.first.minAltitude, isNull);
     expect(built.first.childIds, isNotEmpty, reason: 'Auto-build images');
   });
 

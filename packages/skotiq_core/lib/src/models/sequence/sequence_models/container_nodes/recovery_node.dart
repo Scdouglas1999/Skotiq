@@ -11,7 +11,8 @@ class RecoveryNode extends SequenceNode {
   /// Generic threshold value whose meaning depends on [triggerType]:
   /// - For [TriggerType.hfrDegraded]: absolute HFR threshold in arcsec/px
   ///   (0 = disabled, use only relative mode)
-  /// - For [TriggerType.altitudeLimit]: minimum altitude in degrees
+  /// - For [TriggerType.altitudeLimit]: a minimum altitude in degrees on
+  ///   top of the site's altitude floor; null holds the target to the floor
   /// - For [TriggerType.humidityThreshold]: max percent humidity (e.g. 85)
   /// - For [TriggerType.driftLimit]: max drift in pixels (e.g. 30)
   /// - For [TriggerType.temperatureShift]: degrees of change to trigger
@@ -278,7 +279,7 @@ class RecoveryNode extends SequenceNode {
         };
       case TriggerType.altitudeLimit:
         return {
-          'AltitudeLimit': {'min_altitude': triggerThreshold ?? 30.0},
+          'AltitudeLimit': {'min_altitude': triggerThreshold},
         };
       case TriggerType.weatherUnsafe:
         return 'WeatherUnsafe';

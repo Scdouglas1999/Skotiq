@@ -326,8 +326,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended');
+    final runButton = find.widgetWithText(SkotiqButton, 'Run unattended');
 
     await tester.tap(runButton);
     await tester.pumpAndSettle();
@@ -502,8 +501,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended');
+    final runButton = find.widgetWithText(SkotiqButton, 'Run unattended');
     await tester.tap(runButton);
     await tester.pump();
     verify(
@@ -528,6 +526,74 @@ void main() {
     expect(find.textContaining('old host went away'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  for (final (name, horizon, key) in [
+    (
+      'no horizon: the minimum is in force',
+      null,
+      'scheduler.minAltitudeInForce'
+    ),
+    (
+      'a horizon set: the minimum is not in force',
+      '{"E":40}',
+      'scheduler.minAltitudeNotInForce',
+    ),
+  ]) {
+    testWidgets('the minimum altitude says which rule is in force: $name', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1280, 800);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final backend = _MockNetworkBackend();
+      when(backend.getSchedulerState).thenAnswer(
+        (_) async => _remoteSchedulerState(),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            ..._commonOverrides(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            schedulerEngineProvider.overrideWith(
+              (ref) => throw StateError('remote client created an engine'),
+            ),
+            allIntegrationGoalsProvider.overrideWith(
+              (ref) async => <IntegrationGoal>[],
+            ),
+            if (horizon != null)
+              horizonProfileProvider.overrideWithValue(
+                SiteHorizonProfile.fromJson(horizon),
+              ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(body: PlanTargetsTab()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('autopilot-settings')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key(key)), findsOneWidget);
+      expect(
+        find.byKey(
+          Key(
+            key == 'scheduler.minAltitudeInForce'
+                ? 'scheduler.minAltitudeNotInForce'
+                : 'scheduler.minAltitudeInForce',
+          ),
+        ),
+        findsNothing,
+      );
+    });
+  }
 
   testWidgets(
       'a config save the old host answers after a host switch changes nothing '
@@ -584,7 +650,9 @@ void main() {
         tester.widget<SkotiqSlider>(find.byType(SkotiqSlider).first).value;
     expect(altitudeSlider(), defaultAltitude);
 
-    tester.widget<SkotiqSlider>(find.byType(SkotiqSlider).first).onChanged!(2.5);
+    tester
+        .widget<SkotiqSlider>(find.byType(SkotiqSlider).first)
+        .onChanged!(2.5);
     await tester.pump();
     expect(altitudeSlider(), 2.5, reason: 'the edit shows while it saves');
     verify(() => oldBackend.updateSchedulerConfig(any())).called(1);
@@ -597,8 +665,8 @@ void main() {
     oldSave.completeError(StateError('old host went away'));
     await tester.pumpAndSettle();
     expect(altitudeSlider(), defaultAltitude);
-    expect(
-        find.textContaining('Could not save the autopilot settings'), findsNothing);
+    expect(find.textContaining('Could not save the autopilot settings'),
+        findsNothing);
     verifyNever(() => newBackend.updateSchedulerConfig(any()));
   });
 

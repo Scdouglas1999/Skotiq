@@ -253,12 +253,14 @@ void _showAutopilotSettings(
 }) {
   showDialog<void>(
     context: context,
-    builder: (_) => _AutopilotSettingsDialog(config: config, onChanged: onChanged),
+    builder: (_) =>
+        _AutopilotSettingsDialog(config: config, onChanged: onChanged),
   );
 }
 
 class _AutopilotSettingsDialog extends ConsumerStatefulWidget {
-  const _AutopilotSettingsDialog({required this.config, required this.onChanged});
+  const _AutopilotSettingsDialog(
+      {required this.config, required this.onChanged});
 
   final ValueListenable<SchedulerConfig> config;
   final ValueChanged<SchedulerConfig> onChanged;
@@ -282,7 +284,9 @@ class _AutopilotSettingsDialogState
     final colors = SkotiqColors.of(context);
     final w = _config.weights;
     final eyebrow = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
-    void weights(SchedulerWeights next) => _set(_config.copyWith(weights: next));
+    void weights(SchedulerWeights next) =>
+        _set(_config.copyWith(weights: next));
+    final followsHorizon = ref.watch(altitudeFloorProvider).followsHorizon;
 
     return SkotiqDialog(
       title: 'Autopilot settings',
@@ -342,19 +346,26 @@ class _AutopilotSettingsDialogState
             format: (v) => '${v.round()}°',
             onChanged: (v) => _set(_config.copyWith(minAltitudeDegrees: v)),
           ),
-          if (ref.watch(altitudeFloorProvider).followsHorizon)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: FormRow.defaultLabelWidth + SkotiqTokens.spaceMd,
-                bottom: SkotiqTokens.spaceSm,
-              ),
-              child: Text(
-                'Not in force: the site horizon in Settings > Location '
-                'decides how high a target must be while it is set.',
-                key: const Key('scheduler.minAltitudeNotInForce'),
-                style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(
+              left: FormRow.defaultLabelWidth + SkotiqTokens.spaceMd,
+              bottom: SkotiqTokens.spaceSm,
             ),
+            child: Text(
+              followsHorizon
+                  ? 'Not in force: your horizon (Settings > Location) '
+                      'decides how high a target must be while it is set.'
+                  : 'In force: no horizon is set in Settings > Location, so '
+                      'this is how high a target must be, everywhere in the '
+                      'app.',
+              key: Key(
+                followsHorizon
+                    ? 'scheduler.minAltitudeNotInForce'
+                    : 'scheduler.minAltitudeInForce',
+              ),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            ),
+          ),
           _SettingSlider(
             label: 'Switch margin',
             value: _config.hysteresisRatio,

@@ -25,6 +25,10 @@ state_part! {
             /// run keeps imaging. On, each of those stops the run the way it used to.
             /// Configuration, not run state: `reset_for_new_run` leaves it alone.
             pub stop_on_quality_problems: bool,
+            /// The site's altitude floor by azimuth, as the run's settings hold
+            /// it; the altitude-limit trigger compares the target against it in
+            /// the direction the target stands. `None` when the app sent none.
+            pub altitude_floor: Option<crate::scheduling::AltitudeFloor>,
             /// The maximum Sun altitude (degrees above the horizon) at which an on-sky
             /// LIGHT capture is allowed, carried here so the native daylight gate in
             /// `instructions::execute_slew` / `execute_exposure` can read it through the

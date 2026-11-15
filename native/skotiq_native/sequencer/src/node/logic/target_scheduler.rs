@@ -137,7 +137,10 @@ pub async fn execute_target_scheduler(
             // Per-azimuth horizon mask: consulted by `score_target`'s
             // runnable gate so a target behind the local tree-line / roof
             // is filtered out even when it clears the flat altitude floor.
-            horizon: config.horizon_profile.clone(),
+            horizon: config
+                .horizon_profile
+                .clone()
+                .or_else(|| context.altitude_floor().map(|floor| floor.profile().clone())),
         };
 
         // Collect inputs + a parallel index so we can resolve back to the
@@ -174,6 +177,7 @@ pub async fn execute_target_scheduler(
                     target_ra_hours: header.ra_hours,
                     target_dec_degrees: header.dec_degrees,
                     now,
+                    altitude_floor: context.altitude_floor(),
                 };
                 if let Some(start) = header.start_when.as_ref() {
                     if !start.is_satisfied(&trig_obs) {

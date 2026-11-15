@@ -25,15 +25,14 @@ class CoImagingBatonScheduler {
     required LoggingService logger,
     Future<void> Function(CoImagingBatonReconciliation reconciliation)?
     onReconcile,
+    required AltitudeFloor Function() floor,
     Duration interval = const Duration(minutes: 5),
-    double altitudeFloorDeg =
-        CoImagingSessionService.defaultImagingAltitudeFloorDeg,
   }) : _service = service,
        _siteResolver = siteResolver,
        _logger = logger,
        _onReconcile = onReconcile,
        _interval = interval,
-       _altitudeFloorDeg = altitudeFloorDeg;
+       _floor = floor;
 
   final CoImagingSessionService _service;
   final CoImagingSiteResolver _siteResolver;
@@ -47,7 +46,9 @@ class CoImagingBatonScheduler {
   final Future<void> Function(CoImagingBatonReconciliation reconciliation)?
   _onReconcile;
   final Duration _interval;
-  final double _altitudeFloorDeg;
+
+  /// The site's altitude floor, read at each tick.
+  final AltitudeFloor Function() _floor;
 
   static const _logSource = 'CoImagingBatonScheduler';
 
@@ -95,7 +96,7 @@ class CoImagingBatonScheduler {
             row.sessionId,
             latitudeDeg: site.latitudeDeg,
             longitudeDeg: site.longitudeDeg,
-            altitudeFloorDeg: _altitudeFloorDeg,
+            floor: _floor(),
           );
           (decision.holdsBaton ? held : released).add(row);
         } catch (e) {

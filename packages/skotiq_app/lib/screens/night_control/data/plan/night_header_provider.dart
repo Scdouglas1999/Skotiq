@@ -126,6 +126,9 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     targetCount: tree?.targets.length,
     stepIndex: stepIndex >= 0 ? stepIndex + 1 : null,
     stepCount: tree?.steps.length,
+    waitingFor: activeTarget == null
+        ? null
+        : targetWaitMessage(progress?.nodeProgressDetail[activeTarget.id]),
     currentFilter: _nonEmpty(progress?.currentFilter) ??
         (activeNode is ExposureNode ? _nonEmpty(activeNode.filter) : null),
     currentExposureSecs:

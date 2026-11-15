@@ -121,7 +121,7 @@ async fn run_target_body(
 
     // resolve the effective triggers up-front so legacy fields and
     // new explicit `start_when`/`end_when` end up in the same code path.
-    let start_when = config.effective_start_when();
+    let start_when = start_when_with_site_floor(config, context);
     let end_when = config.effective_end_when();
     let poll_interval = config.effective_poll_interval_secs();
 
@@ -148,7 +148,7 @@ async fn run_target_body(
     // seconds using `ctx.clock.now_utc()` so MockClock-driven tests can
     // advance time deterministically.
     if let Some(start) = &start_when {
-        match wait_for_trigger(config, context, start, poll_interval).await {
+        match wait_for_trigger(config, context, node.id(), start, poll_interval).await {
             NodeStatus::Success => {}
             other => return other,
         }
@@ -575,7 +575,141 @@ fn trigger_observer_ctx(
         target_ra_hours: config.ra_hours,
         target_dec_degrees: config.dec_degrees,
         now: context.clock.now_utc(),
+        altitude_floor: context.altitude_floor(),
     })
+}
+
+/// The target's start condition with the site's altitude floor in it.
+///
+/// A target waits until it clears the floor in the direction it stands, on
+/// top of whatever start condition the header names. With no site or no
+/// floor in the run's settings there is nothing to wait for; the run says
+/// once that altitude protection is off.
+fn start_when_with_site_floor(
+    config: &TargetHeaderConfig,
+    context: &ExecutionContext,
+) -> Option<TargetTrigger> {
+    let own = config.effective_start_when();
+    let site_known = context.run.rig.latitude.is_some() && context.run.rig.longitude.is_some();
+    if !site_known || context.altitude_floor().is_none() {
+        return own;
+    }
+    Some(match own {
+        None => TargetTrigger::AboveAltitudeFloor,
+        Some(TargetTrigger::And(mut terms)) => {
+            terms.push(TargetTrigger::AboveAltitudeFloor);
+            TargetTrigger::And(terms)
+        }
+        Some(other) => TargetTrigger::And(vec![other, TargetTrigger::AboveAltitudeFloor]),
+    })
+}
+
+/// Whether `start` is, or includes, the wait for the site's altitude floor.
+fn waits_for_floor(start: &TargetTrigger) -> bool {
+    match start {
+        TargetTrigger::AboveAltitudeFloor => true,
+        TargetTrigger::And(terms) => terms.contains(&TargetTrigger::AboveAltitudeFloor),
+        _ => false,
+    }
+}
+
+/// The instruction name a target step's waiting reading is published under.
+const TARGET_WAIT_INSTRUCTION: &str = "Target";
+
+/// How every [`waiting_message`] begins; `kTargetWaitMessagePrefix` in the
+/// app reads a step's reading as "waiting" by it.
+pub const TARGET_WAIT_MESSAGE_PREFIX: &str = "Waiting for ";
+
+/// What the run says while a target waits to start: the floor it is held
+/// behind, with its altitude and the floor's in that direction, when that is
+/// what holds it; otherwise the condition it waits for.
+fn waiting_message(
+    target: &str,
+    start: &TargetTrigger,
+    label: &str,
+    observer: &TriggerObserverContext,
+) -> String {
+    if waits_for_floor(start) {
+        if let Some(floor) = observer.altitude_floor.as_ref() {
+            let (altitude, azimuth) = observer.floor_target().alt_az(observer.now);
+            if !floor.clears(altitude, azimuth) {
+                return format!(
+                    "{TARGET_WAIT_MESSAGE_PREFIX}{target} to clear the altitude floor: \
+                     {altitude:.0}° up, floor {:.0}° in that direction",
+                    floor.at_azimuth(azimuth)
+                );
+            }
+        }
+    }
+    format!("{TARGET_WAIT_MESSAGE_PREFIX}{target}: {label}")
+}
+
+/// Whether `start` waits for the altitude floor and the target does not clear
+/// it before the next astronomical dawn: waiting would hold the plan's later
+/// targets behind one that cannot be imaged tonight.
+fn stays_below_floor_until_dawn(
+    config: &TargetHeaderConfig,
+    context: &ExecutionContext,
+    start: &TargetTrigger,
+) -> bool {
+    if !waits_for_floor(start) {
+        return false;
+    }
+    let Ok(observer) = trigger_observer_ctx(config, context, start, TriggerRole::StartWhen) else {
+        return false;
+    };
+    let Some(floor) = observer.altitude_floor.as_ref() else {
+        return false;
+    };
+    let now = observer.now;
+    let day = chrono::Duration::hours(24);
+    let dawn = chrono::DateTime::from_timestamp(
+        crate::solar::time_of_sun_altitude_at(
+            observer.latitude_deg,
+            observer.longitude_deg,
+            -18.0,
+            crate::solar::SunCrossing::Rising,
+            &now,
+        ),
+        0,
+    )
+    .filter(|dawn| *dawn > now && *dawn < now + day)
+    .unwrap_or(now + day);
+    floor
+        .rises_above(&observer.floor_target(), now, dawn)
+        .is_none()
+}
+
+/// Trigger id a target skipped for staying below the altitude floor is
+/// published under; `kTargetBelowFloorTriggerId` in the app must match it.
+pub const TARGET_BELOW_FLOOR_TRIGGER_ID: &str = "target_below_floor";
+
+/// The target stays below the site's altitude floor until dawn, so it is
+/// skipped instead of waited for. Published as
+/// [`emit_end_when_skipped_at_entry`] publishes its skip: a trigger that
+/// fired, on the run record and on the node.
+fn emit_below_floor_skipped(
+    context: &ExecutionContext,
+    node_id: &crate::NodeId,
+    display_name: &str,
+) {
+    let trigger_name = format!(
+        "\"{}\" stays below the site's altitude floor until dawn",
+        display_name
+    );
+    tracing::warn!("{}; skipping the target without imaging", trigger_name);
+    if let Some(event_tx) = context.run.event_tx.as_ref() {
+        let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
+            trigger_id: TARGET_BELOW_FLOOR_TRIGGER_ID.to_string(),
+            trigger_name: trigger_name.clone(),
+            action: crate::executor::TriggerFiredAction::SkipTarget,
+        });
+    }
+    context.send_progress(ProgressUpdate::lifecycle(
+        node_id.clone(),
+        NodeStatus::Skipped,
+        format!("{}; skipped without imaging", trigger_name),
+    ));
 }
 
 /// Log and publish the refusal to evaluate a target trigger, and hand back the
@@ -612,6 +746,7 @@ fn refuse_unevaluable_trigger(
 async fn wait_for_trigger(
     config: &TargetHeaderConfig,
     context: &ExecutionContext,
+    node_id: &crate::NodeId,
     trigger: &TargetTrigger,
     poll_secs: u32,
 ) -> NodeStatus {
@@ -658,17 +793,41 @@ async fn wait_for_trigger(
         };
         if trigger.is_satisfied(&trig_ctx) {
             tracing::info!("start_when fired for {} ({})", target_label, label);
+            if emitted_initial {
+                // The step's reading no longer says it is waiting.
+                context.send_progress(ProgressUpdate::instruction_progress(
+                    node_id.clone(),
+                    TARGET_WAIT_INSTRUCTION,
+                    100.0,
+                    ProgressDetail::Generic("Started".to_string()),
+                ));
+            }
             return NodeStatus::Success;
+        }
+        // Checked at every poll, not only on arrival: a target can drop
+        // below the floor while it waits for its start time.
+        if stays_below_floor_until_dawn(config, context, trigger) {
+            emit_below_floor_skipped(context, node_id, &target_label);
+            return NodeStatus::Skipped;
         }
 
         if !emitted_initial {
             emitted_initial = true;
-            tracing::info!(
-                "Waiting for {} on {} — current altitude {:.1}°",
-                label,
-                target_label,
-                trig_ctx.current_altitude_deg()
-            );
+            let message = waiting_message(&target_label, trigger, &label, &trig_ctx);
+            tracing::info!("{message}");
+            // The operator sees why the target has not started: on the
+            // step (its reading) and as the run's message.
+            context.send_progress(ProgressUpdate::instruction_progress(
+                node_id.clone(),
+                TARGET_WAIT_INSTRUCTION,
+                0.0,
+                ProgressDetail::Generic(message.clone()),
+            ));
+            context.send_progress(ProgressUpdate::lifecycle(
+                node_id.clone(),
+                NodeStatus::Running,
+                message,
+            ));
         }
 
         tokio::time::sleep(poll).await;
@@ -1308,7 +1467,7 @@ mod tests {
         });
 
         let trigger = TargetTrigger::TimeAfter(target_ts);
-        let status = wait_for_trigger(&cfg, &ctx, &trigger, 1).await;
+        let status = wait_for_trigger(&cfg, &ctx, &"tgt".to_string(), &trigger, 1).await;
         advancer.await.unwrap();
         assert_eq!(status, NodeStatus::Success);
         // Verify the clock was actually advanced (sanity check).
@@ -1337,7 +1496,7 @@ mod tests {
 
         // Trigger that's far in the (mock) future.
         let trigger = TargetTrigger::TimeAfter(clock.now_utc().timestamp() + 86_400);
-        let status = wait_for_trigger(&cfg, &ctx, &trigger, 1).await;
+        let status = wait_for_trigger(&cfg, &ctx, &"tgt".to_string(), &trigger, 1).await;
         canceller.await.unwrap();
         assert_eq!(status, NodeStatus::Cancelled);
     }
@@ -1983,5 +2142,222 @@ mod tests {
         }
 
         fn mark_completed(&mut self, _node_id: &crate::NodeId) {}
+    }
+}
+
+/// A target is held to the site's altitude floor in the direction it stands.
+#[cfg(test)]
+mod site_floor_tests {
+    use super::*;
+    use crate::scheduling::{AltitudeFloor, Clock, HorizonProfile, HorizonSample, MockClock};
+    use crate::{NodeDefinition, NodeType};
+
+    const NIGHT: &str = "2026-01-15T03:00:00Z";
+
+    /// Trees to 40 degrees from north-east to south-east, open sky elsewhere.
+    fn tree_line() -> AltitudeFloor {
+        AltitudeFloor::new(
+            HorizonProfile::new(vec![
+                HorizonSample::new(0.0, 0.0),
+                HorizonSample::new(40.0, 0.0),
+                HorizonSample::new(45.0, 40.0),
+                HorizonSample::new(135.0, 40.0),
+                HorizonSample::new(140.0, 0.0),
+            ])
+            .unwrap(),
+        )
+    }
+
+    fn context(
+        floor: Option<AltitudeFloor>,
+        clock: std::sync::Arc<MockClock>,
+    ) -> ExecutionContext {
+        let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-75.0);
+        ctx.run.settings = Some(crate::executor::RunConfigStore::new(
+            crate::executor::RunConfig {
+                altitude_floor: floor,
+                ..Default::default()
+            },
+        ));
+        ctx
+    }
+
+    fn target(name: &str, ra_hours: f64, dec_degrees: f64) -> TargetHeaderConfig {
+        TargetHeaderConfig {
+            target_name: name.into(),
+            ra_hours,
+            dec_degrees,
+            ..TargetHeaderConfig::default()
+        }
+    }
+
+    /// Rising in the east, behind the trees at [`NIGHT`].
+    fn eastern() -> TargetHeaderConfig {
+        target("East", 10.0, 20.0)
+    }
+
+    /// Setting in the west over open sky at [`NIGHT`].
+    fn western() -> TargetHeaderConfig {
+        target("West", 1.5, 20.0)
+    }
+
+    fn satisfied(config: &TargetHeaderConfig, ctx: &ExecutionContext) -> bool {
+        let start = start_when_with_site_floor(config, ctx).expect("a start condition");
+        let observer = trigger_observer_ctx(config, ctx, &start, TriggerRole::StartWhen).unwrap();
+        start.is_satisfied(&observer)
+    }
+
+    #[test]
+    fn the_fixture_targets_stand_where_the_tests_say() {
+        let at = NIGHT.parse().unwrap();
+        let alt_az = |config: &TargetHeaderConfig| {
+            crate::scheduling::FloorTarget {
+                ra_hours: config.ra_hours,
+                dec_degrees: config.dec_degrees,
+                latitude_deg: 40.0,
+                longitude_deg: -75.0,
+            }
+            .alt_az(at)
+        };
+        let (east_alt, east_az) = alt_az(&eastern());
+        assert!(
+            (45.0..135.0).contains(&east_az) && (10.0..40.0).contains(&east_alt),
+            "{east_alt} {east_az}"
+        );
+        let (west_alt, west_az) = alt_az(&western());
+        assert!(
+            (225.0..315.0).contains(&west_az) && (10.0..40.0).contains(&west_alt),
+            "{west_alt} {west_az}"
+        );
+    }
+
+    #[test]
+    fn an_eastern_target_waits_for_the_tree_line_and_a_western_one_does_not() {
+        let clock = MockClock::at(NIGHT);
+        let ctx = context(Some(tree_line()), clock.clone());
+        assert!(!satisfied(&eastern(), &ctx));
+        assert!(satisfied(&western(), &ctx));
+        let start = start_when_with_site_floor(&eastern(), &ctx).unwrap();
+        assert!(!stays_below_floor_until_dawn(&eastern(), &ctx, &start));
+
+        // The eastern target clears 40 degrees later in the night.
+        let observer =
+            trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
+        let now = clock.now_utc();
+        let clears = tree_line()
+            .rises_above(
+                &observer.floor_target(),
+                now,
+                now + chrono::Duration::hours(6),
+            )
+            .expect("it clears the trees");
+        assert!(clears > now + chrono::Duration::minutes(10));
+        clock.advance((clears - now).to_std().unwrap());
+        assert!(satisfied(&eastern(), &ctx));
+    }
+
+    #[test]
+    fn with_no_horizon_both_are_held_to_the_minimum_altitude() {
+        let ctx = context(Some(AltitudeFloor::flat(10.0)), MockClock::at(NIGHT));
+        assert!(satisfied(&eastern(), &ctx));
+        assert!(satisfied(&western(), &ctx));
+        let ctx = context(Some(AltitudeFloor::flat(45.0)), MockClock::at(NIGHT));
+        assert!(!satisfied(&eastern(), &ctx));
+        assert!(!satisfied(&western(), &ctx));
+    }
+
+    #[test]
+    fn a_run_with_no_floor_or_no_site_adds_no_wait() {
+        let ctx = context(None, MockClock::at(NIGHT));
+        assert_eq!(start_when_with_site_floor(&eastern(), &ctx), None);
+        let mut ctx = context(Some(tree_line()), MockClock::at(NIGHT));
+        ctx.run.rig.latitude = None;
+        assert_eq!(start_when_with_site_floor(&eastern(), &ctx), None);
+    }
+
+    #[test]
+    fn a_minimum_of_the_targets_own_is_kept_beside_the_floor() {
+        let ctx = context(Some(tree_line()), MockClock::at(NIGHT));
+        let mut config = western();
+        config.min_altitude = Some(60.0);
+        assert_eq!(
+            start_when_with_site_floor(&config, &ctx),
+            Some(TargetTrigger::And(vec![
+                TargetTrigger::AltitudeAbove(60.0),
+                TargetTrigger::AboveAltitudeFloor,
+            ]))
+        );
+        assert!(!satisfied(&config, &ctx));
+    }
+
+    #[test]
+    fn a_waiting_target_says_how_high_it_is_and_how_high_the_floor_is_there() {
+        let ctx = context(Some(tree_line()), MockClock::at(NIGHT));
+        let start = start_when_with_site_floor(&eastern(), &ctx).unwrap();
+        let observer =
+            trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
+        let message = waiting_message("East", &start, &start.label(), &observer);
+        assert!(
+            message.starts_with("Waiting for East to clear the altitude floor: ")
+                && message.ends_with("° up, floor 40° in that direction"),
+            "{message}"
+        );
+        let timed = TargetTrigger::TimeAfter(0);
+        assert!(
+            waiting_message("East", &timed, &timed.label(), &observer)
+                .starts_with(TARGET_WAIT_MESSAGE_PREFIX)
+        );
+    }
+
+    /// A target above the floor now, with a start time after it has set for
+    /// the night, is skipped when it sets instead of waited for until dawn.
+    #[tokio::test]
+    async fn a_target_that_sets_while_it_waits_for_its_start_time_is_skipped() {
+        let clock = MockClock::at(NIGHT);
+        let ctx = context(Some(AltitudeFloor::flat(30.0)), clock.clone());
+        let mut config = western();
+        // Three hours from now the western target is long below 30 degrees.
+        config.start_after = Some(clock.now_utc().timestamp() + 3 * 3600);
+        let start = start_when_with_site_floor(&config, &ctx).unwrap();
+        assert!(satisfied(&western(), &ctx), "it is above the floor now");
+        assert!(!stays_below_floor_until_dawn(&config, &ctx, &start));
+
+        let advancer = {
+            let clock = clock.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                clock.advance(std::time::Duration::from_secs(2 * 3600));
+            })
+        };
+        let status = wait_for_trigger(&config, &ctx, &"west".to_string(), &start, 1).await;
+        advancer.await.unwrap();
+        assert_eq!(status, NodeStatus::Skipped);
+    }
+
+    #[tokio::test]
+    async fn a_target_that_stays_below_the_floor_until_dawn_is_skipped_and_said() {
+        let mut ctx = context(Some(AltitudeFloor::flat(30.0)), MockClock::at(NIGHT));
+        let (event_tx, mut events) = tokio::sync::broadcast::channel(16);
+        ctx.run.event_tx = Some(event_tx);
+        // Declination -45 culminates 5 degrees up from latitude 40.
+        let config = target("Low", 6.0, -45.0);
+        let mut node = crate::node::runtime::RuntimeNode::from_definition(NodeDefinition {
+            id: "low".to_string(),
+            name: "Low".to_string(),
+            node_type: NodeType::TargetHeader(config.clone()),
+            enabled: true,
+            children: vec![],
+        });
+        let status = execute_target_header(&mut node, config, &mut ctx).await;
+        assert_eq!(status, NodeStatus::Skipped);
+        let mut said = false;
+        while let Ok(event) = events.try_recv() {
+            if let crate::executor::ExecutorEvent::TriggerFired { trigger_id, .. } = event {
+                said |= trigger_id == TARGET_BELOW_FLOOR_TRIGGER_ID;
+            }
+        }
+        assert!(said, "the skip was not published");
     }
 }

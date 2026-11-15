@@ -1,14 +1,6 @@
 import '../../celestial_object.dart';
 import '../weighted_score.dart';
 
-/// Minimum observable altitude (degrees) at a given compass azimuth, as
-/// imposed by the local skyline (trees, buildings, hills).
-///
-/// Returns 0 for an unobstructed direction. The planetarium package owns this
-/// lightweight contract so the scorer does not need to depend on the app's
-/// concrete horizon-profile model — callers adapt their profile to this shape.
-typedef HorizonMask = double Function(double azimuthDegrees);
-
 /// Scoring criteria weights for target prioritization
 class ScoringWeights {
   final double altitudeWeight;

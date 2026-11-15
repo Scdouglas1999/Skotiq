@@ -150,17 +150,26 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   ) {
     final windows = <String, ObjectVisibility>{};
     final nightDate = AstronomyCalculations.nightDateOf(date);
+    final floor = ref.read(altitudeFloorProvider);
 
     for (final node in widget.sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
-        final visibility = AstronomyCalculations.calculateObjectVisibility(
-          raDeg: node.raHours * 15.0, // Convert RA hours to degrees
-          decDeg: node.decDegrees,
-          date: nightDate,
-          latitudeDeg: lat,
-          longitudeDeg: lon,
-          minAltitude: node.minAltitude ?? 0,
-        );
+        // When it clears and leaves the site's altitude floor (and its own
+        // minimum), over that night's local noon to noon.
+        final visibility = floor
+            .forTargetMinimum(node.minAltitude)
+            .visibilityAround(
+              raDeg: node.raHours * 15.0,
+              decDeg: node.decDegrees,
+              center: DateTime(
+                nightDate.year,
+                nightDate.month,
+                nightDate.day,
+                24,
+              ),
+              latitudeDeg: lat,
+              longitudeDeg: lon,
+            );
         windows[node.id] = visibility;
       }
     }

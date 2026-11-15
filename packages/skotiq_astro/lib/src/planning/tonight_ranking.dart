@@ -1,12 +1,10 @@
 import 'dart:math' as math;
 
+import '../astronomy/altitude_floor_search.dart';
 import '../astronomy/astronomy_calculations.dart';
 import '../celestial_object.dart';
 import '../coordinate_system.dart';
 import 'target_scoring.dart';
-
-/// Altitude floor a target has to clear to count as usable, degrees.
-const double kTonightMinAltitudeDeg = 30;
 
 /// How many ranked targets [rankTonightTargets] keeps.
 const int kTonightRankingLimit = 20;
@@ -33,11 +31,12 @@ const double kTonightCatalogFitWeight = 1 - kTonightConditionsWeight;
 /// hours.
 final String kTonightRankingTooltip =
     'Ranked ${(kTonightConditionsWeight * 100).round()}% on tonight’s '
-    'conditions (usable hours above ${kTonightMinAltitudeDeg.round()}° '
-    'in darkness, peak altitude, moon separation, transit timing, airmass) '
+    'conditions (usable hours above your altitude floor in darkness, peak '
+    'altitude, moon separation, transit timing, airmass) '
     'and ${(kTonightCatalogFitWeight * 100).round()}% on how well the object '
     'suits your rig (brightness, size against the current field of view, '
-    'type). Objects that only clear ${kTonightMinAltitudeDeg.round()}° '
+    'type). The floor is your horizon when you set one in Settings → '
+    'Location, otherwise the minimum altitude. Objects that only clear it '
     'in daylight are not listed. Because brightness and framing count too, '
     'the order can differ from the hours column.';
 
@@ -104,8 +103,8 @@ DarknessWindow? darknessWindowOf(TwilightTimes twilight) {
 class TonightRanking {
   final int index;
 
-  /// Rise / transit / set against the [kTonightMinAltitudeDeg] floor — the same
-  /// shape the rest of the app consumes.
+  /// Rise / transit / set against the site's altitude floor — the same shape
+  /// the rest of the app consumes.
   final ObjectVisibility visibility;
 
   /// Hours the target spends above the altitude floor INSIDE the darkness
@@ -138,7 +137,8 @@ class TonightRanking {
 
 /// Rank catalog positions for the night of [nightDate] at the given site.
 ///
-/// Only targets usable during the darkness window are returned. They are
+/// Only targets above [floor] (the site's altitude floor, by azimuth) during
+/// the darkness window are returned. They are
 /// scored by altitude, moon separation, timing, usable hours, and airmass.
 /// Primitive coordinate arrays keep this function isolate-safe.
 List<TonightRanking> rankTonightTargets({
@@ -147,8 +147,8 @@ List<TonightRanking> rankTonightTargets({
   required double latitudeDeg,
   required double longitudeDeg,
   required DateTime nightDate,
+  required AltitudeFloorSamples floor,
   int limit = kTonightRankingLimit,
-  double minAltitudeDeg = kTonightMinAltitudeDeg,
   List<double?>? magnitudes,
   List<double?>? sizesArcMin,
   List<int?>? objectTypes,
@@ -185,6 +185,7 @@ List<TonightRanking> rankTonightTargets({
     moonPosition: (moonRa, moonDec),
     moonIllumination: AstronomyCalculations.moonIllumination(mid),
     twilight: twilight,
+    floorAt: floor.at,
   );
 
   final scored =
@@ -210,7 +211,6 @@ List<TonightRanking> rankTonightTargets({
       ),
       nightStart: window.start,
       nightEnd: window.end,
-      minAltitude: minAltitudeDeg,
     );
     final hours = score.visibility.hoursAboveMinAlt;
     final peak = score.visibility.peakAltitude;
@@ -259,13 +259,13 @@ List<TonightRanking> rankTonightTargets({
     for (final entry in scored.take(limit))
       TonightRanking(
         index: entry.index,
-        visibility: AstronomyCalculations.calculateObjectVisibilityAround(
+        visibility: objectVisibilityAboveFloor(
+          floor.at,
           raDeg: raDeg[entry.index],
           decDeg: decDeg[entry.index],
           center: mid,
           latitudeDeg: latitudeDeg,
           longitudeDeg: longitudeDeg,
-          minAltitude: minAltitudeDeg,
         ),
         hoursInDarkness: entry.hours,
         peakAltitudeDeg: entry.peak,

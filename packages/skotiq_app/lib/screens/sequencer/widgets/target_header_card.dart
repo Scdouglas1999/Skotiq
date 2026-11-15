@@ -455,13 +455,13 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             ),
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)
             const SizedBox(width: 12),
-          if (node.minAltitude != null)
+          if ((node.minAltitude ?? 0) > 0)
             _ConstraintChip(
               icon: LucideIcons.arrowUp,
               label: 'Min: ${node.minAltitude!.toStringAsFixed(0)}°',
               colors: widget.colors,
             ),
-          if (node.minAltitude != null && node.maxAltitude != null)
+          if ((node.minAltitude ?? 0) > 0 && node.maxAltitude != null)
             const SizedBox(width: 8),
           if (node.maxAltitude != null)
             _ConstraintChip(

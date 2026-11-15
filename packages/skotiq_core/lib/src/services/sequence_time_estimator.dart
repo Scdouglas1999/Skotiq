@@ -4,6 +4,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../models/imaging/imaging_models.dart' show AutofocusSettings;
 import '../models/sequence/autofocus_run.dart';
 import '../models/sequence/sequence_models.dart';
+import '../models/site/altitude_floor.dart';
 part 'sequence_time_estimator/timing_models.dart';
 part 'sequence_time_estimator/node_durations.dart';
 part 'sequence_time_estimator/window_solver.dart';
@@ -35,7 +36,13 @@ class SequenceTimeEstimator {
   const SequenceTimeEstimator({
     this.overhead = defaultEstimatorOverhead,
     this.autofocus = const AutofocusSettings(),
+    this.floor,
   });
+
+  /// The site's altitude floor. The run holds every target to it in the
+  /// direction the target stands (it waits to clear it and leaves when it
+  /// drops below), so the estimate does too. Null holds targets to nothing.
+  final AltitudeFloor? floor;
 
   /// The time one autofocus run the executor adds by itself takes.
   Duration get addedAutofocusDuration => AutofocusRun.fromSettings(
@@ -76,9 +83,6 @@ class SequenceTimeEstimator {
                 1000)
             .round(),
   );
-
-  /// Minimum altitude for target visibility calculations (degrees)
-  static const double _defaultMinAltitude = 0.0;
 
   /// Estimate timing for all nodes in a sequence.
   ///
@@ -173,7 +177,9 @@ class SequenceTimeEstimator {
   ///   it because the visibility scan runs local noon to noon.
   /// [latitude] - Observer latitude in degrees
   /// [longitude] - Observer longitude in degrees
-  /// [minAltitude] - Minimum altitude in degrees for visibility (default: 0)
+  ///
+  /// "Up" is above [floor] in the direction the target stands, and above any
+  /// minimum the target's own step names.
   ///
   /// Returns a map from target header node ID to [TargetWindow].
   Map<String, TargetWindow> calculateTargetWindows(
@@ -181,37 +187,69 @@ class SequenceTimeEstimator {
     DateTime date, {
     required double latitude,
     required double longitude,
-    double minAltitude = _defaultMinAltitude,
   }) {
     final windows = <String, TargetWindow>{};
     final nightDate = AstronomyCalculations.nightDateOf(date);
+    final siteFloor =
+        floor ?? const AltitudeFloor(horizon: null, minimumDeg: 0);
 
     for (final node in sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
-        final effectiveMinAltitude = _effectiveMinAltitude(node, minAltitude);
+        final targetFloor = siteFloor.forTargetMinimum(
+          _ownMinimumAltitude(node),
+        );
+        final raDeg = node.raHours * 15.0;
         final visibility = AstronomyCalculations.calculateObjectVisibility(
-          raDeg: node.raHours * 15.0, // Convert RA hours to degrees
+          raDeg: raDeg,
           decDeg: node.decDegrees,
           date: nightDate,
           latitudeDeg: latitude,
           longitudeDeg: longitude,
-          minAltitude: effectiveMinAltitude,
+          minAltitude: targetFloor.isFlat ? targetFloor.atAzimuth(0) : 0,
         );
+        var riseTime = visibility.riseTime;
+        var setTime = visibility.setTime;
+        var isCircumpolar = visibility.isCircumpolar;
+        var neverRises = visibility.neverRises;
+        if (!targetFloor.isFlat) {
+          // A floor that changes with direction has no closed-form crossing:
+          // the night is searched, local noon to noon.
+          final from = DateTime(
+            nightDate.year,
+            nightDate.month,
+            nightDate.day,
+            12,
+          );
+          final until = from.add(const Duration(hours: 24));
+          final above = targetFloor.windowAbove(
+            raDeg: raDeg,
+            decDeg: node.decDegrees,
+            from: from,
+            until: until,
+            latitudeDeg: latitude,
+            longitudeDeg: longitude,
+          );
+          riseTime = above?.start;
+          setTime = above?.end;
+          neverRises = above == null;
+          isCircumpolar =
+              above != null && above.start == from && above.end == until;
+        }
 
         windows[node.id] = TargetWindow(
           targetId: node.id,
           targetName: node.targetName,
-          riseTime: visibility.riseTime,
+          riseTime: riseTime,
           transitTime: visibility.transitTime,
-          setTime: visibility.setTime,
+          setTime: setTime,
           transitAltitude: visibility.transitAltitude,
-          isCircumpolar: visibility.isCircumpolar,
-          neverRises: visibility.neverRises,
-          raDeg: node.raHours * 15.0,
+          isCircumpolar: isCircumpolar,
+          neverRises: neverRises,
+          raDeg: raDeg,
           decDeg: node.decDegrees,
           latitudeDeg: latitude,
           longitudeDeg: longitude,
-          minAltitudeDeg: effectiveMinAltitude,
+          floor: targetFloor,
         );
       }
     }
@@ -334,7 +372,6 @@ class SequenceTimeEstimator {
     DateTime startTime, {
     required double latitude,
     required double longitude,
-    double minAltitude = _defaultMinAltitude,
     DateTime? runEndsBy,
   }) {
     final timings = estimateSequenceTiming(
@@ -349,7 +386,6 @@ class SequenceTimeEstimator {
       startTime,
       latitude: latitude,
       longitude: longitude,
-      minAltitude: minAltitude,
     );
     final conflicts = findTimingConflicts(timings, windows, sequence);
 

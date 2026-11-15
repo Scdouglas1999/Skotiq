@@ -423,8 +423,8 @@ void main() {
 
   group('horizon-aware time-to-set agreement', () {
     test(
-        'planetariumEffectiveHorizonDegProvider receives the site horizon '
-        'after its sync fires', () async {
+        'the planetarium receives the site floor by azimuth after its sync '
+        'fires', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
@@ -455,10 +455,9 @@ void main() {
       // The sync provider schedules Future.microtask updates; flush them.
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(
-        container.read(planetariumEffectiveHorizonDegProvider),
-        horizon,
-      );
+      final floor = container.read(planetariumAltitudeFloorProvider);
+      expect(floor.at(0), horizon);
+      expect(floor.at(200), horizon);
     });
 
     test(
