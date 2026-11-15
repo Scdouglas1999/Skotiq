@@ -90,21 +90,41 @@ Future<void> _adoptEarlierCheckpoints({
     environment: environment,
     applicationSupportDirectoryProvider: applicationSupportDirectoryProvider,
   );
-  for (final earlier in [dataRoot.path, p.join(dataRoot.path, 'checkpoints')]) {
-    if (p.equals(earlier, target.path)) continue;
-    for (final name in _checkpointFileNames) {
-      final file = File(p.join(earlier, name));
-      final destination = File(p.join(target.path, name));
-      if (!await file.exists() || await destination.exists()) continue;
-      try {
-        await _move(file, destination);
-      } on FileSystemException catch (error) {
-        logger?.warning(
-          'Could not move the checkpoint ${file.path} into ${target.path}: '
-          '${error.message}',
-          source: 'HostCheckpointDirectory',
-        );
+  final earlier = [
+    dataRoot.path,
+    p.join(dataRoot.path, 'checkpoints'),
+  ].where((folder) => !p.equals(folder, target.path)).toList();
+  Future<bool> holds(String folder, String name) =>
+      File(p.join(folder, name)).exists();
+  // A checkpoint and its backup come from one folder, so a recovery never
+  // pairs one night's checkpoint with another night's backup.
+  String? source;
+  for (final folder in earlier) {
+    if (await holds(folder, _checkpointFileNames.first)) {
+      source = folder;
+      break;
+    }
+  }
+  if (source == null) {
+    for (final folder in earlier) {
+      if (await holds(folder, _checkpointFileNames.last)) {
+        source = folder;
+        break;
       }
+    }
+  }
+  if (source == null) return;
+  for (final name in _checkpointFileNames) {
+    final file = File(p.join(source, name));
+    if (!await file.exists()) continue;
+    try {
+      await _move(file, File(p.join(target.path, name)));
+    } on FileSystemException catch (error) {
+      logger?.warning(
+        'Could not move the checkpoint ${file.path} into ${target.path}: '
+        '${error.message}',
+        source: 'HostCheckpointDirectory',
+      );
     }
   }
 }
