@@ -63,16 +63,19 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifySequenceFailed(
-    String targetName,
-    String errorMessage,
-  ) async {
-    calls.add(
-      _NotifyCall('sequenceFailed', {
-        'target': targetName,
-        'error': errorMessage,
-      }),
-    );
+  Future<void> notifySequenceFailed({
+    required String title,
+    required String body,
+  }) async {
+    calls.add(_NotifyCall('sequenceFailed', {'title': title, 'body': body}));
+  }
+
+  @override
+  Future<void> notifyMountFault({
+    required String title,
+    required String body,
+  }) async {
+    calls.add(_NotifyCall('mountFault', {'title': title, 'body': body}));
   }
 
   @override
