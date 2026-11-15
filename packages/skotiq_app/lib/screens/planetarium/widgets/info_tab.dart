@@ -488,8 +488,8 @@ class ImagingHistorySection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               _buildStatChip(
-                label: 'Sessions',
-                value: history.sessionCount.toString(),
+                label: 'Nights',
+                value: history.nightCount.toString(),
                 icon: SkotiqIcons.calendar,
               ),
             ],
