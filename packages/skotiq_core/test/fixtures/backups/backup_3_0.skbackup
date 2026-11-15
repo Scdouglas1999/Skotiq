@@ -1,0 +1,1282 @@
+{
+  "version": "3.0",
+  "createdAt": "2026-11-14T21:00:00.000",
+  "appVersion": "9.0.0",
+  "platform": "windows",
+  "metadata": {
+    "settingsCount": 130,
+    "profilesCount": 1,
+    "sequencesCount": 1,
+    "targetsCount": 1,
+    "tableCounts": {
+      "notes_journal": 1,
+      "sequence_decisions": 1,
+      "conversational_builds": 1,
+      "targets": 1,
+      "sequences": 1,
+      "imaging_sessions": 1,
+      "captured_images": 1,
+      "frame_forensics": 1,
+      "image_metadata": 1,
+      "sequence_nodes": 1,
+      "projects": 1,
+      "project_targets": 1,
+      "integration_goals": 1,
+      "target_constraints": 1,
+      "horizon_profiles": 1,
+      "scheduler_removed_targets": 1,
+      "campaigns": 1,
+      "integrated_masters": 1,
+      "recipes": 1,
+      "delivery_targets": 1,
+      "darkroom_state": 1,
+      "mosaic_projects": 1,
+      "mosaic_panels": 1,
+      "stacked_results": 1,
+      "integrated_master_frames": 1,
+      "flat_library": 1,
+      "night_reports": 1,
+      "narrowband_composites": 1,
+      "calibration_tags": 1,
+      "weather_settings": 1,
+      "flat_history": 1,
+      "tutorial_progress": 1,
+      "polar_alignment_history": 1,
+      "science_session_config": 1,
+      "photometry_measurements": 1,
+      "frame_photometric_calibration": 1,
+      "transparency_samples": 1,
+      "psf_field_tiles": 1,
+      "science_frame_quality_metrics": 1,
+      "science_tile_metrics": 1,
+      "astrometry_residual_vectors": 1,
+      "moving_object_candidates": 1,
+      "line_ratio_products": 1,
+      "photometric_transforms": 1,
+      "dark_library": 1,
+      "observation_logs": 1,
+      "observing_lists": 1,
+      "observing_list_items": 1,
+      "sequence_runs": 1,
+      "sequence_versions": 1,
+      "session_diagnostics": 1,
+      "defect_maps": 1,
+      "focus_models": 1,
+      "guide_rms_history": 1,
+      "narrator_events": 1,
+      "sky_atlas_regions": 1,
+      "sky_tiles": 1,
+      "sky_atlas_folds": 1,
+      "constellation_contributions": 1,
+      "co_imaging_sessions": 1,
+      "transient_detections": 1,
+      "living_sky_retention": 1
+    }
+  },
+  "settings": {
+    "start_minimized": "false",
+    "auto_connect_equipment": "true",
+    "confirm_before_closing": "true",
+    "auto_discover_on_launch": "true",
+    "theme": "dark",
+    "language": "en",
+    "accent_color": "#E86A6A",
+    "font_size": "Medium",
+    "ui_scale": "Auto",
+    "sidebar_collapsed": "true",
+    "observer_latitude": "0.0",
+    "observer_longitude": "0.0",
+    "observer_elevation": "0.0",
+    "timezone": "UTC",
+    "use_system_time": "true",
+    "image_format": "FITS",
+    "file_naming_pattern": "$TARGET_$FILTER_$DATE_$SEQ",
+    "bit_depth": "16-bit",
+    "park_on_unsafe_weather": "true",
+    "park_before_dawn": "true",
+    "stop_run_on_quality_problems": "false",
+    "mount_guard_auto_sync_resume": "false",
+    "meridian_flip_minutes": "5",
+    "auto_focus_on_filter_change": "false",
+    "use_filter_focus_offsets": "true",
+    "auto_focus_every_minutes": "60",
+    "dither_enabled": "true",
+    "dither_every_frames": "3",
+    "camera_retries": "3",
+    "filter_wheel_retries": "3",
+    "safety_fail_mode": "failClosed",
+    "plate_solver": "Auto",
+    "astap_path": "",
+    "astrometry_path": "",
+    "plate_solve_timeout": "60",
+    "plate_solve_search_radius": "30.0",
+    "blind_solve": "false",
+    "centering_sync_mount": "true",
+    "phd2_path": "",
+    "phd2_host": "localhost",
+    "phd2_port": "4400",
+    "notifications_enabled": "true",
+    "discord_webhook": "",
+    "pushover_key": "",
+    "pushover_user": "",
+    "notify_on_sequence_complete": "true",
+    "notify_on_error": "true",
+    "notify_on_meridian_flip": "false",
+    "sound_enabled": "true",
+    "image_output_path": "",
+    "default_image_directory": "",
+    "sequences_path": "",
+    "database_path": "",
+    "logs_path": "",
+    "indi_server_host": "localhost",
+    "indi_server_port": "7624",
+    "indi_auto_connect": "false",
+    "alpaca_server_host": "localhost",
+    "alpaca_server_port": "11111",
+    "alpaca_auto_discover": "false",
+    "web_server_enabled": "false",
+    "web_server_port": "8080",
+    "default_gain": "100",
+    "default_offset": "50",
+    "enable_meridian_flip": "true",
+    "temp_compensation": "false",
+    "temp_coefficient": "-12.0",
+    "temp_compensation_min_steps": "5",
+    "flat_calibration_attempts": "20",
+    "backlash_compensation": "0",
+    "dither_scale": "Medium",
+    "settle_threshold": "1.5",
+    "settle_timeout": "60",
+    "settle_time": "10",
+    "dither_ra_only": "false",
+    "af_method": "Star HFR",
+    "af_curve_fitting": "Hyperbolic",
+    "af_step_size": "50",
+    "af_exposure_time": "4.0",
+    "af_initial_offset_steps": "4",
+    "af_number_of_attempts": "2",
+    "af_use_brightest_n_stars": "10",
+    "af_outer_crop_ratio": "1.0",
+    "af_inner_crop_ratio": "0.0",
+    "af_binning": "1",
+    "af_r_squared_threshold": "0.7",
+    "af_failure_hfr_tolerance_ratio": "1.6",
+    "af_disable_guiding": "false",
+    "af_focuser_settle_time_ms": "500",
+    "af_exposures_per_point": "1",
+    "af_backlash_comp_method": "Overshoot",
+    "af_backlash_in": "0",
+    "focuser_backlash_offer_mode": "ask",
+    "focuser_backlash_calibration_settings": "",
+    "mount_site_sync_mode": "ask",
+    "af_backlash_out": "0",
+    "af_autofocus_filter_name": "",
+    "af_filter_settings": "{}",
+    "dark_library.temp_tolerance": "2.0",
+    "science.advanced_mode.enabled": "false",
+    "science.overlay.enabled": "true",
+    "science.feature.photometry": "true",
+    "science.feature.photometric_calibration": "true",
+    "science.feature.transparency": "true",
+    "science.feature.psf_map": "true",
+    "science.feature.astrometric_residuals": "true",
+    "science.feature.moving_objects": "false",
+    "science.feature.narrowband_ratios": "false",
+    "science.feature.frame_quality_maps": "true",
+    "science.feature.surface3d": "true",
+    "science.feature.sky_atlas": "false",
+    "science.retention.manual_purge_only": "true",
+    "science.overlay.opacity": "0.35",
+    "science.overlay.live_grid_rows": "12",
+    "science.overlay.live_grid_cols": "16",
+    "science.overlay.analysis_grid_rows": "24",
+    "science.overlay.analysis_grid_cols": "32",
+    "science.photometry.differential_active": "false",
+    "science.photometry.target_anchor": "",
+    "science.photometry.comparison_anchors": "[]",
+    "dark_library.auto_subtract": "false",
+    "predictive_af.enabled": "true",
+    "predictive_af.min_samples_for_trust": "8",
+    "predictive_af.high_confidence_threshold": "0.8",
+    "predictive_af.low_confidence_threshold": "0.5",
+    "predictive_af.drift_threshold_steps": "200",
+    "predictive_af.drift_runs_before_warn": "5",
+    "planning.active_project_id": "",
+    "science.sky_atlas.opt_in_migrated": "true",
+    "fixture.setting": "from the backup"
+  },
+  "equipmentProfiles": [
+    {
+      "id": 7,
+      "name": "seed equipment_profiles name",
+      "description": "seed equipment_profiles description",
+      "cameraId": "seed equipment_profiles camera_id",
+      "mountId": "seed equipment_profiles mount_id",
+      "focuserId": "seed equipment_profiles focuser_id",
+      "filterWheelId": "seed equipment_profiles filter_wheel_id",
+      "guiderId": "seed equipment_profiles guider_id",
+      "guideCameraId": "seed equipment_profiles guide_camera_id",
+      "rotatorId": "seed equipment_profiles rotator_id",
+      "domeId": "seed equipment_profiles dome_id",
+      "weatherId": "seed equipment_profiles weather_id",
+      "safetyMonitorId": "seed equipment_profiles safety_monitor_id",
+      "switchId": "seed equipment_profiles switch_id",
+      "coverCalibratorId": "seed equipment_profiles cover_calibrator_id",
+      "focalLength": 2.5,
+      "aperture": 2.5,
+      "focalRatio": 2.5,
+      "defaultGain": 1,
+      "defaultOffset": 1,
+      "defaultBinX": 1,
+      "defaultBinY": 1,
+      "defaultCoolingTemp": 2.5,
+      "coolOnConnect": true,
+      "defaultCenteringExposure": 2.5,
+      "filterNames": "seed equipment_profiles filter_names",
+      "filterFocusOffsets": "seed equipment_profiles filter_focus_offsets",
+      "meridianFlipOverrides": "seed equipment_profiles meridian_flip_overrides",
+      "cameraName": "seed equipment_profiles camera_name",
+      "mountName": "seed equipment_profiles mount_name",
+      "focuserName": "seed equipment_profiles focuser_name",
+      "filterWheelName": "seed equipment_profiles filter_wheel_name",
+      "guiderName": "seed equipment_profiles guider_name",
+      "guideCameraName": "seed equipment_profiles guide_camera_name",
+      "rotatorName": "seed equipment_profiles rotator_name",
+      "safetyMonitorName": "seed equipment_profiles safety_monitor_name",
+      "switchName": "seed equipment_profiles switch_name",
+      "telescopeName": "seed equipment_profiles telescope_name",
+      "telescopeFocalLength": 2.5,
+      "telescopeAperture": 2.5,
+      "guideFocalLength": 2.5,
+      "profileIcon": "seed equipment_profiles profile_icon",
+      "profileColor": 1,
+      "sortOrder": 1,
+      "isDefault": true,
+      "createdAt": 1000,
+      "updatedAt": 1000,
+      "isActive": true
+    }
+  ],
+  "tables": {
+    "notes_journal": [
+      {
+        "id": "seed notes_journal id",
+        "target_id": "seed notes_journal target_id",
+        "sequence_run_id": 7,
+        "created_at": 1,
+        "updated_at": 1,
+        "title": "seed notes_journal title",
+        "body": "seed notes_journal body",
+        "tags_json": "seed notes_journal tags_json",
+        "attachments_json": "seed notes_journal attachments_json",
+        "sentiment": "seed notes_journal sentiment"
+      }
+    ],
+    "sequence_decisions": [
+      {
+        "id": 7,
+        "sequence_run_id": 7,
+        "timestamp_unix_ms": 1,
+        "category": "seed sequence_decisions category",
+        "summary": "seed sequence_decisions summary",
+        "details_json": "seed sequence_decisions details_json",
+        "node_id": "seed sequence_decisions node_id"
+      }
+    ],
+    "conversational_builds": [
+      {
+        "id": "seed conversational_builds id",
+        "created_at": 1,
+        "user_prompt": "seed conversational_builds user_prompt",
+        "provider_name": "seed conversational_builds provider_name",
+        "provider_kind": "seed conversational_builds provider_kind",
+        "rounds": 1,
+        "successful": 1,
+        "prompt_tokens": 1,
+        "completion_tokens": 1,
+        "total_tokens": 1,
+        "issues_json": "seed conversational_builds issues_json",
+        "accepted_sequence_id": "seed conversational_builds accepted_sequence_id",
+        "system_prompt": "seed conversational_builds system_prompt",
+        "replies_json": "seed conversational_builds replies_json"
+      }
+    ],
+    "targets": [
+      {
+        "id": 7,
+        "name": "seed targets name",
+        "catalog_id": "seed targets catalog_id",
+        "object_type": "seed targets object_type",
+        "ra": 2.5,
+        "dec": 2.5,
+        "position_angle": 2.5,
+        "magnitude": 2.5,
+        "constellation": "seed targets constellation",
+        "size_arcmin": 2.5,
+        "min_altitude": 2.5,
+        "priority": 1,
+        "total_planned_subs": 1,
+        "captured_subs": 1,
+        "total_integration_secs": 2.5,
+        "goal_integration_secs": 2.5,
+        "filter_progress": "seed targets filter_progress",
+        "notes": "seed targets notes",
+        "created_at": 1,
+        "updated_at": 1,
+        "is_favorite": 1
+      }
+    ],
+    "sequences": [
+      {
+        "id": 7,
+        "name": "seed sequences name",
+        "description": "seed sequences description",
+        "root_node_id": "seed sequences root_node_id",
+        "estimated_duration_mins": 1,
+        "created_at": 1,
+        "updated_at": 1,
+        "is_template": 1,
+        "tags_json": "seed sequences tags_json",
+        "is_favorite": 1
+      }
+    ],
+    "imaging_sessions": [
+      {
+        "id": 7,
+        "name": "seed imaging_sessions name",
+        "profile_id": 7,
+        "target_id": 7,
+        "start_time": 1,
+        "end_time": 1,
+        "total_exposures": 1,
+        "successful_exposures": 1,
+        "failed_exposures": 1,
+        "total_integration_secs": 2.5,
+        "avg_temperature": 2.5,
+        "avg_humidity": 2.5,
+        "avg_seeing": 2.5,
+        "avg_hfr": 2.5,
+        "avg_guiding_rms": 2.5,
+        "autofocus_count": 1,
+        "notes": "seed imaging_sessions notes",
+        "status": "seed imaging_sessions status",
+        "sequence_id": 7,
+        "equipment_snapshot": "seed imaging_sessions equipment_snapshot"
+      }
+    ],
+    "captured_images": [
+      {
+        "id": 7,
+        "file_path": "seed captured_images file_path",
+        "file_name": "seed captured_images file_name",
+        "file_format": "seed captured_images file_format",
+        "file_size": 1,
+        "session_id": 7,
+        "target_id": 7,
+        "frame_type": "seed captured_images frame_type",
+        "exposure_duration": 2.5,
+        "gain": 1,
+        "gain_kind": "seed captured_images gain_kind",
+        "offset": 1,
+        "bin_x": 1,
+        "bin_y": 1,
+        "filter": "seed captured_images filter",
+        "sensor_temp": 2.5,
+        "cooler_power": 2.5,
+        "hfr": 2.5,
+        "star_count": 1,
+        "background": 2.5,
+        "noise": 2.5,
+        "quality_score": 2.5,
+        "guiding_rms_ra": 2.5,
+        "guiding_rms_dec": 2.5,
+        "guiding_rms_total": 2.5,
+        "mount_ra": 2.5,
+        "mount_dec": 2.5,
+        "mount_altitude": 2.5,
+        "mount_azimuth": 2.5,
+        "pier_side": "seed captured_images pier_side",
+        "focuser_position": 1,
+        "focuser_temp": 2.5,
+        "rotator_angle": 2.5,
+        "is_plate_solved": 1,
+        "solved_ra": 2.5,
+        "solved_dec": 2.5,
+        "solved_rotation": 2.5,
+        "solved_pixel_scale": 2.5,
+        "captured_at": 1,
+        "created_at": 1,
+        "atlas_folded_at": 1,
+        "is_accepted": 1,
+        "rejection_reason": "seed captured_images rejection_reason",
+        "producing_node_id": "seed captured_images producing_node_id",
+        "producing_run_id": "seed captured_images producing_run_id",
+        "runtime_grade": "seed captured_images runtime_grade",
+        "eccentricity": 2.5,
+        "fwhm": 2.5,
+        "solved_cd1_1": 2.5,
+        "solved_cd1_2": 2.5,
+        "solved_cd2_1": 2.5,
+        "solved_cd2_2": 2.5,
+        "solved_sip": "seed captured_images solved_sip",
+        "thumbnail_path": "seed captured_images thumbnail_path",
+        "plate_solve_failed_at": 1
+      }
+    ],
+    "frame_forensics": [
+      {
+        "id": "seed frame_forensics id",
+        "captured_image_id": 7,
+        "session_id": "seed frame_forensics session_id",
+        "sequence_run_id": 7,
+        "node_id": "seed frame_forensics node_id",
+        "frame_index": 1,
+        "total_frames": 1,
+        "reject_path": "seed frame_forensics reject_path",
+        "reason": "seed frame_forensics reason",
+        "likely_cause": "seed frame_forensics likely_cause",
+        "evidence_json": "seed frame_forensics evidence_json",
+        "environment_json": "seed frame_forensics environment_json",
+        "hfr": 2.5,
+        "eccentricity": 2.5,
+        "star_count": 1,
+        "created_at": 1
+      }
+    ],
+    "image_metadata": [
+      {
+        "id": 7,
+        "image_id": 7,
+        "key": "seed image_metadata key",
+        "value": "seed image_metadata value",
+        "comment": "seed image_metadata comment"
+      }
+    ],
+    "sequence_nodes": [
+      {
+        "id": 7,
+        "node_id": "seed sequence_nodes node_id",
+        "sequence_id": 7,
+        "target_id": 7,
+        "node_type": "seed sequence_nodes node_type",
+        "specific_type": "seed sequence_nodes specific_type",
+        "name": "seed sequence_nodes name",
+        "properties": "seed sequence_nodes properties",
+        "recovery_config": "seed sequence_nodes recovery_config",
+        "parent_node_id": "seed sequence_nodes parent_node_id",
+        "order_index": 1,
+        "is_enabled": 1
+      }
+    ],
+    "projects": [
+      {
+        "id": 7,
+        "name": "seed projects name",
+        "description": "seed projects description",
+        "color_argb": 1,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "project_targets": [
+      {
+        "id": 7,
+        "project_id": 7,
+        "target_id": 7,
+        "priority_override": 1,
+        "added_at": 1
+      }
+    ],
+    "integration_goals": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "filter": "seed integration_goals filter",
+        "exposure_seconds": 2.5,
+        "frame_count": 1,
+        "priority": 1,
+        "created_at": 1
+      }
+    ],
+    "target_constraints": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "kind": "seed target_constraints kind",
+        "payload_json": "seed target_constraints payload_json",
+        "enabled": 1
+      }
+    ],
+    "horizon_profiles": [
+      {
+        "id": 7,
+        "name": "seed horizon_profiles name",
+        "samples_json": "seed horizon_profiles samples_json"
+      }
+    ],
+    "scheduler_removed_targets": [
+      {
+        "target_id": 7,
+        "removed_at": 1
+      }
+    ],
+    "campaigns": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "filter": "seed campaigns filter",
+        "accepted_count": 1,
+        "desired_count": 1,
+        "last_date": 1,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "integrated_masters": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "name": "seed integrated_masters name",
+        "master_fits_path": "seed integrated_masters master_fits_path",
+        "preview_png_path": "seed integrated_masters preview_png_path",
+        "sidecar_path": "seed integrated_masters sidecar_path",
+        "rejection_map_path": "seed integrated_masters rejection_map_path",
+        "status": "seed integrated_masters status",
+        "accumulation_mode": "seed integrated_masters accumulation_mode",
+        "channels": 1,
+        "width": 1,
+        "height": 1,
+        "frame_count": 1,
+        "total_integration_seconds": 2.5,
+        "filter": "seed integrated_masters filter",
+        "settings_json": "seed integrated_masters settings_json",
+        "stats_json": "seed integrated_masters stats_json",
+        "created_at": 1,
+        "updated_at": 1,
+        "rejection_map_preview_path": "seed integrated_masters rejection_map_preview_path",
+        "coverage_map_path": "seed integrated_masters coverage_map_path",
+        "coverage_map_preview_path": "seed integrated_masters coverage_map_preview_path",
+        "color_calibrated_path": "seed integrated_masters color_calibrated_path",
+        "annotated_preview_path": "seed integrated_masters annotated_preview_path",
+        "background_extracted": 1,
+        "target_snr": 2.5,
+        "target_integration_s": 2.5,
+        "improvement_curve_json": "seed integrated_masters improvement_curve_json",
+        "wcs_crval1": 2.5,
+        "wcs_crval2": 2.5,
+        "wcs_crpix1": 2.5,
+        "wcs_crpix2": 2.5,
+        "wcs_cd1_1": 2.5,
+        "wcs_cd1_2": 2.5,
+        "wcs_cd2_1": 2.5,
+        "wcs_cd2_2": 2.5,
+        "background_extracted_path": "seed integrated_masters background_extracted_path",
+        "deconvolved_path": "seed integrated_masters deconvolved_path",
+        "star_reduced_path": "seed integrated_masters star_reduced_path"
+      }
+    ],
+    "recipes": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "session_id": 7,
+        "master_id": 7,
+        "base_master_path": "seed recipes base_master_path",
+        "name": "seed recipes name",
+        "steps_json": "seed recipes steps_json",
+        "created_by": "user",
+        "draft_notes_json": "seed recipes draft_notes_json",
+        "parent_recipe_id": null,
+        "divergence_index": null,
+        "schema_version": 1,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "delivery_targets": [
+      {
+        "id": 7,
+        "name": "seed delivery_targets name",
+        "kind": "watched_folder",
+        "config_json": "seed delivery_targets config_json",
+        "enabled": 1,
+        "content_json": "seed delivery_targets content_json",
+        "secret_ref": "seed delivery_targets secret_ref",
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "darkroom_state": [
+      {
+        "key": "seed darkroom_state key",
+        "value": "seed darkroom_state value",
+        "updated_at": "seed darkroom_state updated_at"
+      }
+    ],
+    "mosaic_projects": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "name": "seed mosaic_projects name",
+        "rows": 1,
+        "cols": 1,
+        "overlap_pct": 2.5,
+        "position_angle_deg": 2.5,
+        "start_corner": "seed mosaic_projects start_corner",
+        "serpentine": 1,
+        "status": "seed mosaic_projects status",
+        "output_master_id": 7,
+        "created_at": 1,
+        "updated_at": 1,
+        "hub_mosaic_id": "seed mosaic_projects hub_mosaic_id",
+        "collab_role": "seed mosaic_projects collab_role",
+        "collab_status": "seed mosaic_projects collab_status"
+      }
+    ],
+    "mosaic_panels": [
+      {
+        "id": 7,
+        "project_id": 7,
+        "panel_index": 1,
+        "center_ra": 2.5,
+        "center_dec": 2.5,
+        "target_id": 7,
+        "integrated_master_id": 7,
+        "captured_count": 1,
+        "status": "seed mosaic_panels status",
+        "assigned_rig_id": "seed mosaic_panels assigned_rig_id",
+        "assigned_user_id": "seed mosaic_panels assigned_user_id",
+        "claim_token": "seed mosaic_panels claim_token",
+        "uploaded_master_id": 7
+      }
+    ],
+    "stacked_results": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "target_id": 7,
+        "target_name": "seed stacked_results target_name",
+        "width": 1,
+        "height": 1,
+        "frames_stacked": 1,
+        "frames_attempted": 1,
+        "integration_secs": 2.5,
+        "avg_alignment_residual": 2.5,
+        "avg_hfr": 2.5,
+        "filter": "seed stacked_results filter",
+        "is_color": 1,
+        "channels": 1,
+        "exported_image_path": "seed stacked_results exported_image_path",
+        "created_at": 1
+      }
+    ],
+    "integrated_master_frames": [
+      {
+        "id": 7,
+        "master_id": 7,
+        "image_id": 7,
+        "weight": 2.5,
+        "alignment_residual_px": 2.5,
+        "accepted": 1,
+        "rejection_reason": "seed integrated_master_frames rejection_reason",
+        "folded_at": 1,
+        "snr": 2.5,
+        "fwhm": 2.5,
+        "eccentricity": 2.5
+      }
+    ],
+    "flat_library": [
+      {
+        "id": 7,
+        "file_path": "seed flat_library file_path",
+        "filter": "seed flat_library filter",
+        "equipment_profile_id": 7,
+        "optical_train_id": "seed flat_library optical_train_id",
+        "temperature": 2.5,
+        "gain": 1,
+        "offset": 1,
+        "bin_x": 1,
+        "bin_y": 1,
+        "width": 1,
+        "height": 1,
+        "flat_kind": "seed flat_library flat_kind",
+        "master_frame_count": 1,
+        "created_at": 1
+      }
+    ],
+    "night_reports": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "target_id": 7,
+        "score": 1,
+        "headline": "seed night_reports headline",
+        "findings_json": "seed night_reports findings_json",
+        "created_at": 1
+      }
+    ],
+    "narrowband_composites": [
+      {
+        "id": 7,
+        "target_id": 7,
+        "palette": "seed narrowband_composites palette",
+        "component_master_ids": "[7]",
+        "output_path": "seed narrowband_composites output_path",
+        "width": 1,
+        "height": 1,
+        "created_at": 1
+      }
+    ],
+    "calibration_tags": [
+      {
+        "id": 7,
+        "master_type": "dark",
+        "master_id": 7,
+        "tags_json": "seed calibration_tags tags_json",
+        "notes": "seed calibration_tags notes",
+        "camera_id": "seed calibration_tags camera_id",
+        "shared_by": "seed calibration_tags shared_by",
+        "shared_at": 1,
+        "license": "seed calibration_tags license",
+        "provenance_json": "seed calibration_tags provenance_json",
+        "published_remote_id": "seed calibration_tags published_remote_id",
+        "updated_at": 1
+      }
+    ],
+    "weather_settings": [
+      {
+        "id": 1,
+        "trigger_distance_km": 30.0,
+        "cloud_density_threshold": 60.0,
+        "lead_time_minutes": 15,
+        "weather_safety_enabled": 0,
+        "max_humidity_percent": 61.0,
+        "max_wind_speed_kph": 30.0,
+        "max_cloud_cover_percent": 80.0,
+        "auto_park_enabled": 1,
+        "auto_resume_enabled": 0,
+        "preferred_provider": "auto",
+        "refresh_interval_seconds": 300,
+        "updated_at": 1794758855
+      }
+    ],
+    "flat_history": [
+      {
+        "id": 7,
+        "equipment_profile_id": 7,
+        "filter_name": "seed flat_history filter_name",
+        "exposure_time": 2.5,
+        "histogram_target": 2.5,
+        "actual_adu": 1,
+        "panel_brightness": 1,
+        "sky_adu_rate": 2.5,
+        "twilight_phase": "seed flat_history twilight_phase",
+        "gain": 1,
+        "binning": 1,
+        "timestamp": 1
+      }
+    ],
+    "tutorial_progress": [
+      {
+        "id": 7,
+        "category": "seed tutorial_progress category",
+        "last_step_index": 1,
+        "completed": 1,
+        "started_at": 1,
+        "completed_at": 1,
+        "dismissed": 1
+      }
+    ],
+    "polar_alignment_history": [
+      {
+        "id": 7,
+        "equipment_profile_id": 7,
+        "initial_azimuth_error": 2.5,
+        "initial_altitude_error": 2.5,
+        "initial_total_error": 2.5,
+        "final_azimuth_error": 2.5,
+        "final_altitude_error": 2.5,
+        "final_total_error": 2.5,
+        "started_at": 1,
+        "completed_at": 1,
+        "auto_completed": 1,
+        "is_north": 1,
+        "config_json": "seed polar_alignment_history config_json"
+      }
+    ],
+    "science_session_config": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "photometry_enabled": 1,
+        "calibration_enabled": 1,
+        "transparency_enabled": 1,
+        "psf_map_enabled": 1,
+        "residuals_enabled": 1,
+        "moving_objects_enabled": 1,
+        "narrowband_enabled": 1,
+        "psf_grid_rows": 1,
+        "psf_grid_cols": 1,
+        "transparency_alert_threshold": 2.5,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "photometry_measurements": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "object_id": "seed photometry_measurements object_id",
+        "role": "seed photometry_measurements role",
+        "x": 2.5,
+        "y": 2.5,
+        "flux": 2.5,
+        "differential_magnitude": 2.5,
+        "standard_magnitude": 2.5,
+        "snr": 2.5,
+        "uncertainty": 2.5,
+        "is_outlier": 1,
+        "filter": "seed photometry_measurements filter",
+        "timestamp": 1
+      }
+    ],
+    "frame_photometric_calibration": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "is_calibrated": 1,
+        "zero_point": 2.5,
+        "limiting_mag3_sigma": 2.5,
+        "limiting_mag5_sigma": 2.5,
+        "matched_star_count": 1,
+        "calibration_rms": 2.5,
+        "catalog_source": "seed frame_photometric_calibration catalog_source",
+        "solver_id": "seed frame_photometric_calibration solver_id",
+        "filter": "seed frame_photometric_calibration filter",
+        "photometric_band": "seed frame_photometric_calibration photometric_band",
+        "band_is_standard": 1,
+        "zero_point_error": 2.5,
+        "timestamp": 1
+      }
+    ],
+    "transparency_samples": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "transparency_percent": 2.5,
+        "extinction_coefficient": 2.5,
+        "quality_bucket": "seed transparency_samples quality_bucket",
+        "confidence": 2.5,
+        "filter": "seed transparency_samples filter",
+        "extinction_measured": 1,
+        "timestamp": 1
+      }
+    ],
+    "psf_field_tiles": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "tile_row": 1,
+        "tile_col": 1,
+        "star_count": 1,
+        "median_fwhm": 2.5,
+        "median_hfr": 2.5,
+        "median_eccentricity": 2.5,
+        "roundness": 2.5,
+        "timestamp": 1
+      }
+    ],
+    "science_frame_quality_metrics": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "timestamp": 1,
+        "median": 2.5,
+        "mean": 2.5,
+        "std_dev": 2.5,
+        "mad": 2.5,
+        "background": 2.5,
+        "noise": 2.5,
+        "snr": 2.5,
+        "dynamic_range_p1_p99": 2.5,
+        "low_clip_percent": 2.5,
+        "high_clip_percent": 2.5,
+        "uniformity_cv": 2.5,
+        "gradient_x": 2.5,
+        "gradient_y": 2.5,
+        "processing_tier": "seed science_frame_quality_metrics processing_tier",
+        "processing_ms": 1
+      }
+    ],
+    "science_tile_metrics": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "timestamp": 1,
+        "layer_type": "seed science_tile_metrics layer_type",
+        "tile_row": 1,
+        "tile_col": 1,
+        "sample_count": 1,
+        "value": 2.5,
+        "p05": 2.5,
+        "p50": 2.5,
+        "p95": 2.5,
+        "aux_value": 2.5
+      }
+    ],
+    "astrometry_residual_vectors": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "x": 2.5,
+        "y": 2.5,
+        "dx_arcsec": 2.5,
+        "dy_arcsec": 2.5,
+        "magnitude_arcsec": 2.5,
+        "recommendation_code": "seed astrometry_residual_vectors recommendation_code",
+        "timestamp": 1
+      }
+    ],
+    "moving_object_candidates": [
+      {
+        "id": 7,
+        "captured_image_id": 7,
+        "session_id": 7,
+        "candidate_id": "seed moving_object_candidates candidate_id",
+        "ra_degrees": 2.5,
+        "dec_degrees": 2.5,
+        "motion_arcsec_per_minute": 2.5,
+        "position_angle_degrees": 2.5,
+        "confidence": 2.5,
+        "is_known_object": 1,
+        "object_name": "seed moving_object_candidates object_name",
+        "source": "seed moving_object_candidates source",
+        "magnitude": 2.5,
+        "magnitude_band": "seed moving_object_candidates magnitude_band",
+        "timestamp": 1
+      }
+    ],
+    "line_ratio_products": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "h_alpha_image_id": 7,
+        "oiii_image_id": 7,
+        "sii_image_id": 7,
+        "ratio_sii_ha": 2.5,
+        "ratio_oiii_ha": 2.5,
+        "ratio_sii_oiii": 2.5,
+        "roi_json": "seed line_ratio_products roi_json",
+        "export_path": "seed line_ratio_products export_path",
+        "created_at": 1
+      }
+    ],
+    "photometric_transforms": [
+      {
+        "id": 7,
+        "equipment_profile_id": 7,
+        "filter_name": "seed photometric_transforms filter_name",
+        "color_term": 2.5,
+        "extinction_coefficient": 2.5,
+        "zero_point": 2.5,
+        "rms_residual": 2.5,
+        "matched_star_count": 1,
+        "catalog_source": "seed photometric_transforms catalog_source",
+        "fit_data_json": "seed photometric_transforms fit_data_json",
+        "date_computed": 1
+      }
+    ],
+    "dark_library": [
+      {
+        "id": 7,
+        "file_path": "seed dark_library file_path",
+        "exposure_time": 2.5,
+        "temperature": 2.5,
+        "gain": 1,
+        "offset": 1,
+        "bin_x": 1,
+        "bin_y": 1,
+        "frame_type": "seed dark_library frame_type",
+        "width": 1,
+        "height": 1,
+        "master_dark_path": "seed dark_library master_dark_path",
+        "master_frame_count": 1,
+        "created_at": 1
+      }
+    ],
+    "observation_logs": [
+      {
+        "id": 7,
+        "timestamp": 1,
+        "object_name": "seed observation_logs object_name",
+        "object_type": "seed observation_logs object_type",
+        "catalog_id": "seed observation_logs catalog_id",
+        "ra": 2.5,
+        "dec": 2.5,
+        "altitude": 2.5,
+        "azimuth": 2.5,
+        "notes": "seed observation_logs notes",
+        "rating": 1,
+        "equipment_profile_id": 7,
+        "seeing_conditions": "seed observation_logs seeing_conditions",
+        "transparency": "seed observation_logs transparency",
+        "location_name": "seed observation_logs location_name",
+        "latitude": 2.5,
+        "longitude": 2.5
+      }
+    ],
+    "observing_lists": [
+      {
+        "id": 7,
+        "name": "seed observing_lists name",
+        "description": "seed observing_lists description",
+        "sort_order": 1,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "observing_list_items": [
+      {
+        "id": 7,
+        "list_id": 7,
+        "object_name": "seed observing_list_items object_name",
+        "catalog_id": "seed observing_list_items catalog_id",
+        "object_type": "seed observing_list_items object_type",
+        "ra": 2.5,
+        "dec": 2.5,
+        "magnitude": 2.5,
+        "size_arcmin": 2.5,
+        "notes": "seed observing_list_items notes",
+        "sort_order": 1,
+        "added_at": 1
+      }
+    ],
+    "sequence_runs": [
+      {
+        "id": 7,
+        "sequence_id": 7,
+        "sequence_name": "seed sequence_runs sequence_name",
+        "started_at": 1,
+        "ended_at": 1,
+        "status": "seed sequence_runs status",
+        "stats_json": "seed sequence_runs stats_json",
+        "sequence_snapshot_json": "seed sequence_runs sequence_snapshot_json"
+      }
+    ],
+    "sequence_versions": [
+      {
+        "id": 7,
+        "sequence_id": 7,
+        "snapshot_json": "seed sequence_versions snapshot_json",
+        "label": "seed sequence_versions label",
+        "created_at": 1
+      }
+    ],
+    "session_diagnostics": [
+      {
+        "session_id": 7,
+        "recovery_history_json": "seed session_diagnostics recovery_history_json",
+        "optical_train_baseline_json": "seed session_diagnostics optical_train_baseline_json",
+        "optical_train_current_json": "seed session_diagnostics optical_train_current_json",
+        "recorded_at": 1
+      }
+    ],
+    "defect_maps": [
+      {
+        "id": 7,
+        "camera_id": "seed defect_maps camera_id",
+        "width": 1,
+        "height": 1,
+        "temperature_bucket_decicelsius": 1,
+        "bitmap": {
+          "$blob": "AQID"
+        },
+        "defective_pixel_count": 1,
+        "file_path": "seed defect_maps file_path",
+        "last_rebuilt_at": 1
+      }
+    ],
+    "focus_models": [
+      {
+        "id": 7,
+        "uuid": "seed focus_models uuid",
+        "equipment_profile_id": 7,
+        "filter_name": "seed focus_models filter_name",
+        "filter_index": 1,
+        "temperature_compensation_slope": 2.5,
+        "focus_offset_relative_to_lum": 1,
+        "intercept_at_reference_temp": 1,
+        "reference_temp_celsius": 2.5,
+        "last_trained_at": 1,
+        "training_run_count": 1,
+        "confidence_score": 2.5,
+        "last_used_at": 1,
+        "training_samples_json": "seed focus_models training_samples_json",
+        "max_training_samples": 1,
+        "consecutive_bad_predictions": 1,
+        "accumulated_drift_steps": 1,
+        "created_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "guide_rms_history": [
+      {
+        "id": 7,
+        "session_id": "seed guide_rms_history session_id",
+        "mount_id": "seed guide_rms_history mount_id",
+        "target_id": 7,
+        "total_rms_arcsec": 2.5,
+        "sample_count": 1,
+        "exposure_seconds": 2.5,
+        "recorded_at": 1
+      }
+    ],
+    "narrator_events": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "captured_image_id": 7,
+        "timestamp": 1,
+        "event_type": "seed narrator_events event_type",
+        "category": "seed narrator_events category",
+        "severity": "seed narrator_events severity",
+        "headline": "seed narrator_events headline",
+        "body": "seed narrator_events body",
+        "evidence_json": "seed narrator_events evidence_json",
+        "dedupe_key": "seed narrator_events dedupe_key",
+        "pinned": 1
+      }
+    ],
+    "sky_atlas_regions": [
+      {
+        "id": 7,
+        "name": "seed sky_atlas_regions name",
+        "kind": "seed sky_atlas_regions kind",
+        "center_ra_deg": 2.5,
+        "center_dec_deg": 2.5,
+        "radius_deg": 2.5,
+        "target_id": 7,
+        "tile_count": 1,
+        "integration_seconds": 2.5,
+        "created_at": 1
+      }
+    ],
+    "sky_tiles": [
+      {
+        "id": 7,
+        "tile_id": 1,
+        "healpix_order": 1,
+        "channels": 1,
+        "center_ra_deg": 2.5,
+        "center_dec_deg": 2.5,
+        "coverage_mean": 2.5,
+        "total_frames": 1,
+        "integration_seconds": 2.5,
+        "swarm_overlay_frames": 1,
+        "swarm_overlay_integration_seconds": 2.5,
+        "sidecar_path": "seed sky_tiles sidecar_path",
+        "last_fold_session_id": 7,
+        "last_fold_at": 1,
+        "region_id": 7,
+        "created_at": 1
+      }
+    ],
+    "sky_atlas_folds": [
+      {
+        "id": 7,
+        "tile_id": 1,
+        "healpix_order": 1,
+        "session_id": 7,
+        "folded_at": 1,
+        "frames_added": 1,
+        "weight_added": 2.5,
+        "integration_seconds_added": 2.5,
+        "rejected": 1,
+        "contributor": "seed sky_atlas_folds contributor",
+        "label": "seed sky_atlas_folds label"
+      }
+    ],
+    "constellation_contributions": [
+      {
+        "id": 7,
+        "hub_key": "seed constellation_contributions hub_key",
+        "tile_id": 1,
+        "healpix_order": 1,
+        "last_contributed_at": 1,
+        "last_contributed_label": "seed constellation_contributions last_contributed_label",
+        "contribution_id": "seed constellation_contributions contribution_id",
+        "contributed_frames": 1,
+        "contributed_integration_seconds": 2.5,
+        "last_pulled_frames": 1,
+        "last_pulled_integration_seconds": 2.5,
+        "last_pulled_at": 1,
+        "session_id": "seed constellation_contributions session_id",
+        "joined": 1,
+        "target_name": "seed constellation_contributions target_name",
+        "target_ra_deg": 2.5,
+        "target_dec_deg": 2.5,
+        "updated_at": 1
+      }
+    ],
+    "co_imaging_sessions": [
+      {
+        "id": 7,
+        "hub_key": "seed co_imaging_sessions hub_key",
+        "session_id": "seed co_imaging_sessions session_id",
+        "target_name": "seed co_imaging_sessions target_name",
+        "target_ra_deg": 2.5,
+        "target_dec_deg": 2.5,
+        "role": "seed co_imaging_sessions role",
+        "claim_token": "seed co_imaging_sessions claim_token",
+        "framing_offset_index": 1,
+        "framing_offset_ra_arcsec": 2.5,
+        "framing_offset_dec_arcsec": 2.5,
+        "contributed_frames": 1,
+        "contributed_integration_seconds": 2.5,
+        "active": 1,
+        "joined_at": 1,
+        "updated_at": 1
+      }
+    ],
+    "transient_detections": [
+      {
+        "id": 7,
+        "session_id": 7,
+        "captured_image_id": 7,
+        "tile_id": 1,
+        "detected_at": 1,
+        "ra_deg": 2.5,
+        "dec_deg": 2.5,
+        "residual_flux": 2.5,
+        "delta_mag": 2.5,
+        "snr": 2.5,
+        "fwhm": 2.5,
+        "eccentricity": 2.5,
+        "position_angle_deg": 2.5,
+        "kind": "seed transient_detections kind",
+        "catalog_match": "seed transient_detections catalog_match",
+        "confidence": 2.5,
+        "reviewed": 1,
+        "dismissed": 1
+      }
+    ],
+    "living_sky_retention": [
+      {
+        "id": 7,
+        "scope": "seed living_sky_retention scope",
+        "last_pruned_at": 1,
+        "last_pruned_id": 1,
+        "pruned_count": 1,
+        "note": "seed living_sky_retention note",
+        "updated_at": 1
+      }
+    ]
+  }
+}

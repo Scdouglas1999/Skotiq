@@ -30,6 +30,7 @@ import '../models/sequence/sequence_models.dart';
 import '../models/sequencer/host_scheduled_start.dart';
 import '../models/site/location_settings.dart';
 import '../services/adaptive_swap_service.dart';
+import '../services/backup_service.dart' show RestoreMode;
 import '../services/disk_space_service.dart';
 import '../services/science/period_analysis_service.dart' show PeriodFinding;
 import '../services/end_of_night_calibration/eon_service.dart';

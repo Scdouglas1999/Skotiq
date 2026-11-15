@@ -579,28 +579,34 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     required Map<String, dynamic> query,
     required Uint8List bytes,
     String contentType = 'application/octet-stream',
+    Duration? timeout,
+    int maxAttempts = 3,
   }) async {
     final target = _endpointPath(endpoint, ApiMethod.post);
-    return _retryableRequest(() async {
-      final uri = _apiUri(target, _queryStrings(query));
+    return _retryableRequest(
+      timeout: timeout,
+      maxAttempts: maxAttempts,
+      () async {
+        final uri = _apiUri(target, _queryStrings(query));
 
-      final response = await _sendWithAuthRefresh(
-        endpoint: target,
-        extraHeaders: {HttpHeaders.contentTypeHeader: contentType},
-        send: (headers) => _http.post(uri, headers: headers, body: bytes),
-      );
-
-      if (response.statusCode != 200) {
-        throw _errorFromResponse(
-          response.statusCode,
-          response.body,
-          'POST',
-          target,
+        final response = await _sendWithAuthRefresh(
+          endpoint: target,
+          extraHeaders: {HttpHeaders.contentTypeHeader: contentType},
+          send: (headers) => _http.post(uri, headers: headers, body: bytes),
         );
-      }
 
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    });
+        if (response.statusCode != 200) {
+          throw _errorFromResponse(
+            response.statusCode,
+            response.body,
+            'POST',
+            target,
+          );
+        }
+
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      },
+    );
   }
 
   Future<Uint8List> _postRawBytes(

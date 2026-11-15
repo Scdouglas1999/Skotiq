@@ -35,6 +35,8 @@ Future<void> _finishInitialLoad(WidgetTester tester) async {
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(RestoreMode.merge));
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('backup import picker is single-flight and rejects host switch',
@@ -92,7 +94,8 @@ void main() {
     verifyNever(
       () => service.restoreBackup(
         filePath: any(named: 'filePath'),
-        replaceExisting: any(named: 'replaceExisting'),
+        mode: any(named: 'mode'),
+        onProgress: any(named: 'onProgress'),
       ),
     );
     expect(tester.takeException(), isNull);
@@ -105,7 +108,8 @@ void main() {
     when(
       () => service.restoreBackup(
         filePath: any(named: 'filePath'),
-        replaceExisting: any(named: 'replaceExisting'),
+        mode: any(named: 'mode'),
+        onProgress: any(named: 'onProgress'),
       ),
     ).thenAnswer(
       (_) async => RestoreResult(
@@ -133,22 +137,23 @@ void main() {
       find.widgetWithText(SkotiqButton, 'Import Backup'),
     );
     await tester.pump();
-    expect(find.text('Restore Backup?'), findsOneWidget);
+    expect(find.text('Restore backup'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Restore'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Add missing records'));
     await tester.pump();
     await tester.pump();
 
     verify(
       () => service.restoreBackup(
         filePath: '/selected-backup.skbackup',
-        replaceExisting: false,
+        mode: RestoreMode.merge,
+        onProgress: any(named: 'onProgress'),
       ),
     ).called(1);
     // The outcome is a banner that stays, not a snackbar that fades: after a
     // restore the running app is showing pre-restore state.
-    expect(find.text('Restart required'), findsOneWidget);
-    expect(find.textContaining('Restored 7 items'), findsOneWidget);
+    expect(find.text('Backup restored'), findsOneWidget);
+    expect(find.textContaining('Added 7 rows from the backup'), findsOneWidget);
     expect(
       find.widgetWithText(SkotiqButton, 'Import Backup'),
       findsOneWidget,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -21,6 +22,8 @@ import '../../utils/snackbar_helper.dart';
 import 'backup_list_entry.dart';
 import 'widgets/admin_only.dart';
 import 'widgets/cloud_sync_settings.dart';
+
+part 'backup_screen/restore_widgets.dart';
 
 typedef BackupDownloadSavePicker = Future<ExportTarget?> Function(
   String suggestedName,
@@ -88,6 +91,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   bool _isLoadingBackups = true;
   List<BackupListEntry> _availableBackups = const [];
 
+  /// How far the backup or restore that is running has got.
+  RestoreProgress? _progress;
+
+  /// The replace that waits for the next start of the app (or of the linked
+  /// host), and what the last start did with one.
+  _ReplaceState _replace = const _ReplaceState();
+
   /// Monotonic counter identifying the most recent [_loadAvailableBackups]
   /// call. A slow list from an old rig must not paint over a newer load (or a
   /// screen that has since switched hosts), so only the request matching the
@@ -149,39 +159,154 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     return true;
   }
 
-  /// Records a completed restore as a banner that stays until dismissed.
+  /// Records a finished merge as a banner that stays until dismissed.
   ///
-  /// Not a snackbar: the condition it describes (running app, freshly rewritten
-  /// database) outlives any transient message, and the restart is the operator's
-  /// to perform. Written to [restoreRestartNoticeProvider] rather than to this
-  /// [State] so leaving the screen does not clear it.
-  /// [notRestored] is what the merge kept out and why
-  /// ([RestoreResult.notRestoredNotice]).
-  void _announceRestore(
-    int itemsRestored, {
-    required bool remote,
-    String? notRestored,
-  }) {
-    final restart = remote
-        ? 'Restored $itemsRestored items to the imaging host. Restart the '
-            'host before the next run — until then it is running on the '
-            'state it had before the restore.'
-        : 'Restored $itemsRestored items. Restart Skotiq before the next '
-            'run — until then this app is showing the state it had before '
-            'the restore.';
-    ref.read(restoreRestartNoticeProvider.notifier).state =
-        notRestored == null ? restart : '$restart $notRestored';
+  /// Not a snackbar: the condition it describes (a running app over a
+  /// database that just changed) outlives any transient message. Written to
+  /// [restoreRestartNoticeProvider] and not to this [State], so leaving the
+  /// screen does not clear it. A replace has its own banner, read from where
+  /// the replace is recorded ([_loadReplaceState]).
+  void _announceMerge(String report, {required bool remote}) {
+    ref.read(restoreRestartNoticeProvider.notifier).state = remote
+        ? report
+        : '$report Restart Skotiq before the next run: until then some '
+            'screens show what they held before the restore.';
   }
 
-  /// The kept-out rows a linked host reports with its restore.
-  static String? _hostNotRestored(Map<String, dynamic> result) {
-    final rows = result['notRestored'];
-    return rows is Map
-        ? restoreNotRestoredNotice({
-            for (final MapEntry(:key, :value) in rows.entries)
-              if (key is String && value is int) key: value,
-          })
-        : null;
+  /// Runs one restore, here or on the linked host, showing how far it is,
+  /// and announces a merge that worked. Throws when the restore fails.
+  Future<void> _runRestore({
+    required RestoreMode mode,
+    required HostBackups? hostBackups,
+    required Future<Map<String, dynamic>> Function(HostBackups host) onHost,
+    required String localPath,
+    required bool Function() stillCurrent,
+  }) async {
+    Timer? poll;
+    setState(() => _progress = const RestoreProgress('Reading the backup', 0));
+    try {
+      if (hostBackups != null) {
+        poll = _followHostProgress(hostBackups);
+        final result = await onHost(hostBackups);
+        final status = result['status'] as String?;
+        if (status != 'restored' && status != 'staged') {
+          throw Exception(result['error'] ?? 'Restore failed');
+        }
+        if (!stillCurrent()) return;
+        if (status == 'restored') {
+          _refreshAfterRestore();
+          _announceMerge(
+            result['message'] as String? ?? restoreReportFromWire(result),
+            remote: true,
+          );
+        }
+      } else {
+        final result = await ref.read(backupServiceProvider).restoreBackup(
+              filePath: localPath,
+              mode: mode,
+              onProgress: (progress) {
+                if (mounted) setState(() => _progress = progress);
+              },
+            );
+        if (!result.success) {
+          throw Exception(result.errorMessage ?? 'Restore failed');
+        }
+        if (!stillCurrent()) return;
+        if (!result.pendingRestart) {
+          _refreshAfterRestore();
+          _announceMerge(result.report, remote: false);
+        }
+      }
+      await _loadAvailableBackups();
+    } finally {
+      poll?.cancel();
+      if (mounted) setState(() => _progress = null);
+    }
+  }
+
+  /// Shows how far the linked host is with the backup or restore it is
+  /// running for this screen, until the returned timer is canceled.
+  Timer _followHostProgress(HostBackups hostBackups) =>
+      Timer.periodic(const Duration(seconds: 1), (_) async {
+        try {
+          final state = await hostBackups.restoreState();
+          final progress = state['progress'];
+          if (mounted && _progress != null && progress is Map) {
+            setState(
+              () => _progress = RestoreProgress(
+                progress['step'] as String? ?? 'Working',
+                (progress['fraction'] as num?)?.toDouble() ?? 0,
+              ),
+            );
+          }
+        } catch (_) {
+          // The operation's own answer says how it went.
+        }
+      });
+
+  /// Reads the replace that waits for a restart and the record of the last
+  /// one, from this database or from the linked host.
+  Future<void> _loadReplaceState(HostBackups? hostBackups) async {
+    try {
+      final _ReplaceState state;
+      if (hostBackups != null) {
+        final body = await hostBackups.restoreState();
+        final pending = body['pendingReplace'];
+        final last = body['lastReplace'];
+        state = _ReplaceState(
+          pendingBackup:
+              pending is Map ? pending['backupName'] as String? : null,
+          pendingSafetyBackup:
+              pending is Map ? pending['safetyBackup'] as String? : null,
+          outcome: last is Map ? last['report'] as String? : null,
+          outcomeRestored: last is Map && last['restored'] == true,
+        );
+      } else {
+        final service = ref.read(backupServiceProvider);
+        final pending = await service.pendingReplace();
+        final last = await service.replaceOutcome();
+        state = _ReplaceState(
+          pendingBackup: pending?.backupName,
+          pendingSafetyBackup: pending?.safetyBackupName,
+          outcome: last?.report,
+          outcomeRestored: last?.restored ?? false,
+        );
+      }
+      if (mounted) setState(() => _replace = state);
+    } catch (_) {
+      // The list load reports a host that cannot be reached.
+    }
+  }
+
+  Future<void> _cancelReplace() async {
+    final hostBackups = ref.read(linkedHostBackupsProvider);
+    try {
+      if (hostBackups != null) {
+        await hostBackups.cancelReplace();
+      } else {
+        await ref.read(backupServiceProvider).cancelPendingReplace();
+      }
+      if (!mounted) return;
+      context.showSuccessSnackBar('The replace was canceled.');
+    } catch (e) {
+      if (!mounted) return;
+      context.showErrorSnackBar('Could not cancel: ${userFacingError(e)}');
+    }
+    await _loadReplaceState(hostBackups);
+  }
+
+  Future<void> _dismissReplaceOutcome() async {
+    final hostBackups = ref.read(linkedHostBackupsProvider);
+    try {
+      if (hostBackups != null) {
+        await hostBackups.acknowledgeReplace();
+      } else {
+        await ref.read(backupServiceProvider).dismissReplaceOutcome();
+      }
+    } catch (_) {
+      // It is shown again next time.
+    }
+    await _loadReplaceState(hostBackups);
   }
 
   void _refreshAfterRestore() {
@@ -221,6 +346,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         _loadedBackendToken = token;
         _isLoadingBackups = false;
       });
+      await _loadReplaceState(hostBackups);
     } catch (e) {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
@@ -235,17 +361,31 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final backend = ref.read(backendProvider);
     final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
-    setState(() => _isCreatingBackup = true);
+    setState(() {
+      _isCreatingBackup = true;
+      _progress = const RestoreProgress('Writing the backup', 0);
+    });
+    Timer? poll;
     try {
       String? createdPath;
       if (hostBackups != null) {
+        poll = _followHostProgress(hostBackups);
         final result = await hostBackups.createBackup();
         if ((result['status'] as String?) != 'created') {
           throw Exception(result['error'] ?? 'Backup failed');
         }
         createdPath = result['filePath'] as String?;
       } else {
-        final result = await ref.read(backupServiceProvider).createBackup();
+        final result = await ref.read(backupServiceProvider).createBackup(
+          onProgress: (fraction) {
+            if (mounted) {
+              setState(
+                () =>
+                    _progress = RestoreProgress('Writing the backup', fraction),
+              );
+            }
+          },
+        );
         if (!result.success) {
           throw Exception(result.errorMessage ?? 'Backup failed');
         }
@@ -270,8 +410,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (!mounted || !_backendStillMatches(token)) return;
       context.showErrorSnackBar('Error creating backup: ${userFacingError(e)}');
     } finally {
+      poll?.cancel();
       if (mounted) {
-        setState(() => _isCreatingBackup = false);
+        setState(() {
+          _isCreatingBackup = false;
+          _progress = null;
+        });
       }
     }
   }
@@ -287,11 +431,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final backend = ref.read(backendProvider);
     final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
-    final confirmed = await ConfirmDialog.restore(
-      context: context,
+    final mode = await _RestoreChoiceDialog.show(
+      context,
       backupName: backup.fileName,
+      onHost: hostBackups != null,
     );
-    if (!confirmed || !mounted || _rejectIfBusy()) return;
+    if (mode == null || !mounted || _rejectIfBusy()) return;
     if (!_backendStillMatches(token)) {
       context
           .showWarningSnackBar('The connected host changed. Restore canceled.');
@@ -301,38 +446,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      if (hostBackups != null) {
-        // Address the backup by its stable id — the host resolves it to a file
-        // inside its backup directory, so no absolute server path crosses the
-        // wire and the host can't be pointed at an arbitrary file.
-        final result = await hostBackups.restoreBackupById(backup.id);
-        if ((result['status'] as String?) != 'restored') {
-          throw Exception(result['error'] ?? 'Restore failed');
-        }
-        final restored = result['itemsRestored'] as int? ?? 0;
-        if (!mounted || !_backendStillMatches(token)) return;
-        _refreshAfterRestore();
-        _announceRestore(
-          restored,
-          remote: true,
-          notRestored: _hostNotRestored(result),
-        );
-      } else {
-        final result = await ref.read(backupServiceProvider).restoreBackup(
-              filePath: backup.filePath,
-              replaceExisting: false,
-            );
-        if (!result.success) {
-          throw Exception(result.errorMessage ?? 'Restore failed');
-        }
-        if (!mounted || !_backendStillMatches(token)) return;
-        _refreshAfterRestore();
-        _announceRestore(
-          result.itemsRestored,
-          remote: false,
-          notRestored: result.notRestoredNotice,
-        );
-      }
+      await _runRestore(
+        mode: mode,
+        hostBackups: hostBackups,
+        // By its id: the host resolves it to a file in its own backup
+        // folder, so no server path crosses the wire.
+        onHost: (host) => host.restoreBackupById(backup.id, mode: mode),
+        localPath: backup.filePath,
+        stillCurrent: () => mounted && _backendStillMatches(token),
+      );
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
       context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
@@ -358,47 +480,28 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       }
       if (_rejectRestoreDuringActiveRun()) return;
 
-      final confirmed = await ConfirmDialog.restore(
-        context: context,
+      final mode = await _RestoreChoiceDialog.show(
+        context,
         backupName: path.basename(file.path),
+        onHost: hostBackups != null,
       );
-      if (!confirmed || !_isCurrentImport(generation, token)) return;
+      if (mode == null || !_isCurrentImport(generation, token)) return;
       if (_rejectRestoreDuringActiveRun()) return;
 
-      int restored;
-      String? notRestored;
-      if (hostBackups != null) {
-        final bytes = await ref.read(backupImportReaderProvider)(file);
-        if (!_isCurrentImport(generation, token)) return;
-        final result = await hostBackups.uploadBackupAndRestore(
-          Uint8List.fromList(bytes),
-          path.basename(file.path),
-        );
-        if ((result['status'] as String?) != 'restored') {
-          throw Exception(result['error'] ?? 'Restore failed');
-        }
-        restored = result['itemsRestored'] as int? ?? 0;
-        notRestored = _hostNotRestored(result);
-      } else {
-        final result = await ref.read(backupServiceProvider).restoreBackup(
-              filePath: file.path,
-              replaceExisting: false,
-            );
-        if (!result.success) {
-          throw Exception(result.errorMessage ?? 'Restore failed');
-        }
-        restored = result.itemsRestored;
-        notRestored = result.notRestoredNotice;
-      }
-
-      if (!mounted || !_isCurrentImport(generation, token)) return;
-      _refreshAfterRestore();
-      _announceRestore(
-        restored,
-        remote: hostBackups != null,
-        notRestored: notRestored,
+      await _runRestore(
+        mode: mode,
+        hostBackups: hostBackups,
+        onHost: (host) async {
+          final bytes = await ref.read(backupImportReaderProvider)(file);
+          return host.uploadBackupAndRestore(
+            Uint8List.fromList(bytes),
+            path.basename(file.path),
+            mode: mode,
+          );
+        },
+        localPath: file.path,
+        stillCurrent: () => _isCurrentImport(generation, token),
       );
-      await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_isCurrentImport(generation, token)) return;
       context.showErrorSnackBar('Import failed: ${userFacingError(e)}');
@@ -538,13 +641,73 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (restoreNotice != null) ...[
-                    _RestoreNoticeBanner(
-                      message: restoreNotice,
-                      onDismiss: () => ref
-                          .read(restoreRestartNoticeProvider.notifier)
-                          .state = null,
+                  if (_replace.pendingBackup case final pending?) ...[
+                    _NoticeBanner(
+                      title: 'Replace waits for a restart',
+                      message: '"$pending" replaces '
+                          '${isRemoteMode ? "the imaging computer's database when Skotiq next starts there" : 'this database when Skotiq next starts'}. '
+                          'Until then the current database is in use, and '
+                          'what is recorded in it from now on is not kept.'
+                          '${_replace.pendingSafetyBackup == null ? '' : ' The database as it was is saved as ${_replace.pendingSafetyBackup}.'}',
+                      actions: [
+                        if (!isRemoteMode &&
+                            ref.watch(appRelauncherProvider) != null)
+                          SkotiqButton(
+                            label: 'Restart now',
+                            variant: ButtonVariant.primary,
+                            size: ButtonSize.small,
+                            onPressed: () => ref
+                                .read(appRelauncherProvider)
+                                ?.relaunch(
+                                  reason: 'Replace the database with a backup',
+                                ),
+                          ),
+                        SkotiqButton(
+                          label: 'Cancel replace',
+                          variant: ButtonVariant.ghost,
+                          size: ButtonSize.small,
+                          onPressed: _cancelReplace,
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_replace.outcome case final outcome?) ...[
+                    _NoticeBanner(
+                      title: _replace.outcomeRestored
+                          ? 'Database replaced'
+                          : 'Database not replaced',
+                      message: outcome,
+                      actions: [
+                        SkotiqButton(
+                          label: 'Dismiss',
+                          variant: ButtonVariant.ghost,
+                          size: ButtonSize.small,
+                          onPressed: _dismissReplaceOutcome,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (restoreNotice != null) ...[
+                    _NoticeBanner(
+                      title: 'Backup restored',
+                      message: restoreNotice,
+                      actions: [
+                        SkotiqButton(
+                          label: 'Dismiss',
+                          variant: ButtonVariant.ghost,
+                          size: ButtonSize.small,
+                          onPressed: () => ref
+                              .read(restoreRestartNoticeProvider.notifier)
+                              .state = null,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_progress case final progress?) ...[
+                    _BackupProgressCard(progress: progress),
                     const SizedBox(height: 24),
                   ],
                   if (!isRemoteMode) ...[
@@ -586,62 +749,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Stays on the Backup & Restore screen after a restore until dismissed.
-class _RestoreNoticeBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onDismiss;
-
-  const _RestoreNoticeBanner({required this.message, required this.onDismiss});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.warning.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(LucideIcons.refreshCw, size: 18, color: colors.warning),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Restart required',
-                  style: SkotiqTypography.labelStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: SkotiqTypography.caption.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SkotiqButton(
-            label: 'Dismiss',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-            onPressed: onDismiss,
           ),
         ],
       ),

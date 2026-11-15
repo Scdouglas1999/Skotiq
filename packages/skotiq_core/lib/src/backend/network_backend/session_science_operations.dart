@@ -1,5 +1,9 @@
 part of '../network_backend.dart';
 
+/// A backup or restore of a season's database takes the host minutes, and
+/// the answer is the outcome.
+const _backupTimeout = Duration(minutes: 30);
+
 mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   List<Map<String, dynamic>> _sessionScienceObjectList(
     Map<String, dynamic> response,
@@ -740,24 +744,34 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     final response = await _post(
       BackupApi.createBackup,
       body: {'autoSave': autoSave},
+      timeout: _backupTimeout,
     );
     return response;
   }
 
-  /// Restore from a backup identified by its stable [backupId].
-  ///
-  /// Preferred over [restoreBackup]: the host resolves [backupId] to a file
-  /// inside its own backup directory, so no absolute server path crosses the
-  /// wire and a client cannot point the host at an arbitrary file on disk.
+  /// Restore from a backup identified by its stable [backupId]: the host
+  /// resolves it to a file inside its own backup directory, so no server
+  /// path crosses the wire.
   Future<Map<String, dynamic>> restoreBackupById(
     String backupId, {
-    bool replaceExisting = false,
+    required RestoreMode mode,
   }) async {
     final response = await _post(
       BackupApi.restoreBackup,
-      body: {'id': backupId, 'replaceExisting': replaceExisting},
+      body: {'id': backupId, 'mode': mode.wireName},
+      timeout: _backupTimeout,
     );
     return response;
+  }
+
+  Future<Map<String, dynamic>> restoreState() => _get(BackupApi.restoreState);
+
+  Future<void> cancelReplace() async {
+    await _post(BackupApi.cancelReplace);
+  }
+
+  Future<void> acknowledgeReplace() async {
+    await _post(BackupApi.acknowledgeReplace);
   }
 
   Future<void> deleteBackup(String backupId) async {
@@ -779,13 +793,16 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   Future<Map<String, dynamic>> uploadBackupAndRestore(
     Uint8List bytes,
     String fileName, {
-    bool replaceExisting = false,
+    required RestoreMode mode,
   }) async {
     return _postRaw(
       BackupApi.uploadRestoreBackup,
-      query: {'fileName': fileName, 'replaceExisting': replaceExisting},
+      query: {'fileName': fileName, 'mode': mode.wireName},
       bytes: bytes,
       contentType: 'application/octet-stream',
+      timeout: _backupTimeout,
+      // A restore is never sent twice.
+      maxAttempts: 1,
     );
   }
 

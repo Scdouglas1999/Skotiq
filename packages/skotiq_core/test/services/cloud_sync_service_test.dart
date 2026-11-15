@@ -282,7 +282,6 @@ void main() {
       final service = SyncService(
         backupService: BackupService(
           database: database,
-          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
           logger: logger,
           appVersion: '5.0.0-test',
         ),
@@ -404,9 +403,11 @@ void main() {
       final dstDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(dstDb.close);
       await configure(dstDb);
-      final restore = await serviceFor(
-        dstDb,
-      ).pullAndRestore(machine: 'test-machine', bundleFile: bundleFile);
+      final restore = await serviceFor(dstDb).pullAndRestore(
+        machine: 'test-machine',
+        bundleFile: bundleFile,
+        mode: RestoreMode.merge,
+      );
 
       expect(restore.success, isTrue, reason: restore.errorMessage);
       final targets = await TargetsDao(dstDb).getAllTargets();
@@ -429,6 +430,7 @@ void main() {
         final restore = await serviceFor(dstDb).pullAndRestore(
           machine: 'test-machine',
           bundleFile: push.remotePath!.split('/').last,
+          mode: RestoreMode.merge,
         );
 
         expect(restore.success, isFalse);
@@ -555,11 +557,7 @@ void main() {
       keyring = InMemorySecureKeyValueStore();
       secrets = SecretsStore(keyring);
       service = SyncService(
-        backupService: BackupService(
-          database: db,
-          sequenceRepository: LocalSequenceRepository(db.sequencesDao),
-          logger: logger,
-        ),
+        backupService: BackupService(database: db, logger: logger),
         settingsDao: dao,
         secretsStore: secrets,
         logger: logger,
@@ -794,11 +792,7 @@ void main() {
 
     SyncService s3ServiceFor(SkotiqDatabase database) {
       return SyncService(
-        backupService: BackupService(
-          database: database,
-          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
-          logger: logger,
-        ),
+        backupService: BackupService(database: database, logger: logger),
         settingsDao: SettingsDao(database),
         secretsStore: SecretsStore(InMemorySecureKeyValueStore()),
         logger: logger,
@@ -864,6 +858,7 @@ void main() {
         final restore = await s3ServiceFor(dstDb).pullAndRestore(
           machine: 's3-machine',
           bundleFile: push.remotePath!.split('/').last,
+          mode: RestoreMode.merge,
         );
         expect(restore.success, isTrue, reason: restore.errorMessage);
         final targets = await TargetsDao(dstDb).getAllTargets();
