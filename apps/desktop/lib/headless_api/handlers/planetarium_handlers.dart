@@ -114,7 +114,7 @@ class PlanetariumHandlers implements RouteSource {
       'parked': status.parked,
       'atHome': status.atHome,
       'sideOfPier': status.sideOfPier.name,
-      'trackingRate': status.trackingRate.name,
+      'trackingRate': status.trackingRate?.name,
       'rotatorAngle': rotatorAngle,
     });
   }

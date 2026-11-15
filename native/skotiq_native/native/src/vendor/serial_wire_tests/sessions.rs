@@ -705,3 +705,46 @@ fn lx200_scan_of_a_silent_port() {
         &scan_transcript(&fakes, lx200_found(found)),
     );
 }
+
+/// A NYX-101 left on the lunar rate by Unity or the handset must not be
+/// shown as sidereal: the rate is the mount's answer, not a value this
+/// driver assumed when it connected.
+#[tokio::test]
+async fn an_onstep_mount_reports_the_rate_another_program_left_it_on() {
+    let _park_state = isolate_park_state().await;
+    let knobs = Arc::new(Knobs::default());
+    *knobs.onstep_rate_flag.lock().unwrap() = "(";
+    let fake = FakeMount::spawn(b'#', fakes::lx200(Lx200Flavor::Nyx, None, knobs.clone()));
+    let mut mount = Lx200Mount::new(fake.path.clone(), Lx200MountType::OnStep, Some(115200));
+    mount.connect().await.expect("connect");
+
+    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Lunar));
+    mount
+        .set_tracking_rate(TrackingRate::Sidereal)
+        .await
+        .expect("set sidereal");
+    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Sidereal));
+    *knobs.onstep_rate_flag.lock().unwrap() = "O";
+    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Solar));
+}
+
+/// Meade's LX200 protocol has no rate query, so the rate is unknown until
+/// one is commanded on this connection.
+#[tokio::test]
+async fn a_meade_mount_claims_no_rate_before_one_is_commanded() {
+    let _park_state = isolate_park_state().await;
+    let knobs = Arc::new(Knobs::default());
+    let fake = FakeMount::spawn(b'#', fakes::lx200(Lx200Flavor::Meade, None, knobs));
+    let mut mount = Lx200Mount::new(fake.path.clone(), Lx200MountType::Meade, None);
+    mount.connect().await.expect("connect");
+
+    assert!(matches!(
+        mount.get_tracking_rate().await,
+        Err(DriverError::NotSupported)
+    ));
+    mount
+        .set_tracking_rate(TrackingRate::Lunar)
+        .await
+        .expect("set lunar");
+    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Lunar));
+}

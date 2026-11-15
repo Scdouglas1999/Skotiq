@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/night_mount_tab.dart';
+import 'package:skotiq_app/screens/night_control/panel/panel_widgets.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -356,6 +357,40 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nightMount.trackingStop')));
     await tester.pump();
     expect(_commands(handle).calls, ['setTracking:false']);
+  });
+
+  // The rate shown can be older than a change made at the handset or in the
+  // mount's own app, so the selected rate is sent like any other.
+  testWidgets('tapping the rate the mount last reported still sends it',
+      (tester) async {
+    final handle = await pumpPanelTab(tester, const NightMountTab(),
+        overrides: panelOverrides());
+    const sidereal = ValueKey<String>('nightMount.rate.sidereal');
+    expect(tester.widget<NightPanelButton>(find.byKey(sidereal)).selected,
+        isTrue);
+
+    await tester.tap(find.byKey(sidereal));
+    await tester.pump();
+    expect(_commands(handle).calls, ['setTrackingRate:sidereal']);
+  });
+
+  testWidgets('a mount that cannot report its rate shows none as selected',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightMountTab(),
+      overrides: panelOverrides(
+        mount: kTrackingMount.copyWith(clearTrackingRate: true),
+      ),
+    );
+    expect(find.text('Tracking · rate not reported'), findsOneWidget);
+    for (final rate in ['sidereal', 'lunar', 'solar']) {
+      final button = tester.widget<NightPanelButton>(
+        find.byKey(ValueKey<String>('nightMount.rate.$rate')),
+      );
+      expect(button.selected, isFalse, reason: rate);
+      expect(button.onPressed, isNotNull, reason: rate);
+    }
   });
 
   testWidgets('a run owns tracking and the move pad', (tester) async {

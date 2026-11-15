@@ -154,7 +154,9 @@ class MountStatus {
   /// Local sidereal time in hours, or null when the mount cannot say. See
   /// [altitude] for why this is nullable.
   final double? siderealTime;
-  final TrackingRate trackingRate;
+
+  /// Null when the mount cannot report its rate.
+  final TrackingRate? trackingRate;
   final bool canPark;
   final bool canSlew;
   final bool canSync;
@@ -232,7 +234,7 @@ class MountStatus {
     'altitude': altitude,
     'azimuth': azimuth,
     'siderealTime': siderealTime,
-    'trackingRate': trackingRate.name,
+    'trackingRate': trackingRate?.name,
     'canPark': canPark,
     'canSlew': canSlew,
     'canSync': canSync,
@@ -251,14 +253,14 @@ class MountStatus {
     );
   }
 
-  static TrackingRate _parseTrackingRate(dynamic value) {
-    if (value == null) return TrackingRate.sidereal;
+  static TrackingRate? _parseTrackingRate(dynamic value) {
+    if (value == null) return null;
     if (value is TrackingRate) return value;
     final str = value.toString().toLowerCase();
-    return TrackingRate.values.firstWhere(
-      (e) => e.name.toLowerCase() == str,
-      orElse: () => TrackingRate.sidereal,
-    );
+    for (final rate in TrackingRate.values) {
+      if (rate.name.toLowerCase() == str) return rate;
+    }
+    return null;
   }
 }
 

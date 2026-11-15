@@ -682,7 +682,10 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
                 : kReadoutUnknown
           ),
           ('Side of pier', state.sideOfPier ?? 'Unknown'),
-          ('Tracking rate', state.trackingRate.name.toUpperCase()),
+          (
+            'Tracking rate',
+            state.trackingRate?.name.toUpperCase() ?? kReadoutUnknown,
+          ),
         ];
 
       case DeviceType.focuser:
