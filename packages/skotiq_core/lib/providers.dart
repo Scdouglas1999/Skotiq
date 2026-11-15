@@ -179,6 +179,7 @@ export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/providers/scheduler_provider.dart';
 export 'src/providers/planning_provider.dart';
 export 'src/providers/notification_router_provider.dart';
+export 'src/providers/weather_notices_provider.dart';
 export 'src/providers/home_assistant_provider.dart';
 export 'src/providers/notes_provider.dart';
 export 'src/providers/forensics_provider.dart';

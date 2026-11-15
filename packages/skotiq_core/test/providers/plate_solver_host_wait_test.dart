@@ -14,10 +14,7 @@ void main() {
         overrides: [isRemoteModeProvider.overrideWithValue(true)],
       );
       addTearDown(container.dispose);
-      final sub = container.listen(
-        plateSolverDetectionProvider,
-        (_, _) {},
-      );
+      final sub = container.listen(plateSolverDetectionProvider, (_, _) {});
       addTearDown(sub.close);
 
       async.elapse(plateSolverHostWait - const Duration(seconds: 1));
