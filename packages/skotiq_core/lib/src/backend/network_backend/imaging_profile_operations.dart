@@ -599,8 +599,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     final imagesList = await getSessionImageRows(sessionId);
     final images = <CapturedImage>[];
     final ids = <String>{};
+    final unreadable = <String>[];
     for (var index = 0; index < imagesList.length; index++) {
-      final image = _capturedImageFromRow(imagesList[index], index);
+      final CapturedImage image;
+      try {
+        image = _capturedImageFromRow(imagesList[index], index);
+      } on FormatException catch (error) {
+        // One old or odd row must not hide the rest of the session.
+        unreadable.add(error.message);
+        continue;
+      }
       if (!ids.add(image.id)) {
         throw FormatException(
           'sessions/$sessionId/images contains duplicate image id '
@@ -608,6 +616,14 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         );
       }
       images.add(image);
+    }
+    if (unreadable.isNotEmpty) {
+      Log.warning(
+        'Session $sessionId: ${unreadable.length} of ${imagesList.length} '
+        'frames on the host could not be read here and are not listed '
+        '(${unreadable.first}). The host lists them.',
+        source: 'NetworkBackend',
+      );
     }
     return images;
   }
