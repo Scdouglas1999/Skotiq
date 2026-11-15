@@ -7,17 +7,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'session_report_dialog.dart';
 
-/// The Session Reports an unattended night queued instead of opening.
-///
-/// A report for a run the autopilot dispatched would otherwise arrive as a
-/// modal over whatever screen the operator was on, one per re-dispatch. They
-/// queue instead (see `sessionReportPresentationProvider`), and this card is
-/// where they come back — without it the queue is where reports go to be
-/// forgotten, and the "open it from Sequencer ▸ History" notice is a false
-/// claim.
-///
-/// Renders nothing when the queue is empty, so a hand-driven night never sees
-/// it.
+/// The session reports an unattended night queued instead of opening over
+/// whatever the operator was doing (see `sessionReportPresentationProvider`).
+/// Shown at the top of Analytics > History; renders nothing when the queue is
+/// empty.
 class PendingSessionReportsCard extends ConsumerWidget {
   const PendingSessionReportsCard({super.key});
 
@@ -30,88 +23,57 @@ class PendingSessionReportsCard extends ConsumerWidget {
     // Newest first: the last run of the night is the one being asked about.
     final ordered = pending.reversed.toList();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(LucideIcons.inbox, size: 18, color: colors.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  ordered.length == 1
-                      ? '1 session report from unattended imaging'
-                      : '${ordered.length} session reports from unattended '
-                          'imaging',
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize15,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+      child: SkotiqPanel(
+        head: PanelHead(
+          icon: LucideIcons.inbox,
+          label: ordered.length == 1
+              ? '1 session report from unattended imaging'
+              : '${ordered.length} session reports from unattended imaging',
+          trailing: [
+            SkotiqButton(
+              label: 'Dismiss all',
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: () =>
+                  ref.read(pendingSessionReportsProvider.notifier).clear(),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'These ran while the autopilot held the rig, so they were not '
+              'opened over your work.',
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            for (final (index, report) in ordered.indexed)
+              ListRow(
+                title: 'Finished ${ClockFormat.hm(report.endedAt.toLocal())}',
+                showDivider: index < ordered.length - 1,
+                trailingWidget: SkotiqButton(
+                  label: 'Open report',
+                  icon: LucideIcons.fileText,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () {
+                    ref
+                        .read(pendingSessionReportsProvider.notifier)
+                        .remove(report);
+                    SessionReportDialog.show(
+                      context,
+                      report.sessionId,
+                      runId: report.runId,
+                    );
+                  },
                 ),
               ),
-              SkotiqButton(
-                label: 'Dismiss all',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                onPressed: () =>
-                    ref.read(pendingSessionReportsProvider.notifier).clear(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'These ran while the autopilot held the rig, so they were not '
-            'opened over your work.',
-            style: TextStyle(
-                fontSize: SkotiqTypography.fontSize13,
-                color: colors.textSecondary),
-          ),
-          const SizedBox(height: 12),
-          for (final report in ordered)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Finished ${ClockFormat.hm(report.endedAt.toLocal())}',
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize13,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  SkotiqButton(
-                    label: 'Open report',
-                    icon: LucideIcons.fileText,
-                    variant: ButtonVariant.outline,
-                    size: ButtonSize.small,
-                    onPressed: () {
-                      // Retire it as it is opened: a report the operator has
-                      // seen must not reappear in the queue.
-                      ref
-                          .read(pendingSessionReportsProvider.notifier)
-                          .remove(report);
-                      SessionReportDialog.show(
-                        context,
-                        report.sessionId,
-                        runId: report.runId,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

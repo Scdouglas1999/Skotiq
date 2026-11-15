@@ -2,18 +2,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../widgets/accessible_dropdown.dart';
 import '../analytics/quick_capture_selection.dart';
 import '../analytics/widgets/analytics_empty_state.dart';
 import 'diagnostics_screen/psf_field_map_view.dart';
-part 'diagnostics_screen/header_widgets.dart';
 part 'diagnostics_screen/content_layout.dart';
 part 'diagnostics_screen/health_summary_cards.dart';
 part 'diagnostics_screen/optical_alignment_cards.dart';
@@ -21,188 +18,57 @@ part 'diagnostics_screen/psf_field_map.dart';
 part 'diagnostics_screen/residual_vector.dart';
 part 'diagnostics_screen/issues_and_skeleton.dart';
 
-/// Session id standing for "the frames that belong to no session".
+/// The optical diagnostics of one session: tilt, curvature, the PSF field map
+/// and the astrometric residuals of its frames. Shown as the Optics view of
+/// Analytics > Session, which owns the session picker.
+class OpticsDiagnosticsView extends ConsumerWidget {
+  const OpticsDiagnosticsView({
+    super.key,
+    required this.sessionId,
+    this.onOpenLatest,
+  });
 
-/// Optical-train diagnostics surface, embedded inside the Analytics screen.
-class DiagnosticsTabContent extends ConsumerStatefulWidget {
-  /// Whether to paint the page title. False inside Analytics: the tab strip
-  /// two rows above already says "Diagnostics", and none of the four sibling
-  /// tabs prints an H1 of its own.
-  final bool showTitle;
+  /// The session to analyze, [kQuickCaptureSessionSelection] for the frames
+  /// that belong to none, or null when nothing is selected.
+  final int? sessionId;
 
-  const DiagnosticsTabContent({super.key, this.showTitle = false});
+  /// Selects the most recent session; offered when nothing is selected and a
+  /// session is on record.
+  final VoidCallback? onOpenLatest;
 
   @override
-  ConsumerState<DiagnosticsTabContent> createState() =>
-      _DiagnosticsTabContentState();
-}
-
-class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final isMobile = Responsive.isMobile(context);
-    final sessionsAsync = ref.watch(allSessionsProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-
-    final sessionState = ref.watch(sessionStateProvider);
-    var selectedSessionId =
-        ref.watch(analyticsSessionPickProvider) ?? sessionState.dbSessionId;
-
-    // Quick captures own no session row, so they are offered as their own
-    // bucket — but only when the science pipeline actually produced something
-    // to analyze for them.
-    final hasQuickCaptureDiagnostics =
-        (ref.watch(sessionlessPsfTilesProvider).valueOrNull?.isNotEmpty ??
-                false) ||
-            (ref
-                    .watch(sessionlessResidualVectorsProvider)
-                    .valueOrNull
-                    ?.isNotEmpty ??
-                false);
-    // A bucket that just went empty (frames cleared) must not stay selected.
-    if (selectedSessionId == kQuickCaptureSessionSelection &&
-        !hasQuickCaptureDiagnostics) {
-      selectedSessionId = null;
+    var selected = sessionId;
+    // Quick captures have diagnostics only when the science pipeline measured
+    // some of them.
+    if (selected == kQuickCaptureSessionSelection &&
+        (ref.watch(sessionlessPsfTilesProvider).valueOrNull?.isEmpty ?? true) &&
+        (ref.watch(sessionlessResidualVectorsProvider).valueOrNull?.isEmpty ??
+            true)) {
+      selected = null;
     }
-
-    final latestSession = sessionsAsync.valueOrNull?.fold<ImagingSession?>(
-      null,
-      (latest, s) =>
-          latest == null || s.startTime.isAfter(latest.startTime) ? s : latest,
-    );
-
-    // Phone tier reflows the header: the session selector drops to its own
-    // line under the title so the wide dropdown can't push the title into a
-    // RenderFlex overflow on a narrow phone.
-    final isPhone = Responsive.isPhone(context);
-
-    final titleRow = Row(
-      children: [
-        Icon(LucideIcons.microscope, size: 22, color: colors.primary),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            l10n.text('diagnosticsTitle'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: isMobile
-                  ? SkotiqTypography.fontSize18
-                  : SkotiqTypography.fontSize22,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
+    if (selected == null) {
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: AnalyticsEmptyState(
+              icon: LucideIcons.stethoscope,
+              title: l10n.text('diagnosticsNoSessionTitle'),
+              body: l10n.text('diagnosticsNoSessionBody'),
+              actionLabel: onOpenLatest == null
+                  ? 'Go to Imaging'
+                  : 'Open the latest session',
+              onAction: onOpenLatest,
             ),
           ),
         ),
-      ],
-    );
-
-    final sessionSelector = sessionsAsync.when(
-      data: (sessions) => _SessionSelector(
-        sessions: sessions,
-        selectedSessionId: selectedSessionId,
-        offerQuickCaptures: hasQuickCaptureDiagnostics,
-        onChanged: (id) =>
-            ref.read(analyticsSessionPickProvider.notifier).state = id,
-        colors: colors,
-      ),
-      // Small skeleton chip rather than a spinner so the header doesn't
-      // visibly jitter when sessions resolve.
-      loading: () => const ShimmerLoading(
-        child: SkeletonBox(width: 200, height: 28),
-      ),
-      error: (e, _) => Text(
-        l10n.text('diagnosticsLoadSessionsFailed'),
-        style: TextStyle(
-            color: colors.error, fontSize: SkotiqTypography.fontSize12),
-      ),
-    );
-
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isPhone) ...[
-            if (widget.showTitle) ...[
-              titleRow,
-              const SizedBox(height: 10),
-            ],
-            // Constrain so a long session name ellipsizes instead of forcing
-            // the dropdown wider than the phone column.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width - 24,
-                ),
-                child: sessionSelector,
-              ),
-            ),
-          ] else
-            Row(
-              children: [
-                if (widget.showTitle)
-                  Expanded(child: titleRow)
-                else
-                  const Spacer(),
-                const SizedBox(width: 12),
-                // Bounded width so the (isExpanded) dropdown has finite
-                // constraints and ellipsizes a long session label.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 280),
-                  child: sessionSelector,
-                ),
-              ],
-            ),
-          // No explainer paragraph and no "Learn more" link: 07 "What NOT to
-          // do" forbids both, and the tab's EmptyState already says what
-          // diagnostics needs. Screen-level help belongs to the top-bar help
-          // popover.
-          const SizedBox(height: SkotiqTokens.spaceLg),
-
-          Expanded(
-            child: selectedSessionId == null
-                // Scroll-wrap so the centered empty state never overflows when
-                // a phone is short (landscape).
-                ? LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints:
-                            BoxConstraints(minHeight: constraints.maxHeight),
-                        // The shared EmptyState, same as this tab's four
-                        // siblings, so one reader learns one pattern rather
-                        // than a per-tab dialect.
-                        child: AnalyticsEmptyState(
-                          icon: LucideIcons.stethoscope,
-                          title: l10n.text('diagnosticsNoSessionTitle'),
-                          body: l10n.text('diagnosticsNoSessionBody'),
-                          // With sessions on record the way forward is to
-                          // look at one, not to go and image another.
-                          actionLabel: latestSession == null
-                              ? 'Go to Imaging'
-                              : 'Open the latest session',
-                          onAction: latestSession == null
-                              ? null
-                              : () => ref
-                                  .read(analyticsSessionPickProvider.notifier)
-                                  .state = latestSession.id,
-                        ),
-                      ),
-                    ),
-                  )
-                : _DiagnosticsContent(
-                    sessionId: selectedSessionId,
-                    isMobile: isMobile,
-                  ),
-          ),
-        ],
-      ),
+      );
+    }
+    return _DiagnosticsContent(
+      sessionId: selected,
+      isMobile: Responsive.isMobile(context),
     );
   }
 }
-
-// Sits under the intro paragraph as a low-key affordance. Inline `InkWell`
-// over a small icon + label keeps the chip visually quieter than
-// `SkotiqButton.ghost`, which is sized for primary actions.

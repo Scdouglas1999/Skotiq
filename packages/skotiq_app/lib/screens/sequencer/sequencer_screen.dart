@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
@@ -40,9 +41,10 @@ import 'widgets/session_report_dialog.dart';
 import 'widgets/equipment_telemetry_strip.dart';
 import 'widgets/mobile_playback_bar.dart';
 import 'widgets/target_queue_panel.dart';
-import 'tabs/history_tab.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
+import '../../router/analytics_route.dart';
+import '../../router/app_routes.dart';
 import '../../router/sequencer_route.dart';
 import '../../utils/guide_distance.dart';
 import 'widgets/tree_insert.dart';
@@ -231,9 +233,10 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
           final waiting = ref.read(pendingSessionReportsProvider).length;
           ref.read(uiNotificationProvider.notifier).showInfo(
                 waiting == 1
-                    ? 'Unattended run finished. Open it from Sequencer ▸ History.'
-                    : '$waiting unattended runs finished. Open them from '
-                        'Sequencer ▸ History.',
+                    ? 'Unattended run finished. Its report is waiting in '
+                        'Analytics > History.'
+                    : '$waiting unattended runs finished. Their reports are '
+                        'waiting in Analytics > History.',
                 title: 'Session report ready',
               );
           return;
@@ -457,9 +460,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
         const SingleActivator(LogicalKeyboardKey.digit3, alt: true): () {
           _tabController.animateTo(SequencerTab.sequences.index);
         },
-        const SingleActivator(LogicalKeyboardKey.digit4, alt: true): () {
-          _tabController.animateTo(SequencerTab.history.index);
-        },
         // Ctrl+T (or Cmd+T on Mac) toggles the toolbox between Nodes and
         // Snippets. From the Targets tab it lands on Nodes, so the keystroke
         // always has a visible effect wherever it is pressed.
@@ -511,15 +511,14 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                     child: SkotiqBanner(
                       title: 'Sequence failed',
                       message: failure == null
-                          ? 'Open History for the recorded outcome.'
+                          ? 'Analytics > History has the recorded outcome.'
                           : runFailureMessage(failure),
                       tone: BannerTone.error,
                       action: SkotiqButton(
                         label: 'See details',
                         variant: ButtonVariant.secondary,
                         size: ButtonSize.small,
-                        onPressed: () => _tabController
-                            .animateTo(SequencerTab.history.index),
+                        onPressed: () => openLastRun(context, ref),
                       ),
                     ),
                   ),
@@ -560,11 +559,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                         controller: _tabController,
                         index: SequencerTab.sequences.index,
                         builder: (_) => const SequenceLibraryTab(),
-                      ),
-                      _LazyTab(
-                        controller: _tabController,
-                        index: SequencerTab.history.index,
-                        builder: (_) => const HistoryTab(),
                       ),
                     ],
                   ),
@@ -631,4 +625,19 @@ class _LazyTabState extends State<_LazyTab> {
     if (!_seen) return const SizedBox.shrink();
     return widget.builder(context);
   }
+}
+
+/// Opens the most recent run as its night in Analytics > History, or the
+/// History list when no run is on record yet.
+void openLastRun(BuildContext context, WidgetRef ref) {
+  final runs = ref.read(sequenceRunsProvider).valueOrNull;
+  context.go(
+    runs == null || runs.isEmpty
+        ? AppRoutes.history()
+        : AppRoutes.night(
+            NightRef.run(
+              runs.reduce((a, b) => a.startedAt.isAfter(b.startedAt) ? a : b).id,
+            ),
+          ),
+  );
 }

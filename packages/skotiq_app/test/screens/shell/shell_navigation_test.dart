@@ -56,7 +56,7 @@ void main() {
 
     test(
         'the More sheet lists every destination without a slot, then '
-        'Session replay and Settings', () {
+        'Settings', () {
       expect(
         ShellNavigation.moreSheet.map((d) => d.path).toList(),
         [
@@ -66,7 +66,6 @@ void main() {
           '/weather',
           '/darkroom',
           '/analytics',
-          '/session-replay',
           '/settings',
         ],
       );
@@ -81,11 +80,10 @@ void main() {
       );
     });
 
-    // A prefix walk cannot answer these: /session-review shares no prefix with
+    // A prefix walk cannot answer these: /stack-result shares no prefix with
     // /darkroom, and /settings shares one with nothing yet must light nothing.
     test('route-only screens light the rail item that owns them', () {
       for (final location in [
-        '/session-review?session=3',
         '/stack-result?id=9',
       ]) {
         expect(
@@ -117,6 +115,7 @@ void main() {
         '/replay/17',
         '/session-replay',
         '/session-replay/4',
+        '/session-review?session=3',
         '/diagnostics',
         '/diagnostics/dump',
         '/tutorial/first-night',

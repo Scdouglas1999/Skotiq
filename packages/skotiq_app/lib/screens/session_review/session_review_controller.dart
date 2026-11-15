@@ -301,17 +301,6 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
     });
   }
 
-  /// Flip the active rendering between the narrative and the workbench. With no
-  /// argument it toggles; pass [mode] to set it directly.
-  void setViewMode([SessionReviewViewMode? mode]) {
-    final next = mode ??
-        (state.viewMode == SessionReviewViewMode.narrative
-            ? SessionReviewViewMode.workbench
-            : SessionReviewViewMode.narrative);
-    if (next == state.viewMode) return;
-    state = state.copyWith(viewMode: next);
-  }
-
   /// Whether the "keep best N" cull is offerable against the *current* state,
   /// and the numbers a label may quote. [cullToRecommended] runs off this same
   /// evaluation, so what the rail renders and what the press handler does can

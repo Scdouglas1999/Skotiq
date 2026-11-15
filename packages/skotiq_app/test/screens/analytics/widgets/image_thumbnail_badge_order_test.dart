@@ -65,7 +65,7 @@ void main() {
     await tester.pump();
 
     // The summary claims a frame needs review…
-    expect(find.textContaining('Needs Review'), findsWidgets);
+    expect(find.textContaining('Needs review'), findsWidgets);
 
     final children = _tileStack(tester).children;
     final centerIndex = children.indexWhere((c) => c is Center);

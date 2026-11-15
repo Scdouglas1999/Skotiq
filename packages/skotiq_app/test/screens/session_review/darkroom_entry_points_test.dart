@@ -16,7 +16,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
 import 'package:skotiq_app/screens/session_review/widgets/master_library_panel.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
 import 'package:skotiq_core/backend.dart';
@@ -27,6 +26,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
 import 'seeded_review_fixture.dart';
+import 'review_host.dart';
 
 /// Pins the backend so the screen's host-only gate resolves without the real
 /// notifier's connection polling leaving a timer alive past teardown.
@@ -304,7 +304,7 @@ void main() {
     });
   });
 
-  group('the session-review header builds through the Darkroom', () {
+  group('the night review header builds through the Darkroom', () {
     late SkotiqDatabase db;
     late String previewPath;
 
@@ -317,10 +317,8 @@ void main() {
       await db.close();
     });
 
-    Future<void> pumpScreen(
-      WidgetTester tester,
-      SessionReviewScope scope,
-    ) async {
+    Future<void> pumpScreen(WidgetTester tester) async {
+      const scope = SessionReviewScope.session(1);
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -341,7 +339,7 @@ void main() {
           child: MaterialApp(
             theme: SkotiqTheme.dark,
             debugShowCheckedModeBanner: false,
-            home: SessionReviewScreen(scope: scope),
+            home: const ReviewHost(sessionId: 1),
           ),
         ),
       );
@@ -362,33 +360,18 @@ void main() {
     testWidgets('a session scope offers the guided build, not a pass', (
       tester,
     ) async {
-      await pumpScreen(tester, const SessionReviewScope.session(1));
+      await pumpScreen(tester);
 
       expect(find.byKey(const ValueKey('session_review_process_now')),
           findsNothing);
-      final button = find.byKey(const ValueKey('session_review_header_build'));
+      final button = find.byKey(const ValueKey('night_review_build'));
       expect(button, findsOneWidget);
       expect(tester.widget<SkotiqButton>(button).onPressed, isNotNull);
-      await unmount(tester);
-    });
-
-    testWidgets('a target scope offers the same build', (tester) async {
-      await pumpScreen(tester, const SessionReviewScope.target(1));
-
-      final button = find.byKey(const ValueKey('session_review_header_build'));
-      expect(button, findsOneWidget);
-      expect(tester.widget<SkotiqButton>(button).onPressed, isNotNull);
-      final tooltip = tester.widget<Tooltip>(
-        find.ancestor(of: button, matching: find.byType(Tooltip)).first,
-      );
-      expect(tooltip.message, contains('every night of NGC 7000'));
       await unmount(tester);
     });
 
     testWidgets('Refresh is still there beside it', (tester) async {
-      await pumpScreen(tester, const SessionReviewScope.session(1));
-      // Icon-only in the page header now (05 §6), so it is named by its
-      // tooltip — which is the only name a screen reader gets either.
+      await pumpScreen(tester);
       expect(
         find.byWidgetPredicate(
           (widget) =>

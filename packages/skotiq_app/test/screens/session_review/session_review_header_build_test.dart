@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
@@ -19,6 +18,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
 import 'seeded_review_fixture.dart';
+import 'review_host.dart';
 
 /// Pins the backend so the screen's host-only gate resolves without the real
 /// notifier's connection polling leaving a timer alive past teardown.
@@ -55,7 +55,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/session-review',
-          builder: (context, state) => const SessionReviewScreen(scope: scope),
+          builder: (context, state) => const ReviewHost(sessionId: 1),
         ),
         GoRoute(
           path: '/darkroom',
@@ -103,7 +103,7 @@ void main() {
         find.byKey(const ValueKey('session_review_process_now')), findsNothing);
     expect(
         find.byKey(const ValueKey('session_review_stop_pass')), findsNothing);
-    final header = find.byKey(const ValueKey('session_review_header_build'));
+    final header = find.byKey(const ValueKey('night_review_build'));
     expect(header, findsOneWidget);
     final button = tester.widget<SkotiqButton>(header);
     expect(button.label, 'Build masters in the Darkroom');

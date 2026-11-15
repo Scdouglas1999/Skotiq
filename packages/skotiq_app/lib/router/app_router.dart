@@ -9,15 +9,10 @@ import '../screens/equipment/equipment_screen.dart';
 import '../screens/imaging/imaging_screen.dart';
 import '../screens/guiding/guiding_screen.dart';
 import '../screens/sequencer/sequencer_screen.dart';
-import '../screens/sequencer/widgets/replay_debug_screen.dart';
 import '../screens/analytics/analytics_screen.dart';
 import 'darkroom_route.dart' show DarkroomRoute;
 import '../screens/darkroom/darkroom_screen.dart';
 import '../screens/stack_result/stack_result_screen.dart';
-import '../screens/session_review/session_review_controller.dart';
-import '../screens/session_review/session_review_screen.dart';
-import '../screens/session_replay/session_picker_screen.dart';
-import '../screens/session_replay/session_replay_screen.dart';
 import '../screens/flat_wizard/flat_wizard_screen.dart';
 import '../screens/discover/mosaic/mosaic_project_screen.dart';
 import '../screens/weather/weather_screen.dart';
@@ -32,6 +27,7 @@ import '../screens/night_control/first_night_entry.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/first_light/first_light_launcher.dart';
 import 'app_routes.dart';
+import 'query_word.dart';
 import 'page_transitions.dart';
 import 'route_not_found_screen.dart';
 
@@ -119,6 +115,10 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.analytics => AnalyticsScreen(
         initialTab: AnalyticsTab.fromQuery(query['tab']),
         initialScienceView: ScienceTab.fromQuery(query['view']),
+        initialSessionView: SessionView.fromQuery(query['view']),
+        night: NightRef.fromQuery(query),
+        nightView: NightView.fromQuery(query['view']),
+        historySequenceId: readQueryInt(query['sequence']),
       ),
     // `?section=<key>` opens that section; an unknown or missing key opens
     // the first one.
@@ -128,31 +128,11 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.plateSolvingSettings => const PlateSolvingSettingsScreen(),
     AppRoute.polarAlignment => const PolarAlignmentScreen(),
     AppRoute.oneTapTonight => const TonightScreen(),
-    AppRoute.sessionReplay => const SessionPickerScreen(),
-    AppRoute.sessionReplayRun =>
-      SessionReplayScreen(runId: _id(state.pathParameters['runId'])),
-    // `?session=` takes precedence over `?target=`.
-    AppRoute.sessionReview => SessionReviewScreen(
-        scope: switch ((
-          int.tryParse(query['session'] ?? ''),
-          int.tryParse(query['target'] ?? ''),
-        )) {
-          (final int session, _) => SessionReviewScope.session(session),
-          (null, final int target) => SessionReviewScope.target(target),
-          (null, null) => const SessionReviewScope.session(_noSuchRow),
-        },
-      ),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
     AppRoute.pairing => const PairingScreen(),
     AppRoute.diagnosticsDump => const DiagnosticDumpScreen(),
     AppRoute.stackResult => StackResultScreen(resultId: _id(query['id'])),
-    AppRoute.replay => ReplayDebugScreen(
-        sequenceRunId: _id(state.pathParameters['runId']),
-        sequenceName: query['name'] ?? 'Sequence',
-        startedAt: DateTime.tryParse(query['started'] ?? ''),
-        endedAt: DateTime.tryParse(query['ended'] ?? ''),
-      ),
     // Renders Tonight with the wizard open over it; closing the wizard
     // returns to Tonight.
     AppRoute.firstNightWizard => const FirstNightEntry(),
@@ -166,7 +146,11 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.collaborativeSky ||
     AppRoute.scheduler ||
     AppRoute.mosaicProjects ||
-    AppRoute.diagnostics =>
+    AppRoute.diagnostics ||
+    AppRoute.sessionReplay ||
+    AppRoute.sessionReplayRun ||
+    AppRoute.sessionReview ||
+    AppRoute.replay =>
       throw StateError('$route only redirects and has no page'),
   };
 }

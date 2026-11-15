@@ -37,15 +37,29 @@ enum _QualityFilter {
   poor,
 }
 
+/// A frame tile's height: a picture tall enough that the badges along its
+/// top edge, the glyph in its middle and the badges along its bottom edge
+/// each have their own band, over three lines of caption.
+const double _kThumbnailHeight = 142;
+
+/// Room under the rail's tiles for its scrollbar.
+const double _kRailScrollbarInset = 10;
+
 /// Fixed height for the horizontal thumbnail rail (not a chart plot area).
-const double kAnalyticsThumbnailRailHeight = 120;
+const double kAnalyticsThumbnailRailHeight =
+    _kThumbnailHeight + _kRailScrollbarInset;
 
-/// A rail tile's width: room for the verdict badge and the HFR badge side by
-/// side without either being cut off.
-const double _kThumbnailWidth = 116;
-const double _kThumbnailGap = 8;
+/// A tile's width: room for the verdict badge and the HFR badge side by side
+/// without either being cut off.
+const double _kThumbnailWidth = 132;
+const double _kThumbnailGap = SkotiqTokens.spaceSm;
 
-/// Horizontal scrollable strip of image thumbnails.
+/// The widest a grid tile grows before another column is added. A phone
+/// then shows two columns at least as wide as a rail tile.
+const double _kGridTileMaxWidth = 180;
+
+/// The frames of a session as graded tiles: a horizontal rail, or with
+/// [ImageThumbnailStrip.grid] a grid that fills the height it is given.
 ///
 /// Decorates each thumbnail with the existing quality badge plus a richer set
 /// of science badges (plate-solve checkmark, zero-point chip when available)
@@ -68,11 +82,16 @@ class ImageThumbnailStrip extends StatefulWidget {
   /// don't want to fetch calibrations for performance reasons.
   final Map<int, FramePhotometricCalibrationRow>? calibrationByImageId;
 
+  /// Lays the tiles out as a wrapping grid that scrolls vertically. The
+  /// widget must then be given a bounded height.
+  final bool grid;
+
   const ImageThumbnailStrip({
     super.key,
     required this.images,
     this.onImageTap,
     this.calibrationByImageId,
+    this.grid = false,
   });
 
   @override
@@ -152,7 +171,7 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
       case _QualityFilter.all:
         return 'All';
       case _QualityFilter.needsReview:
-        return 'Needs Review';
+        return 'Needs review';
       case _QualityFilter.poor:
         return 'Poor';
     }
@@ -179,14 +198,62 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
     if (widget.images.isEmpty) {
       return Container(
         height: kAnalyticsThumbnailRailHeight,
-        decoration: BoxDecoration(
-          color: colors.well,
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+        decoration: SkotiqDecorations.well(colors),
+        alignment: Alignment.center,
+        child: Text(
+          'No images captured in this session',
+          style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
         ),
-        child: Center(
-          child: Text(
-            'No images captured in this session',
-            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+      );
+    }
+
+    Widget tile(DbCapturedImage image) => _ImageThumbnail(
+          image: image,
+          assessment: assessments[image.id],
+          calibration: widget.calibrationByImageId?[image.id],
+          onImageTap: widget.onImageTap,
+        );
+    final noMatch = Container(
+      height: _kThumbnailHeight,
+      decoration: SkotiqDecorations.well(colors),
+      alignment: Alignment.center,
+      child: Text(
+        'No frames match "${_filterLabel(_qualityFilter)}"',
+        style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+      ),
+    );
+    final Widget tiles;
+    if (filteredImages.isEmpty) {
+      tiles = widget.grid
+          ? Align(alignment: Alignment.topCenter, child: noMatch)
+          : noMatch;
+    } else if (widget.grid) {
+      tiles = GridView.builder(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: _kGridTileMaxWidth,
+          mainAxisExtent: _kThumbnailHeight,
+          crossAxisSpacing: _kThumbnailGap,
+          mainAxisSpacing: _kThumbnailGap,
+        ),
+        itemCount: filteredImages.length,
+        itemBuilder: (context, index) => tile(filteredImages[index]),
+      );
+    } else {
+      tiles = Listener(
+        onPointerSignal: _handleRailScroll,
+        child: Scrollbar(
+          controller: _railController,
+          thumbVisibility: true,
+          child: ListView.builder(
+            controller: _railController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(bottom: _kRailScrollbarInset),
+            itemExtent: _kThumbnailWidth + _kThumbnailGap,
+            itemCount: filteredImages.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(right: _kThumbnailGap),
+              child: tile(filteredImages[index]),
+            ),
           ),
         ),
       );
@@ -196,101 +263,36 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: SkotiqTokens.spaceSm,
+          runSpacing: SkotiqTokens.spaceSm,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _SummaryChip(
-              label: 'Good',
-              value: summary.good,
-              color: colors.success,
-            ),
-            _SummaryChip(
-              label: 'Needs review',
-              value: summary.needsReview,
-              color: colors.warning,
-            ),
-            _SummaryChip(
-              label: 'Poor',
-              value: summary.poor,
-              color: colors.error,
-            ),
-            if (ungradedCount > 0)
-              _SummaryChip(
-                label: 'Unrated',
-                value: ungradedCount,
-                color: colors.textMuted,
+            SegmentedControl(
+              segments: [
+                for (final filter in _QualityFilter.values)
+                  _filterLabel(filter),
+              ],
+              selectedIndex: _qualityFilter.index,
+              onSelected: (index) => setState(
+                () => _qualityFilter = _QualityFilter.values[index],
               ),
-            _SummaryChip(
-              label: 'Total',
-              value: widget.images.length,
-              color: colors.info,
+              semanticLabel: 'Frames shown',
             ),
+            SkotiqChip(label: 'Good ${summary.good}', tone: ChipTone.success),
+            SkotiqChip(
+              label: 'Needs review ${summary.needsReview}',
+              tone: ChipTone.warning,
+            ),
+            SkotiqChip(label: 'Poor ${summary.poor}', tone: ChipTone.error),
+            if (ungradedCount > 0) SkotiqChip(label: 'Unrated $ungradedCount'),
+            SkotiqChip(label: 'Total ${widget.images.length}'),
           ],
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _QualityFilter.values
-              .map(
-                (filter) => _QualityFilterChip(
-                  label: _filterLabel(filter),
-                  selected: _qualityFilter == filter,
-                  onTap: () => setState(() => _qualityFilter = filter),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          // Thumbnail rail — fixed height (not chart-like). The list reserves
-          // the bottom 10px of it for the always-visible scrollbar rather than
-          // growing, so the loading and error placeholders that use this same
-          // constant stay the same height as the loaded rail.
-          height: kAnalyticsThumbnailRailHeight,
-          child: filteredImages.isEmpty
-              ? Container(
-                  decoration: BoxDecoration(
-                    color: colors.well,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No frames match "${_filterLabel(_qualityFilter)}"',
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textMuted),
-                    ),
-                  ),
-                )
-              : Listener(
-                  onPointerSignal: _handleRailScroll,
-                  child: Scrollbar(
-                    controller: _railController,
-                    // The rail is the only horizontal scroller on the page, and
-                    // an overlay-only bar left "there are more frames" invisible
-                    // until the user happened to drag it.
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      controller: _railController,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(bottom: 10),
-                      itemExtent: _kThumbnailWidth + _kThumbnailGap,
-                      itemCount: filteredImages.length,
-                      itemBuilder: (context, index) {
-                        final image = filteredImages[index];
-                        return _ImageThumbnail(
-                          image: image,
-                          assessment: assessments[image.id],
-                          calibration: widget.calibrationByImageId?[image.id],
-                          onImageTap: widget.onImageTap,
-                        );
-                      },
-                    ),
-                  ),
-                ),
-        ),
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        if (widget.grid)
+          Expanded(child: tiles)
+        else
+          SizedBox(height: kAnalyticsThumbnailRailHeight, child: tiles),
       ],
     );
   }

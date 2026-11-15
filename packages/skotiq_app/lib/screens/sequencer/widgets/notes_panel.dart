@@ -369,50 +369,34 @@ class _NotesPanelLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final header = Row(
       children: [
-        Icon(LucideIcons.bookOpen, size: 14, color: colors.primary),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: SkotiqTypography.fontSize12,
-            fontWeight: FontWeight.w700,
-            color: colors.textSecondary,
-            letterSpacing: 0.3,
+        Icon(
+          LucideIcons.bookOpen,
+          size: SkotiqTokens.iconGlyphPanelHead,
+          color: colors.textMuted,
+        ),
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        Expanded(
+          child: Text(
+            (notes.isEmpty ? title : '$title · ${notes.length}').toUpperCase(),
+            style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 8),
-        if (notes.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: colors.surfaceAlt,
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-            ),
-            child: Text(
-              '${notes.length}',
-              style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize10,
-                  color: colors.textMuted),
-            ),
-          ),
-        const Spacer(),
-        TextButton.icon(
-          icon: const Icon(LucideIcons.plus, size: 14),
-          label: const Text('Add note'),
+        SkotiqButton(
+          label: 'Add note',
+          icon: LucideIcons.plus,
+          variant: ButtonVariant.ghost,
+          size: ButtonSize.small,
           onPressed: onAdd,
         ),
       ],
     );
 
     final body = notes.isEmpty
-        ? Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Text(
-              emptyHint,
-              style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize11,
-                  color: colors.textMuted),
-            ),
+        ? Text(
+            emptyHint,
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
