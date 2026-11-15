@@ -19,6 +19,9 @@ class BackupHandlers implements RouteSource {
     BackupApi.listBackups: handleListBackups,
     BackupApi.createBackup: handleCreateBackup,
     BackupApi.restoreBackup: handleRestoreBackup,
+    BackupApi.restoreState: handleRestoreState,
+    BackupApi.cancelReplace: handleCancelReplace,
+    BackupApi.acknowledgeReplace: handleAcknowledgeReplace,
     BackupApi.autoSaveBackup: handleAutoSaveBackup,
     BackupApi.uploadRestoreBackup: handleUploadRestoreBackup,
     BackupApi.getBackupMetadata: handleGetBackupMetadata,
@@ -56,15 +59,15 @@ class BackupHandlers implements RouteSource {
 
   Future<Response> handleListBackups(Request request) async {
     final service = container.read(backupServiceProvider);
-    final backupFiles = await _listContainedBackups(service);
-
     final backups = <Map<String, dynamic>>[];
-    for (final file in backupFiles) {
+    for (final MapEntry(key: id, value: file) in (await _backupsById(
+      service,
+    )).entries) {
       final metadata = await service.readBackupMetadata(file.path);
       final stat = await file.stat();
 
       backups.add({
-        'id': _idForBackupFile(file),
+        'id': id,
         'filePath': file.path,
         'fileName': file.uri.pathSegments.last,
         'createdAt':
@@ -117,17 +120,17 @@ class BackupHandlers implements RouteSource {
       // fallback can only address as "legacy-...", so the id in the create
       // response would not survive a later list/delete round-trip.
       final autoSavePath = await _defaultUuidBackupPath(service, tag: 'auto');
-      result = await service.createBackup(customPath: autoSavePath);
+      result = await _create(service, autoSavePath);
     } else {
       final effectivePath = await _defaultUuidBackupPath(service);
-      result = await service.createBackup(customPath: effectivePath);
+      result = await _create(service, effectivePath);
     }
 
     if (result.success) {
       return jsonOk({
         'status': 'created',
         'id': result.filePath != null
-            ? _idForBackupFile(File(result.filePath!))
+            ? await _idOf(service, result.filePath!)
             : null,
         'filePath': result.filePath,
         'itemsBackedUp': result.itemsBackedUp,
@@ -150,25 +153,20 @@ class BackupHandlers implements RouteSource {
     if (blocked != null) return blocked;
     final payload = await readJsonObject(request);
     final id = requireString(payload, 'id');
-    final replaceExisting = optionalBool(payload, 'replaceExisting') ?? false;
+    final mode = RestoreMode.fromWire(optionalString(payload, 'mode'));
 
     final service = container.read(backupServiceProvider);
 
     // The restore source is a backup `id`, resolved against the contained
     // backup list exactly as delete/download/metadata resolve it, so a client
     // can never make the host read an arbitrary path off disk as a "backup".
-    final file = (await _listContainedBackups(
-      service,
-    )).where((f) => _idForBackupFile(f) == id).firstOrNull;
+    final file = (await _backupsById(service))[id];
     if (file == null) {
       return jsonNotFound({'error': 'Backup not found: $id'});
     }
     final resolvedPath = file.path;
 
-    final result = await service.restoreBackup(
-      filePath: resolvedPath,
-      replaceExisting: replaceExisting,
-    );
+    final result = await _restore(service, resolvedPath, mode);
 
     if (result.success) {
       return jsonOk(await _restoredBody(result));
@@ -188,11 +186,7 @@ class BackupHandlers implements RouteSource {
   Future<Response> handleDeleteBackup(Request request, String id) async {
     _logInfo('[API] DELETE /api/backup/$id');
     final service = container.read(backupServiceProvider);
-    final backupFiles = await _listContainedBackups(service);
-
-    final file = backupFiles
-        .where((f) => _idForBackupFile(f) == id)
-        .firstOrNull;
+    final file = (await _backupsById(service))[id];
 
     if (file == null) {
       return jsonNotFound({'error': 'Backup not found: $id'});
@@ -205,11 +199,7 @@ class BackupHandlers implements RouteSource {
 
   Future<Response> handleDownloadBackup(Request request, String id) async {
     final service = container.read(backupServiceProvider);
-    final backupFiles = await _listContainedBackups(service);
-
-    final file = backupFiles
-        .where((f) => _idForBackupFile(f) == id)
-        .firstOrNull;
+    final file = (await _backupsById(service))[id];
 
     if (file == null) {
       return jsonNotFound({'error': 'Backup not found: $id'});
@@ -226,11 +216,7 @@ class BackupHandlers implements RouteSource {
 
   Future<Response> handleGetBackupMetadata(Request request, String id) async {
     final service = container.read(backupServiceProvider);
-    final backupFiles = await _listContainedBackups(service);
-
-    final file = backupFiles
-        .where((f) => _idForBackupFile(f) == id)
-        .firstOrNull;
+    final file = (await _backupsById(service))[id];
 
     if (file == null) {
       return jsonNotFound({'error': 'Backup not found: $id'});
@@ -250,13 +236,13 @@ class BackupHandlers implements RouteSource {
     // See handleCreateBackup — go through createBackup with a UUID-bearing
     // path so the returned id is stable.
     final autoSavePath = await _defaultUuidBackupPath(service, tag: 'auto');
-    final result = await service.createBackup(customPath: autoSavePath);
+    final result = await _create(service, autoSavePath);
 
     if (result.success) {
       return jsonOk({
         'status': 'created',
         'id': result.filePath != null
-            ? _idForBackupFile(File(result.filePath!))
+            ? await _idOf(service, result.filePath!)
             : null,
         'filePath': result.filePath,
         'itemsBackedUp': result.itemsBackedUp,
@@ -301,8 +287,7 @@ class BackupHandlers implements RouteSource {
               'Invalid backup filename. Use a .skbackup or .json filename.',
         });
       }
-      final replaceExisting =
-          request.url.queryParameters['replaceExisting'] == 'true';
+      final mode = RestoreMode.fromWire(request.url.queryParameters['mode']);
 
       final service = container.read(backupServiceProvider);
       final backupDir = await service.getBackupDirectory();
@@ -339,10 +324,7 @@ class BackupHandlers implements RouteSource {
         });
       }
 
-      final result = await service.restoreBackup(
-        filePath: file.path,
-        replaceExisting: replaceExisting,
-      );
+      final result = await _restore(service, file.path, mode);
 
       if (result.success) {
         return jsonOk(await _restoredBody(result));
@@ -393,32 +375,94 @@ class BackupHandlers implements RouteSource {
     }
   }
 
-  /// Build the success body for a completed restore, re-hydrating the cached
-  /// state first.
+  /// Where the backup or restore this host is running for a client has got
+  /// to, for [handleRestoreState]; null when none is running.
+  RestoreProgress? _progress;
+
+  Future<BackupResult> _create(BackupService service, String path) async {
+    try {
+      return await service.createBackup(
+        customPath: path,
+        onProgress: (fraction) =>
+            _progress = RestoreProgress('Writing the backup', fraction),
+      );
+    } finally {
+      _progress = null;
+    }
+  }
+
+  Future<RestoreResult> _restore(
+    BackupService service,
+    String filePath,
+    RestoreMode mode,
+  ) async {
+    if (_progress != null) {
+      throw HandlerFailure(
+        code: 'backup_restore_running',
+        message: 'A restore is already running on this host.',
+      );
+    }
+    _progress = const RestoreProgress('Reading the backup', 0);
+    try {
+      return await service.restoreBackup(
+        filePath: filePath,
+        mode: mode,
+        onProgress: (progress) => _progress = progress,
+      );
+    } finally {
+      _progress = null;
+    }
+  }
+
+  Future<Response> handleRestoreState(Request request) async {
+    final service = container.read(backupServiceProvider);
+    return jsonOk({
+      'progress': _progress?.toJson(),
+      'pendingReplace': (await service.pendingReplace())?.toJson(),
+      'lastReplace': (await service.replaceOutcome())?.toJson(),
+    });
+  }
+
+  Future<Response> handleCancelReplace(Request request) async {
+    _logInfo('[API] POST /api/backup/replace/cancel');
+    await container.read(backupServiceProvider).cancelPendingReplace();
+    return jsonOk({'status': 'canceled'});
+  }
+
+  Future<Response> handleAcknowledgeReplace(Request request) async {
+    await container.read(backupServiceProvider).dismissReplaceOutcome();
+    return jsonOk({'status': 'acknowledged'});
+  }
+
+  /// The body of a restore that succeeded: [RestoreResult.toWire], `status`
+  /// (`restored` for a merge, `staged` for a replace that waits for this
+  /// host's next start) and the outcome in words.
   ///
-  /// The restore writes straight to the database while this process still
-  /// holds its pre-restore `AppSettings` snapshot in memory. `POST
-  /// /api/settings` merges the posted keys onto that snapshot and persists the
-  /// whole map, so the snapshot MUST be re-hydrated here or the next settings
-  /// write erases every restored value. The body reports whether it worked.
+  /// A merge wrote to the database under this process's cached settings
+  /// snapshot. `POST /api/settings` merges the posted keys onto that snapshot
+  /// and persists the whole map, so the snapshot is read again here, and the
+  /// body says whether that worked.
   Future<Map<String, Object?>> _restoredBody(RestoreResult result) async {
+    if (result.pendingRestart) {
+      return {
+        'status': 'staged',
+        ...result.toWire(),
+        'message':
+            '${result.report} Restart Skotiq on the imaging computer to '
+            'finish.',
+      };
+    }
     final reloaded = await _reloadRestoredState();
-    final notRestored = result.notRestoredNotice;
     return {
       'status': 'restored',
-      'itemsRestored': result.itemsRestored,
-      'categoryCounts': result.categoryCounts,
-      'notRestored': result.notRestored,
-      'timestamp': result.timestamp.millisecondsSinceEpoch,
+      ...result.toWire(),
       'reloaded': reloaded,
       'message': [
+        result.report,
         reloaded
-            ? 'Restored ${result.itemsRestored} items. This host is now '
-                  'running on the restored data.'
-            : 'Restored ${result.itemsRestored} items, but this host could '
-                  'not reload its cached state. Restart Skotiq before the '
-                  'next run or the restore may be overwritten.',
-        ?notRestored,
+            ? 'This host is now running on the restored data.'
+            : 'This host could not reload its cached state. Restart Skotiq '
+                  'before the next run.',
       ].join(' '),
     };
   }
@@ -488,17 +532,44 @@ class BackupHandlers implements RouteSource {
       return null;
     }
 
-    if (!await destination.exists()) {
+    // A backup's id is the UUID in its name, so a copy of a file that is
+    // already here (or of one with the same UUID) is stored under a UUID of
+    // its own: two files never answer to one id.
+    final taken = (await _backupsById(
+      container.read(backupServiceProvider),
+    )).keys.toSet();
+    if (!await destination.exists() &&
+        !taken.contains(_idForBackupFile(destination))) {
       return destination;
     }
+    final fresh = _uuid.v4();
+    final renamed = _uuidInFilenamePattern.hasMatch(fileName)
+        ? fileName.replaceFirst(_uuidInFilenamePattern, fresh)
+        : '${p.basenameWithoutExtension(fileName)}-$fresh'
+              '${p.extension(fileName)}';
+    return File(p.join(resolvedBackupDir, renamed));
+  }
 
-    final ext = p.extension(fileName);
-    final stem = p.basenameWithoutExtension(fileName);
-    final timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .replaceAll('.', '-');
-    return File(p.join(resolvedBackupDir, '${stem}_upload_$timestamp$ext'));
+  /// The contained backups by id, newest first. A file whose UUID another
+  /// file already answers to (copies made before uploads were renamed) is
+  /// addressed by its file name instead.
+  Future<Map<String, File>> _backupsById(BackupService service) async {
+    final byId = <String, File>{};
+    for (final file in await _listContainedBackups(service)) {
+      final id = _idForBackupFile(file);
+      byId[byId.containsKey(id) ? _idFromName(file) : id] = file;
+    }
+    return byId;
+  }
+
+  Future<String?> _idOf(BackupService service, String filePath) async {
+    final name = p.basename(filePath);
+    for (final MapEntry(key: id, value: file) in (await _backupsById(
+      service,
+    )).entries) {
+      if (p.basename(file.path) == name) return id;
+    }
+    return null;
   }
 
   /// Return only real backup files whose canonical target is directly inside
@@ -622,10 +693,13 @@ class BackupHandlers implements RouteSource {
     if (match != null) {
       return match.group(1)!.toLowerCase();
     }
-    // No UUID embedded. Use the filename, sanitized to be URL-safe, as the
-    // stable id.
-    final sanitized = name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    return 'legacy-$sanitized';
+    return _idFromName(file);
+  }
+
+  /// The file name, made URL-safe, as an id.
+  String _idFromName(File file) {
+    final name = file.uri.pathSegments.last;
+    return 'legacy-${name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}';
   }
 
   /// Compose a default backup path that embeds a UUID in the filename.

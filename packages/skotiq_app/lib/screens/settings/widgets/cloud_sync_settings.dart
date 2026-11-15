@@ -310,16 +310,14 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       }
       final (machine, bundle) = selection;
 
-      // Same confirmation flow a local backup restore uses; copy makes the
-      // bundle-based (replace, never merge) semantics explicit.
+      // A cloud bundle is another machine's whole database: restoring it
+      // is a replace, and the dialog says what a replace does.
       final confirmed = await ConfirmDialog.show(
         context: context,
-        title: 'Restore remote backup?',
-        message: 'This restores "${bundle.file}" from machine "$machine". '
-            'Sync is bundle-based: restoring replaces local configuration '
-            'with the contents of this backup — nothing is merged. '
-            'This action cannot be undone.',
-        confirmLabel: 'Restore',
+        title: 'Replace this database?',
+        message: '"${bundle.file}" from machine "$machine". '
+            '${RestoreMode.replace.summary}',
+        confirmLabel: 'Replace database',
         isDestructive: true,
       );
       if (!confirmed || !mounted || !identical(service, _service)) return;
@@ -327,12 +325,11 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       final result = await service.pullAndRestore(
         machine: machine,
         bundleFile: bundle.file,
-        replaceExisting: true,
+        mode: RestoreMode.replace,
       );
       if (!mounted || !identical(service, _service)) return;
       if (result.success) {
-        context.showSuccessSnackBar(
-            'Restored ${result.itemsRestored} items from $machine');
+        context.showSuccessSnackBar(result.report);
       } else {
         context.showErrorSnackBar(
             'Restore failed: ${result.errorMessage ?? 'unknown error'}');

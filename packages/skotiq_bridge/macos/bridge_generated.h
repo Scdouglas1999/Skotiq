@@ -2136,6 +2136,24 @@ typedef struct wire_cst_mount_guard_solve {
   double separation_degrees;
 } wire_cst_mount_guard_solve;
 
+typedef struct wire_cst_MountMoveGuider_Unanswered {
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_MountMoveGuider_Unanswered;
+
+typedef struct wire_cst_MountMoveGuider_Refused {
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_MountMoveGuider_Refused;
+
+typedef union MountMoveGuiderKind {
+  struct wire_cst_MountMoveGuider_Unanswered Unanswered;
+  struct wire_cst_MountMoveGuider_Refused Refused;
+} MountMoveGuiderKind;
+
+typedef struct wire_cst_mount_move_guider {
+  int32_t tag;
+  union MountMoveGuiderKind kind;
+} wire_cst_mount_move_guider;
+
 typedef struct wire_cst_mount_site {
   double latitude_deg;
   double longitude_deg;
@@ -3062,7 +3080,8 @@ void frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve(i
                                                                                double exposure_secs);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park(int64_t port_,
-                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
+                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                           bool for_safety);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide(int64_t port_,
                                                                                   struct wire_cst_list_prim_u_8_strict *device_id,
@@ -3076,7 +3095,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracki
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                           double ra,
-                                                                                          double dec);
+                                                                                          double dec,
+                                                                                          bool guider_silent_ok);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
@@ -3517,7 +3537,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_site_capabilit
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew_alt_az(int64_t port_,
                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
                                                                               double altitude,
-                                                                              double azimuth);
+                                                                              double azimuth,
+                                                                              bool guider_silent_ok);
 
 void frbgen_skotiq_bridge_wire__crate__api__secondary_rig__secondary_rig_status_api_default(int64_t port_);
 

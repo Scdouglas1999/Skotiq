@@ -81,6 +81,7 @@ void main() {
     Map<String, dynamic> payload = const <String, dynamic>{},
   ]) async {
     final request = await client.postUrl(baseUri.resolve(path));
+    request.headers.set('x-skotiq-version', '6.0.0');
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer admin-token');
     request.write(jsonEncode(payload));

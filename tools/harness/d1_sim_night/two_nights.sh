@@ -39,7 +39,9 @@ PASS=0; FAIL=0
 say()  { echo "[2n] $*"; }
 ok()   { PASS=$((PASS+1)); echo "[2n]   PASS: $*"; }
 bad()  { FAIL=$((FAIL+1)); echo "[2n]   FAIL: $*"; }
-api()  { curl -sf -m 10 -H "$AH" "$@"; }
+# Every API request names the host's release, which /api/info reports.
+vh()   { echo "x-skotiq-version: $(curl -s -m 5 "$B/api/info" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')"; }
+api()  { curl -sf -m 10 -H "$AH" -H "$(vh)" "$@"; }
 # Every read waits out a writer instead of failing on SQLITE_BUSY: the app holds
 # the lock for whole seconds during open-time migration and crash recovery, and
 # on a loaded machine the first query after a relaunch landed inside that window
@@ -116,7 +118,7 @@ sleep 1
 run_night() {
   local N="$1"
   python3 "$HERE/make_sequence.py" "$D1/sequence.json" >/dev/null
-  LOAD=$(curl -s -m 15 -H "$AH" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/sequence.json")
+  LOAD=$(curl -s -m 15 -H "$AH" -H "$(vh)" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/sequence.json")
   echo "$LOAD" | grep -qi '"error"' && { bad "night $N load: $LOAD"; return 1; }
   sleep 1
   api -X POST "$B/api/sequencer/start" >/dev/null || { bad "night $N start failed"; return 1; }

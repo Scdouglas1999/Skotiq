@@ -234,43 +234,64 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     };
   }
 
-  /// Refuses a request from a client of another Skotiq release
-  /// ([LinkVersion]). `/api/info` is always answered: a client reads the
-  /// host's release there before it links. Unversioned scripts and run-watch
-  /// retain API access, but the old app protocol's version marker is refused.
+  /// Holds every API request to the same-release rule ([LinkVersion]).
+  ///
+  /// A request says which release sent it in the `x-skotiq-version` header;
+  /// a WebSocket upgrade may use the `version` query parameter. A request
+  /// from a page this host served (its `Origin` or `Referer` is this host)
+  /// needs neither: the host serves those pages itself, so they are its own
+  /// release by construction, and a browser cannot put a header on an image,
+  /// a download or an event stream. Any other request that does not name its
+  /// release is refused with `release_required`.
+  ///
+  /// A named release that is not this host's is refused with
+  /// `version_mismatch`, except on the routes open to other releases
+  /// ([LinkVersion.openToOtherReleases]): the host's identity and its update
+  /// routes, so a newer client can update this host. `/api/info` is answered
+  /// to everyone: it is how a client learns the host's release.
   Middleware _linkVersionMiddleware() {
     return (innerHandler) {
       return (request) async {
         final path = '/${request.url.path}';
         final isWebSocket = RouteTable.of(request).isWebSocket;
+        if (!(path.startsWith('/api/') || isWebSocket) ||
+            path == SystemApi.info.route.path) {
+          return innerHandler(request);
+        }
         final clientRelease =
             request.headers[LinkVersion.header] ??
             (isWebSocket
                 ? request.url.queryParameters[LinkVersion.queryParameter]
                 : null);
-        if (!(path.startsWith('/api/') || isWebSocket) ||
-            path == SystemApi.info.route.path) {
-          return innerHandler(request);
-        }
+        final hostRelease = container.read(appVersionProvider).version;
         if (clientRelease == null) {
-          final oldApiVersion =
-              request.headers['x-skotiq-api-version'] ??
-              (isWebSocket ? request.url.queryParameters['apiVersion'] : null);
-          if (oldApiVersion == null) return innerHandler(request);
-          final hostRelease = container.read(appVersionProvider).version;
-          return jsonUpgradeRequired({
-            'code': 'release_required',
-            'message':
-                'This client does not report its Skotiq release. '
-                'Update this device to Skotiq $hostRelease, or reload the dashboard.',
-            'hostVersion': hostRelease,
-          });
+          if (_isFromThisHostsPage(request)) return innerHandler(request);
+          final requestId = _requestIdFrom(request);
+          _logWarning(
+            '[API][$requestId] Refused $path: the request does not name its '
+            'Skotiq release',
+          );
+          return jsonUpgradeRequired(
+            {
+              'code': LinkVersion.releaseRequiredCode,
+              'message':
+                  'This request does not say which Skotiq release sent it. Send '
+                  'the header ${LinkVersion.header}: $hostRelease (the release '
+                  'GET /api/info reports), or update the app on this device to '
+                  'Skotiq $hostRelease.',
+              'hostVersion': hostRelease,
+              'requestId': requestId,
+            },
+            headers: {HeadlessApiServer._requestIdHeader: requestId},
+          );
         }
         final mismatch = LinkVersion.check(
-          host: container.read(appVersionProvider).version,
+          host: hostRelease,
           client: clientRelease,
         );
-        if (mismatch == null) return innerHandler(request);
+        if (mismatch == null || LinkVersion.openToOtherReleases(path)) {
+          return innerHandler(request);
+        }
         final requestId = _requestIdFrom(request);
         _logWarning(
           '[API][$requestId] Refused $path from Skotiq $clientRelease: '
@@ -282,6 +303,22 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
         );
       };
     };
+  }
+
+  /// Whether a browser sent [request] from a page served at this request's
+  /// own host and port.
+  bool _isFromThisHostsPage(Request request) {
+    final host = request.headers['host'];
+    if (host == null || host.isEmpty) return false;
+    for (final name in const ['origin', 'referer']) {
+      final value = request.headers[name];
+      if (value == null) continue;
+      final uri = Uri.tryParse(value);
+      if (uri != null && uri.hasAuthority && uri.authority == host) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Map<String, String> _buildCorsHeaders(Request request) {

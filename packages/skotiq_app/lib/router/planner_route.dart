@@ -1,21 +1,25 @@
 import 'query_word.dart';
 
-/// The Plan sub-tabs, in the order they are shown.
-///
-/// The tabs read left to right as a planning-to-execution funnel: what is
-/// best right now, the multi-night campaign workspace, the forecast strip over
-/// the target queue, the two sky-work surfaces, then discovery.
+/// The Plan sub-tabs, in the order they are shown: what is best right now,
+/// the owner's targets with their progress and the autopilot that works
+/// through them, the two sky-work surfaces, then discovery.
 enum PlannerTab with QueryWord {
-  recommendation('recommendation', ['recommend']),
-  projects(
+  recommendation('recommendation', ['recommend', 'best', 'best-tonight']),
+  targets('targets', [
+    'target',
     'projects',
-    ['project', 'campaign', 'campaigns', 'progress', 'history'],
-  ),
-  schedule('scheduler', [
+    'project',
+    'groups',
+    'campaign',
+    'campaigns',
+    'progress',
+    'history',
+    'scheduler',
     'schedule',
     'queue',
     'target-queue',
     'targetqueue',
+    'autopilot',
     'week',
     'forecast',
     'thisweek',
@@ -35,6 +39,9 @@ enum PlannerTab with QueryWord {
   /// The tab a `?tab=` word names, or null.
   static PlannerTab? fromQuery(String? word) => readQueryWord(values, word);
 }
+
+/// The `?group=` word for the mosaics group of Plan > Targets.
+const String plannerMosaicsGroupWord = 'mosaics';
 
 /// Which view the Discover tab's segmented control shows.
 enum DiscoverView with QueryWord {

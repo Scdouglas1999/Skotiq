@@ -1,186 +1,86 @@
 part of '../backup_service.dart';
 
-extension _BackupRestoreValidation on BackupService {
-  /// P1 DATA-LOSS GUARD — fully parse and validate a backup payload before
-  /// the caller is allowed to touch the live database.
+extension _BackupSections on BackupService {
+  /// Whether [backup] holds a section only a backup older than 3.1 has.
+  bool _hasOwnSections(Map<String, dynamic> backup) => [
+    'equipmentProfiles',
+    'sequences',
+    'targets',
+    ..._legacyTableImporters.keys,
+  ].any(backup.containsKey);
+
+  /// Write the sections a backup older than 3.1 holds under keys of its own
+  /// into this (staged, otherwise empty) database.
   ///
-  /// Validates, in order:
-  ///   * the file is valid JSON and decodes to a top-level object;
-  ///   * a non-null `version` string is present;
-  ///   * each present top-level section has the expected shape
-  ///     (`settings` is an object; `equipmentProfiles` / `sequences` /
-  ///     `targets` are lists);
-  ///   * every profile / target row is an object carrying a non-empty
-  ///     `name` (the only NOT NULL column the importer relies on);
-  ///   * every sequence entry decodes end-to-end (root + all nodes) — a
-  ///     malformed sequence aborts rather than being silently dropped
-  ///     into a half-wiped database.
-  ///
-  /// Throws [_BackupValidationException] (caught by [restoreBackup]) on the
-  /// first problem. On success returns a [_ValidatedBackup] holding both the
-  /// raw map (for the never-cleared extended tables) and the eagerly-decoded
-  /// typed sections so the apply phase never re-parses.
-  _ValidatedBackup _validateBackupPayload(String jsonString) {
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(jsonString);
-    } catch (e) {
-      throw _BackupValidationException(
-        'Invalid backup file: not valid JSON ($e)',
-      );
-    }
-    if (decoded is! Map<String, dynamic>) {
-      throw const _BackupValidationException(
-        'Invalid backup file: root is not a JSON object',
-      );
-    }
-    final backup = decoded;
-
-    final version = backup['version'];
-    if (version is! String || version.isEmpty) {
-      throw const _BackupValidationException(
-        'Invalid backup file: missing version',
-      );
-    }
-    final versionMatch = RegExp(r'^(\d+)\.(\d+)$').firstMatch(version);
-    if (versionMatch == null) {
-      throw _BackupValidationException(
-        'Invalid backup file: unsupported version format "$version"',
-      );
-    }
-    final major = int.parse(versionMatch.group(1)!);
-    final minor = int.parse(versionMatch.group(2)!);
-    final currentParts = BackupService.backupVersion.split('.');
-    final currentMajor = int.parse(currentParts[0]);
-    final currentMinor = int.parse(currentParts[1]);
-    if (major > currentMajor ||
-        (major == currentMajor && minor > currentMinor)) {
-      throw _BackupValidationException(
-        'Backup version $version is newer than supported version '
-        '${BackupService.backupVersion}. Update Skotiq before restoring it.',
-      );
-    }
-
-    // Settings — must be a JSON object when present.
-    Map<String, dynamic>? settings;
-    if (backup.containsKey('settings')) {
-      final raw = backup['settings'];
-      if (raw is! Map<String, dynamic>) {
-        throw const _BackupValidationException(
-          'Invalid backup file: "settings" is not an object',
-        );
-      }
-      settings = raw;
-    }
-
-    // Equipment profiles — list of objects each carrying a non-empty name.
-    List<Map<String, dynamic>>? profiles;
-    if (backup.containsKey('equipmentProfiles')) {
-      profiles = _validateNamedRows(
-        backup['equipmentProfiles'],
-        section: 'equipmentProfiles',
-      );
-    }
-
-    // Targets — same contract as profiles.
-    List<Map<String, dynamic>>? targets;
-    if (backup.containsKey('targets')) {
-      targets = _validateNamedRows(backup['targets'], section: 'targets');
-    }
-
-    // Sequences — must be a list, and every entry must decode fully.
+  /// Every section is checked before the first write: `equipmentProfiles`
+  /// and `targets` are lists of objects with a name, every entry of
+  /// `sequences` decodes to its last node.
+  Future<void> _applySections(Map<String, dynamic> backup) async {
+    final profiles = backup.containsKey('equipmentProfiles')
+        ? _namedRows(backup['equipmentProfiles'], 'equipmentProfiles')
+        : null;
+    final targets = backup.containsKey('targets')
+        ? _namedRows(backup['targets'], 'targets')
+        : null;
     List<Sequence>? sequences;
     if (backup.containsKey('sequences')) {
       final raw = backup['sequences'];
       if (raw is! List) {
-        throw const _BackupValidationException(
+        throw const BackupArchiveException(
           'Invalid backup file: "sequences" is not a list',
         );
       }
-      final decodedSequences = <Sequence>[];
+      sequences = [];
       for (var i = 0; i < raw.length; i++) {
         final entry = raw[i];
         if (entry is! Map<String, dynamic>) {
-          throw _BackupValidationException(
+          throw BackupArchiveException(
             'Invalid backup file: sequences[$i] is not an object',
           );
         }
         final sequence = _jsonToSequence(entry);
         if (sequence == null) {
-          throw _BackupValidationException(
+          throw BackupArchiveException(
             'Invalid backup file: sequences[$i] failed to decode '
             '(name: ${entry['name'] ?? '<unknown>'})',
           );
         }
-        decodedSequences.add(sequence);
+        sequences.add(sequence);
       }
-      sequences = decodedSequences;
     }
-
-    Map<String, dynamic>? tables;
-    if (backup.containsKey('tables')) {
-      tables = _validateTables(backup['tables']);
-    }
-
-    return _ValidatedBackup(
-      version: version,
-      backup: backup,
-      settings: settings,
-      profiles: profiles,
-      targets: targets,
-      sequences: sequences,
-      tables: tables,
-    );
-  }
-
-  /// The `tables` section: an object of table name to a list of row objects
-  /// whose cells are database values or the archive's one-key encodings.
-  Map<String, dynamic> _validateTables(Object? raw) {
-    if (raw is! Map<String, dynamic>) {
-      throw const _BackupValidationException(
-        'Invalid backup file: "tables" is not an object',
-      );
-    }
-    for (final MapEntry(key: table, value: rows) in raw.entries) {
-      if (rows is! List) {
-        throw _BackupValidationException(
-          'Invalid backup file: table "$table" is not a list',
+    for (final key in _legacyTableImporters.keys) {
+      if (backup.containsKey(key) && backup[key] is! List) {
+        throw BackupArchiveException(
+          'Invalid backup file: "$key" is not a list',
         );
       }
-      for (var i = 0; i < rows.length; i++) {
-        final row = rows[i];
-        if (row is! Map<String, dynamic>) {
-          throw _BackupValidationException(
-            'Invalid backup file: $table[$i] is not an object',
-          );
-        }
-        for (final MapEntry(key: column, :value) in row.entries) {
-          final valid = switch (value) {
-            null || num() || String() || bool() => true,
-            {_blobKey: String()} || {_doubleKey: String()} => true,
-            _ => false,
-          };
-          if (!valid) {
-            throw _BackupValidationException(
-              'Invalid backup file: $table[$i].$column is not a database value',
+    }
+
+    await database.transaction(() async {
+      if (profiles != null) await _importProfiles(profiles);
+      final repository = LocalSequenceRepository(database.sequencesDao);
+      for (final sequence in sequences ?? const <Sequence>[]) {
+        await repository.saveSequence(sequence);
+      }
+      if (targets != null) await _importTargets(targets);
+      for (final MapEntry(:key, value: importer)
+          in _legacyTableImporters.entries) {
+        if (backup[key] case final List rows) {
+          try {
+            await importer(rows);
+          } on FormatException catch (e) {
+            throw BackupArchiveException(
+              'Invalid backup file: "$key": ${e.message}',
             );
           }
         }
       }
-    }
-    return raw;
+    });
   }
 
-  /// Shared validator for the profile/target sections: the value must be a
-  /// list of JSON objects, each with a non-empty `name` (the importer inserts
-  /// that as a NOT NULL column, so a missing name would otherwise blow up
-  /// *after* the live DB has already been wiped).
-  List<Map<String, dynamic>> _validateNamedRows(
-    Object? raw, {
-    required String section,
-  }) {
+  List<Map<String, dynamic>> _namedRows(Object? raw, String section) {
     if (raw is! List) {
-      throw _BackupValidationException(
+      throw BackupArchiveException(
         'Invalid backup file: "$section" is not a list',
       );
     }
@@ -188,28 +88,18 @@ extension _BackupRestoreValidation on BackupService {
     for (var i = 0; i < raw.length; i++) {
       final entry = raw[i];
       if (entry is! Map<String, dynamic>) {
-        throw _BackupValidationException(
+        throw BackupArchiveException(
           'Invalid backup file: $section[$i] is not an object',
         );
       }
       final name = entry['name'];
       if (name is! String || name.isEmpty) {
-        throw _BackupValidationException(
+        throw BackupArchiveException(
           'Invalid backup file: $section[$i] is missing a non-empty "name"',
         );
       }
       out.add(entry);
     }
     return out;
-  }
-
-  Future<void> _clearAllData() async {
-    // Clear all tables (except settings if desired)
-    await database.delete(database.equipmentProfiles).go();
-    await database.delete(database.sequences).go();
-    await database.delete(database.sequenceNodes).go();
-    await database.delete(database.targets).go();
-    // Note: Not clearing imaging_sessions and captured_images to preserve historical data
-    _logger.debug('Cleared existing data');
   }
 }

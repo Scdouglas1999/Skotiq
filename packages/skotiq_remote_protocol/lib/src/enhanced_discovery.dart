@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart';
 
 import 'discovery.dart';
+import 'host_info.dart';
 import 'network_uri.dart';
 import 'link_version.dart';
 import 'tailnet_detector.dart';
@@ -409,6 +410,18 @@ String _normalizeTransportScheme(Object? raw, {String fallback = 'http'}) {
 
 typedef DiscoveryStatusCallback = void Function(String status);
 
+/// A discovered or entered server after it was asked who it is.
+class ServerRead {
+  const ServerRead(this.server, this.problem);
+
+  /// The server with what its `/api/info` said merged in; as it was given
+  /// when no Skotiq host answered.
+  final DiscoveredServer server;
+
+  /// Why this device cannot link to it, or null when it can.
+  final LinkProblem? problem;
+}
+
 /// Why a server probe succeeded or failed.
 ///
 /// Reachable and authorised are different answers. A Skotiq host drops
@@ -423,7 +436,7 @@ enum ServerProbeOutcome {
   /// Answered, but rejected the credential (HTTP 401/403). The host is UP.
   authRejected,
 
-  /// Answered, but runs an API version this client cannot talk to.
+  /// Answered, but runs another Skotiq release ([LinkVersion]).
   incompatible,
 
   /// No usable answer: refused, DNS failure, timeout, TLS error, 5xx.
@@ -591,47 +604,33 @@ class EnhancedSkotiqDiscovery {
     Map<String, dynamic> info,
   ) => _mergeServerInfo(seed, info);
 
-  static Future<DiscoveredServer?> fetchServerInfo(
+  /// Ask [server] who it is (`GET /api/info`) and merge the answer. The
+  /// result says why this device cannot link to it, if it cannot
+  /// ([ServerRead.problem]): no answer, refused, not a Skotiq host, or another
+  /// release. The request follows the server's scheme, because a TLS-only
+  /// host answers plain HTTP with a 400.
+  static Future<ServerRead> readServer(
     DiscoveredServer server, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    try {
-      // Why scheme-aware: when mDNS told us this server is TLS-only, hitting
-      // `http://host:port/api/info` returns a `400 Bad Request` (Dart's
-      // HttpServer rejects plain HTTP on an HTTPS socket) and the un-enriched
-      // entry is shown to the operator. Honouring the scheme the discovery
-      // path inferred lets the enrichment land cleanly. UDP-broadcast paths
-      // default to `http`.
-      final response = await http
-          .get(
-            buildSkotiqServerUri(
-              scheme: server.scheme,
-              host: server.host,
-              port: server.webPort,
-              pathAndQuery: SystemApi.info.route.path,
-            ),
-            headers: _authHeaders(server.authToken),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode != 200) {
-        return null;
-      }
-
-      final info = jsonDecode(response.body) as Map<String, dynamic>;
-      return _mergeServerInfo(server, info);
-    } catch (e, stackTrace) {
-      // Why: best-effort enrichment of an already-discovered server. A failure
-      // here (network blip, auth rejection, malformed JSON) means we display
-      // the un-enriched server entry rather than hiding it — the discovery
-      // list stays useful. Log so that a systemic mismatch (e.g. version
-      // skew rejecting every /api/info) surfaces in the dev console.
-      developer.log(
-        'fetchServerInfo failed for ${server.host}:${server.webPort}: $e\n$stackTrace',
-        name: 'EnhancedDiscovery',
-        level: 900,
-      );
-      return null;
+    final read = await readHostInfo(
+      scheme: server.scheme,
+      host: server.host,
+      port: server.webPort,
+      headers: _authHeaders(server.authToken),
+      timeout: timeout,
+    );
+    switch (read) {
+      case HostInfoAnswer(:final info):
+        return ServerRead(_mergeServerInfo(server, info), read.problem);
+      case HostInfoFailure(:final problem):
+        developer.log(
+          'No Skotiq host at ${server.host}:${server.webPort}: '
+          '${problem.kind.name}',
+          name: 'EnhancedDiscovery',
+          level: 900,
+        );
+        return ServerRead(server, problem);
     }
   }
 
@@ -693,35 +692,21 @@ class EnhancedSkotiqDiscovery {
       throw ArgumentError.value(scheme, 'scheme', 'must be "http" or "https"');
     }
     try {
-      final infoResponse = await http
-          .get(
-            buildSkotiqServerUri(
-              scheme: lowered,
-              host: host,
-              port: port,
-              pathAndQuery: SystemApi.info.route.path,
-            ),
-            headers: _authHeaders(authToken),
-          )
-          .timeout(timeout);
-
-      if (_isAuthRejection(infoResponse.statusCode)) {
-        return ServerProbeOutcome.authRejected;
+      final read = await readHostInfo(
+        scheme: lowered,
+        host: host,
+        port: port,
+        headers: _authHeaders(authToken),
+        timeout: timeout,
+      );
+      if (read is! HostInfoAnswer) {
+        final status = (read as HostInfoFailure).httpStatus;
+        return status != null && _isAuthRejection(status)
+            ? ServerProbeOutcome.authRejected
+            : ServerProbeOutcome.unreachable;
       }
-      if (infoResponse.statusCode != 200) {
-        return ServerProbeOutcome.unreachable;
-      }
-
-      final info = jsonDecode(infoResponse.body) as Map<String, dynamic>;
-      final mismatch = LinkVersion.check(host: info['version'] as String?);
-      if (mismatch != null) {
-        developer.log(
-          'Incompatible Skotiq server: ${mismatch.message}',
-          name: 'EnhancedDiscovery',
-          level: 900,
-        );
-        return ServerProbeOutcome.incompatible;
-      }
+      if (read.problem != null) return ServerProbeOutcome.incompatible;
+      final info = read.info;
 
       final authRequired = info['authRequired'] as bool? ?? false;
       if (!authRequired) {
@@ -768,29 +753,21 @@ class EnhancedSkotiqDiscovery {
     }
   }
 
-  static bool _isCompatibleServer(DiscoveredServer server) {
-    final mismatch = server.linkMismatch;
-    if (mismatch != null) {
-      developer.log(
-        'Skipping incompatible Skotiq server ${server.host}:${server.webPort}: ${mismatch.message}',
-        name: 'EnhancedDiscovery',
-        level: 900,
-      );
-      return false;
-    }
-    return true;
-  }
-
-  static Future<DiscoveredServer?> _firstCompatibleServer(
+  /// The discovered host to offer: one this device can link to when there is
+  /// one, otherwise the first that answered, so the connect flow can say
+  /// which release it runs and which side to update.
+  static Future<DiscoveredServer?> firstLinkableServer(
     List<DiscoveredServer> servers,
   ) async {
+    DiscoveredServer? other;
     for (final server in servers) {
-      final enriched = await fetchServerInfo(server) ?? server;
-      if (_isCompatibleServer(enriched)) {
-        return enriched;
+      final read = await readServer(server);
+      if (read.problem == null) return read.server;
+      if (read.problem!.kind == LinkProblemKind.mismatch) {
+        other ??= read.server;
       }
     }
-    return null;
+    return other;
   }
 
   /// Try to reconnect to last saved server
@@ -819,7 +796,7 @@ class EnhancedSkotiqDiscovery {
 
     if (isReachable) {
       developer.log('Saved server is reachable', name: 'EnhancedDiscovery');
-      return await fetchServerInfo(server, timeout: timeout) ?? server;
+      return (await readServer(server, timeout: timeout)).server;
     }
 
     developer.log('Saved server not reachable', name: 'EnhancedDiscovery');
@@ -924,8 +901,7 @@ class EnhancedSkotiqDiscovery {
               if (!servers.any(
                 (s) => s.host == server.host && s.webPort == server.webPort,
               )) {
-                final enriched = await fetchServerInfo(server) ?? server;
-                servers.add(enriched);
+                servers.add((await readServer(server)).server);
               }
             }
           } catch (e, stackTrace) {
@@ -1017,7 +993,7 @@ class EnhancedSkotiqDiscovery {
     );
     if (mdnsServers.isNotEmpty) {
       developer.log('Found server via mDNS', name: 'EnhancedDiscovery');
-      return _firstCompatibleServer(mdnsServers);
+      return firstLinkableServer(mdnsServers);
     }
 
     // 3. Fall back to UDP broadcast (3s timeout)
@@ -1031,7 +1007,7 @@ class EnhancedSkotiqDiscovery {
         'Found server via UDP broadcast',
         name: 'EnhancedDiscovery',
       );
-      return _firstCompatibleServer(udpServers);
+      return firstLinkableServer(udpServers);
     }
 
     // 4. No server found

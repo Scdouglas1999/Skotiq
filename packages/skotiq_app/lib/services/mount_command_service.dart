@@ -4,10 +4,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/providers.dart' as core_providers
-    show stopGuidingForMove;
-
 import 'command_action_result.dart';
+import 'move_with_silent_guider.dart';
 
 final mountCommandServiceProvider = Provider((ref) {
   final backend = ref.watch(deviceBackendProvider);
@@ -126,8 +124,6 @@ class MountCommandService {
               'This mount reports that park is unsupported',
             );
           }
-          final refused = await _clearForMove(deviceId);
-          if (refused != null) return refused;
           await _deviceService.parkMount();
         }
         return CommandActionResult.ok;
@@ -150,8 +146,6 @@ class MountCommandService {
             'This mount reports that park is unsupported',
           );
         }
-        final refused = await _clearForMove(deviceId);
-        if (refused != null) return refused;
         await _deviceService.parkMount();
         return CommandActionResult.ok;
       } catch (e) {
@@ -181,29 +175,14 @@ class MountCommandService {
     });
   }
 
-  /// [stopGuidingForMove]'s answer as a command result: the refusal to give
-  /// when guiding did not stop and the mount must stay where it is, null when
-  /// the move may go.
-  Future<CommandActionResult?> stopGuidingForMove() async {
-    try {
-      await core_providers.stopGuidingForMove(_ref);
-      return null;
-    } on GuidingDidNotStopException catch (e) {
-      return CommandActionResult.failure(userFacingError(e));
-    }
-  }
-
-  /// Stops guiding for a move of [deviceId]: the refusal to give when the
-  /// move must not go, because guiding did not stop or the mount changed
-  /// while it was stopping.
-  Future<CommandActionResult?> _clearForMove(String deviceId) async =>
-      await stopGuidingForMove() ?? _connectionChanged(deviceId);
-
   /// Slews the mount to the specified RA/Dec coordinates.
   ///
   /// Completes when the slew is over, not when the driver accepts it: a
   /// success means the mount stopped on the target, and a slew that was
   /// aborted, stopped short or never started is a failure saying which.
+  ///
+  /// When the guider does not answer the host refuses the GoTo; the operator
+  /// is asked once whether to move anyway ([moveWithSilentGuiderAskProvider]).
   Future<CommandActionResult> slewTo(
     double ra,
     double dec, {
@@ -223,9 +202,19 @@ class MountCommandService {
             'This mount reports that GoTo slewing is unsupported',
           );
         }
-        final refused = await _clearForMove(deviceId);
-        if (refused != null) return refused;
-        await _deviceService.slewMountToCoordinates(ra, dec);
+        try {
+          await _deviceService.slewMountToCoordinates(ra, dec);
+        } on GuiderNotAnsweringException {
+          if (!await _ref.read(moveWithSilentGuiderAskProvider)()) {
+            return const CommandActionResult.failure(
+              GuiderNotAnsweringException.message,
+            );
+          }
+          final changed = _connectionChanged(deviceId);
+          if (changed != null) return changed;
+          _ref.read(guiderSilentMoveAcceptedProvider.notifier).state = true;
+          await _deviceService.slewMountToCoordinates(ra, dec);
+        }
         if (showFeedback) {
           return const CommandActionResult.success(message: 'Slew complete');
         }
@@ -371,8 +360,6 @@ class MountCommandService {
         if (_mountState.isParked) {
           return const CommandActionResult.failure(homeWhileParkedMessage);
         }
-        final refused = await _clearForMove(deviceId);
-        if (refused != null) return refused;
         final outcome = await _deviceService.findMountHome();
         return switch (outcome) {
           MountHomeOutcome.confirmed => const CommandActionResult.success(

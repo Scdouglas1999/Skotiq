@@ -46,9 +46,6 @@ List<Override> _commonOverrides() {
       (ref) => Stream.value(const <TransientAlert>[]),
     ),
     // Progress tab dependency.
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     // Scheduler tab dependencies (mirror the scheduler_screen tests).
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(

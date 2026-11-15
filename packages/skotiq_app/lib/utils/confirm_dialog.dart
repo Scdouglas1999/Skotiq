@@ -68,19 +68,4 @@ class ConfirmDialog {
         confirmLabel: 'Discard',
         isDestructive: true,
       );
-
-  static Future<bool> restore({
-    required BuildContext context,
-    required String backupName,
-  }) =>
-      show(
-        context: context,
-        title: 'Restore Backup?',
-        message:
-            'This imports "$backupName" without deleting your current data. '
-            'Settings with the same keys may be updated, and library items '
-            'from the backup may be added.',
-        confirmLabel: 'Restore',
-        isDestructive: true,
-      );
 }

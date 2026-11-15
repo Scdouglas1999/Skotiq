@@ -48,11 +48,8 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  BackupService serviceFor(SkotiqDatabase db) => BackupService(
-    database: db,
-    sequenceRepository: LocalSequenceRepository(db.sequencesDao),
-    logger: logger,
-  );
+  BackupService serviceFor(SkotiqDatabase db) =>
+      BackupService(database: db, logger: logger);
 
   /// More rows than one `_dumpTable` page, so the paged read has to stitch
   /// several pages back together in order.
@@ -91,50 +88,28 @@ void main() {
   Future<Map<String, dynamic>> archiveAt(String path) async =>
       jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
 
-  test(
-    'the compact auto-save archive carries exactly the human-readable content',
-    () async {
-      await seed(srcDb);
-      final service = serviceFor(srcDb);
+  test('the archive is one JSON document with a line for each row', () async {
+    await seed(srcDb);
+    final backupPath = p.join(tempDir.path, 'lines.skbackup');
+    final created = await serviceFor(
+      srcDb,
+    ).createBackup(customPath: backupPath);
+    expect(created.success, isTrue, reason: created.errorMessage);
 
-      // Every successful backup records `autosave.last_backup_at`, so run one
-      // throwaway first and the two archives under test see the same key set.
-      await service.createBackup(
-        customPath: p.join(tempDir.path, 'warmup.skbackup'),
-      );
-
-      final prettyPath = p.join(tempDir.path, 'pretty.skbackup');
-      final compactPath = p.join(tempDir.path, 'compact.skbackup');
-      final pretty = await service.createBackup(customPath: prettyPath);
-      final compact = await service.createBackup(
-        customPath: compactPath,
-        humanReadable: false,
-      );
-      expect(pretty.success, isTrue, reason: pretty.errorMessage);
-      expect(compact.success, isTrue, reason: compact.errorMessage);
-
-      final prettyJson = await archiveAt(prettyPath);
-      final compactJson = await archiveAt(compactPath);
-      // Both stamps move with the wall clock between the two calls.
-      for (final archive in [prettyJson, compactJson]) {
-        archive.remove('createdAt');
-        (archive['settings'] as Map)[BackupService.lastBackupSettingKey] =
-            'normalised';
-      }
-      expect(compactJson, equals(prettyJson));
-
-      // The saving is real, not cosmetic.
-      expect(
-        await File(compactPath).length(),
-        lessThan(await File(prettyPath).length()),
-      );
-      expect(
-        await File(prettyPath).readAsString(),
-        contains('\n  "version"'),
-        reason: 'the operator-facing archive stays indented',
-      );
-    },
-  );
+    final archive = await archiveAt(backupPath);
+    expect(archive['version'], BackupService.backupVersion);
+    final counts = (archive['metadata'] as Map)['tableCounts'] as Map;
+    expect(counts['guide_rms_history'], pagedRowCount);
+    final lines = await File(backupPath).readAsLines();
+    expect(
+      lines.where((line) => line.startsWith('[')),
+      hasLength(counts.values.fold<int>(0, (sum, n) => sum + (n as int))),
+    );
+    expect(
+      (await serviceFor(srcDb).readBackupMetadata(backupPath))?.version,
+      BackupService.backupVersion,
+    );
+  });
 
   test(
     'a table larger than one dump page round-trips row-for-row, in order',
@@ -144,14 +119,16 @@ void main() {
       final backupPath = p.join(tempDir.path, 'paged.skbackup');
       final created = await serviceFor(
         srcDb,
-      ).createBackup(customPath: backupPath, humanReadable: false);
+      ).createBackup(customPath: backupPath);
       expect(created.success, isTrue, reason: created.errorMessage);
 
       final archive = await archiveAt(backupPath);
-      final rows = (archive['tables']['guide_rms_history'] as List).cast<Map>();
+      final table = archive['tables']['guide_rms_history'] as Map;
+      final rms = (table['columns'] as List).indexOf('total_rms_arcsec');
+      final rows = (table['rows'] as List).cast<List>();
       expect(rows, hasLength(pagedRowCount));
       expect(
-        rows.map((r) => r['total_rms_arcsec']).toList(),
+        rows.map((r) => r[rms]).toList(),
         [for (var i = 0; i < pagedRowCount; i++) i.toDouble()],
         reason: 'paging must not drop, duplicate, or reorder rows',
       );

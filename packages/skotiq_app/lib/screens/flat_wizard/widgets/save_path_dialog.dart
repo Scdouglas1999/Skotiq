@@ -125,186 +125,57 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
       setState(() => _isBrowsing = false);
     });
 
-    final colors = SkotiqColors.of(context);
-
-    return Dialog(
-      backgroundColor: colors.surface,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8)),
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 500,
+    return SkotiqDialog(
+      title: 'Folder for flats',
+      showCloseButton: false,
+      actions: [
+        SkotiqButton(
+          label: 'Cancel',
+          onPressed: () => Navigator.of(context).pop(),
+          variant: ButtonVariant.ghost,
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: SkotiqDecorations.tintedBadge(
-                        colors.warning,
-                        borderRadius:
-                            BorderRadius.circular(SkotiqTokens.radiusLg),
-                      ),
-                      child: Icon(
-                        LucideIcons.folderOpen,
-                        color: colors.warning,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Folder for flats',
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize18,
-                              fontWeight: FontWeight.bold,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Flats are saved here, in the subfolders chosen below.',
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize13,
-                              color: colors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SkotiqTextField(
-                        controller: _pathController,
-                        hint: 'Select a folder...',
-                        prefixIcon: LucideIcons.folder,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SkotiqButton(
-                      label: 'Browse...',
-                      onPressed: _isBrowsing ? null : _browsePath,
-                      variant: ButtonVariant.outline,
-                      isLoading: _isBrowsing,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _OptionCheckbox(
-                  value: _createDateSubfolder,
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _createDateSubfolder = v);
-                    }
-                  },
-                  label: 'Create date subfolder automatically',
-                  description: 'e.g., /${ClockFormat.date(DateTime.now())}/',
-                  colors: colors,
-                ),
-                const SizedBox(height: 12),
-                _OptionCheckbox(
-                  value: _createFilterSubfolders,
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _createFilterSubfolders = v);
-                    }
-                  },
-                  label: 'Create filter subfolders',
-                  description: 'e.g., /L/, /R/, /G/, /B/',
-                  colors: colors,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    SkotiqButton(
-                      label: 'Cancel',
-                      onPressed: () => Navigator.of(context).pop(),
-                      variant: ButtonVariant.ghost,
-                    ),
-                    const SizedBox(width: 12),
-                    SkotiqButton(
-                      label: 'Continue',
-                      onPressed:
-                          _pathController.text.isNotEmpty ? _confirm : null,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        SkotiqButton(
+          label: 'Use this folder',
+          onPressed: _pathController.text.isNotEmpty ? _confirm : null,
         ),
-      ),
-    );
-  }
-}
-
-class _OptionCheckbox extends StatelessWidget {
-  final bool value;
-  final ValueChanged<bool?> onChanged;
-  final String label;
-  final String description;
-  final SkotiqColors colors;
-
-  const _OptionCheckbox({
-    required this.value,
-    required this.onChanged,
-    required this.label,
-    required this.description,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            SkotiqCheckbox(
-              value: value,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize13,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize11,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ],
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SkotiqTextField(
+                  controller: _pathController,
+                  hint: 'Select a folder',
+                  prefixIcon: LucideIcons.folder,
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              SkotiqButton(
+                label: 'Browse',
+                onPressed: _isBrowsing ? null : _browsePath,
+                variant: ButtonVariant.secondary,
+                isLoading: _isBrowsing,
+              ),
+            ],
+          ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          SkotiqSwitchRow(
+            label: 'A folder for each date',
+            subtitle: 'Such as ${ClockFormat.date(DateTime.now())}',
+            value: _createDateSubfolder,
+            onChanged: (v) => setState(() => _createDateSubfolder = v),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          SkotiqSwitchRow(
+            label: 'A folder for each filter',
+            subtitle: 'Such as L, R, G, B',
+            value: _createFilterSubfolders,
+            onChanged: (v) => setState(() => _createFilterSubfolders = v),
+          ),
+        ],
       ),
     );
   }

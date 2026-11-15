@@ -88,6 +88,7 @@ void main() {
       method,
       Uri.parse('http://127.0.0.1:${server.actualPort}$path'),
     );
+    request.headers.set('x-skotiq-version', '6.0.0');
     request.headers.set('Authorization', 'Bearer $token');
     if (body != null) {
       request.headers.contentType = ContentType.json;
@@ -108,7 +109,7 @@ void main() {
   }) async {
     final socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=$token$query',
+      '/events?token=$token&version=6.0.0$query',
     );
     addTearDown(socket.close);
     final frames = StreamIterator<dynamic>(socket);

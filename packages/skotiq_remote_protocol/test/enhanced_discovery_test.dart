@@ -401,7 +401,7 @@ void main() {
       );
     });
 
-    for (final (hostVersion, linkable) in [
+    for (final (String? hostVersion, linkable) in [
       (skotiqRelease, true),
       ('0.0.1', false),
       (null, false),
@@ -431,6 +431,58 @@ void main() {
         );
       });
     }
+  });
+
+  group('the discovered host that is offered', () {
+    Future<DiscoveredServer> serve(String release) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({'version': release, 'name': 'rig $release'}));
+        await request.response.close();
+      });
+      return DiscoveredServer(
+        host: InternetAddress.loopbackIPv4.address,
+        webPort: server.port,
+        name: 'found',
+      );
+    }
+
+    test('is one of this release when there is one', () async {
+      final other = await serve('0.0.1');
+      final same = await serve(skotiqRelease);
+      final offered = await EnhancedSkotiqDiscovery.firstLinkableServer([
+        other,
+        same,
+      ]);
+      expect(offered!.webPort, same.webPort);
+      expect(offered.linkMismatch, isNull);
+    });
+
+    test('is the host of another release when that is all there is, so the '
+        'connect flow can say what to update', () async {
+      final other = await serve('0.0.1');
+      final offered = await EnhancedSkotiqDiscovery.firstLinkableServer([
+        other,
+      ]);
+      expect(offered, isNotNull, reason: 'a mismatched host is not hidden');
+      expect(offered!.version, '0.0.1');
+      expect(offered.linkMismatch!.older, LinkSide.host);
+    });
+
+    test('is none when nothing answers', () async {
+      final probe = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final dead = DiscoveredServer(
+        host: InternetAddress.loopbackIPv4.address,
+        webPort: probe.port,
+        name: 'gone',
+      );
+      await probe.close(force: true);
+      expect(await EnhancedSkotiqDiscovery.firstLinkableServer([dead]), isNull);
+    });
   });
 
   // A live host that REJECTS the credential must not be reported as

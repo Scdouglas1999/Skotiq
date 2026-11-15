@@ -1,4 +1,4 @@
-// ADU convergence graph and per-filter progress cards.
+// ADU convergence graph and per-filter results.
 part of '../flat_preview_panel.dart';
 
 class _AduConvergenceGraph extends StatelessWidget {
@@ -16,29 +16,17 @@ class _AduConvergenceGraph extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    // The section title above already says "Convergence", so the panel does
-    // not repeat it as a head. An empty history is the one empty-state
-    // pattern, not a bare "No data" centred in a box.
-    return Padding(
-      padding: const EdgeInsets.only(right: SkotiqTokens.spaceSm),
-      child: SkotiqPanel(
-        padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-        // Scroll-safe like the frame's own placeholder: the phone controls
-        // sheet animates in, and a mid-animation frame hands this panel a
-        // 71px slot that the empty state cannot fit.
-        child: history.isEmpty
-            ? const SingleChildScrollView(
-                child: Center(
-                  child: EmptyState.compact(
-                    icon: LucideIcons.lineChart,
-                    title: 'No measurements yet',
-                    body: 'Each captured flat plots its ADU against '
-                        'the target.',
-                  ),
-                ),
-              )
-            : _buildChart(colors),
-      ),
+    // The section title above already says "Convergence", so the panel has
+    // no head of its own.
+    return SkotiqPanel(
+      padding: SkotiqTokens.paddingMd,
+      child: history.isEmpty
+          ? const _CenteredEmptyState(
+              icon: LucideIcons.lineChart,
+              title: 'No measurements yet',
+              body: 'Each exposure plots its ADU against the target.',
+            )
+          : _buildChart(colors),
     );
   }
 
@@ -83,9 +71,7 @@ class _AduConvergenceGraph extends StatelessWidget {
             axisNameSize: 16,
             axisNameWidget: Text(
               'Exposures, in order',
-              style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize8,
-                  color: colors.textMuted),
+              style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
             ),
             sideTitles: const SideTitles(showTitles: false),
           ),
@@ -97,9 +83,8 @@ class _AduConvergenceGraph extends StatelessWidget {
               getTitlesWidget: (value, meta) => isTick(value)
                   ? Text(
                       '${(value / 1000).toStringAsFixed(kiloDecimals)}k',
-                      style: TextStyle(
-                          fontSize: SkotiqTypography.fontSize8,
-                          color: colors.textMuted),
+                      style: SkotiqTypography.monoXs
+                          .copyWith(color: colors.textMuted),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -152,9 +137,7 @@ class _AduConvergenceGraph extends StatelessWidget {
                 .map(
                   (spot) => LineTooltipItem(
                     'ADU: ${spot.y.toStringAsFixed(0)}',
-                    TextStyle(
-                        fontSize: SkotiqTypography.fontSize10,
-                        color: colors.textPrimary),
+                    SkotiqTypography.monoXs.copyWith(color: colors.textPrimary),
                   ),
                 )
                 .toList(),
@@ -165,161 +148,208 @@ class _AduConvergenceGraph extends StatelessWidget {
   }
 }
 
-/// Per-filter progress along the bottom of the panel.
+/// What each filter of the run has so far: its exposure and level, its
+/// status and its frame count, one row per filter.
 ///
-/// The row scrolls horizontally, but a bare horizontal `ListView` on desktop
-/// shows no scrollbar and does not follow the run: with seven profile filters
-/// the row was cut off after the fourth, and the filter actually being captured
-/// (Ha, with live counts) sat off-screen with nothing on screen to suggest more
-/// cards existed. The scrollbar says the row is scrollable; the auto-scroll
-/// keeps the card that is doing something in view.
-class _FilterProgressCards extends StatefulWidget {
+/// A quick capture takes one filter, so only that row shows. The list scrolls
+/// and keeps the filter being captured in view.
+class _FilterResults extends StatefulWidget {
   final FlatWizardState state;
 
-  const _FilterProgressCards({required this.state});
+  const _FilterResults({required this.state});
 
   @override
-  State<_FilterProgressCards> createState() => _FilterProgressCardsState();
+  State<_FilterResults> createState() => _FilterResultsState();
 }
 
-class _FilterProgressCardsState extends State<_FilterProgressCards> {
-  /// Card width plus its right margin — see [_FilterCard].
-  static const double _cardExtent = 108;
+class _FilterResultsState extends State<_FilterResults> {
+  final GlobalKey _activeRow = GlobalKey();
 
-  final ScrollController _controller = ScrollController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  List<FlatFilterSettings> get _rows {
+    final state = widget.state;
+    final filters = state.filterSettings;
+    if (state.mode == FlatWizardMode.quick) {
+      final i = state.currentFilterIndex;
+      return i >= 0 && i < filters.length ? [filters[i]] : const [];
+    }
+    return filters.where((f) => f.enabled).toList();
   }
 
-  List<FlatFilterSettings> get _enabled =>
-      widget.state.filterSettings.where((f) => f.enabled).toList();
+  static bool _isActive(FlatFilterSettings f) =>
+      f.status == FilterCalibrationStatus.calibrating ||
+      f.status == FilterCalibrationStatus.capturing;
+
+  /// Slot of the filter the run is on, or null between filters.
+  int? get _activePosition {
+    for (final f in _rows) {
+      if (_isActive(f)) return f.filterPosition;
+    }
+    return null;
+  }
+
+  int? _followed;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _followActive());
+    _followActive();
   }
 
   @override
-  void didUpdateWidget(covariant _FilterProgressCards oldWidget) {
+  void didUpdateWidget(covariant _FilterResults oldWidget) {
     super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _followActive());
+    _followActive();
   }
 
+  /// Scrolls the filter being captured into view when the run moves to it.
   void _followActive() {
-    if (!mounted || !_controller.hasClients) return;
-    final index = _enabled
-        .indexWhere((f) => f.status == FilterCalibrationStatus.capturing);
-    if (index < 0) return;
-
-    final position = _controller.position;
-    final start = index * _cardExtent;
-    final end = start + _cardExtent;
-    final visibleStart = position.pixels;
-    final visibleEnd = visibleStart + position.viewportDimension;
-    if (start >= visibleStart && end <= visibleEnd) return;
-
-    final target =
-        (start > visibleStart ? end - position.viewportDimension : start)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
-    if ((target - position.pixels).abs() < 1) return;
-    _controller.animateTo(
-      target,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
+    final active = _activePosition;
+    if (active == _followed) return;
+    _followed = active;
+    if (active == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final row = _activeRow.currentContext;
+      if (!mounted || row == null) return;
+      Scrollable.ensureVisible(
+        row,
+        duration: SkotiqTokens.durationSmooth,
+        curve: SkotiqTokens.curveStandard,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final enabledFilters = _enabled;
+    final rows = _rows;
+    final activeIndex = rows.indexWhere(_isActive);
 
-    return Container(
-      margin: const EdgeInsets.only(left: 8),
-      child: Scrollbar(
-        controller: _controller,
-        thumbVisibility: true,
-        child: ListView.builder(
-          controller: _controller,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.only(bottom: 10),
-          itemCount: enabledFilters.length,
-          itemBuilder: (context, index) {
-            final filter = enabledFilters[index];
-            return _FilterCard(
-              filter: filter,
-              globalFrameCount: widget.state.globalSettings.frameCount,
-            );
-          },
-        ),
+    return SkotiqPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceLg,
+        vertical: SkotiqTokens.spaceXs,
       ),
+      child: rows.isEmpty
+          ? const _CenteredEmptyState(
+              icon: LucideIcons.filter,
+              title: 'No filters selected',
+              body: 'Each filter of a run reports here.',
+            )
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < rows.length; i++)
+                    _FilterResultRow(
+                      key: i == activeIndex ? _activeRow : null,
+                      filter: rows[i],
+                      globalFrameCount: widget.state.globalSettings.frameCount,
+                      showDivider: i < rows.length - 1,
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
 
-class _FilterCard extends StatelessWidget {
+class _FilterResultRow extends StatelessWidget {
   final FlatFilterSettings filter;
   final int globalFrameCount;
+  final bool showDivider;
 
-  const _FilterCard({
+  const _FilterResultRow({
+    super.key,
     required this.filter,
     required this.globalFrameCount,
+    required this.showDivider,
   });
+
+  /// Width of the filter name's column, so the facts line up down the list.
+  static const double _nameWidth = 72;
+
+  /// Width of the "12 / 30" count, right-aligned.
+  static const double _countWidth = 64;
 
   @override
   Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
+    final colors = context.skotiqColors;
     final frameCount = filter.frameCountOverride ?? globalFrameCount;
-    final progress = frameCount > 0 ? filter.capturedCount / frameCount : 0.0;
+    final exposure = filter.calibratedExposure;
+    final adu = filter.currentAdu;
+    final facts = [
+      if (exposure != null) '${exposure.toStringAsFixed(2)} s',
+      if (adu != null) '${adu.toStringAsFixed(0)} ADU',
+    ].join(' · ');
+    final tone = _tone(filter.status);
 
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(10),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(
-          color: filter.status == FilterCalibrationStatus.capturing
-              ? colors.primary
-              : colors.border,
-        ),
+        border: showDivider
+            ? Border(bottom: BorderSide(color: colors.border))
+            : null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            filter.filterName,
-            style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
-          ),
-          const Spacer(),
-          Text(
-            filter.calibratedExposure != null
-                ? '${filter.calibratedExposure!.toStringAsFixed(2)}s'
-                : 'Not calibrated',
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize10,
-              color: colors.textSecondary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _nameWidth,
+              child: Text(
+                filter.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.bodyStrong
+                    .copyWith(color: colors.textPrimary),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          SkotiqProgressBar(
-            value: progress,
-            height: 4,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${filter.capturedCount}/$frameCount',
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize10,
-              color: colors.textMuted,
+            Expanded(
+              child: Text(
+                facts,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+              ),
             ),
-          ),
-        ],
+            // A filter that has not started carries no chip: a column of
+            // "Pending" says nothing the counts do not.
+            if (filter.status != FilterCalibrationStatus.pending)
+              SkotiqChip(
+                label: flatFilterStatusLabel(filter.status),
+                tone: tone,
+                dot: filter.status == FilterCalibrationStatus.capturing ||
+                    filter.status == FilterCalibrationStatus.calibrating,
+              ),
+            SizedBox(
+              width: _countWidth,
+              child: Text(
+                '${filter.capturedCount} / $frameCount',
+                textAlign: TextAlign.right,
+                style: SkotiqTypography.readoutSm.copyWith(
+                  color: filter.capturedCount > 0
+                      ? colors.textPrimary
+                      : colors.textMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  static ChipTone _tone(FilterCalibrationStatus status) => switch (status) {
+        FilterCalibrationStatus.pending ||
+        FilterCalibrationStatus.skipped =>
+          ChipTone.neutral,
+        FilterCalibrationStatus.calibrating ||
+        FilterCalibrationStatus.partial =>
+          ChipTone.warning,
+        FilterCalibrationStatus.calibrated ||
+        FilterCalibrationStatus.capturing ||
+        FilterCalibrationStatus.complete =>
+          ChipTone.success,
+        FilterCalibrationStatus.failed => ChipTone.error,
+      };
 }

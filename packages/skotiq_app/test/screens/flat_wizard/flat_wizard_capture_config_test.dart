@@ -93,7 +93,7 @@ void main() {
     expect(find.text('100'), findsWidgets);
     expect(find.text('10'), findsWidgets);
     expect(
-      find.textContaining('Camera settings differ from current light settings'),
+      find.textContaining('These differ from the light settings'),
       findsWidgets,
     );
     expect(find.textContaining('offset 10 vs 50'), findsWidgets);
@@ -112,7 +112,7 @@ void main() {
     );
 
     expect(
-      find.textContaining('Camera settings differ from current light settings'),
+      find.textContaining('These differ from the light settings'),
       findsNothing,
     );
   });
@@ -131,7 +131,7 @@ void main() {
     expect(find.textContaining('ISO'), findsNothing);
     expect(find.text('Gain'), findsNothing);
     expect(find.text('Offset'), findsNothing);
-    expect(find.text('Every filter uses these.'), findsOneWidget);
+    expect(find.text('used by every filter'), findsOneWidget);
   });
 
   testWidgets('a gain camera without offset names only its gain',
@@ -150,7 +150,7 @@ void main() {
     expect(find.textContaining('ISO'), findsNothing);
     expect(find.text('Offset'), findsNothing);
     expect(
-      find.text('Every filter uses these unless its own gain is set above.'),
+      find.text('used unless a filter sets its own gain'),
       findsOneWidget,
     );
   });

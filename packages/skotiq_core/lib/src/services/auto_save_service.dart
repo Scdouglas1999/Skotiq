@@ -752,9 +752,13 @@ final autoSaveStatusProvider = StreamProvider<AutoSaveStatus>((ref) async* {
     // A settings read failure must not blank the whole status card.
   }
 
+  // The newer of the two: a manual backup records its time in the settings
+  // and not in the timer's own status.
   final service = ref.watch(autoSaveServiceProvider);
   await for (final status in service.statusStream) {
-    yield status.lastBackup == null && persistedLastBackup != null
+    final own = status.lastBackup;
+    yield persistedLastBackup != null &&
+            (own == null || persistedLastBackup.isAfter(own))
         ? status.copyWith(lastBackup: persistedLastBackup)
         : status;
   }

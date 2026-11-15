@@ -80,7 +80,8 @@ Future<HarnessHandle> _pump(
     if (index < statuses.length - 1) index++;
     return status;
   });
-  when(() => backend.mountFindHome(_mountId)).thenAnswer((_) async {});
+  when(() => backend.mountFindHome(_mountId))
+      .thenAnswer((_) async => GuiderForMove.idle);
   when(() => backend.mountAbort(_mountId)).thenAnswer((_) async {});
   return pumpAppScreen(
     tester,
@@ -235,6 +236,7 @@ void main() {
     when(() => backend.mountFindHome(_mountId)).thenAnswer((_) async {
       homeSent.complete();
       await release.future;
+      return GuiderForMove.idle;
     });
     final service = handle.container.read(mountCommandServiceProvider);
 

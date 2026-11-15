@@ -54,20 +54,14 @@ a manual upgrade from a real older profile.
 
 1. Install and launch the target Skotiq version.
 2. Go to Settings > Backup & Restore.
-3. Select Import Backup.
-4. Choose the `.skbackup` or compatible `.json` backup file.
-5. Confirm the restore.
-6. Restart Skotiq after a successful restore so settings, active profiles,
-   and backend services reload from the restored data.
-7. Verify the equipment profile, saved targets, and sequence library before
+3. Select Import Backup, or the restore button of a backup in the list.
+4. Choose how to restore it (see "Merge and Replace" below) and confirm.
+5. A merge is done when the progress bar ends; restart Skotiq before the next
+   run so every screen reads the changed database. A replace takes effect when
+   Skotiq next starts: press Restart now, or Cancel replace to keep the
+   current database.
+6. Verify the equipment profile, saved targets, and sequence library before
    connecting hardware.
-
-The Settings UI uses merge-style restore. Existing settings with the same keys
-are updated, and an equipment profile of the same name is updated. Every other
-row keeps what the database already holds under its key: a backup row whose key
-is taken is not restored, and when the row there is a different one, the backup
-rows that belong to it are not restored either, so nothing is attached to the
-wrong target or session.
 
 ## Restore to a Remote or Headless Host
 
@@ -79,6 +73,9 @@ Available remote operations are backed by these headless routes:
 - `GET /api/backup/list`
 - `POST /api/backup/create`
 - `POST /api/backup/restore`
+- `GET /api/backup/restore-state`
+- `POST /api/backup/replace/cancel`
+- `POST /api/backup/replace/acknowledge`
 - `POST /api/backup/auto-save`
 - `POST /api/backup/upload-restore`
 - `GET /api/backup/<id>/metadata`
@@ -96,21 +93,49 @@ Recommended remote migration flow:
    count, and platform capabilities.
 3. In a connected desktop client, open Settings > Backup & Restore.
 4. Select Import Backup and choose the backup file from the client machine.
-5. Wait for the upload-and-restore result.
-6. Restart the headless host.
+5. Choose Merge or Replace, and wait for the result.
+6. Restart the headless host. A replace only takes effect at that restart.
 7. Reconnect with the desktop or mobile client and verify that profile, target,
    and sequence data loaded correctly.
 
-## Replace vs Merge Behavior
+## Merge and Replace
 
-The local Settings UI and default remote client calls restore with
-`replaceExisting: false`. This is the safer public-release default because it
-preserves imaging sessions and captured-image database rows.
+A restore first reads the backup into a database file of its own, so a file
+that is damaged, cut short or from a newer Skotiq fails there and the live
+database is not touched.
 
-The headless API also accepts `replaceExisting: true` on restore requests. That
-mode clears equipment profiles, sequences, sequence nodes, and targets before
-importing the backup. It still preserves imaging sessions and captured-image
-history. Use it only when intentionally rebuilding a host from a known backup.
+**Merge** (`"mode": "merge"`, the default) adds the records the backup has and
+the database does not, in one transaction:
+
+- A backup row is the same record as a live row when the two agree on what
+  identifies it (a target's creation or its name, catalog id and coordinates; a
+  frame's file and capture time; and so on), not on the row id. The rule of
+  each table is `backupMergeRules` in
+  `packages/skotiq_core/lib/src/services/backup_service/merge.dart`.
+- A record that is already here keeps the live version, and nothing is added
+  inside it (a sequence's steps, a frame's measurements, a target's goals).
+- A record that is not here is added, under a new id when its own is taken,
+  and everything that belongs to it follows it.
+- A row whose owner was left out, or is not in the backup, is left out too.
+  Nothing is attached to a record it did not come with, and no link is cleared.
+- Settings and the weather safety limits are not changed. An equipment profile
+  with the same name keeps the live version.
+
+The result lists the rows added, the rows that were here already, and the rows
+left out by table and by reason.
+
+**Replace** (`"mode": "replace"`) makes the database the backup: settings,
+profiles and every record. It writes a safety backup of the current database
+to the backup folder first, then asks for the swap, which the next start
+performs: the current file is moved aside as `skotiq-replaced-<time>-skotiq.db`
+(never deleted) and the new one takes its name. If any step fails, including
+the swap at start-up, the current database stays as it was and the Backup
+screen says why. This machine's backup folder setting is kept. Image files on
+disk are not touched.
+
+A backup written by 8.x (format 2.x) holds some per-frame tables without the
+sessions and frames they belong to. Those rows are restored only into a
+database that already has them.
 
 ## Migration Verification
 

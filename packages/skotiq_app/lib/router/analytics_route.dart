@@ -5,7 +5,6 @@ import 'query_word.dart';
 enum AnalyticsTab with QueryWord {
   session('session', []),
   history('history', []),
-  projects('projects', []),
   equipment('equipment', ['equipment-stats', 'equipmentstats']),
   science('science', []),
   diagnostics('diagnostics', []);
