@@ -268,7 +268,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           pendingBackup: pending?.backupName,
           pendingSafetyBackup: pending?.safetyBackupName,
           outcome: last?.report,
-          outcomeRestored: last?.restored ?? false,
+          outcomeRestored: last != null && last.restored,
         );
       }
       if (mounted) setState(() => _replace = state);

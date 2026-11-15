@@ -89,17 +89,6 @@ Future<void> _roundTrip(
   expect(again.itemsRestored, 0);
   expect(again.notRestored, isEmpty);
 
-  // Rows deleted since come back, beside the rows that are still here.
-  final frames = (await _rows(target, 'captured_images')).length;
-  await target.customStatement('PRAGMA foreign_keys = ON');
-  await target.customStatement(
-    'DELETE FROM captured_images WHERE id IN '
-    '(SELECT id FROM captured_images ORDER BY id DESC LIMIT 25)',
-  );
-  final readded = await _service(target, dir).restoreBackup(filePath: file);
-  lap?.call('merge after deleting 25 frames: ${readded.report}');
-  expect(readded.success, isTrue, reason: readded.errorMessage);
-  expect((await _rows(target, 'captured_images')).length, frames);
   for (final t in seeded) {
     if (backupMergeKeepsYours.containsKey(t)) continue;
     final there = await _rows(target, t);
@@ -113,6 +102,18 @@ Future<void> _roundTrip(
     }
     expect(there, await _rows(source, t), reason: '$t comes back row for row');
   }
+
+  // Rows deleted since come back, beside the rows that are still here.
+  final frames = (await _rows(target, 'captured_images')).length;
+  await target.customStatement('PRAGMA foreign_keys = ON');
+  await target.customStatement(
+    'DELETE FROM captured_images WHERE id IN '
+    '(SELECT id FROM captured_images ORDER BY id DESC LIMIT 25)',
+  );
+  final readded = await _service(target, dir).restoreBackup(filePath: file);
+  lap?.call('merge after deleting 25 frames: ${readded.report}');
+  expect(readded.success, isTrue, reason: readded.errorMessage);
+  expect((await _rows(target, 'captured_images')).length, frames);
   await target.close();
 
   // A replace makes a database with rows of its own the backup.
@@ -574,6 +575,12 @@ void main() {
     expect(result.success, isTrue, reason: result.errorMessage);
     await _service(db, dir).cancelPendingReplace();
     await unchanged('a withdrawn replace');
+
+    // A built database the start-up refused is cleared by the next backup.
+    final refused = File('${live.parent.path}/skotiq-restore-ready-old.db')
+      ..writeAsStringSync('x');
+    await _service(db, dir).createBackup(customPath: '${dir.path}/b.skbackup');
+    expect(refused.existsSync(), isFalse);
     await db.close();
   });
 }

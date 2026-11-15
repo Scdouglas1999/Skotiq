@@ -115,10 +115,10 @@ Map<String, int> writeBackupArchive({
   final db = sqlite3.open(databasePath, mode: OpenMode.readOnly);
   final out = File(outputPath).openSync(mode: FileMode.write);
   try {
+    int rowsOf(String table) =>
+        db.select('SELECT count(*) AS n FROM "$table"').first['n'] as int;
     final counts = <String, int>{
-      for (final table in tables)
-        table:
-            db.select('SELECT count(*) AS n FROM "$table"').first['n'] as int,
+      for (final table in tables) table: rowsOf(table),
     };
     final total = counts.values.fold<int>(0, (sum, n) => sum + n);
     final settings = <String, Object?>{
@@ -138,9 +138,9 @@ Map<String, int> writeBackupArchive({
       ...head,
       'metadata': {
         'settingsCount': settings.length,
-        'profilesCount': counts['equipment_profiles'] ?? 0,
-        'sequencesCount': counts['sequences'] ?? 0,
-        'targetsCount': counts['targets'] ?? 0,
+        'profilesCount': rowsOf('equipment_profiles'),
+        'sequencesCount': rowsOf('sequences'),
+        'targetsCount': rowsOf('targets'),
         // Rows per table, so a partial backup (a table with 0 rows where
         // there should be some) shows before a restore is committed to.
         'tableCounts': counts,

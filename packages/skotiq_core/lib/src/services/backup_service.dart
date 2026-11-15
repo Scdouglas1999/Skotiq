@@ -405,8 +405,8 @@ class BackupService {
   static const String _scratchPrefix = '.skotiq-backup-work-';
 
   /// Where the copies a backup or restore works on are written: beside the
-  /// database (the same disk, so a replace is a rename), or the system's
-  /// temporary folder for a database with no file.
+  /// database (the same disk, so a replace is a rename) or, for a database
+  /// with no file, in the system's temporary folder.
   Future<Directory> _scratchDirectory() async =>
       await _databaseDirectory ?? Directory.systemTemp;
 
@@ -417,16 +417,26 @@ class BackupService {
     ),
   );
 
-  /// Removes the scratch files a backup or restore that was killed left.
+  /// Removes the scratch files a backup or restore that was killed left,
+  /// and a database built for a replace that no request names any more (the
+  /// swap refused it, or it was withdrawn).
   Future<void> _sweepScratch() async {
     final cutoff = DateTime.now().subtract(const Duration(hours: 6));
     try {
-      await for (final entry in (await _scratchDirectory()).list()) {
-        if (entry is File &&
-            path.basename(entry.path).startsWith(_scratchPrefix) &&
-            (await entry.stat()).modified.isBefore(cutoff)) {
-          await _deleteQuietly(entry);
-        }
+      final directory = await _scratchDirectory();
+      final waiting = (await readPendingRestoreRequest(directory))?.source;
+      await for (final entry in directory.list()) {
+        if (entry is! File) continue;
+        final name = path.basename(entry.path);
+        final abandoned =
+            name.startsWith(_scratchPrefix) &&
+            name.endsWith('.db') &&
+            (await entry.stat()).modified.isBefore(cutoff);
+        final refused =
+            name.startsWith(_BackupReplace._readyPrefix) &&
+            name.endsWith('.db') &&
+            entry.path != waiting;
+        if (abandoned || refused) await _deleteQuietly(entry);
       }
     } on FileSystemException {
       // The folder is listed again by the next backup.

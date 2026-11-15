@@ -46,6 +46,15 @@ void main() {
       'Added 1 row from the backup. Your settings were not changed.',
     );
     expect(result.notRestoredNotice, isNull);
+    expect(
+      restoreNotRestoredNotice(
+        const {'targets': 1},
+        const {RestoreLeftOut.yoursKept: 1},
+      ),
+      '1 backup row was left out (targets 1): 1 because this database has '
+      'its own version of the record, which was kept. It is still in the '
+      'backup file.',
+    );
   });
 
   test('a staged replace says when it takes effect and where the old '

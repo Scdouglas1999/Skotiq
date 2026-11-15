@@ -237,7 +237,8 @@ String? restoreNotRestoredNotice(
       '$rows because ${reason.reason}',
   ].join('; ');
   return '$total backup ${total == 1 ? 'row was' : 'rows were'} left out '
-      '($tables): $reasons. They are still in the backup file.';
+      '($tables): $reasons. '
+      '${total == 1 ? 'It is' : 'They are'} still in the backup file.';
 }
 
 class BackupMetadata {
