@@ -355,7 +355,10 @@ class _AxisPainter extends CustomPainter {
         text: TextSpan(text: label, style: style),
         textDirection: TextDirection.ltr,
       )..layout();
-      final left = (x - tp.width / 2).clamp(0.0, size.width - tp.width);
+      // A column narrower than one label pins it to the left edge.
+      final left = (x - tp.width / 2)
+          .clamp(0.0, math.max(0.0, size.width - tp.width))
+          .toDouble();
       tp.paint(canvas, Offset(left, 0));
     }
   }

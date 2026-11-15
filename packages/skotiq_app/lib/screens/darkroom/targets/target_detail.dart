@@ -57,17 +57,28 @@ class DarkroomTargetDetail extends ConsumerWidget {
         final wide = constraints.maxWidth >= _sideBySideWidth;
         final tilesInHero = constraints.maxWidth >= _tilesInHeroWidth &&
             target.channels.length <= 5;
+        final phone = !BreakpointTokens.isAtLeastDesktop(constraints.maxWidth);
         return ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: SkotiqTokens.space2xl,
-            vertical: SkotiqTokens.spaceXl,
-          ),
+          padding: phone
+              ? const EdgeInsets.symmetric(
+                  horizontal: SkotiqTokens.spaceLg,
+                  vertical: SkotiqTokens.spaceMd,
+                )
+              : const EdgeInsets.symmetric(
+                  horizontal: SkotiqTokens.space2xl,
+                  vertical: SkotiqTokens.spaceXl,
+                ),
           children: [
             if (ownJob != null) ...[
               _JobBanner(job: ownJob),
               const SizedBox(height: SkotiqTokens.spaceLg),
             ],
-            _Hero(target: target, job: job, tilesInHero: tilesInHero),
+            _Hero(
+              target: target,
+              job: job,
+              tilesInHero: tilesInHero,
+              phone: phone,
+            ),
             if (!tilesInHero) ...[
               const SizedBox(height: SkotiqTokens.spaceMd),
               SingleChildScrollView(
@@ -186,11 +197,15 @@ class _Hero extends ConsumerWidget {
     required this.target,
     required this.job,
     required this.tilesInHero,
+    required this.phone,
   });
 
   final DarkroomTarget target;
   final DarkroomBuildJob? job;
   final bool tilesInHero;
+
+  /// A phone-width detail: the card's inset shrinks to the phone gutter.
+  final bool phone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -270,12 +285,14 @@ class _Hero extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                SkotiqTokens.space2xl + 4,
-                SkotiqTokens.space2xl,
-                SkotiqTokens.space2xl + 4,
-                SkotiqTokens.space2xl,
-              ),
+              padding: phone
+                  ? const EdgeInsets.all(SkotiqTokens.spaceLg)
+                  : const EdgeInsets.fromLTRB(
+                      SkotiqTokens.space2xl + 4,
+                      SkotiqTokens.space2xl,
+                      SkotiqTokens.space2xl + 4,
+                      SkotiqTokens.space2xl,
+                    ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [

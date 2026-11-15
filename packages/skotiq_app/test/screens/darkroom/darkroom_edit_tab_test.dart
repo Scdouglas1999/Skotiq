@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -259,15 +260,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('choosing an image opens it in the editor', (tester) async {
+  testWidgets('on a narrow window choosing an image opens it in the editor',
+      (tester) async {
     final id =
         await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
-    final router = await pump(tester);
+    final router = await pump(tester, size: const Size(1000, 900));
 
     await tester.tap(find.byKey(ValueKey('darkroom_edit_image_$id')));
     await tester.pump();
     final uri = router.routerDelegate.currentConfiguration.uri;
     expect(uri.queryParameters, {'tab': 'edit', 'master': '$id'});
+  });
+
+  testWidgets(
+      'on a wide window a row previews its image and a second tap opens it',
+      (tester) async {
+    final l =
+        await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
+    final r =
+        await seedMaster(name: 'NGC891 R', filter: 'R', target: 'NGC891');
+    final router = await pump(tester);
+    String? opened() => router
+        .routerDelegate.currentConfiguration.uri.queryParameters['master'];
+
+    expect(find.byKey(ValueKey('darkroom_edit_preview_$l')), findsOneWidget,
+        reason: 'the first image is previewed before anything is chosen');
+    expect(
+      find.byKey(const ValueKey('darkroom_edit_preview_open')),
+      findsOneWidget,
+    );
+
+    // A row that also answers double taps reports a single tap once the
+    // double-tap window has passed.
+    await tester.tap(find.byKey(ValueKey('darkroom_edit_image_$r')));
+    await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+    expect(find.byKey(ValueKey('darkroom_edit_preview_$r')), findsOneWidget);
+    expect(opened(), isNull, reason: 'one tap previews, it does not open');
+
+    await tester.tap(find.byKey(ValueKey('darkroom_edit_image_$r')));
+    await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+    expect(opened(), '$r');
+  });
+
+  testWidgets('the preview\'s Edit opens the previewed image', (tester) async {
+    final l =
+        await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
+    final router = await pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_edit_preview_open')));
+    await tester.pump();
+    expect(
+      router.routerDelegate.currentConfiguration.uri.queryParameters['master'],
+      '$l',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

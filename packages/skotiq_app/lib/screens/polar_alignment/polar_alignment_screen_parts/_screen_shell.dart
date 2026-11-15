@@ -183,13 +183,13 @@ extension _ScreenShell on _PolarAlignmentScreenState {
     );
   }
 
-  /// Every unmet prerequisite for starting a run, in reading order.
+  /// Every unmet prerequisite for starting a run, in the order to fix them.
   ///
-  /// Shared by the header's primary (which shows them as its disabled
-  /// tooltip) and the idle centre banner (which states them where an operator
-  /// who clicked a dead button is already looking). One computation, so the
-  /// two can never disagree.
-  List<String> _startBlockers() {
+  /// Shared by the header's primary (which shows them all as its disabled
+  /// tooltip) and the idle guide's banner (which states the first where an
+  /// operator who clicked a dead button is already looking). One
+  /// computation, so the two can never disagree.
+  List<_StartBlocker> _startBlockers() {
     final cameraConnected = ref.watch(cameraStateProvider
         .select((s) => s.connectionState == DeviceConnectionState.connected));
     final mountConnected = ref.watch(mountStateProvider
@@ -220,25 +220,43 @@ extension _ScreenShell on _PolarAlignmentScreenState {
     final siteReady =
         settingsResolved && ref.watch(appObserverLocationProvider) != null;
 
-    return <String>[
+    return <_StartBlocker>[
       if (!cameraConnected && !mountConnected)
-        'Camera and mount not connected'
+        (kind: _StartBlockerKind.rig, reason: 'Camera and mount not connected')
       else if (!cameraConnected)
-        'Camera not connected'
+        (kind: _StartBlockerKind.rig, reason: 'Camera not connected')
       else if (!mountConnected)
-        'Mount not connected'
+        (kind: _StartBlockerKind.rig, reason: 'Mount not connected')
       else if (mountParked)
-        'Mount is parked — unpark it before aligning',
-      if (!siteReady)
-        settingsResolved
-            ? 'No observing location set'
-            : 'Checking observing location…',
+        (
+          kind: _StartBlockerKind.parked,
+          reason: 'Mount is parked. Unpark it before aligning',
+        ),
       if (!readinessResolved)
         detectionAsync.hasError || preferenceAsync.hasError
-            ? 'Could not check plate solver configuration'
-            : 'Checking plate solver configuration…'
+            ? (
+                kind: _StartBlockerKind.checking,
+                reason: 'Could not check plate solver configuration',
+              )
+            : (
+                kind: _StartBlockerKind.checking,
+                reason: 'Checking plate solver configuration…',
+              )
       else if (!solverReady)
-        'Selected plate solver is not ready',
+        (
+          kind: _StartBlockerKind.solver,
+          reason: 'Selected plate solver is not ready',
+        ),
+      if (!siteReady)
+        settingsResolved
+            ? (
+                kind: _StartBlockerKind.site,
+                reason: 'No observing location set'
+              )
+            : (
+                kind: _StartBlockerKind.checking,
+                reason: 'Checking observing location…',
+              ),
     ];
   }
 
@@ -253,7 +271,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
     final isRunning = state.isRunning;
     final blockers = _startBlockers();
     final String? disabledReason =
-        blockers.isEmpty ? null : blockers.join(' · ');
+        blockers.isEmpty ? null : blockers.map((b) => b.reason).join(' · ');
     final canStart = blockers.isEmpty;
 
     /// Stopping a run means waiting for the exposure or plate solve in flight
@@ -338,3 +356,9 @@ extension _ScreenShell on _PolarAlignmentScreenState {
     }
   }
 }
+
+/// What kind of prerequisite holds a run back, which decides the banner and
+/// the action that fixes it.
+enum _StartBlockerKind { rig, parked, site, solver, checking }
+
+typedef _StartBlocker = ({_StartBlockerKind kind, String reason});

@@ -201,7 +201,10 @@ void main() {
       ),
     );
 
-    final notice = find.byKey(startBlockedNoticeKey);
+    final notice = find.descendant(
+      of: find.byKey(startBlockedNoticeKey),
+      matching: find.byType(SkotiqBanner),
+    );
     expect(notice, findsOneWidget,
         reason: 'the refusal must be readable without hovering');
     expect(
@@ -227,6 +230,32 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('with the rig ready, the one banner is the next blocker',
+      (tester) async {
+    await _pumpScreen(
+      tester,
+      mount: const MountState(
+        connectionState: DeviceConnectionState.connected,
+        deviceId: 'mount-1',
+        isParked: false,
+        isTracking: true,
+        ra: 2,
+        dec: 80,
+      ),
+    );
+
+    // The mount is ready, so the one banner names what is left instead.
+    expect(find.byType(SkotiqBanner), findsOneWidget);
+    final banner = tester.widget<SkotiqBanner>(find.descendant(
+      of: find.byKey(startBlockedNoticeKey),
+      matching: find.byType(SkotiqBanner),
+    ));
+    expect(
+      '${banner.title} ${banner.message}',
+      isNot(contains(RegExp('mount', caseSensitive: false))),
+    );
+  });
+
   // The footer must name the blocker that actually applies. (This harness has
   // no plate solver, so an unparked rig still has one unmet prerequisite —
   // which is the point: the line tracks the real reason rather than being a
@@ -245,10 +274,13 @@ void main() {
       ),
     );
 
-    final notice = find.byKey(startBlockedNoticeKey);
+    final notice = find.descendant(
+      of: find.byKey(startBlockedNoticeKey),
+      matching: find.byType(SkotiqBanner),
+    );
     if (notice.evaluate().isNotEmpty) {
       expect(
-        tester.widget<Text>(notice).data,
+        tester.widget<SkotiqBanner>(notice).message,
         isNot(contains('parked')),
         reason: 'the mount is not parked, so it cannot be the reason',
       );

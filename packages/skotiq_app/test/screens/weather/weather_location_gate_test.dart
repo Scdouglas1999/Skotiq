@@ -64,4 +64,24 @@ void main() {
     // more frame lets it run before the binding checks for pending timers.
     await tester.pump(Duration.zero);
   });
+
+  testWidgets('without a location the safety policy is still shown',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const WeatherScreen(),
+      registerTearDown: false,
+      size: const Size(1400, 1000),
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('No observing site'), findsOneWidget);
+    expect(find.text('Auto-park'), findsOneWidget);
+    expect(find.byKey(const ValueKey('weather_no_data_rule')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    handle.container.dispose();
+    await tester.pump(Duration.zero);
+  });
 }

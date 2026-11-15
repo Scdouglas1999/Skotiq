@@ -402,7 +402,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(TransientAlertsPanel), findsNothing);
-    expect(find.text('Transient Alerts'), findsNothing);
+    expect(find.text('Transient alerts'), findsNothing);
 
     await settleProviderTeardown(tester);
   });

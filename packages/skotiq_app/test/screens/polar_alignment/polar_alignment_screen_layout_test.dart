@@ -140,8 +140,16 @@ void main() {
         find.widgetWithText(SkotiqButton, 'Start alignment'),
       );
       expect(start.onPressed, isNull);
-      expect(
-          find.textContaining('Polar alignment plate-solves'), findsOneWidget);
+      // The idle guide shows one banner, for the blocker to fix first (this
+      // fixture's mount reports parked); Start's reason lists the solver too.
+      final reason = tester
+          .widgetList<Tooltip>(find.ancestor(
+            of: find.widgetWithText(SkotiqButton, 'Start alignment'),
+            matching: find.byType(Tooltip),
+          ))
+          .first
+          .message;
+      expect(reason, contains('Selected plate solver is not ready'));
       handle.container.read(mountStateProvider.notifier).setDisconnected();
     },
   );
