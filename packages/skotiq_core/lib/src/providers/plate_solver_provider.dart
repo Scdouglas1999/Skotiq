@@ -1,3 +1,4 @@
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,12 +46,16 @@ const Duration plateSolverHostWait = Duration(seconds: 10);
 
 /// [value] as the host told it; loading until the host has, and an error
 /// after [plateSolverHostWait]. The provider runs again when the host tells.
-Future<T> _toldByHost<T>(T? value) => value != null
-    ? Future.value(value)
-    : Future<T>.delayed(
-        plateSolverHostWait,
-        () => throw const PlateSolverSetupNotTold(),
-      );
+Future<T> _toldByHost<T>(Ref ref, T? value) {
+  if (value != null) return Future.value(value);
+  final told = Completer<T>();
+  final wait = Timer(
+    plateSolverHostWait,
+    () => told.completeError(const PlateSolverSetupNotTold()),
+  );
+  ref.onDispose(wait.cancel);
+  return told.future;
+}
 
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
@@ -61,6 +66,7 @@ final plateSolverDetectionProvider =
       ref.watch(backendProvider);
       if (ref.watch(isRemoteModeProvider)) {
         return _toldByHost(
+          ref,
           ref.watch(
             hostPlateSolverSetupProvider.select((setup) => setup?.detection),
           ),
@@ -77,6 +83,7 @@ final plateSolverPreferenceProvider =
       ref.watch(backendProvider);
       if (ref.watch(isRemoteModeProvider)) {
         return _toldByHost(
+          ref,
           ref.watch(
             hostPlateSolverSetupProvider.select((setup) => setup?.preference),
           ),
