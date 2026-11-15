@@ -87,15 +87,12 @@ FrameAttribution resolveFrameAttribution(
     binY = binX;
   } else if (producing is SmartExposureNode && currentFilter != null) {
     // SmartExposure rotates per-filter plans; this sub is the plan of the
-    // filter in the wheel, found by the filter-name rule (a plan for "Ha"
-    // exposes in the slot named "Ha 7nm"). The plan owns its own exposure,
-    // gain, offset and binning, so the frame is stamped from it, not from the
-    // node.
-    final planFilter = matchingFilterName(currentFilter, [
-      for (final plan in producing.plans) plan.filterName,
-    ]);
+    // filter in the wheel, the same filter by the filter-name rule (a plan
+    // for "Ha" exposes in the slot named "Ha 7nm"). The plan owns its own
+    // exposure, gain, offset and binning, so the frame is stamped from it,
+    // not from the node.
     for (final plan in producing.plans) {
-      if (plan.filterName == planFilter) {
+      if (sameFilter(plan.filterName, currentFilter)) {
         exposureSecs = plan.durationSecs;
         gain = plan.gain;
         offset = plan.offset;

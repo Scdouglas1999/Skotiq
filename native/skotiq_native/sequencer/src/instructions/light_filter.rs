@@ -94,12 +94,9 @@ pub fn choose_light_slot(
             .index
             .and_then(|i| usize::try_from(i).ok())
             .and_then(usable);
-        let by_name = || {
-            let wanted = filter.name.as_deref()?.trim();
-            names
-                .iter()
-                .position(|name| name.trim().eq_ignore_ascii_case(wanted))
-                .and_then(usable)
+        let by_name = || match skotiq_device::match_filter_slot(names, filter.name.as_deref()?) {
+            skotiq_device::FilterSlotMatch::Slot(slot) => usable(slot),
+            _ => None,
         };
         if let Some(slot) = by_index.or_else(by_name) {
             return Some(slot);
@@ -227,12 +224,12 @@ pub(crate) async fn select_step_filter(
             return leave_dark_slot_for_capture(ctx, step).await;
         }
     };
-    let Some(index) = names
-        .iter()
-        .position(|name| name.trim().eq_ignore_ascii_case(wanted))
-    else {
-        tracing::warn!("{step} names filter \"{wanted}\", which the filter wheel does not have");
-        return leave_dark_slot_for_capture(ctx, step).await;
+    let index = match skotiq_device::match_filter_slot(&names, wanted).into_slot(&names, wanted) {
+        Ok(index) => index,
+        Err(reason) => {
+            tracing::warn!("{step}: {reason}");
+            return leave_dark_slot_for_capture(ctx, step).await;
+        }
     };
     if ctx
         .run

@@ -128,16 +128,10 @@ class IntegrationGoalProgress extends Equatable {
 
 /// The frames a goal for [goalFilter] counts out of [framesByFilter] (frame
 /// counts by `captured_images.filter` as filed, `''` for frames that name
-/// none): the spellings the filter-name rule matches ("Ha" counts frames
-/// filed as "Ha 7nm"), or for the unfiltered goal the frames with no filter.
-int goalFrameCount(String goalFilter, Map<String, int> framesByFilter) {
-  if (goalFilter.trim().isEmpty) {
-    return framesByFilter.entries
-        .where((e) => e.key.trim().isEmpty)
+/// none): every spelling that is the same filter by the filter-name rule
+/// ("Ha" counts frames filed as "Ha" and as "Ha 7nm"), or for the unfiltered
+/// goal the frames with no filter.
+int goalFrameCount(String goalFilter, Map<String, int> framesByFilter) =>
+    framesByFilter.entries
+        .where((e) => sameFilter(e.key, goalFilter))
         .fold(0, (sum, e) => sum + e.value);
-  }
-  return matchingFilterNames(
-    goalFilter,
-    framesByFilter.keys,
-  ).fold(0, (sum, name) => sum + framesByFilter[name]!);
-}
