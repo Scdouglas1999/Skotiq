@@ -69,10 +69,18 @@ class Api:
     def __init__(self, port):
         self.base = f"http://127.0.0.1:{port}"
 
+    def release(self):
+        """The host's Skotiq release, read each time because the rehearsal
+        changes it. Every API request names it in x-skotiq-version."""
+        with urllib.request.urlopen(self.base + "/api/info", timeout=10) as resp:
+            return json.load(resp)["version"]
+
     def call(self, method, path, body=None, timeout=15):
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(self.base + path, data=data, method=method)
         req.add_header("Authorization", f"Bearer {TOKEN}")
+        if path != "/api/info":
+            req.add_header("x-skotiq-version", self.release())
         if data is not None:
             req.add_header("Content-Type", "application/json")
         try:

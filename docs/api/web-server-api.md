@@ -43,8 +43,7 @@ Get server information and capabilities.
 ```json
 {
   "status": "running",
-  "version": "2.6.0",
-  "apiVersion": "2.6.0",
+  "version": "9.0.1",
   "apiOnlyMode": true,
   "webUIAvailable": false,
   "timestamp": "2025-11-30T12:00:00Z",
@@ -90,14 +89,28 @@ Get server information and capabilities.
 
 ## Version Compatibility
 
-Remote clients use `/api/info.apiVersion` for API compatibility checks before
-switching into network-control mode. The `version` field is the application
-release version shown to operators. Clients fall back to `version` when talking
-to older servers that do not advertise `apiVersion`. The current client accepts
-Skotiq server API versions `2.4.0` and newer within major version `2`.
-Servers older than `2.4.0`, servers with an unknown/malformed version, and
-servers with a newer major API version are rejected with user-facing "server
-too old/new" guidance.
+A client links only to a host of its own Skotiq release. `GET /api/info`
+reports the host's release as `version` and is answered to everyone.
+
+Every other `/api/*` request must say which release sent it, in the
+`x-skotiq-version` header (a WebSocket upgrade may use the `version` query
+parameter instead). The host answers:
+
+- `426` with code `release_required` when the request does not name a release.
+  Pages the host serves itself (the dashboard, run-watch) are exempt: a request
+  whose `Origin` or `Referer` is the host needs no header.
+- `426` with code `version_mismatch`, `hostVersion` and `clientVersion` when
+  the named release is not the host's. Three routes stay open to another
+  release so that either side can be updated from the other: `/api/info`,
+  `/api/system/version` and `/api/system/update/*`.
+
+A script sends the release it read from `/api/info`:
+
+```sh
+release=$(curl -s http://rig:8080/api/info | jq -r .version)
+curl -H "x-skotiq-version: $release" -H "Authorization: Bearer $TOKEN" \
+  http://rig:8080/api/status
+```
 
 ## Authentication Scopes
 

@@ -2880,6 +2880,79 @@ test('a page from another release is told to reload, naming both releases', asyn
   assert.equal(sent[0]['X-Skotiq-Version'], '8.2.1');
 });
 
+// ---------------------------------------------------------------------------
+// A mount move from the dashboard goes through the host's guider rule: a GoTo
+// the host refuses because the guider is not answering asks the operator once
+// and is sent again with the silence accepted; a park that went ahead carries
+// the host's notice.
+// ---------------------------------------------------------------------------
+
+function guiderRefusal() {
+  return new Response(JSON.stringify({
+    error: 'guider_not_answering',
+    message: 'The guider is not answering, so guiding could not be stopped '
+      + 'and the mount was not moved.',
+  }), { status: 409, headers: { 'content-type': 'application/json' } });
+}
+
+function moveAnswer(extra) {
+  return new Response(JSON.stringify(Object.assign({ status: 'slewing' }, extra)),
+    { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
+test('a GoTo refused for a silent guider asks once and moves on a yes', async () => {
+  const bodies = [];
+  const api = loadApi(async (url, init) => {
+    const body = JSON.parse(init.body);
+    bodies.push(body);
+    return body.guiderSilentOk
+      ? moveAnswer({ guider: 'not_answering', notice: 'The guider did not answer.' })
+      : guiderRefusal();
+  });
+  const asked = [];
+  const notices = [];
+  api.confirmSilentGuider = (question) => { asked.push(question); return true; };
+  api.onMoveNotice = (notice) => notices.push(notice);
+
+  const result = await api.framingSlewToTarget(5.5, 22);
+
+  assert.equal(asked.length, 1);
+  assert.match(asked[0], /Move anyway\?$/);
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].guiderSilentOk, undefined);
+  assert.equal(bodies[1].guiderSilentOk, true);
+  assert.equal(bodies[1].ra, 5.5);
+  assert.equal(result.guider, 'not_answering');
+  assert.deepEqual(notices, ['The guider did not answer.']);
+});
+
+test('a GoTo refused for a silent guider stays put on a no', async () => {
+  let posts = 0;
+  const api = loadApi(async () => { posts += 1; return guiderRefusal(); });
+  api.confirmSilentGuider = () => false;
+
+  await assert.rejects(api.mountSlew('sim_mount_1', 5.5, 22), (e) => {
+    assert.equal(e.kind, 'guider_not_answering');
+    return true;
+  });
+  assert.equal(posts, 1);
+});
+
+test('a park that went ahead with the guider silent shows the host\u2019s notice', async () => {
+  const api = loadApi(async () => moveAnswer({
+    status: 'parking', guider: 'not_answering',
+    notice: 'The guider did not answer, so guiding was not stopped before the park.',
+  }));
+  const notices = [];
+  api.onMoveNotice = (notice) => notices.push(notice);
+  api.confirmSilentGuider = () => { throw new Error('a park never asks'); };
+
+  await api.mountPark('sim_mount_1');
+
+  assert.equal(notices.length, 1);
+  assert.match(notices[0], /before the park/);
+});
+
 test('the client tells a scope refusal from a credential the rig will not take', () => {
   const context = vm.createContext({ JSON: globalThis.JSON, SKOTIQ_RELEASE: '8.2.1', console });
   vm.runInContext(API + '\n;globalThis.__cls = SkotiqApi._scopeRefusalFrom;', context);

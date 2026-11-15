@@ -37,7 +37,7 @@ works, enter the host's address by hand.
 | `hostMode` (and `mode`) | `gui` for the desktop app, `headless` for the service |
 | `apiOnlyMode` | `true` only for the headless service |
 | `platform` | `windows`, `linux`, `macos` |
-| `version`, `apiVersion` | Skotiq version and API version |
+| `version` | The Skotiq release; a client links only to a host of its own release |
 | `fingerprint` | The host's identity; clients pin it when they pair |
 | `pairingMode`, `lanPairing` | Whether one-tap pairing on the LAN is offered |
 

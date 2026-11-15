@@ -67,6 +67,7 @@ void main() {
       final request = await client.postUrl(
         Uri.parse('http://127.0.0.1:${server.actualPort}/api/logs/test-entry'),
       );
+      request.headers.set('x-skotiq-version', '9.0.0');
       request.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer admin-token',
@@ -111,6 +112,7 @@ void main() {
           'http://127.0.0.1:${server.actualPort}/api/logs/files/$name/download',
         ),
       );
+      download.headers.set('x-skotiq-version', '9.0.0');
       download.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer admin-token',

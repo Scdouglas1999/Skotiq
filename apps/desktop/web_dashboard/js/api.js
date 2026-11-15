@@ -142,13 +142,12 @@ class SkotiqApi {
     let body;
     try { body = JSON.parse(text); } catch (_) { return null; }
     if (!body || body.code !== 'version_mismatch') return null;
-    const host = typeof body.hostVersion === 'string' ? body.hostVersion : null;
+    const host = String(body.hostVersion);
     const page = typeof body.clientVersion === 'string' ? body.clientVersion : '';
     return new SkotiqApiError(
       'version_mismatch',
-      'This page is from Skotiq ' + page + ' and the host ' +
-        (host ? 'now runs Skotiq ' + host : 'did not say which Skotiq it runs') +
-        '. Reload the page to use the host\u2019s own dashboard.',
+      'This page is from Skotiq ' + page + ' and the host now runs Skotiq ' +
+        host + '. Reload the page to use the host\u2019s own dashboard.',
       { status, method, path, hostVersion: host, pageVersion: page },
     );
   }

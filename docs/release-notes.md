@@ -1,5 +1,38 @@
 # Skotiq 7.1.0 Release Notes
 
+## 9.0.1: update the host first
+
+Update the host to 9.0.1 before the desktop client or the phone. A 9.0.0 host
+refuses every request from another release except `/api/info`, including its own
+update routes, so a client that is updated first cannot update it and cannot
+link until the host is updated at its own screen (Settings > About > Check for
+updates), over remote desktop, or by installing 9.0.1 there by hand.
+
+From 9.0.1 on the order no longer matters. A host answers its update routes to
+a client of another release, and the link screen offers "Update the host" when
+the host is the older side and "Update this app" when this device is.
+
+Other link and mount changes in 9.0.1:
+
+- A host that is off, asleep, on another network or mistyped is no longer
+  reported as a release mismatch. The link screens say which of four things is
+  wrong: no answer, nothing listening on the port, not a Skotiq host, or
+  another release.
+- Discovery on the phone lists a host of another release, with its release and
+  which side to update, instead of reporting that no host was found.
+- Every API request must say which release sent it, in the
+  `x-skotiq-version` header (the value `GET /api/info` reports as `version`).
+  A request without it is answered `426 release_required`. The host's own
+  dashboard and run-watch pages are not affected.
+- A GoTo, park or home from the web dashboard or the API stops the guider
+  first, as the app does. The answer carries `guider` (`idle`, `stopped` or
+  `not_answering`).
+- A guider that does not answer no longer blocks Park or Home: after at most
+  10 seconds the mount parks or homes and a notice says the guider was not
+  stopped. A GoTo asks once whether to move anyway; over the API it is refused
+  with `409 guider_not_answering` until the request carries
+  `"guiderSilentOk": true`.
+
 ## Release
 
 - Version: `7.1.0` (build 28)
