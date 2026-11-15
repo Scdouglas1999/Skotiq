@@ -337,11 +337,6 @@ pub(crate) fn state_may_move_mount(state: &str) -> bool {
     )
 }
 
-/// Serializes the tests that touch the process-wide guider state: the PHD2
-/// client slot, the device registries and the stop reason.
-#[cfg(test)]
-pub(crate) static TEST_SLOT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
 #[cfg(test)]
 mod tests {
 

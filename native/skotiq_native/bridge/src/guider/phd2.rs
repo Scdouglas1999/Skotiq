@@ -934,7 +934,7 @@ async fn find_fresh_star(
 }
 
 #[cfg(test)]
-use super::TEST_SLOT as PHD2_TEST_SLOT;
+use crate::simulator::sim_singleton_test_lock;
 
 #[cfg(test)]
 mod client_slot_tests {
@@ -949,7 +949,7 @@ mod client_slot_tests {
 
     #[tokio::test]
     async fn no_client_is_not_connected_phd2() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         assert!(client_slot().read().await.is_none());
         match phd2_client().await {
             Ok(_) => panic!("expected NotConnected with no PHD2 client stored"),
@@ -962,7 +962,7 @@ mod client_slot_tests {
     async fn a_failed_client_read_releases_the_slot() {
         // `try_map` hands the guard back inside its Err, which is dropped with
         // the error. If it leaked, this second acquisition would deadlock.
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let _ = phd2_client().await;
         let guard = tokio::time::timeout(std::time::Duration::from_secs(2), client_slot().write())
             .await
@@ -1025,7 +1025,7 @@ mod connected_devices_registry_tests {
 
     #[tokio::test]
     async fn a_connected_phd2_is_visible_to_the_connected_devices_api() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, server) = spawn_mock_phd2();
 
         connect(Some("127.0.0.1".to_string()), Some(port))
@@ -1086,7 +1086,7 @@ mod connected_devices_registry_tests {
     /// pins the id list structurally; this one drives the route.
     #[tokio::test]
     async fn the_generic_disconnect_route_reaches_a_connected_phd2() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, server) = spawn_mock_phd2();
 
         connect(Some("127.0.0.1".to_string()), Some(port))
@@ -1204,7 +1204,7 @@ mod fresh_guide_star_tests {
     /// PHD2 to find a star in a new frame, retrying until one has arrived.
     #[tokio::test]
     async fn a_fresh_star_is_found_in_a_new_frame_after_capture_restarts() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, methods, server) = spawn_recording_phd2(false);
         connect(Some("127.0.0.1".to_string()), Some(port))
             .await
@@ -1248,7 +1248,7 @@ mod fresh_guide_star_tests {
     /// and it was still looping after the run had parked.
     #[tokio::test]
     async fn a_search_that_finds_no_star_stops_the_looping() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, methods, server) = spawn_recording_phd2(true);
         connect(Some("127.0.0.1".to_string()), Some(port))
             .await
@@ -1340,7 +1340,7 @@ mod post_flip_protocol_tests {
 
     #[tokio::test]
     async fn post_flip_selection_waits_for_download_even_when_old_star_is_selectable() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, task) = server(1, true);
         connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let selected = select_fresh_star(None).await;
@@ -1355,7 +1355,7 @@ mod post_flip_protocol_tests {
 
     #[tokio::test]
     async fn guide_rpc_accepted_but_settle_failed_is_not_success() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, task) = server(1, true);
         connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = start_guiding(0.5, 0.1, 1.0).await;
@@ -1368,7 +1368,7 @@ mod post_flip_protocol_tests {
     }
     #[tokio::test]
     async fn successful_settle_allows_guiding_to_start() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, task) = server(0, true);
         connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = start_guiding(0.5, 0.1, 1.0).await;
@@ -1379,7 +1379,7 @@ mod post_flip_protocol_tests {
 
     #[tokio::test]
     async fn disconnect_before_new_frame_cannot_select_the_old_star() {
-        let _slot = PHD2_TEST_SLOT.lock().await;
+        let _slot = sim_singleton_test_lock().lock().await;
         let (port, task) = server(0, false);
         connect(Some("127.0.0.1".into()), Some(port)).await.unwrap();
         let result = select_fresh_star(None).await;
