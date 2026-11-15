@@ -2,7 +2,6 @@
 // tab in its strip has an icon.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
