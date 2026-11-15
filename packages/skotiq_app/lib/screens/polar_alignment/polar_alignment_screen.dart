@@ -20,6 +20,7 @@ import 'widgets/all_sky_target_reticle.dart';
 import 'widgets/polar_alignment_segmented_button.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
+import '../../widgets/plate_solver_required_banner.dart';
 // File split: the PolarAlignmentScreen state keeps lifecycle and alignment
 // actions. Panel builders, helper widgets, and painters live in focused library
 // parts so the private provider-facing implementation remains encapsulated.

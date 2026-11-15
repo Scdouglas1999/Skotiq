@@ -158,13 +158,18 @@ void main() {
       (tester) async {
     await _pumpScreen(tester, latitude: 0, longitude: 0);
 
-    // Two surfaces by design: the panel discloses the missing site, and the
-    // footer beside the refusing Start button names it as a blocker. A hover
-    // tooltip is not an explanation the operator who clicks can read.
+    // One banner, for the blocker to fix first: this fixture has no camera or
+    // mount, so the site waits its turn and is named in Start's reason.
     expect(
-      find.textContaining('No observing location set'),
-      findsWidgets,
+      find.descendant(
+        of: find.byKey(startBlockedNoticeKey),
+        matching: find.textContaining('Camera and mount not connected'),
+      ),
+      findsOneWidget,
     );
+    expect(find.byType(SkotiqBanner), findsOneWidget);
+    expect(
+        _startTooltip(tester).message, contains('No observing location set'));
   });
 
   testWidgets('a configured site drops the location warning', (tester) async {
