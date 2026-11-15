@@ -1,4 +1,5 @@
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Why a flat run ended with nothing on disk, said in numbers the operator can
 /// act on.
@@ -44,7 +45,7 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
   final failed = state.filterSettings
       .where((f) => f.status == FilterCalibrationStatus.failed)
       .toList(growable: false);
-  final filterLabel = failed.length == 1 ? '${failed.single.filterName}: ' : '';
+  final filterLabel = failed.length == 1 ? '${failed.single.label}: ' : '';
   final targetPercent = _formatPercent(settings.histogramTarget);
 
   // The light source, not the exposure, is the problem: the solver ramped the
@@ -96,8 +97,8 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
         '${last.adu.round()} ADU without settling on the $targetPercent '
         'target.',
     nextStep:
-        'Raise "Exposure calibration attempts" in the Flat Wizard settings, '
-        'or widen the tolerance.',
+        'Raise "${FlatWizardService.attemptsSettingName}" or widen the '
+        'tolerance.',
   );
 }
 
