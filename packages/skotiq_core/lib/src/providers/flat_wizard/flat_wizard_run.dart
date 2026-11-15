@@ -182,7 +182,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             queued.settings.frameCountOverride ?? runSettings.frameCount;
         if (count < 1 || count > 999) {
           throw StateError(
-            '${queued.settings.filterName}: frame count must be 1–999.',
+            '${queued.settings.label}: frame count must be 1–999.',
           );
         }
       }
@@ -249,12 +249,15 @@ extension FlatWizardRun on FlatWizardNotifier {
         final historyGain = config.gain ?? cameraState.gain ?? 0;
         setCurrentFilterIndex(idx);
         updateFilterStatus(idx, FilterCalibrationStatus.calibrating);
-        setStatusMessage('Calibrating ${filterSetting.filterName}...');
+        setStatusMessage('Calibrating ${filterSetting.label}...');
 
-        final moveError = await moveFilterWheelAndWait(
-          filterSetting.filterPosition,
-          cancelToken,
-        );
+        // The unfiltered row names no slot, so there is nothing to move to.
+        final moveError = filterSetting.hasFilter
+            ? await moveFilterWheelAndWait(
+                filterSetting.filterPosition,
+                cancelToken,
+              )
+            : null;
         if (cancelToken.isCancelled) {
           updateFilterStatus(idx, FilterCalibrationStatus.skipped);
           cancelled = true;
@@ -264,7 +267,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           // Fail-safe: an uncertain filter position taints every remaining
           // filter, so stop the whole run rather than capture the wrong flat.
           updateFilterStatus(idx, FilterCalibrationStatus.failed);
-          haltError = '${filterSetting.filterName}: $moveError — run stopped.';
+          haltError = '${filterSetting.label}: $moveError — run stopped.';
           break;
         }
 
@@ -287,7 +290,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         if (runMode == FlatWizardMode.skyFlats) {
           calibration = await flatService.calibrateFilterWithRateTracking(
             deviceId: cameraId,
-            filter: filterSetting.filterName,
+            filter: filterSetting.label,
             gain: config.gain,
             offset: config.offset,
             targetAdu: targetAdu,
@@ -303,7 +306,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               addAduMeasurement(exposure, adu);
               updateFilterCalibration(idx, exposure, adu);
               setStatusMessage(
-                '${filterSetting.filterName}: $status '
+                '${filterSetting.label}: $status '
                 '(${exposure.toStringAsFixed(2)}s, ADU: ${adu.toStringAsFixed(0)})',
               );
             },
@@ -311,7 +314,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         } else {
           calibration = await flatService.calibrateFilter(
             deviceId: cameraId,
-            filter: filterSetting.filterName,
+            filter: filterSetting.label,
             gain: config.gain,
             offset: config.offset,
             targetAdu: targetAdu,
@@ -325,7 +328,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               addAduMeasurement(exposure, adu);
               updateFilterCalibration(idx, exposure, adu);
               setStatusMessage(
-                '${filterSetting.filterName}: Iteration $iteration '
+                '${filterSetting.label}: Iteration $iteration '
                 '(${exposure.toStringAsFixed(2)}s, ADU: ${adu.toStringAsFixed(0)})',
               );
             },
@@ -345,10 +348,10 @@ extension FlatWizardRun on FlatWizardNotifier {
           // exposures. Surface an actionable error.
           updateFilterStatus(idx, FilterCalibrationStatus.failed);
           haltError = calibration.cameraStateUnknown
-              ? '${filterSetting.filterName}: '
+              ? '${filterSetting.label}: '
                     '${calibration.errorMessage ?? "camera state unknown"} — '
                     'run stopped; check the camera.'
-              : '${filterSetting.filterName}: '
+              : '${filterSetting.label}: '
                     '${calibration.errorMessage ?? "exposure timed out"} — '
                     'run stopped.';
           break;
@@ -356,7 +359,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         if (!calibration.success) {
           updateFilterStatus(idx, FilterCalibrationStatus.failed);
           setWarningMessage(
-            '${filterSetting.filterName}: '
+            '${filterSetting.label}: '
             '${calibration.errorMessage ?? "Calibration failed"}',
           );
           continue; // move on to the next filter
@@ -366,7 +369,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         updateFilterStatus(idx, FilterCalibrationStatus.capturing);
 
         var filterSavePath = baseSavePath;
-        if (runSettings.createFilterSubfolders) {
+        if (runSettings.createFilterSubfolders && filterSetting.hasFilter) {
           filterSavePath = paths.join(
             baseSavePath,
             _sanitizeComponent(filterSetting.filterName),
@@ -418,12 +421,12 @@ extension FlatWizardRun on FlatWizardNotifier {
               frameExposure = planned;
             case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
               lightStop = tooDark
-                  ? '${filterSetting.filterName}: the sky is now too dark '
+                  ? '${filterSetting.label}: the sky is now too dark '
                         'for flats — the target needs '
                         '${neededExposure.toStringAsFixed(1)} s, over the '
                         '${maxExp.toStringAsFixed(1)} s maximum exposure. '
                         'Stopped with $savedCount of $frameCount frames.'
-                  : '${filterSetting.filterName}: the sky is now too bright '
+                  : '${filterSetting.label}: the sky is now too bright '
                         'for flats — the target needs '
                         '${neededExposure.toStringAsFixed(3)} s, under the '
                         '${minExp.toStringAsFixed(3)} s minimum exposure. '
@@ -443,7 +446,7 @@ extension FlatWizardRun on FlatWizardNotifier {
 
           setCurrentFrameIndex(frameNum);
           setStatusMessage(
-            '${filterSetting.filterName}: Capturing frame $frameNum/$frameCount',
+            '${filterSetting.label}: Capturing frame $frameNum/$frameCount',
           );
           final frameStart = DateTime.now();
           setExposing(true, startTime: frameStart, duration: frameExposure);
@@ -475,9 +478,9 @@ extension FlatWizardRun on FlatWizardNotifier {
             // operator must check the hardware.
             frameHalted = true;
             haltError = capture.cameraQuiescent
-                ? '${filterSetting.filterName} frame $frameNum timed out — '
+                ? '${filterSetting.label} frame $frameNum timed out — '
                       'run stopped.'
-                : '${filterSetting.filterName} frame $frameNum timed out and '
+                : '${filterSetting.label} frame $frameNum timed out and '
                       'the camera could not be confirmed idle — run stopped; '
                       'check the camera.';
             break;
@@ -487,7 +490,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             // Per-frame error is surfaced, not swallowed. It is NOT counted as
             // a saved frame.
             setWarningMessage(
-              '${filterSetting.filterName} frame $frameNum failed: '
+              '${filterSetting.label} frame $frameNum failed: '
               '${capture.error ?? "capture failed"}',
             );
             continue;
@@ -505,7 +508,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               discarded++;
               discardedInARow++;
               setWarningMessage(
-                '${filterSetting.filterName}: $discarded frame'
+                '${filterSetting.label}: $discarded frame'
                 '${discarded == 1 ? '' : 's'} outside the '
                 '±${tolerance.toStringAsFixed(0)}% band not kept (last '
                 '${frameAdu.round()} ADU at '
@@ -514,7 +517,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               );
               if (discardedInARow >= calibrationAttempts) {
                 lightStop =
-                    '${filterSetting.filterName}: $discardedInARow frames in a '
+                    '${filterSetting.label}: $discardedInARow frames in a '
                     'row landed outside the band — stopped with $savedCount '
                     'of $frameCount frames. Raise "Exposure calibration '
                     'attempts" or widen the tolerance.';
@@ -545,7 +548,7 @@ extension FlatWizardRun on FlatWizardNotifier {
                     binningX: config.binX,
                     binningY: config.binY,
                     frameType: FrameType.flat,
-                    filter: filterSetting.filterName,
+                    filter: filterSetting.filterOrNull,
                   ),
                   targetName: FrameType.flat.imageType,
                 );
@@ -556,7 +559,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               headerData: await manualFrameHeader(
                 ref,
                 frameType: FrameType.flat.imageType,
-                filter: filterSetting.filterName,
+                filter: filterSetting.filterOrNull,
                 exposureTime: frameExposure,
                 startedAtUtc: captureTime,
                 gain: config.gain,
@@ -567,7 +570,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             );
           } catch (e) {
             setWarningMessage(
-              '${filterSetting.filterName} frame $frameNum save failed: $e',
+              '${filterSetting.label} frame $frameNum save failed: $e',
             );
             continue;
           }
@@ -577,7 +580,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           await _recordSavedFlat(
             backend: backend,
             filePath: filePath,
-            filter: filterSetting.filterName,
+            filter: filterSetting,
             exposureSeconds: frameExposure,
             capturedAt: captureTime,
             gain: config.gain,
@@ -610,7 +613,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             backend: backend,
             db: db,
             profileId: profileId,
-            filterName: filterSetting.filterName,
+            filter: filterSetting,
             exposure: calibration.exposure,
             adu: calibration.adu,
             gain: historyGain,
@@ -680,7 +683,7 @@ extension FlatWizardRun on FlatWizardNotifier {
   Future<void> _recordSavedFlat({
     required SkotiqBackend backend,
     required String filePath,
-    required String filter,
+    required FlatFilterSettings filter,
     required double exposureSeconds,
     required DateTime capturedAt,
     required int? gain,
@@ -690,9 +693,9 @@ extension FlatWizardRun on FlatWizardNotifier {
   }) async {
     final output = ref.read(flatRunOutputProvider);
     final existing =
-        output.filters[filter] ??
+        output.filters[filter.label] ??
         FlatRunFilterOutput(
-          filter: filter,
+          filter: filter.label,
           exposureSeconds: exposureSeconds,
           gain: gain,
           offset: offset,
@@ -701,7 +704,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           paths: const [],
         );
     ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
-      filters: {...output.filters, filter: existing.withPath(filePath)},
+      filters: {...output.filters, filter.label: existing.withPath(filePath)},
       remote: output.remote,
     );
     if (ref.read(isRemoteModeProvider)) return;
@@ -712,7 +715,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             filePath: filePath,
             exposureSeconds: exposureSeconds,
             capturedAt: capturedAt,
-            filter: filter,
+            filter: filter.filterOrNull,
             gain: gain,
             offset: offset,
             binX: binX,
@@ -727,8 +730,8 @@ extension FlatWizardRun on FlatWizardNotifier {
         stackTrace: st,
       );
       setWarningMessage(
-        '$filter: frames saved, but they were not added to the calibration '
-        'library ($e).',
+        '${filter.label}: frames saved, but they were not added to the '
+        'calibration library ($e).',
       );
     }
   }
@@ -962,7 +965,7 @@ extension FlatWizardRun on FlatWizardNotifier {
     required SkotiqBackend backend,
     required dynamic db,
     required int? profileId,
-    required String filterName,
+    required FlatFilterSettings filter,
     required double exposure,
     required double adu,
     required int gain,
@@ -985,7 +988,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       final remote = ref.read(linkedHostCalibrationFramesProvider);
       if (remote != null) {
         await remote.recordFlat(
-          filter: filterName,
+          filter: filter.filterName,
           exposureDuration: exposure,
           adu: adu.toInt(),
           histogramTarget: histogramTarget,
@@ -996,7 +999,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         );
       } else {
         await db.flatHistoryDao.recordCalibration(
-          filterName: filterName,
+          filterName: filter.filterName,
           exposureTime: exposure,
           histogramTarget: histogramTarget,
           actualAdu: adu.toInt(),
@@ -1015,13 +1018,13 @@ extension FlatWizardRun on FlatWizardNotifier {
       // this exposure (their frames are still saved).
       Log.warning(
         'FlatWizard: failed to record calibration to flat history for '
-        '$filterName: $e',
+        '${filter.label}: $e',
         source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );
       setWarningMessage(
-        '$filterName: frames saved, but the flat library did not record this '
+        '${filter.label}: frames saved, but the flat library did not record this '
         'calibration ($e).',
       );
     }

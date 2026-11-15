@@ -91,6 +91,22 @@ abstract class FlatFilterSettings with _$FlatFilterSettings {
       _$FlatFilterSettingsFromJson(json);
 }
 
+/// The filter name of a run with nothing in the light path: a camera with no
+/// filter wheel and no filters in its profile still takes flats.
+const String flatNoFilterName = '';
+
+extension FlatFilterIdentity on FlatFilterSettings {
+  /// False for the one row a camera without filters gets.
+  bool get hasFilter => filterName.isNotEmpty;
+
+  /// What the screen and the run's messages call this row.
+  String get label => hasFilter ? filterName : 'No filter';
+
+  /// The filter as a frame's name, header and library entry carry it: absent
+  /// when there is none.
+  String? get filterOrNull => hasFilter ? filterName : null;
+}
+
 enum FilterCalibrationStatus {
   pending,
   calibrating,
