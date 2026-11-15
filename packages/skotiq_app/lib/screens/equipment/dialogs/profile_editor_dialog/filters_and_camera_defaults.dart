@@ -217,10 +217,12 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
             ),
           ),
           const SizedBox(height: _rowGap),
-          SkotiqSwitchRow(
-            label: 'Cool on connect',
-            value: _coolOnConnect,
-            onChanged: (v) => setState(() => _coolOnConnect = v),
+          _EditorSwitchRow(
+            child: SkotiqSwitchRow(
+              label: 'Cool on connect',
+              value: _coolOnConnect,
+              onChanged: (v) => setState(() => _coolOnConnect = v),
+            ),
           ),
           const SizedBox(height: _rowGap),
           _EditorRow(
