@@ -462,7 +462,7 @@ class _AsyncActionButtonState extends State<_AsyncActionButton> {
       await Future<void>.sync(widget.onPressed);
     } catch (_) {
       if (mounted) {
-        context.showInfoSnackBar(widget.failureMessage);
+        context.showErrorSnackBar(widget.failureMessage);
       }
     } finally {
       if (mounted) setState(() => _isRunning = false);

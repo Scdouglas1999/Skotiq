@@ -144,7 +144,10 @@ class NwsCloudProvider {
     double longitude,
   ) async {
     final points = await _getJson(
-      Uri.https('api.weather.gov', '/points/$latitude,$longitude'),
+      Uri.https(
+        'api.weather.gov',
+        '/points/${_gridPrecision(latitude)},${_gridPrecision(longitude)}',
+      ),
     );
     final properties = points['properties'];
     final gridLink = properties is Map ? properties['forecastGridData'] : null;
@@ -311,3 +314,9 @@ class _NwsUnavailable implements Exception {
 
   final String message;
 }
+
+/// [degrees] to the four decimals (about 10 m) NWS takes for a point: its
+/// forecast grid is 2.5 km, so a site sends no more of its position than the
+/// lookup uses.
+String _gridPrecision(double degrees) =>
+    double.parse(degrees.toStringAsFixed(4)).toString();

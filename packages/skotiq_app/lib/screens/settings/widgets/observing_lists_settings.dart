@@ -206,12 +206,15 @@ class _ObservingListManagementCard extends ConsumerWidget {
                               .duplicateList(list.id);
                           if (!context.mounted || host.isStale) return;
                           final state = ref.read(observingListNotifierProvider);
-                          context.showInfoSnackBar(
-                            id == null
-                                ? (state.errorMessage ??
-                                    'Could not duplicate list')
-                                : 'Duplicated "${list.name}"',
-                          );
+                          if (id == null) {
+                            context.showErrorSnackBar(
+                              state.errorMessage ?? 'Could not duplicate list',
+                            );
+                          } else {
+                            context.showInfoSnackBar(
+                              'Duplicated "${list.name}"',
+                            );
+                          }
                         },
                 ),
                 _ActionChip(
@@ -312,7 +315,7 @@ class _ObservingListEditorDialogState
     if (!success) {
       setState(() => _saving = false);
       final state = ref.read(observingListNotifierProvider);
-      context.showInfoSnackBar(state.errorMessage ?? 'Could not save the list');
+      context.showErrorSnackBar(state.errorMessage ?? 'Could not save the list');
       return;
     }
 
@@ -406,7 +409,7 @@ class _DeleteObservingListDialogState
     if (!success) {
       setState(() => _deleting = false);
       final state = ref.read(observingListNotifierProvider);
-      context.showInfoSnackBar(
+      context.showErrorSnackBar(
         state.errorMessage ?? 'Could not delete the list',
       );
       return;

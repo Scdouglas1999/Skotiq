@@ -153,7 +153,11 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
           _rigCatalogs = null;
           _rigCatalogError = null;
         });
-        unawaited(_loadCatalogStatus());
+        // After this notification: the rig's catalogs half the load reads is
+        // rebuilt only once the backend's listeners have run.
+        Future.microtask(() {
+          if (mounted) return _loadCatalogStatus();
+        });
       },
     );
     _loadCatalogStatus();

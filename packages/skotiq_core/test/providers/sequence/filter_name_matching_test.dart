@@ -23,47 +23,51 @@ Sequence _plan(List<SequenceNode> steps) {
 }
 
 void main() {
-  test(
-    'long and short filter names fold together as the wheel matches them',
-    () {
-      expect(canonicalFilterName('Luminance'), 'L');
-      expect(canonicalFilterName('lum'), 'L');
-      expect(canonicalFilterName('H-alpha'), 'HA');
-      expect(canonicalFilterName('Red'), 'R');
-      expect(canonicalFilterName('OIII'), 'OIII');
-    },
-  );
+  Map<String, dynamic> fixture() =>
+      jsonDecode(
+            File('test/fixtures/filter_matching_cases.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
 
-  test('a filter matches the wheel name it means, exact names first', () {
-    const wheel = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
-    expect(matchingFilterName('Lum', wheel), 'L');
-    expect(matchingFilterName('h-alpha', wheel), 'Ha');
-    expect(matchingFilterName('r', wheel), 'R');
-    expect(matchingFilterName('Clear', ['Clear', 'L']), 'Clear');
-    expect(matchingFilterName('UV', wheel), isNull);
+  // The native rule (`device/src/filter_name.rs`) is tested against the same
+  // file.
+  test('a filter name stands for the bands it names', () {
+    final cases = (fixture()['bands'] as List).cast<Map<String, dynamic>>();
+    expect(cases, isNotEmpty);
+    for (final c in cases) {
+      final name = c['name'] as String;
+      expect(
+        filterBands(name).toList()..sort(),
+        (c['bands'] as List).cast<String>(),
+        reason: '"$name"',
+      );
+    }
   });
 
-  // The native wheel picks the slot at run time with `find_filter_match`
-  // (`bridge/src/filter_matching.rs`), whose own test reads the same file.
   test('the matcher gives the slot the native wheel gives', () {
-    final fixture =
-        jsonDecode(
-              File(
-                'test/fixtures/filter_matching_cases.json',
-              ).readAsStringSync(),
-            )
-            as Map<String, dynamic>;
-    final cases = (fixture['cases'] as List).cast<Map<String, dynamic>>();
+    final cases = (fixture()['slots'] as List).cast<Map<String, dynamic>>();
     expect(cases, isNotEmpty);
     for (final c in cases) {
       final names = (c['names'] as List).cast<String>();
       final requested = c['requested'] as String;
+      final reason = '"$requested" in $names';
+      expect(matchingFilterIndex(requested, names), c['index'], reason: reason);
       expect(
-        matchingFilterIndex(requested, names),
-        c['index'],
-        reason: '"$requested" in $names',
+        isAmbiguousFilter(requested, names),
+        c['ambiguous'] ?? false,
+        reason: reason,
       );
     }
+  });
+
+  test('records are the same filter only when they name the same bands', () {
+    expect(sameFilter('Ha', 'Ha 7nm'), isTrue);
+    expect(sameFilter('Lum', 'L'), isTrue);
+    expect(sameFilter('', '  '), isTrue);
+    expect(sameFilter('R', 'UV/IR Cut'), isFalse);
+    expect(sameFilter('L', 'L-Pro'), isFalse);
+    expect(sameFilter('Ha', 'Ha/OIII'), isFalse);
+    expect(sameFilter('', 'L'), isFalse);
   });
 
   test('a snippet filter lands on the profile slot the run would use', () {

@@ -286,8 +286,9 @@ class AppSettingsState {
   final String catalogBaseUrl;
   final bool webServerEnabled;
   final int webServerPort;
-  /// A camera's gain, or a DSLR or mirrorless body's ISO: no camera's gain and
-  /// no body's ISO is above the bound.
+  /// A camera's gain, or a DSLR or mirrorless body's ISO. The connected
+  /// camera's own gain range or ISO list bounds what Equipment settings
+  /// accepts, since bodies differ widely (a Nikon D6 reaches ISO 3,280,000).
   final int defaultGain;
   /// The black-level pedestal, in ADU of a 16-bit frame.
   final int defaultOffset;

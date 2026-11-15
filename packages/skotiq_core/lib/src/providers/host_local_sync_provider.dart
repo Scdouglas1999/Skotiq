@@ -31,10 +31,8 @@ final hostLocalSyncProvider = Provider<void>((ref) {
 
   ref.onDispose(teardown);
 
-  void bindIfNeeded() {
+  void bindIfNeeded(DiagnosticsBackend backend) {
     teardown();
-
-    final backend = ref.read(diagnosticsBackendProvider);
     if (!backend.ownsDeviceBridge) {
       return;
     }
@@ -56,12 +54,14 @@ final hostLocalSyncProvider = Provider<void>((ref) {
     }
   }
 
-  ref.listen<SkotiqBackend>(backendProvider, (_, __) => bindIfNeeded());
+  // The new backend comes from the notification itself: a provider derived
+  // from it still holds the previous one while its listeners run.
+  ref.listen<SkotiqBackend>(backendProvider, (_, next) => bindIfNeeded(next));
   ref.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (_, __) {
-    bindIfNeeded();
+    bindIfNeeded(ref.read(diagnosticsBackendProvider));
   });
 
-  bindIfNeeded();
+  bindIfNeeded(ref.read(diagnosticsBackendProvider));
 });
 
 /// Keeps the host's camera card and exposure countdown on every exposure of
