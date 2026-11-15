@@ -226,6 +226,8 @@ class _CategoryItemState extends State<_CategoryItem> {
           enabled: true,
           button: true,
           selected: selected,
+          hint:
+              widget.opensIn == null ? null : 'Opens in the ${widget.opensIn}',
           child: InkWell(
             onTap: widget.onTap,
             onFocusChange: (value) => setState(() => _isFocused = value),
@@ -271,11 +273,13 @@ class _CategoryItemState extends State<_CategoryItem> {
                   if (widget.opensIn case final screen?)
                     Tooltip(
                       message: 'Opens in the $screen',
+                      // The item states it as its hint; its label stays the
+                      // section's name.
+                      excludeFromSemantics: true,
                       child: Icon(
                         LucideIcons.arrowUpRight,
                         size: _navIconSize,
                         color: colors.textMuted,
-                        semanticLabel: 'opens in the $screen',
                       ),
                     )
                   else if (widget.navigationStep)
