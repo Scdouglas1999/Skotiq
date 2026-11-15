@@ -29,6 +29,8 @@ Future<void> _finishInitialLoad(WidgetTester tester) async {
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(RestoreMode.merge));
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('a completed restore leaves a banner that survives the snackbar',
@@ -42,11 +44,16 @@ void main() {
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();
+
+    when(service.pendingReplace).thenAnswer((_) async => null);
+
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => [backupFile]);
     when(
       () => service.restoreBackup(
         filePath: any(named: 'filePath'),
-        replaceExisting: any(named: 'replaceExisting'),
+        mode: any(named: 'mode'),
+        onProgress: any(named: 'onProgress'),
       ),
     ).thenAnswer(
       (_) async => RestoreResult(
@@ -78,18 +85,19 @@ void main() {
     await tester.tap(find.byTooltip('Restore'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Restore'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Add missing records'));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(find.text('Restart required'), findsOneWidget);
-    expect(find.textContaining('Restored 123 items'), findsOneWidget);
+    expect(find.text('Backup restored'), findsOneWidget);
+    expect(
+        find.textContaining('Added 123 rows from the backup'), findsOneWidget);
 
     // Well past any snackbar's lifetime.
     await tester.pump(const Duration(seconds: 30));
     expect(
-      find.text('Restart required'),
+      find.text('Backup restored'),
       findsOneWidget,
       reason: 'the app is still showing pre-restore state; say so until '
           'the operator acknowledges it',
@@ -97,7 +105,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'Dismiss'));
     await tester.pump();
-    expect(find.text('Restart required'), findsNothing);
+    expect(find.text('Backup restored'), findsNothing);
   });
 
   // The first version of this fix held the notice in the screen's State, so
@@ -112,11 +120,16 @@ void main() {
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();
+
+    when(service.pendingReplace).thenAnswer((_) async => null);
+
+    when(service.replaceOutcome).thenAnswer((_) async => null);
     when(service.listBackups).thenAnswer((_) async => [backupFile]);
     when(
       () => service.restoreBackup(
         filePath: any(named: 'filePath'),
-        replaceExisting: any(named: 'replaceExisting'),
+        mode: any(named: 'mode'),
+        onProgress: any(named: 'onProgress'),
       ),
     ).thenAnswer(
       (_) async => RestoreResult(
@@ -144,11 +157,11 @@ void main() {
     await tester.tap(find.byTooltip('Restore'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Restore'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Add missing records'));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('Restart required'), findsOneWidget);
+    expect(find.text('Backup restored'), findsOneWidget);
 
     // Navigate away: the settings shell swaps the page body, which disposes
     // BackupScreen's State. Same ProviderScope, as in the real app.
@@ -166,7 +179,7 @@ void main() {
     }
 
     await show(const SizedBox.shrink());
-    expect(find.text('Restart required'), findsNothing);
+    expect(find.text('Backup restored'), findsNothing);
 
     await show(const BackupScreen());
     await _finishInitialLoad(tester);
@@ -176,15 +189,15 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Restart required'),
+      find.text('Backup restored'),
       findsOneWidget,
       reason: 'the app is still running on pre-restore state; only Dismiss '
           'may clear the reminder, not walking away from the page',
     );
-    expect(find.textContaining('Restored 7 items'), findsOneWidget);
+    expect(find.textContaining('Added 7 rows from the backup'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'Dismiss'));
     await tester.pump();
-    expect(find.text('Restart required'), findsNothing);
+    expect(find.text('Backup restored'), findsNothing);
   });
 }

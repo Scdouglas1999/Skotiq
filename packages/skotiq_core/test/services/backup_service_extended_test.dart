@@ -14,6 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+
+import 'backup_restore_support.dart';
 import 'package:path/path.dart' as p;
 
 /// Test-only LoggingService that skips native init. The defaults inject
@@ -53,11 +55,8 @@ void main() {
       }
     });
 
-    BackupService serviceFor(SkotiqDatabase db) => BackupService(
-      database: db,
-      sequenceRepository: LocalSequenceRepository(db.sequencesDao),
-      logger: logger,
-    );
+    BackupService serviceFor(SkotiqDatabase db) =>
+        BackupService(database: db, logger: logger);
 
     test(
       'dark_library + notes_journal round-trip through backup/restore',
@@ -199,18 +198,30 @@ void main() {
         ).createBackup(customPath: backupFile.path);
         expect(backupResult.success, isTrue, reason: backupResult.errorMessage);
 
-        // The destination already holds a defaults row, exactly as a fresh
-        // install does — this is what made insert-or-ignore drop the payload.
+        // The safety limits are settings: a merge leaves this install's as
+        // they are.
         final before = await dstDb.weatherSettingsDao.getOrCreateSettings();
         expect(before.maxHumidityPercent, isNot(55));
-
-        final restore = await serviceFor(
+        final merge = await serviceFor(
           dstDb,
         ).restoreBackup(filePath: backupFile.path);
-        expect(restore.success, isTrue, reason: restore.errorMessage);
-        expect(restore.categoryCounts['weather_settings'], 1);
+        expect(merge.success, isTrue, reason: merge.errorMessage);
+        expect(
+          (await dstDb.weatherSettingsDao.getOrCreateSettings())
+              .maxHumidityPercent,
+          before.maxHumidityPercent,
+        );
 
-        final restored = await dstDb.weatherSettingsDao.getOrCreateSettings();
+        // A replace takes the backup's.
+        final replaced = await replacedDatabase(
+          tempDir,
+          backupFile.path,
+          logger,
+          seed: (live) => live.weatherSettingsDao.getOrCreateSettings(),
+        );
+        addTearDown(replaced.close);
+        final restored = await replaced.weatherSettingsDao
+            .getOrCreateSettings();
         expect(restored.weatherSafetyEnabled, isTrue);
         expect(restored.maxHumidityPercent, 55);
         expect(restored.maxWindSpeedKph, 12);
@@ -223,7 +234,7 @@ void main() {
 
         // Still a single configuration row, not a second one carrying the
         // source machine's auto-increment id.
-        final rows = await dstDb.select(dstDb.weatherSettings).get();
+        final rows = await replaced.select(replaced.weatherSettings).get();
         expect(rows, hasLength(1));
       },
     );
@@ -353,16 +364,16 @@ void main() {
         ).createBackup(customPath: backupFile.path);
         expect(backup.success, isTrue, reason: backup.errorMessage);
 
-        final restore = await serviceFor(
-          dstDb,
-        ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
-        expect(restore.success, isTrue, reason: restore.errorMessage);
+        final replaced = await replacedDatabase(
+          tempDir,
+          backupFile.path,
+          logger,
+        );
+        addTearDown(replaced.close);
 
         final profile =
-            (await dstDb.equipmentProfilesDao.getAllProfiles()).single;
-        // Identity is the profile NAME, not the source row id: ids are local
-        // autoincrement values, so re-using the bundle's id drops the row when
-        // restoring into a database that has already handed that id out.
+            (await replaced.equipmentProfilesDao.getAllProfiles()).single;
+        expect(profile.id, 47);
         expect(profile.name, 'Production Rig');
         expect(profile.isDefault, isTrue);
         expect(profile.isActive, isTrue);
@@ -381,7 +392,7 @@ void main() {
     );
 
     test('backup format version is bumped', () {
-      expect(BackupService.backupVersion, '3.0');
+      expect(BackupService.backupVersion, '3.1');
     });
   });
 }
