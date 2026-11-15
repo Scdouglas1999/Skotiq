@@ -1289,6 +1289,11 @@ fn pin_wcs(pins: &mut Pins) {
     );
 }
 
+/// Linux only. Star detection uses the pure-Rust `libm`, so its pins hold on
+/// every glibc; resampling, WCS projection and mosaics still call the system
+/// `sin`/`cos`/`atan2`, whose last bits differ in Apple's and Microsoft's
+/// libraries.
+#[cfg(target_os = "linux")]
 #[test]
 fn outputs_match_the_pinned_digests() {
     let mut pins = Pins(BTreeMap::new());
