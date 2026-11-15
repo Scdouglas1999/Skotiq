@@ -57,7 +57,7 @@ const List<TourStep> _firstLaunchTour = [
     title: 'Set up plate solving',
     description:
         'Plate solving needs ASTAP or Astrometry.net installed. Set it '
-        'up under Settings → Plate Solving. Skotiq auto-detects '
+        'up under Settings > Plate solving. Skotiq auto-detects '
         'standard install paths.',
     target: TourTarget.navSettings,
   ),
@@ -75,7 +75,7 @@ const List<TourStep> _firstLaunchTour = [
     id: 'completion',
     title: "You're set",
     description:
-        'Run the tour again any time from Settings → Help & Tutorials.',
+        'Run the tour again any time from Settings > Help & tutorials.',
   ),
 ];
 

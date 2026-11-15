@@ -45,7 +45,7 @@ class PlateSolverForCenteringRule implements RefAwareSequenceValidator {
             'run would fail immediately.',
         resolutionHint:
             'Install ASTAP (with a star catalog) or astrometry.net, then set '
-            'it up in Settings → Plate solving. Or disable the Center node.',
+            'it up in Settings > Plate solving. Or disable the Center node.',
       ),
     ];
   }

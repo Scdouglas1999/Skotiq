@@ -68,7 +68,7 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
               'discarded. Choose where images should be saved before starting '
               'the sequence.',
           resolutionHint:
-              'Configure an image save location in Settings → File Output.',
+              'Configure an image save location in Settings > Files & storage.',
           code: 'image_output_path_not_configured',
         ),
       ];
@@ -84,7 +84,7 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
           description:
               'Configured image output directory does not exist: $trimmed',
           resolutionHint:
-              'Create the directory or update Settings → File Output to '
+              'Create the directory or update Settings > Files & storage to '
               'point to an existing location.',
           code: 'image_output_path_missing',
         ),
@@ -110,7 +110,7 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
               '$trimmed ($e)',
           resolutionHint:
               'Check filesystem permissions, free disk space, or update '
-              'Settings → File Output to point to a writable directory.',
+              'Settings > Files & storage to point to a writable directory.',
           code: 'image_output_path_not_writable',
         ),
       ];

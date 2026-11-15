@@ -464,7 +464,7 @@ class _OnboardingCaptureDirStepState
         // in the pattern creates directories) but are not the default.
         Text(
           'Every capture is saved here. File names (and any subfolders) come '
-          'from the naming pattern in Settings → Imaging.',
+          'from the naming pattern in Settings > Imaging.',
           style: SkotiqTypography.bodySm.copyWith(
             color: colors.textSecondary,
           ),

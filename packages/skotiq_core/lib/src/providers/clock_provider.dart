@@ -151,7 +151,7 @@ final clockProvider = Provider<Clock>((ref) {
         .warning(
           'Timezone "${settings.timezone}" is not a recognized UTC offset; '
           'falling back to host system time. Choose a "UTC" or "UTC±HH:MM" '
-          'entry in Settings → Location → Timezone.',
+          'entry in Settings > Location → Timezone.',
           source: 'clockProvider',
         );
     return const SystemClock();

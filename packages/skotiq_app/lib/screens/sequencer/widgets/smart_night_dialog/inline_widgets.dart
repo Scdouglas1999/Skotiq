@@ -204,7 +204,7 @@ class _MissingLocationCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'No observer location set. Open Settings → Location and '
+              'No observer location set. Open Settings > Location and '
               'enter your latitude / longitude. Smart Night needs them to '
               'compute the dark window.',
               style: TextStyle(

@@ -58,7 +58,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Get it from the App Store / Play Store and sign in with the same account as your observatory PC.',
     'tailscaleStep2Title': 'Find the rig’s Tailscale address',
     'tailscaleStep2Body':
-        'On the PC, open Settings → Remote Access. Copy the Tailscale MagicDNS name (ends in .ts.net) or the 100.x address shown there.',
+        'On the PC, open Settings > Remote access. Copy the Tailscale MagicDNS name (ends in .ts.net) or the 100.x address shown there.',
     'tailscaleStep3Title': 'Enter it below',
     'tailscaleStep3Body':
         'Paste the address, confirm the port, and connect. Pair with the on-screen code if prompted.',
@@ -512,7 +512,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstLoading': 'Loading your observing site…',
     'statusLstTooltip': 'Local sidereal time at your observing site',
     'statusLstNoSite': 'No observing site set. Sidereal time is unknown. '
-        'Set it in Settings → Location.',
+        'Set it in Settings > Location.',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Plan',
     'plannerTabTonight': 'Best tonight',

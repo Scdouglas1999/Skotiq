@@ -51,7 +51,7 @@ List<dynamic> profilesFromExportDocument(String json) {
   } on FormatException {
     throw const ProfileImportException(
       'That file is not a Skotiq equipment profile. It is not JSON at '
-      'all. Pick a .json file exported from Settings > Equipment Profiles.',
+      'all. Pick a .json file exported from Settings > Equipment profiles.',
     );
   }
 

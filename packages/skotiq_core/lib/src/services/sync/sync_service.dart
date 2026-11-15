@@ -595,7 +595,7 @@ class SyncService {
     if (!config.isConfigured) {
       throw const SyncTargetException(
         'Cloud sync is not configured (set a server URL in '
-        'Settings → Backup & Sync)',
+        'Settings > Backup & restore)',
         kind: SyncTargetErrorKind.unknown,
       );
     }

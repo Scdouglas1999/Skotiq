@@ -56,7 +56,7 @@ class DiskSpaceProjectionRule implements AsyncSequenceValidator {
           description:
               'Could not query free space on the capture directory: $e',
           resolutionHint:
-              'Verify the capture directory in Settings → File Output is valid and accessible.',
+              'Verify the capture directory in Settings > Files & storage is valid and accessible.',
         ),
       ];
     }

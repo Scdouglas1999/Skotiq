@@ -50,7 +50,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
     return const FramingEquipmentResult(
       status: FramingEquipmentStatus.noProfile,
       message:
-          'No equipment profile selected. Create and activate a profile in Settings → Equipment to enable framing.',
+          'No equipment profile selected. Create and activate a profile in Equipment > Profiles to enable framing.',
     );
   }
 

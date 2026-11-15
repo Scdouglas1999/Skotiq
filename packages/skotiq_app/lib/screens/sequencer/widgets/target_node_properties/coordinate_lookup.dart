@@ -207,7 +207,7 @@ class _CoordinateLookupSectionState
             return _message(
               context,
               'No match for "$query" in your target library or installed '
-              'catalogs. Install a catalog from Settings → Catalogs, or '
+              'catalogs. Install a catalog from Settings > Catalogs, or '
               'enter RA/Dec above.',
               isProblem: true,
             );

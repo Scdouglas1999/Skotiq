@@ -96,7 +96,7 @@ class _Step2Params extends StatelessWidget {
             if (horizonProfiles.isEmpty)
               Text(
                 'No horizon profiles defined yet. Manage horizon '
-                'profiles in Settings → Observing site, then return here '
+                'profiles in Settings > Location, then return here '
                 'to attach one.',
                 style: SkotiqTypography.caption.copyWith(color: colors.warning),
               )
@@ -114,7 +114,7 @@ class _Step2Params extends StatelessWidget {
               ),
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
-                'Manage horizon profiles in Settings → Observing site.',
+                'Manage horizon profiles in Settings > Location.',
                 style:
                     SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),

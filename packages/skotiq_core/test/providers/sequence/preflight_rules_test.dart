@@ -422,7 +422,7 @@ void main() {
       final issues = await _withRef(container, (ref) async {
         return rule.validate(s, ValidationContext(ref));
       });
-      expect(issues.any((i) => i.title == 'Low Dark Library Coverage'), isTrue);
+      expect(issues.any((i) => i.title == 'Low dark library coverage'), isTrue);
     });
 
     test('strict mode escalates missing darks to error', () async {

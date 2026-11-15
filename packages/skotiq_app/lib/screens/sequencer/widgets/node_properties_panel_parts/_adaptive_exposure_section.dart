@@ -112,7 +112,7 @@ class _AdaptiveExposureSectionState
             Padding(
               padding: const EdgeInsets.only(top: 6, left: 22),
               child: Text(
-                'Inheriting global default from Settings → Adaptive Exposure.',
+                'Inheriting global default from Settings > Adaptive exposure.',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textMuted),

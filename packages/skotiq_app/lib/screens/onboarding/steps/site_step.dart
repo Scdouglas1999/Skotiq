@@ -355,7 +355,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         case SiteNotFound(:final attempt):
           context.showWarningSnackBar(
             '${attempt.failureMessage} Enter your coordinates below, or skip '
-            'and set the site later in Settings → Location.',
+            'and set the site later in Settings > Location.',
           );
         // Offered like the internet estimate: nothing is stored until the
         // operator presses Use this.
@@ -480,7 +480,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
               Text(
                 'Your site drives Tonight, the planner’s visibility and dark '
                 'windows, meridian-flip timing, and the weather radar. You can '
-                'change it any time in Settings → Location.',
+                'change it any time in Settings > Location.',
                 style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textSecondary,
                 ),

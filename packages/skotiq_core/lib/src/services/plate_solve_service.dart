@@ -305,7 +305,7 @@ class PlateSolveService {
         if (!detection.astapReady) {
           throw const SolverNotAvailableError(
             'ASTAP is selected but its executable or star catalog is not '
-            'configured. Configure it in Settings → Plate Solving.',
+            'configured. Configure it in Settings > Plate solving.',
           );
         }
         return;
@@ -313,15 +313,15 @@ class PlateSolveService {
         if (detection.astrometryPath == null) {
           throw const SolverNotAvailableError(
             'Astrometry.net is selected but not installed. Configure it in '
-            'Settings → Plate Solving.',
+            'Settings > Plate solving.',
           );
         }
         return;
       case ps_model.PlateSolverChoice.auto:
         if (!detection.hasAnySolver) {
           throw const SolverNotAvailableError(
-            'No usable plate solver configured. Set one up in Settings → Plate '
-            'Solving.',
+            'No usable plate solver configured. Set one up in Settings > Plate '
+            'solving.',
           );
         }
         return;
