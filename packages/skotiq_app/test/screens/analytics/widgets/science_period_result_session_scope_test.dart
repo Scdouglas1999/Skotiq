@@ -166,7 +166,7 @@ void main() {
     // The session picker at the top of the tab — the production control.
     // Fixed pumps, not pumpAndSettle: the tab hosts continuously animating
     // chart widgets, so the frame queue never drains.
-    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.tap(find.byType(SkotiqDropdown));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

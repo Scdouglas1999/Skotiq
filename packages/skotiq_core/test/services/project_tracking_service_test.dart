@@ -126,6 +126,39 @@ void main() {
     expect(progress.isTracked, isFalse);
   });
 
+  test('nights are counted noon to noon over every light, as the Darkroom '
+      'counts them', () {
+    // Local times: two sessions on the evening of Jan 5 (one past midnight),
+    // one on Jan 7; a rejected light still marks a night the target was
+    // imaged, a dark does not.
+    final progress = service
+        .summarize(
+          targets: [_target(1, 'M42')],
+          sessions: [_session(11), _session(12), _session(13)],
+          frames: [
+            _frame(1, sessionId: 11, at: DateTime(2026, 1, 5, 21)),
+            _frame(2, sessionId: 12, at: DateTime(2026, 1, 6, 2, 30)),
+            _frame(
+              3,
+              sessionId: 13,
+              at: DateTime(2026, 1, 7, 22),
+              accepted: false,
+            ),
+            _frame(
+              4,
+              sessionId: 13,
+              frameType: 'dark',
+              at: DateTime(2026, 1, 9, 22),
+            ),
+          ],
+          goals: const [],
+        )
+        .single;
+
+    expect(progress.sessionCount, 3);
+    expect(progress.nightCount, 2);
+  });
+
   test('a target with no frames and no goal is listed with nothing', () {
     final progress = service
         .summarize(
@@ -136,6 +169,7 @@ void main() {
         )
         .single;
     expect(progress.sessionCount, 0);
+    expect(progress.nightCount, 0);
     expect(progress.integratedSecs, 0);
     expect(progress.filters, isEmpty);
     expect(progress.lastImagedAt, isNull);

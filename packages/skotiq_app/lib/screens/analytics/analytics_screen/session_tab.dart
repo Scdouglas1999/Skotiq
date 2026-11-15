@@ -236,11 +236,13 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                 // With sessions on record the picker stays: the tab has
                 // something to offer, it just isn't the quick-capture bucket.
                 if (allSessions.isNotEmpty) ...[
-                  _SessionReviewBar(
-                    sessions: allSessions,
-                    selectedId: reviewSelectionId,
-                    offerQuickCaptures: offerQuickCaptures,
-                    onSelected: _pick,
+                  SkotiqPanel(
+                    child: AnalyticsSessionPicker(
+                      sessions: allSessions,
+                      selectedId: reviewSelectionId,
+                      offerQuickCaptures: offerQuickCaptures,
+                      onSelected: _pick,
+                    ),
                   ),
                   const SizedBox(height: SkotiqTokens.space2xl),
                 ],
@@ -298,13 +300,12 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (showPicker)
-                _SessionReviewBar(
+                AnalyticsSessionPicker(
                   sessions: allSessions,
                   selectedId: reviewSelectionId,
                   offerQuickCaptures: offerQuickCaptures,
-                  framed: false,
                   onSelected: _pick,
-                  onClear:
+                  onMostRecent:
                       _selectedSessionId == null ? null : () => _pick(null),
                 )
               else ...[
@@ -518,114 +519,3 @@ String? _formatAnalyticsIntegration(double seconds) =>
     !seconds.isFinite || seconds <= 0
         ? null
         : DurationFormat.seconds(seconds, style: DurationStyle.short);
-
-class _SessionReviewBar extends StatelessWidget {
-  final List<ImagingSession> sessions;
-  final int? selectedId;
-
-  /// Whether to list [kQuickCaptureSessionSelection] — the frames shot outside
-  /// any session. Diagnostics has always offered it; leaving it off the other
-  /// two pickers is what made the quick captures a one-way door.
-  final bool offerQuickCaptures;
-  final ValueChanged<int?> onSelected;
-  final VoidCallback? onClear;
-
-  /// False when the bar sits inside the session panel, which is already the
-  /// frame around it.
-  final bool framed;
-
-  const _SessionReviewBar({
-    required this.sessions,
-    required this.selectedId,
-    required this.onSelected,
-    this.offerQuickCaptures = false,
-    this.onClear,
-    this.framed = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final hasSelection =
-        (offerQuickCaptures && selectedId == kQuickCaptureSessionSelection) ||
-            sessions.any((s) => s.id == selectedId);
-
-    // A labelled control, so it is a FormRow (05 §8): the label sits to the
-    // LEFT of the field, not above it and not as a sentence beside it. The
-    // container is a panel, not the deprecated `surfaceAlt` box it was.
-    final row = Row(
-      children: [
-        Expanded(
-          child: FormRow(
-            label: 'Reviewing',
-            child: DropdownButtonHideUnderline(
-              child: AccessibleDropdown<int>(
-                value: hasSelection ? selectedId : null,
-                isExpanded: true,
-                isDense: true,
-                dropdownColor: colors.surfaceElevated,
-                borderRadius: SkotiqTokens.borderRadiusMd,
-                hint: Text(
-                  'Quick captures (no session selected)',
-                  style:
-                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
-                ),
-                style:
-                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
-                onChanged: onSelected,
-                items: [
-                  // First, and named exactly as Diagnostics names it: an
-                  // operator who learns the entry on one tab finds it on all.
-                  if (offerQuickCaptures)
-                    DropdownMenuItem<int>(
-                      value: kQuickCaptureSessionSelection,
-                      child: Text(
-                        kQuickCaptureSessionLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: SkotiqTypography.bodySm
-                            .copyWith(color: colors.textPrimary),
-                      ),
-                    ),
-                  for (final session in sessions.take(60))
-                    DropdownMenuItem<int>(
-                      value: session.id,
-                      child: Text(
-                        '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${ClockFormat.monthDayYearHm(session.startTime.toLocal())}'
-                        // Every capture, not the frames kept: the row's
-                        // `successful_exposures` ignores the auto-grader, and
-                        // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).
-                        '  ·  ${session.totalExposures} exposures',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: SkotiqTypography.bodySm
-                            .copyWith(color: colors.textPrimary),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (onClear != null) ...[
-          const SizedBox(width: SkotiqTokens.spaceSm),
-          SkotiqButton(
-            label: 'Most recent',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-            onPressed: onClear,
-          ),
-        ],
-      ],
-    );
-    if (!framed) return row;
-    return SkotiqPanel(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceMd,
-        vertical: SkotiqTokens.spaceMd,
-      ),
-      child: row,
-    );
-  }
-}

@@ -73,7 +73,7 @@ class SessionPicker<T> extends StatelessWidget {
 
   /// The widest the field grows: enough for a name, a date and a count on one
   /// line, and no wider, so it does not stretch across a wide page.
-  static const double maxFieldWidth = 480;
+  static const double maxFieldWidth = 560;
 
   @override
   Widget build(BuildContext context) {

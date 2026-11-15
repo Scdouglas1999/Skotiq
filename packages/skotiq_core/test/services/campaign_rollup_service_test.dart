@@ -100,6 +100,33 @@ void main() {
       );
     }
 
+    test('counts the nights of the lights, not the sessions', () async {
+      final targetId = await createTarget('NGC 891');
+      // Two runs on the evening of Nov 3 (the second past midnight) and one
+      // on Nov 5: three sessions, two observing nights.
+      for (final start in [
+        DateTime(2026, 11, 3, 20),
+        DateTime(2026, 11, 4, 1),
+        DateTime(2026, 11, 5, 21),
+      ]) {
+        final session = await insertSession(
+          targetId: targetId,
+          name: 'Run',
+          startTime: start,
+        );
+        await insertLight(
+          sessionId: session,
+          targetId: targetId,
+          filter: 'L',
+          capturedAt: start.add(const Duration(minutes: 5)),
+        );
+      }
+
+      final rollup = await service.buildForTarget(targetId);
+      expect(rollup.sessionCount, 3);
+      expect(rollup.nightCount, 2);
+    });
+
     test('aggregates per-filter integration across multiple sessions', () async {
       final targetId = await createTarget('M42');
 

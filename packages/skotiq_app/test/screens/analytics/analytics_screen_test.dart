@@ -315,7 +315,6 @@ void main() {
 /// Reads the live [AdaptiveTabBar.selectedIndex] from the pumped tree. The tab
 /// bar is the single source of truth for which Analytics tab is active.
 int _selectedAdaptiveTabIndex(WidgetTester tester) {
-  // The page header's bar is the first; Science has a tab row of its own.
-  final bar = tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar).first);
+  final bar = tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar));
   return bar.selectedIndex;
 }

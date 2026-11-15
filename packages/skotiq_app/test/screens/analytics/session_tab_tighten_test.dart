@@ -79,7 +79,7 @@ void main() {
       for (var i = 1; i <= 3; i++) _frame(i, accepted: false),
     ]);
 
-    final reviewing = find.text('Reviewing');
+    final reviewing = find.byType(SessionPicker<int>);
     expect(reviewing, findsOneWidget);
     final sessionPanel = find.ancestor(
       of: find.text('SESSION'),

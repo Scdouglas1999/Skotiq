@@ -9,7 +9,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/accessible_dropdown.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
 import 'package:skotiq_core/database.dart';
@@ -62,17 +61,21 @@ Widget _app(AnalyticsTab tab) => ProviderScope(
       ),
     );
 
-/// The picker inside the review bar carrying [label] ("Reviewing" on Session,
-/// "Analyzing" on Science) — never any other dropdown on the screen.
-Finder _pickerUnder(String label) => find.descendant(
-      of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first,
-      matching: find.byType(AccessibleDropdown<int>),
-    );
+/// The session picker on the tab on screen. Session and Science share the
+/// one picker, so there is never a second one to confuse it with.
+Finder get _picker => find.byType(SessionPicker<int>);
 
-/// What the Session tab is reviewing: the picker IS the session panel's title,
-/// so its value is what the tab is showing.
+/// Opens the picker's list.
+Future<void> _openPicker(WidgetTester tester) async {
+  await tester.tap(
+    find.descendant(of: _picker, matching: find.byType(SkotiqDropdown)),
+  );
+  await _pumpFrames(tester);
+}
+
+/// What the tab is reviewing: the picker's value is what the tab shows.
 int? _reviewing(WidgetTester tester) =>
-    tester.widget<AccessibleDropdown<int>>(_pickerUnder('Reviewing')).value;
+    tester.widget<SessionPicker<int>>(_picker).value;
 
 /// Advance frames without `pumpAndSettle`: the Analytics IndexedStack keeps a
 /// shimmer skeleton animating on a sibling tab, so settling never completes.
@@ -106,8 +109,7 @@ void main() {
     expect(_reviewing(tester), 1);
     expect(find.text('37'), findsNothing);
 
-    await tester.tap(_pickerUnder('Reviewing'));
-    await _pumpFrames(tester);
+    await _openPicker(tester);
 
     expect(
       find.text(kQuickCaptureSessionLabel),
@@ -135,8 +137,7 @@ void main() {
   testWidgets('the Session choice survives a rebuild', (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.session));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(_pickerUnder('Reviewing'));
-    await _pumpFrames(tester);
+    await _openPicker(tester);
     await tester.tap(find.text(kQuickCaptureSessionLabel).last);
     await _pumpFrames(tester);
 
@@ -146,13 +147,12 @@ void main() {
     expect(_reviewing(tester), kQuickCaptureSessionSelection);
   });
 
-  testWidgets('Science offers the same entry under its own label',
+  testWidgets('Science offers the same entry',
       (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.science));
     await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.tap(_pickerUnder('Analyzing'));
-    await _pumpFrames(tester);
+    await _openPicker(tester);
 
     expect(
       find.text(kQuickCaptureSessionLabel),

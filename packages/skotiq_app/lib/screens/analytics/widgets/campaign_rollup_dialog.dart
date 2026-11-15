@@ -33,53 +33,29 @@ class CampaignRollupDialog extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final rollupAsync = ref.watch(campaignRollupProvider(targetId));
 
-    return Dialog(
-      backgroundColor: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        side: BorderSide(color: colors.border),
-      ),
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 720,
-          designMaxHeight: 760,
+    final name = rollupAsync.valueOrNull?.targetName;
+    return SkotiqDialog(
+      title: name == null ? 'Target history' : '$name history',
+      width: SkotiqDialog.widthForm,
+      actions: [
+        SkotiqButton(
+          label: 'Close',
+          variant: ButtonVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        child: rollupAsync.when(
-          data: (rollup) => _Body(rollup: rollup, colors: colors),
-          loading: () => const AdaptiveChartContainer.fixed(
-            height: 200,
-            child: Center(
-              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-            ),
+      ],
+      child: rollupAsync.when(
+        data: (rollup) => _Body(rollup: rollup, colors: colors),
+        loading: () => const AdaptiveChartContainer.fixed(
+          height: 200,
+          child: Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
           ),
-          error: (err, _) => Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.alertTriangle, size: 32, color: colors.error),
-                const SizedBox(height: 12),
-                Text(
-                  'Could not build campaign rollup',
-                  style: SkotiqTypography.bodyStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  userFacingError(err),
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.textMuted),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
-              ],
-            ),
-          ),
+        ),
+        error: (err, _) => EmptyState.error(
+          title: 'The history did not load',
+          body: userFacingError(err),
+          onRetry: () => ref.invalidate(campaignRollupProvider(targetId)),
         ),
       ),
     );
@@ -113,191 +89,126 @@ class _Body extends StatelessWidget {
     // service's `?? 0.0` turns "nothing to measure" into a measured 0%.
     final hasClosedSession = rollup.sessions
         .any((s) => s.endTime != null && s.sessionIntegrationSecs > 0);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.border)),
-          ),
-          child: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              Icon(LucideIcons.target, size: 22, color: colors.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Campaign Rollup',
-                      style: SkotiqTypography.sectionTitle.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      rollup.targetName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: SkotiqTypography.bodySm
-                          .copyWith(color: colors.textMuted),
-                    ),
-                  ],
-                ),
+              _SummaryTile(
+                label: 'Nights',
+                value: '${rollup.nightCount}',
+                colors: colors,
               ),
-              SkotiqIconButton(
-                icon: LucideIcons.x,
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
+              _SummaryTile(
+                label: 'Integration (accepted)',
+                value: DurationFormat.decimalHours(acceptedSecs),
+                colors: colors,
+              ),
+              // Only shown when the two disagree, i.e. when frames were
+              // rejected or have not been graded — otherwise it would
+              // repeat the tile beside it.
+              if (capturedSecs - acceptedSecs > 1)
+                _SummaryTile(
+                  label: 'Integration (captured)',
+                  value: DurationFormat.decimalHours(capturedSecs),
+                  colors: colors,
+                ),
+              _SummaryTile(
+                label: 'First session',
+                value: _formatDate(rollup.firstSessionAt),
+                colors: colors,
+              ),
+              _SummaryTile(
+                label: 'Last session',
+                value: _formatDate(rollup.lastSessionAt),
+                colors: colors,
+              ),
+              // Named for their population too: these come from each
+              // session's own avg_hfr / avg_seeing columns, which count
+              // every frame the session took, not the accepted subset the
+              // integration tile and the per-filter table describe.
+              _SummaryTile(
+                label: 'Mean HFR (session avg)',
+                value: rollup.meanSessionHfr?.toStringAsFixed(2) ??
+                    kReadoutUnknown,
+                colors: colors,
+              ),
+              _SummaryTile(
+                label: 'Mean seeing (session avg)',
+                value: rollup.meanSessionSeeing != null
+                    ? '${rollup.meanSessionSeeing!.toStringAsFixed(2)}"'
+                    : kReadoutUnknown,
+                colors: colors,
+              ),
+              _SummaryTile(
+                label: 'Effective imaging',
+                value: hasClosedSession
+                    ? '${(rollup.meanEffectiveImagingFraction * 100).toStringAsFixed(1)}%'
+                    : kReadoutUnknown,
+                colors: colors,
               ),
             ],
           ),
-        ),
-        Flexible(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    _SummaryTile(
-                      label: 'Sessions',
-                      value: '${rollup.sessionCount}',
-                      colors: colors,
-                    ),
-                    _SummaryTile(
-                      label: 'Integration (accepted)',
-                      value: DurationFormat.decimalHours(acceptedSecs),
-                      colors: colors,
-                    ),
-                    // Only shown when the two disagree, i.e. when frames were
-                    // rejected or have not been graded — otherwise it would
-                    // repeat the tile beside it.
-                    if (capturedSecs - acceptedSecs > 1)
-                      _SummaryTile(
-                        label: 'Integration (captured)',
-                        value: DurationFormat.decimalHours(capturedSecs),
-                        colors: colors,
-                      ),
-                    _SummaryTile(
-                      label: 'First session',
-                      value: _formatDate(rollup.firstSessionAt),
-                      colors: colors,
-                    ),
-                    _SummaryTile(
-                      label: 'Last session',
-                      value: _formatDate(rollup.lastSessionAt),
-                      colors: colors,
-                    ),
-                    // Named for their population too: these come from each
-                    // session's own avg_hfr / avg_seeing columns, which count
-                    // every frame the session took, not the accepted subset the
-                    // integration tile and the per-filter table describe.
-                    _SummaryTile(
-                      label: 'Mean HFR (session avg)',
-                      value: rollup.meanSessionHfr?.toStringAsFixed(2) ??
-                          kReadoutUnknown,
-                      colors: colors,
-                    ),
-                    _SummaryTile(
-                      label: 'Mean seeing (session avg)',
-                      value: rollup.meanSessionSeeing != null
-                          ? '${rollup.meanSessionSeeing!.toStringAsFixed(2)}"'
-                          : kReadoutUnknown,
-                      colors: colors,
-                    ),
-                    _SummaryTile(
-                      label: 'Effective imaging',
-                      value: hasClosedSession
-                          ? '${(rollup.meanEffectiveImagingFraction * 100).toStringAsFixed(1)}%'
-                          : kReadoutUnknown,
-                      colors: colors,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (totalPct != null) ...[
-                  _OverallProgress(
-                    pct: totalPct,
-                    captured: rollup.goalDoneSecs,
-                    goal: rollup.totalGoalIntegrationSecs ?? 0,
-                    allFilters: rollup.allFiltersGoalSecs != null,
-                    colors: colors,
-                    isComplete: rollup.isComplete,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _SectionTitle(
-                  title: 'Per-filter progress',
-                  icon: LucideIcons.layers,
-                  colors: colors,
-                ),
-                if (rollup.filters.isEmpty)
-                  Text(
-                    capturedSecs > 0
-                        // The table counts accepted frames, so "no frames
-                        // captured" would be false for a target whose whole
-                        // night was rejected in the grader.
-                        ? 'No accepted frames yet — '
-                            '${DurationFormat.decimalHours(capturedSecs)} captured across '
-                            '${rollup.sessionCount} '
-                            '${rollup.sessionCount == 1 ? 'session' : 'sessions'}'
-                            ' was rejected or has not been graded.'
-                        : 'No frames captured for this target yet.',
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textMuted),
-                  )
-                else
-                  for (final f in rollup.filters)
-                    _FilterRow(filter: f, colors: colors),
-                const SizedBox(height: 16),
-                _SectionTitle(
-                  title: 'Sessions',
-                  icon: LucideIcons.history,
-                  colors: colors,
-                ),
-                if (rollup.sessions.isEmpty)
-                  Text(
-                    'No sessions recorded for this target.',
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textMuted),
-                  )
-                else
-                  for (final s in rollup.sessions)
-                    _SessionRow(
-                      session: s,
-                      colors: colors,
-                      onOpenReport: () =>
-                          SessionReportDialog.show(context, s.sessionId),
-                      formatDateTime: _formatDateTime,
-                    ),
-              ],
+          const SizedBox(height: 16),
+          if (totalPct != null) ...[
+            _OverallProgress(
+              pct: totalPct,
+              captured: rollup.goalDoneSecs,
+              goal: rollup.totalGoalIntegrationSecs ?? 0,
+              allFilters: rollup.allFiltersGoalSecs != null,
+              colors: colors,
+              isComplete: rollup.isComplete,
             ),
+            const SizedBox(height: 16),
+          ],
+          _SectionTitle(
+            title: 'Per-filter progress',
+            icon: LucideIcons.layers,
+            colors: colors,
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: colors.border)),
+          if (rollup.filters.isEmpty)
+            Text(
+              capturedSecs > 0
+                  // The table counts accepted frames, so "no frames
+                  // captured" would be false for a target whose whole
+                  // night was rejected in the grader.
+                  ? 'No accepted frames yet — '
+                      '${DurationFormat.decimalHours(capturedSecs)} captured across '
+                      '${rollup.nightCount} '
+                      '${rollup.nightCount == 1 ? 'night' : 'nights'}'
+                      ' was rejected or has not been graded.'
+                  : 'No frames captured for this target yet.',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            )
+          else
+            for (final f in rollup.filters)
+              _FilterRow(filter: f, colors: colors),
+          const SizedBox(height: 16),
+          _SectionTitle(
+            title: 'Sessions',
+            icon: LucideIcons.history,
+            colors: colors,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Close',
-                  style: SkotiqTypography.body
-                      .copyWith(color: colors.textSecondary),
-                ),
+          if (rollup.sessions.isEmpty)
+            Text(
+              'No sessions recorded for this target.',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            )
+          else
+            for (final s in rollup.sessions)
+              _SessionRow(
+                session: s,
+                colors: colors,
+                onOpenReport: () =>
+                    SessionReportDialog.show(context, s.sessionId),
+                formatDateTime: _formatDateTime,
               ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -319,7 +230,7 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: colors.primary),
+          Icon(icon, size: 14, color: colors.textMuted),
           const SizedBox(width: 8),
           Text(
             title,
@@ -351,11 +262,7 @@ class _SummaryTile extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 140),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.well,
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-          border: Border.all(color: colors.border),
-        ),
+        decoration: SkotiqDecorations.well(colors),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -396,12 +303,8 @@ class _OverallProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final remaining = goal - captured;
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.well,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.border),
-      ),
+      padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
+      decoration: SkotiqDecorations.well(colors),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -462,12 +365,9 @@ class _FilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = filter.percentComplete;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.border),
+        border: Border(bottom: BorderSide(color: colors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,12 +466,10 @@ class _SessionRow extends StatelessWidget {
             onTap: onOpenReport,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
               decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-                border: Border.all(color: colors.border),
+                border: Border(bottom: BorderSide(color: colors.border)),
               ),
               child: Row(
                 children: [

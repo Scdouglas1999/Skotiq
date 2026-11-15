@@ -229,7 +229,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      expect(find.text('Optical Health'), findsOneWidget);
+      expect(find.text('Optical health'), findsOneWidget);
       expect(
         find.textContaining('Lower scores are better.'),
         findsOneWidget,

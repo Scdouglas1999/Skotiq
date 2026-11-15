@@ -23,13 +23,13 @@ class _MovingObjectCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Moving Object Candidates',
+                  'Moving object candidates',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: colors.textPrimary),
                 ),
               ),
               if (hubExportButton != null) hubExportButton!,
-              const _ScienceInfoButton(title: 'Moving Object Candidates'),
+              const _ScienceInfoButton(title: 'Moving object candidates'),
             ],
           ),
           const SizedBox(height: 8),
@@ -148,7 +148,7 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
             children: [
               Expanded(
                 child: Text(
-                  'Narrowband Ratios',
+                  'Narrowband ratios',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: widget.colors.textPrimary),
                 ),
@@ -176,10 +176,10 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
               label: narrowbandEnabled == null
                   ? 'Science settings unavailable'
                   : !narrowbandEnabled
-                      ? 'Enable Narrowband Ratios in Settings'
+                      ? 'Turn on narrowband ratios in Settings'
                       : _isGenerating
                           ? 'Generating...'
-                          : 'Generate From Session Frames',
+                          : 'Generate from session frames',
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
             ),

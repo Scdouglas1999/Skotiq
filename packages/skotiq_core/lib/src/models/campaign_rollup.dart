@@ -145,6 +145,10 @@ class CampaignRollup {
   /// the "most recent" session is first — matches how the UI lists them.
   final List<CampaignSessionRef> sessions;
 
+  /// Observing nights the target's light frames were taken on, counted as
+  /// the Darkroom counts them (`observingNightCount`).
+  final int nightCount;
+
   /// Per-filter rollup, sorted alphabetically by filter for stable display.
   final List<CampaignFilterRollup> filters;
 
@@ -187,6 +191,7 @@ class CampaignRollup {
     required this.targetId,
     required this.targetName,
     required this.sessions,
+    required this.nightCount,
     required this.filters,
     required this.firstSessionAt,
     required this.lastSessionAt,
@@ -242,6 +247,7 @@ class CampaignRollup {
     'targetId': targetId,
     'targetName': targetName,
     'sessionCount': sessionCount,
+    'nightCount': nightCount,
     'sessions': sessions.map((s) => s.toJson()).toList(),
     'filters': filters.map((f) => f.toJson()).toList(),
     'firstSessionAt': firstSessionAt?.toIso8601String(),

@@ -200,7 +200,7 @@ class _TargetTotal extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rollup =
         ref.watch(campaignRollupByNameProvider(targetName)).valueOrNull;
-    if (rollup == null || rollup.sessionCount <= 1) {
+    if (rollup == null || rollup.nightCount <= 1) {
       return const SizedBox.shrink();
     }
     return Padding(
@@ -211,7 +211,7 @@ class _TargetTotal extends ConsumerWidget {
       child: Text(
         '$targetName has '
         '${DurationFormat.decimalHours(rollup.totalCapturedIntegrationSecs)} '
-        'over ${rollup.sessionCount} sessions.',
+        'over ${rollup.nightCount} nights.',
         style: SkotiqTypography.bodySm.copyWith(
           color: SkotiqColors.of(context).textSecondary,
         ),
