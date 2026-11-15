@@ -384,8 +384,8 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
 /// The one search field: a 32px [SkotiqTextField] with a leading search glyph
 /// and a clear button that appears once there is text.
 ///
-/// Every list toolbar uses this, so a search box is the same height as the
-/// filter chips and fields beside it on every screen.
+/// Every list toolbar uses this, so a search box is the same height on every
+/// screen. It fills the width it is given: a toolbar gives it 240 to 360.
 class SkotiqSearchField extends StatefulWidget {
   const SkotiqSearchField({
     super.key,
