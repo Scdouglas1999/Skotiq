@@ -91,8 +91,8 @@ class _TargetDetail extends ConsumerWidget {
                             : 'Goal',
                       ),
                     Readout(
-                      value: '${progress.sessionCount}',
-                      label: progress.sessionCount == 1 ? 'Session' : 'Sessions',
+                      value: '${progress.nightCount}',
+                      label: progress.nightCount == 1 ? 'Night' : 'Nights',
                     ),
                     Readout(
                       value: '${progress.acceptedFrames}',

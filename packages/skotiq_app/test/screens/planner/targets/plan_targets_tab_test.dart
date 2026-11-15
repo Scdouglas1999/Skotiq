@@ -155,6 +155,12 @@ void main() {
 
     expect(row.integratedSecs, darkroom.keptSeconds);
     expect(row.integratedSecs, 638 * 180);
+    // Nights, as the Darkroom counts them, not sessions.
+    expect(darkroom.nights.length, greaterThan(1));
+    expect(row.progress.nightCount, darkroom.nights.length);
+    // The detail open beside the list labels its count as nights.
+    expect(find.textContaining(RegExp(r'^NIGHTS?$')), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^SESSIONS?$')), findsNothing);
     // Listed and, as the first row, opened beside the list.
     expect(find.text('31.9h · no goal'), findsOneWidget);
     expect(find.textContaining('0s / 0s'), findsNothing);

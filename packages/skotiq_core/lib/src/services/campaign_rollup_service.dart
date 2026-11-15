@@ -184,6 +184,7 @@ class CampaignRollupService {
       targetId: target.id,
       targetName: target.name,
       sessions: sessionRefs,
+      nightCount: observingNightCount(lightFrames),
       filters: filters,
       firstSessionAt: firstAt,
       lastSessionAt: lastAt,

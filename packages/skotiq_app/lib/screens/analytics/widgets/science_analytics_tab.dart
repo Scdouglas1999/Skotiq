@@ -254,7 +254,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         .firstWhere((s) => s?.id == activeSessionId, orElse: () => null);
     final campaignTargetId = activeSession?.targetId;
     var campaignLightCurve = const <LightCurvePoint>[];
-    var campaignSessionCount = 0;
     if (campaignTargetId != null) {
       // Same object as the single-night curve above, or the campaign strip
       // would report "no data" for the very star the night below it plots.
@@ -266,9 +265,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             const [],
         filter: lightCurveFilter,
       );
-      campaignSessionCount = allSessions
-          .where((session) => session.targetId == campaignTargetId)
-          .length;
     }
 
     final latestPsfTiles = _latestPsfSnapshot(psfTiles);
@@ -637,7 +633,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             colors: colors,
             lightCurve: lightCurve,
             campaignLightCurve: campaignLightCurve,
-            campaignSessionCount: campaignSessionCount,
           ),
           const SizedBox(height: 24),
           KeyedSubtree(

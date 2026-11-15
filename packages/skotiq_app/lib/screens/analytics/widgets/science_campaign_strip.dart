@@ -61,8 +61,8 @@ class ScienceCampaignStrip extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${rollup.sessions.length} session'
-                        '${rollup.sessions.length == 1 ? "" : "s"}'
+                        '${rollup.nightCount} night'
+                        '${rollup.nightCount == 1 ? "" : "s"}'
                         '${primary != null ? " · ${primary.filter}" : ""}'
                         '${primary != null ? " · ${primary.capturedFrames} frames" : ""}'
                         '${pctLabel != null ? " · $pctLabel of goal" : ""}',

@@ -164,8 +164,8 @@ class _Body extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     _SummaryTile(
-                      label: 'Sessions',
-                      value: '${rollup.sessionCount}',
+                      label: 'Nights',
+                      value: '${rollup.nightCount}',
                       colors: colors,
                     ),
                     _SummaryTile(
@@ -243,8 +243,8 @@ class _Body extends StatelessWidget {
                         // night was rejected in the grader.
                         ? 'No accepted frames yet — '
                             '${DurationFormat.decimalHours(capturedSecs)} captured across '
-                            '${rollup.sessionCount} '
-                            '${rollup.sessionCount == 1 ? 'session' : 'sessions'}'
+                            '${rollup.nightCount} '
+                            '${rollup.nightCount == 1 ? 'night' : 'nights'}'
                             ' was rejected or has not been graded.'
                         : 'No frames captured for this target yet.',
                     style: SkotiqTypography.bodySm

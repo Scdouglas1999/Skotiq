@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -71,15 +72,11 @@ class PeriodAnalysisPanel extends ConsumerStatefulWidget {
   /// to measure a period, so this is the series that usually matters.
   final List<LightCurvePoint> campaignLightCurve;
 
-  /// Number of sessions [campaignLightCurve] spans, for the scope labels.
-  final int campaignSessionCount;
-
   const PeriodAnalysisPanel({
     super.key,
     required this.colors,
     required this.lightCurve,
     this.campaignLightCurve = const [],
-    this.campaignSessionCount = 0,
   });
 
   @override
@@ -106,8 +103,15 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           ? widget.campaignLightCurve
           : widget.lightCurve;
 
+  /// Observing nights [PeriodAnalysisPanel.campaignLightCurve] spans, counted
+  /// noon to noon as the Darkroom counts a target's nights.
+  int get _campaignNights => {
+        for (final point in widget.campaignLightCurve)
+          observingNightOf(point.timestamp),
+      }.length;
+
   bool get _campaignAvailable =>
-      widget.campaignSessionCount > 1 &&
+      _campaignNights > 1 &&
       widget.campaignLightCurve.length > widget.lightCurve.length;
 
   @override
@@ -215,7 +219,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
   /// campaign because a single night's baseline is shorter than nearly every
   /// period worth searching for, which forces an unconstrained result.
   Widget _buildScopeSelector(SkotiqColors colors) {
-    final campaignNights = widget.campaignSessionCount;
+    final campaignNights = _campaignNights;
     Widget chip(
         String label, String detail, bool selected, VoidCallback onTap) {
       return Expanded(
@@ -275,7 +279,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
         const SizedBox(width: SkotiqTokens.spaceSm),
         chip(
           'All nights',
-          '${widget.campaignLightCurve.length} points · $campaignNights sessions',
+          '${widget.campaignLightCurve.length} points · $campaignNights nights',
           _useCampaignScope,
           () => setState(() => _useCampaignScope = true),
         ),
