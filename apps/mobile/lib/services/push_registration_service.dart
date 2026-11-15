@@ -52,7 +52,8 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_remote_protocol/wire.dart' show PushApi;
+import 'package:skotiq_remote_protocol/wire.dart'
+    show LinkVersion, PushApi, skotiqRelease;
 import 'package:skotiq_core/services.dart';
 
 /// Registers this device's push token (APNs on iOS, FCM on Android) with a
@@ -279,6 +280,7 @@ class PushRegistrationService {
             uri,
             headers: {
               'Content-Type': 'application/json',
+              LinkVersion.header: skotiqRelease,
               if (target.authToken != null && target.authToken!.isNotEmpty)
                 'Authorization': 'Bearer ${target.authToken}',
             },
