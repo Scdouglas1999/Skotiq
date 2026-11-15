@@ -337,6 +337,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       );
     }
     if (allEmpty) {
+      final nothingCaptured = activeSessionId == null && lightFrames.isEmpty;
       // P0.2 + P0.3: even when no science products exist yet, show the live
       // pipeline status and the solve-rate card so users can see *why*
       // products are missing (queue idle, plate solver not configured, etc.)
@@ -359,25 +360,29 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             // restart.
             ScienceStatusBanner(storedFrameCount: lightFrames.length),
             const SizedBox(height: SkotiqTokens.spaceLg),
-            ScienceSolveRateCard(
-              colors: colors,
-              lightFrames: lightFrames,
-            ),
-            const SizedBox(height: SkotiqTokens.spaceLg),
-            // The night's narrative is not a science product, so `allEmpty`
-            // must not hide it. The operator this branch exists for — imaged
-            // all night, no plate solver, therefore no photometry, no PSF
-            // tiles, no calibrations — was exactly the operator whose narrator
-            // feed was suppressed, along with every detail sheet reachable from
-            // it. It renders its own empty state when there is nothing to tell.
-            _SectionHeading(
-              colors: colors,
-              label: 'NIGHT STORY',
-              icon: LucideIcons.bookOpen,
-            ),
-            const SizedBox(height: 12),
-            NightStoryTimeline(sessionId: activeSessionId),
-            const SizedBox(height: SkotiqTokens.spaceLg),
+            // With no session and no frame there is no solving and no night
+            // to report on; the guide and the onramp below are the page.
+            if (!nothingCaptured) ...[
+              ScienceSolveRateCard(
+                colors: colors,
+                lightFrames: lightFrames,
+              ),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+              // The night's narrative is not a science product, so `allEmpty`
+              // must not hide it. The operator this branch exists for — imaged
+              // all night, no plate solver, therefore no photometry, no PSF
+              // tiles, no calibrations — was exactly the operator whose narrator
+              // feed was suppressed, along with every detail sheet reachable from
+              // it. It renders its own empty state when there is nothing to tell.
+              _SectionHeading(
+                colors: colors,
+                label: 'NIGHT STORY',
+                icon: LucideIcons.bookOpen,
+              ),
+              const SizedBox(height: 12),
+              NightStoryTimeline(sessionId: activeSessionId),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+            ],
             KeyedSubtree(
               key: _sectionKeys.ladder,
               child: ScienceLadderCard(

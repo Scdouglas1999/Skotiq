@@ -145,4 +145,67 @@ void main() {
     await tester.pumpAndSettle();
     expect(photometryAttempts, 2);
   });
+
+  testWidgets('with nothing captured the page is the guide, not empty panels',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          allSessionsProvider.overrideWith(
+            (ref) => Stream.value(const <ImagingSession>[]),
+          ),
+          sessionlessPhotometryProvider.overrideWith(
+            (ref) => Stream.value(const <PhotometryMeasurementRow>[]),
+          ),
+          sessionlessTransparencySamplesProvider.overrideWith(
+            (ref) => Stream.value(const <TransparencySampleRow>[]),
+          ),
+          sessionlessCalibrationsProvider.overrideWith(
+            (ref) => Stream.value(const <FramePhotometricCalibrationRow>[]),
+          ),
+          sessionlessPsfTilesProvider.overrideWith(
+            (ref) => Stream.value(const <PsfFieldTileRow>[]),
+          ),
+          sessionlessResidualVectorsProvider.overrideWith(
+            (ref) => Stream.value(const <AstrometryResidualVectorRow>[]),
+          ),
+          sessionlessMovingObjectCandidatesProvider.overrideWith(
+            (ref) => Stream.value(const <MovingObjectCandidateRow>[]),
+          ),
+          sessionlessLineRatioProductsProvider.overrideWith(
+            (ref) => Stream.value(const <LineRatioProductRow>[]),
+          ),
+          sessionlessFrameQualityMetricsProvider.overrideWith(
+            (ref) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
+          ),
+          sessionlessTileMetricsProvider.overrideWith(
+            (ref) => Stream.value(const <ScienceTileMetricRow>[]),
+          ),
+          standaloneImagesProvider.overrideWith(
+            (ref) => Stream.value(const <DbCapturedImage>[]),
+          ),
+          sciencePhotometrySelectionProvider.overrideWith(
+            _SelectionNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: ScienceAnalyticsTab()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('SCIENCE GUIDE'), findsOneWidget);
+    expect(find.text('Plate solve health'), findsNothing);
+    expect(find.text('NIGHT STORY'), findsNothing);
+  });
 }
