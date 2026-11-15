@@ -29,6 +29,7 @@ export 'src/components/brand/brand.dart';
 export 'src/components/skotiq_button.dart';
 export 'src/components/skotiq_card.dart';
 export 'src/components/skotiq_dropdown.dart';
+export 'src/components/session_picker.dart';
 export 'src/components/skotiq_text_field.dart';
 export 'src/components/skotiq_checkbox.dart';
 export 'src/components/skotiq_chip.dart';
