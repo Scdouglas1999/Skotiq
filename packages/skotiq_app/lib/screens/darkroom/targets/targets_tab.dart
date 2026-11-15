@@ -88,8 +88,38 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
         target: selected,
       );
     }
+    final detail = selected == null
+        ? Center(
+            child: EmptyState(
+              icon: SkotiqIcons.searchEmpty,
+              title: 'No lights for $wanted',
+              body: 'This host has no captured lights listed under that name.',
+            ),
+          )
+        : DarkroomTargetDetail(
+            key: ValueKey('darkroom_target_${selected.key}'),
+            target: selected,
+          );
     return LayoutBuilder(
       builder: (context, constraints) {
+        // On a phone the list is the screen, and a target opens over it.
+        if (!BreakpointTokens.isAtLeastDesktop(constraints.maxWidth)) {
+          if (wanted == null) {
+            return _TargetList(
+              targets: list,
+              selectedKey: null,
+              query: _query,
+              onQuery: (q) => setState(() => _query = q),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _BackToTargets(),
+              Expanded(child: detail),
+            ],
+          );
+        }
         final listWidth =
             constraints.maxWidth < _narrowWidth ? _listWidthNarrow : _listWidth;
         return Row(
@@ -109,24 +139,37 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
               thickness: 1,
               color: context.skotiqColors.border,
             ),
-            Expanded(
-              child: selected == null
-                  ? Center(
-                      child: EmptyState(
-                        icon: SkotiqIcons.searchEmpty,
-                        title: 'No lights for $wanted',
-                        body: 'This host has no captured lights listed under '
-                            'that name.',
-                      ),
-                    )
-                  : DarkroomTargetDetail(
-                      key: ValueKey('darkroom_target_${selected.key}'),
-                      target: selected,
-                    ),
-            ),
+            Expanded(child: detail),
           ],
         );
       },
+    );
+  }
+}
+
+/// The phone detail's way back to the list.
+class _BackToTargets extends StatelessWidget {
+  const _BackToTargets();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        SkotiqTokens.spaceSm,
+        SkotiqTokens.spaceSm,
+        SkotiqTokens.spaceSm,
+        0,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SkotiqButton(
+          key: const ValueKey('darkroom_back_to_targets'),
+          label: 'All targets',
+          icon: SkotiqIcons.arrowLeft,
+          variant: ButtonVariant.ghost,
+          onPressed: () => context.go(darkroomTabLocation(DarkroomTab.targets)),
+        ),
+      ),
     );
   }
 }
@@ -165,10 +208,8 @@ class _TargetList extends ConsumerWidget {
             SkotiqTokens.spaceLg,
             SkotiqTokens.spaceSm,
           ),
-          child: SkotiqTextField(
+          child: SkotiqSearchField(
             hint: 'Search targets',
-            prefixIcon: SkotiqIcons.search,
-            dense: true,
             onChanged: onQuery,
           ),
         ),

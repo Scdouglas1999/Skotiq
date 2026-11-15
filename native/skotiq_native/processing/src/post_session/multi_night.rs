@@ -395,6 +395,15 @@ struct MasterCache {
     flats: HashMap<String, Arc<FlatMaster>>,
 }
 
+/// A sub named in a master's HISTORY by its file name: the master travels
+/// without the folders, and the full path would carry the user's name with it.
+fn file_name(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+}
+
 fn present(path: &Option<String>) -> Option<&str> {
     path.as_deref().map(str::trim).filter(|p| !p.is_empty())
 }
@@ -1294,13 +1303,14 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     }
     header.add_history(&format!(
         "Registered onto {}",
-        args.grid_reference.path.trim()
+        file_name(args.grid_reference.path.trim())
     ));
-    header.add_history(&format!("Normalized to {normalization_path}"));
+    header.add_history(&format!("Normalized to {}", file_name(&normalization_path)));
     if let Some(fallback) = &normalization_fallback {
         header.add_history(&format!(
             "Requested normalization reference {} not used: {}",
-            fallback.requested, fallback.reason
+            file_name(&fallback.requested),
+            fallback.reason
         ));
     }
     header.add_history(&format!(

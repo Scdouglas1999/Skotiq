@@ -827,12 +827,36 @@ fn date_obs_is_the_exposure_start_not_the_readout_time() {
     let header = FrameHeader::from_frame_context(&ctx);
 
     assert_eq!(
-        header.capture_timestamp, "2026-08-01T14:04:37",
+        header.capture_timestamp, "2026-08-01T14:04:37.000",
         "DATE-OBS must be the start of the exposure"
     );
     assert!(
         !header.capture_timestamp.starts_with("2026-08-01T14:05"),
         "DATE-OBS must not be the readout time (start + EXPTIME)"
+    );
+}
+
+/// DATE-OBS and DATE-END keep the start's milliseconds; DATE-END is the start
+/// plus the exposure that happened, and MJD-OBS is the same start.
+#[test]
+fn date_obs_and_date_end_keep_the_milliseconds_of_the_start() {
+    let started = chrono::DateTime::parse_from_rfc3339("2026-11-15T14:45:30.437Z")
+        .expect("valid instant")
+        .with_timezone(&chrono::Utc);
+    let mut ctx =
+        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 5.0, 1);
+    ctx.exposure_started_at = Some(started);
+    ctx.duration_secs = 5.012;
+
+    let fits = FrameHeader::from_frame_context(&ctx).fits_header();
+
+    assert_eq!(fits.get_string("DATE-OBS"), Some("2026-11-15T14:45:30.437"));
+    assert_eq!(fits.get_string("DATE-END"), Some("2026-11-15T14:45:35.449"));
+    let mjd = fits.get_float("MJD-OBS").expect("MJD-OBS");
+    let seconds_into_day = (mjd - mjd.floor()) * 86_400.0;
+    assert!(
+        (seconds_into_day - (14.0 * 3600.0 + 45.0 * 60.0 + 30.437)).abs() < 0.001,
+        "{seconds_into_day}"
     );
 }
 

@@ -628,6 +628,7 @@ pub(crate) async fn run_sequencer_event_loop(
                         *status,
                         message.as_deref(),
                         result_json.as_deref(),
+                        true,
                     );
                     None
                 }

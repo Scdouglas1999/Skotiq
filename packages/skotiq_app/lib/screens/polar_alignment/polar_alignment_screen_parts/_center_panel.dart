@@ -1,90 +1,73 @@
 part of '../polar_alignment_screen.dart';
 
 extension _CenterPanel on _PolarAlignmentScreenState {
-  /// The idle guide: any unmet prerequisite, then the setup checklist.
+  /// The idle guide: the first unmet prerequisite, then the setup checklist.
   ///
   /// It heads the settings column rather than filling a centre column of its
   /// own. As a centre column it was a 560px card floating over an empty band,
   /// beside a settings column that was empty below its three groups, and its
   /// "set the options on the left" step pointed across the screen at them.
   Widget _buildIdleGuide(SkotiqColors colors) {
-    final detectionAsync = ref.watch(plateSolverDetectionProvider);
-    final preferenceAsync = ref.watch(plateSolverPreferenceProvider);
-    final showSolverBanner = detectionAsync.valueOrNull != null &&
-        preferenceAsync.valueOrNull != null &&
-        !detectionAsync.valueOrNull!
-            .supports(preferenceAsync.valueOrNull!.choice);
-
-    // The az/alt decomposition of a polar-axis error is a function of site
-    // latitude, and with no site set the observer falls back to 0°N 0°E — the
-    // corrections would be for an observer on the equator. Disclose it on the
-    // idle screen alongside the solver prerequisite; _startAlignment refuses
-    // outright.
-    final settingsLoaded = ref.watch(appSettingsProvider).hasValue;
-    final showSiteBanner =
-        settingsLoaded && ref.watch(appObserverLocationProvider) == null;
-
-    // One banner per problem (05 §11): the solver and the site already have
-    // theirs, so the shared blocker banner carries only what is left.
-    final otherBlockers = _startBlockers()
-        .where((b) =>
-            !b.contains('plate solver') && !b.contains('observing location'))
-        .toList();
-
-    const bannerGap = SizedBox(height: SkotiqTokens.spaceSm);
-
+    final first = _startBlockers().firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ONE banner, the kit's (05 §11). It was a bespoke warning card with
-        // its own heading, paragraph and a filled button — three surfaces
-        // for one problem.
-        if (showSolverBanner) ...[
-          SkotiqBanner(
-            tone: BannerTone.warning,
-            title: 'Plate solver not configured.',
-            message: 'Polar alignment plate-solves each capture to '
-                'measure mount error.',
-            action: SkotiqButton(
-              label: 'Set up plate solver',
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () => context.push(AppRoute.plateSolvingSettings.path),
-            ),
-          ),
-          bannerGap,
-        ],
-        // A disabled Start explains itself on HOVER, which is no explanation
-        // to the operator who clicked it. The blockers that have no banner of
-        // their own are stated here, where they are already looking.
-        if (otherBlockers.isNotEmpty) ...[
-          SkotiqBanner(
+        // One banner, for the prerequisite to fix first (05 §11). The header
+        // primary's tooltip lists them all; fixing this one brings up the next.
+        if (first != null) ...[
+          KeyedSubtree(
             key: startBlockedNoticeKey,
-            tone: BannerTone.warning,
-            title: 'Cannot start yet.',
-            message: otherBlockers.join(' · '),
+            child: _startBlockerBanner(first),
           ),
-          bannerGap,
-        ],
-        if (showSiteBanner) ...[
-          SkotiqBanner(
-            tone: BannerTone.warning,
-            title: 'No observing location set.',
-            message: 'Polar error is measured relative to your site latitude.',
-            action: SkotiqButton(
-              label: 'Set a location',
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () =>
-                  openSettings(context, SettingsSectionId.location),
-            ),
-          ),
-          bannerGap,
+          const SizedBox(height: SkotiqTokens.spaceSm),
         ],
         _buildSetupInstructions(colors),
       ],
     );
+  }
+
+  Widget _startBlockerBanner(_StartBlocker blocker) {
+    switch (blocker.kind) {
+      case _StartBlockerKind.solver:
+        return const PlateSolverRequiredBanner(
+          contextMessage: 'Polar alignment plate-solves each capture to '
+              'measure mount error.',
+        );
+      case _StartBlockerKind.site:
+        return SkotiqBanner(
+          tone: BannerTone.warning,
+          title: 'No observing location set.',
+          message: 'Polar error is measured relative to your site latitude.',
+          action: SkotiqButton(
+            label: 'Set a location',
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            onPressed: () => openSettings(context, SettingsSectionId.location),
+          ),
+        );
+      case _StartBlockerKind.rig:
+        return SkotiqBanner(
+          tone: BannerTone.warning,
+          title: 'Cannot start yet.',
+          message: blocker.reason,
+          action: SkotiqButton(
+            label: 'Open Equipment',
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            onPressed: () => context.go(AppRoute.equipment.path),
+          ),
+        );
+      case _StartBlockerKind.parked:
+      case _StartBlockerKind.checking:
+        return SkotiqBanner(
+          tone: blocker.kind == _StartBlockerKind.parked
+              ? BannerTone.warning
+              : BannerTone.info,
+          title: 'Cannot start yet.',
+          message: blocker.reason,
+        );
+    }
   }
 
   /// The finished run's summary, complete or failed. A run in progress has

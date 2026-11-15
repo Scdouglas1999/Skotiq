@@ -70,7 +70,7 @@ void main() {
       (tester) async {
     await _pumpNotice(tester, fov: 1.2);
 
-    expect(find.text('Chart is shallower than the sky'), findsOneWidget);
+    expect(find.textContaining('Chart is shallower than the sky'), findsOneWidget);
     expect(
       find.textContaining('magnitude 9.0'),
       findsOneWidget,
@@ -90,26 +90,26 @@ void main() {
     );
   });
 
-  // The alert lays its action out in a Row beside the message, so a longer
+  // The banner lays its action out beside the message, so a longer
   // label eats the message column and the block grows tall enough to cover the
   // chart it annotates. Budgets: 225 px at the 460 px slot cap, 393 px in a
   // 360 px phone chart.
   testWidgets('the honest label does not cost the message its column',
       (tester) async {
     await _pumpNotice(tester, fov: 1.2, chartWidth: 484);
-    expect(tester.getSize(find.byType(SkotiqAlert)).height, lessThan(250));
+    expect(tester.getSize(find.byType(SkotiqBanner)).height, lessThan(250));
   });
 
   testWidgets('...nor in a phone-width chart', (tester) async {
     await _pumpNotice(tester, fov: 1.2, chartWidth: 360);
-    expect(tester.getSize(find.byType(SkotiqAlert)).height, lessThan(400));
+    expect(tester.getSize(find.byType(SkotiqBanner)).height, lessThan(400));
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('a wide field says nothing', (tester) async {
     await _pumpNotice(tester, fov: 40.0);
 
-    expect(find.text('Chart is shallower than the sky'), findsNothing);
+    expect(find.textContaining('Chart is shallower than the sky'), findsNothing);
   });
 
   testWidgets('with the tier installed but off, it offers to turn it on',
@@ -120,7 +120,7 @@ void main() {
       manifest: _installed(),
     );
 
-    expect(find.text('Chart is shallower than the sky'), findsOneWidget);
+    expect(find.textContaining('Chart is shallower than the sky'), findsOneWidget);
     expect(find.text('Enable'), findsOneWidget);
 
     await tester.tap(find.text('Enable'));
@@ -138,13 +138,13 @@ void main() {
       deepStarsOn: true,
     );
 
-    expect(find.text('Chart is shallower than the sky'), findsNothing);
+    expect(find.textContaining('Chart is shallower than the sky'), findsNothing);
   });
 
   testWidgets('the louder "no catalog at all" banner is not doubled up',
       (tester) async {
     await _pumpNotice(tester, fov: 1.2, hygMissing: true);
 
-    expect(find.text('Chart is shallower than the sky'), findsNothing);
+    expect(find.textContaining('Chart is shallower than the sky'), findsNothing);
   });
 }

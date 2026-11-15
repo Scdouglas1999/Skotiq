@@ -51,6 +51,7 @@ class MobileEventNotifier {
   final Map<String, DateTime> _lastPushSeen = <String, DateTime>{};
 
   final ConnectingDevices _connecting = ConnectingDevices();
+  final GuideStarEpisodes _guideStar = GuideStarEpisodes();
 
   static const Duration _repeatWindow = Duration(seconds: 5);
   static const Duration _pushDedupeWindow = Duration(seconds: 10);
@@ -111,6 +112,11 @@ class MobileEventNotifier {
       // Followed for every event: a device's `Connecting` decides whether
       // its later `Error` is a failed connect or a lost device.
       final failedConnect = _connecting.isFailedConnect(event);
+      final guideStar = _guideStar.observe(event);
+      if (guideStar != null) {
+        await _notifyCategory(guideStar);
+        return;
+      }
       switch (event.category) {
         case EventCategory.job:
           await _handleJob(event);
@@ -157,6 +163,11 @@ class MobileEventNotifier {
         _preferences.notifyGuiding,
         _repeatWindow,
         () => sink.notifyGuidingLost(body),
+      ),
+      NotificationCategory.guidingRecovered => (
+        _preferences.notifyGuiding,
+        _repeatWindow,
+        () => sink.notifyGuidingRecovered(body),
       ),
       NotificationCategory.exposureFailed => (
         _preferences.notifyExposureFailed,
@@ -222,7 +233,6 @@ class MobileEventNotifier {
       NotificationCategory.problemNoticed ||
       NotificationCategory.recoveryStarted ||
       NotificationCategory.recoveryRecovered ||
-      NotificationCategory.guidingRecovered ||
       NotificationCategory.weatherSafeAgain ||
       NotificationCategory.cloudArriving ||
       NotificationCategory.cloudOpening ||
@@ -260,8 +270,8 @@ class MobileEventNotifier {
   ///
   /// Failure routing is keyed off the job's `operation` field — see
   /// `apps/desktop/lib/headless_api/handlers/*.dart` for the canonical
-  /// list. We surface plate-solve, center-on-target, polar-alignment, and
-  /// autofocus failures. Any other operation falls through and is logged
+  /// list. We surface plate-solve, center-on-target and polar-alignment
+  /// failures. Any other operation falls through and is logged
   /// loudly (per the no-silent-fallback rule) but not surfaced —
   /// so when a new long-running job is added server-side, the logs will
   /// reveal the gap.
@@ -286,12 +296,12 @@ class MobileEventNotifier {
     if (_pushAlreadyCovered(event.eventType)) return;
 
     switch (operation) {
+      // Every autofocus sweep publishes its outcome, which
+      // [NotificationEventClassifier] tells; the job's end would tell it
+      // twice.
       case 'focuser.autofocus':
       case 'focuser.autofocus.start':
-        if (!_preferences.notifyAutofocusFailed) return;
-        await _notifications.notifyAutofocusFailed();
-        _markFired(key);
-        break;
+        return;
       case 'plate-solve':
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyPlateSolveFailed(errorMessage);

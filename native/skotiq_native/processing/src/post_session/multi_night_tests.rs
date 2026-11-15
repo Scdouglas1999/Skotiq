@@ -192,6 +192,12 @@ fn a_build_folds_every_night_and_reports_what_it_skipped() {
     // not the L grid's.
     let sky = median(image.as_f32().unwrap().iter().map(|v| *v as f64).collect());
     assert!((sky - 400.0).abs() < 25.0, "master sky {sky}");
+    // A shared master names its references by file, not by the folders on
+    // this computer.
+    let history = header.history.join("\n");
+    assert!(history.contains("Registered onto L_ref.fits"), "{history}");
+    assert!(history.contains("Normalized to R_ref.fits"), "{history}");
+    assert!(!history.contains(&*dir.to_string_lossy()), "{history}");
 }
 
 #[test]

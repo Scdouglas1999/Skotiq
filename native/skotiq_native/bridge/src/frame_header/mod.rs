@@ -15,6 +15,10 @@ use skotiq_imaging::{
 };
 use skotiq_sequencer::scheduling::{DefectMapCorrectionRecord, FrameContext};
 
+/// How `DATE-OBS` and `DATE-END` are written: UTC with no zone, as FITS
+/// writes dates, to the millisecond.
+const DATE_OBS_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3f";
+
 /// What is known about one frame when it is written to disk.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct FrameHeader {
@@ -113,12 +117,13 @@ impl FrameHeader {
         Self {
             object_name: ctx.target_name.clone(),
             exposure_time: ctx.duration_secs,
-            // DATE-OBS is the start of the exposure; the clock (which runs
-            // after readout here) only when the capture recorded no start.
+            // DATE-OBS is the start of the exposure, to the millisecond; the
+            // clock (which runs after readout here) only when the capture
+            // recorded no start.
             capture_timestamp: ctx
                 .exposure_started_at
                 .unwrap_or_else(chrono::Utc::now)
-                .format("%Y-%m-%dT%H:%M:%S")
+                .format(DATE_OBS_FORMAT)
                 .to_string(),
             frame_type: ctx.frame_type.clone(),
             filter: ctx.filter_name.clone(),
@@ -474,7 +479,7 @@ fn set_exposure_time_keywords(
     };
     if exposure_secs.is_finite() && exposure_secs >= 0.0 {
         let end = start + chrono::Duration::milliseconds((exposure_secs * 1000.0).round() as i64);
-        header.set_string("DATE-END", &end.format("%Y-%m-%dT%H:%M:%S%.3f").to_string());
+        header.set_string("DATE-END", &end.format(DATE_OBS_FORMAT).to_string());
     }
     if with_mjd {
         // MJD 0 is 1858-11-17T00:00:00 UTC.

@@ -12,6 +12,7 @@ import 'headless/headless_auth_config.dart';
 import 'headless/headless_shutdown.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
+import 'launch_arguments.dart';
 import 'startup_timeline.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -133,6 +134,11 @@ const _headlessLogSource = 'HeadlessMain';
 void main(List<String> args) async {
   startupTimeline.mark('headless main');
   WidgetsFlutterBinding.ensureInitialized();
+  await answerLaunchArguments(
+    args,
+    LaunchMode.headless,
+    version: loadDesktopAppVersion,
+  );
 
   // Operator-facing stdout banner. The LoggingService isn't bootable yet
   // (no ProviderContainer), so write directly to stdout. Once the logger

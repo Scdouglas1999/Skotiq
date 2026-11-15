@@ -991,6 +991,11 @@ async fn solve_ladder(
     hint_scale: Option<f64>,
     downsample: Option<u32>,
 ) -> Result<PlateSolveResult, SkotiqError> {
+    // Without a solver every rung fails the same way at once; the answer is
+    // that there is none, not a list of searches that never ran.
+    if !skotiq_platesolve::is_solver_available() {
+        return Ok(empty_solve_result(skotiq_platesolve::NO_SOLVER_GUIDANCE));
+    }
     let total = f64::from(validate_solver_timeout(timeout_secs)?);
     let budget = split_solve_budget(total, hint.is_some());
     let watchdog = Duration::from_secs_f64(total + SOLVE_WATCHDOG_MARGIN_SECS);
@@ -1995,13 +2000,12 @@ mod solve_ladder_tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    /// A frame that no rung solved has to say what was tried. "Plate solve
-    /// failed" against a stale hint is what made the operator report that
-    /// solving was broken.
+    /// With no solver installed nothing is tried, so the answer says there is
+    /// no solver instead of listing searches that never ran.
     #[tokio::test]
-    async fn a_frame_no_rung_solves_names_every_rung_it_tried() {
-        // No solver is installed in the test environment, so every rung fails
-        // immediately — which is exactly the path this message is for.
+    async fn a_frame_with_no_solver_installed_names_no_search() {
+        // The test environment has no solver installed.
+        assert!(!skotiq_platesolve::is_solver_available());
         let path =
             std::env::temp_dir().join(format!("sk-ladder-message-{}.fits", std::process::id()));
         std::fs::write(&path, b"not a real frame").expect("scratch file");
@@ -2021,11 +2025,10 @@ mod solve_ladder_tests {
         .expect("a failed solve is a result, not an error");
 
         assert!(!result.success);
-        let error = result.error.expect("a failure must explain itself");
-        assert!(error.contains("5° around the hint"), "{error}");
-        assert!(error.contains("30° around the hint"), "{error}");
-        assert!(error.contains("a blind solve"), "{error}");
-        assert!(error.contains("341.84"), "{error}");
+        assert_eq!(
+            result.error.as_deref(),
+            Some(skotiq_platesolve::NO_SOLVER_GUIDANCE)
+        );
 
         let _ = std::fs::remove_file(&path);
     }

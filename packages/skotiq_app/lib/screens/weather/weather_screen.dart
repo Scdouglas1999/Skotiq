@@ -159,6 +159,13 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
     final settingsFailed =
         settingsAsync.hasError || weatherSettingsAsync.hasError;
 
+    // Neither the radar nor the forecast answered: the map would be an empty
+    // basemap under a HUD of dashes, so the body says so instead.
+    final noSource = !weatherStatus.isLoading &&
+        !cloudCoverAsync.isLoading &&
+        radarFrames.isEmpty &&
+        cloudCoverAsync.valueOrNull == null;
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Scaffold(
@@ -181,6 +188,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                 showFetchFailure: !settingsLoading &&
                     !settingsFailed &&
                     hasLocation &&
+                    !noSource &&
                     weatherStatus.errorMessage != null,
                 autoParkStranded: weatherSettings.autoParkEnabled &&
                     !safetyState.autoParkArmed &&
@@ -196,19 +204,22 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                         ? _SettingsUnavailableBody(
                             onRetry: () => ref.invalidate(appSettingsProvider),
                           )
-                        : hasLocation
-                            ? _buildRadarBody(
-                                latitude: latitude,
-                                longitude: longitude,
-                                alertRadiusKm: alertRadiusKm,
-                                radarFrames: radarFrames,
-                                motion: motion,
-                                alert: alert,
-                                weatherStatus: weatherStatus,
-                                cloudCoverPercent: cloudCoverAsync.valueOrNull,
-                                radarSource: radarSource,
-                              )
-                            : const _NoLocationBody(),
+                        : !hasLocation
+                            ? const _NoLocationBody()
+                            : noSource
+                                ? _NoSourceBody(onRetry: _refreshWeatherData)
+                                : _buildRadarBody(
+                                    latitude: latitude,
+                                    longitude: longitude,
+                                    alertRadiusKm: alertRadiusKm,
+                                    radarFrames: radarFrames,
+                                    motion: motion,
+                                    alert: alert,
+                                    weatherStatus: weatherStatus,
+                                    cloudCoverPercent:
+                                        cloudCoverAsync.valueOrNull,
+                                    radarSource: radarSource,
+                                  ),
               ),
             ],
           ),

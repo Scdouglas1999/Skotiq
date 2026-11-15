@@ -18,6 +18,8 @@ pub enum DeviceKind {
     CoverCalibrator,
     /// A safety monitor, or the weather station that stands in for one.
     SafetyMonitor,
+    /// The plate solver program (ASTAP or astrometry.net).
+    PlateSolver,
 }
 
 impl fmt::Display for DeviceKind {
@@ -32,6 +34,7 @@ impl fmt::Display for DeviceKind {
             Self::Dome => "dome",
             Self::CoverCalibrator => "cover calibrator",
             Self::SafetyMonitor => "safety monitor",
+            Self::PlateSolver => "plate solver",
         })
     }
 }
@@ -85,6 +88,8 @@ pub enum DeviceError {
 pub const IMAGE_VALIDATION_FAILED_PREFIX: &str = "Image validation failed: ";
 
 const NO_GUIDER_CONFIGURED: &str = "No active guider configured";
+const NO_PLATE_SOLVER_INSTALLED: &str =
+    "No plate solver is installed (ASTAP or astrometry.net), so frames are not plate solved";
 const NO_SAFETY_DEVICE_CONFIGURED: &str =
     "No safety monitor or weather device configured for sequencer safety checks";
 
@@ -92,6 +97,7 @@ fn not_configured_text(device: DeviceKind) -> String {
     match device {
         DeviceKind::Guider => NO_GUIDER_CONFIGURED.to_string(),
         DeviceKind::SafetyMonitor => NO_SAFETY_DEVICE_CONFIGURED.to_string(),
+        DeviceKind::PlateSolver => NO_PLATE_SOLVER_INSTALLED.to_string(),
         other => format!("No {other} configured"),
     }
 }
@@ -100,6 +106,11 @@ impl DeviceError {
     /// The rig has no guider.
     pub const NO_GUIDER: Self = Self::NotConfigured {
         device: DeviceKind::Guider,
+    };
+
+    /// No plate solver program is installed on this computer.
+    pub const NO_PLATE_SOLVER: Self = Self::NotConfigured {
+        device: DeviceKind::PlateSolver,
     };
 
     /// The rig has no safety monitor or weather device.

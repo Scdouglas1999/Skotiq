@@ -69,6 +69,7 @@ final List<RefAwareSequenceValidator> defaultRefAwareSequenceValidators =
       // Something else may already own the mount.
       AutopilotArmedRule(),
       EquipmentConnectionRule(),
+      DitherWithoutGuiderRule(),
       // The executor refuses a centring sequence with no solver; say so first.
       PlateSolverForCenteringRule(),
       PlateSolveFocalLengthRule(),

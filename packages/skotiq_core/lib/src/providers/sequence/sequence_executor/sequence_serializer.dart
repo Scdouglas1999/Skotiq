@@ -20,6 +20,7 @@ import '../../focuser_backlash_provider.dart'
     show measuredFocuserBacklashStepsProvider;
 import '../../meridian_flip_provider.dart';
 import '../../settings_provider.dart';
+import '../exposure_dither.dart';
 import '../sequencer_defaults.dart';
 import '../../../settings/app_settings_state.g.dart';
 
@@ -411,11 +412,7 @@ class SequenceSerializer {
       case ExposureNode n:
         final defaults = _ref.read(sequencerDefaultsProvider);
         final appSettings = _ref.read(appSettingsProvider).valueOrNull;
-        final ditherEvery =
-            n.ditherEvery ??
-            ((appSettings?.ditherEnabled ?? true)
-                ? appSettings?.ditherEveryFrames
-                : null);
+        final ditherEvery = exposureDitherEvery(n, appSettings);
         // Auto-populate filter_index from profile if not set
         final filterIndex = n.filterIndex ?? _lookupFilterIndex(n.filter);
         return {

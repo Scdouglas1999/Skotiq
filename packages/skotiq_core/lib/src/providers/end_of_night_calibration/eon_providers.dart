@@ -206,16 +206,8 @@ class ProviderEonRig implements EonRig {
       .registerMaster(built, frameType: frameType);
 
   @override
-  Future<String> warmUpCamera() async {
-    final outcome = await _ref.read(deviceServiceProvider).warmCamera();
-    return switch (outcome) {
-      CameraWarmupOutcome.started => 'Camera warm-up started',
-      CameraWarmupOutcome.coolerAlreadyOff => 'The cooler was already off',
-      CameraWarmupOutcome.idleCoolerSwitchedOff =>
-        'The cooler was idle and was switched off',
-      CameraWarmupOutcome.canceled => 'Camera warm-up was canceled',
-    };
-  }
+  Future<CameraWarmupOutcome> warmUpCamera() =>
+      _ref.read(deviceServiceProvider).warmCamera();
 
   @override
   Future<void> notify(
