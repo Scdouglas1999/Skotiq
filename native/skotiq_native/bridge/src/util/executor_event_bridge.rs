@@ -85,19 +85,22 @@ pub fn spawn_executor_event_bridge(state: SharedAppState) -> broadcast::Sender<E
 
 /// Publish an autofocus sweep's outcome as the focuser's `AutofocusFinished`
 /// property, the one shape every window settles its focus panel from,
-/// whoever started the sweep.
+/// whoever started the sweep. `in_run` says a sequence ran it: a run tells a
+/// sweep that missed focus by its own continuation notice.
 pub(crate) fn publish_autofocus_finished(
     state: &SharedAppState,
     focuser_id: &str,
     status: skotiq_sequencer::NodeStatus,
     message: Option<&str>,
     result_json: Option<&str>,
+    in_run: bool,
 ) {
     let result = result_json.and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok());
     let value = serde_json::json!({
         "status": status,
         "message": message,
         "result": result,
+        "in_run": in_run,
     });
     state.publish_equipment_event(
         crate::event::equipment::EquipmentEvent::PropertyChanged {
@@ -136,6 +139,7 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
                 status,
                 message.as_deref(),
                 result_json.as_deref(),
+                false,
             );
             return;
         }
@@ -207,6 +211,7 @@ mod tests {
         assert_eq!(property, "AutofocusFinished");
         let value: serde_json::Value = serde_json::from_str(&value).unwrap();
         assert_eq!(value["status"], "Success");
+        assert_eq!(value["in_run"], false, "a one-shot sweep is not a run's");
         assert_eq!(value["result"]["best_position"], 45416);
     }
 }

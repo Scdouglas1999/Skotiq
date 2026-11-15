@@ -2076,6 +2076,8 @@
   const CAMERA_STATUS_EVENTS = new Set([
     WIRE_EVENTS.imaging.exposureStarted,
     WIRE_EVENTS.imaging.exposureProgress,
+    WIRE_EVENTS.imaging.exposureFailed,
+    WIRE_EVENTS.imaging.exposureCancelled,
     WIRE_EVENTS.imaging.temperatureChanged,
   ]);
   const EXPOSURE_DONE_EVENTS = new Set([
