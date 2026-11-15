@@ -15,8 +15,7 @@ String weatherSafetyStatusText({
   DateTime? now,
 }) {
   if (!monitoring) {
-    return 'Not monitoring — weather safety is off, conditions are not '
-        'being checked';
+    return 'Weather safety is off, so conditions are not being checked.';
   }
   switch (status) {
     case WeatherSafetyStatus.safe:

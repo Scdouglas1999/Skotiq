@@ -313,14 +313,67 @@ class _WeatherLoadingBody extends StatelessWidget {
 }
 
 /// No observing site: the radar is the only thing that needs one.
-///
-/// A connected weather station or safety monitor reports without knowing where
-/// it is, and hiding those readings behind a location setting they have nothing
-/// to do with was the 2026-07-29 defect this layout keeps fixed. So the empty
-/// state owns the body and the sensors follow only when a device is actually
-/// connected.
-class _NoLocationBody extends ConsumerWidget {
+class _NoLocationBody extends StatelessWidget {
   const _NoLocationBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return _WeatherEmptyBody(
+      icon: SkotiqIcons.location,
+      title: 'No observing site',
+      body: 'Radar needs to know where you are before it can show the sky '
+          'above you.',
+      action: SkotiqButton(
+        label: 'Set your location',
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: () => openSettings(context, SettingsSectionId.location),
+      ),
+    );
+  }
+}
+
+/// A site is set, but no radar frame and no forecast came back.
+class _NoSourceBody extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _NoSourceBody({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return _WeatherEmptyBody(
+      icon: SkotiqIcons.cloud,
+      title: 'No weather source',
+      body: 'No radar, satellite or forecast service answered for your site. '
+          'Check this computer\'s internet connection.',
+      action: SkotiqButton(
+        label: 'Retry',
+        icon: SkotiqIcons.refresh,
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: onRetry,
+      ),
+    );
+  }
+}
+
+/// An empty state in place of the map.
+///
+/// A connected weather station or safety monitor reports without a site or a
+/// network, so its readings and the safety policy follow the empty state when
+/// one is connected rather than hiding behind a problem they do not share.
+class _WeatherEmptyBody extends ConsumerWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final Widget action;
+
+  const _WeatherEmptyBody({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.action,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -329,9 +382,13 @@ class _NoLocationBody extends ConsumerWidget {
             DeviceConnectionState.connected ||
         ref.watch(safetyMonitorStateProvider).connectionState ==
             DeviceConnectionState.connected;
+    final compact =
+        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
 
     return Padding(
-      padding: const EdgeInsets.all(SkotiqTokens.space2xl),
+      padding: compact
+          ? SkotiqTokens.screenPaddingCompact
+          : SkotiqTokens.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -340,17 +397,10 @@ class _NoLocationBody extends ConsumerWidget {
               decoration: SkotiqDecorations.well(colors),
               child: Center(
                 child: EmptyState(
-                  icon: SkotiqIcons.location,
-                  title: 'No observing site',
-                  body: 'Radar needs to know where you are before it can show '
-                      'the sky above you.',
-                  action: SkotiqButton(
-                    label: 'Set your location',
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.small,
-                    onPressed: () =>
-                        openSettings(context, SettingsSectionId.location),
-                  ),
+                  icon: icon,
+                  title: title,
+                  body: body,
+                  action: action,
                 ),
               ),
             ),

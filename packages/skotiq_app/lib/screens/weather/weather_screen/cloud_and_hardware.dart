@@ -82,35 +82,38 @@ class _WeatherConditions extends ConsumerWidget {
       ],
     ];
 
-    final showHeadline =
-        radarAvailable && (cloudCoverPercent != null || alertRadiusKm != null);
+    // Figure or nothing: a readout with no value is left out, not drawn as a
+    // dash in the headline slot.
+    final headline = <Readout>[
+      if (radarAvailable && cloudCoverPercent != null)
+        Readout(
+          value: cloudCoverPercent!.toStringAsFixed(0),
+          unit: '%',
+          label: 'Forecast cloud cover',
+          valueColor: _cloudCoverTone(colors, cloudCoverPercent),
+        ),
+      if (radarAvailable && alertRadiusKm != null)
+        Readout(
+          key: TourTarget.weatherAlertRadius.key,
+          value: alertRadiusKm!.toStringAsFixed(0),
+          unit: 'km',
+          label: 'Alert radius',
+          size: ReadoutSize.sm,
+        ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showHeadline)
+        if (headline.isNotEmpty)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: ReadoutRow(
                   gap: SkotiqTokens.space2xl,
-                  children: [
-                    Readout(
-                      value: cloudCoverPercent?.toStringAsFixed(0),
-                      unit: '%',
-                      label: 'Forecast cloud cover',
-                      valueColor: _cloudCoverTone(colors, cloudCoverPercent),
-                    ),
-                    Readout(
-                      key: TourTarget.weatherAlertRadius.key,
-                      value: alertRadiusKm?.toStringAsFixed(0),
-                      unit: 'km',
-                      label: 'Alert radius',
-                      size: ReadoutSize.sm,
-                    ),
-                  ],
+                  children: headline,
                 ),
               ),
               if (onExpandToggle != null)
@@ -139,7 +142,8 @@ class _WeatherConditions extends ConsumerWidget {
         ],
         if (expanded) ...[
           if (radarAvailable) ...[
-            if (showHeadline) const SizedBox(height: SkotiqTokens.spaceMd),
+            if (headline.isNotEmpty)
+              const SizedBox(height: SkotiqTokens.spaceMd),
             WeatherStatusCard(
               alert: alert,
               motion: motion,

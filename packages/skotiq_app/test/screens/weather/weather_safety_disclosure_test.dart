@@ -20,7 +20,7 @@ import 'package:skotiq_core/providers.dart';
 
 void main() {
   group('weatherSafetyStatusText', () {
-    test('says NOT MONITORING when weather safety is off', () {
+    test('says conditions are not checked when weather safety is off', () {
       final text = weatherSafetyStatusText(
         // The provider hands the UI `safe` here purely because it has no
         // verdict to give — the case that must not read as a green all-clear.
@@ -28,7 +28,7 @@ void main() {
         monitoring: false,
       );
 
-      expect(text, contains('Not monitoring'));
+      expect(text, contains('not being checked'));
       expect(text, isNot(contains('safe for imaging')));
     });
 
@@ -36,7 +36,7 @@ void main() {
       for (final status in WeatherSafetyStatus.values) {
         expect(
           weatherSafetyStatusText(status: status, monitoring: false),
-          contains('Not monitoring'),
+          contains('not being checked'),
           reason: '$status must not be dressed up as a monitored verdict',
         );
       }
