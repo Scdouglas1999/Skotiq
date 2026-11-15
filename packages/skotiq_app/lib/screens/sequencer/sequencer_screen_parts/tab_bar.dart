@@ -69,6 +69,7 @@ class _SequencerPageHeader extends ConsumerWidget {
       for (final tab in SequencerTab.values)
         AdaptiveTab(
           label: tab.label,
+          icon: tab.icon,
           buttonKey: _buttonKeyFor(tab),
           semanticLabel:
               isPhone ? tab.label : '${tab.label} (Alt+${tab.index + 1})',
