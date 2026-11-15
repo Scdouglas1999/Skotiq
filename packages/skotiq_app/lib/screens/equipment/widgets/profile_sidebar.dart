@@ -120,7 +120,11 @@ class ProfileSidebar extends ConsumerWidget {
                     activeProfileId,
                   ),
           ),
-          if (selectedProfile != null)
+          if (selectedProfile != null &&
+              (!editorBeside ||
+                  selectedProfile.id != activeProfileId ||
+                  hasConnectedDevices ||
+                  hasDisconnectedDevices))
             _buildFooter(
               context,
               colors,
