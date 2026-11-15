@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
+import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -97,6 +97,10 @@ List<Override> _commonOverrides({
         ),
       ),
     schedulerAutoReevalProvider.overrideWith((ref) {}),
+    // The list has its own tests; these drive the autopilot bar.
+    planTargetsProvider.overrideWith((ref) => const AsyncValue.data([])),
+    projectListProvider.overrideWith((ref) => Stream.value(const [])),
+    unusedTargetsCountProvider.overrideWith((ref) async => 0),
     schedulerPreviewDecisionProvider.overrideWith(
       (ref) => Completer<SchedulerDecision>().future,
     ),
@@ -137,7 +141,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -145,7 +149,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.textContaining('Could not load scheduler configuration'),
+      find.textContaining('Could not read the autopilot'),
       findsOneWidget,
     );
     expect(find.textContaining('settings store unavailable'), findsOneWidget);
@@ -193,14 +197,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     await tester.pumpAndSettle();
 
@@ -252,14 +256,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Camera'), findsOneWidget);
@@ -317,17 +321,17 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
     final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended all night');
+        find.widgetWithText(SkotiqButton, 'Run unattended');
 
     await tester.tap(runButton);
     await tester.pumpAndSettle();
-    expect(find.text('Review unattended start'), findsOneWidget);
+    expect(find.text('Start with these not ready?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     verifyNever(
@@ -372,14 +376,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Host readiness unavailable'), findsOneWidget);
@@ -421,14 +425,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(
@@ -492,14 +496,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended all night');
+        find.widgetWithText(SkotiqButton, 'Run unattended');
     await tester.tap(runButton);
     await tester.pump();
     verify(
@@ -567,7 +571,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -644,7 +648,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -713,7 +717,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -776,7 +780,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -831,7 +835,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -887,7 +891,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -969,7 +973,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );

@@ -261,7 +261,24 @@ enum AppRoute {
   yourSky('/your-sky'),
   constellation('/constellation'),
   collaborativeSky('/collaborative-sky'),
-  scheduler('/scheduler');
+  /// Forwards to Plan > Targets, and is how the palette finds it.
+  scheduler(
+    '/scheduler',
+    label: EnglishLabel('Targets'),
+    icon: LucideIcons.target,
+    palette: true,
+    keywords: [
+      'targets',
+      'autopilot',
+      'schedule',
+      'queue',
+      'project',
+      'group',
+      'campaign',
+      'progress',
+      'goals',
+    ],
+  );
 
   const AppRoute(
     this.path, {
@@ -324,11 +341,8 @@ enum AppRoute {
         imagingPreview => imaging,
         oneTapTonight => tonight,
         polarAlignment => equipment,
-        sessionReview ||
-        stackResult ||
-        mosaicProjects ||
-        mosaicProject =>
-          darkroom,
+        sessionReview || stackResult => darkroom,
+        mosaicProjects || mosaicProject => planner,
         _ => null,
       };
 
@@ -342,6 +356,7 @@ enum AppRoute {
         constellation ||
         collaborativeSky ||
         scheduler ||
+        mosaicProjects ||
         diagnostics =>
           true,
         _ => false,
@@ -370,7 +385,12 @@ enum AppRoute {
           tab: PlannerTab.discover, view: DiscoverView.constellation),
       collaborativeSky => AppRoutes.planner(
           tab: PlannerTab.discover, view: DiscoverView.collaborative),
-      scheduler => AppRoutes.planner(tab: PlannerTab.schedule),
+      scheduler => AppRoutes.planner(tab: PlannerTab.targets),
+      mosaicProjects => AppRoutes.planTargets(group: plannerMosaicsGroupWord),
+      // Per-target progress moved to Plan > Targets.
+      analytics => q['tab']?.trim().toLowerCase() == 'projects'
+          ? AppRoutes.planner(tab: PlannerTab.targets)
+          : null,
       diagnostics => AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
       // The calibration pages moved to the Darkroom's Calibration tab.
       settings =>
@@ -521,6 +541,15 @@ abstract final class AppRoutes {
         if (tab != null) 'tab': tab.word,
         if (view != null) 'view': view.word,
         ...?target?.query,
+      });
+
+  /// Plan > Targets, on the group named by [group] (a group id, or
+  /// [plannerMosaicsGroupWord]) with the target [target] selected.
+  static String planTargets({String? group, int? target}) =>
+      _location(AppRoute.planner.path, {
+        'tab': PlannerTab.targets.word,
+        if (group != null) 'group': group,
+        if (target != null) 'target': '$target',
       });
 
   /// The planetarium centered on [target].

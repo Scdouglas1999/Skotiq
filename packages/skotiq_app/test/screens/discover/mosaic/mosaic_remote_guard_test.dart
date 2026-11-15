@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_controller.dart';
 import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_screen.dart';
-import 'package:skotiq_app/screens/discover/mosaic/mosaic_projects_list_screen.dart';
+import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -45,17 +45,17 @@ void main() {
         overrides: [inMemoryDatabaseOverride(), ...remoteOverrides()],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const MosaicProjectsListScreen(),
+          home: const Scaffold(body: PlanTargetsTab(initialGroup: 'mosaics')),
         ),
       ),
     );
     await tester.pump();
 
     expect(
-      find.text('Open mosaic projects on the imaging host'),
+      find.text('Mosaics are on the imaging host'),
       findsOneWidget,
     );
-    expect(find.text('Could not load mosaic projects'), findsNothing);
+    expect(find.text('Could not load the mosaics'), findsNothing);
   });
 
   testWidgets('remote project is guarded before its local DAO controller',

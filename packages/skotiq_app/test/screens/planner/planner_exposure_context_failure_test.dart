@@ -57,9 +57,6 @@ List<Override> _overrides(double integrationHours, Override exposureContext) {
     plannerTargetIntegrationPreviewProvider(_targetId)
         .overrideWith((ref) async => _preview(integrationHours)),
     appSettingsProvider.overrideWith(_StubAppSettingsNotifier.new),
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(
       (ref) => FakeSchedulerStatusNotifier(

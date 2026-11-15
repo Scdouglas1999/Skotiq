@@ -59,9 +59,6 @@ List<Override> _commonOverrides() {
       (ref) => Stream.value(const <TransientAlert>[]),
     ),
     // Progress tab dependency.
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     // Scheduler tab dependencies (mirror the scheduler_screen tests).
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(
@@ -262,15 +259,15 @@ void main() {
     test('maps canonical tab names', () {
       expect(PlannerTab.fromQuery('recommendation'), PlannerTab.recommendation);
       // Scheduler folded into Schedule; Progress folded into Projects.
-      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.targets);
     });
 
     test('accepts case-insensitive aliases', () {
-      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.targets);
       expect(PlannerTab.fromQuery('recommend'), PlannerTab.recommendation);
     });
 
@@ -313,9 +310,8 @@ void main() {
     expect(
       bar.tabs.map((t) => t.label).toList(),
       const [
-        'Tonight',
-        'Projects',
-        'Schedule',
+        'Best tonight',
+        'Targets',
         'Framing',
         'Planetarium',
         'Your sky',
@@ -434,7 +430,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(_selectedTabIndex(tester), PlannerTab.schedule.index);
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index);
 
     await settleProviderTeardown(tester);
   });
@@ -462,7 +458,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(_selectedTabIndex(tester), PlannerTab.projects.index);
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index);
 
     await settleProviderTeardown(tester);
   });
@@ -503,11 +499,11 @@ void main() {
         reason: 'Sanity: Recommendation must be selected by default.');
 
     // Tap Schedule. find.text matches the tab's label text.
-    await _tapTab(tester, 'Schedule');
+    await _tapTab(tester, 'Targets');
     await tester.pump(const Duration(milliseconds: 200));
 
     // Post-condition: Schedule is selected (single-selection model).
-    expect(_selectedTabIndex(tester), PlannerTab.schedule.index,
+    expect(_selectedTabIndex(tester), PlannerTab.targets.index,
         reason: 'Tapping the Schedule tab must mark it as selected; if the '
             'onSelected callback or setState pathway is broken the strip would '
             'continue to show Recommendation as selected.');

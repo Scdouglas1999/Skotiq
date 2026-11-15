@@ -13,7 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
+import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
+
+import 'plan_targets_test_support.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -157,10 +159,11 @@ void main() {
           activeProjectIdProvider.overrideWith(
             (ref) => _FakeActiveProjectNotifier(ref, 3),
           ),
-          activeProjectProgressProvider.overrideWith(
-            (ref) async =>
-                CampaignProgress(project: project, targets: const []),
+          groupMembersProvider.overrideWith((ref) async => {3: <int>{}}),
+          allDbImagesProvider.overrideWith(
+            (ref) => Stream.value(const <ndb.DbCapturedImage>[]),
           ),
+          ...planTargetsTabOverrides(),
           projectServiceProvider.overrideWithValue(projectService),
           targetLibraryServiceProvider.overrideWithValue(library),
           // The library is EMPTY — the case a sheet can most easily dead-end
@@ -178,7 +181,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: ProjectsTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -189,14 +192,14 @@ void main() {
 
     // The empty state points at the action that works: search for the
     // object.
-    expect(find.textContaining('Search for an object by name'), findsOneWidget);
+    expect(find.text('Search for an object'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).last, 'M31');
     await tester.pumpAndSettle();
 
-    expect(find.text('Not in your targets yet'), findsOneWidget);
+    expect(find.text('FROM THE SKY CATALOG'), findsOneWidget);
     // Tap the row's subtitle: the search field also renders the text "M31".
-    await tester.tap(find.text('Galaxy · mag 3.4 · And'));
+    await tester.tap(find.text('Galaxy · And · mag 3.4'));
     await tester.pumpAndSettle();
 
     // The sheet created the library row itself...
@@ -233,10 +236,11 @@ void main() {
           activeProjectIdProvider.overrideWith(
             (ref) => _FakeActiveProjectNotifier(ref, 3),
           ),
-          activeProjectProgressProvider.overrideWith(
-            (ref) async =>
-                CampaignProgress(project: project, targets: const []),
+          groupMembersProvider.overrideWith((ref) async => {3: <int>{}}),
+          allDbImagesProvider.overrideWith(
+            (ref) => Stream.value(const <ndb.DbCapturedImage>[]),
           ),
+          ...planTargetsTabOverrides(),
           projectServiceProvider.overrideWithValue(_RecordingProjectService()),
           targetLibraryServiceProvider
               .overrideWithValue(_RecordingTargetLibrary()),
@@ -253,7 +257,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: ProjectsTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -269,7 +273,7 @@ void main() {
     );
     // The copy must not send the user hunting for something that cannot be
     // found.
-    expect(find.textContaining('Search for an object by name'), findsNothing);
+    expect(find.text('Search for an object'), findsNothing);
 
     // ...and it still does not fall back to the "nothing matches" phrasing
     // once the user types, which would be the same false claim with a query in
