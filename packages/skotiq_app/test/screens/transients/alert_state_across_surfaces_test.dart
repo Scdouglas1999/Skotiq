@@ -131,10 +131,11 @@ void main() {
 
       expect(find.text(alert.name), findsOneWidget);
       expect(
-        find.text('NEW'),
+        find.text('1 new'),
         findsNothing,
         reason: 'the dropdown reads the same row as Observing Alerts',
       );
+      expect(find.bySemanticsLabel(RegExp('^New: ')), findsNothing);
     });
 
     testWidgets('an unconfirmed detection still reads NEW', (tester) async {
@@ -154,7 +155,10 @@ void main() {
       await tester.tap(find.byType(TransientAlertBadge));
       await tester.pumpAndSettle();
 
-      expect(find.text('NEW'), findsOneWidget);
+      // One count in the header, not a pill on every row.
+      expect(find.text('1 new'), findsOneWidget);
+      expect(find.text('NEW'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('^New: ')), findsOneWidget);
     });
   });
 }
