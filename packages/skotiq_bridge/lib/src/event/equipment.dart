@@ -135,6 +135,13 @@ sealed class EquipmentEvent with _$EquipmentEvent {
     required int binX,
     required int binY,
   }) = EquipmentEvent_CameraSettingsChanged;
+
+  /// The list of captures a camera is keeping changed (one was kept after
+  /// a failed download, or one was retrieved); `count` are kept now.
+  const factory EquipmentEvent.cameraRetainedCapturesChanged({
+    required String deviceId,
+    required int count,
+  }) = EquipmentEvent_CameraRetainedCapturesChanged;
   const factory EquipmentEvent.heartbeatStarted({
     required String deviceType,
     required String deviceId,

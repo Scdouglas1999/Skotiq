@@ -2175,6 +2175,17 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _defaultReadoutModeMeta =
+      const VerificationMeta('defaultReadoutMode');
+  @override
+  late final GeneratedColumn<String> defaultReadoutMode =
+      GeneratedColumn<String>(
+        'default_readout_mode',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _defaultBinXMeta = const VerificationMeta(
     'defaultBinX',
   );
@@ -2524,6 +2535,7 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     focalRatio,
     defaultGain,
     defaultOffset,
+    defaultReadoutMode,
     defaultBinX,
     defaultBinY,
     defaultCoolingTemp,
@@ -2705,6 +2717,15 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         defaultOffset.isAcceptableOrUnknown(
           data['default_offset']!,
           _defaultOffsetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('default_readout_mode')) {
+      context.handle(
+        _defaultReadoutModeMeta,
+        defaultReadoutMode.isAcceptableOrUnknown(
+          data['default_readout_mode']!,
+          _defaultReadoutModeMeta,
         ),
       );
     }
@@ -3022,6 +3043,10 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         DriftSqlType.int,
         data['${effectivePrefix}default_offset'],
       ),
+      defaultReadoutMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_readout_mode'],
+      ),
       defaultBinX: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}default_bin_x'],
@@ -3165,6 +3190,7 @@ class DbEquipmentProfile extends DataClass
   final double? focalRatio;
   final int? defaultGain;
   final int? defaultOffset;
+  final String? defaultReadoutMode;
   final int defaultBinX;
   final int defaultBinY;
   final double? defaultCoolingTemp;
@@ -3214,6 +3240,7 @@ class DbEquipmentProfile extends DataClass
     this.focalRatio,
     this.defaultGain,
     this.defaultOffset,
+    this.defaultReadoutMode,
     required this.defaultBinX,
     required this.defaultBinY,
     this.defaultCoolingTemp,
@@ -3297,6 +3324,9 @@ class DbEquipmentProfile extends DataClass
     }
     if (!nullToAbsent || defaultOffset != null) {
       map['default_offset'] = Variable<int>(defaultOffset);
+    }
+    if (!nullToAbsent || defaultReadoutMode != null) {
+      map['default_readout_mode'] = Variable<String>(defaultReadoutMode);
     }
     map['default_bin_x'] = Variable<int>(defaultBinX);
     map['default_bin_y'] = Variable<int>(defaultBinY);
@@ -3425,6 +3455,9 @@ class DbEquipmentProfile extends DataClass
       defaultOffset: defaultOffset == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultOffset),
+      defaultReadoutMode: defaultReadoutMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultReadoutMode),
       defaultBinX: Value(defaultBinX),
       defaultBinY: Value(defaultBinY),
       defaultCoolingTemp: defaultCoolingTemp == null && nullToAbsent
@@ -3524,6 +3557,9 @@ class DbEquipmentProfile extends DataClass
       focalRatio: serializer.fromJson<double?>(json['focalRatio']),
       defaultGain: serializer.fromJson<int?>(json['defaultGain']),
       defaultOffset: serializer.fromJson<int?>(json['defaultOffset']),
+      defaultReadoutMode: serializer.fromJson<String?>(
+        json['defaultReadoutMode'],
+      ),
       defaultBinX: serializer.fromJson<int>(json['defaultBinX']),
       defaultBinY: serializer.fromJson<int>(json['defaultBinY']),
       defaultCoolingTemp: serializer.fromJson<double?>(
@@ -3592,6 +3628,7 @@ class DbEquipmentProfile extends DataClass
       'focalRatio': serializer.toJson<double?>(focalRatio),
       'defaultGain': serializer.toJson<int?>(defaultGain),
       'defaultOffset': serializer.toJson<int?>(defaultOffset),
+      'defaultReadoutMode': serializer.toJson<String?>(defaultReadoutMode),
       'defaultBinX': serializer.toJson<int>(defaultBinX),
       'defaultBinY': serializer.toJson<int>(defaultBinY),
       'defaultCoolingTemp': serializer.toJson<double?>(defaultCoolingTemp),
@@ -3648,6 +3685,7 @@ class DbEquipmentProfile extends DataClass
     Value<double?> focalRatio = const Value.absent(),
     Value<int?> defaultGain = const Value.absent(),
     Value<int?> defaultOffset = const Value.absent(),
+    Value<String?> defaultReadoutMode = const Value.absent(),
     int? defaultBinX,
     int? defaultBinY,
     Value<double?> defaultCoolingTemp = const Value.absent(),
@@ -3707,6 +3745,9 @@ class DbEquipmentProfile extends DataClass
     defaultOffset: defaultOffset.present
         ? defaultOffset.value
         : this.defaultOffset,
+    defaultReadoutMode: defaultReadoutMode.present
+        ? defaultReadoutMode.value
+        : this.defaultReadoutMode,
     defaultBinX: defaultBinX ?? this.defaultBinX,
     defaultBinY: defaultBinY ?? this.defaultBinY,
     defaultCoolingTemp: defaultCoolingTemp.present
@@ -3798,6 +3839,9 @@ class DbEquipmentProfile extends DataClass
       defaultOffset: data.defaultOffset.present
           ? data.defaultOffset.value
           : this.defaultOffset,
+      defaultReadoutMode: data.defaultReadoutMode.present
+          ? data.defaultReadoutMode.value
+          : this.defaultReadoutMode,
       defaultBinX: data.defaultBinX.present
           ? data.defaultBinX.value
           : this.defaultBinX,
@@ -3896,6 +3940,7 @@ class DbEquipmentProfile extends DataClass
           ..write('focalRatio: $focalRatio, ')
           ..write('defaultGain: $defaultGain, ')
           ..write('defaultOffset: $defaultOffset, ')
+          ..write('defaultReadoutMode: $defaultReadoutMode, ')
           ..write('defaultBinX: $defaultBinX, ')
           ..write('defaultBinY: $defaultBinY, ')
           ..write('defaultCoolingTemp: $defaultCoolingTemp, ')
@@ -3950,6 +3995,7 @@ class DbEquipmentProfile extends DataClass
     focalRatio,
     defaultGain,
     defaultOffset,
+    defaultReadoutMode,
     defaultBinX,
     defaultBinY,
     defaultCoolingTemp,
@@ -4003,6 +4049,7 @@ class DbEquipmentProfile extends DataClass
           other.focalRatio == this.focalRatio &&
           other.defaultGain == this.defaultGain &&
           other.defaultOffset == this.defaultOffset &&
+          other.defaultReadoutMode == this.defaultReadoutMode &&
           other.defaultBinX == this.defaultBinX &&
           other.defaultBinY == this.defaultBinY &&
           other.defaultCoolingTemp == this.defaultCoolingTemp &&
@@ -4054,6 +4101,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
   final Value<double?> focalRatio;
   final Value<int?> defaultGain;
   final Value<int?> defaultOffset;
+  final Value<String?> defaultReadoutMode;
   final Value<int> defaultBinX;
   final Value<int> defaultBinY;
   final Value<double?> defaultCoolingTemp;
@@ -4103,6 +4151,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
     this.focalRatio = const Value.absent(),
     this.defaultGain = const Value.absent(),
     this.defaultOffset = const Value.absent(),
+    this.defaultReadoutMode = const Value.absent(),
     this.defaultBinX = const Value.absent(),
     this.defaultBinY = const Value.absent(),
     this.defaultCoolingTemp = const Value.absent(),
@@ -4153,6 +4202,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
     this.focalRatio = const Value.absent(),
     this.defaultGain = const Value.absent(),
     this.defaultOffset = const Value.absent(),
+    this.defaultReadoutMode = const Value.absent(),
     this.defaultBinX = const Value.absent(),
     this.defaultBinY = const Value.absent(),
     this.defaultCoolingTemp = const Value.absent(),
@@ -4203,6 +4253,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
     Expression<double>? focalRatio,
     Expression<int>? defaultGain,
     Expression<int>? defaultOffset,
+    Expression<String>? defaultReadoutMode,
     Expression<int>? defaultBinX,
     Expression<int>? defaultBinY,
     Expression<double>? defaultCoolingTemp,
@@ -4253,6 +4304,8 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
       if (focalRatio != null) 'focal_ratio': focalRatio,
       if (defaultGain != null) 'default_gain': defaultGain,
       if (defaultOffset != null) 'default_offset': defaultOffset,
+      if (defaultReadoutMode != null)
+        'default_readout_mode': defaultReadoutMode,
       if (defaultBinX != null) 'default_bin_x': defaultBinX,
       if (defaultBinY != null) 'default_bin_y': defaultBinY,
       if (defaultCoolingTemp != null)
@@ -4310,6 +4363,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
     Value<double?>? focalRatio,
     Value<int?>? defaultGain,
     Value<int?>? defaultOffset,
+    Value<String?>? defaultReadoutMode,
     Value<int>? defaultBinX,
     Value<int>? defaultBinY,
     Value<double?>? defaultCoolingTemp,
@@ -4360,6 +4414,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
       focalRatio: focalRatio ?? this.focalRatio,
       defaultGain: defaultGain ?? this.defaultGain,
       defaultOffset: defaultOffset ?? this.defaultOffset,
+      defaultReadoutMode: defaultReadoutMode ?? this.defaultReadoutMode,
       defaultBinX: defaultBinX ?? this.defaultBinX,
       defaultBinY: defaultBinY ?? this.defaultBinY,
       defaultCoolingTemp: defaultCoolingTemp ?? this.defaultCoolingTemp,
@@ -4455,6 +4510,9 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
     }
     if (defaultOffset.present) {
       map['default_offset'] = Variable<int>(defaultOffset.value);
+    }
+    if (defaultReadoutMode.present) {
+      map['default_readout_mode'] = Variable<String>(defaultReadoutMode.value);
     }
     if (defaultBinX.present) {
       map['default_bin_x'] = Variable<int>(defaultBinX.value);
@@ -4572,6 +4630,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
           ..write('focalRatio: $focalRatio, ')
           ..write('defaultGain: $defaultGain, ')
           ..write('defaultOffset: $defaultOffset, ')
+          ..write('defaultReadoutMode: $defaultReadoutMode, ')
           ..write('defaultBinX: $defaultBinX, ')
           ..write('defaultBinY: $defaultBinY, ')
           ..write('defaultCoolingTemp: $defaultCoolingTemp, ')
@@ -54354,6 +54413,7 @@ typedef $$EquipmentProfilesTableCreateCompanionBuilder =
       Value<double?> focalRatio,
       Value<int?> defaultGain,
       Value<int?> defaultOffset,
+      Value<String?> defaultReadoutMode,
       Value<int> defaultBinX,
       Value<int> defaultBinY,
       Value<double?> defaultCoolingTemp,
@@ -54405,6 +54465,7 @@ typedef $$EquipmentProfilesTableUpdateCompanionBuilder =
       Value<double?> focalRatio,
       Value<int?> defaultGain,
       Value<int?> defaultOffset,
+      Value<String?> defaultReadoutMode,
       Value<int> defaultBinX,
       Value<int> defaultBinY,
       Value<double?> defaultCoolingTemp,
@@ -54727,6 +54788,11 @@ class $$EquipmentProfilesTableFilterComposer
 
   ColumnFilters<int> get defaultOffset => $composableBuilder(
     column: $table.defaultOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultReadoutMode => $composableBuilder(
+    column: $table.defaultReadoutMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -55157,6 +55223,11 @@ class $$EquipmentProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get defaultReadoutMode => $composableBuilder(
+    column: $table.defaultReadoutMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get defaultBinX => $composableBuilder(
     column: $table.defaultBinX,
     builder: (column) => ColumnOrderings(column),
@@ -55382,6 +55453,11 @@ class $$EquipmentProfilesTableAnnotationComposer
 
   GeneratedColumn<int> get defaultOffset => $composableBuilder(
     column: $table.defaultOffset,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get defaultReadoutMode => $composableBuilder(
+    column: $table.defaultReadoutMode,
     builder: (column) => column,
   );
 
@@ -55752,6 +55828,7 @@ class $$EquipmentProfilesTableTableManager
                 Value<double?> focalRatio = const Value.absent(),
                 Value<int?> defaultGain = const Value.absent(),
                 Value<int?> defaultOffset = const Value.absent(),
+                Value<String?> defaultReadoutMode = const Value.absent(),
                 Value<int> defaultBinX = const Value.absent(),
                 Value<int> defaultBinY = const Value.absent(),
                 Value<double?> defaultCoolingTemp = const Value.absent(),
@@ -55801,6 +55878,7 @@ class $$EquipmentProfilesTableTableManager
                 focalRatio: focalRatio,
                 defaultGain: defaultGain,
                 defaultOffset: defaultOffset,
+                defaultReadoutMode: defaultReadoutMode,
                 defaultBinX: defaultBinX,
                 defaultBinY: defaultBinY,
                 defaultCoolingTemp: defaultCoolingTemp,
@@ -55852,6 +55930,7 @@ class $$EquipmentProfilesTableTableManager
                 Value<double?> focalRatio = const Value.absent(),
                 Value<int?> defaultGain = const Value.absent(),
                 Value<int?> defaultOffset = const Value.absent(),
+                Value<String?> defaultReadoutMode = const Value.absent(),
                 Value<int> defaultBinX = const Value.absent(),
                 Value<int> defaultBinY = const Value.absent(),
                 Value<double?> defaultCoolingTemp = const Value.absent(),
@@ -55901,6 +55980,7 @@ class $$EquipmentProfilesTableTableManager
                 focalRatio: focalRatio,
                 defaultGain: defaultGain,
                 defaultOffset: defaultOffset,
+                defaultReadoutMode: defaultReadoutMode,
                 defaultBinX: defaultBinX,
                 defaultBinY: defaultBinY,
                 defaultCoolingTemp: defaultCoolingTemp,

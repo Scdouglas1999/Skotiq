@@ -135,7 +135,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
       // SNAPSHOT (not written into the sequence's frame set).
       // exposure_properties_recommendation_test.dart pins that.
       frameType: FrameType.snapshot,
-      fastReadout: false,
     );
 
     try {
@@ -172,6 +171,15 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     final node = widget.node;
     final profile = ref.watch(activeEquipmentProfileProvider);
     final sensitivity = ref.watch(cameraSensitivityProvider);
+    final cameraId = ref.watch(cameraStateProvider.select((c) => c.deviceId));
+    final readModes = cameraId == null
+        ? const <String>[]
+        : ref
+                .watch(equipmentCameraCapabilitiesProvider(cameraId))
+                .asData
+                ?.value
+                ?.readoutModes ??
+            const <String>[];
     void setGain(int gain) {
       setState(() => _userOverrides.add('gain'));
       ref.read(currentSequenceProvider.notifier).updateNode(
@@ -384,6 +392,37 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               ],
             ],
           ),
+
+          // The step's own read mode; the profile's default otherwise. Shown
+          // for a camera that lists read modes, and for a step that already
+          // names one.
+          if (readModes.isNotEmpty || node.readoutMode != null)
+            NodePropertyField(
+              colors: colors,
+              label: 'Read mode',
+              child: NodeDropdown<String?>(
+                colors: colors,
+                value: node.readoutMode,
+                items: [
+                  null,
+                  ...readModes,
+                  if (node.readoutMode != null &&
+                      !readModes.contains(node.readoutMode))
+                    node.readoutMode,
+                ],
+                labelBuilder: (mode) =>
+                    mode ??
+                    (profile?.defaultReadoutMode == null
+                        ? "Profile default (camera's own mode)"
+                        : 'Profile default (${profile!.defaultReadoutMode})'),
+                onChanged: (mode) =>
+                    ref.read(currentSequenceProvider.notifier).updateNode(
+                          mode == null
+                              ? node.copyWith(clearReadoutMode: true)
+                              : node.copyWith(readoutMode: mode),
+                        ),
+              ),
+            ),
 
           NodePropertyField(
             colors: colors,

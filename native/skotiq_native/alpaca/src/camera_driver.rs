@@ -589,6 +589,10 @@ impl CameraDriver for AlpacaCameraDriver {
             .collect())
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.readout_mode_name().await)
+    }
+
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         self.camera.set_readout_mode(mode.index).await.map_err(own)
     }

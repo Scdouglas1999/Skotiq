@@ -43,9 +43,27 @@ use skotiq_device::{ImageData, SubFrame};
 
 #[async_trait]
 pub(crate) trait Camera: RigDriver {
-    /// Whether recovery may replace this handle without an explicit disconnect.
-    async fn check_automatic_reconnect(&self) -> Result<(), DeviceOpError> {
-        Ok(())
+    /// What the driver has to tell the user since it was last asked.
+    async fn take_notices(&self) -> Vec<skotiq_device::DriverNotice> {
+        Vec::new()
+    }
+
+    /// The captures the driver kept because their file did not become a
+    /// frame.
+    async fn retained_captures(&self) -> Vec<skotiq_device::RetainedCapture> {
+        Vec::new()
+    }
+
+    /// The file of a retained capture, read from the camera or handed over
+    /// by the driver that holds it.
+    async fn retrieve_capture(
+        &self,
+        location: &str,
+    ) -> Result<skotiq_device::CameraFile, DeviceOpError> {
+        let _ = location;
+        Err(DeviceOpError::unsupported(
+            "This camera keeps no captures to retrieve",
+        ))
     }
 
     /// Where an abort of this camera's exposure is announced.
@@ -90,7 +108,9 @@ pub(crate) trait Camera: RigDriver {
 
     async fn set_offset(&self, offset: i32) -> Result<(), DeviceOpError>;
 
-    async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError>;
+    /// Put the camera in the read mode it lists as `name` for the frames
+    /// that follow. The mode is written only when the camera is in another.
+    async fn use_readout_mode(&self, name: &str) -> Result<ReadModeUse, DeviceOpError>;
 
     /// `target_temp` of `None` leaves the camera's setpoint alone.
     async fn set_cooler(
@@ -100,6 +120,50 @@ pub(crate) trait Camera: RigDriver {
     ) -> Result<(), DeviceOpError>;
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError>;
+}
+
+/// What asking a camera for a read mode came to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ReadModeUse {
+    /// The camera was in the mode; nothing was written.
+    AlreadyIn,
+    /// The camera was in another mode (or would not say) and was switched.
+    Switched,
+    /// The camera lists these modes and the one asked for is not among
+    /// them; nothing was written.
+    NotListed(Vec<String>),
+    /// The camera has one read mode; there is nothing to choose.
+    NoModes,
+}
+
+/// The one rule for a read mode, whatever the protocol: find the mode by the
+/// name the camera lists, and write it only when the camera is in another.
+/// Some cameras pay for a write (a QHY re-initializes), and a write that
+/// changes nothing can still disturb a frame in a driver that resets on it.
+pub(crate) async fn use_readout_mode<D: skotiq_device::CameraDriver + ?Sized>(
+    camera: &mut D,
+    name: &str,
+) -> Result<ReadModeUse, skotiq_device::DriverError> {
+    let modes = match camera.get_readout_modes().await {
+        Ok(modes) => modes,
+        Err(skotiq_device::DriverError::NotSupported) => Vec::new(),
+        Err(e) => return Err(e),
+    };
+    if modes.is_empty() {
+        return Ok(ReadModeUse::NoModes);
+    }
+    let wanted = name.trim();
+    let Some(mode) = modes.iter().find(|m| m.name.eq_ignore_ascii_case(wanted)) else {
+        return Ok(ReadModeUse::NotListed(
+            modes.into_iter().map(|m| m.name).collect(),
+        ));
+    };
+    let current = camera.get_readout_mode().await.ok().flatten();
+    if current.is_some_and(|c| c.eq_ignore_ascii_case(&mode.name)) {
+        return Ok(ReadModeUse::AlreadyIn);
+    }
+    camera.set_readout_mode(mode).await?;
+    Ok(ReadModeUse::Switched)
 }
 
 /// Announces an abort to the downloads of one camera that are in flight.

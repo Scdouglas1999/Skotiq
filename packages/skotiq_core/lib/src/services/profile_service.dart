@@ -321,6 +321,24 @@ class ProfileService {
     );
   }
 
+  /// State the camera read mode the profile's frames are taken in, by the
+  /// name the camera lists; null states none and leaves the camera in the
+  /// mode it is in.
+  Future<void> setProfileReadMode(int profileId, String? mode) async {
+    final authority = _authority;
+    final profile = await _getProfileModelById(profileId, authority: authority);
+    if (profile == null) {
+      throw Exception('Profile not found');
+    }
+    await _persistProfileModel(
+      profile.copyWith(
+        defaultReadoutMode: mode,
+        clearDefaultReadoutMode: mode == null,
+      ),
+      authority: authority,
+    );
+  }
+
   Future<void> updateProfileFilters(
     int profileId, {
     List<String>? filterNames,

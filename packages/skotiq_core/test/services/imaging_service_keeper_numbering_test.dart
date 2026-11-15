@@ -144,9 +144,6 @@ void main() {
       () => backend.getCameraCapabilities(any()),
     ).thenAnswer((_) async => null);
     when(
-      () => backend.cameraSetReadoutMode(any(), any()),
-    ).thenAnswer((_) async {});
-    when(
       () => backend.cameraStartExposure(
         deviceId: any(named: 'deviceId'),
         exposureTime: any(named: 'exposureTime'),

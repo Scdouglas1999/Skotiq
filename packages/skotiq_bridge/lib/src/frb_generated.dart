@@ -120,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1858074738;
+  int get rustContentHash => 883874832;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -219,9 +219,11 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<void> crateApiDevicesCameraApiCameraSetReadoutMode({
+  List<RetainedCaptureInfo> crateApiDevicesCameraApiCameraRetainedCaptures();
+
+  Future<String> crateApiDevicesCameraApiCameraRetrieveRetainedCapture({
     required String deviceId,
-    required int modeIndex,
+    required String location,
   });
 
   Future<void> crateApiImagingApiCameraStartExposure({
@@ -245,6 +247,11 @@ abstract class RustLibApi extends BaseApi {
     int? width,
     int? height,
     required String frameType,
+  });
+
+  void crateApiDevicesCameraApiCameraStateReadoutMode({
+    required String deviceId,
+    String? mode,
   });
 
   Future<void> crateApiImagingApiCancelAutofocus();
@@ -1934,37 +1941,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesCameraApiCameraSetReadoutMode({
+  List<RetainedCaptureInfo> crateApiDevicesCameraApiCameraRetainedCaptures() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          return wire
+              .wire__crate__api__devices__camera__api_camera_retained_captures();
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_retained_capture_info,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDevicesCameraApiCameraRetainedCapturesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDevicesCameraApiCameraRetainedCapturesConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_camera_retained_captures",
+        argNames: [],
+      );
+
+  @override
+  Future<String> crateApiDevicesCameraApiCameraRetrieveRetainedCapture({
     required String deviceId,
-    required int modeIndex,
+    required String location,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_i_32(modeIndex);
+          var arg1 = cst_encode_String(location);
           return wire
-              .wire__crate__api__devices__camera__api_camera_set_readout_mode(
+              .wire__crate__api__devices__camera__api_camera_retrieve_retained_capture(
                 port_,
                 arg0,
                 arg1,
               );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesCameraApiCameraSetReadoutModeConstMeta,
-        argValues: [deviceId, modeIndex],
+        constMeta:
+            kCrateApiDevicesCameraApiCameraRetrieveRetainedCaptureConstMeta,
+        argValues: [deviceId, location],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesCameraApiCameraSetReadoutModeConstMeta =>
+  TaskConstMeta
+  get kCrateApiDevicesCameraApiCameraRetrieveRetainedCaptureConstMeta =>
       const TaskConstMeta(
-        debugName: "api_camera_set_readout_mode",
-        argNames: ["deviceId", "modeIndex"],
+        debugName: "api_camera_retrieve_retained_capture",
+        argNames: ["deviceId", "location"],
       );
 
   @override
@@ -2102,6 +2136,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "height",
           "frameType",
         ],
+      );
+
+  @override
+  void crateApiDevicesCameraApiCameraStateReadoutMode({
+    required String deviceId,
+    String? mode,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_opt_String(mode);
+          return wire
+              .wire__crate__api__devices__camera__api_camera_state_readout_mode(
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDevicesCameraApiCameraStateReadoutModeConstMeta,
+        argValues: [deviceId, mode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDevicesCameraApiCameraStateReadoutModeConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_camera_state_readout_mode",
+        argNames: ["deviceId", "mode"],
       );
 
   @override
@@ -11822,17 +11889,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           binY: dco_decode_i_32(raw[6]),
         );
       case 24:
+        return EquipmentEvent_CameraRetainedCapturesChanged(
+          deviceId: dco_decode_String(raw[1]),
+          count: dco_decode_u_32(raw[2]),
+        );
+      case 25:
         return EquipmentEvent_HeartbeatStarted(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           intervalSecs: dco_decode_u_64(raw[3]),
         );
-      case 25:
+      case 26:
         return EquipmentEvent_HeartbeatStopped(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
         );
-      case 26:
+      case 27:
         return EquipmentEvent_HeartbeatStatusChanged(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
@@ -11840,20 +11912,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           consecutiveFailures: dco_decode_u_32(raw[4]),
           lastRttMs: dco_decode_opt_box_autoadd_u_64(raw[5]),
         );
-      case 27:
+      case 28:
         return EquipmentEvent_HeartbeatReconnecting(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           attempt: dco_decode_u_32(raw[3]),
           maxAttempts: dco_decode_u_32(raw[4]),
         );
-      case 28:
+      case 29:
         return EquipmentEvent_HeartbeatReconnected(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           afterAttempts: dco_decode_u_32(raw[3]),
         );
-      case 29:
+      case 30:
         return EquipmentEvent_DeviceDiscovered(
           deviceClass: dco_decode_String(raw[1]),
           driver: dco_decode_String(raw[2]),
@@ -11862,7 +11934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: dco_decode_String(raw[5]),
           uniqueId: dco_decode_opt_String(raw[6]),
         );
-      case 30:
+      case 31:
         return EquipmentEvent_DeviceLost(
           deviceClass: dco_decode_String(raw[1]),
           driver: dco_decode_String(raw[2]),
@@ -12645,6 +12717,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RetainedCaptureInfo> dco_decode_list_retained_capture_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_retained_capture_info)
+        .toList();
+  }
+
+  @protected
   List<SchedulerScoreEntry> dco_decode_list_scheduler_score_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
@@ -13385,6 +13465,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_String(arr[0]), dco_decode_u_32(arr[1]));
+  }
+
+  @protected
+  RetainedCaptureInfo dco_decode_retained_capture_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return RetainedCaptureInfo(
+      deviceId: dco_decode_String(arr[0]),
+      cameraName: dco_decode_String(arr[1]),
+      location: dco_decode_String(arr[2]),
+      inCameraMemory: dco_decode_bool(arr[3]),
+      reason: dco_decode_String(arr[4]),
+      retainedAtMs: dco_decode_i_64(arr[5]),
+    );
   }
 
   @protected
@@ -16138,6 +16234,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           binY: var_binY,
         );
       case 24:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_count = sse_decode_u_32(deserializer);
+        return EquipmentEvent_CameraRetainedCapturesChanged(
+          deviceId: var_deviceId,
+          count: var_count,
+        );
+      case 25:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_intervalSecs = sse_decode_u_64(deserializer);
@@ -16146,14 +16249,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceId: var_deviceId,
           intervalSecs: var_intervalSecs,
         );
-      case 25:
+      case 26:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         return EquipmentEvent_HeartbeatStopped(
           deviceType: var_deviceType,
           deviceId: var_deviceId,
         );
-      case 26:
+      case 27:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_status = sse_decode_heartbeat_status(deserializer);
@@ -16166,7 +16269,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           consecutiveFailures: var_consecutiveFailures,
           lastRttMs: var_lastRttMs,
         );
-      case 27:
+      case 28:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_attempt = sse_decode_u_32(deserializer);
@@ -16177,7 +16280,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           attempt: var_attempt,
           maxAttempts: var_maxAttempts,
         );
-      case 28:
+      case 29:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_afterAttempts = sse_decode_u_32(deserializer);
@@ -16186,7 +16289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceId: var_deviceId,
           afterAttempts: var_afterAttempts,
         );
-      case 29:
+      case 30:
         var var_deviceClass = sse_decode_String(deserializer);
         var var_driver = sse_decode_String(deserializer);
         var var_id = sse_decode_String(deserializer);
@@ -16201,7 +16304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: var_displayName,
           uniqueId: var_uniqueId,
         );
-      case 30:
+      case 31:
         var var_deviceClass = sse_decode_String(deserializer);
         var var_driver = sse_decode_String(deserializer);
         var var_id = sse_decode_String(deserializer);
@@ -17281,6 +17384,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RetainedCaptureInfo> sse_decode_list_retained_capture_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RetainedCaptureInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_retained_capture_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SchedulerScoreEntry> sse_decode_list_scheduler_score_entry(
     SseDeserializer deserializer,
   ) {
@@ -18349,6 +18466,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_field0 = sse_decode_String(deserializer);
     var var_field1 = sse_decode_u_32(deserializer);
     return (var_field0, var_field1);
+  }
+
+  @protected
+  RetainedCaptureInfo sse_decode_retained_capture_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_cameraName = sse_decode_String(deserializer);
+    var var_location = sse_decode_String(deserializer);
+    var var_inCameraMemory = sse_decode_bool(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_retainedAtMs = sse_decode_i_64(deserializer);
+    return RetainedCaptureInfo(
+      deviceId: var_deviceId,
+      cameraName: var_cameraName,
+      location: var_location,
+      inCameraMemory: var_inCameraMemory,
+      reason: var_reason,
+      retainedAtMs: var_retainedAtMs,
+    );
   }
 
   @protected
@@ -21383,12 +21521,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_box_autoadd_i_32(offset, serializer);
         sse_encode_i_32(binX, serializer);
         sse_encode_i_32(binY, serializer);
+      case EquipmentEvent_CameraRetainedCapturesChanged(
+        deviceId: final deviceId,
+        count: final count,
+      ):
+        sse_encode_i_32(24, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_u_32(count, serializer);
       case EquipmentEvent_HeartbeatStarted(
         deviceType: final deviceType,
         deviceId: final deviceId,
         intervalSecs: final intervalSecs,
       ):
-        sse_encode_i_32(24, serializer);
+        sse_encode_i_32(25, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_64(intervalSecs, serializer);
@@ -21396,7 +21541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceType: final deviceType,
         deviceId: final deviceId,
       ):
-        sse_encode_i_32(25, serializer);
+        sse_encode_i_32(26, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
       case EquipmentEvent_HeartbeatStatusChanged(
@@ -21406,7 +21551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         consecutiveFailures: final consecutiveFailures,
         lastRttMs: final lastRttMs,
       ):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_heartbeat_status(status, serializer);
@@ -21418,7 +21563,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         attempt: final attempt,
         maxAttempts: final maxAttempts,
       ):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_32(attempt, serializer);
@@ -21428,7 +21573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceId: final deviceId,
         afterAttempts: final afterAttempts,
       ):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_32(afterAttempts, serializer);
@@ -21440,7 +21585,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         displayName: final displayName,
         uniqueId: final uniqueId,
       ):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_String(deviceClass, serializer);
         sse_encode_String(driver, serializer);
         sse_encode_String(id, serializer);
@@ -21452,7 +21597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         driver: final driver,
         id: final id,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_String(deviceClass, serializer);
         sse_encode_String(driver, serializer);
         sse_encode_String(id, serializer);
@@ -22333,6 +22478,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_retained_capture_info(
+    List<RetainedCaptureInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_retained_capture_info(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_scheduler_score_entry(
     List<SchedulerScoreEntry> self,
     SseSerializer serializer,
@@ -23204,6 +23361,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.$1, serializer);
     sse_encode_u_32(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_retained_capture_info(
+    RetainedCaptureInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.cameraName, serializer);
+    sse_encode_String(self.location, serializer);
+    sse_encode_bool(self.inCameraMemory, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_i_64(self.retainedAtMs, serializer);
   }
 
   @protected

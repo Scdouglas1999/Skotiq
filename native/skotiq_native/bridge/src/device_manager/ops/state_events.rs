@@ -234,11 +234,21 @@ impl DeviceManager {
         self.publish_notice(
             "Frame has almost no signal",
             format!(
-                "The {duration_secs:.0} s frame from {camera_name} peaks at {} ADU, under the \
+                "The {} s frame from {camera_name} peaks at {} ADU, under the \
                  {} ADU a frame with signal reaches. It was kept. Check the cap, the shutter, \
                  the dome and the exposure time. Skotiq says this once, until a frame has \
                  signal again.",
-                below.max_value, below.floor
+                // Whole seconds for a sub, two decimals for a short frame.
+                if duration_secs >= 10.0 {
+                    format!("{duration_secs:.0}")
+                } else {
+                    format!("{duration_secs:.2}")
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
+                        .to_string()
+                },
+                below.max_value,
+                below.floor
             ),
         );
     }

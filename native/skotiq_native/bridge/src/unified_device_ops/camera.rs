@@ -23,6 +23,7 @@ impl CameraOps for UnifiedDeviceOps {
             bin_y,
             subframe,
             frame_type,
+            readout_mode,
         } = request;
         let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
@@ -62,6 +63,21 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         let started_at = chrono::Utc::now();
+
+        // The read mode has one owner: the mode the exposure names, else the
+        // one stated for the camera (its profile's default). With neither the
+        // camera is left in the mode it is in.
+        if let Some(mode) = readout_mode
+            .map(str::to_string)
+            .or_else(|| mgr.stated_readout_mode(camera_id))
+        {
+            mgr.camera_use_readout_mode(camera_id, &mode)
+                .await
+                .inspect_err(|_e| {
+                    exposure.end(false, EventSeverity::Error);
+                })
+                .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+        }
 
         // Start the exposure. gain/offset are Option<i32>; None means "use the
         // camera's current value, don't change it" and is threaded through to

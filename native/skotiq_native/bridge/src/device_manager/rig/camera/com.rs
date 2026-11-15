@@ -224,20 +224,9 @@ impl Camera for ComCamera {
         camera.set_offset(offset).await.map_err(DeviceOpError::from)
     }
 
-    async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError> {
-        let camera = &self.camera;
-        let mut camera = camera.write().await;
-        let mode = skotiq_device::ReadoutMode {
-            name: format!("Mode {}", mode_index),
-            description: String::new(),
-            index: mode_index,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        };
-        camera
-            .set_readout_mode(&mode)
+    async fn use_readout_mode(&self, name: &str) -> Result<super::ReadModeUse, DeviceOpError> {
+        let mut camera = self.camera.write().await;
+        super::use_readout_mode(&mut *camera, name)
             .await
             .map_err(DeviceOpError::from)
     }

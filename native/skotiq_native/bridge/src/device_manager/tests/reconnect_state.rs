@@ -199,7 +199,9 @@ async fn fresh_connect_does_not_reapply_state() {
 #[derive(Debug, Clone, Default)]
 struct RecordingCoolerCamera {
     calls: Arc<std::sync::Mutex<Vec<(bool, Option<f64>)>>>,
-    retained_capture: bool,
+    /// Captures the camera kept, with the bytes a retrieve hands over.
+    retained: Vec<(skotiq_device::RetainedCapture, Vec<u8>)>,
+    notices: Vec<skotiq_device::DriverNotice>,
 }
 
 #[async_trait::async_trait]
@@ -226,15 +228,30 @@ impl skotiq_device::DeviceDriver for RecordingCoolerCamera {
 
 #[async_trait::async_trait]
 impl skotiq_device::CameraDriver for RecordingCoolerCamera {
-    fn check_automatic_reconnect(&self) -> Result<(), skotiq_device::DriverError> {
-        if self.retained_capture {
-            Err(skotiq_device::DriverError::SdkError(
-                "Retrieve the retained RAW /store/DCIM/FRAME.CR2, then disconnect and reconnect"
-                    .to_string(),
-            ))
-        } else {
-            Ok(())
-        }
+    fn take_notices(&mut self) -> Vec<skotiq_device::DriverNotice> {
+        std::mem::take(&mut self.notices)
+    }
+
+    fn retained_captures(&self) -> Vec<skotiq_device::RetainedCapture> {
+        self.retained.iter().map(|(kept, _)| kept.clone()).collect()
+    }
+
+    async fn retrieve_capture(
+        &mut self,
+        location: &str,
+    ) -> Result<skotiq_device::CameraFile, skotiq_device::DriverError> {
+        let index = self
+            .retained
+            .iter()
+            .position(|(kept, _)| kept.location == location)
+            .ok_or_else(|| {
+                skotiq_device::DriverError::SdkError(format!("{location} not found"))
+            })?;
+        let (kept, bytes) = self.retained.remove(index);
+        Ok(skotiq_device::CameraFile {
+            file_name: kept.location.rsplit('/').next().unwrap().to_string(),
+            bytes: Arc::new(bytes),
+        })
     }
 
     fn capabilities(&self) -> skotiq_device::CameraCapabilities {
@@ -404,52 +421,137 @@ async fn a_queued_background_reconnect_leaves_an_already_restored_camera_untouch
     assert_eq!(*calls.lock().unwrap(), [(true, Some(-12.0))]);
 }
 
+/// A capture whose download failed is recorded with where it is, the user is
+/// told, and neither a reconnect nor the next exposure waits for it. Asking
+/// for it later reads it off the camera and saves the camera's file.
 #[tokio::test]
-async fn automatic_recovery_preserves_retained_capture_after_heartbeat_loss() {
+async fn a_capture_kept_on_the_camera_is_listed_blocks_no_reconnect_and_is_retrieved_on_request() {
     let manager = build_device_manager();
     let id = "native:test:retained_raw";
     let info = build_native_camera_info(id);
     manager.register_connected_device(info.clone()).await;
+    let raw = b"the camera's own raw file".to_vec();
     manager.hold_vendor_camera(
         id,
         Box::new(RecordingCoolerCamera {
-            retained_capture: true,
+            retained: vec![(
+                skotiq_device::RetainedCapture {
+                    location: "/store/DCIM/FRAME.CR2".to_string(),
+                    in_camera_memory: false,
+                    in_hand: false,
+                    reason: "the download failed".to_string(),
+                },
+                raw.clone(),
+            )],
+            notices: vec![skotiq_device::DriverNotice {
+                title: "Camera refused bulb".to_string(),
+                message: "taken with 30 s".to_string(),
+            }],
             ..Default::default()
         }),
     );
-    manager
-        .mark_lost(id, true, "lost connection")
-        .await;
+    let mut events = manager.app_state.event_bus.subscribe();
 
-    let error = manager.connect_device_automatically(id).await.unwrap_err();
-    assert!(error.contains("Retrieve the retained RAW"), "{error}");
-    // Dart recovery shares this ordinary connect entry point with the UI.
-    let error = manager.connect_device(id).await.unwrap_err();
-    assert!(error.contains("/store/DCIM/FRAME.CR2"), "{error}");
-    manager.attempt_reconnect(id, &info).await;
-    let devices = manager.devices.read().await;
-    let device = devices.get(id).unwrap();
-    assert_eq!(device.connection_state, ConnectionState::Error);
-    assert!(device
-        .last_error
-        .as_ref()
-        .unwrap()
-        .contains("Retrieve the retained RAW"));
-    drop(devices);
-    assert!(
-        manager
-            .connect_device_automatically(id)
-            .await
-            .unwrap_err()
-            .contains("Retrieve the retained RAW"),
-        "both automatic entry paths must leave the protected driver in place"
-    );
+    // What reading a frame does after the driver answers.
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    manager.relay_camera_reports(id, camera.as_ref()).await;
 
-    // Once the operator has retrieved the file, disconnect releases the old
-    // handle. The next connect reaches the vendor open (this fake has no SDK).
-    manager.disconnect_device(id).await.unwrap();
+    let kept = manager.camera_retained_captures();
+    assert_eq!(kept.len(), 1, "one record however often it is reported");
+    assert_eq!(kept[0].location, "/store/DCIM/FRAME.CR2");
+    assert_eq!(kept[0].device_id, id);
+    let mut titles = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::System(
+            crate::event::system::SystemEvent::Notification { title, .. },
+        ) = event.payload
+        {
+            titles.push(title);
+        }
+    }
+    assert_eq!(titles, ["Camera refused bulb", "Capture kept on the camera"]);
+
+    // A reconnect is not held for it: it reaches the vendor open (this fake
+    // has no SDK), and the record outlives the driver it came from.
+    manager.mark_lost(id, true, "lost connection").await;
     let error = manager.connect_device(id).await.unwrap_err();
     assert!(error.contains("Unknown native camera vendor"), "{error}");
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+
+    // The camera is back with the file still on its card.
+    manager.register_connected_device(info).await;
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained: vec![(
+                skotiq_device::RetainedCapture {
+                    location: "/store/DCIM/FRAME.CR2".to_string(),
+                    in_camera_memory: false,
+                    in_hand: false,
+                    reason: String::new(),
+                },
+                raw.clone(),
+            )],
+            ..Default::default()
+        }),
+    );
+    let saved = manager
+        .camera_retrieve_retained_capture(id, "/store/DCIM/FRAME.CR2")
+        .await
+        .unwrap();
+    assert!(saved.ends_with("_FRAME.CR2"), "{saved}");
+    assert_eq!(std::fs::read(&saved).unwrap(), raw);
+    std::fs::remove_file(&saved).unwrap();
+    assert!(manager.camera_retained_captures().is_empty());
+}
+
+/// A raw file that was read and could not be decoded is saved as the camera
+/// made it at once, and is not left for the user to retrieve.
+#[tokio::test]
+async fn an_undecodable_camera_file_is_saved_at_once() {
+    let manager = build_device_manager();
+    let id = "native:test:undecodable_raw";
+    manager
+        .register_connected_device(build_native_camera_info(id))
+        .await;
+    let raw = b"read but not decodable".to_vec();
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained: vec![(
+                skotiq_device::RetainedCapture {
+                    location: "/DCIM/BAD.RAF".to_string(),
+                    in_camera_memory: false,
+                    in_hand: true,
+                    reason: "the raw file could not be decoded".to_string(),
+                },
+                raw.clone(),
+            )],
+            ..Default::default()
+        }),
+    );
+    let mut events = manager.app_state.event_bus.subscribe();
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+
+    assert!(manager.camera_retained_captures().is_empty());
+    let mut saved = None;
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::System(
+            crate::event::system::SystemEvent::Notification { title, message, .. },
+        ) = event.payload
+        {
+            assert_eq!(title, "Camera file saved");
+            saved = message
+                .split("saved at ")
+                .nth(1)
+                .map(|rest| rest.trim_end_matches(". The run goes on.").to_string());
+        }
+    }
+    let saved = saved.expect("the notice names the saved file");
+    assert_eq!(std::fs::read(&saved).unwrap(), raw);
+    std::fs::remove_file(&saved).unwrap();
 }
 
 /// `POST /api/camera/cooling {"enabled":false}` carries no setpoint, and the

@@ -1931,6 +1931,10 @@ pub struct ExposureConfig {
     pub filter_index: Option<i32>,
     pub gain: Option<i32>,
     pub offset: Option<i32>,
+    /// The read mode this step's frames are taken in, by the name the
+    /// camera lists. `None` takes the equipment profile's default.
+    #[serde(default)]
+    pub readout_mode: Option<String>,
     pub binning: Binning,
     pub dither_every: Option<u32>,
     #[serde(default = "default_dither_pixels")]
@@ -2060,6 +2064,7 @@ impl Default for ExposureConfig {
             filter_index: None,
             gain: None,
             offset: None,
+            readout_mode: None,
             binning: Binning::One,
             dither_every: Some(1),
             dither_pixels: default_dither_pixels(),

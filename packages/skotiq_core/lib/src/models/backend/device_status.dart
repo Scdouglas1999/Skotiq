@@ -268,6 +268,55 @@ class MountStatus {
   }
 }
 
+/// A capture a camera is keeping because its download failed. It never
+/// stops an exposure; it is read off the camera when the user asks.
+class RetainedCapture {
+  const RetainedCapture({
+    required this.deviceId,
+    required this.cameraName,
+    required this.location,
+    required this.inCameraMemory,
+    required this.reason,
+    required this.retainedAt,
+  });
+
+  final String deviceId;
+  final String cameraName;
+
+  /// Where the file is on the camera.
+  final String location;
+
+  /// In the camera's memory rather than on its card: gone when the camera
+  /// is switched off, and a later exposure can take its place.
+  final bool inCameraMemory;
+
+  /// Why the capture did not become a frame.
+  final String reason;
+  final DateTime retainedAt;
+
+  factory RetainedCapture.fromJson(Map<String, dynamic> json) =>
+      RetainedCapture(
+        deviceId: json['deviceId'] as String? ?? '',
+        cameraName: json['cameraName'] as String? ?? '',
+        location: json['location'] as String? ?? '',
+        inCameraMemory: json['inCameraMemory'] as bool? ?? false,
+        reason: json['reason'] as String? ?? '',
+        retainedAt: DateTime.fromMillisecondsSinceEpoch(
+          (json['retainedAtMs'] as num?)?.toInt() ?? 0,
+          isUtc: true,
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'deviceId': deviceId,
+    'cameraName': cameraName,
+    'location': location,
+    'inCameraMemory': inCameraMemory,
+    'reason': reason,
+    'retainedAtMs': retainedAt.millisecondsSinceEpoch,
+  };
+}
+
 /// Current status of a connected focuser
 class FocuserStatus {
   final bool connected;

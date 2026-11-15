@@ -423,16 +423,25 @@ fn a_body_with_no_pure_raw_reads_the_raw_of_its_raw_and_jpeg_pair() {
 
 #[test]
 #[ignore = "run by gphoto2_driver_against_the_independent_fake"]
-fn a_long_request_with_no_bulb_in_the_mode_says_to_turn_the_dial() {
+fn a_long_request_with_no_bulb_in_the_mode_is_taken_with_the_nearest_speed_and_said() {
     let f = fake();
     f.reset();
     let body = f.add("canon", CANON, "usb:001,005");
     f.set(body, "no_bulb_choice", "1");
     run(async {
         let mut camera = connected(CANON_DETECTED, "usb:001,005").await;
-        let err = camera.start_exposure(params(45.0, None)).await.unwrap_err();
-        assert!(format!("{err}").contains("mode dial"), "{err}");
+        // A night of long subs does not end at the first one: the frame is
+        // taken with the nearest timed speed and the user is told once.
+        camera
+            .start_exposure(params(45.0, None))
+            .await
+            .expect("the frame is taken with a timed speed");
         assert_eq!(f.get(body, "bulb_open"), "0");
+        let notices = camera.take_notices();
+        assert_eq!(notices.len(), 1, "{notices:?}");
+        assert_eq!(notices[0].title, "Camera refused bulb");
+        assert!(notices[0].message.contains("mode dial"), "{}", notices[0].message);
+        camera.abort_exposure().await.expect("give the frame up");
     });
 }
 

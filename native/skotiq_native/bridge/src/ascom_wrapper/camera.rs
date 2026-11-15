@@ -300,6 +300,7 @@ enum AscomCommand {
     SetGain(i32, oneshot::Sender<Result<(), DriverError>>),
     SetOffset(i32, oneshot::Sender<Result<(), DriverError>>),
     SetReadoutMode(i32, oneshot::Sender<Result<(), DriverError>>),
+    GetReadoutMode(oneshot::Sender<Result<Option<String>, DriverError>>),
     SetCooler(bool, Option<f64>, oneshot::Sender<Result<(), DriverError>>),
     /// Heartbeat check to verify device is still responding
     Heartbeat(oneshot::Sender<Result<CameraConnectionHealth, DriverError>>),
@@ -862,6 +863,15 @@ impl AscomCameraWrapper {
                                 .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
+                    AscomCommand::GetReadoutMode(reply) => {
+                        let _ = reply.send(match &camera {
+                            Some(cam) => Ok(readout_mode_name(
+                                cam.readout_mode().ok(),
+                                cam.readout_modes().ok(),
+                            )),
+                            None => Err(DriverError::SdkError("Camera not created".to_string())),
+                        });
+                    }
                     AscomCommand::SetCooler(enabled, target_temp, reply) => {
                         tracing::info!(
                             "ASCOM: SetCooler called: enabled={}, temp={:?}",
@@ -1353,6 +1363,15 @@ impl CameraDriver for AscomCameraWrapper {
             .read()
             .map(|modes| modes.clone())
             .map_err(|_| DriverError::Unknown("Failed to read readout mode cache".to_string()))
+    }
+
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomCommand::GetReadoutMode(tx))
+            .await
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
+        super::recv_with_timeout("Camera", rx, Timeouts::property_read(), "get_readout_mode").await
     }
 
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {

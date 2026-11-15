@@ -577,6 +577,10 @@ impl CameraDriver for PlayerOneCamera {
         self.sensor_modes(&sdk)
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.core.readout_mode.clone())
+    }
+
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         self.core.require_connected()?;
         let sdk = self.sdk().await?;

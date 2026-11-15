@@ -6,10 +6,12 @@
 ///
 library;
 
+export 'equipment/camera_read_mode_owner.dart';
 export 'equipment/camera_state_provider.dart';
 export 'equipment/cover_calibrator_state_provider.dart';
 export 'equipment/dome_state_provider.dart';
 export 'equipment/filter_wheel_state_provider.dart';
+export 'equipment/retained_captures_provider.dart';
 export 'equipment/focuser_state_provider.dart';
 export 'equipment/focus_compensation_rule.dart';
 export 'equipment/focuser_temp_compensation_provider.dart';

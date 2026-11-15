@@ -63,6 +63,10 @@ pub struct ExposureRequest<'a> {
     /// "DarkFlat", case-insensitive). A camera with a mechanical shutter
     /// (Moravian, FLI, some CCDs) keeps it closed for dark and bias frames.
     pub frame_type: &'a str,
+    /// The read mode this frame is to be taken in, by the name the camera
+    /// lists. `None` takes the mode stated for the camera (its profile's
+    /// default), or the mode it is in when none is stated.
+    pub readout_mode: Option<&'a str>,
 }
 
 impl<'a> ExposureRequest<'a> {
@@ -78,6 +82,7 @@ impl<'a> ExposureRequest<'a> {
             bin_y: 1,
             subframe: None,
             frame_type: "Light",
+            readout_mode: None,
         }
     }
 
@@ -104,6 +109,11 @@ impl<'a> ExposureRequest<'a> {
 
     pub fn frame_type(mut self, frame_type: &'a str) -> Self {
         self.frame_type = frame_type;
+        self
+    }
+
+    pub fn readout_mode(mut self, readout_mode: Option<&'a str>) -> Self {
+        self.readout_mode = readout_mode;
         self
     }
 }

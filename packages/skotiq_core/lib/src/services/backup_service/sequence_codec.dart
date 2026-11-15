@@ -89,6 +89,9 @@ extension _BackupSequenceCodec on BackupService {
         focalRatio: Value(_doubleOrNull(profile['focalRatio'])),
         defaultGain: Value(_intOrNull(profile['defaultGain'])),
         defaultOffset: Value(_intOrNull(profile['defaultOffset'])),
+        defaultReadoutMode: Value(
+          _stringOrNull(profile['defaultReadoutMode']),
+        ),
         defaultBinX: Value(_intOrDefault(profile['defaultBinX'], 1)),
         defaultBinY: Value(_intOrDefault(profile['defaultBinY'], 1)),
         defaultCoolingTemp: Value(_doubleOrNull(profile['defaultCoolingTemp'])),

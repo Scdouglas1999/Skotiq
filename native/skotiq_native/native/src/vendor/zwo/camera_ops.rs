@@ -658,6 +658,20 @@ impl CameraDriver for ZwoCamera {
             .collect())
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        self.core.require_connected()?;
+        if !self.has_high_speed_mode {
+            return Ok(None);
+        }
+        let value = self
+            .get_control_async(ASIControlType::ASI_HIGH_SPEED_MODE)
+            .await?;
+        Ok(usize::try_from(value)
+            .ok()
+            .and_then(|index| READ_MODES.get(index))
+            .map(|name| name.to_string()))
+    }
+
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         self.core.require_connected()?;
         if !self.has_high_speed_mode {

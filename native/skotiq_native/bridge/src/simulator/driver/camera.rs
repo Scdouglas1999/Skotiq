@@ -269,14 +269,11 @@ impl Camera for SimCamera {
         Ok(())
     }
 
-    async fn set_readout_mode(&self, _mode_index: i32) -> Result<(), DeviceOpError> {
-        // `SimulatedCamera::status` has no readout-mode field and the
-        // simulator advertises no readout modes, so there is no index
-        // to select and nothing a read-back could contradict. Reporting
-        // success would leave the caller believing a mode was applied.
-        Err(DeviceOpError::unsupported(
-            "Simulated cameras do not support readout modes",
-        ))
+    async fn use_readout_mode(
+        &self,
+        _name: &str,
+    ) -> Result<crate::device_manager::rig::camera::ReadModeUse, DeviceOpError> {
+        Ok(crate::device_manager::rig::camera::ReadModeUse::NoModes)
     }
 
     async fn set_cooler(

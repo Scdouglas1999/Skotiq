@@ -372,23 +372,6 @@ async fn camera_settings_publish_once_per_change() {
     assert_eq!((settings[2].0, settings[2].1), (Some(140), Some(21)));
 }
 
-/// A setting the camera refuses changes nothing, so it publishes nothing.
-#[tokio::test]
-async fn a_refused_setting_publishes_nothing() {
-    let _serialized = sim::sim_singleton_test_lock().lock().await;
-    attach(CAMERA, DeviceType::Camera).await;
-    let mut rx = get_state().event_bus.subscribe();
-
-    // The simulator has no readout modes.
-    assert!(
-        crate::api::devices::camera::api_camera_set_readout_mode(CAMERA.to_string(), 1)
-            .await
-            .is_err()
-    );
-
-    assert!(property_values(&drain(&mut rx), CAMERA, property::READOUT_MODE).is_empty());
-}
-
 #[tokio::test]
 async fn every_cooler_path_publishes_once() {
     let _serialized = sim::sim_singleton_test_lock().lock().await;

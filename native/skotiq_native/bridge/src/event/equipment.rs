@@ -178,6 +178,13 @@ pub enum EquipmentEvent {
         bin_y: i32,
     },
 
+    /// The list of captures a camera is keeping changed (one was kept after
+    /// a failed download, or one was retrieved); `count` are kept now.
+    CameraRetainedCapturesChanged {
+        device_id: String,
+        count: u32,
+    },
+
     // Heartbeat monitoring events
     HeartbeatStarted {
         device_type: String,
@@ -263,6 +270,7 @@ impl EquipmentEvent {
             | EquipmentEvent::CameraWarmingCompleted { device_id }
             | EquipmentEvent::CameraTemperatureChanged { device_id, .. }
             | EquipmentEvent::CameraSettingsChanged { device_id, .. }
+            | EquipmentEvent::CameraRetainedCapturesChanged { device_id, .. }
             | EquipmentEvent::HeartbeatStarted { device_id, .. }
             | EquipmentEvent::HeartbeatStopped { device_id, .. }
             | EquipmentEvent::HeartbeatStatusChanged { device_id, .. }

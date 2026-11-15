@@ -6,19 +6,20 @@
 import 'dart:async' as _i8;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i9;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart' as _i3;
 import 'package:skotiq_core/src/models/backend/backend_types.dart' as _i5;
-import 'package:skotiq_core/src/models/equipment_profile_model.dart' as _i13;
+import 'package:skotiq_core/src/models/equipment_profile_model.dart' as _i14;
 import 'package:skotiq_core/src/models/focuser_backlash_calibration.dart'
     as _i6;
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart' as _i2;
 import 'package:skotiq_core/src/models/plate_solver.dart' as _i4;
-import 'package:skotiq_core/src/services/camera_warmup_controller.dart' as _i11;
-import 'package:skotiq_core/src/services/device_exceptions.dart' as _i12;
-import 'package:skotiq_core/src/services/device_service.dart' as _i10;
+import 'package:skotiq_core/src/services/camera_warmup_controller.dart' as _i12;
+import 'package:skotiq_core/src/services/device_exceptions.dart' as _i13;
+import 'package:skotiq_core/src/services/device_service.dart' as _i11;
 import 'package:skotiq_core/src/services/imaging_service.dart' as _i7;
-import 'package:skotiq_core/src/services/mount_home_watcher.dart' as _i14;
-import 'package:skotiq_core/src/services/plate_solve_service.dart' as _i9;
+import 'package:skotiq_core/src/services/mount_home_watcher.dart' as _i15;
+import 'package:skotiq_core/src/services/plate_solve_service.dart' as _i10;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -202,12 +203,37 @@ class MockImagingService extends _i1.Mock implements _i7.ImagingService {
     Invocation.method(#retire, []),
     returnValueForMissingStub: null,
   );
+
+  @override
+  _i8.Future<String> keeperFilePath({
+    required String? folder,
+    required _i2.ExposureSettings? exposureSettings,
+    String? targetName,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#keeperFilePath, [], {
+              #folder: folder,
+              #exposureSettings: exposureSettings,
+              #targetName: targetName,
+            }),
+            returnValue: _i8.Future<String>.value(
+              _i9.dummyValue<String>(
+                this,
+                Invocation.method(#keeperFilePath, [], {
+                  #folder: folder,
+                  #exposureSettings: exposureSettings,
+                  #targetName: targetName,
+                }),
+              ),
+            ),
+          )
+          as _i8.Future<String>);
 }
 
 /// A class which mocks [PlateSolveService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPlateSolveService extends _i1.Mock implements _i9.PlateSolveService {
+class MockPlateSolveService extends _i1.Mock implements _i10.PlateSolveService {
   MockPlateSolveService() {
     _i1.throwOnMissingStub(this);
   }
@@ -215,7 +241,7 @@ class MockPlateSolveService extends _i1.Mock implements _i9.PlateSolveService {
   @override
   _i8.Future<_i3.PlateSolveResult> solve(
     String? imagePath,
-    _i9.PlateSolverConfig? config,
+    _i10.PlateSolverConfig? config,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#solve, [imagePath, config]),
@@ -359,7 +385,7 @@ class MockPlateSolveService extends _i1.Mock implements _i9.PlateSolveService {
 /// A class which mocks [DeviceService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
+class MockDeviceService extends _i1.Mock implements _i11.DeviceService {
   MockDeviceService() {
     _i1.throwOnMissingStub(this);
   }
@@ -519,14 +545,14 @@ class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<_i11.CameraWarmupOutcome> warmCamera({double? ratePerMin = 2.0}) =>
+  _i8.Future<_i12.CameraWarmupOutcome> warmCamera({double? ratePerMin = 2.0}) =>
       (super.noSuchMethod(
             Invocation.method(#warmCamera, [], {#ratePerMin: ratePerMin}),
-            returnValue: _i8.Future<_i11.CameraWarmupOutcome>.value(
-              _i11.CameraWarmupOutcome.started,
+            returnValue: _i8.Future<_i12.CameraWarmupOutcome>.value(
+              _i12.CameraWarmupOutcome.started,
             ),
           )
-          as _i8.Future<_i11.CameraWarmupOutcome>);
+          as _i8.Future<_i12.CameraWarmupOutcome>);
 
   @override
   void cancelWarmCamera({bool? restorePriorSetting = true}) =>
@@ -613,50 +639,50 @@ class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
           as _i8.Future<void>);
 
   @override
-  _i8.Stream<_i12.DeviceConnectProgress> connectAllFromProfile(
-    _i13.EquipmentProfileModel? profile,
+  _i8.Stream<_i13.DeviceConnectProgress> connectAllFromProfile(
+    _i14.EquipmentProfileModel? profile,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#connectAllFromProfile, [profile]),
-            returnValue: _i8.Stream<_i12.DeviceConnectProgress>.empty(),
+            returnValue: _i8.Stream<_i13.DeviceConnectProgress>.empty(),
           )
-          as _i8.Stream<_i12.DeviceConnectProgress>);
+          as _i8.Stream<_i13.DeviceConnectProgress>);
 
   @override
-  _i8.Future<({int connected, List<_i12.DeviceConnectProgress> failures})>
+  _i8.Future<({int connected, List<_i13.DeviceConnectProgress> failures})>
   connectProfile(
-    _i13.EquipmentProfileModel? profile, {
+    _i14.EquipmentProfileModel? profile, {
     String? source = 'Connect All',
   }) =>
       (super.noSuchMethod(
             Invocation.method(#connectProfile, [profile], {#source: source}),
             returnValue:
                 _i8.Future<
-                  ({int connected, List<_i12.DeviceConnectProgress> failures})
+                  ({int connected, List<_i13.DeviceConnectProgress> failures})
                 >.value((
                   connected: 0,
-                  failures: <_i12.DeviceConnectProgress>[],
+                  failures: <_i13.DeviceConnectProgress>[],
                 )),
           )
           as _i8.Future<
-            ({int connected, List<_i12.DeviceConnectProgress> failures})
+            ({int connected, List<_i13.DeviceConnectProgress> failures})
           >);
 
   @override
-  _i8.Future<({int connected, List<_i12.DeviceConnectProgress> failures})>
+  _i8.Future<({int connected, List<_i13.DeviceConnectProgress> failures})>
   retryFailedConnects() =>
       (super.noSuchMethod(
             Invocation.method(#retryFailedConnects, []),
             returnValue:
                 _i8.Future<
-                  ({int connected, List<_i12.DeviceConnectProgress> failures})
+                  ({int connected, List<_i13.DeviceConnectProgress> failures})
                 >.value((
                   connected: 0,
-                  failures: <_i12.DeviceConnectProgress>[],
+                  failures: <_i13.DeviceConnectProgress>[],
                 )),
           )
           as _i8.Future<
-            ({int connected, List<_i12.DeviceConnectProgress> failures})
+            ({int connected, List<_i13.DeviceConnectProgress> failures})
           >);
 
   @override
@@ -753,14 +779,14 @@ class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<_i14.MountHomeOutcome> findMountHome() =>
+  _i8.Future<_i15.MountHomeOutcome> findMountHome() =>
       (super.noSuchMethod(
             Invocation.method(#findMountHome, []),
-            returnValue: _i8.Future<_i14.MountHomeOutcome>.value(
-              _i14.MountHomeOutcome.confirmed,
+            returnValue: _i8.Future<_i15.MountHomeOutcome>.value(
+              _i15.MountHomeOutcome.confirmed,
             ),
           )
-          as _i8.Future<_i14.MountHomeOutcome>);
+          as _i8.Future<_i15.MountHomeOutcome>);
 
   @override
   _i8.Future<void> setMountParkHere() =>
@@ -982,47 +1008,9 @@ class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<void> startGuiding({
-    double? settlePixels = 1.0,
-    double? settleTime = 10.0,
-    double? settleTimeout = 60.0,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#startGuiding, [], {
-              #settlePixels: settlePixels,
-              #settleTime: settleTime,
-              #settleTimeout: settleTimeout,
-            }),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
   _i8.Future<void> stopGuiding() =>
       (super.noSuchMethod(
             Invocation.method(#stopGuiding, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> dither({
-    double? amount = 5.0,
-    bool? raOnly = false,
-    double? settlePixels = 1.0,
-    double? settleTime = 10.0,
-    double? settleTimeout = 60.0,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#dither, [], {
-              #amount: amount,
-              #raOnly: raOnly,
-              #settlePixels: settlePixels,
-              #settleTime: settleTime,
-              #settleTimeout: settleTimeout,
-            }),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )

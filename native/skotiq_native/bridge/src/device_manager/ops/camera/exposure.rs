@@ -48,9 +48,11 @@ impl DeviceManager {
 
         let camera = self.camera(device_id).await?;
 
-        camera
+        let started = camera
             .start_exposure(duration, gain, offset, bin_x, bin_y, subframe, frame_type)
-            .await
+            .await;
+        self.relay_camera_reports(device_id, camera.as_ref()).await;
+        started
     }
 
     pub async fn camera_is_exposure_complete(
