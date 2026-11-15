@@ -38,18 +38,12 @@ enum SilentGuider {
     Refuses,
 }
 
-/// Stop the guider for a `what` this API was asked for, and say whether the
-/// move may go.
-async fn clear_guider_for(what: &str, silent: SilentGuider) -> MountMoveGuider {
+fn guider_outcome(
+    guider: skotiq_sequencer::GuiderForMove,
+    silent: SilentGuider,
+) -> MountMoveGuider {
     use skotiq_sequencer::GuiderForMove;
-    let ops = crate::unified_device_ops::create_unified_device_ops();
-    match skotiq_sequencer::stop_guider_for_move(
-        &ops,
-        what,
-        skotiq_sequencer::GuidingStopReason::Operator,
-    )
-    .await
-    {
+    match guider {
         GuiderForMove::Idle => MountMoveGuider::Idle,
         GuiderForMove::Stopped => MountMoveGuider::Stopped,
         GuiderForMove::NotAnswering(reason) => match silent {
@@ -57,6 +51,19 @@ async fn clear_guider_for(what: &str, silent: SilentGuider) -> MountMoveGuider {
             SilentGuider::Refuses => MountMoveGuider::Refused { reason },
         },
     }
+}
+
+/// Stop the guider for a `what` this API was asked for, and say whether the
+/// move may go.
+async fn clear_guider_for(what: &str, silent: SilentGuider) -> MountMoveGuider {
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    let guider = skotiq_sequencer::stop_guider_for_move(
+        &ops,
+        what,
+        skotiq_sequencer::GuidingStopReason::Operator,
+    )
+    .await;
+    guider_outcome(guider, silent)
 }
 
 fn silent_guider(guider_silent_ok: bool) -> SilentGuider {
@@ -109,7 +116,13 @@ pub async fn api_mount_park(
     let guider = if for_safety {
         MountMoveGuider::Idle
     } else {
-        clear_guider_for("park", SilentGuider::Moves).await
+        let ops = crate::unified_device_ops::create_unified_device_ops();
+        let guider = skotiq_sequencer::stop_guider_for_park(
+            &ops,
+            skotiq_sequencer::GuidingStopReason::Operator,
+        )
+        .await;
+        guider_outcome(guider, SilentGuider::Moves)
     };
     let mgr = get_device_manager();
     mgr.mount_park(&device_id)

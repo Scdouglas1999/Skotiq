@@ -90,7 +90,7 @@ pub use focuser_calibration::{
     FocuserBacklashCalibration, MeasurementContext,
 };
 pub use guiding_stop::{
-    stop_guider_for_move, GuiderForMove, GuidingStopReason, GUIDER_STOP_BOUND,
+    stop_guider_for_move, stop_guider_for_park, GuiderForMove, GuidingStopReason, GUIDER_STOP_BOUND,
 };
 pub use instructions::*;
 pub use meridian_events::*;

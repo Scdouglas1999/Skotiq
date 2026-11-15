@@ -117,13 +117,32 @@ pub async fn stop_guider_for_move(
     what: &str,
     reason: GuidingStopReason,
 ) -> GuiderForMove {
-    stop_guider_for_move_within(device_ops, what, reason, GUIDER_STOP_BOUND).await
+    stop_guider_within(device_ops, what, reason, Stop::IfActive, GUIDER_STOP_BOUND).await
 }
 
-async fn stop_guider_for_move_within(
+/// [`stop_guider_for_move`] for a park: the guider's capture is ended even
+/// when it only loops, because a parked mount has nothing to guide on.
+pub async fn stop_guider_for_park(
+    device_ops: &crate::SharedDeviceOps,
+    reason: GuidingStopReason,
+) -> GuiderForMove {
+    stop_guider_within(device_ops, "park", reason, Stop::Always, GUIDER_STOP_BOUND).await
+}
+
+/// Which guiders a move stops.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stop {
+    /// One that may move the mount.
+    IfActive,
+    /// Any connected guider, looping ones included.
+    Always,
+}
+
+async fn stop_guider_within(
     device_ops: &crate::SharedDeviceOps,
     what: &str,
     reason: GuidingStopReason,
+    stop: Stop,
     bound: std::time::Duration,
 ) -> GuiderForMove {
     use crate::device_ops::{DeviceError, DeviceKind};
@@ -133,19 +152,28 @@ async fn stop_guider_for_move_within(
     // A task of its own: a guider client that blocks its thread cannot hold
     // the move past the bound.
     let asked = tokio::spawn(async move {
-        match ops.guider_is_active().await {
-            Ok(false) => return GuiderForMove::Idle,
-            Ok(true) => {}
-            Err(DeviceError::NO_GUIDER)
-            | Err(DeviceError::NotConnected {
-                device: DeviceKind::Guider,
-                ..
-            }) => return GuiderForMove::Idle,
-            Err(error) => {
-                tracing::warn!(
-                    "[GUIDING] Could not read the guider's state before the {move_name} \
-                     ({error}); stopping it so it cannot guide while the mount moves"
-                );
+        let no_guider = |error: &DeviceError| {
+            matches!(
+                error,
+                DeviceError::NotConfigured {
+                    device: DeviceKind::Guider
+                } | DeviceError::NotConnected {
+                    device: DeviceKind::Guider,
+                    ..
+                }
+            )
+        };
+        if stop == Stop::IfActive {
+            match ops.guider_is_active().await {
+                Ok(false) => return GuiderForMove::Idle,
+                Ok(true) => {}
+                Err(error) if no_guider(&error) => return GuiderForMove::Idle,
+                Err(error) => {
+                    tracing::warn!(
+                        "[GUIDING] Could not read the guider's state before the {move_name} \
+                         ({error}); stopping it so it cannot guide while the mount moves"
+                    );
+                }
             }
         }
         tracing::info!(
@@ -155,6 +183,7 @@ async fn stop_guider_for_move_within(
         ops.guider_note_stop_reason(Some(reason)).await;
         match ops.guider_stop().await {
             Ok(()) => GuiderForMove::Stopped,
+            Err(error) if no_guider(&error) => GuiderForMove::Idle,
             Err(error) => GuiderForMove::NotAnswering(error.to_string()),
         }
     });
@@ -342,19 +371,35 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn a_guider_slower_than_the_bound_does_not_hold_the_move() {
-        let (guider, ops) = ScriptedGuider::shared(
-            || Ok(true),
-            || Ok(()),
-            std::time::Duration::from_secs(60),
-        );
+        let (guider, ops) =
+            ScriptedGuider::shared(|| Ok(true), || Ok(()), std::time::Duration::from_secs(60));
         let asked = tokio::time::Instant::now();
         let outcome = stop_guider_for_move(&ops, "park", GuidingStopReason::MountMove).await;
-        assert!(matches!(outcome, GuiderForMove::NotAnswering(_)), "{outcome:?}");
+        assert!(
+            matches!(outcome, GuiderForMove::NotAnswering(_)),
+            "{outcome:?}"
+        );
         assert_eq!(asked.elapsed(), GUIDER_STOP_BOUND);
         assert_eq!(guider.stops(), 0);
 
+        let asked = tokio::time::Instant::now();
+        let parked = stop_guider_for_park(&ops, GuidingStopReason::MountMove).await;
+        assert!(
+            matches!(parked, GuiderForMove::NotAnswering(_)),
+            "{parked:?}"
+        );
+        assert_eq!(asked.elapsed(), GUIDER_STOP_BOUND, "a park waits no longer");
+
         // The stop is not abandoned: a guider that answers late still stops.
         tokio::time::sleep(std::time::Duration::from_secs(180)).await;
+        assert_eq!(guider.stops(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_park_stops_a_guider_that_only_loops() {
+        let (guider, ops) = ScriptedGuider::shared(|| Ok(false), || Ok(()), AT_ONCE);
+        let outcome = stop_guider_for_park(&ops, GuidingStopReason::MountMove).await;
+        assert_eq!(outcome, GuiderForMove::Stopped);
         assert_eq!(guider.stops(), 1);
     }
 }
