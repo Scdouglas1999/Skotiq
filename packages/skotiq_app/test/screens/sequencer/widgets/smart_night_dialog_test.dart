@@ -124,6 +124,35 @@ void main() {
     );
   });
 
+  for (final (horizon, label) in [
+    (null, '30\u00B0 minimum'),
+    ('{"E":40}', 'Your horizon'),
+  ]) {
+    testWidgets('the window step names the altitude floor in force: $label', (
+      tester,
+    ) async {
+      await _pumpDialog(
+        tester,
+        settingsLoader: () async =>
+            const AppSettingsState(latitude: 40, longitude: -75),
+        overrides: [
+          if (horizon != null)
+            horizonProfileProvider.overrideWithValue(
+              SiteHorizonProfile.fromJson(horizon),
+            ),
+        ],
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const Key('smartNight.altitudeFloorInForce')),
+        findsOneWidget,
+      );
+      expect(find.text(label), findsOneWidget);
+      // Smart Night has no minimum altitude of its own to edit.
+      expect(find.text('Min altitude'), findsNothing);
+    });
+  }
+
   testWidgets('SmartNightDialog blocks a fabricated midnight-sun window',
       (tester) async {
     // The dialog plans for the real tonight, so pick the pole that is in

@@ -70,3 +70,15 @@ String targetBelowFloorSkipWarning(String triggerName) =>
     '$triggerName, so the target was skipped without imaging and no frames '
     'were captured for it. The floor is your horizon when one is set in '
     'Settings → Location, otherwise the minimum altitude.';
+
+/// How a target step's reading begins while the target waits to start (for
+/// its start time, or to clear the site's altitude floor). Must stay
+/// byte-identical to `TARGET_WAIT_MESSAGE_PREFIX` in `target_header.rs`.
+const String kTargetWaitMessagePrefix = 'Waiting for ';
+
+/// [stepReading] when it says the target is waiting to start, otherwise
+/// null.
+String? targetWaitMessage(String? stepReading) =>
+    stepReading != null && stepReading.startsWith(kTargetWaitMessagePrefix)
+    ? stepReading
+    : null;

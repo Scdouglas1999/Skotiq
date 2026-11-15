@@ -47,6 +47,7 @@ class NightHeaderVm {
     this.targetCount,
     this.stepIndex,
     this.stepCount,
+    this.waitingFor,
     this.currentFilter,
     this.currentExposureSecs,
     this.framesDone,
@@ -60,6 +61,11 @@ class NightHeaderVm {
     this.startAtDark,
     this.ending,
   });
+
+  /// What the current target waits for before it starts ("Waiting for M31
+  /// to clear the altitude floor: ..."), in the run's own words. Null when
+  /// it is not waiting.
+  final String? waitingFor;
 
   final NightRunPhase phase;
 
@@ -125,6 +131,7 @@ class NightHeaderVm {
       other.targetCount == targetCount &&
       other.stepIndex == stepIndex &&
       other.stepCount == stepCount &&
+      other.waitingFor == waitingFor &&
       other.currentFilter == currentFilter &&
       other.currentExposureSecs == currentExposureSecs &&
       other.framesDone == framesDone &&
@@ -150,6 +157,7 @@ class NightHeaderVm {
         targetCount,
         stepIndex,
         stepCount,
+        waitingFor,
         currentFilter,
         currentExposureSecs,
         framesDone,
@@ -176,6 +184,7 @@ class NightHeaderVm {
         targetCount: targetCount,
         stepIndex: stepIndex,
         stepCount: stepCount,
+        waitingFor: waitingFor,
         currentFilter: currentFilter,
         currentExposureSecs: currentExposureSecs,
         framesDone: framesDone,

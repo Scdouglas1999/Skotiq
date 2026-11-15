@@ -815,6 +815,12 @@ impl ExecutionContext {
         self.active_target_end_trigger.read().clone()
     }
 
+    /// The site's altitude floor as the run's settings hold it now; `None`
+    /// outside a run or when the app sent none.
+    pub fn altitude_floor(&self) -> Option<crate::scheduling::AltitudeFloor> {
+        self.run.settings.as_ref()?.altitude_floor()
+    }
+
     /// Evaluate the active target's `end_when` trigger against the current
     /// observer/target snapshot. Returns:
     ///   * `Some(true)`  — a trigger is installed and is satisfied right now
@@ -825,12 +831,6 @@ impl ExecutionContext {
     ///     are missing. `None` is deliberately distinct from `Some(false)`
     ///     so callers can tell "no bound" apart from "bounded, not yet met"
     ///     and refuse to enter an unbounded infinite loop.
-    /// The site's altitude floor as the run's settings hold it now; `None`
-    /// outside a run or when the app sent none.
-    pub fn altitude_floor(&self) -> Option<crate::scheduling::AltitudeFloor> {
-        self.run.settings.as_ref()?.altitude_floor()
-    }
-
     pub fn active_target_end_trigger_satisfied(&self) -> Option<bool> {
         let trigger = self.active_target_end_trigger.read().clone()?;
         let (ra, dec) = match (self.target_ra, self.target_dec) {

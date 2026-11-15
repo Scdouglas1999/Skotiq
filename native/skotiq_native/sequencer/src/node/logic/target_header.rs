@@ -613,6 +613,13 @@ fn waits_for_floor(start: &TargetTrigger) -> bool {
     }
 }
 
+/// The instruction name a target step's waiting reading is published under.
+const TARGET_WAIT_INSTRUCTION: &str = "Target";
+
+/// How every [`waiting_message`] begins; `kTargetWaitMessagePrefix` in the
+/// app reads a step's reading as "waiting" by it.
+pub const TARGET_WAIT_MESSAGE_PREFIX: &str = "Waiting for ";
+
 /// What the run says while a target waits to start: the floor it is held
 /// behind, with its altitude and the floor's in that direction, when that is
 /// what holds it; otherwise the condition it waits for.
@@ -627,14 +634,14 @@ fn waiting_message(
             let (altitude, azimuth) = observer.floor_target().alt_az(observer.now);
             if !floor.clears(altitude, azimuth) {
                 return format!(
-                    "Waiting for {target} to clear the site's altitude floor: it is \
-                     {altitude:.0}° up and the floor in that direction is {:.0}°",
+                    "{TARGET_WAIT_MESSAGE_PREFIX}{target} to clear the altitude floor: \
+                     {altitude:.0}° up, floor {:.0}° in that direction",
                     floor.at_azimuth(azimuth)
                 );
             }
         }
     }
-    format!("Waiting for {target}: {label}")
+    format!("{TARGET_WAIT_MESSAGE_PREFIX}{target}: {label}")
 }
 
 /// Whether `start` waits for the altitude floor and the target does not clear
@@ -786,6 +793,15 @@ async fn wait_for_trigger(
         };
         if trigger.is_satisfied(&trig_ctx) {
             tracing::info!("start_when fired for {} ({})", target_label, label);
+            if emitted_initial {
+                // The step's reading no longer says it is waiting.
+                context.send_progress(ProgressUpdate::instruction_progress(
+                    node_id.clone(),
+                    TARGET_WAIT_INSTRUCTION,
+                    100.0,
+                    ProgressDetail::Generic("Started".to_string()),
+                ));
+            }
             return NodeStatus::Success;
         }
         // Checked at every poll, not only on arrival: a target can drop
@@ -799,7 +815,14 @@ async fn wait_for_trigger(
             emitted_initial = true;
             let message = waiting_message(&target_label, trigger, &label, &trig_ctx);
             tracing::info!("{message}");
-            // The operator sees why the target has not started.
+            // The operator sees why the target has not started: on the
+            // step (its reading) and as the run's message.
+            context.send_progress(ProgressUpdate::instruction_progress(
+                node_id.clone(),
+                TARGET_WAIT_INSTRUCTION,
+                0.0,
+                ProgressDetail::Generic(message.clone()),
+            ));
             context.send_progress(ProgressUpdate::lifecycle(
                 node_id.clone(),
                 NodeStatus::Running,
@@ -2277,9 +2300,14 @@ mod site_floor_tests {
             trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
         let message = waiting_message("East", &start, &start.label(), &observer);
         assert!(
-            message.starts_with("Waiting for East to clear the site's altitude floor: it is ")
-                && message.ends_with("the floor in that direction is 40°"),
+            message.starts_with("Waiting for East to clear the altitude floor: ")
+                && message.ends_with("° up, floor 40° in that direction"),
             "{message}"
+        );
+        let timed = TargetTrigger::TimeAfter(0);
+        assert!(
+            waiting_message("East", &timed, &timed.label(), &observer)
+                .starts_with(TARGET_WAIT_MESSAGE_PREFIX)
         );
     }
 

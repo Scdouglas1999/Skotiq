@@ -185,4 +185,15 @@ void main() {
     expect(floor.forTargetMinimum(20).atAzimuth(270), 20);
     expect(floor.forTargetMinimum(null).atAzimuth(270), 0);
   });
+
+  test('a step reading that begins "Waiting for " is a target waiting to '
+      'start', () {
+    const waiting =
+        'Waiting for East to clear the altitude floor: 35° up, floor 40° in '
+        'that direction';
+    expect(targetWaitMessage(waiting), waiting);
+    expect(targetWaitMessage('Waiting for East: time ≥ 12'), isNotNull);
+    expect(targetWaitMessage('Started'), isNull);
+    expect(targetWaitMessage(null), isNull);
+  });
 }
