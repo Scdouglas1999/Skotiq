@@ -3,6 +3,7 @@ use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, ImageData, PlateSolveOps, PlateSolveResult};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[async_trait]
 impl PlateSolveOps for UnifiedDeviceOps {
@@ -13,6 +14,9 @@ impl PlateSolveOps for UnifiedDeviceOps {
         hint_dec: Option<f64>,
         hint_scale: Option<f64>,
     ) -> DeviceResult<PlateSolveResult> {
+        if !solver_installed() {
+            return Err(skotiq_sequencer::DeviceError::NO_PLATE_SOLVER);
+        }
         tracing::info!("Plate solving image");
 
         let temp_file =
@@ -156,6 +160,24 @@ impl PlateSolveOps for UnifiedDeviceOps {
     }
 }
 
+/// Whether a plate solver program is installed. The first solve asked for
+/// without one says so in the log; the next one after a solver is set up says
+/// nothing until it is gone again.
+fn solver_installed() -> bool {
+    static TOLD_MISSING: AtomicBool = AtomicBool::new(false);
+    let installed = skotiq_platesolve::is_solver_available();
+    if first_report_of_missing_solver(installed, &TOLD_MISSING) {
+        tracing::warn!("{}", skotiq_sequencer::DeviceError::NO_PLATE_SOLVER);
+    }
+    installed
+}
+
+/// True the first time `installed` is false since it was last true.
+fn first_report_of_missing_solver(installed: bool, told_missing: &AtomicBool) -> bool {
+    let told = told_missing.swap(!installed, Ordering::Relaxed);
+    !installed && !told
+}
+
 /// The WCS of a successful solve of a `width` x `height` frame.
 pub(crate) fn solved_wcs(
     solved: &crate::api::plate_solve::PlateSolveResult,
@@ -163,6 +185,24 @@ pub(crate) fn solved_wcs(
     height: u32,
 ) -> Option<skotiq_imaging::SipWcs> {
     skotiq_imaging::SipWcs::from_plate_solve(&solved.into(), width, height)
+}
+
+#[cfg(test)]
+mod missing_solver_tests {
+    use super::first_report_of_missing_solver;
+    use std::sync::atomic::AtomicBool;
+
+    /// A missing solver is told once, not once per frame, and again only after
+    /// a solver was set up and went missing once more.
+    #[test]
+    fn a_missing_solver_is_told_once_per_absence() {
+        let told = AtomicBool::new(false);
+        let reports: Vec<bool> = [false, false, false, true, false, false]
+            .into_iter()
+            .map(|installed| first_report_of_missing_solver(installed, &told))
+            .collect();
+        assert_eq!(reports, [true, false, false, false, true, false]);
+    }
 }
 
 #[cfg(test)]
