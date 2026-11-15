@@ -69,6 +69,19 @@ void main() {
         NodeStatus.failure,
       );
     });
+
+    // The host always sends a status; an event without one cannot be read,
+    // so it is left out rather than turned into a failure the host never
+    // reported.
+    test('a NodeCompleted with no status leaves the node as it was', () {
+      apply(_event('NodeStarted', {'node_id': 'n1', 'node_type': 'Exposure'}));
+      apply(_event('NodeCompleted', {'node_id': 'n1'}));
+
+      expect(
+        container.read(sequenceProgressProvider).nodeStatuses['n1'],
+        NodeStatus.running,
+      );
+    });
   });
 
   group('lifecycle events drive state when no local run is owned', () {
