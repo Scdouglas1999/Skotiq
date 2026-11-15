@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import '../../../harness/provider_teardown.dart';
 import 'plan_targets_test_support.dart';
 
 ndb.DbTarget _target(int id, String name) => ndb.DbTarget(
@@ -157,6 +158,7 @@ void main() {
     // Listed and, as the first row, opened beside the list.
     expect(find.text('31.9h · no goal'), findsOneWidget);
     expect(find.textContaining('0s / 0s'), findsNothing);
+    await settleProviderTeardown(tester);
   });
 
   testWidgets('choosing a group narrows the list and the autopilot to it',
@@ -176,6 +178,7 @@ void main() {
     expect(find.byKey(const ValueKey('plan-target-row-1')), findsNothing);
     expect(find.byKey(const ValueKey('plan-target-row-2')), findsOneWidget);
     expect(find.text('Autopilot · Fall galaxies'), findsOneWidget);
+    await settleProviderTeardown(tester);
   });
 
   testWidgets('with no targets the tab shows one way forward and no filters',
@@ -186,6 +189,7 @@ void main() {
     expect(find.byKey(const ValueKey('plan-targets-add-first')), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-targets-search')), findsNothing);
     expect(find.byKey(const ValueKey('plan-targets-sort-chip')), findsNothing);
+    await settleProviderTeardown(tester);
   });
 
   testWidgets('a link to the mosaics group opens the mosaics', (tester) async {
@@ -194,6 +198,7 @@ void main() {
     expect(find.text('No mosaics yet'), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-targets-new-mosaic')), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-target-row-1')), findsNothing);
+    await settleProviderTeardown(tester);
   });
 
   testWidgets('at phone width every row keeps its name and nothing overflows',
@@ -210,5 +215,6 @@ void main() {
     expect(find.byKey(const ValueKey('plan-target-back')), findsOneWidget);
     expect(find.text('Goals'), findsOneWidget);
     _expectNoLayoutError(tester);
+    await settleProviderTeardown(tester);
   });
 }
