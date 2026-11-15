@@ -357,11 +357,12 @@ class _NoSourceBody extends StatelessWidget {
   }
 }
 
-/// An empty state in place of the map.
+/// An empty state in place of the map, with what still applies beneath it.
 ///
 /// A connected weather station or safety monitor reports without a site or a
-/// network, so its readings and the safety policy follow the empty state when
-/// one is connected rather than hiding behind a problem they do not share.
+/// network, so its readings follow when one is connected. The safety policy is
+/// settings, not readings: it shows either way, with what it does while no
+/// data arrives, since a fail-closed rule can still park the mount here.
 class _WeatherEmptyBody extends ConsumerWidget {
   final IconData icon;
   final String title;
@@ -385,16 +386,19 @@ class _WeatherEmptyBody extends ConsumerWidget {
     final compact =
         MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: compact
           ? SkotiqTokens.screenPaddingCompact
           : SkotiqTokens.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: DecoratedBox(
-              decoration: SkotiqDecorations.well(colors),
+          DecoratedBox(
+            decoration: SkotiqDecorations.well(colors),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: SkotiqTokens.space3xl,
+              ),
               child: Center(
                 child: EmptyState(
                   icon: icon,
@@ -405,23 +409,32 @@ class _WeatherEmptyBody extends ConsumerWidget {
               ),
             ),
           ),
-          if (hasSensors) ...[
-            const SizedBox(height: SkotiqTokens.spaceLg),
-            const SkotiqPanel(
-              head: PanelHead(
-                icon: SkotiqIcons.weather,
-                label: 'Conditions',
-              ),
-              child: _WeatherConditions(
-                alert: null,
-                motion: null,
-                lastUpdate: null,
-                cloudCoverPercent: null,
-                alertRadiusKm: null,
-                expanded: true,
-              ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          SkotiqPanel(
+            head: PanelHead(
+              icon: hasSensors ? SkotiqIcons.weather : SkotiqIcons.shieldOk,
+              label: hasSensors ? 'Conditions' : 'Weather safety',
+              trailing: [
+                SkotiqButton(
+                  label: 'Change',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () =>
+                      openSettings(context, SettingsSectionId.weatherSafety),
+                ),
+              ],
             ),
-          ],
+            child: hasSensors
+                ? const _WeatherConditions(
+                    alert: null,
+                    motion: null,
+                    lastUpdate: null,
+                    cloudCoverPercent: null,
+                    alertRadiusKm: null,
+                    expanded: true,
+                  )
+                : const _SafetyPolicy(noData: true),
+          ),
         ],
       ),
     );

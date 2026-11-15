@@ -32,6 +32,30 @@ String weatherSafetyStatusText({
   }
 }
 
+/// What weather safety does while no weather data arrives, from the fail
+/// mode (`noDataFailModeResolution`). A null [failMode] is the shipped
+/// fail-closed default while settings load.
+@visibleForTesting
+String weatherNoDataRuleText({
+  required bool monitoring,
+  required SafetyFailMode? failMode,
+}) {
+  if (!monitoring) {
+    return 'Weather safety is off, so missing weather data never stops a run '
+        'or parks the mount.';
+  }
+  switch (failMode ?? SafetyFailMode.failClosed) {
+    case SafetyFailMode.failClosed:
+      return 'With no weather data, safety treats the sky as unsafe: a run '
+          'stops and the mount parks.';
+    case SafetyFailMode.failOpen:
+      return 'With no weather data, safety treats the sky as safe and '
+          'imaging goes on.';
+    case SafetyFailMode.warnOnly:
+      return 'With no weather data, imaging goes on and Skotiq warns you.';
+  }
+}
+
 /// How an auto-park / auto-resume policy is reported.
 ///
 /// A toggle that is on but cannot fire (its prerequisites are off) is neither

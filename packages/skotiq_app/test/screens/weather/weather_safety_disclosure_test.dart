@@ -16,9 +16,51 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 void main() {
+  group('weatherNoDataRuleText', () {
+    test('fail-closed says a run stops and the mount parks', () {
+      expect(
+        weatherNoDataRuleText(
+          monitoring: true,
+          failMode: SafetyFailMode.failClosed,
+        ),
+        contains('mount parks'),
+      );
+    });
+
+    test('settings still loading read as the fail-closed default', () {
+      expect(
+        weatherNoDataRuleText(monitoring: true, failMode: null),
+        weatherNoDataRuleText(
+          monitoring: true,
+          failMode: SafetyFailMode.failClosed,
+        ),
+      );
+    });
+
+    test('with safety off nothing parks for missing data', () {
+      expect(
+        weatherNoDataRuleText(
+          monitoring: false,
+          failMode: SafetyFailMode.failClosed,
+        ),
+        contains('never stops a run'),
+      );
+    });
+
+    test('the permissive modes say imaging goes on', () {
+      for (final mode in [SafetyFailMode.failOpen, SafetyFailMode.warnOnly]) {
+        expect(
+          weatherNoDataRuleText(monitoring: true, failMode: mode),
+          contains('imaging goes on'),
+        );
+      }
+    });
+  });
+
   group('weatherSafetyStatusText', () {
     test('says conditions are not checked when weather safety is off', () {
       final text = weatherSafetyStatusText(

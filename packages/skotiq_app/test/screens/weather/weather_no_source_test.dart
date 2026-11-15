@@ -80,6 +80,19 @@ void main() {
     expect(find.text('FORECAST CLOUD COVER'), findsNothing);
   });
 
+  testWidgets('with no source the safety policy stays on screen',
+      (tester) async {
+    await _pumpWeather(tester, frames: const []);
+
+    expect(find.text('No weather source'), findsOneWidget);
+    // Settings, not readings: a fail-closed rule can still park the mount
+    // here, so the user must see the policy and what it does without data.
+    expect(find.text('Auto-park'), findsOneWidget);
+    expect(find.text('Auto-resume'), findsOneWidget);
+    expect(find.byKey(const ValueKey('weather_no_data_rule')), findsOneWidget);
+    expect(find.text('Change'), findsOneWidget);
+  });
+
   testWidgets('a forecast without radar still shows the map and the figure',
       (tester) async {
     await _pumpWeather(tester, frames: const [], cloudPercent: 40);

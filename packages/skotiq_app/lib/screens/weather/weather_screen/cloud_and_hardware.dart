@@ -39,8 +39,6 @@ class _WeatherConditions extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final weatherState = ref.watch(weatherStateProvider);
     final safetyDeviceState = ref.watch(safetyMonitorStateProvider);
-    final settings = ref.watch(weatherSettingsProvider);
-    final safetyState = ref.watch(weatherSafetyProvider);
     final forecast = ref.watch(cloudCoverForecastProvider).valueOrNull;
     final validAt = forecast?.validAt?.toUtc();
     final forecastSource = '${forecast?.source ?? 'Weather'} model · '
@@ -157,28 +155,7 @@ class _WeatherConditions extends ConsumerWidget {
             KeyValueList(rows: sensorRows),
           ],
           const _ConditionsDivider(),
-          KeyValueList(
-            rows: [
-              (
-                'Auto-park',
-                weatherPolicyArmedLabel(
-                  armed: safetyState.autoParkArmed,
-                  toggledOn: settings.autoParkEnabled,
-                  monitoring: safetyState.monitoringEnabled,
-                ),
-              ),
-              (
-                'Auto-resume',
-                weatherPolicyArmedLabel(
-                  armed: safetyState.autoResumeArmed,
-                  toggledOn: settings.autoResumeEnabled,
-                  monitoring: safetyState.monitoringEnabled,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: SkotiqTokens.spaceMd),
-          const _SafetyDisclosure(),
+          const _SafetyPolicy(),
         ],
       ],
     );
@@ -191,6 +168,66 @@ class _WeatherConditions extends ConsumerWidget {
     if (percent <= 25) return colors.success;
     if (percent <= 60) return colors.warning;
     return colors.error;
+  }
+}
+
+/// The weather safety policy: whether auto-park and auto-resume can fire, and
+/// the safety verdict's own sentence. Settings, not readings, so they show
+/// whether or not any weather source is answering.
+class _SafetyPolicy extends ConsumerWidget {
+  /// Adds the sentence saying what the fail mode does when no data arrives,
+  /// for the states where none is arriving.
+  final bool noData;
+
+  const _SafetyPolicy({this.noData = false});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = SkotiqColors.of(context);
+    final settings = ref.watch(weatherSettingsProvider);
+    final safetyState = ref.watch(weatherSafetyProvider);
+    final failMode = ref.watch(appSettingsProvider).valueOrNull?.safetyFailMode;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KeyValueList(
+          rows: [
+            (
+              'Auto-park',
+              weatherPolicyArmedLabel(
+                armed: safetyState.autoParkArmed,
+                toggledOn: settings.autoParkEnabled,
+                monitoring: safetyState.monitoringEnabled,
+              ),
+            ),
+            (
+              'Auto-resume',
+              weatherPolicyArmedLabel(
+                armed: safetyState.autoResumeArmed,
+                toggledOn: settings.autoResumeEnabled,
+                monitoring: safetyState.monitoringEnabled,
+              ),
+            ),
+          ],
+        ),
+        if (noData) ...[
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          Text(
+            weatherNoDataRuleText(
+              monitoring: safetyState.monitoringEnabled,
+              failMode: failMode,
+            ),
+            key: const ValueKey('weather_no_data_rule'),
+            style: SkotiqTypography.bodySm.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        const _SafetyDisclosure(),
+      ],
+    );
   }
 }
 
