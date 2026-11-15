@@ -1,5 +1,5 @@
-// Live (u1-audit): "polar" + Enter opened Plan > Framing on a cluster whose
-// common name holds the word, not the Polar alignment screen.
+// Live (u1-audit, and again on 9.0.0 here): "polar" + Enter opened Plan >
+// Framing on Polaris, not the Polar alignment screen.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/command_palette/command_entry.dart';
@@ -15,7 +15,8 @@ CommandEntry _entry(String id, CommandGroup group, String label) =>
 
 void main() {
   final entries = [
-    _entry('target', CommandGroup.targets, 'NGC 3172 · Polarissima Borealis'),
+    _entry('target', CommandGroup.targets, 'Polaris'),
+    _entry('cluster', CommandGroup.targets, 'Polarissima Borealis (NGC3172)'),
     _entry('screen', CommandGroup.screens, 'Polar alignment'),
     _entry('setting', CommandGroup.settings, 'Polar alignment stale after'),
   ];
@@ -26,6 +27,6 @@ void main() {
 
   test('among equal matches the first in display order wins', () {
     expect(entries[bestCommandIndex(entries, 'polar alignment')].id, 'screen');
-    expect(entries[bestCommandIndex(entries, 'ngc')].id, 'target');
+    expect(entries[bestCommandIndex(entries, 'polaris')].id, 'target');
   });
 }

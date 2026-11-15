@@ -91,24 +91,29 @@ class CommandEntry {
 
   /// How well [query] matches, for ordering WITHIN a group.
   ///
-  /// A prefix beats a word-start beats anything else, so typing "pl" puts
-  /// "Plan" above "Polar alignment" instead of leaving the order to the
-  /// catalog. Lower sorts first.
+  /// A label that begins with the query as a whole word beats one that only
+  /// begins with it ("polar": "Polar alignment" above "Polaris"), which beats
+  /// a word-start, which beats anything else; so typing "pl" puts "Plan"
+  /// above "Polar alignment" instead of leaving the order to the catalog.
+  /// Lower sorts first.
   int rank(String query) {
     if (query.isEmpty) return 0;
     final lower = label.toLowerCase();
-    if (lower.startsWith(query)) return 0;
-    if (RegExp(r'\b' + RegExp.escape(query)).hasMatch(lower)) return 1;
-    if (lower.contains(query)) return 2;
-    return 3;
+    if (lower.startsWith(query)) {
+      final next = lower.length > query.length ? lower[query.length] : ' ';
+      return RegExp(r'[a-z0-9]').hasMatch(next) ? 1 : 0;
+    }
+    if (RegExp(r'\b' + RegExp.escape(query)).hasMatch(lower)) return 2;
+    if (lower.contains(query)) return 3;
+    return 4;
   }
 }
 
 /// The entry Enter runs before the arrows move: the best [CommandEntry.rank]
 /// across every group, the first in display order among equals. The groups
-/// keep their fixed order for scanning, but a target found by a word in its
-/// common name must not win Enter from a screen whose name begins with what
-/// was typed ("polar" opened Framing on a star cluster, not Polar alignment).
+/// keep their fixed order for scanning, but a target whose name only begins
+/// with what was typed must not win Enter from a screen named by it ("polar"
+/// opened Framing on Polaris, not Polar alignment).
 int bestCommandIndex(List<CommandEntry> entries, String query) {
   var best = 0;
   var bestRank = 1 << 30;
