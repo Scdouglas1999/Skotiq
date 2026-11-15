@@ -138,17 +138,17 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
   }
 
   Widget _moreMenu() {
-    return MoreMenuButton<_RowAction>(
+    return SkotiqMenuButton<_RowAction>(
       tooltip: 'More actions for ${_summary.name}',
       entries: [
-        MoreMenuEntry(
+        SkotiqMenuChoice(
             _RowAction.preview, _expanded ? 'Hide preview' : 'Preview'),
-        const MoreMenuEntry(_RowAction.runHistory, 'View run history'),
-        const MoreMenuEntry(_RowAction.versionHistory, 'Version history'),
-        const MoreMenuEntry(_RowAction.editTags, 'Edit tags'),
-        const MoreMenuEntry(_RowAction.duplicate, 'Duplicate'),
-        const MoreMenuEntry(_RowAction.export, 'Export'),
-        const MoreMenuEntry(_RowAction.delete, 'Delete', destructive: true),
+        const SkotiqMenuChoice(_RowAction.runHistory, 'View run history'),
+        const SkotiqMenuChoice(_RowAction.versionHistory, 'Version history'),
+        const SkotiqMenuChoice(_RowAction.editTags, 'Edit tags'),
+        const SkotiqMenuChoice(_RowAction.duplicate, 'Duplicate'),
+        const SkotiqMenuChoice(_RowAction.export, 'Export'),
+        const SkotiqMenuChoice(_RowAction.delete, 'Delete', destructive: true),
       ],
       onSelected: (action) => switch (action) {
         _RowAction.preview => _togglePreview(),

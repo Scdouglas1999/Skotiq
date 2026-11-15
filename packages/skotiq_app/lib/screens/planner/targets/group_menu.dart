@@ -68,37 +68,39 @@ class _GroupChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final unused = ref.watch(unusedTargetsCountProvider).valueOrNull ?? 0;
     final current = group;
-    return _MenuChip<_GroupChoice>(
+    return SkotiqMenuChip<_GroupChoice>(
       key: const ValueKey('plan-targets-group-chip'),
       label: showMosaics ? 'Mosaics' : current?.name ?? 'All targets',
-      items: () => [
-        _menuItem(
-          context,
+      name: 'Group',
+      entries: [
+        SkotiqMenuChoice(
           const _ShowGroup(null),
           'All targets',
           checked: !showMosaics && current == null,
         ),
         for (final g in groups)
-          _menuItem(
-            context,
+          SkotiqMenuChoice(
             _ShowGroup(g.id),
             g.name,
             checked: !showMosaics && g.id == current?.id,
           ),
-        _menuItem(
-          context,
+        SkotiqMenuChoice(
           const _ShowMosaics(),
           'Mosaics',
           checked: showMosaics,
         ),
-        const PopupMenuDivider(),
-        _menuItem(context, const _NewGroup(), 'New group…'),
+        const SkotiqMenuDivider(),
+        const SkotiqMenuChoice(_NewGroup(), 'New group…'),
         if (current != null && !showMosaics) ...[
-          _menuItem(context, const _RenameGroup(), 'Rename "${current.name}"…'),
-          _menuItem(context, const _DeleteGroup(), 'Delete "${current.name}"…'),
+          SkotiqMenuChoice(const _RenameGroup(), 'Rename "${current.name}"…'),
+          SkotiqMenuChoice(
+            const _DeleteGroup(),
+            'Delete "${current.name}"…',
+            destructive: true,
+          ),
         ],
         if (unused > 0)
-          _menuItem(context, _CleanUp(unused), 'Clean up unused targets…'),
+          SkotiqMenuChoice(_CleanUp(unused), 'Clean up unused targets…'),
       ],
       onSelected: (choice) => switch (choice) {
         _ShowGroup(:final id) => onSelectGroup(id),

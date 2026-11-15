@@ -102,13 +102,13 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
   }
 
   Widget _moreMenu({required bool builtIn}) {
-    return MoreMenuButton<_TemplateAction>(
+    return SkotiqMenuButton<_TemplateAction>(
       tooltip: 'More actions for ${widget.template.name}',
       entries: [
-        const MoreMenuEntry(_TemplateAction.duplicate, 'Duplicate'),
+        const SkotiqMenuChoice(_TemplateAction.duplicate, 'Duplicate'),
         // A bundled template is part of the product and cannot be deleted.
         if (!builtIn)
-          const MoreMenuEntry(
+          const SkotiqMenuChoice(
             _TemplateAction.delete,
             'Delete',
             destructive: true,

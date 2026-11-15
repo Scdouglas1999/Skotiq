@@ -191,36 +191,31 @@ class _TargetDetail extends ConsumerWidget {
   Widget _more(BuildContext context) {
     final plan = row.target;
     final current = group;
-    return Builder(
-      builder: (context) => SkotiqIconButton(
-        key: const ValueKey('plan-target-more'),
-        icon: LucideIcons.moreHorizontal,
-        tooltip: 'More for ${plan.name}',
-        size: IconButtonSize.sm,
-        onPressed: () async {
-          final choice = await _menuUnder<int>(context, [
-            _menuItem(
-              context,
-              0,
-              plan.inAutopilot
-                  ? 'Take off the autopilot\'s list'
-                  : 'Put back on the autopilot\'s list',
-            ),
-            if (current != null)
-              _menuItem(context, 1, 'Take out of "${current.name}"'),
-            if (plan.progress.hasAnyProgress)
-              _menuItem(context, 2, 'Open in Darkroom'),
-          ]);
-          if (!context.mounted) return;
-          if (choice == 0) await onSetInAutopilot(plan, !plan.inAutopilot);
-          if (choice == 1) await onRemoveFromGroup(current!, plan);
-          if (choice == 2) {
-            context.go(
-              darkroomTargetLocation(normalizeDarkroomTargetName(plan.name)),
-            );
-          }
-        },
-      ),
+    return SkotiqMenuButton<int>(
+      key: const ValueKey('plan-target-more'),
+      tooltip: 'More for ${plan.name}',
+      size: IconButtonSize.sm,
+      entries: [
+        SkotiqMenuChoice(
+          0,
+          plan.inAutopilot
+              ? 'Take off the autopilot\'s list'
+              : 'Put back on the autopilot\'s list',
+        ),
+        if (current != null)
+          SkotiqMenuChoice(1, 'Take out of "${current.name}"'),
+        if (plan.progress.hasAnyProgress)
+          const SkotiqMenuChoice(2, 'Open in Darkroom'),
+      ],
+      onSelected: (choice) async {
+        if (choice == 0) await onSetInAutopilot(plan, !plan.inAutopilot);
+        if (choice == 1) await onRemoveFromGroup(current!, plan);
+        if (choice == 2 && context.mounted) {
+          context.go(
+            darkroomTargetLocation(normalizeDarkroomTargetName(plan.name)),
+          );
+        }
+      },
     );
   }
 

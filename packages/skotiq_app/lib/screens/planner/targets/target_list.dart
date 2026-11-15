@@ -179,73 +179,6 @@ String _nextLine(_AutopilotView view, List<_TargetRow> rows, Project? group) {
   }
 }
 
-/// Opens a menu under the widget that owns [context].
-Future<T?> _menuUnder<T>(BuildContext context, List<PopupMenuEntry<T>> items) {
-  final box = context.findRenderObject()! as RenderBox;
-  final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-  final origin = box.localToGlobal(
-    Offset(0, box.size.height + SkotiqTokens.spaceXs),
-    ancestor: overlay,
-  );
-  return showMenu<T>(
-    context: context,
-    position: RelativeRect.fromRect(
-      origin & box.size,
-      Offset.zero & overlay.size,
-    ),
-    items: items,
-  );
-}
-
-/// A filter chip that opens a menu of [items].
-class _MenuChip<T> extends StatelessWidget {
-  const _MenuChip({
-    super.key,
-    required this.label,
-    required this.items,
-    required this.onSelected,
-  });
-
-  final String label;
-  final List<PopupMenuEntry<T>> Function() items;
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) => SkotiqFilterChip(
-        label: label,
-        onTap: () async {
-          final choice = await _menuUnder<T>(context, items());
-          if (choice != null) onSelected(choice);
-        },
-      );
-}
-
-PopupMenuItem<T> _menuItem<T>(
-  BuildContext context,
-  T value,
-  String label, {
-  bool checked = false,
-}) {
-  final colors = SkotiqColors.of(context);
-  return PopupMenuItem<T>(
-    value: value,
-    height: SkotiqTokens.buttonHeightLg,
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
-          ),
-        ),
-        if (checked)
-          Icon(LucideIcons.check, size: SkotiqTokens.iconSm, color: colors.primary),
-      ],
-    ),
-  );
-}
-
 /// The list side of the tab: toolbar, count, the rows and the week ahead.
 class _TargetListColumn extends ConsumerWidget {
   const _TargetListColumn({
@@ -315,7 +248,9 @@ class _TargetListColumn extends ConsumerWidget {
       for (final r in rows)
         if ((q.isEmpty ||
                 r.target.name.toLowerCase().contains(q) ||
-                (r.target.progress.target.catalogId?.toLowerCase().contains(q) ??
+                (r.target.progress.target.catalogId
+                        ?.toLowerCase()
+                        .contains(q) ??
                     false)) &&
             switch (statusFilter) {
               PlanTargetStatusFilter.any => true,
@@ -403,9 +338,8 @@ class _TargetListColumn extends ConsumerWidget {
     } else if (rows.isEmpty) {
       body = EmptyState.compact(
         icon: LucideIcons.target,
-        title: group == null
-            ? 'No targets yet'
-            : 'No targets in "${group!.name}"',
+        title:
+            group == null ? 'No targets yet' : 'No targets in "${group!.name}"',
         body: 'Add a target, then set how much you want of each filter.',
         action: SkotiqButton(
           label: 'Add target',
@@ -501,23 +435,25 @@ class _TargetListColumn extends ConsumerWidget {
       onDeleteGroup: onDeleteGroup,
       onCleanUp: onCleanUp,
     );
-    final statusChip = _MenuChip<PlanTargetStatusFilter>(
+    final statusChip = SkotiqMenuChip<PlanTargetStatusFilter>(
       key: const ValueKey('plan-targets-status-chip'),
       label: statusFilter == PlanTargetStatusFilter.any
           ? 'Status'
           : statusFilter.label,
-      items: () => [
+      name: 'Status filter',
+      entries: [
         for (final f in PlanTargetStatusFilter.values)
-          _menuItem(context, f, f.label, checked: f == statusFilter),
+          SkotiqMenuChoice(f, f.label, checked: f == statusFilter),
       ],
       onSelected: onStatusFilter,
     );
-    final sortChip = _MenuChip<PlanTargetSort>(
+    final sortChip = SkotiqMenuChip<PlanTargetSort>(
       key: const ValueKey('plan-targets-sort-chip'),
       label: 'Sort: ${sort.label}',
-      items: () => [
+      name: 'Sort order',
+      entries: [
         for (final s in PlanTargetSort.values)
-          _menuItem(context, s, s.label, checked: s == sort),
+          SkotiqMenuChoice(s, s.label, checked: s == sort),
       ],
       onSelected: onSort,
     );
@@ -827,7 +763,8 @@ class _WeekAheadState extends ConsumerState<_WeekAhead> {
               child: SkotiqButton(
                 key: const ValueKey('plan-targets-week-toggle'),
                 label: _open ? 'Hide this week' : 'This week',
-                icon: _open ? LucideIcons.chevronDown : LucideIcons.chevronRight,
+                icon:
+                    _open ? LucideIcons.chevronDown : LucideIcons.chevronRight,
                 size: ButtonSize.small,
                 variant: ButtonVariant.ghost,
                 onPressed: () => setState(() => _open = !_open),
