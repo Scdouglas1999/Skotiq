@@ -182,6 +182,10 @@ extension _DeviceServiceEventHandling on DeviceService {
         applyCameraSettings(_ref.container, data);
         break;
 
+      case 'CameraRetainedCapturesChanged':
+        _ref.read(retainedCapturesRevisionProvider.notifier).state++;
+        break;
+
       case 'PropertyChanged':
         // Gain, offset, binning, slot names and the other settings the native
         // DeviceManager publishes whoever changed them.

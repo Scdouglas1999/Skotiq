@@ -113,6 +113,7 @@ part 'database/migration_v67.dart';
 part 'database/migration_v68.dart';
 part 'database/migration_v69.dart';
 part 'database/migration_v70.dart';
+part 'database/migration_v71.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
@@ -217,7 +218,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
       );
 
   @override
-  int get schemaVersion => 70;
+  int get schemaVersion => 71;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();

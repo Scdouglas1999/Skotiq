@@ -447,7 +447,7 @@ async fn camera_ops_simulator_gates_on_singleton_connected() {
         .await
         .expect("connected sim camera status read must succeed");
     assert!(status.connected, "status must reflect connected singleton");
-    let default_gain = status.gain;
+    let default_gain = status.gain.expect("the simulated camera reports its gain");
 
     // Write-side: setting gain mutates the singleton (singleton-as-state)
     // and the next read returns the new value — no silent drop.
@@ -459,7 +459,7 @@ async fn camera_ops_simulator_gates_on_singleton_connected() {
         .camera_get_status(device_id)
         .await
         .expect("re-read connected sim camera status");
-    assert_eq!(status_after.gain, default_gain + 25);
+    assert_eq!(status_after.gain, Some(default_gain + 25));
 
     // Disconnect flips the singleton back; reads and writes both fail loud.
     release_simulator(&manager, &info)

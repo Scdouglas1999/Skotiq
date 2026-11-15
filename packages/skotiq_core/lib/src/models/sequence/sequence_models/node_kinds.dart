@@ -502,6 +502,11 @@ final _exposureOffset = NodeField<ExposureNode, int?>(
   (n) => n.offset,
   FieldCodec.optionalInteger,
 );
+final _exposureReadoutMode = NodeField<ExposureNode, String?>(
+  'readoutMode',
+  (n) => n.readoutMode,
+  FieldCodec.optionalText,
+);
 final _exposureBinning = NodeField<ExposureNode, BinningMode>(
   'binning',
   (n) => n.binning,
@@ -1385,6 +1390,7 @@ abstract final class NodeKinds {
       _exposureFilterIndex,
       _exposureGain,
       _exposureOffset,
+      _exposureReadoutMode,
       _exposureBinning,
       _exposureDitherEvery,
       _exposureTriggers,
@@ -1398,6 +1404,7 @@ abstract final class NodeKinds {
       filterIndex: v(_exposureFilterIndex),
       gain: v(_exposureGain),
       offset: v(_exposureOffset),
+      readoutMode: v(_exposureReadoutMode),
       binning: v(_exposureBinning),
       ditherEvery: v(_exposureDitherEvery),
       triggers: v(_exposureTriggers),
@@ -1422,6 +1429,11 @@ abstract final class NodeKinds {
       ),
       NodeDiffLine.of(_exposureGain, exposureGainDiffLabel, _orDefault),
       NodeDiffLine.of(_exposureOffset, 'Offset', _orDefault),
+      NodeDiffLine.of(
+        _exposureReadoutMode,
+        'Read mode',
+        (v) => v ?? '(profile default)',
+      ),
       NodeDiffLine.of(_exposureBinning, 'Binning', (v) => v.name),
       NodeDiffLine.of(
         _exposureDitherEvery,

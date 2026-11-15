@@ -587,6 +587,7 @@
       "frameType": "flat",
       "gain": 120,
       "offset": 30,
+      "readoutMode": "High speed",
       "triggers": [
         {
           "action": "Autofocus",

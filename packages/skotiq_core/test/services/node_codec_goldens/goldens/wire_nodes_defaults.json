@@ -457,6 +457,7 @@
       "frame_type": "Light",
       "gain": null,
       "offset": null,
+      "readout_mode": null,
       "save_to": "${target.name}_${filter}_${time.date}_${frame:04}",
       "triggers": [],
       "type": "TakeExposure"

@@ -499,46 +499,61 @@ pub(crate) async fn run_recovery_attempt(
                 };
             }
 
-            // Reconnect only devices that are not known to be connected. A
-            // connect can replace a driver's live handle, including retained
-            // camera files, so an unrelated device fault must leave it alone.
-            // Disconnected or unreadable devices need an active attempt; the
-            // final state check below decides whether recovery succeeded.
-            for device_id in device_ids {
-                if matches!(device_ops.device_is_connected(device_id).await, Ok(true)) {
-                    continue;
+            // Reconnect only the devices that do not answer now. A connect
+            // can replace a driver's live handle, so a device that answers is
+            // left alone. Recovered means every device answered afterwards. A
+            // device that dropped off a USB bus is back within seconds, so
+            // one attempt asks again after each settle wait before it fails
+            // and the loop waits out the operator's retry interval.
+            let mut silent = String::new();
+            for round in 0..=RECONNECT_SETTLE_WAITS.len() {
+                if let Some(wait) = round.checked_sub(1).map(|i| RECONNECT_SETTLE_WAITS[i]) {
+                    tokio::time::sleep(wait).await;
                 }
-                if let Err(e) = device_ops.connect_device(device_id).await {
-                    tracing::warn!(
-                        "[RECOVERY] connect_device('{}') attempt failed: {} (will verify state)",
-                        device_id,
-                        e
-                    );
-                }
-            }
-
-            for device_id in device_ids {
-                match device_ops.device_is_connected(device_id).await {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        return AttemptOutcome::Failed {
-                            message: format!("Device '{}' is still disconnected", device_id),
-                        };
+                for device_id in device_ids {
+                    if matches!(device_ops.device_answers(device_id).await, Ok(true)) {
+                        continue;
                     }
-                    Err(e) => {
-                        return AttemptOutcome::Failed {
-                            message: format!(
-                                "Device '{}' reconnect status query failed: {}",
-                                device_id, e
-                            ),
-                        };
+                    if let Err(e) = device_ops.connect_device(device_id).await {
+                        tracing::warn!(
+                            "[RECOVERY] connect_device('{}') failed: {} (asking the device next)",
+                            device_id,
+                            e
+                        );
                     }
                 }
+                match first_silent_device(device_ops, device_ids).await {
+                    None => return AttemptOutcome::Succeeded,
+                    Some(message) => silent = message,
+                }
             }
-
-            AttemptOutcome::Succeeded
+            AttemptOutcome::Failed { message: silent }
         }
     }
+}
+
+/// Waits between the reconnect rounds of one recovery attempt.
+const RECONNECT_SETTLE_WAITS: [std::time::Duration; 2] = [
+    std::time::Duration::from_secs(3),
+    std::time::Duration::from_secs(7),
+];
+
+/// The first of `device_ids` that does not answer now, as the sentence the
+/// operator is shown; `None` when every one answers.
+async fn first_silent_device(device_ops: &SharedDeviceOps, device_ids: &[String]) -> Option<String> {
+    for device_id in device_ids {
+        match device_ops.device_answers(device_id).await {
+            Ok(true) => {}
+            Ok(false) => return Some(format!("Device '{}' still does not answer", device_id)),
+            Err(e) => {
+                return Some(format!(
+                    "Device '{}' could not be asked whether it answers: {}",
+                    device_id, e
+                ))
+            }
+        }
+    }
+    None
 }
 
 /// A guide-star retry cannot repair a mount stopped at its tracking limit.

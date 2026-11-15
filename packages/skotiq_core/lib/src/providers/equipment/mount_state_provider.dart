@@ -231,6 +231,8 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
         canPark: status.canPark,
         sideOfPier: pierSide,
         clearSideOfPier: pierSide == null,
+        trackingRate: status.trackingRate,
+        clearTrackingRate: status.trackingRate == null,
       );
 
       if (wasSlewing != status.slewing) {

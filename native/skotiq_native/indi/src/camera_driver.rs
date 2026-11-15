@@ -587,6 +587,10 @@ impl CameraDriver for IndiCamera {
             .collect())
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.get_active_readout_mode().await.map(|mode| mode.label))
+    }
+
     /// The mode is the element at `mode.index` of the driver's read-mode
     /// switch.
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {

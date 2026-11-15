@@ -246,6 +246,21 @@ pub(crate) fn parse_onstep_status_fields(status: &str) -> (bool, bool, bool, boo
     (is_tracking, is_slewing, is_parked, is_homed, pier_side)
 }
 
+/// The tracking rate in an OnStep `:GU#` reply: `(` lunar, `O` solar, `k`
+/// King, and sidereal when none of them is present.
+pub(crate) fn parse_onstep_tracking_rate(status: &str) -> TrackingRate {
+    let flags = status.trim_end_matches('#');
+    if flags.contains('(') {
+        TrackingRate::Lunar
+    } else if flags.contains('O') {
+        TrackingRate::Solar
+    } else if flags.contains('k') {
+        TrackingRate::King
+    } else {
+        TrackingRate::Sidereal
+    }
+}
+
 pub(crate) fn parse_onstep_pier_side_suffix(bytes: &[u8]) -> PierSide {
     if bytes.len() < 4 {
         return PierSide::Unknown;

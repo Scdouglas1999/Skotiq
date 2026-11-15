@@ -221,7 +221,7 @@ class FramingHandlers implements RouteSource {
       'slewing': status.slewing,
       'atPark': status.parked,
       'atHome': status.atHome,
-      'trackingRate': status.trackingRate.name,
+      'trackingRate': status.trackingRate?.name,
     });
   }
 

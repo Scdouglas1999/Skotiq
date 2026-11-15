@@ -440,6 +440,7 @@ class SequenceSerializer {
           'filter_index': filterIndex,
           'gain': n.gain,
           'offset': n.offset,
+          'readout_mode': n.readoutMode,
           'binning': _binningToString(n.binning),
           'dither_every': ditherEvery,
           'dither_pixels': defaults.ditherPixels,

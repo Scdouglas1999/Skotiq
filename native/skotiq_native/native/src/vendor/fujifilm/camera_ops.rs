@@ -158,6 +158,8 @@ impl DeviceDriver for FujifilmCamera {
         session::leave(&sdk, &session);
         self.is_exposing = false;
         self.is_bulb_mode = false;
+        // The next connection asks the body for bulb again.
+        self.bulb_refused = false;
 
         tracing::info!("Disconnected from Fujifilm {}", self.name);
 
@@ -282,6 +284,10 @@ impl FujifilmCamera {
 
 #[async_trait]
 impl CameraDriver for FujifilmCamera {
+    fn take_notices(&mut self) -> Vec<skotiq_device::DriverNotice> {
+        std::mem::take(&mut self.notices)
+    }
+
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: false,        // No cooling in mirrorless
@@ -363,13 +369,55 @@ impl CameraDriver for FujifilmCamera {
 
         // The offered codes depend on the ISO and the dials, so they are read
         // for each exposure.
-        let shutter = self
-            .shutter_speeds(&sdk)
+        let speeds = self.shutter_speeds(&sdk);
+        let shutter = speeds
             .choose(params.duration_secs)
             .map_err(DriverError::InvalidParameter)?;
         let (code, seconds) = match shutter {
-            Shutter::Bulb { seconds } => return self.start_bulb_exposure(&sdk, seconds).await,
             Shutter::Timed { code, seconds } => (code as c_long, seconds),
+            Shutter::Bulb { seconds: requested } => {
+                // A body that refused bulb on this connection is not asked
+                // again: what bulb would have made is made with the nearest
+                // timed speed, and the frame records that speed.
+                let refusal = if self.bulb_refused {
+                    None
+                } else {
+                    match self.start_bulb_exposure(&sdk, requested).await {
+                        Ok(()) => return Ok(()),
+                        // A camera that has gone is not one that refused bulb.
+                        Err(
+                            gone @ (DriverError::Disconnected | DriverError::NotConnected),
+                        ) => return Err(gone),
+                        Err(refusal) => Some(refusal),
+                    }
+                };
+                let Some(Shutter::Timed { code, seconds }) = speeds.nearest_timed(requested)
+                else {
+                    return Err(refusal.unwrap_or_else(|| {
+                        DriverError::SdkError(format!(
+                            "Fujifilm camera: bulb was refused and the camera lists no timed \
+                             shutter speed, so a {requested} s exposure cannot be made. Set the \
+                             shutter speed dial to T."
+                        ))
+                    }));
+                };
+                if let Some(refusal) = refusal {
+                    self.bulb_refused = true;
+                    self.notices.push(skotiq_device::DriverNotice {
+                        title: "Camera refused bulb".to_string(),
+                        message: format!(
+                            "{} did not open its shutter for a bulb exposure, so the \
+                             {requested} s exposure was taken with the camera's nearest shutter \
+                             speed, {seconds} s. Until the camera is reconnected, every exposure \
+                             that needs bulb is taken with the nearest shutter speed the camera \
+                             has. For bulb, set the shutter speed dial to B or T. What the \
+                             camera said: {refusal}",
+                            self.name
+                        ),
+                    });
+                }
+                (code as c_long, seconds)
+            }
         };
         if (seconds - params.duration_secs).abs() > f64::EPSILON {
             tracing::info!(

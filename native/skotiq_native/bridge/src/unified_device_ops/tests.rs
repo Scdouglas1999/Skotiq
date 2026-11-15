@@ -489,7 +489,7 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
     );
 }
 
-/// The live `UnifiedDeviceOps` must OVERRIDE `device_is_connected` /
+/// The live `UnifiedDeviceOps` must OVERRIDE `device_answers` /
 /// `connect_device`. The `DeviceOps` trait defaults return `Err("… not
 /// supported by this driver")`, which makes every device-disconnect recovery
 /// attempt fail instantly on the live path — the single most common
@@ -502,11 +502,11 @@ async fn reconnect_overrides_are_wired_not_trait_default() {
     // Unknown device: the override consults the DeviceManager and reports
     // Ok(false). The trait default would instead return Err("not
     // supported"), so Ok(false) proves the override is in place.
-    let connected = ops.device_is_connected("native:does_not_exist").await;
+    let connected = ops.device_answers("native:does_not_exist").await;
     assert_eq!(
         connected,
         Ok(false),
-        "device_is_connected must be overridden (Ok(false) for an unknown \
+        "device_answers must be overridden (Ok(false) for an unknown \
          device), not the trait-default Err"
     );
 

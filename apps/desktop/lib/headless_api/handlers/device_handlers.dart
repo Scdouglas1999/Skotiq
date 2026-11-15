@@ -64,8 +64,9 @@ class DeviceHandlers implements RouteSource {
     DeviceApi.cameraStartWarmUp: handleCameraStartWarmUp,
     DeviceApi.cameraCancelWarmUp: handleCameraCancelWarmUp,
     DeviceApi.cameraGetWarmUp: handleCameraGetWarmUp,
-    DeviceApi.cameraGetReadoutModes: handleCameraGetReadoutModes,
-    DeviceApi.cameraSetReadoutMode: handleCameraSetReadoutMode,
+    DeviceApi.cameraGetRetainedCaptures: handleCameraGetRetainedCaptures,
+    DeviceApi.cameraRetrieveRetainedCapture:
+        handleCameraRetrieveRetainedCapture,
     DeviceApi.cameraSetGain: handleCameraSetGain,
     DeviceApi.cameraSetOffset: handleCameraSetOffset,
     DeviceApi.cameraGetRecommendedSettings: handleCameraGetRecommendedSettings,

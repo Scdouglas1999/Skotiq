@@ -103,7 +103,7 @@ Map<String, dynamic> _encodeMount(MountState s) => {
   'isHoming': s.isHoming,
   'homeUnconfirmed': s.homeUnconfirmed,
   'sideOfPier': s.sideOfPier,
-  'trackingRate': s.trackingRate.name,
+  'trackingRate': s.trackingRate?.name,
   'canSetTrackingRate': s.canSetTrackingRate,
   'canPark': s.canPark,
 };
@@ -127,10 +127,9 @@ MountState _decodeMount(MountState current, Map<String, dynamic> json) {
     isHoming: _flag(json['isHoming']),
     homeUnconfirmed: _flag(json['homeUnconfirmed']),
     sideOfPier: jsonString(json['sideOfPier']),
-    trackingRate: TrackingRate.values.firstWhere(
-      (value) => value.name == rate,
-      orElse: () => current.trackingRate,
-    ),
+    trackingRate: TrackingRate.values
+        .where((value) => value.name == rate)
+        .firstOrNull,
     canSetTrackingRate: _flag(json['canSetTrackingRate']),
     canPark: _flag(json['canPark']),
   );

@@ -42,12 +42,10 @@
     filterWheelPositionsDeviceId: null,
     filterWheelPositionsLoading: false,
     rotatorStatus: null,
-    readoutModes: [],
     // The connected camera's ISO speeds (DSLR or mirrorless), and the camera
     // they were read for; empty for a gain camera.
     cameraIsoSpeeds: [],
     cameraIsoSpeedsDeviceId: null,
-    selectedReadoutMode: null,
     lastAutofocusResult: null,
     lastImagePositionAngle: null,
     guideHistory: { ra: [], dec: [] },
@@ -307,7 +305,6 @@
     document.getElementById('btn-abort-expose').addEventListener('click', handleAbortExpose);
     document.getElementById('btn-camera-apply-gain').addEventListener('click', handleCameraApplyGain);
     document.getElementById('btn-camera-apply-offset').addEventListener('click', handleCameraApplyOffset);
-    document.getElementById('btn-camera-apply-readout').addEventListener('click', handleCameraApplyReadout);
     document.getElementById('btn-camera-cooler-on').addEventListener('click', () => handleCameraCooler(true));
     document.getElementById('btn-camera-cooler-off').addEventListener('click', () => handleCameraCooler(false));
     document.getElementById('btn-camera-apply-cooling').addEventListener('click', handleCameraApplyCooling);
@@ -1807,10 +1804,9 @@
       }
       refreshPanelEnablement();
       // Load auxiliary data that we only know how to fetch once a device is
-      // connected: camera readout modes, filter wheel positions+offsets.
+      // connected: filter wheel positions+offsets.
       // These are best-effort — handlers log on failure rather than blocking
       // the panel render.
-      maybeLoadCameraReadoutModes();
       maybeLoadCameraSensitivity();
       maybeLoadFilterWheelPositions();
     } catch (e) {
@@ -1964,18 +1960,6 @@
       markPanelFresh('rotator');
     } catch (e) {
       reportRefreshFailure('rotator', e, 'Rotator status fetch');
-    }
-  }
-
-  async function maybeLoadCameraReadoutModes() {
-    if (!state.cameraDeviceId) return;
-    if (state.readoutModes && state.readoutModes.length > 0) return;
-    try {
-      const result = await api.cameraGetReadoutModes(state.cameraDeviceId);
-      state.readoutModes = (result && result.readoutModes) || [];
-      renderReadoutModeOptions();
-    } catch (e) {
-      addLogEntry('error', describeApiError(e, 'Readout modes load'));
     }
   }
 
@@ -2901,25 +2885,6 @@
     }
   }
 
-  async function handleCameraApplyReadout() {
-    if (!state.cameraDeviceId) return;
-    const sel = document.getElementById('camera-readout-mode');
-    if (!sel || sel.value === '') {
-      showToast('Pick a readout mode first', 'error');
-      return;
-    }
-    const idx = parseInt(sel.value, 10);
-    if (isNaN(idx)) { showToast('Invalid readout mode', 'error'); return; }
-    try {
-      await api.cameraSetReadoutMode(state.cameraDeviceId, idx);
-      state.selectedReadoutMode = idx;
-      addLogEntry('camera', 'Readout mode set to ' + sel.options[sel.selectedIndex].textContent);
-      showToast('Readout mode applied');
-    } catch (e) {
-      showToast('Set readout failed: ' + e.message, 'error');
-    }
-  }
-
   async function handleCameraCooler(enable) {
     if (!state.cameraDeviceId) return;
     // When turning on we use the current slider setpoint; when turning off
@@ -3008,33 +2973,6 @@
       throw new Error('Subframe X/Y must be non-negative and size must be positive');
     }
     return { x, y, width, height };
-  }
-
-  function renderReadoutModeOptions() {
-    const sel = document.getElementById('camera-readout-mode');
-    if (!sel) return;
-    // Preserve the previously selected mode if it still exists.
-    const prev = sel.value;
-    clearElement(sel);
-    if (!state.readoutModes || state.readoutModes.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = '-- none reported --';
-      sel.appendChild(opt);
-      return;
-    }
-    state.readoutModes.forEach((mode, idx) => {
-      const opt = document.createElement('option');
-      opt.value = String(idx);
-      // Readout modes can arrive as strings or objects depending on driver.
-      opt.textContent = typeof mode === 'string'
-        ? mode
-        : (mode && (mode.name || mode.label)) || ('Mode ' + idx);
-      sel.appendChild(opt);
-    });
-    if (prev !== '' && parseInt(prev, 10) < state.readoutModes.length) {
-      sel.value = prev;
-    }
   }
 
   // =========================================================================

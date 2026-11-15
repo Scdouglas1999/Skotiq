@@ -26,6 +26,7 @@ use skotiq_alpaca::{
 };
 use skotiq_device::{
     BayerPattern, CameraDriver, ExposureParams, FrameType, MountDriver, TrackingRate,
+    UNKNOWN_CAMERA_SETTING,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -185,6 +186,7 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
         ("GET", "camera", "imageready") => json!(true),
         ("GET", "camera", "numx") => json!(2),
         ("GET", "camera", "numy") => json!(2),
+        ("GET", "camera", "maxbinx" | "maxbiny") => json!(2),
         ("GET", "camera", "binx") => json!(1),
         ("GET", "camera", "biny") => json!(1),
         ("GET", "camera", "ccdtemperature") => json!(-10.5),
@@ -446,8 +448,11 @@ async fn an_alpaca_camera_reports_its_sensor_and_what_each_frame_was_taken_with(
     assert_eq!(frame.metadata.readout_mode.as_deref(), Some("Fast"));
 }
 
+/// Three failed status reads in a row mark a camera lost, so one member the
+/// server refuses must not fail the status: the setting is unknown, which is
+/// not zero.
 #[tokio::test]
-async fn a_failed_advertised_setting_does_not_report_zero() {
+async fn a_failed_advertised_setting_is_unknown_in_a_status_that_still_answers() {
     let (base, state) = start_simulator().await;
     let driver = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 97));
     let report = driver.report().await.unwrap();
@@ -459,11 +464,57 @@ async fn a_failed_advertised_setting_does_not_report_zero() {
             .lock()
             .unwrap()
             .insert(member.into(), 0x4ff);
-        let error = driver.report().await.unwrap_err();
-        assert!(error.to_string().contains(member), "{error}");
+        let status = driver
+            .report()
+            .await
+            .expect("a refused setting read must not fail the status")
+            .status;
+        let (refused, other) = if member == "gain" {
+            (status.gain, status.offset)
+        } else {
+            (status.offset, status.gain)
+        };
+        assert_eq!(refused, UNKNOWN_CAMERA_SETTING, "{member}");
+        assert!(other >= 0, "{member}");
         state.camera_errors.lock().unwrap().clear();
     }
     let absent = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 0));
     let report = absent.report().await.unwrap();
     assert!(!report.can_set_gain && !report.can_set_offset);
+}
+
+/// A camera that will not read its binning back holds the binning this
+/// connection wrote: the status answers and a frame is labeled with it.
+#[tokio::test]
+async fn unreadable_binning_is_the_binning_last_written() {
+    let (base, state) = start_simulator().await;
+    let mut driver = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 97));
+    driver
+        .start_exposure(ExposureParams {
+            duration_secs: 0.5,
+            gain: None,
+            offset: None,
+            bin_x: 2,
+            bin_y: 2,
+            subframe: None,
+            readout_mode: None,
+            frame_type: FrameType::Light,
+        })
+        .await
+        .expect("a 2x2 exposure");
+    for member in ["binx", "biny"] {
+        state
+            .camera_errors
+            .lock()
+            .unwrap()
+            .insert(member.into(), 0x4ff);
+    }
+
+    let status = driver
+        .get_status()
+        .await
+        .expect("a refused BinX read must not fail the status");
+    assert_eq!((status.bin_x, status.bin_y), (2, 2));
+    let frame = driver.download_image().await.expect("frame");
+    assert_eq!((frame.metadata.bin_x, frame.metadata.bin_y), (2, 2));
 }

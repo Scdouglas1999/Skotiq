@@ -163,6 +163,7 @@ List<SequenceNode> fullNodes() => [
     filterIndex: 4,
     gain: 120,
     offset: 30,
+    readoutMode: 'High speed',
     binning: BinningMode.two,
     ditherEvery: 5,
     triggers: const [
