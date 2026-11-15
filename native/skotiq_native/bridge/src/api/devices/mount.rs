@@ -12,16 +12,79 @@ pub async fn api_get_mount_status(device_id: String) -> Result<MountStatus, Skot
         .map_err(SkotiqError::from)
 }
 
-/// Slew mount to coordinates
+/// What the guider did when a mount move started here asked it to stop.
+///
+/// Every mount move an operator or an API client starts stops a guider that
+/// is guiding first ([`skotiq_sequencer::stop_guider_for_move`]). When the
+/// guider cannot be asked or does not stop in time, a park and a home go
+/// ahead, because getting the mount safe outranks a guide star; a GoTo is
+/// refused unless its caller already accepted moving with the guider silent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountMoveGuider {
+    /// No guider was guiding.
+    Idle,
+    /// Guiding was stopped before the move. It is not started again.
+    Stopped,
+    /// The guider did not answer and the mount moved without stopping it.
+    Unanswered { reason: String },
+    /// The guider did not answer and the mount was not moved.
+    Refused { reason: String },
+}
+
+/// Whether a move goes ahead when the guider is not answering.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SilentGuider {
+    Moves,
+    Refuses,
+}
+
+/// Stop the guider for a `what` this API was asked for, and say whether the
+/// move may go.
+async fn clear_guider_for(what: &str, silent: SilentGuider) -> MountMoveGuider {
+    use skotiq_sequencer::GuiderForMove;
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    match skotiq_sequencer::stop_guider_for_move(
+        &ops,
+        what,
+        skotiq_sequencer::GuidingStopReason::Operator,
+    )
+    .await
+    {
+        GuiderForMove::Idle => MountMoveGuider::Idle,
+        GuiderForMove::Stopped => MountMoveGuider::Stopped,
+        GuiderForMove::NotAnswering(reason) => match silent {
+            SilentGuider::Moves => MountMoveGuider::Unanswered { reason },
+            SilentGuider::Refuses => MountMoveGuider::Refused { reason },
+        },
+    }
+}
+
+fn silent_guider(guider_silent_ok: bool) -> SilentGuider {
+    if guider_silent_ok {
+        SilentGuider::Moves
+    } else {
+        SilentGuider::Refuses
+    }
+}
+
+/// Slew the mount to coordinates, stopping the guider first. With the guider
+/// not answering the slew is refused, unless `guider_silent_ok` says the
+/// operator chose to move anyway.
 pub async fn api_mount_slew_to_coordinates(
     device_id: String,
     ra: f64,
     dec: f64,
-) -> Result<(), SkotiqError> {
+    guider_silent_ok: bool,
+) -> Result<MountMoveGuider, SkotiqError> {
+    let guider = clear_guider_for("GoTo", silent_guider(guider_silent_ok)).await;
+    if matches!(guider, MountMoveGuider::Refused { .. }) {
+        return Ok(guider);
+    }
     let mgr = get_device_manager();
     mgr.mount_slew(&device_id, ra, dec)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(SkotiqError::from)?;
+    Ok(guider)
 }
 
 /// Sync mount to coordinates
@@ -36,10 +99,23 @@ pub async fn api_mount_sync_to_coordinates(
         .map_err(SkotiqError::from)
 }
 
-/// Park the mount
-pub async fn api_mount_park(device_id: String) -> Result<(), SkotiqError> {
+/// Park the mount, stopping the guider first. A guider that does not answer
+/// never keeps the mount from parking. A park `for_safety` (weather, an
+/// unsafe rig) does not ask the guider at all: it must not wait on anything.
+pub async fn api_mount_park(
+    device_id: String,
+    for_safety: bool,
+) -> Result<MountMoveGuider, SkotiqError> {
+    let guider = if for_safety {
+        MountMoveGuider::Idle
+    } else {
+        clear_guider_for("park", SilentGuider::Moves).await
+    };
     let mgr = get_device_manager();
-    mgr.mount_park(&device_id).await.map_err(SkotiqError::from)
+    mgr.mount_park(&device_id)
+        .await
+        .map_err(SkotiqError::from)?;
+    Ok(guider)
 }
 
 /// Unpark the mount
@@ -123,24 +199,34 @@ pub async fn mount_move_axis(device_id: String, axis: i32, rate: f64) -> Result<
         .map_err(SkotiqError::from)
 }
 
-/// Slew mount to alt/az coordinates (altitude in degrees, azimuth in degrees)
+/// Slew mount to alt/az coordinates (altitude in degrees, azimuth in
+/// degrees), under the same guider rule as [`api_mount_slew_to_coordinates`].
 pub async fn mount_slew_alt_az(
     device_id: String,
     altitude: f64,
     azimuth: f64,
-) -> Result<(), SkotiqError> {
+    guider_silent_ok: bool,
+) -> Result<MountMoveGuider, SkotiqError> {
+    let guider = clear_guider_for("GoTo", silent_guider(guider_silent_ok)).await;
+    if matches!(guider, MountMoveGuider::Refused { .. }) {
+        return Ok(guider);
+    }
     let mgr = get_device_manager();
     mgr.mount_slew_alt_az(&device_id, altitude, azimuth)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(SkotiqError::from)?;
+    Ok(guider)
 }
 
-/// Find mount home position
-pub async fn mount_find_home(device_id: String) -> Result<(), SkotiqError> {
+/// Send the mount to its home position, stopping the guider first. A guider
+/// that does not answer never keeps the mount from homing.
+pub async fn mount_find_home(device_id: String) -> Result<MountMoveGuider, SkotiqError> {
+    let guider = clear_guider_for("home", SilentGuider::Moves).await;
     let mgr = get_device_manager();
     mgr.mount_find_home(&device_id)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(SkotiqError::from)?;
+    Ok(guider)
 }
 
 /// Store the mount's current position as its park position

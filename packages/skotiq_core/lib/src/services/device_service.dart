@@ -544,9 +544,18 @@ class DeviceService {
 
   /// Slew to J2000 [ra] hours / [dec] degrees and complete once the mount
   /// has arrived (see [MountSlewWatcher]); throws [MountSlewException] when
-  /// it does not get there.
-  Future<void> slewMountToCoordinates(double ra, double dec) =>
-      _trackInFlight(() => _slewMountToCoordinates(ra, dec));
+  /// it does not get there. The host stops the guider first
+  /// ([GuiderForMove]): with the guider not answering this throws
+  /// [GuiderNotAnsweringException] and the mount stays where it is, unless
+  /// the operator chose to move anyway ([guiderSilentOk], or the standing
+  /// answer in [guiderSilentMoveAcceptedProvider]).
+  Future<void> slewMountToCoordinates(
+    double ra,
+    double dec, {
+    bool guiderSilentOk = false,
+  }) => _trackInFlight(
+    () => _slewMountToCoordinates(ra, dec, guiderSilentOk: guiderSilentOk),
+  );
   Future<void> syncMountToCoordinates(double ra, double dec) =>
       _trackInFlight(() => _syncMountToCoordinates(ra, dec));
   Future<void> parkMount() => _trackInFlight(_parkMount);

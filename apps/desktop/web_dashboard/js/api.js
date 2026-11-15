@@ -743,8 +743,49 @@ class SkotiqApi {
   // Mount
   // =========================================================================
 
+  /// Send a mount move. The host stops the guider first and says what the
+  /// guider did. A park or home that went ahead with the guider silent
+  /// carries a `notice`, handed to `onMoveNotice`. A GoTo the host refused
+  /// because the guider is not answering (409 `guider_not_answering`) asks
+  /// the operator once through `confirmSilentGuider` and, on a yes, is sent
+  /// again with the guider's silence accepted; on a no it throws
+  /// `guider_not_answering`.
+  async _mountMove(path, body) {
+    let result;
+    try {
+      result = await this._post(path, body);
+    } catch (e) {
+      if (!SkotiqApi._isGuiderNotAnswering(e)) throw e;
+      const ask = this.confirmSilentGuider || ((question) => window.confirm(question));
+      const moveAnyway = await ask(
+        'The guider is not answering, so guiding cannot be stopped first. ' +
+        'A guider that is still guiding will chase the move and lose its star. ' +
+        'Move anyway?',
+      );
+      if (!moveAnyway) {
+        throw new SkotiqApiError(
+          'guider_not_answering',
+          'The guider is not answering, so the mount was not moved',
+          e.detail,
+        );
+      }
+      result = await this._post(path, Object.assign({}, body, { guiderSilentOk: true }));
+    }
+    if (result && result.notice && this.onMoveNotice) this.onMoveNotice(result.notice);
+    return result;
+  }
+
+  static _isGuiderNotAnswering(e) {
+    if (!(e instanceof SkotiqApiError) || e.status !== 409) return false;
+    try {
+      return JSON.parse(e.detail.body).error === 'guider_not_answering';
+    } catch (_) {
+      return false;
+    }
+  }
+
   async mountSlew(deviceId, ra, dec) {
-    return this._post('/api/mount/slew', { deviceId, ra, dec });
+    return this._mountMove('/api/mount/slew', { deviceId, ra, dec });
   }
 
   async mountSync(deviceId, ra, dec) {
@@ -752,7 +793,7 @@ class SkotiqApi {
   }
 
   async mountPark(deviceId) {
-    return this._post('/api/mount/park', { deviceId });
+    return this._mountMove('/api/mount/park', { deviceId });
   }
 
   async mountUnpark(deviceId) {
@@ -1557,7 +1598,7 @@ class SkotiqApi {
 
   // Slew without solve-and-correct — the cheap "go close to" path.
   async framingSlewToTarget(ra, dec) {
-    return this._post('/api/framing/slew-to-target', { ra, dec });
+    return this._mountMove('/api/framing/slew-to-target', { ra, dec });
   }
 
   // Iterative plate-solve-and-correct centering. The server uses the
@@ -1596,7 +1637,7 @@ class SkotiqApi {
   }
 
   async planetariumSlewTo(ra, dec) {
-    return this._post('/api/planetarium/slew-to', { ra, dec });
+    return this._mountMove('/api/planetarium/slew-to', { ra, dec });
   }
 
   async planetariumGetMountPosition() {

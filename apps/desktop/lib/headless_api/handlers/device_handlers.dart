@@ -14,6 +14,7 @@ import '../command_correlator.dart';
 import '../device_commands_route.dart';
 import '../display_buffer_jpeg.dart';
 import '../job_manager.dart';
+import '../mount_move.dart';
 import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';

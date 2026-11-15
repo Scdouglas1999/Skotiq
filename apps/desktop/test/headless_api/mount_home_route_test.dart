@@ -128,13 +128,18 @@ class _HomeBackend extends DisconnectedBackend {
   );
 
   @override
-  Future<void> mountFindHome(String deviceId) async {
+  Future<GuiderForMove> mountFindHome(String deviceId) async {
     findHomeCalls.add(deviceId);
+    return GuiderForMove.idle;
   }
 
   @override
-  Future<void> mountPark(String deviceId) async {
+  Future<GuiderForMove> mountPark(
+    String deviceId, {
+    bool forSafety = false,
+  }) async {
     parkCalls.add(deviceId);
+    return GuiderForMove.idle;
   }
 
   @override

@@ -89,7 +89,9 @@ pub use focuser_calibration::{
     BacklashAnalysisThresholds, CalibrationConfidence, CalibrationRefusal, DirectionalScan,
     FocuserBacklashCalibration, MeasurementContext,
 };
-pub use guiding_stop::GuidingStopReason;
+pub use guiding_stop::{
+    stop_guider_for_move, GuiderForMove, GuidingStopReason, GUIDER_STOP_BOUND,
+};
 pub use instructions::*;
 pub use meridian_events::*;
 pub use meridian_flip_executor::*;

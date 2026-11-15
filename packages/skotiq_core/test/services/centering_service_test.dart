@@ -2158,18 +2158,11 @@ void main() {
         );
       });
 
-      // A guider left guiding fights every correction slew and trails the
-      // solve frames: on the rig (2026-10-20) a Slew & Center with PHD2
-      // guiding converged only to 5.4" and timed out.
-      group('a guider that is guiding', () {
-        void connectGuider({required bool guiding}) {
-          final guider = container.read(guiderStateProvider.notifier);
-          guider.setConnecting('phd2', 'PHD2');
-          guider.setConnected();
-          guider.setGuiding(guiding);
-        }
-
-        Future<CenteringResult> center() {
+      // The host's slew stops the guider first and refuses when the guider
+      // does not answer; centering reports that and stops trying.
+      test(
+        'a slew refused for a silent guider ends centering with the reason',
+        () async {
           when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
@@ -2179,35 +2172,10 @@ void main() {
               purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage());
-          stubSolve(10.0, 45.0);
-          return container
-              .read(centeringServiceProvider)
-              .centerOnTarget(
-                targetRa: 10.0,
-                targetDec: 45.0,
-                solverConfig: solverConfig,
-              );
-        }
-
-        test('is stopped before the first centering frame', () async {
-          connectGuider(guiding: true);
-          var stoppedBeforeFrame = false;
-          mt.when(() => pollBackend.guiderStopGuiding()).thenAnswer((_) async {
-            stoppedBeforeFrame = true;
-          });
+          stubSolve(10.05, 45.0);
           when(
-            mockImagingService.captureUtilityFrame(
-              settings: anyNamed('settings'),
-              targetName: anyNamed('targetName'),
-              purpose: anyNamed('purpose'),
-              purposeStep: anyNamed('purposeStep'),
-              purposeSteps: anyNamed('purposeSteps'),
-            ),
-          ).thenAnswer((_) async {
-            expect(stoppedBeforeFrame, isTrue);
-            return _centeringImage();
-          });
-          stubSolve(10.0, 45.0);
+            mockDeviceService.slewMountToCoordinates(any, any),
+          ).thenThrow(const GuiderNotAnsweringException('PHD2 did not answer'));
 
           final result = await container
               .read(centeringServiceProvider)
@@ -2217,132 +2185,11 @@ void main() {
                 solverConfig: solverConfig,
               );
 
-          expect(result.success, isTrue);
-          mt.verify(() => pollBackend.guiderStopGuiding()).called(1);
-        });
-
-        test('an idle guider is left alone', () async {
-          connectGuider(guiding: false);
-          mt
-              .when(() => pollBackend.guiderGetStatus())
-              .thenAnswer(
-                (_) async =>
-                    const Phd2Status(state: 'Stopped', connected: true),
-              );
-
-          final result = await center();
-
-          expect(result.success, isTrue);
-          mt.verifyNever(() => pollBackend.guiderStopGuiding());
-        });
-
-        for (final state in [
-          'LostLock',
-          'Paused',
-          'Calibrating',
-          'Settling',
-          'Unknown',
-        ]) {
-          test(
-            'stops a $state session before taking a centering frame',
-            () async {
-              connectGuider(guiding: false);
-              mt
-                  .when(() => pollBackend.guiderGetStatus())
-                  .thenAnswer(
-                    (_) async => Phd2Status(state: state, connected: true),
-                  );
-              mt
-                  .when(() => pollBackend.guiderStopGuiding())
-                  .thenAnswer((_) async {});
-
-              final result = await center();
-
-              expect(result.success, isTrue);
-              mt.verify(() => pollBackend.guiderStopGuiding()).called(1);
-            },
-          );
-        }
-
-        test(
-          'a host switch during the status probe cannot stop either host or move',
-          () async {
-            connectGuider(guiding: false);
-            final requested = Completer<void>();
-            final status = Completer<Phd2Status>();
-            mt.when(() => pollBackend.guiderGetStatus()).thenAnswer((_) {
-              requested.complete();
-              return status.future;
-            });
-            final run = center();
-            final refusal = expectLater(
-              run,
-              throwsA(isA<GuidingDidNotStopException>()),
-            );
-            await requested.future;
-            final replacement = _PollBackend();
-            backendNotifier.replaceBackend(replacement);
-            status.complete(
-              const Phd2Status(state: 'LostLock', connected: true),
-            );
-            await refusal;
-            mt.verifyNever(() => pollBackend.guiderStopGuiding());
-            mt.verifyNever(() => replacement.guiderStopGuiding());
-            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
-          },
-        );
-
-        test(
-          'refuses centering when the connected guider cannot report its state',
-          () async {
-            connectGuider(guiding: false);
-            mt
-                .when(() => pollBackend.guiderGetStatus())
-                .thenThrow(Exception('PHD2 did not answer'));
-
-            await expectLater(
-              center(),
-              throwsA(isA<GuidingDidNotStopException>()),
-            );
-
-            verifyNever(
-              mockImagingService.captureUtilityFrame(
-                settings: anyNamed('settings'),
-                targetName: anyNamed('targetName'),
-                purpose: anyNamed('purpose'),
-                purposeStep: anyNamed('purposeStep'),
-                purposeSteps: anyNamed('purposeSteps'),
-              ),
-            );
-            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
-          },
-        );
-
-        test(
-          'a guider that will not stop keeps the mount where it is',
-          () async {
-            connectGuider(guiding: true);
-            mt
-                .when(() => pollBackend.guiderStopGuiding())
-                .thenThrow(Exception('PHD2 did not answer'));
-
-            await expectLater(
-              center(),
-              throwsA(isA<GuidingDidNotStopException>()),
-            );
-            verifyNever(
-              mockImagingService.captureUtilityFrame(
-                settings: anyNamed('settings'),
-                targetName: anyNamed('targetName'),
-                purpose: anyNamed('purpose'),
-                purposeStep: anyNamed('purposeStep'),
-                purposeSteps: anyNamed('purposeSteps'),
-              ),
-            );
-            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
-          },
-        );
-      });
+          expect(result.success, isFalse);
+          expect(result.errorMessage, GuiderNotAnsweringException.message);
+          verify(mockDeviceService.slewMountToCoordinates(any, any)).called(1);
+        },
+      );
     });
   });
 }

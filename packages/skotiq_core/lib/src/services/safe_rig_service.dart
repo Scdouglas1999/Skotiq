@@ -359,7 +359,7 @@ class SafeRigService {
         }
       } else {
         try {
-          await _host.value.mountPark(mount.deviceId!);
+          await _host.value.mountPark(mount.deviceId!, forSafety: true);
           _ensureSameHost(reason, result, failures);
           _ref.read(mountStateProvider.notifier).setParked(true);
           _ref.read(mountStateProvider.notifier).setTracking(false);

@@ -761,7 +761,10 @@ abstract class RustLibApi extends BaseApi {
     required double exposureSecs,
   });
 
-  Future<void> crateApiDevicesMountApiMountPark({required String deviceId});
+  Future<MountMoveGuider> crateApiDevicesMountApiMountPark({
+    required String deviceId,
+    required bool forSafety,
+  });
 
   Future<void> crateApiDevicesMountApiMountPulseGuide({
     required String deviceId,
@@ -774,10 +777,11 @@ abstract class RustLibApi extends BaseApi {
     required int enabled,
   });
 
-  Future<void> crateApiDevicesMountApiMountSlewToCoordinates({
+  Future<MountMoveGuider> crateApiDevicesMountApiMountSlewToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
+    required bool guiderSilentOk,
   });
 
   Future<void> crateApiDevicesMountApiMountSyncToCoordinates({
@@ -1243,7 +1247,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiDevicesMountMountAbort({required String deviceId});
 
-  Future<void> crateApiDevicesMountMountFindHome({required String deviceId});
+  Future<MountMoveGuider> crateApiDevicesMountMountFindHome({
+    required String deviceId,
+  });
 
   Future<MountSite> crateApiDevicesMountMountGetSite({
     required String deviceId,
@@ -1283,10 +1289,11 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<void> crateApiDevicesMountMountSlewAltAz({
+  Future<MountMoveGuider> crateApiDevicesMountMountSlewAltAz({
     required String deviceId,
     required double altitude,
     required double azimuth,
+    required bool guiderSilentOk,
   });
 
   Future<SecondaryRigStatusApi>
@@ -6147,29 +6154,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesMountApiMountPark({required String deviceId}) {
+  Future<MountMoveGuider> crateApiDevicesMountApiMountPark({
+    required String deviceId,
+    required bool forSafety,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_bool(forSafety);
           return wire.wire__crate__api__devices__mount__api_mount_park(
             port_,
             arg0,
+            arg1,
           );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_mount_move_guider,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiDevicesMountApiMountParkConstMeta,
-        argValues: [deviceId],
+        argValues: [deviceId, forSafety],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiDevicesMountApiMountParkConstMeta =>
-      const TaskConstMeta(debugName: "api_mount_park", argNames: ["deviceId"]);
+      const TaskConstMeta(
+        debugName: "api_mount_park",
+        argNames: ["deviceId", "forSafety"],
+      );
 
   @override
   Future<void> crateApiDevicesMountApiMountPulseGuide({
@@ -6241,10 +6256,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesMountApiMountSlewToCoordinates({
+  Future<MountMoveGuider> crateApiDevicesMountApiMountSlewToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
+    required bool guiderSilentOk,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -6252,20 +6268,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_f_64(ra);
           var arg2 = cst_encode_f_64(dec);
+          var arg3 = cst_encode_bool(guiderSilentOk);
           return wire
               .wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
                 port_,
                 arg0,
                 arg1,
                 arg2,
+                arg3,
               );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_mount_move_guider,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiDevicesMountApiMountSlewToCoordinatesConstMeta,
-        argValues: [deviceId, ra, dec],
+        argValues: [deviceId, ra, dec, guiderSilentOk],
         apiImpl: this,
       ),
     );
@@ -6274,7 +6292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDevicesMountApiMountSlewToCoordinatesConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_slew_to_coordinates",
-        argNames: ["deviceId", "ra", "dec"],
+        argNames: ["deviceId", "ra", "dec", "guiderSilentOk"],
       );
 
   @override
@@ -9954,7 +9972,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "mount_abort", argNames: ["deviceId"]);
 
   @override
-  Future<void> crateApiDevicesMountMountFindHome({required String deviceId}) {
+  Future<MountMoveGuider> crateApiDevicesMountMountFindHome({
+    required String deviceId,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -9965,7 +9985,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_mount_move_guider,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiDevicesMountMountFindHomeConstMeta,
@@ -10232,10 +10252,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesMountMountSlewAltAz({
+  Future<MountMoveGuider> crateApiDevicesMountMountSlewAltAz({
     required String deviceId,
     required double altitude,
     required double azimuth,
+    required bool guiderSilentOk,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -10243,19 +10264,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_f_64(altitude);
           var arg2 = cst_encode_f_64(azimuth);
+          var arg3 = cst_encode_bool(guiderSilentOk);
           return wire.wire__crate__api__devices__mount__mount_slew_alt_az(
             port_,
             arg0,
             arg1,
             arg2,
+            arg3,
           );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_mount_move_guider,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiDevicesMountMountSlewAltAzConstMeta,
-        argValues: [deviceId, altitude, azimuth],
+        argValues: [deviceId, altitude, azimuth, guiderSilentOk],
         apiImpl: this,
       ),
     );
@@ -10264,7 +10287,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDevicesMountMountSlewAltAzConstMeta =>
       const TaskConstMeta(
         debugName: "mount_slew_alt_az",
-        argNames: ["deviceId", "altitude", "azimuth"],
+        argNames: ["deviceId", "altitude", "azimuth", "guiderSilentOk"],
       );
 
   @override
@@ -12796,6 +12819,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       stopAttempts: dco_decode_list_String(arr[8]),
       runPaused: dco_decode_bool(arr[9]),
     );
+  }
+
+  @protected
+  MountMoveGuider dco_decode_mount_move_guider(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return MountMoveGuider_Idle();
+      case 1:
+        return MountMoveGuider_Stopped();
+      case 2:
+        return MountMoveGuider_Unanswered(reason: dco_decode_String(raw[1]));
+      case 3:
+        return MountMoveGuider_Refused(reason: dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -17519,6 +17559,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       stopAttempts: var_stopAttempts,
       runPaused: var_runPaused,
     );
+  }
+
+  @protected
+  MountMoveGuider sse_decode_mount_move_guider(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return MountMoveGuider_Idle();
+      case 1:
+        return MountMoveGuider_Stopped();
+      case 2:
+        var var_reason = sse_decode_String(deserializer);
+        return MountMoveGuider_Unanswered(reason: var_reason);
+      case 3:
+        var var_reason = sse_decode_String(deserializer);
+        return MountMoveGuider_Refused(reason: var_reason);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -22499,6 +22560,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.stillMoving, serializer);
     sse_encode_list_String(self.stopAttempts, serializer);
     sse_encode_bool(self.runPaused, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_move_guider(
+    MountMoveGuider self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case MountMoveGuider_Idle():
+        sse_encode_i_32(0, serializer);
+      case MountMoveGuider_Stopped():
+        sse_encode_i_32(1, serializer);
+      case MountMoveGuider_Unanswered(reason: final reason):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(reason, serializer);
+      case MountMoveGuider_Refused(reason: final reason):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(reason, serializer);
+    }
   }
 
   @protected
