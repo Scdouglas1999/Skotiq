@@ -2149,6 +2149,7 @@ dependencies = [
  "cc",
  "chrono",
  "flate2",
+ "fs2",
  "image",
  "lz4",
  "quick-xml",

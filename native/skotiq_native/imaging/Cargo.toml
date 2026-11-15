@@ -23,6 +23,9 @@ rayon = "1.10"
 # Bytemuck for safe byte casting
 bytemuck = { version = "1.14", features = ["derive"] }
 
+# Free disk space, asked before a master build spills decoded frames to disk
+fs2 = "0.4"
+
 # Deflate for compressed sky-atlas tile sidecars (already in the tree via png/zip)
 flate2 = "1.1"
 
