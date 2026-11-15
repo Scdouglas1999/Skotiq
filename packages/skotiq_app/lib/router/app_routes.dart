@@ -16,6 +16,7 @@ import 'analytics_route.dart';
 import 'darkroom_route.dart';
 import 'equipment_route.dart';
 import 'planner_route.dart';
+import 'query_word.dart';
 import 'sequencer_route.dart';
 import 'settings_sections.dart';
 
@@ -390,7 +391,7 @@ enum AppRoute {
         },
       // A target-wide review has no night to open; the Darkroom lists the
       // target's nights.
-      sessionReview => switch (int.tryParse(q['session'] ?? '')) {
+      sessionReview => switch (readQueryInt(q['session'])) {
           final int sessionId => AppRoutes.night(
               NightRef.session(sessionId),
               view: NightView.report,

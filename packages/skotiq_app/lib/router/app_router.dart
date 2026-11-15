@@ -28,6 +28,7 @@ import '../screens/night_control/first_night_entry.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/first_light/first_light_launcher.dart';
 import 'app_routes.dart';
+import 'query_word.dart';
 import 'page_transitions.dart';
 import 'route_not_found_screen.dart';
 
@@ -116,7 +117,7 @@ Widget _screen(AppRoute route, GoRouterState state) {
         initialSessionView: SessionView.fromQuery(query['view']),
         night: NightRef.fromQuery(query),
         nightView: NightView.fromQuery(query['view']),
-        historySequenceId: int.tryParse(query['sequence'] ?? ''),
+        historySequenceId: readQueryInt(query['sequence']),
       ),
     // `?section=<key>` opens that section; an unknown or missing key opens
     // the first one.

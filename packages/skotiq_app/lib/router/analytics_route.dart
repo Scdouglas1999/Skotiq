@@ -85,9 +85,9 @@ class NightRef {
 
   /// The night `?night=` (a session id) or `?run=` names, or null.
   static NightRef? fromQuery(Map<String, String> query) {
-    final session = int.tryParse(query['night'] ?? '');
+    final session = readQueryInt(query['night']);
     if (session != null) return NightRef.session(session);
-    final run = int.tryParse(query['run'] ?? '');
+    final run = readQueryInt(query['run']);
     return run == null ? null : NightRef.run(run);
   }
 
