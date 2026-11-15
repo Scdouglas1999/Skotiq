@@ -200,6 +200,7 @@ class BackupArchiveContents {
     required this.sections,
     required this.rowsLoaded,
     required this.tablesSkipped,
+    required this.columnsCarried,
   });
 
   final String version;
@@ -212,6 +213,11 @@ class BackupArchiveContents {
 
   /// Tables of the archive this schema has no place for, or never restores.
   final List<String> tablesSkipped;
+
+  /// The columns the archive holds for each table it has rows of. A column
+  /// the schema gained after the backup was written is not among them: the
+  /// backup says nothing about it.
+  final Map<String, Set<String>> columnsCarried;
 }
 
 /// Reads the archive at [archivePath] and writes the rows of its `tables`
@@ -296,6 +302,7 @@ Future<BackupArchiveContents> readBackupArchive({
       sections: sections,
       rowsLoaded: loader.loaded,
       tablesSkipped: loader.skipped,
+      columnsCarried: loader.carried,
     );
   } finally {
     if (!db.autocommit) db.execute('ROLLBACK');
@@ -397,6 +404,7 @@ class _TableLoader {
   final Set<String> _never;
   final Map<String, int> loaded = {};
   final List<String> skipped = [];
+  final Map<String, Set<String>> carried = {};
 
   String? _table;
   PreparedStatement? _insert;
@@ -421,7 +429,8 @@ class _TableLoader {
       skipped.add(table);
       return;
     }
-    loaded[table] = 0;
+    loaded[table] ??= 0;
+    (carried[table] ??= {}).addAll([for (final i in _kept) columns[i]]);
     _insert = _db.prepare(
       'INSERT INTO "$table" (${_kept.map((i) => '"${columns[i]}"').join(', ')}) '
       'VALUES (${List.filled(_kept.length, '?').join(', ')})',

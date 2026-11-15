@@ -4,6 +4,10 @@ extension _BackupSequenceCodec on BackupService {
   /// The `equipmentProfiles` section of a backup older than 3.1, under the
   /// ids the backup gave them, so the rows that point at a profile still do.
   /// One profile is the default and one the active one.
+  ///
+  /// The columns are read off the table, not listed here: every column the
+  /// section names is written, and a column it does not name (one the schema
+  /// gained since) keeps its default.
   Future<void> _importProfiles(List<Map<String, dynamic>> profiles) async {
     var defaultIndex = profiles.indexWhere((p) => p['isDefault'] == true);
     var activeIndex = profiles.indexWhere((p) => p['isActive'] == true);
@@ -11,82 +15,24 @@ extension _BackupSequenceCodec on BackupService {
     if (defaultIndex < 0) defaultIndex = activeIndex < 0 ? 0 : activeIndex;
     if (activeIndex < 0) activeIndex = defaultIndex;
 
+    final table = database.equipmentProfiles;
     for (var index = 0; index < profiles.length; index++) {
-      final profile = profiles[index];
-      final backupId = (profile['id'] as num?)?.toInt();
+      final profile = {
+        ...profiles[index],
+        'isActive': index == activeIndex,
+        'isDefault': index == defaultIndex,
+      };
       await database
-          .into(database.equipmentProfiles)
+          .into(table)
           .insert(
-            EquipmentProfilesCompanion.insert(
-              id: backupId == null ? const Value.absent() : Value(backupId),
-              name: profile['name'] as String,
-              description: Value(_stringOrNull(profile['description'])),
-              isActive: Value(index == activeIndex),
-              isDefault: Value(index == defaultIndex),
-              cameraId: Value(_stringOrNull(profile['cameraId'])),
-              mountId: Value(_stringOrNull(profile['mountId'])),
-              focuserId: Value(_stringOrNull(profile['focuserId'])),
-              filterWheelId: Value(_stringOrNull(profile['filterWheelId'])),
-              guiderId: Value(_stringOrNull(profile['guiderId'])),
-              guideCameraId: Value(_stringOrNull(profile['guideCameraId'])),
-              rotatorId: Value(_stringOrNull(profile['rotatorId'])),
-              domeId: Value(_stringOrNull(profile['domeId'])),
-              weatherId: Value(_stringOrNull(profile['weatherId'])),
-              safetyMonitorId: Value(_stringOrNull(profile['safetyMonitorId'])),
-              switchId: Value(_stringOrNull(profile['switchId'])),
-              coverCalibratorId: Value(
-                _stringOrNull(profile['coverCalibratorId']),
-              ),
-              focalLength: Value(_doubleOrDefault(profile['focalLength'], 0.0)),
-              aperture: Value(_doubleOrDefault(profile['aperture'], 0.0)),
-              focalRatio: Value(_doubleOrNull(profile['focalRatio'])),
-              defaultGain: Value(_intOrNull(profile['defaultGain'])),
-              defaultOffset: Value(_intOrNull(profile['defaultOffset'])),
-              defaultBinX: Value(_intOrDefault(profile['defaultBinX'], 1)),
-              defaultBinY: Value(_intOrDefault(profile['defaultBinY'], 1)),
-              defaultCoolingTemp: Value(
-                _doubleOrNull(profile['defaultCoolingTemp']),
-              ),
-              coolOnConnect: Value(profile['coolOnConnect'] as bool? ?? false),
-              defaultCenteringExposure: Value(
-                _doubleOrNull(profile['defaultCenteringExposure']),
-              ),
-              filterNames: Value(_stringOrNull(profile['filterNames'])),
-              filterFocusOffsets: Value(
-                _stringOrNull(profile['filterFocusOffsets']),
-              ),
-              meridianFlipOverrides: Value(
-                _stringOrNull(profile['meridianFlipOverrides']),
-              ),
-              cameraName: Value(_stringOrNull(profile['cameraName'])),
-              mountName: Value(_stringOrNull(profile['mountName'])),
-              focuserName: Value(_stringOrNull(profile['focuserName'])),
-              filterWheelName: Value(_stringOrNull(profile['filterWheelName'])),
-              guiderName: Value(_stringOrNull(profile['guiderName'])),
-              guideCameraName: Value(_stringOrNull(profile['guideCameraName'])),
-              rotatorName: Value(_stringOrNull(profile['rotatorName'])),
-              safetyMonitorName: Value(
-                _stringOrNull(profile['safetyMonitorName']),
-              ),
-              switchName: Value(_stringOrNull(profile['switchName'])),
-              telescopeName: Value(_stringOrNull(profile['telescopeName'])),
-              telescopeFocalLength: Value(
-                _doubleOrNull(profile['telescopeFocalLength']),
-              ),
-              telescopeAperture: Value(
-                _doubleOrNull(profile['telescopeAperture']),
-              ),
-              guideFocalLength: Value(
-                _doubleOrNull(profile['guideFocalLength']),
-              ),
-              profileIcon: Value(_stringOrNull(profile['profileIcon'])),
-              profileColor: Value(_intOrNull(profile['profileColor'])),
-              sortOrder: Value(_intOrDefault(profile['sortOrder'], 0)),
-              createdAt: _dateTimeValue(profile['createdAt']),
-              updatedAt: _dateTimeValue(profile['updatedAt']),
-            ),
+            RawValuesInsertable({
+              for (final column in table.$columns)
+                if (profile[_jsonKey(column.name)] case final value?)
+                  column.name: _jsonVariable(column, value),
+            }),
           );
     }
+    _noteCarried(table, profiles);
   }
 
   /// The `targets` section of a 2.x backup.
@@ -110,6 +56,7 @@ extension _BackupSequenceCodec on BackupService {
             ),
           );
     }
+    _noteCarried(database.targets, targets);
   }
 
   Sequence? _jsonToSequence(Map<String, dynamic> json) {
