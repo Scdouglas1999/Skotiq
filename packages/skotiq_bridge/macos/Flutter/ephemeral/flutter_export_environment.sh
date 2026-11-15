@@ -1,7 +1,8 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\Users\scdou\Documents\FujfilmShift\flutter"
-export "FLUTTER_APPLICATION_PATH=c:\Users\scdou\Documents\Skotiq2\packages\skotiq_bridge"
+export "FLUTTER_ROOT=/home/scdouglas/development/flutter"
+export "FLUTTER_APPLICATION_PATH=/home/scdouglas/.cache/ns-worktrees/ut/ui-p4/packages/skotiq_bridge"
+export "FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=/home/scdouglas/.cache/ns-worktrees/ut/ui-p4/packages/skotiq_bridge/macos/Flutter/ephemeral/Packages/.packages/FlutterFramework"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"
