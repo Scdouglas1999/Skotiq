@@ -6,13 +6,17 @@
 //! whether a disconnected device answers `NotConnected`, answers from cached
 //! state, or validates its parameters first.
 //!
-//! The fixture was recorded with no vendor SDK installed. Methods that reach
-//! for the SDK without checking the connection answer `SdkNotInstalled` there;
-//! on a machine that has the SDK they would call into it, so a vendor whose
-//! library loads is skipped.
+//! Every vendor SDK is one of the fakes under `tests/fake_sdk/`, first on the
+//! loader path, so the record is the same on every Linux machine whether or not
+//! the real SDKs are installed.
 //!
 //! Regenerate with `UPDATE_DISCONNECTED_CONTRACT=1 cargo test --test disconnected_contract`.
 //! Fujifilm is a Windows-only module with no fixture and is not covered here.
+
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, DriverError, FilterWheelDriver, FocuserDriver};
 use skotiq_device::{ExposureParams, FrameType, ReadoutMode, SubFrame};
@@ -318,13 +322,10 @@ async fn wheel_rows<W: FilterWheelDriver>(out: &mut String, make: impl Fn() -> W
 async fn record() -> String {
     let mut out = String::new();
     macro_rules! section {
-        ($title:expr, $sdk_present:expr, $rows:ident, $make:expr) => {
-            if $sdk_present {
-                eprintln!("{}: SDK installed on this machine, skipped", $title);
-            } else {
-                writeln!(out, "[{}]", $title).unwrap();
-                $rows(&mut out, $make).await;
-            }
+        ($title:expr, $sdk_loaded:expr, $rows:ident, $make:expr) => {
+            assert!($sdk_loaded, "{}: the fake SDK did not load", $title);
+            writeln!(out, "[{}]", $title).unwrap();
+            $rows(&mut out, $make).await;
         };
     }
     section!("zwo camera", zwo::is_sdk_available(), camera_rows, || {
@@ -411,8 +412,20 @@ async fn record() -> String {
     out
 }
 
+#[test]
+fn disconnected_drivers_answer_as_recorded() {
+    let mut libraries: Vec<harness::Library> = harness::CAMERA_FAKES
+        .iter()
+        .flat_map(|(_, libraries)| libraries.iter().copied())
+        .collect();
+    libraries.push(harness::GPHOTO2);
+    harness::FakeSdk::build("disconnected_contract", &libraries)
+        .run_ignored("the_recorded_contract", &[]);
+}
+
 #[tokio::test]
-async fn disconnected_drivers_answer_as_recorded() {
+#[ignore = "run by disconnected_drivers_answer_as_recorded"]
+async fn the_recorded_contract() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/disconnected_contract.txt");
     let actual = record().await;
@@ -421,24 +434,21 @@ async fn disconnected_drivers_answer_as_recorded() {
         return;
     }
     let expected = std::fs::read_to_string(&fixture).expect("read fixture");
-    // A skipped vendor has no section in `actual`; compare only the sections present.
-    let mut expected_kept = String::new();
-    let mut keep = true;
-    for line in expected.lines() {
-        if line.starts_with('[') {
-            keep = actual.contains(&format!("{}\n", line));
-        }
-        if keep {
-            expected_kept.push_str(line);
-            expected_kept.push('\n');
-        }
-    }
-    if actual != expected_kept {
-        for (a, e) in actual.lines().zip(expected_kept.lines()) {
+    if actual != expected {
+        let mut section = "";
+        for (a, e) in actual.lines().zip(expected.lines()) {
+            if e.starts_with('[') {
+                section = e;
+            }
             if a != e {
-                eprintln!("recorded: {}\nnow:      {}\n", e, a);
+                eprintln!("{section}\nrecorded: {e}\nnow:      {a}\n");
             }
         }
-        panic!("a disconnected driver answers differently from the recorded contract");
+        panic!(
+            "a disconnected driver answers differently from the recorded contract \
+             ({} lines now, {} recorded)",
+            actual.lines().count(),
+            expected.lines().count()
+        );
     }
 }

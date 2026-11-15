@@ -9,6 +9,13 @@
 //!
 //! `SKOTIQ_UPDATE_PINS=1 cargo test --release -p skotiq_imaging --test output_pins`
 //! rewrites the file from the current build.
+//!
+//! Linux only. Star detection uses the pure-Rust `libm`, so its pins hold on
+//! every glibc; resampling, WCS projection and mosaics still call the system
+//! `sin`/`cos`/`atan2`, whose last bits differ in Apple's and Microsoft's
+//! libraries.
+
+#![cfg(target_os = "linux")]
 
 use skotiq_imaging::stacking::{
     combine_master_frames, CombineMethod, LiveStackConfig, LiveStacker, MasterFrameKind,

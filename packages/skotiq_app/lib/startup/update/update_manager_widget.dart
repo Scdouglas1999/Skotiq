@@ -235,7 +235,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
         ref.read(updateProvider.notifier).downloadUpdate();
       },
       onSkip: () {
-        ref.read(updateProvider.notifier).skipUpdate();
+        unawaited(ref.read(updateProvider.notifier).skipUpdate());
       },
       onLater: () {
         // "Not now" is remembered across restarts, so dismissing on the way

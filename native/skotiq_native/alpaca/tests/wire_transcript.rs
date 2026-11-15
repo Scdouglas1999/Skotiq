@@ -186,8 +186,13 @@ async fn start_server() -> (String, Slots) {
 
     tokio::spawn(async move {
         loop {
-            let Ok((stream, _)) = listener.accept().await else {
-                break;
+            // A failed accept is one connection lost, not the server: Linux
+            // reports a client that gave up while queued as an accept error,
+            // and stopping here would leave every later step of the test to
+            // run out its timeout.
+            let stream = match listener.accept().await {
+                Ok((stream, _)) => stream,
+                Err(_) => continue,
             };
             let slots = Arc::clone(&server_slots);
             tokio::spawn(async move {
