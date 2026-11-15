@@ -750,9 +750,11 @@ class SkotiqApi {
   /// again with the guider's silence accepted; on a no it throws
   /// `guider_not_answering`.
   async _mountMove(path, body) {
+    // The host waits up to 10 s for the guider before it answers a move.
+    const moveTimeoutMs = 20000;
     let result;
     try {
-      result = await this._post(path, body);
+      result = await this._request('POST', path, body, moveTimeoutMs);
     } catch (e) {
       if (!SkotiqApi._isGuiderNotAnswering(e)) throw e;
       const ask = this.confirmSilentGuider || ((question) => window.confirm(question));
@@ -768,7 +770,9 @@ class SkotiqApi {
           e.detail,
         );
       }
-      result = await this._post(path, Object.assign({}, body, { guiderSilentOk: true }));
+      result = await this._request(
+        'POST', path, Object.assign({}, body, { guiderSilentOk: true }), moveTimeoutMs,
+      );
     }
     if (result && result.notice && this.onMoveNotice) this.onMoveNotice(result.notice);
     return result;
