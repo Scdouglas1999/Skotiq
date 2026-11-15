@@ -698,7 +698,8 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           },
         );
 
-        final body = sideBySide
+        // The detail takes its column only when there is a target to show.
+        final body = sideBySide && shown != null
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -706,17 +707,15 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                   const SizedBox(width: SkotiqTokens.spaceLg),
                   SizedBox(
                     width: _kDetailWidth,
-                    child: shown == null
-                        ? const SizedBox.shrink()
-                        : _TargetDetail(
-                            key: ValueKey('plan-target-detail-${shown.target.id}'),
-                            row: shown,
-                            group: group,
-                            onSetInAutopilot: _setInAutopilot,
-                            onRemoveFromGroup: _removeFromGroup,
-                            onLimitsChanged: () =>
-                                unawaited(_reevaluate('constraint edit')),
-                          ),
+                    child: _TargetDetail(
+                      key: ValueKey('plan-target-detail-${shown.target.id}'),
+                      row: shown,
+                      group: group,
+                      onSetInAutopilot: _setInAutopilot,
+                      onRemoveFromGroup: _removeFromGroup,
+                      onLimitsChanged: () =>
+                          unawaited(_reevaluate('constraint edit')),
+                    ),
                   ),
                 ],
               )
