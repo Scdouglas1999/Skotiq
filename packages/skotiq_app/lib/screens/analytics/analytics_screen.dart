@@ -13,7 +13,6 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../tours/tour_target.dart';
-import '../../widgets/accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
 import '../science/science_screen.dart';
 import '../../widgets/run_status/run_status_presentation.dart';
@@ -24,6 +23,7 @@ import 'history/night_page.dart';
 import 'quick_capture_selection.dart';
 import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';
+import 'widgets/analytics_session_picker.dart';
 import 'widgets/session_chart.dart';
 import 'widgets/session_chart_grid.dart';
 import 'widgets/image_thumbnail_strip.dart';
