@@ -73,10 +73,8 @@ impl CameraOps for UnifiedDeviceOps {
         {
             mgr.camera_use_readout_mode(camera_id, &mode)
                 .await
-                .inspect_err(|_e| {
-                    exposure.end(false, EventSeverity::Error);
-                })
-                .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+                .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
+                .inspect_err(|e| exposure.fail(e))?;
         }
 
         // Start the exposure. gain/offset are Option<i32>; None means "use the
