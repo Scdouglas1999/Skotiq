@@ -8,6 +8,7 @@ import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/router/analytics_route.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import 'package:skotiq_app/router/equipment_route.dart';
 import 'package:skotiq_app/router/planner_route.dart';
 import 'package:skotiq_app/router/sequencer_route.dart';
 import 'package:skotiq_app/router/settings_sections.dart';
@@ -172,6 +173,50 @@ void main() {
       expect((await resolve(tester, '/settings?section=imaging')).toString(),
           '/settings?section=imaging');
       expect((await resolve(tester, '/settings')).toString(), '/settings');
+    });
+
+    // Every address a screen that moved or merged once had. Each lands on a
+    // route that draws a page, with query words that page reads.
+    testWidgets('every old address lands on a live page', (tester) async {
+      const oldAddresses = [
+        '/tonight',
+        '/scheduler',
+        '/mosaic',
+        '/analytics?tab=projects',
+        '/analytics?tab=equipment',
+        '/analytics?tab=diagnostics',
+        '/session-review',
+        '/session-review?session=3',
+        '/session-review?target=4',
+        '/session-replay',
+        '/session-replay/4',
+        '/replay/4',
+        '/equipment?tab=optical-train',
+        '/pairing',
+        '/diagnostics',
+        '/planetarium',
+        '/framing',
+        '/science',
+        '/transients',
+        '/your-sky',
+        '/constellation',
+        '/collaborative-sky',
+        '/sequencer?tab=history',
+        '/settings?section=calibration',
+      ];
+      for (final old in oldAddresses) {
+        final landed = await resolve(tester, old);
+        final route = AppRoute.of(landed.toString());
+        expect(route, isNotNull, reason: '$old landed on no route');
+        expect(route!.onlyRedirects, isFalse,
+            reason: '$old stopped on $landed, which has no page');
+        expect(_unresolved(landed.toString()), isNull, reason: old);
+      }
+      expect((await resolve(tester, '/pairing')).toString(),
+          '/settings?section=remote-access');
+      final optics = await resolve(tester, '/equipment?tab=optical-train');
+      expect(EquipmentTab.fromQuery(optics.queryParameters['tab']),
+          EquipmentTab.profiles);
     });
 
     testWidgets('every route with a page resolves to itself', (tester) async {

@@ -13,7 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../connection/linked_rig_panel.dart';
-import '../pairing_screen.dart' show PairingSettings, pairingProvider;
+import '../paired_devices.dart' show PairingSettings, pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';

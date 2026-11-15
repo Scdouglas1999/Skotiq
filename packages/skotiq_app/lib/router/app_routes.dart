@@ -211,16 +211,8 @@ enum AppRoute {
   ),
   mosaicProject('/mosaic/:id'),
 
-  /// A route, not a `Navigator.push`, so a rail click replaces it like every
-  /// other page instead of leaving it on screen above a location that changed
-  /// underneath it.
-  pairing(
-    '/pairing',
-    label: TranslatedLabel('pairingTitle'),
-    icon: LucideIcons.smartphone,
-    palette: true,
-    keywords: ['pair', 'phone', 'remote', 'device'],
-  ),
+  /// Paired phones and tablets live in Settings > Remote access.
+  pairing('/pairing'),
 
   /// Analytics > Diagnostics. Listed in the palette under its own name.
   diagnostics(
@@ -242,8 +234,7 @@ enum AppRoute {
   /// One Stack-and-Share result (`?id=`).
   stackResult('/stack-result'),
 
-  /// The decision scrubber for one run. A route for the same reason as
-  /// [pairing].
+  /// The decision scrubber for one run, now the night's Log.
   replay('/replay/:runId'),
 
   /// Opens the first-night walkthrough over Tonight.
@@ -367,7 +358,8 @@ enum AppRoute {
         sessionReplay ||
         sessionReplayRun ||
         sessionReview ||
-        replay =>
+        replay ||
+        pairing =>
           true,
         _ => false,
       };
@@ -431,6 +423,7 @@ enum AppRoute {
               ? AppRoutes.darkroom(const DarkroomRoute())
               : AppRoutes.history(),
         },
+      pairing => AppRoutes.settings(SettingsSectionId.remoteAccess),
       // The calibration pages moved to the Darkroom's Calibration tab.
       settings =>
         SettingsSectionId.resolve(q['section']) == SettingsSectionId.calibration

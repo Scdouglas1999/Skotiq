@@ -1,125 +1,50 @@
-// The pairing screen must not trap the nav rail while the rail claims to move.
-//
-// The trap: from Settings ▸ Remote Access ▸ Manage Pairing, clicking
-// "Dashboard" in the left rail repaints the rail row as selected while `tree`
-// still returns `header: Remote Connection Pairing`; a second click changes
-// nothing; the screen's own back arrow lands on the Dashboard rather than on
-// Remote Access — the `go` took effect underneath a screen that stayed on top.
-//
-// Mechanism: a screen pushed with `Navigator.push(MaterialPageRoute(...))` onto
-// the shell's navigator is not part of go_router's match list. `go()` rebuilds
-// that list and the pushed route rides above the result. A route registered
-// under the same `ShellRoute` and entered with `push` IS part of the list, and
-// `go()` replaces it.
-//
-// Both halves are pinned here: the framework behaviour that makes the trap
-// possible, and the app's own wiring.
-import 'package:flutter/material.dart';
+// Pairing is a part of Settings > Remote access, not a page of its own. The
+// old `/pairing` address forwards there in the router, so a rail click from it
+// is an ordinary move between two routed pages and nothing can sit above the
+// shell's match list.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/router/settings_sections.dart';
 
-Widget _shell(BuildContext context, Widget child) {
-  return Scaffold(
-    body: Row(
-      children: [
-        // The nav rail: one destination, driven exactly as AppShell drives it.
-        TextButton(
-          onPressed: () => context.go('/dashboard'),
-          child: const Text('rail:Dashboard'),
-        ),
-        Expanded(child: child),
-      ],
-    ),
-  );
-}
-
-GoRouter _router() {
-  return GoRouter(
-    initialLocation: '/settings',
-    routes: [
-      ShellRoute(
-        builder: (context, state, child) => _shell(context, child),
-        routes: [
-          GoRoute(
-            path: '/dashboard',
-            builder: (_, __) => const Text('DASHBOARD'),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (context, __) => TextButton(
-              onPressed: () => context.push('/pairing'),
-              child: const Text('open pairing (routed)'),
-            ),
-          ),
-          GoRoute(
-            path: '/pairing',
-            builder: (_, __) => const Text('PAIRING'),
-          ),
-        ],
-      ),
-    ],
-  );
-}
+import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 void main() {
-  testWidgets('a rail destination escapes a routed pairing push',
-      (tester) async {
-    final router = _router();
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('open pairing (routed)'));
-    await tester.pumpAndSettle();
-    expect(find.text('PAIRING'), findsOneWidget);
-
-    await tester.tap(find.text('rail:Dashboard'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('PAIRING'),
-      findsNothing,
-      reason: 'the rail said it moved, so it must actually move',
-    );
-    expect(find.text('DASHBOARD'), findsOneWidget);
-  });
-
-  testWidgets('back from pairing returns to the screen that opened it',
-      (tester) async {
-    // The second half of the same finding: the in-screen back arrow "lands on
-    // the destination the rail had silently re-pointed to underneath" — it
-    // went to the Dashboard, not back to Remote Access. With pairing on the
-    // match list, back is a router pop and lands where it came from.
-    final router = _router();
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('open pairing (routed)'));
-    await tester.pumpAndSettle();
-
-    final pairingContext = tester.element(find.text('PAIRING'));
-    Navigator.of(pairingContext).maybePop();
-    await tester.pumpAndSettle();
-
-    expect(find.text('open pairing (routed)'), findsOneWidget);
-    expect(find.text('DASHBOARD'), findsNothing);
-  });
-
-  test('the app registers pairing as a shell route', () {
-    final container = ProviderContainer();
+  late GoRouter router;
+  setUp(() {
+    final container =
+        ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
     addTearDown(container.dispose);
-
-    final router = container.read(appRouterProvider);
+    router = container.read(appRouterProvider);
     addTearDown(router.dispose);
+  });
 
-    final shell = router.configuration.routes.whereType<ShellRoute>().single;
-    expect(
-      shell.routes.whereType<GoRoute>().map((r) => r.path),
-      contains(AppRoute.pairing.path),
+  testWidgets('/pairing opens Settings on Remote access', (tester) async {
+    await tester.pumpWidget(const SizedBox());
+    final context = tester.element(find.byType(SizedBox));
+    final match = await router.configuration.redirect(
+      context,
+      router.configuration.findMatch(Uri.parse(AppRoute.pairing.path)),
+      redirectHistory: [],
     );
+    expect(match.isError, isFalse);
+    expect(match.uri.path, AppRoute.settings.path);
+    expect(SettingsSectionId.resolve(match.uri.queryParameters['section']),
+        SettingsSectionId.remoteAccess);
+  });
+
+  test('/pairing only forwards: it draws no page of its own', () {
+    expect(AppRoute.pairing.onlyRedirects, isTrue);
+    expect(AppRoute.pairing.label, isNull,
+        reason: 'the palette finds pairing through Remote access');
+    final shell = router.configuration.routes.whereType<ShellRoute>().single;
+    final pairing = shell.routes
+        .whereType<GoRoute>()
+        .singleWhere((route) => route.path == AppRoute.pairing.path);
+    expect(pairing.builder, isNull);
+    expect(pairing.pageBuilder, isNull);
   });
 }
