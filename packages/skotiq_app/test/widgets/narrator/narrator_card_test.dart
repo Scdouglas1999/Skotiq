@@ -275,7 +275,7 @@ void main() {
         final action = narratorActionFor(type);
         expect(action, isNotNull,
             reason: '$type must resolve the pipeline-failure action button.');
-        expect(action!.route, '/analytics?tab=diagnostics');
+        expect(action!.route, '/analytics?tab=session&view=optics');
       }
     });
   });
