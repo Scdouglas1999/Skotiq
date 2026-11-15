@@ -20,7 +20,6 @@ import '../screens/session_replay/session_picker_screen.dart';
 import '../screens/session_replay/session_replay_screen.dart';
 import '../screens/flat_wizard/flat_wizard_screen.dart';
 import '../screens/discover/mosaic/mosaic_project_screen.dart';
-import '../screens/discover/mosaic/mosaic_projects_list_screen.dart';
 import '../screens/weather/weather_screen.dart';
 import '../screens/settings/pairing_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -108,6 +107,8 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.guiding => const GuidingScreen(),
     AppRoute.planner => PlannerScreen(
         initialTab: PlannerTab.fromQuery(query['tab']),
+        initialGroup: query['group'],
+        initialTargetId: int.tryParse(query['target'] ?? ''),
         initialDiscoverView: DiscoverView.fromQuery(query['view']),
       ),
     AppRoute.equipment =>
@@ -141,7 +142,6 @@ Widget _screen(AppRoute route, GoRouterState state) {
           (null, null) => const SessionReviewScope.session(_noSuchRow),
         },
       ),
-    AppRoute.mosaicProjects => const MosaicProjectsListScreen(),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
     AppRoute.pairing => const PairingScreen(),
@@ -165,6 +165,7 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.constellation ||
     AppRoute.collaborativeSky ||
     AppRoute.scheduler ||
+    AppRoute.mosaicProjects ||
     AppRoute.diagnostics =>
       throw StateError('$route only redirects and has no page'),
   };

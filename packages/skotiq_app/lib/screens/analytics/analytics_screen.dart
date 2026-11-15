@@ -35,7 +35,6 @@ import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';
 import 'widgets/session_chart.dart';
 import 'widgets/image_thumbnail_strip.dart';
-import 'widgets/project_tracking_panel.dart';
 import '../../router/app_routes.dart';
 export '../../router/analytics_route.dart' show AnalyticsTab, ScienceTab;
 
@@ -118,10 +117,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         buttonKey: TourTarget.analyticsHistoryTab.key,
       ),
       AdaptiveTab(
-        label: l10n.text('analyticsProjects'),
-        icon: LucideIcons.folderKanban,
-      ),
-      AdaptiveTab(
         label: l10n.text('analyticsEquipmentTab'),
         icon: LucideIcons.wrench,
         buttonKey: TourTarget.analyticsEquipmentTab.key,
@@ -173,7 +168,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 children: [
                   const _SessionTab(),
                   const _HistoryTab(),
-                  const _ProjectsTab(),
                   const _EquipmentStatsTab(),
                   ScienceWorkspaceView(
                     initialView: widget.initialScienceView,

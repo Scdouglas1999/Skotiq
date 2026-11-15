@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
+import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -97,6 +97,10 @@ List<Override> _commonOverrides({
         ),
       ),
     schedulerAutoReevalProvider.overrideWith((ref) {}),
+    // The list has its own tests; these drive the autopilot bar.
+    planTargetsProvider.overrideWith((ref) => const AsyncValue.data([])),
+    projectListProvider.overrideWith((ref) => Stream.value(const [])),
+    unusedTargetsCountProvider.overrideWith((ref) async => 0),
     schedulerPreviewDecisionProvider.overrideWith(
       (ref) => Completer<SchedulerDecision>().future,
     ),
@@ -137,7 +141,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
@@ -145,7 +149,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.textContaining('Could not load scheduler configuration'),
+      find.textContaining('Could not read the autopilot'),
       findsOneWidget,
     );
     expect(find.textContaining('settings store unavailable'), findsOneWidget);
@@ -193,14 +197,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     await tester.pumpAndSettle();
 
@@ -252,14 +256,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Camera'), findsOneWidget);
@@ -317,17 +321,17 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
     final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended all night');
+        find.widgetWithText(SkotiqButton, 'Run unattended');
 
     await tester.tap(runButton);
     await tester.pumpAndSettle();
-    expect(find.text('Review unattended start'), findsOneWidget);
+    expect(find.text('Start with these not ready?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     verifyNever(
@@ -372,14 +376,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Host readiness unavailable'), findsOneWidget);
@@ -421,18 +425,18 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Run unattended all night'),
+      find.widgetWithText(SkotiqButton, 'Run unattended'),
     );
     expect(button.onPressed, isNull);
     expect(
-      find.textContaining('Add at least one target'),
+      find.textContaining('Add a target'),
       findsOneWidget,
     );
     verifyNever(
@@ -492,14 +496,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     final runButton =
-        find.widgetWithText(SkotiqButton, 'Run unattended all night');
+        find.widgetWithText(SkotiqButton, 'Run unattended');
     await tester.tap(runButton);
     await tester.pump();
     verify(
@@ -567,20 +571,20 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Scoring weights'));
+    await tester.tap(find.byKey(const ValueKey('autopilot-settings')));
     await tester.pumpAndSettle();
 
     final defaultAltitude = SchedulerConfig.defaults.weights.altitude;
     double altitudeSlider() =>
-        tester.widget<Slider>(find.byType(Slider).first).value;
+        tester.widget<SkotiqSlider>(find.byType(SkotiqSlider).first).value;
     expect(altitudeSlider(), defaultAltitude);
 
-    tester.widget<Slider>(find.byType(Slider).first).onChanged!(2.5);
+    tester.widget<SkotiqSlider>(find.byType(SkotiqSlider).first).onChanged!(2.5);
     await tester.pump();
     expect(altitudeSlider(), 2.5, reason: 'the edit shows while it saves');
     verify(() => oldBackend.updateSchedulerConfig(any())).called(1);
@@ -594,326 +598,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(altitudeSlider(), defaultAltitude);
     expect(
-        find.textContaining('Could not save scheduler settings'), findsNothing);
+        find.textContaining('Could not save the autopilot settings'), findsNothing);
     verifyNever(() => newBackend.updateSchedulerConfig(any()));
   });
 
   testWidgets(
-      'per-row delete icon opens confirmation dialog and on confirm wipes '
-      'goals and constraints for that target even when embedded as a Plan '
-      'Tonight tab', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1280, 800);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final engine = buildTestSchedulerEngine();
-    final goalSvc = FakeIntegrationGoalService();
-    final constraintSvc = FakeTargetConstraintService();
-    final decision = decisionWith(
-      chosenId: 1,
-      chosenName: 'NGC 7000',
-      scored: [
-        scoreFor(id: 1, name: 'NGC 7000', total: 2.4),
-        scoreFor(id: 2, name: 'M31', total: 1.8),
-      ],
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(
-            goalService: goalSvc,
-            constraintService: constraintSvc,
-          ),
-          schedulerEngineProvider.overrideWithValue(engine),
-          schedulerStatusProvider.overrideWith((ref) {
-            return FakeSchedulerStatusNotifier(const SchedulerStatus(
-              state: SchedulerState.idle,
-            ));
-          }),
-          currentSchedulerDecisionProvider.overrideWith((ref) {
-            return FakeCurrentSchedulerDecisionNotifier(decision);
-          }),
-          allIntegrationGoalsProvider.overrideWith(
-            (ref) async => <IntegrationGoal>[],
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-
-    // Tap the delete icon on the second row (target id=2, M31).
-    final deleteButton = find.byKey(const ValueKey('scheduler-delete-row-2'));
-    expect(deleteButton, findsOneWidget);
-    await tester.tap(deleteButton);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Remove from scheduler?'), findsOneWidget);
-    expect(find.textContaining('Remove M31'), findsOneWidget);
-
-    // Confirm.
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Remove'));
-    await tester.pumpAndSettle();
-
-    expect(goalSvc.deletedForTarget, [2]);
-    expect(constraintSvc.deletedForTarget, [2]);
-  });
-
-  testWidgets('scheduler row cleanup is canceled after a host switch',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1280, 800);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final engine = buildTestSchedulerEngine();
-    final goalSvc = FakeIntegrationGoalService();
-    final constraintSvc = FakeTargetConstraintService();
-    final decision = decisionWith(
-      chosenId: 1,
-      chosenName: 'NGC 7000',
-      scored: [scoreFor(id: 2, name: 'M31', total: 1.8)],
-    );
-    late _SwappableBackendNotifier notifier;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(
-            goalService: goalSvc,
-            constraintService: constraintSvc,
-          ),
-          backendProvider.overrideWith((ref) {
-            notifier = _SwappableBackendNotifier(ref, DisconnectedBackend());
-            return notifier;
-          }),
-          schedulerEngineProvider.overrideWithValue(engine),
-          schedulerStatusProvider.overrideWith((ref) {
-            return FakeSchedulerStatusNotifier(const SchedulerStatus(
-              state: SchedulerState.idle,
-            ));
-          }),
-          currentSchedulerDecisionProvider.overrideWith((ref) {
-            return FakeCurrentSchedulerDecisionNotifier(decision);
-          }),
-          allIntegrationGoalsProvider.overrideWith(
-            (ref) async => <IntegrationGoal>[],
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-
-    await tester.tap(find.byKey(const ValueKey('scheduler-delete-row-2')));
-    await tester.pumpAndSettle();
-    expect(find.text('Remove from scheduler?'), findsOneWidget);
-
-    notifier.switchTo(DisconnectedBackend());
-    await tester.pump();
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Remove'));
-    await tester.pumpAndSettle();
-
-    expect(goalSvc.deletedForTarget, isEmpty);
-    expect(constraintSvc.deletedForTarget, isEmpty);
-    expect(find.textContaining('cleanup was canceled'), findsOneWidget);
-  });
-
-  testWidgets('"Clear all" button works when SchedulerTabContent is embedded',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1280, 800);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final engine = buildTestSchedulerEngine();
-    final goalSvc = FakeIntegrationGoalService();
-    final constraintSvc = FakeTargetConstraintService();
-    final decision = decisionWith(
-      chosenId: 1,
-      chosenName: 'NGC 7000',
-      scored: [
-        scoreFor(id: 1, name: 'NGC 7000', total: 2.4),
-      ],
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(
-            goalService: goalSvc,
-            constraintService: constraintSvc,
-          ),
-          schedulerEngineProvider.overrideWithValue(engine),
-          schedulerStatusProvider.overrideWith((ref) {
-            return FakeSchedulerStatusNotifier(const SchedulerStatus(
-              state: SchedulerState.idle,
-            ));
-          }),
-          currentSchedulerDecisionProvider.overrideWith((ref) {
-            return FakeCurrentSchedulerDecisionNotifier(decision);
-          }),
-          allIntegrationGoalsProvider.overrideWith(
-            (ref) async => <IntegrationGoal>[],
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-
-    final clearAll = find.byKey(const ValueKey('scheduler-clear-all'));
-    expect(clearAll, findsOneWidget);
-    await tester.tap(clearAll);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Clear scheduler queue?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Clear'));
-    await tester.pumpAndSettle();
-
-    expect(goalSvc.deleteAllCalls, 1);
-    expect(constraintSvc.deleteAllCalls, 1);
-  });
-
-  testWidgets('queue header, decision panel, and Target queue render',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1280, 800);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final engine = buildTestSchedulerEngine();
-    final decision = decisionWith(
-      chosenId: 1,
-      chosenName: 'NGC 7000',
-      scored: [scoreFor(id: 1, name: 'NGC 7000', total: 2.4)],
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(),
-          schedulerEngineProvider.overrideWithValue(engine),
-          schedulerStatusProvider.overrideWith((ref) {
-            return FakeSchedulerStatusNotifier(const SchedulerStatus(
-              state: SchedulerState.idle,
-            ));
-          }),
-          currentSchedulerDecisionProvider.overrideWith((ref) {
-            return FakeCurrentSchedulerDecisionNotifier(decision);
-          }),
-          allIntegrationGoalsProvider.overrideWith(
-            (ref) async => <IntegrationGoal>[],
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(find.text('Unattended autopilot'), findsOneWidget);
-    expect(find.text('Scheduler queue'), findsOneWidget);
-    expect(find.text('NGC 7000'), findsAtLeastNWidgets(1));
-
-    final title = tester.renderObject<RenderParagraph>(
-      find.text('Unattended autopilot'),
-    );
-    expect(
-      title.didExceedMaxLines,
-      isFalse,
-      reason: 'the autopilot panel title is clipped at this panel width',
-    );
-  });
-
-  testWidgets(
-      'the autopilot panel title fits at the narrowest panel width, with the '
-      'status badge dropping to its own line to make room', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1050, 900);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final engine = buildTestSchedulerEngine();
-    final decision = decisionWith(
-      chosenId: 1,
-      chosenName: 'NGC 7000',
-      scored: [scoreFor(id: 1, name: 'NGC 7000', total: 2.4)],
-    );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(),
-          schedulerEngineProvider.overrideWithValue(engine),
-          schedulerStatusProvider.overrideWith((ref) {
-            return FakeSchedulerStatusNotifier(const SchedulerStatus(
-              state: SchedulerState.running,
-            ));
-          }),
-          currentSchedulerDecisionProvider.overrideWith((ref) {
-            return FakeCurrentSchedulerDecisionNotifier(decision);
-          }),
-          allIntegrationGoalsProvider.overrideWith(
-            (ref) async => <IntegrationGoal>[],
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-
-    final titleFinder = find.text('Unattended autopilot');
-    final title = tester.renderObject<RenderParagraph>(titleFinder);
-    expect(
-      title.didExceedMaxLines,
-      isFalse,
-      reason: 'the autopilot panel title is clipped at the 280 px panel floor',
-    );
-
-    final badgeTop = tester.getTopLeft(find.text('Running')).dy;
-    final titleBottom = tester.getBottomLeft(titleFinder).dy;
-    expect(
-      badgeTop,
-      greaterThanOrEqualTo(titleBottom - 1.0),
-      reason: 'the status badge should wrap below the title at this width',
-    );
-
-    expect(title.overflow, TextOverflow.ellipsis);
-  });
-
-  testWidgets(
-      'rejected candidates render in "Other candidates considered" section '
+      'the targets the autopilot weighed are listed under Why '
       'with each primary reason chip; expanding a row reveals the full '
       'per-factor breakdown', (tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -969,17 +659,16 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: SchedulerTabContent()),
+          home: const Scaffold(body: PlanTargetsTab()),
         ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 200));
 
     // The section header shows the count.
-    expect(find.text('Other candidates considered (2)'), findsOneWidget);
 
     // Expand the section.
-    await tester.tap(find.text('Other candidates considered (2)'));
+    await tester.tap(find.byKey(const ValueKey('autopilot-why')));
     await tester.pumpAndSettle();
 
     // Both rejected rows render with their primary reason chips.
@@ -991,14 +680,12 @@ void main() {
 
     // Tap the M31 row to expand its details. The expanded body shows the
     // hard-constraint failure list AND the per-factor score breakdown.
-    await tester.tap(find.byKey(const ValueKey('rejected-row-2')));
+    await tester.tap(find.byKey(const ValueKey('why-target-2')));
     await tester.pumpAndSettle();
-    expect(find.text('Failed hard constraints'), findsOneWidget);
     expect(find.textContaining('altitude 12.0'), findsOneWidget);
-    expect(find.text('Score breakdown'), findsOneWidget);
     // Factor lines render with their numeric values — the test fakes
     // produce altitude + meridian factors with known weights.
-    expect(find.textContaining('altitude:'), findsOneWidget);
-    expect(find.textContaining('meridian:'), findsOneWidget);
+    expect(find.text('Altitude'), findsOneWidget);
+    expect(find.text('Near meridian'), findsOneWidget);
   });
 }

@@ -15,9 +15,8 @@ import 'package:skotiq_app/screens/planner/planner_screen.dart';
 /// The tab names this build renders, as `PlannerTab` + the English labels in
 /// `translations.dart` (`plannerTab*`).
 const _renderedTabLabels = <String>{
-  'Tonight',
-  'Projects',
-  'Schedule',
+  'Best tonight',
+  'Targets',
   'Framing',
   'Planetarium',
   'Your sky',

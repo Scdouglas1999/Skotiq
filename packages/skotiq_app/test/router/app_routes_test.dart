@@ -121,7 +121,12 @@ void main() {
 
     testWidgets('/scheduler and /diagnostics open their tabs', (tester) async {
       expect((await resolve(tester, '/scheduler')).toString(),
-          '/planner?tab=scheduler');
+          '/planner?tab=targets');
+      // The old Analytics tab and the old mosaic list are in Plan > Targets.
+      expect((await resolve(tester, '/analytics?tab=projects')).toString(),
+          '/planner?tab=targets');
+      expect((await resolve(tester, '/mosaic')).toString(),
+          '/planner?tab=targets&group=mosaics');
       expect((await resolve(tester, '/diagnostics')).toString(),
           '/analytics?tab=diagnostics');
       // The dump page sits below the old path and is a page of its own.
@@ -166,12 +171,15 @@ void main() {
             Uri.parse(AppRoutes.planner(tab: PlannerTab.discover, view: view));
         expect(DiscoverView.fromQuery(uri.queryParameters['view']), view);
       }
-      expect(AppRoutes.planner(tab: PlannerTab.schedule),
-          '/planner?tab=scheduler');
+      expect(AppRoutes.planner(tab: PlannerTab.targets),
+          '/planner?tab=targets');
+      expect(AppRoutes.planTargets(group: '7', target: 3),
+          '/planner?tab=targets&group=7&target=3');
       // Words older links used.
-      expect(PlannerTab.fromQuery('schedule'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('WEEK'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('WEEK'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('projects'), PlannerTab.targets);
       expect(PlannerTab.fromQuery('your-sky'), PlannerTab.discover);
       expect(DiscoverView.fromQuery('collab'), DiscoverView.collaborative);
       expect(PlannerTab.fromQuery('not-a-tab'), isNull);

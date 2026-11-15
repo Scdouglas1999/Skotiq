@@ -76,7 +76,7 @@ void main() {
 
     test('railIndexFor resolves planner and ignores query', () {
       expect(
-        ShellNavigation.railIndexFor('/planner?tab=scheduler'),
+        ShellNavigation.railIndexFor('/planner?tab=targets'),
         railIndexOf(AppRoute.planner),
       );
     });
@@ -87,8 +87,6 @@ void main() {
       for (final location in [
         '/session-review?session=3',
         '/stack-result?id=9',
-        '/mosaic',
-        '/mosaic/7',
       ]) {
         expect(
           ShellNavigation.railIndexFor(location),
@@ -96,6 +94,9 @@ void main() {
           reason: '$location is a Darkroom surface',
         );
       }
+      // A mosaic is a target with panels: Plan hosts it.
+      expect(ShellNavigation.railIndexFor('/mosaic/7'),
+          railIndexOf(AppRoute.planner));
       expect(ShellNavigation.railIndexFor('/polar-alignment'),
           railIndexOf(AppRoute.equipment));
       expect(ShellNavigation.railIndexFor('/flat-wizard'),
