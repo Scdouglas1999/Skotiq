@@ -92,6 +92,15 @@ impl InstructionResult {
         }
     }
 
+    /// The step could not do its job and the run goes on; `message` says why.
+    pub fn skipped(message: impl Into<String>) -> Self {
+        Self {
+            status: NodeStatus::Skipped,
+            message: Some(message.into()),
+            ..Self::success()
+        }
+    }
+
     pub fn cancelled(message: impl Into<String>) -> Self {
         Self {
             status: NodeStatus::Cancelled,
