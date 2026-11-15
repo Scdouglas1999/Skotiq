@@ -9,7 +9,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../utils/snackbar_helper.dart';
 
 /// The integration-goals editor for one target in a dialog, offering the
@@ -25,9 +24,8 @@ Future<void> showIntegrationGoalsDialog(
   return showDialog<void>(
     context: context,
     builder: (_) => SkotiqDialog(
-      title: 'Integration goals — $targetName',
-      icon: LucideIcons.target,
-      width: 720,
+      title: 'Goals for $targetName',
+      width: 640,
       child: IntegrationGoalsEditor(
         targetId: targetId,
         targetName: targetName,
@@ -285,32 +283,34 @@ class _IntegrationGoalsEditorState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
-            Icon(LucideIcons.target,
-                size: SkotiqTokens.iconSm, color: colors.primary),
-            const SizedBox(width: SkotiqTokens.spaceSm),
             Text(
-              'Integration goals',
-              style: SkotiqTypography.bodyStrong.copyWith(
-                color: colors.textPrimary,
+              'Goals',
+              style: SkotiqTypography.sectionTitle
+                  .copyWith(color: colors.textPrimary),
+            ),
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            Expanded(
+              child: Text(
+                'frames wanted in each filter',
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
               ),
             ),
-            if (_busy) ...[
-              const SizedBox(width: SkotiqTokens.spaceMd),
+            if (_busy)
               SizedBox(
-                width: 14,
-                height: 14,
-                child: SkotiqSpinner(size: 14, color: colors.primary),
+                width: SkotiqTokens.iconSm,
+                height: SkotiqTokens.iconSm,
+                child: SkotiqSpinner(
+                  size: SkotiqTokens.iconSm,
+                  color: colors.textMuted,
+                ),
               ),
-            ],
           ],
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        Text(
-          'How many frames in each filter does ${widget.targetName} still need?',
-          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
         progressAsync.when(
           loading: () => const Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -322,30 +322,32 @@ class _IntegrationGoalsEditorState
             ),
           ),
           error: (e, _) => Text(
-            'Failed to load goals: ${userFacingError(e)}',
-            style: SkotiqTypography.caption.copyWith(color: colors.error),
+            'Could not load the goals: ${userFacingError(e)}',
+            style: SkotiqTypography.bodySm.copyWith(color: colors.error),
           ),
           data: (progress) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (progress.isEmpty && oldTotalGoalSecs > 0)
-                SkotiqPanel(
-                    padding: SkotiqTokens.paddingMd,
-                    child: Text(
-                      'Current goal: ${DurationFormat.decimalHours(oldTotalGoalSecs)} '
-                      'over all filters, set before per-filter goals. Adding a '
-                      'filter goal below replaces it.',
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textSecondary),
-                    ))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+                  child: Text(
+                    'Current goal: ${DurationFormat.decimalHours(oldTotalGoalSecs)} '
+                    'over all filters. Adding a filter goal below replaces it.',
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textSecondary),
+                  ),
+                )
               else if (progress.isEmpty)
-                SkotiqPanel(
-                    padding: SkotiqTokens.paddingMd,
-                    child: Text(
-                      'No integration goals yet. Add filters below to tell the scheduler what to image.',
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textMuted),
-                    )),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+                  child: Text(
+                    'No goal yet. Add a filter to tell the autopilot how much '
+                    'to collect.',
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textMuted),
+                  ),
+                ),
               for (final p in progress)
                 _GoalRow(
                   progress: p,
@@ -357,7 +359,7 @@ class _IntegrationGoalsEditorState
                   onDelete: () => _deleteGoal(p.goal, authority, service),
                   busy: _busy,
                 ),
-              const SizedBox(height: SkotiqTokens.spaceMd),
+              const SizedBox(height: SkotiqTokens.spaceSm),
               _AddGoalRow(
                 availableFilters: widget.availableFilters,
                 wheelOnlineWithNoSlots: wheelOnlineWithNoSlots,
@@ -437,164 +439,146 @@ class _GoalRowState extends State<_GoalRow> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final p = widget.progress;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.spaceMd,
-          vertical: SkotiqTokens.spaceSm,
-        ),
-        decoration: BoxDecoration(
-          color: p.isComplete
-              ? colors.success.withValues(alpha: 0.08)
-              : colors.well,
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-          border: Border.all(
-            color: p.isComplete
-                ? colors.success.withValues(alpha: 0.4)
-                : colors.border,
-          ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final label = SizedBox(
-              width: 60,
-              child: Text(
-                _goalFilterLabel(p.goal.filter),
-                style: SkotiqTypography.bodyStrong
-                    .copyWith(color: colors.textPrimary),
-              ),
-            );
-            final exposure = SizedBox(
-              width: 80,
-              child: Text(
-                '${p.goal.exposureSeconds.toStringAsFixed(0)}s',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            );
-            final frames = _numberField(
-              colors,
-              controller: _countCtl,
-              label: 'Frames',
-              onSubmitted: (v) {
-                final parsed = int.tryParse(v.trim());
-                if (parsed == null || parsed < 1) {
-                  _countCtl.text = p.goal.frameCount.toString();
-                  _showGoalError(
-                      context, 'Frame count must be a positive integer.');
-                  return;
-                }
-                widget.onUpdate(parsed, p.goal.priority);
-              },
-            );
-            final priority = _numberField(
-              colors,
-              controller: _priorityCtl,
-              label: 'Prio',
-              onSubmitted: (v) {
-                final parsed = int.tryParse(v.trim());
-                if (parsed == null) {
-                  _priorityCtl.text = p.goal.priority.toString();
-                  _showGoalError(context, 'Priority must be an integer.');
-                  return;
-                }
-                widget.onUpdate(p.goal.frameCount, parsed);
-              },
-            );
-            final progress = Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${p.capturedCount} / ${p.goal.frameCount} captured',
-                    style: SkotiqTypography.eyebrow.copyWith(
-                      color: p.isComplete ? colors.success : colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  LinearProgressIndicator(
-                    value: p.goal.frameCount > 0
-                        ? (p.capturedCount / p.goal.frameCount).clamp(0.0, 1.0)
-                        : 0.0,
-                    minHeight: 4,
-                    backgroundColor: colors.surfaceHover,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      p.isComplete ? colors.success : colors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-            final delete = SkotiqIconButton(
-              icon: LucideIcons.trash2,
-              tooltip: 'Delete goal',
-              size: IconButtonSize.sm,
-              color: colors.error,
-              onPressed: widget.busy ? null : () => widget.onDelete(),
-            );
-            if (constraints.maxWidth >= _kGoalRowInlineWidth) {
-              return Row(
-                children: [
-                  label,
-                  exposure,
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  SizedBox(width: 96, child: frames),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  SizedBox(width: 84, child: priority),
-                  const SizedBox(width: SkotiqTokens.spaceMd),
-                  progress,
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  delete,
-                ],
-              );
-            }
-            // A phone-width dialog: what the goal is and how far it got on
-            // one line, the two editable numbers on the next.
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(children: [label, exposure, progress, delete]),
-                const SizedBox(height: SkotiqTokens.spaceSm),
-                Row(
-                  children: [
-                    Expanded(child: frames),
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Expanded(child: priority),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
+    final frames = SizedBox(
+      width: _kGoalNumberWidth,
+      child: SkotiqTextField(
+        controller: _countCtl,
+        enabled: !widget.busy,
+        dense: true,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.right,
+        onSubmitted: (v) {
+          final parsed = int.tryParse(v.trim());
+          if (parsed == null || parsed < 1) {
+            _countCtl.text = p.goal.frameCount.toString();
+            _showGoalError(context, 'Frame count must be a positive integer.');
+            return;
+          }
+          widget.onUpdate(parsed, p.goal.priority);
+        },
       ),
     );
-  }
-
-  Widget _numberField(
-    SkotiqColors colors, {
-    required TextEditingController controller,
-    required String label,
-    required ValueChanged<String> onSubmitted,
-  }) {
-    return TextField(
-      controller: controller,
-      enabled: !widget.busy,
-      keyboardType: TextInputType.number,
-      style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
-      decoration: InputDecoration(
-        isDense: true,
-        labelText: label,
-        border: const OutlineInputBorder(),
-        labelStyle: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+    final priority = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Priority', style: muted),
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        SizedBox(
+          width: _kGoalPriorityWidth,
+          child: SkotiqTextField(
+            controller: _priorityCtl,
+            enabled: !widget.busy,
+            dense: true,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.right,
+            onSubmitted: (v) {
+              final parsed = int.tryParse(v.trim());
+              if (parsed == null) {
+                _priorityCtl.text = p.goal.priority.toString();
+                _showGoalError(context, 'Priority must be an integer.');
+                return;
+              }
+              widget.onUpdate(p.goal.frameCount, parsed);
+            },
+          ),
+        ),
+      ],
+    );
+    final progress = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${p.capturedCount} / ${p.goal.frameCount} captured',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.bodySm.copyWith(
+              color: p.isComplete ? colors.success : colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceXs),
+          SkotiqProgressBar(
+            value: p.goal.frameCount > 0
+                ? (p.capturedCount / p.goal.frameCount).clamp(0.0, 1.0)
+                : 0.0,
+            state: p.isComplete
+                ? SkotiqProgressState.success
+                : SkotiqProgressState.normal,
+          ),
+        ],
       ),
-      onSubmitted: onSubmitted,
+    );
+    final delete = SkotiqIconButton(
+      icon: LucideIcons.trash2,
+      tooltip: 'Delete goal',
+      size: IconButtonSize.sm,
+      onPressed: widget.busy ? null : () => widget.onDelete(),
+    );
+    final head = [
+      SizedBox(
+        width: _kGoalFilterWidth,
+        child: Text(
+          _goalFilterLabel(p.goal.filter),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
+        ),
+      ),
+      Text('${QuantityFormat.trimmed(p.goal.exposureSeconds)} s ×', style: muted),
+      const SizedBox(width: SkotiqTokens.spaceSm),
+      frames,
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= _kGoalRowInlineWidth) {
+            return Row(
+              children: [
+                ...head,
+                const SizedBox(width: SkotiqTokens.spaceLg),
+                priority,
+                const SizedBox(width: SkotiqTokens.spaceLg),
+                progress,
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                delete,
+              ],
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ...head,
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  progress,
+                  const SizedBox(width: SkotiqTokens.spaceXs),
+                  delete,
+                ],
+              ),
+              const SizedBox(height: SkotiqTokens.spaceXs),
+              Padding(
+                padding: const EdgeInsets.only(left: _kGoalFilterWidth),
+                child: priority,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
-/// The width below which a goal row and the add row take two lines.
+/// Widths of a goal row's fixed parts.
+const double _kGoalFilterWidth = 48;
+const double _kGoalNumberWidth = 64;
+const double _kGoalPriorityWidth = 48;
+
 const double _kGoalRowInlineWidth = 520;
 
 class _AddGoalRow extends StatefulWidget {
@@ -676,88 +660,96 @@ class _AddGoalRowState extends State<_AddGoalRow> {
         'The connected filter wheel reports no filter slots. Reconnect the '
         'wheel or name its filters on the equipment profile before setting '
         'integration goals.',
-        style: SkotiqTypography.caption.copyWith(color: colors.warning),
+        style: SkotiqTypography.bodySm.copyWith(color: colors.warning),
       );
     }
     if (remaining.isEmpty) {
       return Text(
         unfilteredRig
             ? 'This rig images unfiltered and already has its goal.'
-            : 'All filters from the active equipment profile have goals.',
-        style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            : 'Every filter in the active equipment profile has a goal.',
+        style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
       );
     }
 
-    final filter = AccessibleDropdown<String>(
-      isExpanded: true,
+    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
+    final filter = SkotiqDropdown(
       value: _selectedFilter,
-      hint: const Text('Filter'),
-      items: [
-        for (final f in remaining)
-          DropdownMenuItem(value: f, child: Text(_goalFilterLabel(f))),
-      ],
+      hint: 'Filter',
+      items: remaining,
+      itemLabels: [for (final f in remaining) _goalFilterLabel(f)],
+      isExpanded: true,
       onChanged: widget.busy ? null : _selectFilter,
     );
-    Widget field(TextEditingController controller, String label) => TextField(
+    Widget field(TextEditingController controller, {String? suffix}) =>
+        SkotiqTextField(
           controller: controller,
           enabled: !widget.busy,
+          dense: true,
           keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            isDense: true,
-            labelText: label,
-            border: const OutlineInputBorder(),
-          ),
+          textAlign: TextAlign.right,
+          suffix: suffix,
         );
     final add = SkotiqButton(
       label: 'Add',
       icon: LucideIcons.plus,
       size: ButtonSize.small,
+      variant: ButtonVariant.secondary,
       onPressed: widget.busy || !_canAdd ? null : _submit,
     );
-    return SkotiqPanel(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= _kGoalRowInlineWidth) {
-            return Row(
-              children: [
-                SizedBox(width: 110, child: filter),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                SizedBox(
-                    width: 100, child: field(_exposureCtl, 'Exposure (s)')),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                SizedBox(width: 96, child: field(_frameCtl, 'Frames')),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                SizedBox(width: 80, child: field(_priorityCtl, 'Prio')),
-                const Spacer(),
-                add,
-              ],
-            );
-          }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
+    final exposure = SizedBox(
+      width: 80,
+      child: field(_exposureCtl, suffix: 's'),
+    );
+    final frames =
+        SizedBox(width: _kGoalNumberWidth, child: field(_frameCtl));
+    final priority = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Priority', style: muted),
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        SizedBox(width: _kGoalPriorityWidth, child: field(_priorityCtl)),
+      ],
+    );
+    final times = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: SkotiqTokens.spaceSm),
+      child: Text('×', style: muted),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _kGoalRowInlineWidth) {
+          return Row(
             children: [
-              Row(
-                children: [
-                  Expanded(child: filter),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Expanded(child: field(_exposureCtl, 'Exposure (s)')),
-                ],
-              ),
-              const SizedBox(height: SkotiqTokens.spaceSm),
-              Row(
-                children: [
-                  Expanded(child: field(_frameCtl, 'Frames')),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Expanded(child: field(_priorityCtl, 'Prio')),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  add,
-                ],
-              ),
+              SizedBox(width: 120, child: filter),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              exposure,
+              times,
+              frames,
+              const SizedBox(width: SkotiqTokens.spaceLg),
+              priority,
+              const Spacer(),
+              add,
             ],
           );
-        },
-      ),
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: filter),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                exposure,
+                times,
+                frames,
+              ],
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            Row(children: [priority, const Spacer(), add]),
+          ],
+        );
+      },
     );
   }
 
