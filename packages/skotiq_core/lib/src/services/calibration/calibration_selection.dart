@@ -1,6 +1,7 @@
 import '../../database/database.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
+import '../../models/equipment/filter_names.dart';
 import '../../models/imaging/integrated_master.dart';
 
 /// The dark chosen for a set of lights, and how far it is from an exact match.
@@ -234,7 +235,8 @@ CalibrationMasterRecord flatLibraryRecord(FlatLibraryEntry row) =>
 ///
 /// Requirements: the capture tuple as for darks ([calibrationTupleMatches],
 /// so a gain or offset the lights never recorded is not compared and an exact
-/// tuple is preferred), the lights' filter when they name one, and the lights'
+/// tuple is preferred), the lights' filter by the filter-name rule when they
+/// name one ("Ha" lights take an "H-alpha" flat), and the lights'
 /// optical train when they name one (a flat with no train tag also passes).
 /// Temperature is a preference, as in PixInsight's
 /// WeightedBatchPreprocessing, which pairs flats by filter and binning only:
@@ -252,7 +254,7 @@ FlatSelection? selectFlat(
   var pool = preferExactCalibrationTuple([
     for (final r in flats)
       if (calibrationTupleMatches(r, ctx) &&
-          (filter.isEmpty || r.filter?.trim() == filter) &&
+          (filter.isEmpty || sameFilter(r.filter ?? '', filter)) &&
           (train.isEmpty ||
               r.opticalTrainId == null ||
               r.opticalTrainId!.trim() == train))

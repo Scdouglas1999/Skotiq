@@ -159,7 +159,7 @@ void main() {
     await tester.pump();
     expect(
       tester.widget<SnackBar>(find.byType(SnackBar)).duration,
-      const Duration(seconds: 2),
+      const Duration(seconds: 3),
     );
 
     ScaffoldMessenger.of(context).removeCurrentSnackBar();

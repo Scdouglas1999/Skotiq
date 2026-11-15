@@ -168,6 +168,27 @@ void main() {
     expect(await dao.getForTarget(t), hasLength(1));
   });
 
+  test('frames of a filter whose name holds its letter count for their own '
+      'campaign', () async {
+    final t = await seedTarget('M42');
+    final cut = await dao.upsertDesired(
+      targetId: t,
+      filter: 'UV/IR Cut',
+      desiredCount: 10,
+    );
+    final dual = await dao.upsertDesired(
+      targetId: t,
+      filter: 'Ha/OIII',
+      desiredCount: 10,
+    );
+    final red = await dao.recordAccepted(targetId: t, filter: 'R');
+    final ha = await dao.recordAccepted(targetId: t, filter: 'Ha');
+    expect({red, ha}.intersection({cut, dual}), isEmpty);
+    expect(await dao.remaining(t, 'UV/IR Cut'), 10);
+    expect(await dao.remaining(t, 'Ha/OIII'), 10);
+    expect(await dao.getForTarget(t), hasLength(4));
+  });
+
   test('remaining() clamps to zero once the goal is met', () async {
     final t = await seedTarget('M13');
     await dao.upsertDesired(targetId: t, filter: 'L', desiredCount: 3);

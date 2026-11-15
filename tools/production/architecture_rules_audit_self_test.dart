@@ -575,6 +575,40 @@ Future<void> main() async {
     ],
   );
 
+  await check(
+    'a failure shown as an info snackbar fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/settings/lists.dart',
+        'void f(BuildContext context, ListState state, bool ok) {\n'
+            "  context.showInfoSnackBar(state.errorMessage ?? 'Could not save');\n"
+            '  context.showInfoSnackBar(\n'
+            "    ok ? 'Saved' : 'Discovery failed',\n"
+            '  );\n'
+            '}\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      'lists.dart:2: shows a failure as an info snackbar',
+      'lists.dart:3: shows a failure as an info snackbar',
+    ],
+  );
+
+  await check('a failure in red and a notice about an error pass', (
+    root,
+  ) async {
+    await _write(
+      root,
+      'packages/skotiq_app/lib/screens/settings/lists.dart',
+      'void f(BuildContext context) {\n'
+          "  context.showErrorSnackBar('Could not save');\n"
+          "  context.showInfoSnackBar('Error copied to clipboard');\n"
+          '}\n',
+    );
+  }, exitCode: 0);
+
   await check('the feedback helper, its callers, tests and comments pass', (
     root,
   ) async {

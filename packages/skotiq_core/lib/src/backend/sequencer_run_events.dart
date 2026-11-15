@@ -46,8 +46,11 @@ const Set<String> knownNodeStatuses = {
 extension NodeVerdict on SequencerEvent_NodeCompleted {
   /// [status] as a [NodeStatus]. Any status other than success / skipped /
   /// cancelled reads as a failure. A step the operator stopped part way is
-  /// cancelled, not skipped: it ran, and may have taken frames.
-  NodeStatus get nodeStatus => switch (status) {
+  /// cancelled, not skipped: it ran, and may have taken frames. An event that
+  /// carries no status gives no verdict (null), so the step is left as it
+  /// was rather than shown as failed.
+  NodeStatus? get nodeStatus => switch (status.trim()) {
+    '' => null,
     'success' => NodeStatus.success,
     'skipped' => NodeStatus.skipped,
     'cancelled' => NodeStatus.cancelled,
