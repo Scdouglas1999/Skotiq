@@ -98,6 +98,11 @@ class Candidate extends StatelessWidget {
     final colors = context.skotiqColors;
     final tone = scoreTone ?? colors.success;
 
+    // A tappable candidate is one node named by the target; its facts are
+    // left out of the tree, but its action stays a button of its own.
+    Widget quiet(Widget child) =>
+        onTap == null ? child : ExcludeSemantics(child: child);
+
     final badge = Container(
       width: badgeSize,
       height: badgeSize,
@@ -135,18 +140,20 @@ class Candidate extends StatelessWidget {
     final grid = columns;
     Widget oneLine() => Row(
       children: <Widget>[
-        badge,
+        quiet(badge),
         const SizedBox(width: columnGap),
-        Expanded(child: identity),
+        Expanded(child: quiet(identity)),
         if (grid != null) ...<Widget>[
           for (final readout in readouts) ...<Widget>[
             const SizedBox(width: columnGap),
-            SizedBox(width: grid.readoutWidth, child: readout),
+            SizedBox(width: grid.readoutWidth, child: quiet(readout)),
           ],
           const SizedBox(width: columnGap),
           SizedBox(
             width: windowBarWidth,
-            child: window == null ? null : CandidateWindowBar(window: window!),
+            child: window == null
+                ? null
+                : quiet(CandidateWindowBar(window: window!)),
           ),
           const SizedBox(width: columnGap),
           SizedBox(
@@ -158,13 +165,13 @@ class Candidate extends StatelessWidget {
         ] else ...<Widget>[
           if (readouts.isNotEmpty) ...<Widget>[
             const SizedBox(width: columnGap),
-            ReadoutRow(children: readouts),
+            quiet(ReadoutRow(children: readouts)),
           ],
           if (window != null) ...<Widget>[
             const SizedBox(width: columnGap),
             SizedBox(
               width: windowBarWidth,
-              child: CandidateWindowBar(window: window!),
+              child: quiet(CandidateWindowBar(window: window!)),
             ),
           ],
           if (action != null) ...<Widget>[
@@ -181,9 +188,9 @@ class Candidate extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            badge,
+            quiet(badge),
             const SizedBox(width: columnGap),
-            Expanded(child: identity),
+            Expanded(child: quiet(identity)),
             if (action != null) ...<Widget>[
               const SizedBox(width: columnGap),
               action!,
@@ -192,18 +199,20 @@ class Candidate extends StatelessWidget {
         ),
         if (readouts.isNotEmpty || window != null) ...<Widget>[
           const SizedBox(height: SkotiqTokens.spaceSm),
-          Row(
-            children: <Widget>[
-              for (final readout in readouts) ...<Widget>[
-                readout,
-                const SizedBox(width: columnGap),
+          quiet(
+            Row(
+              children: <Widget>[
+                for (final readout in readouts) ...<Widget>[
+                  readout,
+                  const SizedBox(width: columnGap),
+                ],
+                Expanded(
+                  child: window == null
+                      ? const SizedBox.shrink()
+                      : CandidateWindowBar(window: window!),
+                ),
               ],
-              Expanded(
-                child: window == null
-                    ? const SizedBox.shrink()
-                    : CandidateWindowBar(window: window!),
-              ),
-            ],
+            ),
           ),
         ],
       ],
@@ -228,6 +237,7 @@ class Candidate extends StatelessWidget {
     if (onTap == null) return panel;
 
     return Semantics(
+      container: true,
       button: true,
       enabled: true,
       selected: selected,
@@ -237,7 +247,7 @@ class Candidate extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
-          child: ExcludeSemantics(child: panel),
+          child: panel,
         ),
       ),
     );

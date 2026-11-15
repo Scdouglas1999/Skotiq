@@ -91,4 +91,42 @@ void main() {
     final bar = tester.getRect(find.byType(CandidateWindowBar));
     expect(bar.top, lessThan(name.bottom));
   });
+
+  testWidgets('a tappable candidate keeps its action reachable by name', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    var pressed = 0;
+    await _pumpAt(
+      tester,
+      390,
+      Candidate(
+        score: '96',
+        name: 'NGC1333',
+        detail: 'Cluster + Nebula',
+        readouts: const [
+          Readout(value: '10h', label: 'Above 30°', size: ReadoutSize.sm),
+        ],
+        onTap: () {},
+        selected: true,
+        action: SkotiqButton(
+          label: 'Image tonight',
+          size: ButtonSize.small,
+          onPressed: () => pressed++,
+        ),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('NGC1333'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Above 30°'),
+      findsNothing,
+      reason: 'the row reads as its name; its facts stay out of the tree',
+    );
+    final action = find.bySemanticsLabel('Image tonight');
+    expect(action, findsOneWidget);
+    tester.semantics.tap(find.semantics.byLabel('Image tonight'));
+    expect(pressed, 1);
+    handle.dispose();
+  });
 }
