@@ -76,7 +76,10 @@ await service.initialize();
 await service.notifySequenceComplete('M31', 100);
 
 // Send error notification
-await service.notifySequenceFailed('M31', 'Mount connection lost');
+await service.notifySequenceFailed(
+  title: 'Sequence failed',
+  body: 'Sequence aborted at 03:12. Mount connection lost.',
+);
 
 // Send battery warning
 await service.notifyLowBattery(15);

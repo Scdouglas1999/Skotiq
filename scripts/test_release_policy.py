@@ -48,13 +48,14 @@ class ReleasePolicyTest(unittest.TestCase):
             values = dict(line.split("=", 1) for line in output.read_text().splitlines()) if output.exists() else {}
             return result, values
 
-    def test_stable_distribution_requires_every_android_and_update_credential(self):
-        for name in SIGNING_NAMES:
-            with self.subTest(name=name):
-                result, values = self.run_policy('"stable" # release', True, set(SIGNING_NAMES) - {name})
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(name, result.stderr)
-                self.assertEqual(values, {})
+    def test_every_distribution_requires_every_android_and_update_credential(self):
+        for channel in ('"stable" # release', "beta", "alpha"):
+            for name in SIGNING_NAMES:
+                with self.subTest(channel=channel, name=name):
+                    result, values = self.run_policy(channel, True, set(SIGNING_NAMES) - {name})
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(name, result.stderr)
+                    self.assertEqual(values, {})
 
     def test_stable_distribution_is_signed_normal_latest_release(self):
         result, values = self.run_policy('"stable"', True)
@@ -73,11 +74,11 @@ class ReleasePolicyTest(unittest.TestCase):
     def test_prerelease_channels_do_not_become_latest_stable(self):
         for channel in ("beta", "alpha"):
             with self.subTest(channel=channel):
-                result, values = self.run_policy(channel, True, ())
+                result, values = self.run_policy(channel, True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(values["prerelease"], "true")
                 self.assertEqual(values["make_latest"], "false")
-                self.assertEqual(values["require_signing"], "false")
+                self.assertEqual(values["require_signing"], "true")
 
     def test_unknown_or_missing_channel_cannot_publish(self):
         for channel in ("", "production", '"stable', "stable\nchannel: beta"):
@@ -141,7 +142,7 @@ class AndroidSignatureTest(unittest.TestCase):
 
 
 class WorkflowVersionTest(unittest.TestCase):
-    def resolve(self, event, ref_type="tag", requested=""):
+    def resolve(self, event, ref_type="tag", requested="", ref="refs/tags/v9.0.0"):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for platform in ("desktop", "mobile"):
@@ -155,6 +156,7 @@ class WorkflowVersionTest(unittest.TestCase):
                 env={
                     "PATH": os.environ["PATH"], "GITHUB_EVENT_NAME": event,
                     "GITHUB_REF_TYPE": ref_type, "GITHUB_REF_NAME": "v9.0.0",
+                    "GITHUB_REF": ref,
                     "REQUESTED_RELEASE_TAG": requested, "GITHUB_OUTPUT": str(output),
                 }, text=True, capture_output=True,
             )
@@ -171,10 +173,17 @@ class WorkflowVersionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(values["release_tag"], "v9.0.0")
 
-    def test_explicit_draft_attachment_resolves_a_distribution(self):
-        result, values = self.resolve("workflow_dispatch", "branch", "v9.0.0")
+    def test_explicit_draft_attachment_from_the_tag_resolves_a_distribution(self):
+        result, values = self.resolve("workflow_dispatch", "tag", "v9.0.0")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(values["release_tag"], "v9.0.0")
+
+    def test_draft_attachment_from_a_branch_is_refused(self):
+        result, values = self.resolve(
+            "workflow_dispatch", "branch", "v9.0.0", ref="refs/heads/release/v9.0.0")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Run this workflow from the tag", result.stderr + result.stdout)
+        self.assertEqual(values, {})
 
     def test_draft_attachment_cannot_name_another_release(self):
         result, values = self.resolve("workflow_dispatch", "branch", "v8.2.0")

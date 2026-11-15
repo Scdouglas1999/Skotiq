@@ -71,11 +71,22 @@ async fn center_on_the_dark_slot_with_no_target_uses_the_first_slot_that_is_not_
 async fn a_planned_filter_the_wheel_lacks_is_passed_over() {
     let ops = wheel_ops(&RIG_WHEEL, 7);
     let mut ctx = center_ctx(ops.clone()).await;
-    ctx.target_light_filters = vec![planned("Lum", None), planned("oiii", None)];
+    ctx.target_light_filters = vec![planned("UV/IR Cut", None), planned("oiii", None)];
 
     execute_center(&one_attempt_center(None), &ctx, None).await;
 
     assert_eq!(*ops.filter_moves.lock().unwrap(), vec![5]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_planned_filter_is_found_by_the_filter_name_rule() {
+    let ops = wheel_ops(&RIG_WHEEL, 7);
+    let mut ctx = center_ctx(ops.clone()).await;
+    ctx.target_light_filters = vec![planned("Luminance", None)];
+
+    execute_center(&one_attempt_center(None), &ctx, None).await;
+
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![0]);
 }
 
 #[tokio::test(start_paused = true)]

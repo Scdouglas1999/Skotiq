@@ -204,12 +204,8 @@ void main() {
           .listen(changed.add);
       addTearDown(sub.cancel);
 
-      // A client changed only the gain; its whole copy (stale exposure 7.5)
-      // rides along for hosts that cannot merge and must be ignored here.
+      // A client changed only the gain.
       final response = await post({
-        'settings': {
-          key: jsonEncode({'exposureTime': 7.5, 'gain': 222, 'offset': 50}),
-        },
         'merge': {
           key: {'gain': 222},
         },
@@ -225,6 +221,18 @@ void main() {
       expect(changed.single, {key});
     },
   );
+
+  test('a key is either set or merged, not both', () async {
+    const key = 'imaging_capture_settings_profile_1';
+    final response = await post({
+      'settings': {key: jsonEncode({'gain': 1})},
+      'merge': {
+        key: {'gain': 2},
+      },
+    });
+
+    expect(response.statusCode, HttpStatus.badRequest);
+  });
 
   test('merge onto a missing row starts from mergeBase', () async {
     const key = 'imaging_capture_settings_profile_9';

@@ -14,6 +14,17 @@ const _openSky = AltitudeFloor(horizon: null, minimumDeg: 0);
 const _siteLatitude = 80.0;
 const _siteLongitude = -73.0;
 
+/// A wall-clock time at the 41 N, 73 W test site, on daylight time (UTC-4),
+/// so the plans do not depend on the time zone of the machine running them.
+DateTime siteTime(
+  int year,
+  int month,
+  int day, [
+  int hour = 0,
+  int minute = 0,
+  int second = 0,
+]) => DateTime.utc(year, month, day, hour + 4, minute, second);
+
 void main() {
   group('SmartNightService', () {
     late SmartNightService service;
@@ -84,8 +95,8 @@ void main() {
       DateTime? set,
       double peakAltitude = 65.0,
     }) {
-      final start = rise ?? DateTime(2026, 5, 17, 22);
-      final end = set ?? DateTime(2026, 5, 18, 5);
+      final start = rise ?? siteTime(2026, 5, 17, 22);
+      final end = set ?? siteTime(2026, 5, 18, 5);
       return TargetSuggestion(
         targetId: id,
         targetName: name,
@@ -101,18 +112,18 @@ void main() {
           peakAltitude: peakAltitude,
           riseTime: start,
           setTime: end,
-          peakAltitudeTime: DateTime(2026, 5, 18, 1),
+          peakAltitudeTime: siteTime(2026, 5, 18, 1),
           moonDistance: 90,
           hoursAboveMinAlt: 6,
-          transitTime: DateTime(2026, 5, 18, 1),
+          transitTime: siteTime(2026, 5, 18, 1),
         ),
       );
     }
 
     SmartNightContext baseContext() {
       return SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         bortleClass: 4,
         rainOrCloudProbability: null,
       );
@@ -126,8 +137,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: monoProfile.copyWith(cameraName: 'ZWO ASI1600MM-Cool'),
           suggestion: fakeSuggestion(id: 1, name: 'Target'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: filters,
@@ -144,8 +155,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile.copyWith(cameraName: 'ZWO ASI1600MM-Cool'),
         suggestion: fakeSuggestion(id: 1, name: 'Target'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: const [],
@@ -565,8 +576,8 @@ void main() {
 
     test('adds polar alignment node when last alignment is stale', () {
       final context = SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         bortleClass: 4,
         daysSinceLastPolarAlignment: 30, // way past threshold
       );
@@ -594,8 +605,8 @@ void main() {
       'polar alignment node targets the correct celestial pole by latitude',
       () {
         SmartNightContext staleContext() => SmartNightContext(
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           bortleClass: 4,
           daysSinceLastPolarAlignment: 30,
         );
@@ -628,8 +639,8 @@ void main() {
 
     test('adds CloudArriving recovery node when rain forecast > 40%', () {
       final context = SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         bortleClass: 4,
         rainOrCloudProbability: 0.7,
       );
@@ -743,8 +754,8 @@ void main() {
     test('emits an empty-plan exception when no target window fits', () {
       // Window is 5 minutes long → too short for any target.
       final tightContext = SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 17, 22, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 17, 22, 5),
         bortleClass: 4,
       );
       expect(
@@ -784,8 +795,8 @@ void main() {
 
     test('adds simulator warning when emitted plan overruns dark window', () {
       final tightContext = SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 0),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 0),
         bortleClass: 4,
       );
 
@@ -835,7 +846,7 @@ void main() {
       final w = service.calculateWindow(
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
-        now: DateTime(2026, 5, 17, 14), // mid-afternoon
+        now: siteTime(2026, 5, 17, 14), // mid-afternoon
       );
       expect(w.start.isBefore(w.end), isTrue);
       // Should be at least 4 hours of dark window in mid-May at lat 41
@@ -845,7 +856,7 @@ void main() {
     test(
       'calculateRemainingWindow starts at now once the night is under way',
       () {
-        final now = DateTime(2026, 5, 18, 1, 0, 20);
+        final now = siteTime(2026, 5, 18, 1, 0, 20);
         final night = service.calculateWindow(
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
@@ -858,10 +869,11 @@ void main() {
           longitudeDeg: -73.0,
           now: now,
         );
-        expect(remaining.start, DateTime(2026, 5, 18, 1, 1));
+        expect(remaining.start, siteTime(2026, 5, 18, 1, 1));
+        expect(remaining.start.isUtc, isTrue);
         expect(remaining.end, night.end);
 
-        final afternoon = DateTime(2026, 5, 17, 14);
+        final afternoon = siteTime(2026, 5, 17, 14);
         expect(
           service
               .calculateRemainingWindow(
@@ -899,7 +911,7 @@ void main() {
         () => service.calculateWindow(
           latitudeDeg: 69.65,
           longitudeDeg: 18.96,
-          now: DateTime(2026, 6, 21, 14),
+          now: siteTime(2026, 6, 21, 14),
         ),
         throwsA(
           isA<SmartNightBuildException>().having(
@@ -915,7 +927,7 @@ void main() {
       final window = service.calculateWindow(
         latitudeDeg: 89.0,
         longitudeDeg: 0.0,
-        now: DateTime(2026, 12, 21, 14),
+        now: siteTime(2026, 12, 21, 14),
       );
 
       expect(window.start.hour, 21);
@@ -941,8 +953,8 @@ void main() {
         defaultIntegrationBudgetHours: 8,
         subExposureFloorSecs: 1,
       );
-      final windowStart = DateTime(2026, 5, 17, 22);
-      final windowEnd = DateTime(2026, 5, 18, 5);
+      final windowStart = siteTime(2026, 5, 17, 22);
+      final windowEnd = siteTime(2026, 5, 18, 5);
 
       TargetSuggestion suggestionWithHours(double hours) {
         return TargetSuggestion(
@@ -1000,8 +1012,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
@@ -1037,8 +1049,8 @@ void main() {
           name: 'NGC 7000',
           objectType: 'Emission Nebula',
         ),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: narrowbandProfile.filterNames,
@@ -1065,8 +1077,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: lOnlyProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: lOnlyProfile.filterNames,
@@ -1097,8 +1109,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: noFilterProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: const [],
@@ -1115,8 +1127,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: noFilterProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: const [],
@@ -1148,8 +1160,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: noFilterProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: const [],
@@ -1168,8 +1180,8 @@ void main() {
         final preview = service.previewTargetIntegration(
           profile: noFilterProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: const [],
@@ -1185,8 +1197,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: noFilterProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: const [],
@@ -1202,8 +1214,8 @@ void main() {
           () => service.buildSingleTargetSequence(
             profile: narrowbandProfile,
             suggestion: fakeSuggestion(id: 1, name: 'M51'),
-            windowStart: DateTime(2026, 5, 17, 22),
-            windowEnd: DateTime(2026, 5, 18, 5),
+            windowStart: siteTime(2026, 5, 17, 22),
+            windowEnd: siteTime(2026, 5, 18, 5),
             latitudeDeg: _siteLatitude,
             longitudeDeg: _siteLongitude,
             availableFilters: narrowbandProfile.filterNames,
@@ -1224,12 +1236,12 @@ void main() {
     test(
       'full-window captures repeat until the cutoff, then warm and park',
       () {
-        final end = DateTime(2026, 5, 18, 5);
+        final end = siteTime(2026, 5, 18, 5);
         for (final filters in [monoProfile.filterNames, <String>[]]) {
           final result = service.buildSingleTargetSequence(
             profile: monoProfile,
             suggestion: fakeSuggestion(id: 1, name: 'M51'),
-            windowStart: DateTime(2026, 5, 17, 22),
+            windowStart: siteTime(2026, 5, 17, 22),
             windowEnd: end,
             latitudeDeg: _siteLatitude,
             longitudeDeg: _siteLongitude,
@@ -1265,8 +1277,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
@@ -1287,8 +1299,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: monoProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: monoProfile.filterNames,
@@ -1317,8 +1329,8 @@ void main() {
         final result = service.buildSingleTargetSequence(
           profile: monoProfile,
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
-          windowStart: DateTime(2026, 5, 17, 22),
-          windowEnd: DateTime(2026, 5, 18, 5),
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
           latitudeDeg: _siteLatitude,
           longitudeDeg: _siteLongitude,
           availableFilters: filters,
@@ -1366,8 +1378,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
@@ -1398,8 +1410,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: partialLrgbProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: partialLrgbProfile.filterNames,
@@ -1430,8 +1442,8 @@ void main() {
           name: 'Heart Nebula',
           objectType: 'Emission Nebula',
         ),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: hooProfile.filterNames,
@@ -1458,8 +1470,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: noGuiderProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: noGuiderProfile.filterNames,
@@ -1487,8 +1499,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: guiderProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: guiderProfile.filterNames,
@@ -1520,8 +1532,8 @@ void main() {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile,
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: ['L'],
@@ -1548,8 +1560,8 @@ void main() {
       List<String> notes = const [],
     }) {
       return SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         bortleClass: 4,
         missingDarkLibraryNotes: notes,
         missingDarkRequirements: requirements,
@@ -2274,20 +2286,20 @@ void main() {
           currentAzimuth: 180,
           airmass: 1.4,
           peakAltitude: 65.0,
-          riseTime: DateTime(2026, 5, 17, 22),
-          setTime: DateTime(2026, 5, 18, 5),
-          peakAltitudeTime: DateTime(2026, 5, 18, 1),
+          riseTime: siteTime(2026, 5, 17, 22),
+          setTime: siteTime(2026, 5, 18, 5),
+          peakAltitudeTime: siteTime(2026, 5, 18, 1),
           moonDistance: 90,
           hoursAboveMinAlt: 6,
-          transitTime: DateTime(2026, 5, 18, 1),
+          transitTime: siteTime(2026, 5, 18, 1),
         ),
       );
     }
 
     SmartNightContext contextWith({HorizonProfile? horizon}) {
       return SmartNightContext(
-        windowStart: DateTime(2026, 5, 17, 22),
-        windowEnd: DateTime(2026, 5, 18, 5),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
         bortleClass: 4,
         rainOrCloudProbability: null,
         horizonProfile: horizon,

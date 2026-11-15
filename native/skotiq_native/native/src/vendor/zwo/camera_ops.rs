@@ -560,11 +560,13 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
         let sdk = self.sdk().await?;
         self.read_temperature_celsius_sync(&sdk)
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
         let supports_cooler = self
             .camera_info
             .as_ref()
@@ -584,6 +586,7 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
         self.set_control_async(ASIControlType::ASI_GAIN, gain as c_long, false)
             .await?;
         let held = self
@@ -594,12 +597,14 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         // get_control_async returns c_long (i64 on Linux); gain fits in i32.
         let val = self.get_control_async(ASIControlType::ASI_GAIN).await?;
         Ok(val as i32)
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
         self.set_control_async(ASIControlType::ASI_OFFSET, offset as c_long, false)
             .await?;
         let held = self
@@ -610,6 +615,7 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         // get_control_async returns c_long (i64 on Linux); offset fits in i32.
         let val = self.get_control_async(ASIControlType::ASI_OFFSET).await?;
         Ok(val as i32)
@@ -683,6 +689,7 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
+        self.core.require_connected()?;
         let mut features = VendorFeatures::default();
 
         // Get USB bandwidth - use async version with mutex

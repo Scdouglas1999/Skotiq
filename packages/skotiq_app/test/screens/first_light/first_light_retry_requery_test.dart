@@ -105,7 +105,7 @@ Future<_CountingDao> _pumpErroredSurface(WidgetTester tester) async {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(body: FirstLightView(showHeader: false)),
+        home: const Scaffold(body: FirstLightView()),
       ),
     ),
   );

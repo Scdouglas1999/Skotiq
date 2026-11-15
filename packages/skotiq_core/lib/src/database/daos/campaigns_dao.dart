@@ -129,9 +129,10 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
     return r < 0 ? 0 : r;
   }
 
-  /// The campaign of [targetId] whose filter [filter] means by the
-  /// filter-name rule ("Ha 7nm" frames count for an "Ha" campaign), or the
-  /// unfiltered one for a blank [filter]. SQL text on purpose: [recordAccepted]
+  /// The campaign of [targetId] that is the same filter as [filter] by the
+  /// filter-name rule ("Ha 7nm" frames count for an "Ha" campaign, "R" frames
+  /// never for a "UV/IR Cut" one), or the unfiltered one for a blank
+  /// [filter]. SQL text on purpose: [recordAccepted]
   /// runs this for every accepted frame, and drift's typed result made the
   /// lookup 72 -> 100 us.
   Future<QueryRow?> _findRow(int targetId, String filter) async {
@@ -139,10 +140,9 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
       'SELECT * FROM campaigns WHERE target_id = ?',
       variables: [Variable<int>(targetId)],
     ).get();
-    final names = [for (final row in rows) row.read<String>('filter')];
-    final match = matchingRecordedFilter(filter, names);
-    if (match == null) return null;
-    return rows[names.indexOf(match)];
+    return rows
+        .where((row) => sameFilter(row.read<String>('filter'), filter))
+        .firstOrNull;
   }
 
   Future<void> _updateRow(int id, Insertable<CampaignRow> changes) =>

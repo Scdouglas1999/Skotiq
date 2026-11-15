@@ -6,18 +6,13 @@ part of '../network_backend.dart';
 /// fetch a client makes on connect and reconnect, and the path its own results
 /// take to the host.
 mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
-  /// The host's latest value of every runtime channel. Empty when the host
-  /// predates the endpoint.
+  /// The host's latest value of every runtime channel.
   Future<List<HostRuntimeUpdate>> getHostRuntimeState() async {
-    final Map<String, dynamic> response;
-    try {
-      response = await _get(RuntimeStateApi.getState);
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404) return const [];
-      rethrow;
-    }
+    final response = await _get(RuntimeStateApi.getState);
     final raw = response['updates'];
-    if (raw is! List) return const [];
+    if (raw is! List) {
+      throw const FormatException('runtime/state has no updates list');
+    }
     final updates = <HostRuntimeUpdate>[];
     for (final item in raw.whereType<Map>()) {
       final update = HostRuntimeUpdate.fromJson(
@@ -29,20 +24,16 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
   }
 
   /// The host's newest log-worthy events from before this client connected,
-  /// oldest first. Empty when the host predates the endpoint.
+  /// oldest first.
   Future<List<SkotiqEvent>> getHostRecentEvents({int limit = 100}) async {
-    final Map<String, dynamic> response;
-    try {
-      response = await _get(
-        RuntimeStateApi.recentEvents,
-        query: {'limit': limit},
-      );
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404) return const [];
-      rethrow;
-    }
+    final response = await _get(
+      RuntimeStateApi.recentEvents,
+      query: {'limit': limit},
+    );
     final raw = response['events'];
-    if (raw is! List) return const [];
+    if (raw is! List) {
+      throw const FormatException('runtime/recent-events has no events list');
+    }
     final events = <SkotiqEvent>[];
     for (final item in raw.whereType<Map>()) {
       try {
@@ -56,15 +47,9 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
 
   /// What the host's Tonight has gathered tonight from live events: guide
   /// steps, autofocus runs, dithers, flips, lost stars, recent solves and the
-  /// cooler history. Null when the host predates the endpoint.
-  Future<Map<String, dynamic>?> getHostNightHistory() async {
-    try {
-      return await _get(RuntimeStateApi.nightHistory);
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404) return null;
-      rethrow;
-    }
-  }
+  /// cooler history.
+  Future<Map<String, dynamic>> getHostNightHistory() =>
+      _get(RuntimeStateApi.nightHistory);
 
   /// Send a value this client computed for [channel] to the host.
   Future<void> reportRuntimeState({

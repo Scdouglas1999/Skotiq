@@ -86,7 +86,7 @@ void main() {
   });
 
   test('a step verdict reads as its node status', () {
-    NodeStatus of(String status) =>
+    NodeStatus? of(String status) =>
         (bridge.SequencerEvent.nodeCompleted(nodeId: 'n', status: status)
                 as bridge.SequencerEvent_NodeCompleted)
             .nodeStatus;
@@ -95,6 +95,7 @@ void main() {
     expect(of('cancelled'), NodeStatus.cancelled);
     expect(of('failed'), NodeStatus.failure);
     expect(of('something new'), NodeStatus.failure);
+    expect(of(''), isNull, reason: 'no status is no verdict');
   });
 
   test('a performed dither is its own report on both transports', () {

@@ -257,6 +257,13 @@ class RunEventHandler {
     final nodeId = event.nodeId;
     final status = event.status;
     final nodeStatus = event.nodeStatus;
+    if (nodeStatus == null) {
+      _logger.warning(
+        'NodeCompleted with no status for node $nodeId; left as it was.',
+        source: 'SequenceExecutor',
+      );
+      return;
+    }
     progressNotifier.updateNodeStatus(nodeId, nodeStatus);
     // An autofocus is counted by what the node did (its structured progress
     // was an Autofocus detail), never by its operator-editable name. The run

@@ -136,7 +136,7 @@ class NotificationPresentation {
     NotificationCategory.meridianFlipPerformed =>
       const NotificationPresentation(
         title: 'Meridian flip performed',
-        body: 'Meridian flip completed.',
+        body: 'Meridian flip completed for \${flip.target}\${flip.attempts}.',
         eventCategory: EventCategory.sequencer,
         push: PhonePush(_normal, PushToggle.meridianFlip),
       ),

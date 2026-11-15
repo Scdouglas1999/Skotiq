@@ -122,10 +122,8 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     _verifyPinnedFingerprint(info['fingerprint']);
     final authRequired = info['authRequired'];
     _hostRequiresPairing = authRequired is bool ? authRequired : null;
-    // Surface the server instance UUID so the WS connect can decide
-    // whether the seq cursor we cached on the previous attachment is still
-    // valid against the server we're about to talk to. If the field is
-    // missing the server pre-dates this change and we just skip replay (live-only).
+    // The server instance decides whether the event cursor cached on the
+    // previous attachment still applies to the server about to be joined.
     final advertisedInstance = info['serverInstanceId'];
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
@@ -424,11 +422,8 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       );
       _startWebSocketHeartbeat();
 
-      // Identify ourselves as a collaboration viewer immediately
-      // after the handshake completes (auth is already validated by the
-      // upgrade gate above). The server may override `viewerId` with the
-      // authenticated principal's digest — we still send a value
-      // so legacy hosts that lack the override keep working unchanged.
+      // Join as a collaboration viewer once the handshake completes (the
+      // upgrade gate has validated auth).
       _sendCollaborationJoin();
 
       // After a reconnect (not the initial connect), emit a synthetic event

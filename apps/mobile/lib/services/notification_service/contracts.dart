@@ -39,11 +39,15 @@ enum NotificationTapOutcome {
 /// dependency injection at test boundaries.
 abstract class MobileNotificationSink {
   Future<void> notifySequenceComplete(String targetName, int imageCount);
-  Future<void> notifySequenceFailed(String targetName, String errorMessage);
+  Future<void> notifySequenceFailed({
+    required String title,
+    required String body,
+  });
   Future<void> notifyMeridianFlip(String targetName, DateTime flipTime);
   Future<void> notifyLowDiskSpace(String message);
   Future<void> notifyLowBattery(int percentage);
   Future<void> notifySafety({required String title, required String body});
+  Future<void> notifyMountFault({required String title, required String body});
   Future<void> notifyGuidingLost(String reason);
   Future<void> notifyExposureFailed(String errorMessage);
   Future<void> notifyAutofocusFailed();

@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_decorations.dart';
+import '../theme/skotiq_icons.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
 import '../utils/field_width.dart';
+import 'skotiq_icon_button.dart';
 
 /// Field heights in logical pixels (03 §3.3: `inputHeight` 32, dense 28).
 const double fieldHeight = SkotiqTokens.inputHeight;
@@ -375,6 +377,110 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The one search field: a 32px [SkotiqTextField] with a leading search glyph
+/// and a clear button that appears once there is text.
+///
+/// Every list toolbar uses this, so a search box is the same height on every
+/// screen. It fills the width it is given: a toolbar gives it 240 to 360.
+class SkotiqSearchField extends StatefulWidget {
+  const SkotiqSearchField({
+    super.key,
+    required this.hint,
+    this.onChanged,
+    this.onSubmitted,
+    this.controller,
+    this.focusNode,
+    this.autofocus = false,
+  });
+
+  /// What can be searched, as a short phrase: "Search targets".
+  final String hint;
+
+  /// Called with the new query, and with an empty string when cleared.
+  final ValueChanged<String>? onChanged;
+
+  final ValueChanged<String>? onSubmitted;
+
+  final TextEditingController? controller;
+
+  final FocusNode? focusNode;
+
+  final bool autofocus;
+
+  /// The field's height in logical pixels.
+  static const double height = fieldHeight;
+
+  @override
+  State<SkotiqSearchField> createState() => _SkotiqSearchFieldState();
+}
+
+class _SkotiqSearchFieldState extends State<SkotiqSearchField> {
+  TextEditingController? _ownController;
+
+  TextEditingController get _controller =>
+      widget.controller ?? (_ownController ??= TextEditingController());
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onText);
+  }
+
+  @override
+  void didUpdateWidget(SkotiqSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previous = oldWidget.controller ?? _ownController;
+    if (previous != _controller) {
+      previous?.removeListener(_onText);
+      _controller.addListener(_onText);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onText);
+    _ownController?.dispose();
+    super.dispose();
+  }
+
+  /// Rebuilds only when the clear button has to appear or go.
+  bool _hadText = false;
+
+  void _onText() {
+    final hasText = _controller.text.isNotEmpty;
+    if (hasText == _hadText) return;
+    setState(() => _hadText = hasText);
+  }
+
+  void _clear() {
+    _controller.clear();
+    widget.onChanged?.call('');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _hadText = _controller.text.isNotEmpty;
+    return SkotiqTextField(
+      controller: _controller,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      hint: widget.hint,
+      prefixIcon: SkotiqIcons.search,
+      textInputAction: TextInputAction.search,
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onSubmitted,
+      suffixWidget: _hadText
+          ? SkotiqIconButton(
+              icon: SkotiqIcons.close,
+              tooltip: 'Clear search',
+              size: IconButtonSize.sm,
+              onPressed: _clear,
+            )
+          : null,
     );
   }
 }

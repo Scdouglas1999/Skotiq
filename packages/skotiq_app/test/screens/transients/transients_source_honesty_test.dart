@@ -77,8 +77,23 @@ Future<void> _pumpAlerts(
               : Stream.value(alerts),
         ),
       ],
-      child: const MaterialApp(
-        home: Scaffold(body: TransientsView()),
+      // The settings action lives in the Science screen's header row, which
+      // opens the same dialog this button does.
+      child: MaterialApp(
+        home: Scaffold(
+          body: Consumer(
+            builder: (context, ref, _) => Column(
+              children: [
+                IconButton(
+                  tooltip: 'Alert settings',
+                  icon: const Icon(Icons.settings),
+                  onPressed: () => showTransientSettingsDialog(context, ref),
+                ),
+                const Expanded(child: TransientsView()),
+              ],
+            ),
+          ),
+        ),
       ),
     ),
   );

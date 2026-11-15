@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/tabs/settings_tab.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
@@ -61,6 +62,55 @@ void main() {
     expect(
       tester.widget<EditableText>(_fieldOf('Default gain')).controller.text,
       isNot(contains('-')),
+    );
+  });
+
+  testWidgets('a DSLR default ISO is bounded by the body\'s own ISO list',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const EquipmentSettingsTab(),
+      settle: false,
+      extraOverrides: [
+        cameraSensitivityProvider.overrideWithValue(
+          IsoSensitivity(const [100, 200, 409600, 3280000]),
+        ),
+      ],
+    );
+    await _frames(tester);
+
+    expect(find.text('Default gain'), findsNothing);
+    expect(find.text('Default offset'), findsNothing,
+        reason: 'a DSLR has no offset control');
+    await tester.enterText(_fieldOf('Default ISO'), '3280000');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _frames(tester);
+    expect(
+      handle.container.read(appSettingsProvider).valueOrNull?.defaultGain,
+      3280000,
+    );
+  });
+
+  testWidgets('a gain past the camera\'s own maximum is held to it',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const EquipmentSettingsTab(),
+      settle: false,
+      extraOverrides: [
+        cameraSensitivityProvider.overrideWithValue(
+          const GainSensitivity(min: 0, max: 600),
+        ),
+      ],
+    );
+    await _frames(tester);
+
+    await tester.enterText(_fieldOf('Default gain'), '700');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _frames(tester);
+    expect(
+      handle.container.read(appSettingsProvider).valueOrNull?.defaultGain,
+      600,
     );
   });
 

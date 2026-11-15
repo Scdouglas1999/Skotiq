@@ -8,6 +8,7 @@ pub mod ascom;
 pub mod camera;
 pub mod driver;
 pub mod error;
+pub mod filter_name;
 pub mod kind;
 pub mod mount;
 pub mod vendor;
@@ -19,6 +20,7 @@ pub use driver::{
     RotatorDriver, SafetyMonitorDriver, SwitchDriver, WeatherDriver, WeatherReadings,
 };
 pub use error::DriverError;
+pub use filter_name::{filter_bands, match_filter_slot, same_filter, FilterSlotMatch};
 pub use kind::DeviceKind;
 pub use mount::{
     GuideDirection, MountClock, MountDescription, MountReadings, MountSiteAbilities, MountSiteInfo,

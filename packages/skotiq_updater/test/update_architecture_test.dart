@@ -72,24 +72,15 @@ void main() {
       // so provisioning the signing key would switch OTA on for that platform
       // in name only: every download refused, forever, with no way to fix it
       // short of a manual reinstall.
-      final workflow = File(
-        p.join(
-          Directory.current.path,
-          '..',
-          '..',
-          '.github',
-          'workflows',
-          'release.yml',
-        ),
-      ).readAsStringSync();
-      // The phone build calls flutter itself; the desktop builds go through
-      // the shared recipe, which hands everything after `--` to flutter.
-      const buildSteps = {
-        'apk': r'flutter build apk\b[^\n]*',
+      final workflow = repoFile('.github/workflows/release.yml');
+      // The desktop builds go through the shared recipe, which hands
+      // everything after `--` to flutter.
+      const desktopBuilds = {
         'linux': r'scripts/build\.dart (?:desktop|flutter) linux\b[^\n]*',
         'windows': r'scripts/build\.dart (?:desktop|flutter) windows\b[^\n]*',
       };
-      for (final MapEntry(key: target, value: pattern) in buildSteps.entries) {
+      for (final MapEntry(key: target, value: pattern)
+          in desktopBuilds.entries) {
         final builds = RegExp(
           pattern,
         ).allMatches(workflow).map((m) => m.group(0)!).toList();
@@ -108,21 +99,50 @@ void main() {
       }
     });
 
+    test('every Android package is built with the update public key', () {
+      // release.yml hands the key to scripts/build_android_ci.py in its
+      // environment, and the script runs one flutter build per ABI.
+      final workflow = repoFile('.github/workflows/release.yml');
+      final step = RegExp(
+        r'- name: Build release APKs[^\n]*\n((?:\s{8,}[^\n]*\n)+)',
+      ).firstMatch(workflow);
+      expect(step, isNotNull, reason: 'release.yml has no Android build step');
+      expect(step!.group(1), contains('python3 scripts/build_android_ci.py'));
+      expect(
+        step.group(1),
+        matches(RegExp(r'SKOTIQ_UPDATE_PUBLIC_KEY: \$\{\{ secrets\.')),
+        reason: 'the Android build step does not pass the key to the script',
+      );
+
+      final script = repoFile('scripts/build_android_ci.py');
+      expect(
+        script,
+        contains('public_key = env.get("SKOTIQ_UPDATE_PUBLIC_KEY", "")'),
+      );
+      final command = RegExp(
+        r'command = \[\s*"flutter", "build", "apk",[^\]]*\]',
+      ).firstMatch(script);
+      expect(command, isNotNull, reason: 'the script runs no flutter build');
+      expect(
+        command!.group(0),
+        contains('f"--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY={public_key}"'),
+      );
+      expect(
+        RegExp(r'command = \[').allMatches(script),
+        hasLength(1),
+        reason: 'every APK has to come from the one keyed flutter command',
+      );
+      for (final abi in ['armeabi-v7a', 'arm64-v8a', 'x86_64']) {
+        expect(script, contains('"$abi")'), reason: '$abi is not built');
+      }
+    });
+
     test('manifests are verified against the app key before publishing', () {
       // A key pair that does not match, or a packager whose signing payload
       // drifted, publishes fine and is refused by every install afterwards.
       // The check has to run in the publish job, over the flattened assets,
       // before either publish step.
-      final workflow = File(
-        p.join(
-          Directory.current.path,
-          '..',
-          '..',
-          '.github',
-          'workflows',
-          'release.yml',
-        ),
-      ).readAsStringSync();
+      final workflow = repoFile('.github/workflows/release.yml');
       final publish = workflow.substring(workflow.indexOf('\n  publish:'));
       final verify = publish.indexOf('tool/verify_release_manifests.dart');
       expect(verify, greaterThan(0));
@@ -135,3 +155,9 @@ void main() {
     });
   });
 }
+
+/// A file of this repository by its path from the root; tests run from the
+/// package folder.
+String repoFile(String path) => File(
+  p.joinAll([Directory.current.path, '..', '..', ...path.split('/')]),
+).readAsStringSync();

@@ -154,7 +154,8 @@ class SmartNightService {
       return (start: bounds.$1, end: bounds.$2, twilight: night);
     }
 
-    final todayDate = DateTime(reference.year, reference.month, reference.day);
+    final local = reference.toLocal();
+    final todayDate = DateTime(local.year, local.month, local.day);
     final sunVisibility = AstronomyCalculations.calculateSunVisibility(
       date: todayDate,
       latitudeDeg: latitudeDeg,
@@ -181,16 +182,8 @@ class SmartNightService {
       'using a conservative 21:00 → 05:00 local polar-night window.',
       source: _source,
     );
-    final fallbackStart = DateTime(
-      reference.year,
-      reference.month,
-      reference.day,
-      21,
-    );
-    var fallbackEnd = fallbackStart.add(const Duration(hours: 8));
-    if (reference.isAfter(fallbackEnd)) {
-      fallbackEnd = fallbackEnd.add(const Duration(days: 1));
-    }
+    final fallbackStart = DateTime(local.year, local.month, local.day, 21);
+    final fallbackEnd = fallbackStart.add(const Duration(hours: 8));
     return (start: fallbackStart, end: fallbackEnd, twilight: night);
   }
 
@@ -210,12 +203,12 @@ class SmartNightService {
       now: reference,
     );
     if (!reference.isAfter(night.start)) return night;
-    final truncated = DateTime(
-      reference.year,
-      reference.month,
-      reference.day,
-      reference.hour,
-      reference.minute,
+    final truncated = reference.subtract(
+      Duration(
+        seconds: reference.second,
+        milliseconds: reference.millisecond,
+        microseconds: reference.microsecond,
+      ),
     );
     final start = truncated == reference
         ? reference

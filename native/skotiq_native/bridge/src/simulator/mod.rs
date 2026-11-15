@@ -34,14 +34,16 @@ pub(crate) mod rotator;
 mod sim_motion_tests;
 pub(crate) mod switch;
 
-/// Serializes every test that drives the process-global simulator singletons.
+/// Serializes every test that drives the process-global rig: the simulator
+/// singletons, the device registry and the guider (the PHD2 client slot and
+/// the stop reason).
 ///
 /// `SIM_CAMERA`, `SIM_MOUNT` and the exposure/slew clocks are one shared
 /// instance per process, and cargo runs tests in parallel threads, so without
 /// this one test's abort lands in the middle of another's exposure. It is
-/// deliberately a SINGLE lock covering all the singletons: the connection-gate
-/// tests flip several device types at once, so per-device locks would not
-/// actually exclude each other.
+/// deliberately a SINGLE lock covering all of it: the connection-gate tests
+/// flip several device types at once, and a sequence's slew stops whatever
+/// guider is connected, so a guider test must not run beside a slewing one.
 #[cfg(test)]
 static SIM_SINGLETON_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 

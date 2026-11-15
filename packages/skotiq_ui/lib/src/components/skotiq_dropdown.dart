@@ -26,6 +26,13 @@ class SkotiqDropdown extends StatefulWidget {
   final String? hint;
   final List<String> items;
   final List<String>? itemLabels;
+
+  /// A quiet second part for each item, parallel to [items]: shown muted after
+  /// the label on the closed control and right-aligned in the open list. For
+  /// the facts that tell two similar items apart (a date, a count), not a
+  /// description.
+  final List<String?>? itemDetails;
+
   final ValueChanged<String?>? onChanged;
 
   /// Force the value/chevron row to fill the control even where the incoming
@@ -50,6 +57,7 @@ class SkotiqDropdown extends StatefulWidget {
     this.hint,
     required this.items,
     this.itemLabels,
+    this.itemDetails,
     this.onChanged,
     this.isExpanded = false,
     // ignore: deprecated_member_use_from_same_package
@@ -78,6 +86,11 @@ class SkotiqDropdown extends StatefulWidget {
   String labelFor(int index) => itemLabels != null && index < itemLabels!.length
       ? itemLabels![index]
       : items[index];
+
+  String? detailFor(int index) =>
+      itemDetails != null && index < itemDetails!.length
+      ? itemDetails![index]
+      : null;
 
   @override
   State<SkotiqDropdown> createState() => _SkotiqDropdownState();
@@ -118,6 +131,9 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
         items: List<String>.unmodifiable(widget.items),
         labels: List<String>.unmodifiable(<String>[
           for (var i = 0; i < widget.items.length; i++) widget.labelFor(i),
+        ]),
+        details: List<String?>.unmodifiable(<String?>[
+          for (var i = 0; i < widget.items.length; i++) widget.detailFor(i),
         ]),
         value: widget.value,
         // The menu is a route, so it is built outside this subtree and would
@@ -237,9 +253,21 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
     final String text = showsHint
         ? (widget.hint ?? '')
         : widget.labelFor(index);
+    final String? detail = showsHint ? null : widget.detailFor(index);
 
-    final Widget label = Text(
-      text,
+    final Widget label = Text.rich(
+      TextSpan(
+        text: text,
+        children: <InlineSpan>[
+          if (detail != null)
+            TextSpan(
+              text: '$_detailSeparator$detail',
+              style: SkotiqDropdown.labelStyle.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+        ],
+      ),
       style: SkotiqDropdown.labelStyle.copyWith(
         color: !_isEnabled || showsHint ? colors.textMuted : colors.textPrimary,
       ),
@@ -271,12 +299,16 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
   }
 }
 
+/// Separates an item's label from its detail on the closed control.
+const String _detailSeparator = '  ·  ';
+
 /// The open list: a popover anchored to the field, not a Material menu.
 class _DropdownMenuRoute extends PopupRoute<String> {
   _DropdownMenuRoute({
     required this.anchor,
     required this.items,
     required this.labels,
+    required this.details,
     required this.value,
     required this.capturedThemes,
   });
@@ -285,6 +317,7 @@ class _DropdownMenuRoute extends PopupRoute<String> {
   final Rect anchor;
   final List<String> items;
   final List<String> labels;
+  final List<String?> details;
   final String? value;
   final CapturedThemes capturedThemes;
 
@@ -309,7 +342,12 @@ class _DropdownMenuRoute extends PopupRoute<String> {
     return CustomSingleChildLayout(
       delegate: _DropdownMenuLayout(anchor: anchor),
       child: capturedThemes.wrap(
-        _DropdownMenu(items: items, labels: labels, value: value),
+        _DropdownMenu(
+          items: items,
+          labels: labels,
+          details: details,
+          value: value,
+        ),
       ),
     );
   }
@@ -375,11 +413,13 @@ class _DropdownMenu extends StatefulWidget {
   const _DropdownMenu({
     required this.items,
     required this.labels,
+    required this.details,
     required this.value,
   });
 
   final List<String> items;
   final List<String> labels;
+  final List<String?> details;
   final String? value;
 
   @override
@@ -542,6 +582,17 @@ class _DropdownMenuState extends State<_DropdownMenu> {
                       softWrap: false,
                     ),
                   ),
+                  if (widget.details[index] != null) ...<Widget>[
+                    const SizedBox(width: SkotiqTokens.spaceLg),
+                    Text(
+                      widget.details[index]!,
+                      style: SkotiqTypography.readoutXs.copyWith(
+                        color: colors.textMuted,
+                      ),
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                  ],
                   if (chosen) ...<Widget>[
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     Icon(

@@ -353,7 +353,7 @@ fn snapshot(sim: &Sim) -> (Vec<String>, u32, u32) {
 /// star from a frame taken after that.
 #[tokio::test]
 async fn a_restart_while_phd2_is_inside_a_guide_pulse_waits_for_the_capture_to_end() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (sim, done) = connect(SimConfig {
         stop_delay: Duration::from_millis(500),
         settle_delay: Duration::from_secs(30),
@@ -385,7 +385,7 @@ async fn a_restart_while_phd2_is_inside_a_guide_pulse_waits_for_the_capture_to_e
 /// must not count as a frame taken after the selection was asked for.
 #[tokio::test]
 async fn a_frame_already_exposing_when_capture_stops_is_not_fresh() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (sim, done) = connect(SimConfig {
         initial: Capture::Looping,
         stop_delay: Duration::from_millis(250),
@@ -406,7 +406,7 @@ async fn a_frame_already_exposing_when_capture_stops_is_not_fresh() {
 /// not a reason to give up on the selection.
 #[tokio::test]
 async fn an_unanswered_exposure_query_falls_back_to_a_default_exposure() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (_sim, done) = connect(SimConfig {
         exposure_ms: None,
         ..SimConfig::default()
@@ -423,7 +423,7 @@ async fn an_unanswered_exposure_query_falls_back_to_a_default_exposure() {
 /// is refused, and the selection fails rather than guide on it.
 #[tokio::test]
 async fn a_star_far_fainter_than_the_runs_guide_star_is_refused() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (sim, done) = connect(SimConfig {
         star: (77.3, 29_612.0),
         ..SimConfig::default()
@@ -451,7 +451,7 @@ async fn a_star_far_fainter_than_the_runs_guide_star_is_refused() {
 
 #[tokio::test]
 async fn a_star_like_the_runs_guide_star_is_accepted() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (_sim, done) = connect(SimConfig::default()).await;
     let floor =
         skotiq_sequencer::GuideStarFloor::for_recovery(Some(skotiq_sequencer::GuideStarQuality {
@@ -467,7 +467,7 @@ async fn a_star_like_the_runs_guide_star_is_accepted() {
 /// yet inside the bound. Stopping PHD2 there left the night unguided.
 #[tokio::test]
 async fn a_settle_timeout_leaves_a_guiding_phd2_guiding() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (sim, done) = connect(SimConfig {
         guide_settle_status: 1,
         guides_after_failed_settle: true,
@@ -489,7 +489,7 @@ async fn a_settle_timeout_leaves_a_guiding_phd2_guiding() {
 /// up while PHD2 is still calibrating.
 #[tokio::test]
 async fn a_start_waits_for_calibration_before_its_settle() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(0.1, 1.0);
     let (_sim, done) = connect(SimConfig {
         calibration: settle_wait + Duration::from_secs(1),
@@ -504,7 +504,7 @@ async fn a_start_waits_for_calibration_before_its_settle() {
 /// A stop ends a start that is waiting for its settle at once.
 #[tokio::test]
 async fn a_stop_ends_a_settle_wait_at_once() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (_sim, done) = connect(SimConfig {
         settle_delay: Duration::from_secs(60),
         ..SimConfig::default()
@@ -529,7 +529,7 @@ async fn a_stop_ends_a_settle_wait_at_once() {
 /// it from a stop or a lost guider by that kind, not by PHD2's words.
 #[tokio::test]
 async fn a_dither_settle_that_runs_out_is_a_timeout() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (_sim, done) = connect(SimConfig {
         initial: Capture::Guiding,
         dither_settle_status: 1,
@@ -548,7 +548,7 @@ async fn a_dither_settle_that_runs_out_is_a_timeout() {
 /// being refused by PHD2, and the restart is not broken by it.
 #[tokio::test]
 async fn a_dither_during_a_restart_waits_for_its_settle() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (sim, done) = connect(SimConfig {
         settle_delay: Duration::from_millis(500),
         ..SimConfig::default()
@@ -575,7 +575,7 @@ async fn a_dither_during_a_restart_waits_for_its_settle() {
 /// advance to moving the mount when PHD2 is still issuing guide pulses.
 #[tokio::test]
 async fn an_acknowledged_stop_that_never_finishes_is_an_error() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let (_sim, done) = connect(SimConfig {
         initial: Capture::Guiding,
         stop_never_finishes: true,

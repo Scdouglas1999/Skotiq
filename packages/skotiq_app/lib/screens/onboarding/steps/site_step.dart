@@ -89,14 +89,18 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   double _baselineLat = 0.0;
   double _baselineLon = 0.0;
 
-  /// Background detection may finish after this step opens. Follow it only
-  /// until the operator starts editing, preserving even incomplete input.
-  (double, double, double)? _seededSite;
-  bool _fieldsEdited = false;
+  /// Guards the one-time controller seed from persisted settings. Re-seeding on
+  /// every rebuild would fight the user's in-progress typing.
+  bool _seeded = false;
   bool _locating = false;
 
   /// IP-derived starting point, offered only when there is no site on record.
   (double, double, String?)? _ipEstimate;
+
+  /// The approximate fix "Use my current location" found, offered in the same
+  /// banner as [_ipEstimate]; accepting it stores it the way a precise fix is
+  /// stored.
+  SiteEstimated? _detectedEstimate;
   bool _ipLookupStarted = false;
   bool _ipLookupRunning = false;
 
@@ -119,16 +123,18 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// not a real Gulf-of-Guinea observatory, so we leave the fields blank there
   /// to prompt real entry rather than seeding a misleading 0/0.
   void _seedFrom(AppSettingsState settings) {
-    final site = (settings.latitude, settings.longitude, settings.elevation);
-    if (_fieldsEdited || _seededSite == site) return;
-    _seededSite = site;
+    if (_seeded) return;
+    _seeded = true;
     final hasSite = settings.hasObserverLocation;
     _baselineLat = settings.latitude;
     _baselineLon = settings.longitude;
-    _latController.text = hasSite ? _trimNumber(settings.latitude) : '';
-    _lonController.text = hasSite ? _trimNumber(settings.longitude) : '';
-    _elevController.text =
-        settings.elevation != 0.0 ? settings.elevation.toStringAsFixed(0) : '';
+    if (hasSite) {
+      _latController.text = _trimNumber(settings.latitude);
+      _lonController.text = _trimNumber(settings.longitude);
+    }
+    if (settings.elevation != 0.0) {
+      _elevController.text = settings.elevation.toStringAsFixed(0);
+    }
     // Re-publish the blocking reason for the seeded text. The provider outlives
     // this widget, so a stale reason left by an earlier visit would otherwise
     // block Next until the user happened to touch a field. Seeded values are
@@ -136,8 +142,9 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _publishBlockingReason();
     });
-    // The startup service owns automatic detection; opening this step must
-    // not start a second lookup.
+    // Deliberately NO lookup here. Skotiq is routinely installed on
+    // isolated observatory networks, so arriving on this step makes no outbound
+    // request: the offer waits for an explicit [_lookUpIpEstimate].
   }
 
   /// True when the coordinate fields hold a usable pair, so the "no site on
@@ -176,6 +183,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     if (!mounted) return;
     setState(() {
       _ipLookupRunning = false;
+      _detectedEstimate = null;
       _ipEstimate = estimate;
     });
   }
@@ -183,6 +191,17 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// Accept the IP estimate as the starting point. This is the only path by
   /// which an IP-derived coordinate reaches settings, and it requires a click.
   Future<void> _applyIpEstimate() async {
+    final detected = _detectedEstimate;
+    if (detected != null) {
+      final stored = await acceptEstimatedSite(context, ref, detected);
+      if (stored == null || !mounted) return;
+      setState(() {
+        _detectedEstimate = null;
+        _ipEstimate = null;
+      });
+      _showStored(stored);
+      return;
+    }
     final estimate = _ipEstimate;
     if (estimate == null) return;
     final (lat, lon, _) = estimate;
@@ -226,8 +245,6 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// Validate every field on each keystroke so the inline error is immediate,
   /// publish the shell's blocking reason, then reconcile settings.
   void _onFieldChanged() {
-    _fieldsEdited = true;
-    ref.read(appSettingsProvider.notifier).noteLocationEdit();
     setState(() {
       _latError = _validateLatitude(_latController.text.trim());
       _lonError = _validateLongitude(_lonController.text.trim());
@@ -340,24 +357,16 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
             '${attempt.failureMessage} Enter your coordinates below, or skip '
             'and set the site later in Settings → Location.',
           );
-        case SiteDetected(:final latitude, :final longitude, :final fix):
-          _latController.text = _trimNumber(latitude);
-          _lonController.text = _trimNumber(longitude);
-          if (!detection.keptElevation) _elevController.clear();
+        // Offered like the internet estimate: nothing is stored until the
+        // operator presses Use this.
+        case SiteEstimated(:final latitude, :final longitude, :final fix):
           setState(() {
-            _latError = null;
-            _lonError = null;
-            if (!detection.keptElevation) _elevError = null;
+            _ipLookupStarted = true;
+            _detectedEstimate = detection;
+            _ipEstimate = (latitude, longitude, fix.locationName);
           });
-          _publishBlockingReason();
-          context.showSuccessSnackBar(
-            'Coordinates set to ${detection.where}. ${fix.explanation}'
-            '${detection.keptElevation ? '' : ' Elevation cleared — enter the '
-                'elevation for this site.'}'
-            // The wizard has no map and no place search, so the nudge points
-            // at the fields directly below.
-            '${fix.isPrecise ? '' : detection.attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
-          );
+        case SiteDetected():
+          _showStored(detection);
       }
     } catch (error) {
       if (mounted) {
@@ -367,6 +376,29 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  /// Show the site [detection] stored in the fields, and say where it came
+  /// from.
+  void _showStored(SiteDetected detection) {
+    final fix = detection.fix;
+    _latController.text = _trimNumber(detection.latitude);
+    _lonController.text = _trimNumber(detection.longitude);
+    if (!detection.keptElevation) _elevController.clear();
+    setState(() {
+      _latError = null;
+      _lonError = null;
+      if (!detection.keptElevation) _elevError = null;
+    });
+    _publishBlockingReason();
+    context.showSuccessSnackBar(
+      'Coordinates set to ${detection.where}. ${fix.explanation}'
+      '${detection.keptElevation ? '' : ' Elevation cleared — enter the '
+          'elevation for this site.'}'
+      // The wizard has no map and no place search, so the nudge points at the
+      // fields directly below.
+      '${fix.isPrecise ? '' : detection.attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
+    );
   }
 
   /// The IP estimate, presented as a suggestion with its provenance and its
