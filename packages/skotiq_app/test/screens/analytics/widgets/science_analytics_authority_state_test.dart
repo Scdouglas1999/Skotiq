@@ -207,5 +207,7 @@ void main() {
     expect(find.text('SCIENCE GUIDE'), findsOneWidget);
     expect(find.text('Plate solve health'), findsNothing);
     expect(find.text('NIGHT STORY'), findsNothing);
+    // The guide is open, so the onramp under it offers no second button.
+    expect(find.text('Show me the 5 steps'), findsNothing);
   });
 }
