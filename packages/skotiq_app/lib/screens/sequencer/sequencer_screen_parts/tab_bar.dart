@@ -41,6 +41,9 @@ class _SequencerPageHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final validation = ref.watch(liveValidationProvider);
+    // The controller, not the provider: on a deep link the provider catches
+    // up a frame later.
+    final selectedTab = SequencerTab.values[controller.index];
     final actionService = ref.read(sequenceActionServiceProvider);
 
     Future<void> run(Future<CommandActionResult> Function() action) async {
@@ -140,6 +143,9 @@ class _SequencerPageHeader extends ConsumerWidget {
               ),
             ),
           ),
+        // The selected tab's own action: what it saves into its list.
+        if (selectedTab == SequencerTab.sequences)
+          SaveCurrentSequenceButton(iconOnly: isPhone),
         if (!isPhone)
           ..._transportActions(
             executionState: executionState,
