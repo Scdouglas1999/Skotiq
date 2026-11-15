@@ -2149,6 +2149,7 @@
         if (EXPOSURE_DONE_EVENTS.has(type)) {
           cancelPendingImageFetch();
           fetchLastImage();
+          markGalleryFresh();
         }
         markPanelFresh('camera');
         break;
@@ -7369,7 +7370,6 @@
   const gallery = {
     items: [],
     loading: false,
-    freshSinceLastView: 0,
     thumbnailObjectUrls: new Set(),
     modalPreviewUrl: '',
     modalLoadGeneration: 0,
@@ -7401,19 +7401,15 @@
         if (imageId) downloadGalleryOriginal(imageId, download);
       });
     }
-    // Listen for ExposureComplete events to surface the "NEW" badge.
-    api.on('event', (data) => {
-      const cat = data.category || data.event_category || '';
-      if (cat !== 'camera' && cat !== 'imaging') return;
-      const type = data.eventType || data.event || '';
-      if (!isExposureCompleteEvent(type)) return;
-      gallery.freshSinceLastView += 1;
-      const badge = document.getElementById('gallery-fresh-badge');
-      if (badge) {
-        badge.textContent = 'NEW';
-        badge.classList.remove('hidden-inline');
-      }
-    });
+  }
+
+  /** A frame finished since the gallery was last loaded: show its "NEW" badge. */
+  function markGalleryFresh() {
+    const badge = document.getElementById('gallery-fresh-badge');
+    if (badge) {
+      badge.textContent = 'NEW';
+      badge.classList.remove('hidden-inline');
+    }
   }
 
   async function refreshGalleryFromServer() {
@@ -7434,7 +7430,6 @@
       gallery.items = requireWireList(resp, named, 'Image listing');
       renderGallery();
       if (status) status.textContent = galleryCountLine(gallery.items);
-      gallery.freshSinceLastView = 0;
       const badge = document.getElementById('gallery-fresh-badge');
       if (badge) badge.classList.add('hidden-inline');
     } catch (e) {

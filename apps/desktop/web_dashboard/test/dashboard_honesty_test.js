@@ -3259,3 +3259,33 @@ test('a polar alignment error from the host shows in arcminutes', () => {
   assert.equal(state.polarAlignment.statusMessage, 'Adjusting - make corrections');
   assert.equal(painted, 2);
 });
+
+// ---------------------------------------------------------------------------
+// Gallery "NEW" badge
+// ---------------------------------------------------------------------------
+
+// The gallery listened on its own `api.on('event')`, which every connect wiped
+// with `removeAllListeners()`, and it called a helper that no longer existed.
+// The badge is driven from the one event dispatcher now.
+test('a finished exposure shows the gallery NEW badge', () => {
+  const doc = makeDocument(['gallery-fresh-badge']);
+  const badge = doc.getElementById('gallery-fresh-badge');
+  badge.classList.add('hidden-inline');
+  const WIRE = fs.readFileSync(path.join(ROOT, 'js', 'wire-events.js'), 'utf8');
+  const noop = () => {};
+  const dispatch = build(
+    ['document', 'addLogEntry', 'messageFromPayload',
+      'fetchCameraStatusIfConnected', 'cancelPendingImageFetch',
+      'fetchLastImage', 'markPanelFresh', 'gallery'],
+    [WIRE, konst('CAMERA_STATUS_EVENTS'), konst('EXPOSURE_DONE_EVENTS'),
+      fn('markGalleryFresh'), fn('handleServerEvent')],
+    'handleServerEvent',
+  )(doc, noop, noop, noop, noop, noop, noop, {});
+
+  dispatch({ category: 'imaging', eventType: 'ExposureProgress', data: {} });
+  assert.ok(badge.classList.contains('hidden-inline'),
+    'progress is not a finished frame');
+  dispatch({ category: 'imaging', eventType: 'ExposureComplete', data: {} });
+  assert.ok(!badge.classList.contains('hidden-inline'));
+  assert.equal(badge.textContent, 'NEW');
+});
