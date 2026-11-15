@@ -530,12 +530,8 @@ extension _BackupMerge on BackupService {
           progress(step, total == 0 ? 1 : done / total);
           if (size == 0) continue;
           final watch = Stopwatch()..start();
-          // A table without a row id of its own cannot say which of its rows
-          // the merge added, so its broken links are counted before and
-          // after.
-          final brokenBefore = table.rowId == null
-              ? await _brokenLinks(name)
-              : 0;
+          // Counted only for a table that is about to gain rows.
+          int? brokenBefore;
           await _mergeTable(
             table,
             liveIsEmpty: liveRows[name] == 0,
@@ -545,6 +541,8 @@ extension _BackupMerge on BackupService {
                 ? const {'is_active': '0', 'is_default': '0'}
                 : const {},
             tick: (part) => progress(step, (done + size * part) / total),
+            beforeAdding: () async =>
+                brokenBefore ??= await _brokenLinks(table),
           );
           done += size;
           final fates = await database
@@ -570,13 +568,8 @@ extension _BackupMerge on BackupService {
           }
           // Every link of an added row was read as a row that is here, so
           // none can be broken; a merge that broke one is not kept.
-          if (outcome.added.containsKey(name)) {
-            final broken = table.rowId == null
-                ? await _brokenLinks(name) - brokenBefore
-                : await _count(
-                    "pragma_foreign_key_check('$name') v JOIN ${_m(name)} m "
-                    'ON m.live = v.rowid AND m.fate = ${_Fate.added}',
-                  );
+          if (brokenBefore case final before?) {
+            final broken = await _brokenLinks(table) - before;
             if (broken > 0) {
               throw StateError(
                 'The merge would leave $broken rows of "$name" pointing at '
@@ -606,8 +599,18 @@ extension _BackupMerge on BackupService {
           .read<int>('n');
 
   /// How many rows of the live [table] point at a record that is not there.
-  Future<int> _brokenLinks(String table) =>
-      _count("pragma_foreign_key_check('$table')");
+  /// A table with no link has none; the check reads the whole table, so it
+  /// is not asked for one.
+  Future<int> _brokenLinks(_MergeTable table) async {
+    final foreign = await database
+        .customSelect('PRAGMA main.foreign_key_list("${table.name}")')
+        .get();
+    if (foreign.isEmpty) return 0;
+    return (await database
+            .customSelect('PRAGMA main.foreign_key_check("${table.name}")')
+            .get())
+        .length;
+  }
 
   Future<void> _mergeTable(
     _MergeTable t, {
@@ -615,6 +618,7 @@ extension _BackupMerge on BackupService {
     required bool yoursOnly,
     required Map<String, String> overrides,
     required void Function(double part) tick,
+    required Future<void> Function() beforeAdding,
   }) async {
     final x = _x(t.name);
     final m = _m(t.name);
@@ -801,6 +805,7 @@ extension _BackupMerge on BackupService {
           variables: [Variable.withInt(base)],
         );
         if (expected == 0) return;
+        await beforeAdding();
         final written = await database.customUpdate(
           'INSERT OR IGNORE INTO $live '
           '(${_q(rowId)}, ${t.content.map(_q).join(', ')}) '
@@ -822,6 +827,7 @@ extension _BackupMerge on BackupService {
           'FROM $x x WHERE $rest',
         );
         if (expected == 0) return;
+        await beforeAdding();
         final written = await database.customUpdate(
           'INSERT OR IGNORE INTO $live (${t.content.map(_q).join(', ')}) '
           'SELECT $values FROM $x x JOIN $m m ON m.bk = x.$_rid '

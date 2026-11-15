@@ -88,6 +88,18 @@ Future<void> _roundTrip(
   lap?.call('merge of the same backup again');
   expect(again.itemsRestored, 0);
   expect(again.notRestored, isEmpty);
+
+  // Rows deleted since come back, beside the rows that are still here.
+  final frames = (await _rows(target, 'captured_images')).length;
+  await target.customStatement('PRAGMA foreign_keys = ON');
+  await target.customStatement(
+    'DELETE FROM captured_images WHERE id IN '
+    '(SELECT id FROM captured_images ORDER BY id DESC LIMIT 25)',
+  );
+  final readded = await _service(target, dir).restoreBackup(filePath: file);
+  lap?.call('merge after deleting 25 frames: ${readded.report}');
+  expect(readded.success, isTrue, reason: readded.errorMessage);
+  expect((await _rows(target, 'captured_images')).length, frames);
   for (final t in seeded) {
     if (backupMergeKeepsYours.containsKey(t)) continue;
     final there = await _rows(target, t);
