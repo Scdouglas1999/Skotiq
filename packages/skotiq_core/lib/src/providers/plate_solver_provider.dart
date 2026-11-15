@@ -27,9 +27,35 @@ final hostPlateSolverSetupProvider = StateProvider<PlateSolverSetup?>((ref) {
   return null;
 });
 
-/// [value] as the host told it; loading until the host has.
-Future<T> _toldByHost<T>(T? value) =>
-    value != null ? Future.value(value) : Completer<T>().future;
+/// A linked client has waited [plateSolverHostWait] and the host has not
+/// said which plate solvers it has.
+class PlateSolverSetupNotTold implements Exception {
+  const PlateSolverSetupNotTold();
+
+  String get message =>
+      'The host has not said which plate solvers it has. Check the link to '
+      'the host, then retry.';
+
+  @override
+  String toString() => message;
+}
+
+/// How long a linked client waits for the host's plate-solver setup before
+/// it says so. The host sends it within a second of the link coming up.
+const Duration plateSolverHostWait = Duration(seconds: 10);
+
+/// [value] as the host told it; loading until the host has, and an error
+/// after [plateSolverHostWait]. The provider runs again when the host tells.
+Future<T> _toldByHost<T>(Ref ref, T? value) {
+  if (value != null) return Future.value(value);
+  final told = Completer<T>();
+  final wait = Timer(
+    plateSolverHostWait,
+    () => told.completeError(const PlateSolverSetupNotTold()),
+  );
+  ref.onDispose(wait.cancel);
+  return told.future;
+}
 
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
@@ -40,6 +66,7 @@ final plateSolverDetectionProvider =
       ref.watch(backendProvider);
       if (ref.watch(isRemoteModeProvider)) {
         return _toldByHost(
+          ref,
           ref.watch(
             hostPlateSolverSetupProvider.select((setup) => setup?.detection),
           ),
@@ -56,6 +83,7 @@ final plateSolverPreferenceProvider =
       ref.watch(backendProvider);
       if (ref.watch(isRemoteModeProvider)) {
         return _toldByHost(
+          ref,
           ref.watch(
             hostPlateSolverSetupProvider.select((setup) => setup?.preference),
           ),

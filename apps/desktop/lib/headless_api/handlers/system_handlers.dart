@@ -277,6 +277,7 @@ class SystemHandlers implements RouteSource {
     try {
       final backend = container.read(sequencerBackendProvider);
       final status = await backend.sequencerGetStatus();
+      final settings = await container.read(appSettingsProvider.future);
       return jsonOk({
         "sequencer": {
           "state": status.state,
@@ -285,6 +286,9 @@ class SystemHandlers implements RouteSource {
           "progress": status.progress,
           "message": status.message,
         },
+        // A host with no observing site cannot plan a night, time dawn or
+        // judge altitude; a linked client or script reads that here.
+        "site": {"set": settings.hasObserverLocation},
       });
     } catch (e, stackTrace) {
       _logError('[API][$requestId] Status error: $e\n$stackTrace');

@@ -1378,7 +1378,7 @@ test('a devices answer that lists zero devices IS rendered as empty', async () =
 /** refreshGalleryFromServer with a scripted /api/images answer. */
 function galleryFetch(answer) {
   const doc = makeDocument(['gallery-grid', 'gallery-status', 'gallery-fresh-badge']);
-  const gallery = { loading: false, items: [{ id: 1 }, { id: 2 }], freshSinceLastView: 3 };
+  const gallery = { loading: false, items: [{ id: 1 }, { id: 2 }] };
   const log = [];
   let rendered = 0;
   const run = build(
@@ -1433,8 +1433,8 @@ test('an images answer that lists zero frames IS the empty state', async () => {
   assert.equal(h.rendered(), 1);
 });
 
-test('the older `items` spelling is still read when it is the one present', async () => {
-  const h = galleryFetch({ items: [{ id: 7 }] });
+test('an images answer lists its frames', async () => {
+  const h = galleryFetch({ images: [{ id: 7 }] });
   await h.run();
   assert.deepEqual(h.gallery.items, [{ id: 7 }]);
   assert.match(h.doc.getElementById('gallery-status').textContent, /1 image shown/);
@@ -3258,4 +3258,34 @@ test('a polar alignment error from the host shows in arcminutes', () => {
   assert.equal(state.polarAlignment.phase, 'adjusting');
   assert.equal(state.polarAlignment.statusMessage, 'Adjusting - make corrections');
   assert.equal(painted, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Gallery "NEW" badge
+// ---------------------------------------------------------------------------
+
+// The gallery listened on its own `api.on('event')`, which every connect wiped
+// with `removeAllListeners()`, and it called a helper that no longer existed.
+// The badge is driven from the one event dispatcher now.
+test('a finished exposure shows the gallery NEW badge', () => {
+  const doc = makeDocument(['gallery-fresh-badge']);
+  const badge = doc.getElementById('gallery-fresh-badge');
+  badge.classList.add('hidden-inline');
+  const WIRE = fs.readFileSync(path.join(ROOT, 'js', 'wire-events.js'), 'utf8');
+  const noop = () => {};
+  const dispatch = build(
+    ['document', 'addLogEntry', 'messageFromPayload',
+      'fetchCameraStatusIfConnected', 'cancelPendingImageFetch',
+      'fetchLastImage', 'markPanelFresh', 'gallery'],
+    [WIRE, konst('CAMERA_STATUS_EVENTS'), konst('EXPOSURE_DONE_EVENTS'),
+      fn('markGalleryFresh'), fn('handleServerEvent')],
+    'handleServerEvent',
+  )(doc, noop, noop, noop, noop, noop, noop, {});
+
+  dispatch({ category: 'imaging', eventType: 'ExposureProgress', data: {} });
+  assert.ok(badge.classList.contains('hidden-inline'),
+    'progress is not a finished frame');
+  dispatch({ category: 'imaging', eventType: 'ExposureComplete', data: {} });
+  assert.ok(!badge.classList.contains('hidden-inline'));
+  assert.equal(badge.textContent, 'NEW');
 });

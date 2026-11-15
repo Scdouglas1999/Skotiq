@@ -161,21 +161,13 @@ class ImagingForegroundService {
     // Data is now sent via updateService notification only
   }
 
-  Future<void> stopService({
-    bool sequenceCompleted = false,
-    String? errorMessage,
-  }) async {
+  Future<void> stopService({bool sequenceCompleted = false}) async {
     if (!_isRunning) return;
 
     if (sequenceCompleted) {
       await MobileNotificationService().notifySequenceComplete(
         _currentTarget,
         _completedExposures,
-      );
-    } else if (errorMessage != null) {
-      await MobileNotificationService().notifySequenceFailed(
-        _currentTarget,
-        errorMessage,
       );
     }
 

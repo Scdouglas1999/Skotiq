@@ -96,8 +96,7 @@ class SequencerRunVitals {
 
   /// Errors recorded against the live run, so a remote/headless operator sees
   /// a failure (a meridian flip, say) before the terminal event rather than
-  /// reading the run as healthy. Defaults to `const []` so an older master
-  /// that omits the key still deserializes.
+  /// reading the run as healthy. Empty when the run has recorded none.
   final List<String> errorMessages;
 
   /// The directory this run's rejected frames are being moved into, or null

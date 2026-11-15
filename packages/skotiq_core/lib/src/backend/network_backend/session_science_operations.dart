@@ -744,11 +744,9 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Restore from a backup identified by its stable [backupId].
-  ///
-  /// Preferred over [restoreBackup]: the host resolves [backupId] to a file
-  /// inside its own backup directory, so no absolute server path crosses the
-  /// wire and a client cannot point the host at an arbitrary file on disk.
+  /// Restore from a backup identified by its stable [backupId]. The host
+  /// resolves the id to a file inside its own backup directory, so no server
+  /// path crosses the wire.
   Future<Map<String, dynamic>> restoreBackupById(
     String backupId, {
     bool replaceExisting = false,
