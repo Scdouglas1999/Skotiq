@@ -224,7 +224,9 @@ class SystemPromptBuilder {
         'Marks a sky target and its imaging sub-tree (slew + center + '
             'guide + autofocus + SmartExposure).',
         '`targetName` (string), `raHours` (number, hours), '
-            '`decDegrees` (number, degrees), `minAltitude` (number), '
+            '`decDegrees` (number, degrees), `minAltitude` (number, optional: '
+            'only when the user asks for one; the run already holds every '
+            'target to the site altitude floor), '
             '`startAfter` (ISO timestamp, optional), '
             '`endBefore` (ISO timestamp, optional).',
       ],
@@ -417,8 +419,7 @@ const String _exampleA = '''
       "id": "tgt", "nodeType": "TargetHeader", "name": "M31",
       "parentId": "root", "childIds": ["slew","center","guide","af","exp"],
       "orderIndex": 2, "isEnabled": true,
-      "targetName": "M31", "raHours": 0.712, "decDegrees": 41.27,
-      "minAltitude": 30.0
+      "targetName": "M31", "raHours": 0.712, "decDegrees": 41.27
     },
     "slew": {
       "id": "slew", "nodeType": "Slew", "name": "Slew",
@@ -486,7 +487,7 @@ const String _exampleB = '''
       "parentId": "root", "childIds": ["slew","center","guide","af","smart"],
       "orderIndex": 2, "isEnabled": true,
       "targetName": "Heart Nebula (IC 1805)",
-      "raHours": 2.55, "decDegrees": 61.45, "minAltitude": 30.0
+      "raHours": 2.55, "decDegrees": 61.45
     },
     "slew": {
       "id": "slew", "nodeType": "Slew", "name": "Slew",

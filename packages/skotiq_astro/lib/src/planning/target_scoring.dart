@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:skotiq_astro/format.dart';
 
+import '../astronomy/altitude_floor_search.dart';
 import '../astronomy/astronomy_calculations.dart';
 import '../celestial_object.dart';
 import 'weighted_score.dart';
@@ -13,7 +14,6 @@ export 'target_scoring/models.dart';
 
 part 'target_scoring/axis_scores.dart';
 part 'target_scoring/warnings.dart';
-part 'target_scoring/checks.dart';
 
 /// Service for scoring and analyzing imaging targets
 class TargetScoringService {
@@ -28,11 +28,10 @@ class TargetScoringService {
 
   final TwilightTimes? twilight;
 
-  /// Local skyline mask: minimum observable altitude at each azimuth. When
-  /// supplied, visibility and "hours above minimum altitude" honor the
-  /// obstruction profile instead of assuming a flat horizon. A target whose
-  /// entire nightly track stays behind the skyline yields zero visible hours.
-  final HorizonMask? horizonMask;
+  /// The altitude floor by azimuth: how high a target must stand toward each
+  /// direction to count as usable. Visibility and "hours above the floor"
+  /// are measured against it; without one, against the horizon.
+  final AltitudeFloorAt? floorAt;
 
   const TargetScoringService({
     required this.latitude,
@@ -42,16 +41,12 @@ class TargetScoringService {
     this.moonPosition,
     this.moonIllumination = 0,
     this.twilight,
-    this.horizonMask,
+    this.floorAt,
   });
 
-  /// Effective minimum altitude at [azimuthDegrees]: the larger of the
-  /// caller-requested floor and the local skyline obstruction at that bearing.
-  double _effectiveMinAltitude(double requestedMin, double azimuthDegrees) {
-    final mask = horizonMask;
-    if (mask == null) return requestedMin;
-    return math.max(requestedMin, mask(azimuthDegrees));
-  }
+  /// The floor toward [azimuthDegrees].
+  double _floorToward(double azimuthDegrees) =>
+      floorAt?.call(azimuthDegrees) ?? 0.0;
 
   TargetScore scoreTarget(CelestialObject target) {
     final coord = target.coordinates;
@@ -151,18 +146,16 @@ class TargetScoringService {
   /// - Darkness score is replaced by imaging window duration
   /// - Moon distance is evaluated at the time of peak altitude
   ///
-  /// Targets that never rise above [minAltitude] during the night receive a
+  /// Targets that never clear the altitude floor during the night receive a
   /// total score of 0.
   TargetScore scoreTargetForNight({
     required CelestialObject target,
     required DateTime nightStart,
     required DateTime nightEnd,
-    double minAltitude = 0,
   }) => _scoreTargetForNight(
     target: target,
     nightStart: nightStart,
     nightEnd: nightEnd,
-    minAltitude: minAltitude,
   );
 
   /// Scores a catalog with the same sampling and refinement as individual
@@ -171,7 +164,6 @@ class TargetScoringService {
     required Iterable<CelestialObject> targets,
     required DateTime nightStart,
     required DateTime nightEnd,
-    double minAltitude = 0,
   }) sync* {
     final nightMid = nightStart.add(
       Duration(seconds: nightEnd.difference(nightStart).inSeconds ~/ 2),
@@ -187,7 +179,6 @@ class TargetScoringService {
         target: target,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: minAltitude,
         visibilityCalculator: visibility,
       );
     }
@@ -197,7 +188,6 @@ class TargetScoringService {
     required CelestialObject target,
     required DateTime nightStart,
     required DateTime nightEnd,
-    required double minAltitude,
     FixedObjectVisibilityCalculator? visibilityCalculator,
   }) {
     final coord = target.coordinates;
@@ -252,10 +242,9 @@ class TargetScoringService {
         overallPeakTime = sampleTime;
       }
 
-      // A sample only counts as observable if it clears BOTH the requested
-      // minimum altitude and the local skyline at its azimuth.
-      final effectiveMin = _effectiveMinAltitude(minAltitude, az);
-      if (alt >= effectiveMin) {
+      // A sample counts as observable when it clears the floor in the
+      // direction the target then stands.
+      if (alt >= _floorToward(az)) {
         samplesAboveMin++;
         firstObservableTime ??= sampleTime;
         if (alt > observablePeakAlt) {

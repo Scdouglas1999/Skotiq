@@ -13,6 +13,8 @@ import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
 import '../replay_debug_provider.dart';
+import '../scheduler_provider.dart'
+    show altitudeFloorProvider, schedulerPersistedConfigProvider;
 import '../settings_provider.dart';
 import '../weather_providers.dart'
     show
@@ -133,6 +135,9 @@ class RunConfigSync {
       // the executor keeps the site it has (a resumed run's).
       'latitude': settings.hasObserverLocation ? settings.latitude : null,
       'longitude': settings.hasObserverLocation ? settings.longitude : null,
+      // How high a target must stand, by azimuth: the property horizon when
+      // one is set, otherwise the minimum altitude.
+      'altitude_floor': _ref.read(altitudeFloorProvider).toWire(),
       'filter_focus_offsets': _filterFocusOffsets(settings),
       // With weather safety off, the native poll would fail closed on a rig
       // with no safety monitor and park the mount within moments of launch.
@@ -242,6 +247,10 @@ class RunConfigSync {
     await _ref.read(replayDebugEnabledProvider.future);
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
     await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
+    // The minimum altitude; the floor falls back to the default without it.
+    try {
+      await _ref.read(schedulerPersistedConfigProvider.future);
+    } catch (_) {}
   }
 
   void _listenToSources() {
@@ -255,6 +264,7 @@ class RunConfigSync {
       savedFocuserBacklashProvider,
       replayDebugEnabledProvider,
       globalMeridianFlipSettingsProvider,
+      altitudeFloorProvider,
     ]) {
       _ref.listen<Object?>(source, changed);
     }

@@ -445,6 +445,14 @@ class RunEventHandler {
       progressNotifier.updateProgress(message: warning);
       return;
     }
+    if (isTargetBelowFloorSkip(event.triggerId)) {
+      _targetSkippedAtEntry = true;
+      final warning = targetBelowFloorSkipWarning(triggerName);
+      _logger.warning(warning, source: 'SequenceExecutor');
+      _stats.update((stats) => stats.recordWarning(warning));
+      progressNotifier.updateProgress(message: warning);
+      return;
+    }
     _logger.info(
       'Trigger fired: $triggerName -> $action',
       source: 'SequenceExecutor',

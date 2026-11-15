@@ -78,13 +78,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     }();
   }
 
-  SmartNightService _buildService() {
-    return SmartNightService(
-      suggestionService: ref.read(targetSuggestionServiceProvider),
-      logging: ref.read(loggingServiceProvider),
-      cameraLibrary: ref.read(hardwarePresetsServiceProvider),
-    );
-  }
+  SmartNightService _buildService() => ref.read(smartNightServiceProvider);
 
   void _onPrimaryPressed() async {
     // Guard re-entry: the strategy step kicks off the heavy builder and

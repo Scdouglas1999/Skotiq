@@ -17,6 +17,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import 'delete_node_confirmation.dart';

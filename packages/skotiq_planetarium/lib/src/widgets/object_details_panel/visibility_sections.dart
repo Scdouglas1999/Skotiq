@@ -76,13 +76,8 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
               lineColor: accent,
               gridColor: txtColor.withValues(alpha: 0.2),
               cloudCoverPercent: cloudCoverPercent,
-              // Watch (not read): if the user changes their effective
-              // horizon mid-session the painter must rebuild — passing
-              // the value as a constructor field combined with
-              // shouldRepaint comparing it gives Flutter the trigger.
-              effectiveHorizonDeg: ref.watch(
-                planetariumEffectiveHorizonDegProvider,
-              ),
+              // Watched, so a change to the floor repaints the card.
+              floor: ref.watch(planetariumAltitudeFloorProvider),
             ),
           ),
         ),
@@ -160,11 +155,9 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     Color txtColor,
   ) {
     final obsTime = ref.watch(observationMinuteProvider);
-    // Rise/set computed against the user's effective
-    // horizon (e.g. 20° to clear trees), not the mathematical 0°. The same
-    // value drives the Run Dashboard time-to-set stat so the two surfaces
-    // agree to the second.
-    final horizonDeg = ref.watch(planetariumEffectiveHorizonDegProvider);
+    // Rise and set are when the object clears and leaves the site's
+    // altitude floor, not the mathematical horizon.
+    final floor = ref.watch(planetariumAltitudeFloorProvider);
     final visibility = ref.watch(
       objectVisibilityProvider((
         raDeg: object.coordinates.ra * 15,
@@ -176,7 +169,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
         nightDate: AstronomyCalculations.nightDateOf(obsTime),
         latitudeDeg: site.latitude,
         longitudeDeg: site.longitude,
-        minAltitude: horizonDeg,
+        againstFloor: true,
       )),
     );
 
@@ -192,10 +185,11 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       setText = 'Always';
     }
 
-    // Label hint: when the user has set a non-zero horizon, surface it so
-    // the displayed times aren't mistaken for the mathematical horizon.
-    final headerLabel = horizonDeg > 0
-        ? 'Rise / Transit / Set (≥${horizonDeg.toStringAsFixed(0)}°)'
+    // The label says what the times are measured against.
+    final headerLabel = !floor.isFlat
+        ? 'Rise / Transit / Set (above your horizon)'
+        : floor.at(0) > 0
+        ? 'Rise / Transit / Set (≥${floor.at(0).toStringAsFixed(0)}°)'
         : 'Rise / Transit / Set';
 
     return Column(
@@ -311,7 +305,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
         nightDate: AstronomyCalculations.nightDateOf(obsTime),
         latitudeDeg: site.latitude,
         longitudeDeg: site.longitude,
-        minAltitude: 0,
+        againstFloor: false,
       )),
     );
 

@@ -53,6 +53,13 @@ pub enum TargetTrigger {
     AltitudeAbove(f64),
     /// Target altitude at the observer is **at or below** the given degrees.
     AltitudeBelow(f64),
+    /// The target is above the site's altitude floor in the direction it
+    /// stands (see [`crate::scheduling::AltitudeFloor`]). True when the run
+    /// holds no floor.
+    AboveAltitudeFloor,
+    /// The target is below the site's altitude floor in the direction it
+    /// stands. False when the run holds no floor.
+    BelowAltitudeFloor,
     /// Wall-clock time is at or after the given Unix timestamp (seconds).
     TimeAfter(i64),
     /// Wall-clock time is strictly before the given Unix timestamp (seconds).
@@ -91,9 +98,27 @@ pub struct TriggerObserverContext {
     /// Current wall-clock instant. The TargetHeader runtime reads this from
     /// `ExecutionContext::clock.now_utc()` so tests can pin it.
     pub now: DateTime<Utc>,
+    /// The site's altitude floor as the run's settings hold it.
+    pub altitude_floor: Option<crate::scheduling::AltitudeFloor>,
 }
 
 impl TriggerObserverContext {
+    /// Whether the target is above the altitude floor in the direction it
+    /// stands; `None` when the run holds no floor.
+    pub fn is_above_altitude_floor(&self) -> Option<bool> {
+        let floor = self.altitude_floor.as_ref()?;
+        Some(floor.is_above(&self.floor_target(), self.now))
+    }
+
+    pub fn floor_target(&self) -> crate::scheduling::FloorTarget {
+        crate::scheduling::FloorTarget {
+            ra_hours: self.target_ra_hours,
+            dec_degrees: self.target_dec_degrees,
+            latitude_deg: self.latitude_deg,
+            longitude_deg: self.longitude_deg,
+        }
+    }
+
     /// Cached altitude in degrees. Used both by `AltitudeAbove` /
     /// `AltitudeBelow` and by the live-preview text in the target row.
     pub fn current_altitude_deg(&self) -> f64 {
@@ -126,6 +151,8 @@ impl TargetTrigger {
         match self {
             TargetTrigger::AltitudeAbove(threshold) => ctx.current_altitude_deg() >= *threshold,
             TargetTrigger::AltitudeBelow(threshold) => ctx.current_altitude_deg() <= *threshold,
+            TargetTrigger::AboveAltitudeFloor => ctx.is_above_altitude_floor().unwrap_or(true),
+            TargetTrigger::BelowAltitudeFloor => !ctx.is_above_altitude_floor().unwrap_or(true),
             TargetTrigger::TimeAfter(ts) => ctx.now.timestamp() >= *ts,
             TargetTrigger::TimeBefore(ts) => ctx.now.timestamp() < *ts,
             TargetTrigger::And(children) => {
@@ -152,7 +179,10 @@ impl TargetTrigger {
     /// location" errors.
     pub fn references_altitude(&self) -> bool {
         match self {
-            TargetTrigger::AltitudeAbove(_) | TargetTrigger::AltitudeBelow(_) => true,
+            TargetTrigger::AltitudeAbove(_)
+            | TargetTrigger::AltitudeBelow(_)
+            | TargetTrigger::AboveAltitudeFloor
+            | TargetTrigger::BelowAltitudeFloor => true,
             TargetTrigger::And(v) | TargetTrigger::Or(v) => {
                 v.iter().any(|t| t.references_altitude())
             }
@@ -194,6 +224,8 @@ impl TargetTrigger {
         match self {
             TargetTrigger::AltitudeAbove(n) => format!("altitude ≥ {:.1}°", n),
             TargetTrigger::AltitudeBelow(n) => format!("altitude ≤ {:.1}°", n),
+            TargetTrigger::AboveAltitudeFloor => "above the site's altitude floor".to_string(),
+            TargetTrigger::BelowAltitudeFloor => "below the site's altitude floor".to_string(),
             TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", ts),
             TargetTrigger::TimeBefore(ts) => format!("time < {}", ts),
             TargetTrigger::And(v) => format!(
@@ -264,6 +296,7 @@ mod tests {
             target_ra_hours: 5.59,
             target_dec_degrees: -5.39,
             now,
+            altitude_floor: None,
         }
     }
 

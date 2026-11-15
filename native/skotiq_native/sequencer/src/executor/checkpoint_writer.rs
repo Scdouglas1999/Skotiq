@@ -82,6 +82,7 @@ impl CheckpointWriter {
         checkpoint.set_save_path(rig.save_path.clone());
         let config = sources.settings.snapshot();
         checkpoint.set_location(config.latitude, config.longitude);
+        checkpoint.altitude_floor = config.altitude_floor;
 
         let trigger_state = sources.trigger_manager.read().await.state();
         checkpoint.set_trigger_state(TriggerStateSnapshot::from_state(

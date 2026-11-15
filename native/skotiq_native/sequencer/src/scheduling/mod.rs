@@ -13,6 +13,7 @@
 
 pub mod adaptive_exposure;
 pub mod adaptive_swap;
+pub mod altitude_floor;
 pub mod astronomy;
 pub mod clock;
 pub mod ephemeris;
@@ -23,6 +24,7 @@ pub mod target_trigger;
 
 pub use adaptive_exposure::*;
 pub use adaptive_swap::*;
+pub use altitude_floor::*;
 pub use astronomy::*;
 pub use clock::*;
 pub use frame_context::*;

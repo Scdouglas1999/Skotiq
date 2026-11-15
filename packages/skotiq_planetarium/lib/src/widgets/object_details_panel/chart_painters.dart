@@ -52,11 +52,9 @@ class _AltitudeGraphPainter extends CustomPainter {
   /// green (<20%), yellow (20-60%), red (>60%).
   final double? cloudCoverPercent;
 
-  /// The user-configured effective horizon in degrees (e.g. 20° to clear
-  /// trees). 0 = no shading. Sourced from
-  /// `planetariumEffectiveHorizonDegProvider`, which the app layer overrides to
-  /// pull from `skotiq_core`'s persisted setting.
-  final double effectiveHorizonDeg;
+  /// The site's altitude floor. The band between the horizon and the floor
+  /// in the direction the object stands at each hour is shaded.
+  final AltitudeFloorSamples floor;
 
   _AltitudeGraphPainter({
     required this.object,
@@ -64,7 +62,7 @@ class _AltitudeGraphPainter extends CustomPainter {
     required this.lineColor,
     required this.gridColor,
     this.cloudCoverPercent,
-    this.effectiveHorizonDeg = 0.0,
+    required this.floor,
   });
 
   @override
@@ -130,51 +128,49 @@ class _AltitudeGraphPainter extends CustomPainter {
       gridPaint,
     );
 
-    // Effective-horizon shading: paint the unreachable band (0° to the
-    // user's effective horizon) so the user can see at a glance when a
-    // target clears the trees. We render it AFTER the cloud band but
-    // BEFORE the altitude curve so the curve stays on top.
-    if (effectiveHorizonDeg > 0) {
-      // Top of "below-effective-horizon" band is the effective horizon,
-      // bottom is the 0° line. y = (height/2) - (alt/90) * (height/2).
-      final horizonY =
-          size.height / 2 - (effectiveHorizonDeg / 90) * (size.height / 2);
-      canvas.drawRect(
-        Rect.fromLTRB(0, horizonY, size.width, size.height / 2),
-        Paint()..color = SkyPlotColors.horizon.withValues(alpha: 0.10),
-      );
-      // Effective-horizon dashed line so the boundary is unambiguous.
-      final dashPaint = Paint()
-        ..color = SkyPlotColors.horizon.withValues(alpha: 0.6)
-        ..strokeWidth = 1;
-      const double dashWidth = 4;
-      const double dashGap = 3;
-      double x = 0;
-      while (x < size.width) {
-        canvas.drawLine(
-          Offset(x, horizonY),
-          Offset((x + dashWidth).clamp(0, size.width), horizonY),
-          dashPaint,
-        );
-        x += dashWidth + dashGap;
-      }
-    }
-
-    // Calculate altitudes over 24 hours
+    // Altitude over 24 hours, and the floor in the direction the object
+    // stands at each of them.
+    double yOf(double alt) =>
+        (size.height / 2 - (alt / 90) * (size.height / 2)).clamp(0, size.height);
     final points = <Offset>[];
-    for (int hour = 0; hour < 24; hour++) {
+    final floorPoints = <Offset>[];
+    for (int hour = 0; hour <= 24; hour++) {
       final time = DateTime(now.year, now.month, now.day, hour);
-      final (alt, _) = AstronomyCalculations.objectAltAz(
+      final (alt, az) = AstronomyCalculations.objectAltAz(
         raDeg: object.coordinates.ra * 15,
         decDeg: object.coordinates.dec,
         dt: time,
         latitudeDeg: site.latitude,
         longitudeDeg: site.longitude,
       );
-
       final x = (hour / 24) * size.width;
-      final y = size.height / 2 - (alt / 90) * (size.height / 2);
-      points.add(Offset(x, y.clamp(0, size.height)));
+      points.add(Offset(x, yOf(alt)));
+      floorPoints.add(Offset(x, yOf(floor.at(az))));
+    }
+
+    // The band a target cannot be imaged in, under the altitude curve, with
+    // its upper edge dashed.
+    if (floorPoints.any((p) => p.dy < size.height / 2)) {
+      final band = Path()..moveTo(0, size.height / 2);
+      for (final p in floorPoints) {
+        band.lineTo(p.dx, p.dy);
+      }
+      band
+        ..lineTo(size.width, size.height / 2)
+        ..close();
+      canvas.drawPath(
+        band,
+        Paint()..color = SkyPlotColors.horizon.withValues(alpha: 0.10),
+      );
+      final dashPaint = Paint()
+        ..color = SkyPlotColors.horizon.withValues(alpha: 0.6)
+        ..strokeWidth = 1;
+      for (var i = 1; i < floorPoints.length; i++) {
+        final from = floorPoints[i - 1];
+        final to = floorPoints[i];
+        // Each hour's segment is drawn over its first two thirds.
+        canvas.drawLine(from, Offset.lerp(from, to, 0.66)!, dashPaint);
+      }
     }
 
     // Draw the altitude curve
@@ -208,7 +204,7 @@ class _AltitudeGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant _AltitudeGraphPainter oldDelegate) {
     return object != oldDelegate.object ||
         cloudCoverPercent != oldDelegate.cloudCoverPercent ||
-        effectiveHorizonDeg != oldDelegate.effectiveHorizonDeg;
+        floor != oldDelegate.floor;
   }
 }
 

@@ -96,15 +96,24 @@ class _ConfigExpansionState extends State<_ConfigExpansion> {
             ),
             Consumer(
               builder: (context, ref, _) {
-                if (!ref.watch(altitudeFloorProvider).followsHorizon) {
-                  return const SizedBox.shrink();
-                }
+                final followsHorizon = ref
+                    .watch(altitudeFloorProvider)
+                    .followsHorizon;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
-                    'Not in force: the site horizon (Settings > Location) '
-                    'decides how high a target must be while it is set.',
-                    key: const Key('scheduler.minAltitudeNotInForce'),
+                    followsHorizon
+                        ? 'Not in force: your horizon (Settings > Location) '
+                              'decides how high a target must be while it '
+                              'is set.'
+                        : 'In force: no horizon is set in Settings > '
+                              'Location, so this is how high a target must '
+                              'be, everywhere in the app.',
+                    key: Key(
+                      followsHorizon
+                          ? 'scheduler.minAltitudeNotInForce'
+                          : 'scheduler.minAltitudeInForce',
+                    ),
                     style: SkotiqTypography.captionSm.copyWith(
                       color: SkotiqColors.of(context).textMuted,
                     ),

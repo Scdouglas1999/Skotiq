@@ -372,8 +372,7 @@ as List<String>,
 /// @nodoc
 mixin _$TargetSuggestionConfig {
 
-/// Minimum altitude in degrees for targets to be considered
- double get minAltitude;/// Maximum distance from moon in degrees (null = no limit)
+/// Maximum distance from moon in degrees (null = no limit)
  double? get maxMoonDistance;/// Preferred object types to prioritize (e.g., ["Galaxy", "Nebula"])
  List<String> get preferredObjectTypes;/// Whether to prioritize targets that need more data
  bool get prioritizeIncomplete;/// Minimum score (0-100) for a target to be suggested
@@ -390,16 +389,16 @@ $TargetSuggestionConfigCopyWith<TargetSuggestionConfig> get copyWith => _$Target
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TargetSuggestionConfig&&(identical(other.minAltitude, minAltitude) || other.minAltitude == minAltitude)&&(identical(other.maxMoonDistance, maxMoonDistance) || other.maxMoonDistance == maxMoonDistance)&&const DeepCollectionEquality().equals(other.preferredObjectTypes, preferredObjectTypes)&&(identical(other.prioritizeIncomplete, prioritizeIncomplete) || other.prioritizeIncomplete == prioritizeIncomplete)&&(identical(other.minScore, minScore) || other.minScore == minScore)&&(identical(other.sortMode, sortMode) || other.sortMode == sortMode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TargetSuggestionConfig&&(identical(other.maxMoonDistance, maxMoonDistance) || other.maxMoonDistance == maxMoonDistance)&&const DeepCollectionEquality().equals(other.preferredObjectTypes, preferredObjectTypes)&&(identical(other.prioritizeIncomplete, prioritizeIncomplete) || other.prioritizeIncomplete == prioritizeIncomplete)&&(identical(other.minScore, minScore) || other.minScore == minScore)&&(identical(other.sortMode, sortMode) || other.sortMode == sortMode));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,minAltitude,maxMoonDistance,const DeepCollectionEquality().hash(preferredObjectTypes),prioritizeIncomplete,minScore,sortMode);
+int get hashCode => Object.hash(runtimeType,maxMoonDistance,const DeepCollectionEquality().hash(preferredObjectTypes),prioritizeIncomplete,minScore,sortMode);
 
 @override
 String toString() {
-  return 'TargetSuggestionConfig(minAltitude: $minAltitude, maxMoonDistance: $maxMoonDistance, preferredObjectTypes: $preferredObjectTypes, prioritizeIncomplete: $prioritizeIncomplete, minScore: $minScore, sortMode: $sortMode)';
+  return 'TargetSuggestionConfig(maxMoonDistance: $maxMoonDistance, preferredObjectTypes: $preferredObjectTypes, prioritizeIncomplete: $prioritizeIncomplete, minScore: $minScore, sortMode: $sortMode)';
 }
 
 
@@ -410,7 +409,7 @@ abstract mixin class $TargetSuggestionConfigCopyWith<$Res>  {
   factory $TargetSuggestionConfigCopyWith(TargetSuggestionConfig value, $Res Function(TargetSuggestionConfig) _then) = _$TargetSuggestionConfigCopyWithImpl;
 @useResult
 $Res call({
- double minAltitude, double? maxMoonDistance, List<String> preferredObjectTypes, bool prioritizeIncomplete, double minScore, SuggestionSortMode sortMode
+ double? maxMoonDistance, List<String> preferredObjectTypes, bool prioritizeIncomplete, double minScore, SuggestionSortMode sortMode
 });
 
 
@@ -427,10 +426,9 @@ class _$TargetSuggestionConfigCopyWithImpl<$Res>
 
 /// Create a copy of TargetSuggestionConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? minAltitude = null,Object? maxMoonDistance = freezed,Object? preferredObjectTypes = null,Object? prioritizeIncomplete = null,Object? minScore = null,Object? sortMode = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? maxMoonDistance = freezed,Object? preferredObjectTypes = null,Object? prioritizeIncomplete = null,Object? minScore = null,Object? sortMode = null,}) {
   return _then(_self.copyWith(
-minAltitude: null == minAltitude ? _self.minAltitude : minAltitude // ignore: cast_nullable_to_non_nullable
-as double,maxMoonDistance: freezed == maxMoonDistance ? _self.maxMoonDistance : maxMoonDistance // ignore: cast_nullable_to_non_nullable
+maxMoonDistance: freezed == maxMoonDistance ? _self.maxMoonDistance : maxMoonDistance // ignore: cast_nullable_to_non_nullable
 as double?,preferredObjectTypes: null == preferredObjectTypes ? _self.preferredObjectTypes : preferredObjectTypes // ignore: cast_nullable_to_non_nullable
 as List<String>,prioritizeIncomplete: null == prioritizeIncomplete ? _self.prioritizeIncomplete : prioritizeIncomplete // ignore: cast_nullable_to_non_nullable
 as bool,minScore: null == minScore ? _self.minScore : minScore // ignore: cast_nullable_to_non_nullable
@@ -520,10 +518,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double minAltitude,  double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TargetSuggestionConfig() when $default != null:
-return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
+return $default(_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
   return orElse();
 
 }
@@ -541,10 +539,10 @@ return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTyp
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double minAltitude,  double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)  $default,) {final _that = this;
 switch (_that) {
 case _TargetSuggestionConfig():
-return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
+return $default(_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -561,10 +559,10 @@ return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTyp
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double minAltitude,  double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double? maxMoonDistance,  List<String> preferredObjectTypes,  bool prioritizeIncomplete,  double minScore,  SuggestionSortMode sortMode)?  $default,) {final _that = this;
 switch (_that) {
 case _TargetSuggestionConfig() when $default != null:
-return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
+return $default(_that.maxMoonDistance,_that.preferredObjectTypes,_that.prioritizeIncomplete,_that.minScore,_that.sortMode);case _:
   return null;
 
 }
@@ -576,11 +574,9 @@ return $default(_that.minAltitude,_that.maxMoonDistance,_that.preferredObjectTyp
 @JsonSerializable()
 
 class _TargetSuggestionConfig implements TargetSuggestionConfig {
-  const _TargetSuggestionConfig({this.minAltitude = 30.0, this.maxMoonDistance, final  List<String> preferredObjectTypes = const <String>[], this.prioritizeIncomplete = true, this.minScore = 50.0, this.sortMode = SuggestionSortMode.bestScore}): _preferredObjectTypes = preferredObjectTypes;
+  const _TargetSuggestionConfig({this.maxMoonDistance, final  List<String> preferredObjectTypes = const <String>[], this.prioritizeIncomplete = true, this.minScore = 50.0, this.sortMode = SuggestionSortMode.bestScore}): _preferredObjectTypes = preferredObjectTypes;
   factory _TargetSuggestionConfig.fromJson(Map<String, dynamic> json) => _$TargetSuggestionConfigFromJson(json);
 
-/// Minimum altitude in degrees for targets to be considered
-@override@JsonKey() final  double minAltitude;
 /// Maximum distance from moon in degrees (null = no limit)
 @override final  double? maxMoonDistance;
 /// Preferred object types to prioritize (e.g., ["Galaxy", "Nebula"])
@@ -611,16 +607,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TargetSuggestionConfig&&(identical(other.minAltitude, minAltitude) || other.minAltitude == minAltitude)&&(identical(other.maxMoonDistance, maxMoonDistance) || other.maxMoonDistance == maxMoonDistance)&&const DeepCollectionEquality().equals(other._preferredObjectTypes, _preferredObjectTypes)&&(identical(other.prioritizeIncomplete, prioritizeIncomplete) || other.prioritizeIncomplete == prioritizeIncomplete)&&(identical(other.minScore, minScore) || other.minScore == minScore)&&(identical(other.sortMode, sortMode) || other.sortMode == sortMode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TargetSuggestionConfig&&(identical(other.maxMoonDistance, maxMoonDistance) || other.maxMoonDistance == maxMoonDistance)&&const DeepCollectionEquality().equals(other._preferredObjectTypes, _preferredObjectTypes)&&(identical(other.prioritizeIncomplete, prioritizeIncomplete) || other.prioritizeIncomplete == prioritizeIncomplete)&&(identical(other.minScore, minScore) || other.minScore == minScore)&&(identical(other.sortMode, sortMode) || other.sortMode == sortMode));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,minAltitude,maxMoonDistance,const DeepCollectionEquality().hash(_preferredObjectTypes),prioritizeIncomplete,minScore,sortMode);
+int get hashCode => Object.hash(runtimeType,maxMoonDistance,const DeepCollectionEquality().hash(_preferredObjectTypes),prioritizeIncomplete,minScore,sortMode);
 
 @override
 String toString() {
-  return 'TargetSuggestionConfig(minAltitude: $minAltitude, maxMoonDistance: $maxMoonDistance, preferredObjectTypes: $preferredObjectTypes, prioritizeIncomplete: $prioritizeIncomplete, minScore: $minScore, sortMode: $sortMode)';
+  return 'TargetSuggestionConfig(maxMoonDistance: $maxMoonDistance, preferredObjectTypes: $preferredObjectTypes, prioritizeIncomplete: $prioritizeIncomplete, minScore: $minScore, sortMode: $sortMode)';
 }
 
 
@@ -631,7 +627,7 @@ abstract mixin class _$TargetSuggestionConfigCopyWith<$Res> implements $TargetSu
   factory _$TargetSuggestionConfigCopyWith(_TargetSuggestionConfig value, $Res Function(_TargetSuggestionConfig) _then) = __$TargetSuggestionConfigCopyWithImpl;
 @override @useResult
 $Res call({
- double minAltitude, double? maxMoonDistance, List<String> preferredObjectTypes, bool prioritizeIncomplete, double minScore, SuggestionSortMode sortMode
+ double? maxMoonDistance, List<String> preferredObjectTypes, bool prioritizeIncomplete, double minScore, SuggestionSortMode sortMode
 });
 
 
@@ -648,10 +644,9 @@ class __$TargetSuggestionConfigCopyWithImpl<$Res>
 
 /// Create a copy of TargetSuggestionConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? minAltitude = null,Object? maxMoonDistance = freezed,Object? preferredObjectTypes = null,Object? prioritizeIncomplete = null,Object? minScore = null,Object? sortMode = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? maxMoonDistance = freezed,Object? preferredObjectTypes = null,Object? prioritizeIncomplete = null,Object? minScore = null,Object? sortMode = null,}) {
   return _then(_TargetSuggestionConfig(
-minAltitude: null == minAltitude ? _self.minAltitude : minAltitude // ignore: cast_nullable_to_non_nullable
-as double,maxMoonDistance: freezed == maxMoonDistance ? _self.maxMoonDistance : maxMoonDistance // ignore: cast_nullable_to_non_nullable
+maxMoonDistance: freezed == maxMoonDistance ? _self.maxMoonDistance : maxMoonDistance // ignore: cast_nullable_to_non_nullable
 as double?,preferredObjectTypes: null == preferredObjectTypes ? _self._preferredObjectTypes : preferredObjectTypes // ignore: cast_nullable_to_non_nullable
 as List<String>,prioritizeIncomplete: null == prioritizeIncomplete ? _self.prioritizeIncomplete : prioritizeIncomplete // ignore: cast_nullable_to_non_nullable
 as bool,minScore: null == minScore ? _self.minScore : minScore // ignore: cast_nullable_to_non_nullable

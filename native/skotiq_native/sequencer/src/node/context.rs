@@ -825,6 +825,12 @@ impl ExecutionContext {
     ///     are missing. `None` is deliberately distinct from `Some(false)`
     ///     so callers can tell "no bound" apart from "bounded, not yet met"
     ///     and refuse to enter an unbounded infinite loop.
+    /// The site's altitude floor as the run's settings hold it now; `None`
+    /// outside a run or when the app sent none.
+    pub fn altitude_floor(&self) -> Option<crate::scheduling::AltitudeFloor> {
+        self.run.settings.as_ref()?.altitude_floor()
+    }
+
     pub fn active_target_end_trigger_satisfied(&self) -> Option<bool> {
         let trigger = self.active_target_end_trigger.read().clone()?;
         let (ra, dec) = match (self.target_ra, self.target_dec) {
@@ -851,6 +857,7 @@ impl ExecutionContext {
             target_ra_hours: ra,
             target_dec_degrees: dec,
             now: self.clock.now_utc(),
+            altitude_floor: self.altitude_floor(),
         };
         Some(trigger.is_satisfied(&ctx))
     }

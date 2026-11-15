@@ -132,10 +132,8 @@ class SchedulerConfig extends Equatable {
   const SchedulerConfig({
     this.tickInterval = const Duration(seconds: 60),
     this.hysteresisRatio = 1.20,
-    // 30°, matching SmartNightSettings.minAltitudeDeg, the `targets`
-    // table's min_altitude column and the planner's altitude threshold. The
-    // default must not be looser than the builder's threshold, or the
-    // scheduler promises a target the builder refuses.
+    // The product's one default minimum altitude; everything reads it
+    // through `altitudeFloorProvider`.
     this.minAltitudeDegrees = 30.0,
     this.moonAvoidanceRadiusDegrees = 60.0,
     this.maxSunAltitudeDegrees = -12.0,

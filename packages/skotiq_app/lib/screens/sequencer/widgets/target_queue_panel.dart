@@ -169,7 +169,7 @@ _TargetVisibility _computeVisibility({
   required double latitude,
   required double longitude,
   required DateTime now,
-  required double effectiveHorizonDeg,
+  required AltitudeFloor floor,
 }) {
   final raDeg = coords.raDegrees;
   final decDeg = coords.dec;
@@ -180,24 +180,22 @@ _TargetVisibility _computeVisibility({
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );
-  final visibility = AstronomyCalculations.calculateObjectVisibility(
+  // The night containing [now], local noon to noon, against the site's
+  // altitude floor in the direction the target stands.
+  final night = AstronomyCalculations.nightDateOf(now);
+  final visibility = floor.visibilityAround(
     raDeg: raDeg,
     decDeg: decDeg,
-    // The NIGHT containing [now], not its calendar day: the scan runs local
-    // noon to noon, so after midnight the raw instant selected the FOLLOWING
-    // night and the "Sets" countdown below read ~25h for a target an hour from
-    // the horizon.
-    date: AstronomyCalculations.nightDateOf(now),
+    center: DateTime(night.year, night.month, night.day, 24),
     latitudeDeg: latitude,
     longitudeDeg: longitude,
-    minAltitude: effectiveHorizonDeg,
   );
   return _TargetVisibility(
     altitudeDeg: alt,
     azimuthDeg: az,
     transitAltitudeDeg: visibility.transitAltitude,
     setTime: visibility.setTime,
-    aboveHorizon: alt > effectiveHorizonDeg,
+    aboveHorizon: floor.clears(alt, az),
     neverRises: visibility.neverRises,
     isCircumpolar: visibility.isCircumpolar,
   );
@@ -280,7 +278,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
     final colors = widget.colors;
     final queue = ref.watch(targetQueueProvider);
     final observer = ref.watch(observerLocationProvider);
-    final horizonDeg = ref.watch(altitudeFloorProvider).lowestDeg;
+    final floor = ref.watch(altitudeFloorProvider);
     // Live 30s tick — altitude / time-to-set need to refresh as the
     // sky moves. Cadence intentionally matches the dashboard's altitude
     // card (see clock_provider.dart).
@@ -301,7 +299,8 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
     final tickBucket = now.millisecondsSinceEpoch ~/ 30000;
     final signature = site == null
         ? 'no-site'
-        : '$tickBucket|${site.latitude}|${site.longitude}|$horizonDeg';
+        : '$tickBucket|${site.latitude}|${site.longitude}|'
+            '${identityHashCode(floor)}';
     if (site == null) {
       _visibilityCache.clear();
       _visibilityCacheSignature = signature;
@@ -315,7 +314,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
                 latitude: site.latitude,
                 longitude: site.longitude,
                 now: now,
-                effectiveHorizonDeg: horizonDeg,
+                floor: floor,
               ),
             )));
       _visibilityCacheSignature = signature;
@@ -330,7 +329,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
             latitude: site.latitude,
             longitude: site.longitude,
             now: now,
-            effectiveHorizonDeg: horizonDeg,
+            floor: floor,
           ),
         );
       }

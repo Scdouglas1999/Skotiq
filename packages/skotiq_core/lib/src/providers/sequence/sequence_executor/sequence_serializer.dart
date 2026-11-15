@@ -14,8 +14,6 @@ import '../../clock_provider.dart';
 import '../../equipment_provider.dart';
 import '../../imaging_provider.dart' show namingPatternProvider;
 import '../../scheduler_provider.dart' show altitudeFloorProvider;
-import '../../../services/scheduler/horizon_profile.dart'
-    show HorizonProfile, HorizonSample;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
 import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
@@ -103,18 +101,10 @@ class SequenceSerializer {
     );
   }
 
-  /// The effective floor, including learned obstructions at sites that have
-  /// no imported or manually drawn horizon.
-  HorizonProfile _siteHorizonMask() {
-    final floor = _ref.read(altitudeFloorProvider);
-    return HorizonProfile(
-      name: 'Site altitude floor',
-      samples: [
-        for (final sample in floor.denseSamples())
-          HorizonSample(sample.azimuth, sample.altitude),
-      ],
-    );
-  }
+  /// The site's altitude floor by azimuth, as the native scheduler and the
+  /// altitude loops read a horizon.
+  Map<String, Object?> _siteFloorWire() =>
+      _ref.read(altitudeFloorProvider).toWire();
 
   /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
   /// steps that close the plan are marked for end-of-night calibration to
@@ -602,6 +592,8 @@ class SequenceSerializer {
           'ra_hours': n.raHours,
           'dec_degrees': n.decDegrees,
           'rotation': n.rotation,
+          // The target's own minimum, when its step names one; the run holds
+          // every target to the site's altitude floor besides.
           'min_altitude': n.minAltitude,
           'max_altitude': n.maxAltitude,
           'priority': n.priority,
@@ -675,11 +667,7 @@ class SequenceSerializer {
           'condition_value': conditionValue,
           if (n.conditionType == LoopConditionType.untilAltitude ||
               n.conditionType == LoopConditionType.altitudeAbove)
-            'horizon_profile': {
-              'samples': _siteHorizonMask().samples
-                  .map((s) => s.toJson())
-                  .toList(),
-            },
+            'horizon_profile': _siteFloorWire(),
         };
       case ParallelNode n:
         return {'type': 'Parallel', 'required_successes': n.requiredSuccesses};
@@ -800,11 +788,13 @@ class SequenceSerializer {
           'brightness_tier_preferences': n.brightnessTierPreferences.toJson(),
           'max_conditions_score_age_secs': n.maxConditionsScoreAgeSecs,
           // Explicit node masks take precedence over the site's effective floor.
-          'horizon_profile': {
-            'samples': (n.horizonProfile ?? _siteHorizonMask()).samples
-                .map((s) => s.toJson())
-                .toList(),
-          },
+          'horizon_profile': n.horizonProfile == null
+              ? _siteFloorWire()
+              : {
+                  'samples': n.horizonProfile!.samples
+                      .map((s) => s.toJson())
+                      .toList(),
+                },
         };
       // Science: SciencePhotometry — cadence-enforced photometric capture.
       case SciencePhotometryNode n:

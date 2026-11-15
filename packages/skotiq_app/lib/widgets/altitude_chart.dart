@@ -44,6 +44,10 @@ class AltitudeChart extends ConsumerStatefulWidget {
 
 class _AltitudeChartState extends ConsumerState<AltitudeChart> {
   List<FlSpot> _altitudeData = [];
+
+  /// The site's altitude floor in the direction the target stands at each
+  /// plotted time.
+  List<FlSpot> _floorData = [];
   List<FlSpot> _airmassData = [];
   TwilightTimes? _twilight;
   ObjectVisibility? _visibility;
@@ -151,6 +155,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     if (!settings.hasObserverLocation) {
       setState(() {
         _altitudeData = [];
+        _floorData = [];
         _airmassData = [];
         // No site => no altitude. Clear it rather than leaving a stale (or
         // initial-zero) value that the chip would present as fact.
@@ -244,13 +249,15 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
 
     // Calculate altitude at 10-minute intervals
     final altitudePoints = <FlSpot>[];
+    final floorPoints = <FlSpot>[];
+    final floor = ref.read(altitudeFloorProvider);
     final airmassPoints = <FlSpot>[];
     var time = _startTime;
     const interval = Duration(minutes: 10);
 
     while (time.isBefore(_endTime) || time.isAtSameMomentAs(_endTime)) {
       final x = time.difference(_startTime).inMinutes.toDouble();
-      final (alt, _) = AstronomyCalculations.objectAltAz(
+      final (alt, az) = AstronomyCalculations.objectAltAz(
         raDeg: raDeg,
         decDeg: decDeg,
         dt: time,
@@ -259,6 +266,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       );
 
       altitudePoints.add(FlSpot(x, alt.clamp(-10, 90)));
+      floorPoints.add(FlSpot(x, floor.atAzimuth(az).clamp(-10, 90)));
 
       // Calculate airmass (only meaningful above horizon)
       if (alt > 0) {
@@ -282,6 +290,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
 
     setState(() {
       _altitudeData = altitudePoints;
+      _floorData = floorPoints;
       _airmassData = airmassPoints;
     });
   }
@@ -295,6 +304,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     ref.listen(appSettingsProvider, (prev, next) {
       if (next.hasValue) _calculateData();
     });
+    ref.listen(altitudeFloorProvider, (prev, next) => _calculateData());
 
     // Captured here, in build, rather than read inside the formatter: the axis
     // and tooltip label callbacks run during the chart's layout, where
@@ -591,7 +601,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
   }
 
   Widget _buildChart(SkotiqColors colors, {double preferredHeight = 140}) {
-    final siteMinimumAltitude = ref.watch(altitudeFloorProvider).lowestDeg;
     final now = widget.nowValue();
     final nowX = now.difference(_startTime).inMinutes.toDouble();
     final totalMinutes = _endTime.difference(_startTime).inMinutes.toDouble();
@@ -601,7 +610,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       child: LayoutBuilder(
         builder: (context, constraints) => _lineChart(
           colors,
-          siteMinimumAltitude: siteMinimumAltitude,
           nowX: nowX,
           totalMinutes: totalMinutes,
           // The left axis reserves 28 px of the width.
@@ -616,7 +624,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
 
   Widget _lineChart(
     SkotiqColors colors, {
-    required double siteMinimumAltitude,
     required double nowX,
     required double totalMinutes,
     required double labelInterval,
@@ -634,9 +641,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           horizontalInterval: _showAirmass ? 1 : 30,
           verticalInterval: 60, // Every hour
           getDrawingHorizontalLine: (value) {
-            // The site minimum is drawn as an explicit HorizontalLine below
-            // (it is rarely a multiple of the 30° grid step), so the grid
-            // does not imply 30 is special.
             return FlLine(
               color: colors.border.withValues(alpha: 0.3),
               strokeWidth: 0.5,
@@ -709,6 +713,16 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           border: Border.all(color: colors.border.withValues(alpha: 0.5)),
         ),
         lineBarsData: [
+          // The site's altitude floor where the target stands at each time:
+          // the line the operator reads as "below this I cannot image".
+          if (!_showAirmass && _floorData.isNotEmpty)
+            LineChartBarData(
+              spots: _floorData,
+              color: colors.warning.withValues(alpha: 0.5),
+              barWidth: 1,
+              dashArray: [4, 4],
+              dotData: const FlDotData(show: false),
+            ),
           if (!_showAirmass)
             LineChartBarData(
               spots: _altitudeData,
@@ -782,15 +796,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                 color: colors.error.withValues(alpha: 0.5),
                 strokeWidth: 1,
               ),
-            // The site's altitude floor (its lowest, where a horizon is set),
-            // the line the operator reads as "below this I cannot image".
-            if (!_showAirmass)
-              HorizontalLine(
-                y: siteMinimumAltitude,
-                color: colors.warning.withValues(alpha: 0.5),
-                strokeWidth: 1,
-                dashArray: [4, 4],
-              ),
           ],
         ),
         lineTouchData: LineTouchData(
@@ -809,8 +814,12 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                         .copyWith(color: colors.textPrimary),
                   );
                 }
+                // The floor line is the first series when it is drawn.
+                final isFloor = _floorData.isNotEmpty && spot.barIndex == 0;
                 return LineTooltipItem(
-                  '$timeStr\nAlt: ${spot.y.toStringAsFixed(1)}°',
+                  isFloor
+                      ? 'Floor: ${spot.y.toStringAsFixed(0)}°'
+                      : '$timeStr\nAlt: ${spot.y.toStringAsFixed(1)}°',
                   SkotiqTypography.caption.copyWith(color: colors.textPrimary),
                 );
               }).toList();

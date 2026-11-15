@@ -1,3 +1,4 @@
+import '../models/site/altitude_floor.dart';
 import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
@@ -455,6 +456,7 @@ class SessionOptimizerService {
     required double longitude,
     required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
+    required AltitudeFloor floor,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
   }) async {
@@ -467,6 +469,7 @@ class SessionOptimizerService {
       sessions: sessions,
       observationTime: generatedAt,
       opticalConfig: opticalConfig,
+      floor: floor,
     );
 
     return buildPlanFromSuggestions(suggestions, generatedAt: generatedAt);

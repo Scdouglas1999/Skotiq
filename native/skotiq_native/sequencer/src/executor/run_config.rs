@@ -51,6 +51,11 @@ pub struct RunConfig {
     /// how an unset site arrives and is stored as `None`.
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    /// How high a target must stand at the site, by azimuth: the property
+    /// horizon when the operator set one, otherwise the minimum altitude.
+    /// `None` means the app has not sent one; nothing is then held to a
+    /// floor.
+    pub altitude_floor: Option<crate::scheduling::AltitudeFloor>,
     /// Highest Sun altitude at which a light frame may be taken. Read it
     /// through [`RunConfig::max_sun_altitude`], which resolves the default.
     pub max_sun_altitude_degrees: Option<f64>,
@@ -208,6 +213,7 @@ impl Default for RunConfig {
             autofocus_interval_frames: None,
             latitude: None,
             longitude: None,
+            altitude_floor: None,
             max_sun_altitude_degrees: None,
             filter_focus_offsets: HashMap::new(),
             safety_fail_mode: SafetyFailMode::default(),
@@ -345,6 +351,7 @@ pub(crate) enum Section {
     Autofocus,
     AutofocusInterval,
     Location,
+    AltitudeFloor,
     MaxSunAltitude,
     FilterOffsets,
     SafetyFailMode,
@@ -366,11 +373,12 @@ pub(crate) enum Section {
 }
 
 impl Section {
-    const ALL: [Section; 22] = [
+    const ALL: [Section; 23] = [
         Section::Dither,
         Section::Autofocus,
         Section::AutofocusInterval,
         Section::Location,
+        Section::AltitudeFloor,
         Section::MaxSunAltitude,
         Section::FilterOffsets,
         Section::SafetyFailMode,
@@ -399,6 +407,7 @@ impl Section {
             Section::Autofocus => "autofocus",
             Section::AutofocusInterval => "autofocus_interval",
             Section::Location => "location",
+            Section::AltitudeFloor => "altitude_floor",
             Section::MaxSunAltitude => "max_sun_altitude",
             Section::FilterOffsets => "filter_offsets",
             Section::SafetyFailMode => "safety_fail_mode",
@@ -430,6 +439,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         autofocus_interval_frames,
         latitude,
         longitude,
+        altitude_floor,
         max_sun_altitude_degrees,
         filter_focus_offsets,
         safety_fail_mode,
@@ -459,6 +469,10 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         (
             Section::Location,
             *latitude != old.latitude || *longitude != old.longitude,
+        ),
+        (
+            Section::AltitudeFloor,
+            *altitude_floor != old.altitude_floor,
         ),
         (
             Section::MaxSunAltitude,
@@ -596,6 +610,11 @@ impl RunConfigStore {
 
     pub fn snapshot(&self) -> RunConfig {
         self.inner.config.read().clone()
+    }
+
+    /// The site's altitude floor as the settings hold it now.
+    pub fn altitude_floor(&self) -> Option<crate::scheduling::AltitudeFloor> {
+        self.inner.config.read().altitude_floor.clone()
     }
 
     pub(crate) fn slots(&self) -> &ConfigSlots {
@@ -776,6 +795,9 @@ fn project_onto_trigger_state(
                 if config.latitude.is_some() && config.longitude.is_some() {
                     state.set_observer_location(config.latitude, config.longitude);
                 }
+            }
+            Section::AltitudeFloor => {
+                state.settings.altitude_floor = config.altitude_floor.clone()
             }
             Section::MaxSunAltitude => {
                 state.set_max_sun_altitude_degrees(config.max_sun_altitude())

@@ -4,9 +4,6 @@
 use super::config::FrameWatchConfig;
 use crate::{NodeType, SequenceDefinition, TargetHeaderConfig};
 
-/// Altitude a target must clear when its plan sets no minimum.
-pub const DEFAULT_MIN_TARGET_ALTITUDE_DEG: f64 = 20.0;
-
 /// The plan's enabled targets in the order the run reaches them.
 pub fn targets_in_order(sequence: &SequenceDefinition) -> Vec<&TargetHeaderConfig> {
     sequence
@@ -30,14 +27,17 @@ pub enum AfterObstruction {
 }
 
 /// Decide where to go after `current` is obstructed at time `now`. A later
-/// target counts when it is above its minimum altitude (or
-/// [`DEFAULT_MIN_TARGET_ALTITUDE_DEG`]) and outside every learned obstruction.
+/// target counts when it is above the site's altitude floor in the direction
+/// it stands (above the horizon when the run holds no floor), above its own
+/// minimum altitude when its step names one, and outside every learned
+/// obstruction.
 /// When `current` is not one of the plan's targets (a scheduler picks them)
 /// the run skips to its next pick.
 pub fn after_obstruction(
     sequence: Option<&SequenceDefinition>,
     current: Option<&str>,
     horizon: &FrameWatchConfig,
+    floor: Option<&crate::scheduling::AltitudeFloor>,
     latitude: f64,
     longitude: f64,
     now: chrono::DateTime<chrono::Utc>,
@@ -63,7 +63,9 @@ pub fn after_obstruction(
                 longitude,
                 now,
             );
-            alt > t.min_altitude.unwrap_or(DEFAULT_MIN_TARGET_ALTITUDE_DEG)
+            alt > 0.0
+                && floor.is_none_or(|floor| floor.clears(alt, az))
+                && t.min_altitude.is_none_or(|own| alt >= own)
                 && horizon.learned_obstruction_at(alt, az).is_none()
         })
         .map(|t| AfterObstruction::NextTarget(Some(t.target_name.clone())))
@@ -151,6 +153,7 @@ mod tests {
                 Some(&seq),
                 Some("NGC0891"),
                 &FrameWatchConfig::default(),
+                None,
                 lat,
                 lon,
                 now
@@ -173,10 +176,44 @@ mod tests {
                 Some(&seq),
                 Some("NGC0891"),
                 &FrameWatchConfig::default(),
+                None,
                 lat,
                 lon,
                 now
             ),
+            AfterObstruction::NextTarget(Some("M 42".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_later_target_behind_the_site_floor_is_not_next() {
+        let (lat, lon, now) = at_the_trees();
+        let seq = plan(&[("NGC0891", 2.3759, 42.349), ("M 42", 5.588, -5.39)]);
+        let (alt, az) = crate::meridian::calculate_alt_az(5.588, -5.39, lat, lon, now);
+        // A tree line 5 degrees above M 42 where it stands, open elsewhere.
+        let floor = crate::scheduling::AltitudeFloor::new(
+            crate::scheduling::HorizonProfile::new(vec![
+                crate::scheduling::HorizonSample::new(az - 20.0, 0.0),
+                crate::scheduling::HorizonSample::new(az - 10.0, alt + 5.0),
+                crate::scheduling::HorizonSample::new(az + 10.0, alt + 5.0),
+                crate::scheduling::HorizonSample::new(az + 20.0, 0.0),
+            ])
+            .unwrap(),
+        );
+        let after = |floor: Option<&crate::scheduling::AltitudeFloor>| {
+            after_obstruction(
+                Some(&seq),
+                Some("NGC0891"),
+                &FrameWatchConfig::default(),
+                floor,
+                lat,
+                lon,
+                now,
+            )
+        };
+        assert_eq!(after(Some(&floor)), AfterObstruction::EndOfNight);
+        assert_eq!(
+            after(Some(&crate::scheduling::AltitudeFloor::flat(alt - 5.0))),
             AfterObstruction::NextTarget(Some("M 42".to_string()))
         );
     }

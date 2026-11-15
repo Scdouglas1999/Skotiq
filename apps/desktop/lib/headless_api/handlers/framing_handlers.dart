@@ -396,7 +396,6 @@ class FramingHandlers implements RouteSource {
       ra: Value(ra),
       dec: Value(dec),
       positionAngle: Value(positionAngle),
-      minAltitude: const Value(30.0),
     );
     final id = await database.targetsDao.createTarget(companion);
     publishHostMutationFromContainer(

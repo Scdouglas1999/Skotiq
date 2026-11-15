@@ -9,6 +9,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/altitude_floor_rule.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';
 import 'target_coordinates.dart';
@@ -217,11 +218,17 @@ class TargetGroupProperties extends ConsumerWidget {
                   label: 'Min altitude',
                   child: NodeNumberInput(
                     colors: colors,
-                    value: node.minAltitude ?? 30,
+                    // This target's own minimum, on top of the site's
+                    // altitude floor, which the run holds every target to.
+                    value: node.minAltitude ?? 0,
                     suffix: '\u00B0',
                     min: 0,
                     max: 90,
                     decimals: 0,
+                    helperText:
+                        'Added to the site floor '
+                        '(${altitudeFloorRuleLabel(ref.watch(altitudeFloorProvider)).toLowerCase()}). '
+                        '0 adds nothing.',
                     onChanged: (value) {
                       ref.read(currentSequenceProvider.notifier).updateNode(
                             node.copyWith(minAltitude: value),

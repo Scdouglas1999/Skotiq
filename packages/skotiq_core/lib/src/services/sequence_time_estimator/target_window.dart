@@ -138,15 +138,43 @@ extension _SequenceTimeEstimatorTargetWindow on SequenceTimeEstimator {
     if (endWhen != null && _triggerHolds(endWhen, node, arrival, site)) {
       return null;
     }
-    final start = startWhen == null
+    var start = startWhen == null
         ? arrival
         : _firstHolding(startWhen, node, arrival, site);
     if (start == null) return null;
+
+    // The run holds the target to the site's floor: it waits to clear it, is
+    // skipped when it does not clear it tonight, and leaves when it drops
+    // below.
+    final siteFloor = floor;
+    DateTime? belowFloor;
+    if (siteFloor != null) {
+      final raDeg = node.raHours * 15.0;
+      final limit = start.add(_kTriggerHorizon);
+      start = siteFloor.risesAbove(
+        raDeg: raDeg,
+        decDeg: node.decDegrees,
+        from: start,
+        until: limit,
+        latitudeDeg: site.latitude,
+        longitudeDeg: site.longitude,
+      );
+      if (start == null) return null;
+      belowFloor = siteFloor.setsBelow(
+        raDeg: raDeg,
+        decDeg: node.decDegrees,
+        from: start,
+        until: limit,
+        latitudeDeg: site.latitude,
+        longitudeDeg: site.longitude,
+      );
+    }
     if (runEndsBy != null && !start.isBefore(runEndsBy)) return null;
 
-    final end = endWhen == null
-        ? null
-        : _firstHolding(endWhen, node, start, site);
+    final end = _minDate(
+      endWhen == null ? null : _firstHolding(endWhen, node, start, site),
+      belowFloor,
+    );
     if (end != null && !end.isAfter(start)) return null;
     return _TargetSpan(start, _minDate(end, runEndsBy));
   }

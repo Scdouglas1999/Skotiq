@@ -3007,8 +3007,13 @@ pub enum TriggerType {
         #[serde(default = "default_guiding_rms_retention_secs")]
         rms_retention_secs: u64,
     },
-    /// Trigger when altitude too low
-    AltitudeLimit { min_altitude: f64 },
+    /// The target is below the site's altitude floor in the direction it
+    /// stands, or below `min_altitude` when the step names a limit of its
+    /// own. With both, it must clear both.
+    AltitudeLimit {
+        #[serde(default)]
+        min_altitude: Option<f64>,
+    },
     /// Trigger when weather unsafe
     WeatherUnsafe,
     /// Trigger when temperature changes

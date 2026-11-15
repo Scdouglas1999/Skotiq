@@ -48,6 +48,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         run.triggers.clone(),
         run.config.clone(),
         run_state.events().clone(),
+        run.decisions.clone(),
         &run.rig,
     );
     let mut frame_watch = frame_watch::FrameWatchStage::new(
