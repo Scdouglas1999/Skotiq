@@ -713,16 +713,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           border: Border.all(color: colors.border.withValues(alpha: 0.5)),
         ),
         lineBarsData: [
-          // The site's altitude floor where the target stands at each time:
-          // the line the operator reads as "below this I cannot image".
-          if (!_showAirmass && _floorData.isNotEmpty)
-            LineChartBarData(
-              spots: _floorData,
-              color: colors.warning.withValues(alpha: 0.5),
-              barWidth: 1,
-              dashArray: [4, 4],
-              dotData: const FlDotData(show: false),
-            ),
           if (!_showAirmass)
             LineChartBarData(
               spots: _altitudeData,
@@ -743,6 +733,16 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                   ],
                 ),
               ),
+            ),
+          // The site's altitude floor where the target stands at each time:
+          // the line the operator reads as "below this I cannot image".
+          if (!_showAirmass && _floorData.isNotEmpty)
+            LineChartBarData(
+              spots: _floorData,
+              color: colors.warning.withValues(alpha: 0.5),
+              barWidth: 1,
+              dashArray: [4, 4],
+              dotData: const FlDotData(show: false),
             ),
           if (_showAirmass && _airmassData.isNotEmpty)
             LineChartBarData(

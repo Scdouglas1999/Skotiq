@@ -145,9 +145,12 @@ void main() {
 
   testWidgets('nautical-dawn recipe reaches the target and capture block',
       (tester) async {
+    // No floor above the true horizon, so the target (circumpolar from
+    // latitude 40) is up until dawn and the recipe's end is the plan's end.
+    const openSky = AltitudeFloor(horizon: null, minimumDeg: 0);
     final result = await _withRef(
         tester,
-        _overrides(),
+        [..._overrides(), altitudeFloorProvider.overrideWithValue(openSky)],
         (ref) => buildPlanTonightTargetSequenceFromSuggestion(
             ref: ref,
             target: _suggestion(),
@@ -163,7 +166,7 @@ void main() {
             suggestionService:
                 TargetSuggestionService(loggingService: LoggingService()),
             logging: LoggingService(),
-            floor: const AltitudeFloor(horizon: null, minimumDeg: 30))
+            floor: openSky)
         .calculateWindow(latitudeDeg: 40, longitudeDeg: -75);
     expect(header.endBefore, window.twilight.nauticalDawn);
     expect(nodes.whereType<LoopNode>().single.repeatUntil, header.endBefore);

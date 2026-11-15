@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:skotiq_astro/format.dart';
 

@@ -391,6 +391,11 @@ void main() {
             const LocationSettings(latitude: lat, longitude: lon),
           ),
           activeEquipmentProfileProvider.overrideWithValue(profile),
+          // A fixed floor: these tests read the planning service before the
+          // dialog is up, and the floor's own inputs load from the database.
+          altitudeFloorProvider.overrideWithValue(
+            const AltitudeFloor(horizon: null, minimumDeg: 30),
+          ),
         ];
 
     /// Files a draft under tonight's night, as the dialog keys it.

@@ -97,6 +97,9 @@ Future<T> _withRef<T>(
   late WidgetRef captured;
   await tester.pumpWidget(
     ProviderScope(
+      // A scope of its own for each build: one that stays in the tree keeps
+      // the settings it was first given.
+      key: UniqueKey(),
       overrides: overrides,
       child: MaterialApp(
         home: Consumer(
@@ -120,7 +123,8 @@ void main() {
   Future<SingleTargetSequenceResult> build(
     WidgetTester tester,
     List<Override> overrides,
-  ) => _withRef(
+  ) =>
+      _withRef(
         tester,
         overrides,
         (ref) => buildPlanTonightTargetSequenceFromSuggestion(
@@ -129,7 +133,18 @@ void main() {
         ),
       );
 
-  testWidgets('the built step names no altitude: the run holds it to the '
+  /// What building the plan threw, or null when it built.
+  Future<Object?> refusal(WidgetTester tester, List<Override> overrides) async {
+    try {
+      await build(tester, overrides);
+      return null;
+    } on SmartNightBuildException catch (e) {
+      return e;
+    }
+  }
+
+  testWidgets(
+      'the built step names no altitude: the run holds it to the '
       'site floor', (tester) async {
     final header = _header(await build(tester, _overrides()));
     expect(header.minAltitude, isNull);
@@ -142,9 +157,9 @@ void main() {
   testWidgets('with no horizon the minimum altitude decides', (tester) async {
     // 30 degrees is below where the field stands; 45 is above it.
     await build(tester, _overrides(siteMinAltitude: 30));
-    await expectLater(
-      build(tester, _overrides(siteMinAltitude: 45)),
-      throwsA(isA<SmartNightBuildException>()),
+    expect(
+      await refusal(tester, _overrides(siteMinAltitude: 45)),
+      isA<SmartNightBuildException>(),
     );
   });
 
@@ -152,12 +167,13 @@ void main() {
     tester,
   ) async {
     // Trees to 60 degrees in the north hide the field, whatever the minimum.
-    await expectLater(
-      build(
+    expect(
+      await refusal(
         tester,
-        _overrides(siteMinAltitude: 10, horizonJson: '{"N":60,"NW":60,"NE":60}'),
+        _overrides(
+            siteMinAltitude: 10, horizonJson: '{"N":60,"NW":60,"NE":60}'),
       ),
-      throwsA(isA<SmartNightBuildException>()),
+      isA<SmartNightBuildException>(),
     );
     // Trees in the south do not, and a minimum of 45 no longer applies.
     await build(
