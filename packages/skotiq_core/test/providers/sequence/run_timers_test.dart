@@ -24,14 +24,17 @@ void main() {
     required List<double> elapsed,
     required Future<void> Function() save,
     bool running = true,
+    String capturePath = '',
+    List<String>? diskNotices,
   }) => RunTimers(
     isPaused: isPaused,
     onElapsed: elapsed.add,
     isRunning: () => running,
     saveCheckpoint: save,
-    capturePath: () => '',
+    capturePath: () => capturePath,
     diskGuard: () => guard,
     safeTheRig: (_) async {},
+    notifyDiskLow: (message) => diskNotices?.add(message),
     logger: LoggingService.new,
   );
 
@@ -105,6 +108,49 @@ void main() {
       verifyNever(() => guard.start(capturePath: any(named: 'capturePath')));
       timers.dispose();
       verify(() => guard.stop()).called(1);
+    });
+  });
+
+  test('a low-disk reading is told, a failed disk query is not', () {
+    fakeAsync((async) {
+      final events = StreamController<DiskSpaceWatchdogEvent>.broadcast();
+      when(() => guard.events).thenAnswer((_) => events.stream);
+      when(() => guard.start(capturePath: '/frames')).thenReturn(null);
+      final notices = <String>[];
+      final timers = build(
+        isPaused: () => false,
+        elapsed: [],
+        save: () async {},
+        capturePath: '/frames',
+        diskNotices: notices,
+      );
+      timers.start();
+
+      DiskSpaceInfo reading(int free) => DiskSpaceInfo(
+        path: '/frames',
+        totalBytes: free == 0 ? 0 : 1 << 40,
+        freeBytes: free,
+        sampledAt: DateTime(2026, 11, 15),
+      );
+      events.add(
+        DiskSpaceWatchdogEvent(
+          snapshot: reading(0),
+          severity: DiskSpaceSeverity.warning,
+          message: 'Disk-space monitoring failed: df exited 1',
+        ),
+      );
+      events.add(
+        DiskSpaceWatchdogEvent(
+          snapshot: reading(8 << 30),
+          severity: DiskSpaceSeverity.warning,
+          message: 'Low disk space: 8 GB free on /frames.',
+        ),
+      );
+      async.flushMicrotasks();
+
+      expect(notices, ['Low disk space: 8 GB free on /frames.']);
+      timers.dispose();
+      events.close();
     });
   });
 }

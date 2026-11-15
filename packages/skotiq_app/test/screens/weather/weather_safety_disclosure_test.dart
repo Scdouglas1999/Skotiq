@@ -16,11 +16,53 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 void main() {
+  group('weatherNoDataRuleText', () {
+    test('fail-closed says a run stops and the mount parks', () {
+      expect(
+        weatherNoDataRuleText(
+          monitoring: true,
+          failMode: SafetyFailMode.failClosed,
+        ),
+        contains('mount parks'),
+      );
+    });
+
+    test('settings still loading read as the fail-closed default', () {
+      expect(
+        weatherNoDataRuleText(monitoring: true, failMode: null),
+        weatherNoDataRuleText(
+          monitoring: true,
+          failMode: SafetyFailMode.failClosed,
+        ),
+      );
+    });
+
+    test('with safety off nothing parks for missing data', () {
+      expect(
+        weatherNoDataRuleText(
+          monitoring: false,
+          failMode: SafetyFailMode.failClosed,
+        ),
+        contains('never stops a run'),
+      );
+    });
+
+    test('the permissive modes say imaging goes on', () {
+      for (final mode in [SafetyFailMode.failOpen, SafetyFailMode.warnOnly]) {
+        expect(
+          weatherNoDataRuleText(monitoring: true, failMode: mode),
+          contains('imaging goes on'),
+        );
+      }
+    });
+  });
+
   group('weatherSafetyStatusText', () {
-    test('says NOT MONITORING when weather safety is off', () {
+    test('says conditions are not checked when weather safety is off', () {
       final text = weatherSafetyStatusText(
         // The provider hands the UI `safe` here purely because it has no
         // verdict to give — the case that must not read as a green all-clear.
@@ -28,7 +70,7 @@ void main() {
         monitoring: false,
       );
 
-      expect(text, contains('Not monitoring'));
+      expect(text, contains('not being checked'));
       expect(text, isNot(contains('safe for imaging')));
     });
 
@@ -36,7 +78,7 @@ void main() {
       for (final status in WeatherSafetyStatus.values) {
         expect(
           weatherSafetyStatusText(status: status, monitoring: false),
-          contains('Not monitoring'),
+          contains('not being checked'),
           reason: '$status must not be dressed up as a monitored verdict',
         );
       }

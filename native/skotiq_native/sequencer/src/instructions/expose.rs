@@ -1397,15 +1397,7 @@ async fn dither_in_burst(
         }
         // A burst dithers at random, so there is no grid center.
         DitherOutcome::Skipped(DitherSkip::GridCenter) => {}
-        // An UNGUIDED rig cannot dither, and that is a configuration state,
-        // not a guiding failure: no recovery or guiding trigger can help, so
-        // ending an otherwise healthy burst over it is wrong. It bites by
-        // default: the serializer inherits the global dither-every onto every
-        // exposure node, so a light burst on a rig with no guider schedules
-        // dithers it can never perform (reproduced with the simulator camera:
-        // an 8-frame burst died after frame 3 with "Dither failed after frame
-        // 3/8: No active guider configured").
-        DitherOutcome::Failed { error, .. } if error == DeviceError::NO_GUIDER => {
+        DitherOutcome::Skipped(DitherSkip::NoGuider) => {
             if !std::mem::replace(skip_noted, true) {
                 tracing::warn!(
                     "Dither requested after frame {}/{} but no guider is configured — skipping \

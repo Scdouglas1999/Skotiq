@@ -2,7 +2,7 @@
 title Skotiq Headless Server
 color 0A
 echo ========================================
-echo Skotiq 2.0 - Headless Mode
+echo Skotiq - Headless Mode
 echo ========================================
 echo.
 echo Starting headless server...
@@ -18,6 +18,8 @@ echo   1. Windows Firewall rules are set
 echo   2. Both devices are on the same WiFi network
 echo   3. Watch this window for connection info
 echo.
+echo Host options go after the script name, for example: start_headless.bat --port=8080
+echo Run skotiq.exe --help for the list.
 echo Press Ctrl+C to stop the server
 echo.
 echo ========================================
@@ -31,7 +33,7 @@ if not exist "build\windows\x64\runner\Release\skotiq.exe" (
     exit /b 1
 )
 
-echo Running: build\windows\x64\runner\Release\skotiq.exe --headless
+echo Running: build\windows\x64\runner\Release\skotiq.exe --headless %*
 echo.
 echo NOTE: If you don't see output below, the app may be running but
 echo       Flutter Windows apps don't show console output by default.
@@ -40,7 +42,7 @@ echo.
 echo ========================================
 echo.
 
-build\windows\x64\runner\Release\skotiq.exe --headless
+build\windows\x64\runner\Release\skotiq.exe --headless %*
 
 echo.
 echo ========================================

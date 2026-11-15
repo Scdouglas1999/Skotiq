@@ -63,6 +63,28 @@ Future<(ProviderContainer, StreamController<SkotiqEvent>)> _bridge() async {
 }
 
 void main() {
+  test(
+    'a failed exposure is the router\'s to tell, not a second toast here',
+    () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
+
+      controller.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.error,
+          category: EventCategory.imaging,
+          eventType: 'ExposureFailed',
+          data: const {'error': 'Failed to download image: USB stall'},
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(container.read(uiNotificationProvider), isEmpty);
+    },
+  );
+
   test('an operator Stop raises no red toast from the error bridge', () async {
     final (container, controller) = await _bridge();
     addTearDown(container.dispose);

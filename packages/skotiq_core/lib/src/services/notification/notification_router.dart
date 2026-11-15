@@ -81,6 +81,7 @@ class NotificationRouter {
   final Map<NotificationCategory, _RateWindow> _rateWindows = {};
 
   final ConnectingDevices _connecting = ConnectingDevices();
+  final GuideStarEpisodes _guideStar = GuideStarEpisodes();
 
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
@@ -525,7 +526,18 @@ class NotificationRouter {
     // Followed whether or not notifications are on, so turning them on
     // mid-connect does not lose the thread.
     final failedConnect = _connecting.isFailedConnect(event);
+    // Followed with notifications off too, so an episode under way when they
+    // are turned on is not told as new.
+    final guideStar = _guideStar.observe(event);
     if (!_matrix.enabled) return;
+    if (guideStar != null) {
+      route(
+        guideStar.category,
+        guideStar.context,
+        severity: guideStar.severity,
+      );
+      return;
+    }
 
     // NotificationNode emits a sequencer event of type
     // `Notification` whose data carries title/message/level/transports.

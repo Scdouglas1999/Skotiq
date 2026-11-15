@@ -296,17 +296,23 @@ class _SelectedNodeBanner extends ConsumerWidget {
       ValidationSeverity.info => BannerTone.info,
     };
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.spaceLg,
-        0,
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceLg,
-      ),
-      child: SkotiqBanner(
-        title: worst.title,
-        message: worst.resolutionHint ?? worst.description,
-        tone: tone,
+    // At most half of a short column (a phone in landscape), scrolling
+    // inside that, so a long hint never pushes the column past its bottom.
+    return Flexible(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            SkotiqTokens.spaceLg,
+            0,
+            SkotiqTokens.spaceLg,
+            SkotiqTokens.spaceLg,
+          ),
+          child: SkotiqBanner(
+            title: worst.title,
+            message: worst.resolutionHint ?? worst.description,
+            tone: tone,
+          ),
+        ),
       ),
     );
   }

@@ -108,7 +108,7 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Transient Alerts',
+                    'Transient alerts',
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize15,
                       fontWeight: FontWeight.w600,

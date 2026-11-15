@@ -1973,13 +1973,13 @@ fn solve_with_astrometry(
     }
 }
 
+/// What a solve asked for with no solver installed answers.
+pub const NO_SOLVER_GUIDANCE: &str = "No supported external plate solver is configured. Install ASTAP and make astap_cli available on PATH or configure its executable path before solving.";
+
 fn external_solver_unavailable(start: std::time::Instant) -> PlateSolveResult {
     PlateSolveResult {
         success: false,
-        error: Some(
-            "No supported external plate solver is configured. Install ASTAP and make astap_cli available on PATH or configure its executable path before solving."
-                .to_string(),
-        ),
+        error: Some(NO_SOLVER_GUIDANCE.to_string()),
         solve_time_secs: start.elapsed().as_secs_f64(),
         ..Default::default()
     }

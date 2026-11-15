@@ -10,7 +10,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Below the shell breakpoint there is no instrument bar (04 §5), so this is
 /// the one place the rig's state is on screen while imaging. It is built from
 /// the same [InstrumentPill] the instrument bar uses — one status surface, one
-/// component — and it scrolls rather than truncating a device's name.
+/// component — and it scrolls rather than truncating a device's name, with
+/// the edge that has more pills faded so the strip reads as one that scrolls.
 class ImagingStatusStrip extends ConsumerWidget {
   const ImagingStatusStrip({super.key});
 
@@ -41,8 +42,7 @@ class ImagingStatusStrip extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceSm,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      child: _FadingHorizontalScroll(
         child: Row(
           children: <Widget>[
             InstrumentPill(
@@ -116,6 +116,79 @@ class ImagingStatusStrip extends ConsumerWidget {
       DeviceConnectionState.error => InstrumentTone.error,
       _ => InstrumentTone.idle,
     };
+  }
+}
+
+/// A horizontal scroll whose edges fade where more content lies past them.
+class _FadingHorizontalScroll extends StatefulWidget {
+  const _FadingHorizontalScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FadingHorizontalScroll> createState() =>
+      _FadingHorizontalScrollState();
+}
+
+class _FadingHorizontalScrollState extends State<_FadingHorizontalScroll> {
+  static const double _fadeWidth = SkotiqTokens.space2xl;
+
+  final ScrollController _controller = ScrollController();
+  bool _moreBefore = false;
+  bool _moreAfter = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_sync);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _sync() {
+    if (!mounted || !_controller.hasClients) return;
+    final position = _controller.position;
+    if (!position.hasContentDimensions) return;
+    final before = position.pixels > position.minScrollExtent;
+    final after = position.pixels < position.maxScrollExtent;
+    if (before != _moreBefore || after != _moreAfter) {
+      setState(() {
+        _moreBefore = before;
+        _moreAfter = after;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The extent is known only after layout, and changes with the pills.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
+    final opaque = context.skotiqColors.background;
+    final clear = opaque.withValues(alpha: 0);
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) {
+        final fade = (_fadeWidth / bounds.width).clamp(0.0, 0.5);
+        return LinearGradient(
+          colors: [
+            _moreBefore ? clear : opaque,
+            opaque,
+            opaque,
+            _moreAfter ? clear : opaque,
+          ],
+          stops: [0, fade, 1 - fade, 1],
+        ).createShader(bounds);
+      },
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        child: widget.child,
+      ),
+    );
   }
 }
 

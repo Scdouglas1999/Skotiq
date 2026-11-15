@@ -73,10 +73,8 @@ impl CameraOps for UnifiedDeviceOps {
         {
             mgr.camera_use_readout_mode(camera_id, &mode)
                 .await
-                .inspect_err(|_e| {
-                    exposure.end(false, EventSeverity::Error);
-                })
-                .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+                .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
+                .inspect_err(|e| exposure.fail(e))?;
         }
 
         // Start the exposure. gain/offset are Option<i32>; None means "use the
@@ -99,10 +97,8 @@ impl CameraOps for UnifiedDeviceOps {
             native_frame_type,
         )
         .await
-        .inspect_err(|_e| {
-            exposure.end(false, EventSeverity::Error);
-        })
-        .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+        .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
+        .inspect_err(|e| exposure.fail(e))?;
 
         if let Err(e) = wait_for_camera_exposure_complete(
             camera_id,
@@ -124,12 +120,12 @@ impl CameraOps for UnifiedDeviceOps {
             // still-running exposure and fails with "exposure already in
             // progress". Abort is best-effort; the original error is returned.
             let _ = mgr.camera_abort_exposure(camera_id).await;
-            exposure.end(false, EventSeverity::Error);
+            exposure.fail(&e);
             return Err(e);
         }
 
         if exposure_abort_generation(camera_id).await != acquisition_generation {
-            exposure.end(false, EventSeverity::Info);
+            exposure.cancel();
             return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
@@ -156,32 +152,32 @@ impl CameraOps for UnifiedDeviceOps {
             // An abort releases the download at once; that is a cancelled
             // exposure, not a failed one.
             Ok(Err(_)) if exposure_abort_generation(camera_id).await != acquisition_generation => {
-                exposure.end(false, EventSeverity::Info);
+                exposure.cancel();
                 return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
             }
             Ok(Err(e)) => {
-                exposure.end(false, EventSeverity::Error);
-                return Err(
-                    match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
-                        DeviceError::Failed(message) => {
-                            DeviceError::Failed(format!("Failed to download image: {message}"))
-                        }
-                        other => other,
-                    },
-                );
+                let error = match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
+                    DeviceError::Failed(message) => {
+                        DeviceError::Failed(format!("Failed to download image: {message}"))
+                    }
+                    other => other,
+                };
+                exposure.fail(&error);
+                return Err(error);
             }
             Err(_) => {
-                exposure.end(false, EventSeverity::Error);
-                return Err(DeviceError::Timeout(format!(
+                let error = DeviceError::Timeout(format!(
                     "Image download on {} exceeded the {}s timeout — failing the frame so recovery can run",
                     camera_id,
                     crate::timeout_ops::Timeouts::image_download_large().as_secs()
-                )));
+                ));
+                exposure.fail(&error);
+                return Err(error);
             }
         };
 
         if exposure_abort_generation(camera_id).await != acquisition_generation {
-            exposure.end(false, EventSeverity::Info);
+            exposure.cancel();
             return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
@@ -262,7 +258,7 @@ impl CameraOps for UnifiedDeviceOps {
             if !validation.is_valid {
                 let error = DeviceError::InvalidFrame(validation.errors.join("; "));
                 tracing::error!("[CAMERA] {error}");
-                exposure.end(false, EventSeverity::Error);
+                exposure.fail(&error);
                 return Err(error);
             }
         }
@@ -307,13 +303,14 @@ impl CameraOps for UnifiedDeviceOps {
         )
         .await
         {
-            exposure.end(false, EventSeverity::Error);
-            return Err(e.to_string().into());
+            let error: DeviceError = e.to_string().into();
+            exposure.fail(&error);
+            return Err(error);
         }
 
         let sensor_type = crate::last_frame::sensor_type(native_image.bayer_pattern.as_ref());
 
-        exposure.end(true, EventSeverity::Info);
+        exposure.complete();
 
         // Why: log-only formatting; "unknown" when the
         // camera SDK did not surface a sensor-type string matches the UI
@@ -460,10 +457,31 @@ impl<'a> AnnouncedExposure<'a> {
         }
     }
 
-    fn end(&mut self, success: bool, severity: EventSeverity) {
+    /// The frame is downloaded and stored.
+    fn complete(&mut self) {
+        self.ended = true;
+        self.app_state.publish_imaging_event(
+            ImagingEvent::ExposureComplete { success: true },
+            EventSeverity::Info,
+        );
+    }
+
+    /// The exposure failed for the reason [`DeviceError`] gives.
+    fn fail(&mut self, error: &DeviceError) {
+        self.ended = true;
+        self.app_state.publish_imaging_event(
+            ImagingEvent::ExposureFailed {
+                error: error.to_string(),
+            },
+            EventSeverity::Error,
+        );
+    }
+
+    /// The operator aborted the exposure.
+    fn cancel(&mut self) {
         self.ended = true;
         self.app_state
-            .publish_imaging_event(ImagingEvent::ExposureComplete { success }, severity);
+            .publish_imaging_event(ImagingEvent::ExposureCancelled, EventSeverity::Info);
     }
 }
 

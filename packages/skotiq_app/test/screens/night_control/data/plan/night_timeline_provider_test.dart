@@ -91,6 +91,36 @@ void main() {
         reason: 'anchored at the session start, not at now');
   });
 
+  test('a target waiting for the altitude floor ends after the wait', () {
+    // M74 clears a 30 degree floor at 20:14; the run reached it at 18:37
+    // and waits inside it.
+    final sessionStart = DateTime(2026, 10, 19, 18, 36);
+    final m74Started = DateTime(2026, 10, 19, 18, 37);
+    final clears = DateTime(2026, 10, 19, 20, 14);
+    final container = planContainer(
+      now: DateTime(2026, 10, 19, 18, 40),
+      sequence: TwoTargetPlan().sequence,
+      floor: const AltitudeFloor(horizon: null, minimumDeg: 30),
+      execution: SequenceExecutionState.running,
+      session: SessionState(isActive: true, startTime: sessionStart),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentTarget: 'M74',
+        nodeStatuses: {'m74': NodeStatus.running},
+      ),
+      events: [nodeEvent('m74', m74Started)],
+    );
+    addTearDown(container.dispose);
+
+    final window = container.read(nightTimelineProvider)!.windows.first;
+    expect(window.state, TimelineWindowState.active);
+    expect(window.start, m74Started);
+    expect(window.end.isAfter(clears), isTrue,
+        reason: 'the wait for the floor is part of the target');
+    expect(
+        window.end.isBefore(clears.add(const Duration(minutes: 15))), isTrue);
+  });
+
   test('a run past midnight keeps the night it started in', () {
     final sessionStart = DateTime(2026, 10, 19, 23, 30);
     final now = DateTime(2026, 10, 20, 0, 40);

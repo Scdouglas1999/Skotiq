@@ -201,8 +201,8 @@ class PostSessionHealthSummary {
   /// surfacing).
   final int coolerOutOfBandSamples;
 
-  /// Total focuser moves recorded during the session.
-  final int focuserMoves;
+  /// Autofocus runs during the session.
+  final int autofocusRuns;
 
   /// Sky brightness range encountered during the session, in mag /
   /// arcsec² (Bortle / SQM units).
@@ -219,7 +219,7 @@ class PostSessionHealthSummary {
   const PostSessionHealthSummary({
     this.disconnectsDuringSession = 0,
     this.coolerOutOfBandSamples = 0,
-    this.focuserMoves = 0,
+    this.autofocusRuns = 0,
     this.skyBrightnessMin,
     this.skyBrightnessMax,
     this.skyBrightnessMedian,
@@ -233,7 +233,7 @@ class PostSessionHealthSummary {
   bool get hasContent {
     return disconnectsDuringSession > 0 ||
         coolerOutOfBandSamples > 0 ||
-        focuserMoves > 0 ||
+        autofocusRuns > 0 ||
         skyBrightnessMin != null ||
         noticedConcerns.isNotEmpty;
   }

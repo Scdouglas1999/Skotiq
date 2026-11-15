@@ -17,4 +17,18 @@ void main() {
     );
     expect(subs.map((f) => f.path), ['b']);
   });
+
+  test('a gain the card cannot show is no gain', () {
+    final subs = framingLimitingSubs(
+      const [
+        // 99.14% beside 99.06%: both read "99.1%".
+        DarkroomLimitingFrame(path: 'a', group: 'L', retainedWithout: 0.9914),
+        DarkroomLimitingFrame(path: 'b', group: 'L', retainedWithout: 0.9922),
+      ],
+      retainedArea: 0.9906,
+      referencePath: null,
+      leftOut: const {},
+    );
+    expect(subs.map((f) => f.path), ['b']);
+  });
 }
