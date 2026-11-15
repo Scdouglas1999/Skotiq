@@ -722,7 +722,11 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
               )
             : list;
 
-        final banner = _blockerBanner(autopilot);
+        // With no target to run, the way forward is the list's "Add target",
+        // not the rig's readiness.
+        final banner = all.isEmpty && !autopilot.hasCandidates
+            ? null
+            : _blockerBanner(autopilot);
         // On a phone the bar and filters scroll away with the list.
         if (phone) {
           return SingleChildScrollView(
