@@ -124,7 +124,7 @@ extension SnackBarMessengerHelper on ScaffoldMessengerState {
 }
 
 enum _Tone {
-  info(Duration(seconds: 2)),
+  info(Duration(seconds: 3)),
   success(Duration(seconds: 3)),
   warning(Duration(seconds: 3)),
   error(Duration(seconds: 4));

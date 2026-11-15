@@ -32,7 +32,8 @@ import 'src/audit_scope.dart';
 ///   app-feedback        A transient notice is a snackbar shown through
 ///                       skotiq_app's utils/snackbar_helper.dart, which places
 ///                       it clear of the shell's bottom chrome; no other
-///                       library code calls `showSnackBar` or shows a toast.
+///                       library code calls `showSnackBar` or shows a toast, or
+///                       shows a failure as an info snackbar.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -1021,6 +1022,32 @@ final _showToastCall = RegExp(
 bool _isAppLibrary(String path) =>
     path.startsWith(_appLib) || RegExp(r'^apps/[^/]+/lib/').hasMatch(path);
 
+final _showInfoSnackBarCall = RegExp(r'\.showInfoSnackBar\s*\(');
+
+/// Words of a message that says something failed: an `errorMessage`, or text
+/// such as "Could not save" or "Server discovery failed".
+final _failureMessage = RegExp(
+  r'''\berrorMessage\b|['"](?:Could not|Couldn't|Can't|Cannot|Failed|Invalid|Unable)\b|\bfailed\b''',
+);
+
+/// The arguments of the call that opens at [start] on line [i] of [lines],
+/// up to its closing parenthesis or eight lines, comments left out.
+String _callArguments(List<String> lines, int i, int start) {
+  final text = StringBuffer();
+  var depth = 0;
+  for (var j = i; j < lines.length && j < i + 8; j++) {
+    final code = lines[j].split('//').first;
+    for (var k = j == i ? start : 0; k < code.length; k++) {
+      final char = code[k];
+      text.write(char);
+      if (char == '(') depth++;
+      if (char == ')' && --depth == 0) return text.toString();
+    }
+    text.write(' ');
+  }
+  return text.toString();
+}
+
 List<_Violation> _checkAppFeedback(List<String> files) {
   final out = <_Violation>[];
   for (final path in files) {
@@ -1028,11 +1055,15 @@ List<_Violation> _checkAppFeedback(List<String> files) {
     final lines = _readLines(path);
     for (var i = 0; i < lines.length; i++) {
       final code = lines[i].split('//').first;
+      final info = _showInfoSnackBarCall.firstMatch(code);
       final String what;
       if (_showSnackBarCall.hasMatch(code)) {
         what = 'calls showSnackBar directly';
       } else if (_showToastCall.hasMatch(code)) {
         what = 'shows a toast';
+      } else if (info != null &&
+          _failureMessage.hasMatch(_callArguments(lines, i, info.end - 1))) {
+        what = 'shows a failure as an info snackbar (use showErrorSnackBar)';
       } else {
         continue;
       }
