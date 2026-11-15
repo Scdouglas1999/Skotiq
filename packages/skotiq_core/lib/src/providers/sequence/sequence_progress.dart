@@ -223,8 +223,9 @@ void foldRunEvent(
       );
       run.updateNodeStatus(nodeId, NodeStatus.running);
 
-    case SequencerEvent_NodeCompleted(:final nodeId) when nodeId.isNotEmpty:
-      run.updateNodeStatus(nodeId, event.nodeStatus);
+    case SequencerEvent_NodeCompleted(:final nodeId, :final nodeStatus?)
+        when nodeId.isNotEmpty:
+      run.updateNodeStatus(nodeId, nodeStatus);
 
     case SequencerEvent_Progress(:final current, :final total):
       run.updateProgress(completedExposures: current);

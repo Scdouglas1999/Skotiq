@@ -38,6 +38,27 @@ NwsCloudProvider _provider(String body, {DateTime? now}) => NwsCloudProvider(
 );
 
 void main() {
+  test('a site is sent to NWS to four decimals', () async {
+    final urls = <String>[];
+    final provider = NwsCloudProvider(
+      clock: () => DateTime.utc(2026, 11, 14, 3, 30),
+      httpClient: MockClient((request) async {
+        urls.add(request.url.toString());
+        return request.url.path.startsWith('/points/')
+            ? _points()
+            : http.Response(_grid([]), 200);
+      }),
+    );
+    addTearDown(provider.dispose);
+
+    await provider.fetchCurrentCloudForecast(
+      latitude: 40.0123456789,
+      longitude: -75.4567891234,
+    );
+
+    expect(urls.first, 'https://api.weather.gov/points/40.0123,-75.4568');
+  });
+
   test(
     'current sky cover uses the containing NWS interval with its source',
     () async {

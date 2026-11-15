@@ -38,9 +38,12 @@ class ObjectInfoTooltip extends ConsumerWidget {
     );
 
     final uiState = ref.read(observingListNotifierProvider);
-    if (context.mounted) {
+    if (!context.mounted) return;
+    if (uiState.errorMessage case final error?) {
+      context.showErrorSnackBar(error);
+    } else {
       context.showInfoSnackBar(
-        uiState.errorMessage ?? uiState.statusMessage ?? 'Added ${object.name}',
+        uiState.statusMessage ?? 'Added ${object.name}',
         duration: const Duration(seconds: 2),
       );
     }
