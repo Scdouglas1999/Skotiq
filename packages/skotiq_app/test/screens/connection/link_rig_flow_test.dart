@@ -130,7 +130,20 @@ void main() {
     service = _FakeLinkService(store);
     relauncher = _Relauncher();
   });
-  tearDown(() => dir.delete(recursive: true));
+  tearDown(() async {
+    await store.settled;
+    await dir.delete(recursive: true);
+  });
+
+  // Saving the pairing syncs the record to disk, which can take seconds on a
+  // busy machine, so the wait is for the restart, not for a fixed time.
+  Future<void> untilRelaunched(WidgetTester tester) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (relauncher.reasons.isEmpty && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await tester.pump();
+    }
+  }
 
   Widget app(Widget child, {List<Override> extra = const []}) => ProviderScope(
         overrides: [
@@ -170,10 +183,7 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.oneTap')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
 
     expect(service.calls.single, startsWith('oneTap:192.168.1.32:Skotiq on'));
@@ -376,10 +386,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
     expect(service.calls.last, 'code:orbit nebula 4821:true');
     final saved = await tester.runAsync(store.load);
@@ -432,10 +439,7 @@ void main() {
     );
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        await tester.pump();
-      }
+      await untilRelaunched(tester);
     });
     expect(service.calls.last, startsWith('code:ORBIT-NEBULA-4821:'));
     expect(relauncher.reasons, ['Linked to observatory-pi']);
