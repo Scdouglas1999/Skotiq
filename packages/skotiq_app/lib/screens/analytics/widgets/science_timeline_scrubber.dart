@@ -41,7 +41,7 @@ class _ScienceTimelineScrubberState extends State<ScienceTimelineScrubber> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Timeline Scrubber',
+            'Timeline scrubber',
             style: SkotiqTypography.bodyStrong
                 .copyWith(color: widget.colors.textPrimary),
           ),

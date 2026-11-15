@@ -18,7 +18,7 @@ class _ResidualVectorCard extends StatelessWidget {
               Icon(LucideIcons.wind, size: 16, color: colors.primary),
               const SizedBox(width: 8),
               Text(
-                'Astrometric Residuals',
+                'Astrometric residuals',
                 style: SkotiqTypography.h5.copyWith(
                   color: colors.textPrimary,
                 ),

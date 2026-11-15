@@ -139,7 +139,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Expanded(
                 child: Text(
-                  'Period Analysis',
+                  'Period analysis',
                   style: SkotiqTypography.sectionTitle.copyWith(
                       color: colors.textPrimary, fontWeight: FontWeight.w600),
                 ),
@@ -355,7 +355,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
         );
 
         Widget runButton = SkotiqButton(
-          label: 'Run Period Search',
+          label: 'Run period search',
           icon: LucideIcons.search,
           size: ButtonSize.small,
           onPressed: analysisState.isRunning
@@ -506,9 +506,9 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           icon: LucideIcons.activity,
           title: tooFew
               ? 'Need at least 10 photometry points ($pointCount available)'
-              : 'Click "Run Period Search" to analyze $pointCount data points',
+              : 'Click "Run period search" to analyze $pointCount data points',
           body: tooFew
-              ? 'Pick a target star in the Differential Photometry chart and capture more frames.'
+              ? 'Pick a target star in the differential photometry chart and capture more frames.'
               : null,
         ),
       ),
