@@ -123,13 +123,13 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     // for a run whose Cool Camera node cools to something else entirely.
     final cameraState = ref.read(cameraStateProvider);
     final uncooled = await _cameraCannotRegulateTemperature(ref, cameraState);
-    // A camera with no cooler never reaches the profile's setpoint, so darks
-    // captured to satisfy a setpoint requirement could never match a light
-    // frame — the check sent operators off to spend an hour producing
-    // calibration data that was useless by construction. What the lights will
-    // actually be taken at is the sensor's own reading.
-    final camTargetTemp = uncooled
-        ? (cameraState.temperature ?? cameraState.targetTemp)
+    final coolerOff = !uncooled && cameraState.coolerOn == false;
+    // A camera with no cooler, or with its cooler off, takes its lights at the
+    // sensor's own temperature, not at a setpoint: darks matched to the
+    // setpoint could never calibrate them. Unknown when the sensor has not
+    // been read.
+    final camTargetTemp = uncooled || coolerOff
+        ? cameraState.temperature
         : cameraState.targetTemp;
     final plannedTemps = _plannedSensorTemps(sequence, camTargetTemp);
     var anyPlannedByNode = false;
@@ -208,6 +208,9 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
         : uncooled
         ? '\nThis camera has no cooler, so the temperature is its current '
               'sensor reading.'
+        : coolerOff
+        ? '\nThe cooler is off, so the temperature is the current sensor '
+              'reading.'
         : '';
 
     if (missing.isNotEmpty) {
