@@ -8,21 +8,21 @@ void main() {
 
   test('last night at 22:37 is Yesterday, not Today', () {
     expect(
-      sequenceCardDateLabel(DateTime(2026, 10, 20, 22, 37), morning),
+      sequenceRowDateLabel(DateTime(2026, 10, 20, 22, 37), morning),
       'Yesterday 22:37',
     );
   });
 
   test('earlier the same day is Today', () {
     expect(
-      sequenceCardDateLabel(DateTime(2026, 10, 21, 0, 5), morning),
+      sequenceRowDateLabel(DateTime(2026, 10, 21, 0, 5), morning),
       'Today 00:05',
     );
   });
 
   test('older dates count calendar days', () {
     expect(
-      sequenceCardDateLabel(DateTime(2026, 10, 18, 23, 59), morning),
+      sequenceRowDateLabel(DateTime(2026, 10, 18, 23, 59), morning),
       '3 days ago',
     );
   });

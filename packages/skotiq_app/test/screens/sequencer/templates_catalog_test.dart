@@ -83,7 +83,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(body: TemplatesTab()),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                SaveAsTemplateButton(),
+                Expanded(child: TemplatesTab()),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -103,7 +110,7 @@ void main() {
     editor.setDescription('Updated recipe');
     await tester.pump();
     expect(editor.isDirty, isTrue);
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Update'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Update template'));
     await tester.pump();
 
     expect(find.text('Update Template'), findsWidgets);
@@ -159,7 +166,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('My Galaxy Template'));
+    // The saved template is listed before the built-in ones.
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Use template').first);
     await tester.pump();
 
     expect(find.text('Discard unsaved changes?'), findsOneWidget);
@@ -272,7 +280,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Delete'));
+    await tester.tap(find.byTooltip('More actions for My Galaxy Template'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Delete'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Delete Template'), findsOneWidget);

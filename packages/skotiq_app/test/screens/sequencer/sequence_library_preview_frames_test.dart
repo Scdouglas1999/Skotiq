@@ -99,10 +99,17 @@ Future<void> _pumpLibrary(
   await tester.pump();
 }
 
+Future<void> _openPreview(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('More actions for Orion run'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Preview'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
-    'the node-count chip is not labeled "exposures", and counts are '
-    'pluralised',
+    'the capture-step count is not labeled "exposures", and counts are '
+    'pluralized',
     (tester) async {
       final repository = _MockSequenceRepository();
       await _pumpLibrary(
@@ -111,11 +118,11 @@ void main() {
         repository: repository,
       );
 
-      // The roll-up counts capture NODES — say so instead of claiming frames.
-      expect(find.text('1 capture step'), findsOneWidget);
-      expect(find.text('1 exposures'), findsNothing);
-      expect(find.text('1 targets'), findsNothing);
-      expect(find.text('1 target'), findsOneWidget);
+      // The roll-up counts capture NODES: say so instead of claiming frames.
+      expect(find.textContaining('1 capture step'), findsOneWidget);
+      expect(find.textContaining('1 capture steps'), findsNothing);
+      expect(find.textContaining('exposures'), findsNothing);
+      expect(find.textContaining('1 targets'), findsNothing);
     },
   );
 
@@ -132,9 +139,7 @@ void main() {
         repository: repository,
       );
 
-      await tester.tap(find.byTooltip('Preview'));
-      await tester.pump();
-      await tester.pump();
+      await _openPreview(tester);
 
       // 10 looped lights + 10 Smart Exposure subs = 20 frames / 30m.
       expect(find.text('20 frames • 30m'), findsOneWidget);
@@ -169,9 +174,7 @@ void main() {
       repository: repository,
     );
 
-    await tester.tap(find.byTooltip('Preview'));
-    await tester.pump();
-    await tester.pump();
+    await _openPreview(tester);
 
     expect(find.text('no exposures'), findsOneWidget);
   });

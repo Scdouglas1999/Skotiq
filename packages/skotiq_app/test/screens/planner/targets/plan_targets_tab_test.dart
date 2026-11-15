@@ -225,7 +225,7 @@ void main() {
     (
       'the minimum altitude',
       const AltitudeFloor(horizon: null, minimumDeg: 0),
-      'Above 0° ',
+      'Clears 0° from ',
     ),
     (
       'the horizon',
@@ -235,7 +235,7 @@ void main() {
         ),
         minimumDeg: 0,
       ),
-      'Does not rise above your horizon in darkness tonight',
+      'Does not clear your horizon in darkness tonight',
     ),
   ]) {
     testWidgets("a target's tonight line names the floor in force: $name",

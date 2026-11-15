@@ -12,6 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../router/app_routes.dart';
+import '../../analytics/history/filter_menu_chip.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../sequence_mutator_helper.dart';
@@ -19,51 +20,46 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../widgets/save_sequence.dart';
+import '../widgets/more_menu_button.dart';
 
-part 'sequence_library_tab/library_header.dart';
-part 'sequence_library_tab/library_filter_row.dart';
-part 'sequence_library_tab/action_button.dart';
-part 'sequence_library_tab/sequence_card.dart';
-part 'sequence_library_tab/supporting_widgets.dart';
+part 'sequence_library_tab/library_toolbar.dart';
+part 'sequence_library_tab/sequence_row.dart';
 part 'sequence_library_tab/version_history_dialog.dart';
 part 'sequence_library_tab/tag_editor_dialog.dart';
-part 'sequence_library_tab/sequence_card_dialogs.dart';
+part 'sequence_library_tab/delete_sequence_dialog.dart';
 
-/// Provider for sequences list - loads from database
-// autoDispose: list is only consumed by SequenceLibraryTab; refetching the
-// DB on revisit is cheap and ensures we never show stale entries after the
-// user edited a sequence elsewhere.
-// Defined in skotiq_core: savedSequenceSummariesProvider
-// (sequence_catalog_sync.dart) — a single grouped query that does NOT hydrate
-// each sequence's full node tree.
+// The saved list itself is skotiq_core's savedSequenceSummariesProvider: one
+// grouped query that does not hydrate each sequence's node tree.
 
-/// Search provider for sequences
-// autoDispose: filter input is tab-scoped; clearing it on revisit matches
-// user expectation. Written via a debounce in the library header.
+/// Search text for the saved list. Written through a debounce in the toolbar.
 final sequenceSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 
 /// Active tag filter. Empty = no tag filter (show all). A summary matches when
 /// it carries every selected tag (AND semantics), so narrowing tags narrows
 /// the list.
-// autoDispose: tab-scoped, cleared on revisit like the search query.
 final sequenceTagFilterProvider =
     StateProvider.autoDispose<Set<String>>((ref) => <String>{});
 
 /// When true, the list is restricted to favorited sequences.
-// autoDispose: tab-scoped toggle.
 final sequenceFavoritesOnlyProvider =
     StateProvider.autoDispose<bool>((ref) => false);
 
-enum SequenceSortOrder { name, dateModified, dateCreated, nodeCount }
+enum SequenceSortOrder {
+  dateModified('Last modified'),
+  dateCreated('Date created'),
+  name('Name'),
+  nodeCount('Step count');
 
-/// Provider for sort order
-// autoDispose: tab-scoped preference; default (dateModified) is appropriate
-// on each visit.
+  const SequenceSortOrder(this.label);
+
+  final String label;
+}
+
 final sequenceSortOrderProvider = StateProvider.autoDispose<SequenceSortOrder>(
   (ref) => SequenceSortOrder.dateModified,
 );
 
-/// Every tag present across the saved sequences, sorted, for the filter row.
+/// Every tag present across the saved sequences, sorted, for the tag filter.
 /// Derived from the lightweight summaries so it never hydrates node trees.
 final sequenceTagUniverseProvider =
     Provider.autoDispose<AsyncValue<List<String>>>((ref) {
@@ -79,12 +75,9 @@ final sequenceTagUniverseProvider =
   });
 });
 
-/// Derived list of saved-sequence summaries with the active search, tag, and
-/// favorite filters plus the sort order applied. Memoizes the filter+sort work
-/// outside of `build` so a rebuild from an unrelated provider (e.g. hover state
-/// on a card) doesn't re-run the whole pipeline. Recomputes only when the
-/// underlying list, the (debounced) query, the tag/favorite filters, or the
-/// sort order changes.
+/// Saved-sequence summaries with the search, tag and favorite filters and the
+/// sort order applied, kept out of `build` so a rebuild from an unrelated
+/// provider does not re-run the pipeline.
 final filteredSequenceSummariesProvider =
     Provider.autoDispose<AsyncValue<List<SequenceSummary>>>((ref) {
   final summariesAsync = ref.watch(savedSequenceSummariesProvider);
@@ -118,132 +111,213 @@ final filteredSequenceSummariesProvider =
     switch (order) {
       case SequenceSortOrder.name:
         filtered.sort((a, b) => a.name.compareTo(b.name));
-        break;
       case SequenceSortOrder.dateModified:
         filtered.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
-        break;
       case SequenceSortOrder.dateCreated:
         filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
       case SequenceSortOrder.nodeCount:
         filtered.sort((a, b) => b.nodeCount.compareTo(a.nodeCount));
-        break;
     }
     return filtered;
   });
 });
 
+/// Sequencer > Saved: the sequences in the library, one row each.
+///
+/// A row opens its sequence in the Builder; the star and a "more" menu carry
+/// everything else. "Save current" is the page header's, not this tab's.
 class SequenceLibraryTab extends ConsumerWidget {
   const SequenceLibraryTab({super.key});
 
+  void _clearFilters(WidgetRef ref) {
+    ref.read(sequenceSearchProvider.notifier).state = '';
+    ref.read(sequenceTagFilterProvider.notifier).state = <String>{};
+    ref.read(sequenceFavoritesOnlyProvider.notifier).state = false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
-    final isMobile = Responsive.isMobile(context);
+    final libraryAsync = ref.watch(savedSequenceSummariesProvider);
     final filteredAsync = ref.watch(filteredSequenceSummariesProvider);
-    final searchQuery = ref.watch(sequenceSearchProvider);
-    final hasActiveFilter = searchQuery.trim().isNotEmpty ||
-        ref.watch(sequenceTagFilterProvider).isNotEmpty ||
-        ref.watch(sequenceFavoritesOnlyProvider);
 
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 24),
-      child: Column(
-        children: [
-          _LibraryHeader(colors: colors),
-          const SizedBox(height: 16),
-          _LibraryFilterRow(colors: colors),
-          const SizedBox(height: 16),
-          Expanded(
-            child: filteredAsync.when(
-              data: (filtered) {
-                if (filtered.isEmpty) {
-                  final hasSearch = hasActiveFilter;
-                  return EmptyState(
-                    icon: hasSearch
-                        ? LucideIcons.searchX
-                        : LucideIcons.folderOpen,
-                    title:
-                        hasSearch ? 'No sequences found' : 'No saved sequences',
-                    // One sentence, and it already says where sequences come
-                    // from — the "Tip: Use \"Save Current\"" card under it was
-                    // a second sentence saying the same thing in a box, and it
-                    // overflowed its own row on a narrow window.
-                    body: hasSearch
-                        ? 'Try a different search, or clear the filters.'
-                        : 'Save a sequence from the Builder and it appears '
-                            'here.',
-                    action: hasSearch
-                        ? SkotiqButton(
-                            label: 'Clear filters',
-                            icon: LucideIcons.x,
-                            variant: ButtonVariant.secondary,
-                            size: ButtonSize.small,
-                            onPressed: () {
-                              ref.read(sequenceSearchProvider.notifier).state =
-                                  '';
-                              ref
-                                  .read(sequenceTagFilterProvider.notifier)
-                                  .state = <String>{};
-                              ref
-                                  .read(sequenceFavoritesOnlyProvider.notifier)
-                                  .state = false;
-                            },
-                          )
-                        : null,
-                  );
-                }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < BreakpointTokens.breakpointPhone;
+        final padding = compact
+            ? SkotiqTokens.screenPaddingCompact
+            : SkotiqTokens.screenPadding;
 
-                return ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return _SequenceCard(
-                      colors: colors,
-                      summary: filtered[index],
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(
-                child: const SkotiqMark(
-                    motion: SkotiqMarkMotion.loading, size: 36),
-              ),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(LucideIcons.alertTriangle,
-                        size: 48, color: colors.error),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Failed to load sequences',
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: SkotiqTypography.fontSize16),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      userFacingError(error),
-                      style: TextStyle(
-                          color: colors.textMuted,
-                          fontSize: SkotiqTypography.fontSize12),
-                    ),
-                    const SizedBox(height: 16),
-                    SkotiqButton(
-                      label: 'Retry',
-                      icon: LucideIcons.refreshCw,
-                      onPressed: () =>
-                          ref.invalidate(savedSequenceSummariesProvider),
-                    ),
-                  ],
+        return libraryAsync.when(
+          loading: () => const Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+          ),
+          error: (error, _) => Center(
+            child: EmptyState.error(
+              title: 'Could not load saved sequences',
+              body: userFacingError(error),
+              onRetry: () => ref.invalidate(savedSequenceSummariesProvider),
+            ),
+          ),
+          data: (library) {
+            // An empty library has nothing to search or sort: the page is the
+            // empty state alone.
+            if (library.isEmpty) {
+              return Center(
+                child: EmptyState(
+                  icon: LucideIcons.folderOpen,
+                  title: 'No saved sequences',
+                  body: 'Save a sequence from the Builder and it appears here.',
+                  action: SkotiqButton(
+                    label: 'Open the Builder',
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    onPressed: () => ref
+                        .read(sequencerTabProvider.notifier)
+                        .state = SequencerTab.builder.index,
+                  ),
                 ),
+              );
+            }
+            final filtered = filteredAsync.valueOrNull ?? const [];
+            return Padding(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _LibraryToolbar(compact: compact),
+                  const SizedBox(height: SkotiqTokens.spaceLg),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: EmptyState(
+                              icon: LucideIcons.searchX,
+                              title: 'No sequences match',
+                              body:
+                                  'Try a different search, or clear the filters.',
+                              action: SkotiqButton(
+                                label: 'Clear filters',
+                                variant: ButtonVariant.secondary,
+                                size: ButtonSize.small,
+                                onPressed: () => _clearFilters(ref),
+                              ),
+                            ),
+                          )
+                        : _SequenceList(
+                            summaries: filtered,
+                            total: library.length,
+                            compact: compact,
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+const double _panelInset = SkotiqTokens.spaceSm;
+
+/// A row's star and "more" buttons with the gaps [ListRow] puts around them.
+const double _rowActionsWidth =
+    ListRow.maxActions * SkotiqTokens.iconButtonSize +
+        (ListRow.maxActions + 1) * SkotiqTokens.spaceXs;
+
+/// The eyebrow heads and the panel of rows.
+class _SequenceList extends StatelessWidget {
+  const _SequenceList({
+    required this.summaries,
+    required this.total,
+    required this.compact,
+  });
+
+  final List<SequenceSummary> summaries;
+  final int total;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final eyebrow = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final count = summaries.length == total
+        ? countLabel(total, 'sequence')
+        : '${summaries.length} of ${countLabel(total, 'sequence')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Inset to line up with the row text and the trailing figure.
+        Padding(
+          padding: EdgeInsets.only(
+            left: _panelInset + SkotiqTokens.spaceSm,
+            right: _panelInset + (compact ? 0 : _rowActionsWidth),
+          ),
+          child: Row(
+            children: [
+              Expanded(child: Text(count.toUpperCase(), style: eyebrow)),
+              if (!compact) Text('LAST RUN', style: eyebrow),
+            ],
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        Flexible(
+          child: SkotiqPanel(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _panelInset,
+              vertical: SkotiqTokens.spaceXs,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: summaries.length,
+              itemBuilder: (context, index) => _SequenceRow(
+                key: ValueKey(summaries[index].id),
+                summary: summaries[index],
+                compact: compact,
+                last: index == summaries.length - 1,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The page-header action on the Saved tab: save the plan open in the Builder
+/// as a library entry.
+class SaveCurrentSequenceButton extends ConsumerWidget {
+  const SaveCurrentSequenceButton({super.key, this.iconOnly = false});
+
+  /// A phone header has room for a glyph, not the words.
+  final bool iconOnly;
+
+  static const String label = 'Save current';
+
+  void _save(BuildContext context, WidgetRef ref) {
+    final current = ref.read(currentSequenceProvider);
+    if (current == null) {
+      context.showWarningSnackBar('There is no sequence in the Builder');
+      return;
+    }
+    showSaveSequenceDialog(context, sequence: current);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (iconOnly) {
+      return SkotiqIconButton(
+        icon: LucideIcons.save,
+        tooltip: label,
+        onPressed: () => _save(context, ref),
+      );
+    }
+    return SkotiqButton(
+      label: label,
+      icon: LucideIcons.save,
+      variant: ButtonVariant.secondary,
+      onPressed: () => _save(context, ref),
     );
   }
 }
