@@ -321,8 +321,6 @@ Map<String, dynamic> _exposureSettingsToJson(ExposureSettings settings) => {
   'binningY': settings.binningY,
   'filter': settings.filter,
   'frameType': settings.frameType.name,
-  'fastReadout': settings.fastReadout,
-  'readoutModeIndex': settings.readoutModeIndex,
 };
 
 ExposureSettings? _exposureSettingsFromJson(dynamic value) {
@@ -350,8 +348,6 @@ ExposureSettings? _exposureSettingsFromJson(dynamic value) {
     binningY: (value['binningY'] as num?)?.toInt() ?? 1,
     filter: value['filter'] as String?,
     frameType: frameType,
-    fastReadout: value['fastReadout'] as bool? ?? false,
-    readoutModeIndex: (value['readoutModeIndex'] as num?)?.toInt(),
   );
 }
 

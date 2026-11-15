@@ -120,9 +120,6 @@ Map<String, dynamic> manualLoopRequestJson({
     'binningY': settings.binningY,
     if (settings.filter != null) 'filter': settings.filter,
     'frameType': settings.frameType.name,
-    'fastReadout': settings.fastReadout,
-    if (settings.readoutModeIndex != null)
-      'readoutModeIndex': settings.readoutModeIndex,
   },
   'saveFrames': saveFrames,
   if (targetName != null) 'targetName': targetName,
@@ -144,7 +141,5 @@ ExposureSettings manualLoopSettingsFromJson(Map<dynamic, dynamic> request) {
       (t) => t.name == raw['frameType'],
       orElse: () => FrameType.light,
     ),
-    fastReadout: raw['fastReadout'] == true,
-    readoutModeIndex: jsonInt(raw['readoutModeIndex']),
   );
 }

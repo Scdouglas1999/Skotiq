@@ -460,7 +460,6 @@ void main() {
   group('ImagingService Capture Pipeline', () {
     late ProviderContainer container;
     late MockBackend mockBackend;
-    late TestBackendNotifier backendNotifier;
     late StreamController<SkotiqEvent> eventStreamController;
 
     setUp(() {
@@ -473,21 +472,15 @@ void main() {
       when(
         () => mockBackend.polarAlignmentEvents,
       ).thenAnswer((_) => const Stream.empty());
-      // Default: camera reports no readout modes, so the capture path skips
-      // the explicit readout-mode set. Individual tests override this when
-      // they need to assert readout-mode selection.
       when(
         () => mockBackend.getCameraCapabilities(any()),
       ).thenAnswer((_) async => null);
-      when(
-        () => mockBackend.cameraSetReadoutMode(any(), any()),
-      ).thenAnswer((_) async {});
 
       container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
           backendProvider.overrideWith(
-            (ref) => backendNotifier = TestBackendNotifier(ref, mockBackend),
+            (ref) => TestBackendNotifier(ref, mockBackend),
           ),
           // Set camera as connected with a device ID
           cameraStateProvider.overrideWith((ref) {
@@ -545,45 +538,6 @@ void main() {
         ),
       );
     });
-
-    test(
-      'backend switch retires capture before old-host exposure admission',
-      () async {
-        final capabilityResult = Completer<CameraCapabilities?>();
-        when(
-          () => mockBackend.getCameraCapabilities(any()),
-        ).thenAnswer((_) => capabilityResult.future);
-
-        final oldService = container.read(imagingServiceProvider);
-        final capture = oldService.captureImage(
-          settings: const ExposureSettings(
-            exposureTime: 1,
-            gain: 100,
-            offset: 10,
-          ),
-        );
-        await untilCalled(() => mockBackend.getCameraCapabilities(any()));
-
-        final replacementBackend = MockBackend();
-        backendNotifier.replaceBackend(replacementBackend);
-        final replacementService = container.read(imagingServiceProvider);
-        expect(replacementService, isNot(same(oldService)));
-
-        capabilityResult.complete(null);
-        expect(await capture, isNull);
-        verifyNever(
-          () => mockBackend.cameraStartExposure(
-            deviceId: any(named: 'deviceId'),
-            exposureTime: any(named: 'exposureTime'),
-            frameType: any(named: 'frameType'),
-            gain: any(named: 'gain'),
-            offset: any(named: 'offset'),
-            binX: any(named: 'binX'),
-            binY: any(named: 'binY'),
-          ),
-        );
-      },
-    );
 
     test(
       'a backend switch while the profiles load prevents the retired FITS save',
@@ -2100,377 +2054,6 @@ void main() {
     });
   });
 
-  // C6/C9: the capture path must honour ExposureSettings.readoutModeIndex
-  // resolved against the camera's *actual* reported readout-mode count — not
-  // collapse it to the legacy fastReadout ? 1 : 0 binary. These tests drive
-  // the real captureImage() pipeline (not the model helper in isolation) and
-  // assert the exact index handed to cameraSetReadoutMode.
-  group('ImagingService readout-mode resolution', () {
-    late ProviderContainer container;
-    late MockBackend mockBackend;
-    late StreamController<SkotiqEvent> eventStreamController;
-
-    /// Stub a successful single-frame capture so captureImage() reaches the
-    /// readout-mode set call and completes. [readoutModes] controls what the
-    /// capability query reports.
-    void stubCapture({required List<String> readoutModes}) {
-      when(() => mockBackend.getCameraCapabilities(any())).thenAnswer(
-        (_) async => CameraCapabilities(
-          maxWidth: 1000,
-          maxHeight: 1000,
-          bitDepth: 16,
-          readoutModes: readoutModes,
-        ),
-      );
-      when(
-        () => mockBackend.cameraSetReadoutMode(any(), any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.cameraStartExposure(
-          deviceId: any(named: 'deviceId'),
-          exposureTime: any(named: 'exposureTime'),
-          frameType: any(named: 'frameType'),
-          gain: any(named: 'gain'),
-          offset: any(named: 'offset'),
-          binX: any(named: 'binX'),
-          binY: any(named: 'binY'),
-        ),
-      ).thenAnswer((_) async {
-        eventStreamController.add(
-          SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
-          ),
-        );
-      });
-      when(
-        () => mockBackend.cameraGetLastImage(any()),
-      ).thenAnswer((_) async => makeCapturedImageResult());
-      when(
-        () => mockBackend.saveScratchFrameFromLastCapture(
-          deviceId: any(named: 'deviceId'),
-          name: any(named: 'name'),
-          headerData: any(named: 'headerData'),
-        ),
-      ).thenAnswer(
-        (invocation) async => invocation.namedArguments[#filePath] as String,
-      );
-      when(
-        () => mockBackend.saveScratchFrameFromLastCapture(
-          deviceId: any(named: 'deviceId'),
-          name: any(named: 'name'),
-          headerData: any(named: 'headerData'),
-        ),
-      ).thenAnswer(
-        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
-      );
-    }
-
-    setUp(() {
-      mockBackend = MockBackend();
-      eventStreamController = StreamController<SkotiqEvent>.broadcast();
-
-      when(
-        () => mockBackend.eventStream,
-      ).thenAnswer((_) => eventStreamController.stream);
-      when(
-        () => mockBackend.polarAlignmentEvents,
-      ).thenAnswer((_) => const Stream.empty());
-
-      container = ProviderContainer(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          backendProvider.overrideWith(
-            (ref) => TestBackendNotifier(ref, mockBackend),
-          ),
-          cameraStateProvider.overrideWith((ref) {
-            final notifier = CameraStateNotifier(ref);
-            notifier.setConnecting('test-camera-1', 'Test Camera');
-            notifier.setConnected();
-            return notifier;
-          }),
-          // captureImage() fires science processing as background work that
-          // outlives the test; stub it so it cannot read a disposed container.
-          scienceProcessingServiceProvider.overrideWith(
-            (ref) => _NoOpScienceProcessingService(ref),
-          ),
-        ],
-      );
-    });
-
-    tearDown(() {
-      eventStreamController.close();
-      container.dispose();
-    });
-
-    test('explicit readoutModeIndex=2 on a 4-mode camera applies index 2 '
-        '(not collapsed to 0/1)', () async {
-      stubCapture(readoutModes: const ['Mode0', 'Mode1', 'Mode2', 'Mode3']);
-
-      const settings = ExposureSettings(
-        exposureTime: 5.0,
-        gain: 100,
-        offset: 50,
-        frameType: FrameType.light,
-        // The user picked a middle mode. fastReadout is false because index 2
-        // is not the last (3) entry, and the chosen index is what is sent.
-        readoutModeIndex: 2,
-        fastReadout: false,
-      );
-
-      await container
-          .read(imagingServiceProvider)
-          .captureImage(settings: settings);
-
-      verify(
-        () => mockBackend.cameraSetReadoutMode('test-camera-1', 2),
-      ).called(1);
-    });
-
-    test(
-      'explicit readoutModeIndex=1 on a 3-mode camera applies index 1',
-      () async {
-        stubCapture(readoutModes: const ['Slow', 'Medium', 'Fast']);
-
-        const settings = ExposureSettings(
-          exposureTime: 5.0,
-          gain: 100,
-          offset: 50,
-          frameType: FrameType.light,
-          readoutModeIndex: 1,
-        );
-
-        await container
-            .read(imagingServiceProvider)
-            .captureImage(settings: settings);
-
-        verify(
-          () => mockBackend.cameraSetReadoutMode('test-camera-1', 1),
-        ).called(1);
-      },
-    );
-
-    test(
-      'legacy fastReadout=true maps to the LAST mode on a 3-mode camera',
-      () async {
-        stubCapture(readoutModes: const ['Slow', 'Medium', 'Fast']);
-
-        const settings = ExposureSettings(
-          exposureTime: 5.0,
-          gain: 100,
-          offset: 50,
-          frameType: FrameType.light,
-          // No explicit index: the legacy boolean is authoritative. Fast should
-          // map to the last mode (index 2), NOT the hardcoded 1.
-          fastReadout: true,
-        );
-
-        await container
-            .read(imagingServiceProvider)
-            .captureImage(settings: settings);
-
-        verify(
-          () => mockBackend.cameraSetReadoutMode('test-camera-1', 2),
-        ).called(1);
-      },
-    );
-
-    test('legacy fastReadout=false maps to the first mode', () async {
-      stubCapture(readoutModes: const ['Slow', 'Medium', 'Fast']);
-
-      const settings = ExposureSettings(
-        exposureTime: 5.0,
-        gain: 100,
-        offset: 50,
-        frameType: FrameType.light,
-        fastReadout: false,
-      );
-
-      await container
-          .read(imagingServiceProvider)
-          .captureImage(settings: settings);
-
-      verify(
-        () => mockBackend.cameraSetReadoutMode('test-camera-1', 0),
-      ).called(1);
-    });
-
-    test(
-      'a stale index past the mode list aborts instead of changing modes',
-      () async {
-        stubCapture(readoutModes: const ['Slow', 'Medium', 'Fast']);
-
-        const settings = ExposureSettings(
-          exposureTime: 5.0,
-          gain: 100,
-          offset: 50,
-          frameType: FrameType.light,
-          readoutModeIndex: 4,
-        );
-
-        await expectLater(
-          container
-              .read(imagingServiceProvider)
-              .captureImage(settings: settings),
-          throwsA(
-            isA<ValidationException>().having(
-              (e) => e.userMessage,
-              'userMessage',
-              contains('no longer available'),
-            ),
-          ),
-        );
-        verifyNever(() => mockBackend.cameraSetReadoutMode(any(), any()));
-        verifyNever(
-          () => mockBackend.cameraStartExposure(
-            deviceId: any(named: 'deviceId'),
-            exposureTime: any(named: 'exposureTime'),
-            frameType: any(named: 'frameType'),
-            gain: any(named: 'gain'),
-            offset: any(named: 'offset'),
-            binX: any(named: 'binX'),
-            binY: any(named: 'binY'),
-          ),
-        );
-      },
-    );
-
-    test(
-      'camera reporting no readout modes skips the explicit set entirely',
-      () async {
-        // Honest no-op: nothing to select against, so forcing index 0 would
-        // override the driver's own default.
-        stubCapture(readoutModes: const []);
-
-        const settings = ExposureSettings(
-          exposureTime: 5.0,
-          gain: 100,
-          offset: 50,
-          frameType: FrameType.light,
-          readoutModeIndex: 1,
-        );
-
-        await container
-            .read(imagingServiceProvider)
-            .captureImage(settings: settings);
-
-        verifyNever(() => mockBackend.cameraSetReadoutMode(any(), any()));
-      },
-    );
-
-    test('a failed capability query aborts before exposure', () async {
-      when(
-        () => mockBackend.getCameraCapabilities(any()),
-      ).thenThrow(Exception('bridge crash'));
-      when(
-        () => mockBackend.cameraSetReadoutMode(any(), any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.cameraStartExposure(
-          deviceId: any(named: 'deviceId'),
-          exposureTime: any(named: 'exposureTime'),
-          frameType: any(named: 'frameType'),
-          gain: any(named: 'gain'),
-          offset: any(named: 'offset'),
-          binX: any(named: 'binX'),
-          binY: any(named: 'binY'),
-        ),
-      ).thenAnswer((_) async {
-        eventStreamController.add(
-          SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
-          ),
-        );
-      });
-      when(
-        () => mockBackend.cameraGetLastImage(any()),
-      ).thenAnswer((_) async => makeCapturedImageResult());
-      when(
-        () => mockBackend.saveFitsFromLastCapture(
-          deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
-          headerData: any(named: 'headerData'),
-          keepCameraFile: any(named: 'keepCameraFile'),
-        ),
-      ).thenAnswer(
-        (invocation) async => invocation.namedArguments[#filePath] as String,
-      );
-      when(
-        () => mockBackend.saveScratchFrameFromLastCapture(
-          deviceId: any(named: 'deviceId'),
-          name: any(named: 'name'),
-          headerData: any(named: 'headerData'),
-        ),
-      ).thenAnswer(
-        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
-      );
-
-      const settings = ExposureSettings(
-        exposureTime: 5.0,
-        gain: 100,
-        offset: 50,
-        frameType: FrameType.light,
-        readoutModeIndex: 1,
-      );
-
-      await expectLater(
-        container.read(imagingServiceProvider).captureImage(settings: settings),
-        throwsA(isA<Exception>()),
-      );
-
-      verifyNever(() => mockBackend.cameraSetReadoutMode(any(), any()));
-      verifyNever(
-        () => mockBackend.cameraStartExposure(
-          deviceId: any(named: 'deviceId'),
-          exposureTime: any(named: 'exposureTime'),
-          frameType: any(named: 'frameType'),
-          gain: any(named: 'gain'),
-          offset: any(named: 'offset'),
-          binX: any(named: 'binX'),
-          binY: any(named: 'binY'),
-        ),
-      );
-    });
-
-    test('a rejected readout-mode command aborts before exposure', () async {
-      stubCapture(readoutModes: const ['Slow', 'Fast']);
-      when(
-        () => mockBackend.cameraSetReadoutMode('test-camera-1', 1),
-      ).thenThrow(Exception('driver rejected mode'));
-
-      const settings = ExposureSettings(
-        exposureTime: 5.0,
-        gain: 100,
-        offset: 50,
-        frameType: FrameType.light,
-        readoutModeIndex: 1,
-      );
-
-      await expectLater(
-        container.read(imagingServiceProvider).captureImage(settings: settings),
-        throwsA(isA<Exception>()),
-      );
-      verifyNever(
-        () => mockBackend.cameraStartExposure(
-          deviceId: any(named: 'deviceId'),
-          exposureTime: any(named: 'exposureTime'),
-          frameType: any(named: 'frameType'),
-          gain: any(named: 'gain'),
-          offset: any(named: 'offset'),
-          binX: any(named: 'binX'),
-          binY: any(named: 'binY'),
-        ),
-      );
-    });
-  });
-
   group('ImagingService Cancel Exposure', () {
     late ProviderContainer container;
     late MockBackend mockBackend;
@@ -2489,9 +2072,6 @@ void main() {
       when(
         () => mockBackend.getCameraCapabilities(any()),
       ).thenAnswer((_) async => null);
-      when(
-        () => mockBackend.cameraSetReadoutMode(any(), any()),
-      ).thenAnswer((_) async {});
 
       container = ProviderContainer(
         overrides: [
@@ -2588,9 +2168,6 @@ void main() {
       when(
         () => mockBackend.getCameraCapabilities(any()),
       ).thenAnswer((_) async => null);
-      when(
-        () => mockBackend.cameraSetReadoutMode(any(), any()),
-      ).thenAnswer((_) async {});
 
       container = ProviderContainer(
         overrides: [

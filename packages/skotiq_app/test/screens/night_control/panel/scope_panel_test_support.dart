@@ -91,6 +91,7 @@ const MountState kTrackingMount = MountState(
   isTracking: true,
   isParked: false,
   sideOfPier: 'West',
+  trackingRate: TrackingRate.sidereal,
   canSetTrackingRate: true,
 );
 

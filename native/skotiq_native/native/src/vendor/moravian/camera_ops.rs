@@ -155,6 +155,10 @@ impl CameraDriver for MoravianCamera {
         Ok(self.offered_read_modes())
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.core.readout_mode.clone())
+    }
+
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         self.core.require_connected()?;
         let index = u32::try_from(mode.index).map_err(|_| {

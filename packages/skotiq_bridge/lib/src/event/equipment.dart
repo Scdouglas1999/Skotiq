@@ -122,15 +122,26 @@ sealed class EquipmentEvent with _$EquipmentEvent {
   /// the camera's full current value, not only the one that changed.
   const factory EquipmentEvent.cameraSettingsChanged({
     required String deviceId,
-    required int gain,
+
+    /// `None` when the camera would not report the value.
+    int? gain,
 
     /// `gain` is an ISO speed, and the camera has no offset (a DSLR or
     /// mirrorless body).
     required bool gainIsIso,
-    required int offset,
+
+    /// `None` when the camera would not report the value.
+    int? offset,
     required int binX,
     required int binY,
   }) = EquipmentEvent_CameraSettingsChanged;
+
+  /// The list of captures a camera is keeping changed (one was kept after
+  /// a failed download, or one was retrieved); `count` are kept now.
+  const factory EquipmentEvent.cameraRetainedCapturesChanged({
+    required String deviceId,
+    required int count,
+  }) = EquipmentEvent_CameraRetainedCapturesChanged;
   const factory EquipmentEvent.heartbeatStarted({
     required String deviceType,
     required String deviceId,

@@ -532,6 +532,16 @@ void main() {
       expect(n.adaptiveExposure, isNull);
     });
 
+    test('read_mode_is_the_steps_own_or_the_profiles_default', () {
+      final n = ExposureNode();
+      expect(n.readoutMode, isNull, reason: 'null takes the profile default');
+      final named = n.copyWith(readoutMode: 'High speed');
+      expect(named.readoutMode, 'High speed');
+      expect(named.copyWith().readoutMode, 'High speed');
+      expect(named.copyWith(clearReadoutMode: true).readoutMode, isNull);
+      expect(named == n, isFalse);
+    });
+
     test('total_duration_secs_is_count_times_duration', () {
       final n = ExposureNode(durationSecs: 300.0, count: 12);
       expect(n.totalDurationSecs, equals(3600.0));

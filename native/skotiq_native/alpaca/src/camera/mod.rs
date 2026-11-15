@@ -13,7 +13,7 @@ use skotiq_device::ascom::{CameraState, SensorType};
 use std::time::Duration;
 
 /// Camera status aggregate for parallel status query
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CameraStatus {
     pub state: CameraState,
     pub connected: bool,
@@ -22,8 +22,9 @@ pub struct CameraStatus {
     pub ccd_temperature: Option<f64>,
     pub cooler_on: Option<bool>,
     pub cooler_power: Option<f64>,
-    pub bin_x: i32,
-    pub bin_y: i32,
+    /// As the camera answered: a failed read is the caller's to resolve.
+    pub bin_x: Result<i32, AlpacaError>,
+    pub bin_y: Result<i32, AlpacaError>,
 }
 
 /// Camera capabilities for determining what features are available
@@ -219,8 +220,8 @@ impl AlpacaCamera {
             ccd_temperature: ccd_temperature.ok(),
             cooler_on: cooler_on.ok(),
             cooler_power: cooler_power.ok(),
-            bin_x: bin_x?,
-            bin_y: bin_y?,
+            bin_x,
+            bin_y,
         })
     }
 

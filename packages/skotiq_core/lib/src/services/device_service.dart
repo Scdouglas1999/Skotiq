@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../providers/equipment_provider.dart';
 import '../errors/error_text.dart';
 import 'device_service/connect_attempts.dart';
@@ -23,6 +24,7 @@ import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
+import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/device_connect_exception.dart';
 import '../backend/skotiq_exception.dart' show ConnectionException;
@@ -109,6 +111,7 @@ class DeviceService {
   // `SwitchChannelService.resetHooks()` in `tearDown`.
   StreamSubscription? _eventSubscription;
   late final CameraTemperaturePoller _temperaturePoller;
+  CameraReadModeOwner? _readModeOwner;
   late final CameraWarmupController _warmupController;
 
   /// On a remote client, follows the host's warm-up until it ends.
@@ -273,6 +276,14 @@ class DeviceService {
       hostLink: hostLink,
     );
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);
+    // The host states the read mode; a linked client's host does it there.
+    if (_backend.ownsDeviceBridge) {
+      _readModeOwner = CameraReadModeOwner(
+        ref: _ref,
+        state: (deviceId, mode) =>
+            bridge.apiCameraStateReadoutMode(deviceId: deviceId, mode: mode),
+      );
+    }
     _phd2Launcher = Phd2Launcher(ref: _ref);
     // Construct the heartbeat router first so the reconnect coordinator
     // can drive the "reconnecting" health indicator through it (the
@@ -410,6 +421,7 @@ class DeviceService {
     _environmentPollTimer = null;
     _temperaturePoller.dispose();
     _warmupController.dispose();
+    _readModeOwner?.dispose();
     _hostWarmUpWatch?.cancel();
     _hostWarmUpWatch = null;
     _focuserMoveSettleWatch?.cancel();

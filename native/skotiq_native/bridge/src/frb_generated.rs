@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1858074738;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 883874832;
 
 // Section: executor
 
@@ -505,28 +505,47 @@ fn wire__crate__api__devices__camera__api_camera_get_recommended_settings_impl(
         },
     )
 }
-fn wire__crate__api__devices__camera__api_camera_set_readout_mode_impl(
+fn wire__crate__api__devices__camera__api_camera_retained_captures_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_camera_retained_captures",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::devices::camera::api_camera_retained_captures(),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__devices__camera__api_camera_retrieve_retained_capture_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
-    mode_index: impl CstDecode<i32>,
+    location: impl CstDecode<String>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_camera_set_readout_mode",
+            debug_name: "api_camera_retrieve_retained_capture",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let api_device_id = device_id.cst_decode();
-            let api_mode_index = mode_index.cst_decode();
+            let api_location = location.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::devices::camera::api_camera_set_readout_mode(
-                            api_device_id,
-                            api_mode_index,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::devices::camera::api_camera_retrieve_retained_capture(
+                                api_device_id,
+                                api_location,
+                            )
+                            .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -631,6 +650,31 @@ fn wire__crate__api__imaging__api_camera_start_exposure_configured_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__devices__camera__api_camera_state_readout_mode_impl(
+    device_id: impl CstDecode<String>,
+    mode: impl CstDecode<Option<String>>,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_camera_state_readout_mode",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_mode = mode.cst_decode();
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::devices::camera::api_camera_state_readout_mode(
+                        api_device_id,
+                        api_mode,
+                    );
+                })?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -8226,8 +8270,8 @@ impl SseDecode for crate::device::CameraStatus {
         let mut var_coolerPower = <Option<f64>>::sse_decode(deserializer);
         let mut var_targetTemp = <Option<f64>>::sse_decode(deserializer);
         let mut var_coolerOn = <Option<bool>>::sse_decode(deserializer);
-        let mut var_gain = <i32>::sse_decode(deserializer);
-        let mut var_offset = <i32>::sse_decode(deserializer);
+        let mut var_gain = <Option<i32>>::sse_decode(deserializer);
+        let mut var_offset = <Option<i32>>::sse_decode(deserializer);
         let mut var_binX = <i32>::sse_decode(deserializer);
         let mut var_binY = <i32>::sse_decode(deserializer);
         let mut var_sensorWidth = <u32>::sse_decode(deserializer);
@@ -8905,9 +8949,9 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
             }
             23 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_gain = <i32>::sse_decode(deserializer);
+                let mut var_gain = <Option<i32>>::sse_decode(deserializer);
                 let mut var_gainIsIso = <bool>::sse_decode(deserializer);
-                let mut var_offset = <i32>::sse_decode(deserializer);
+                let mut var_offset = <Option<i32>>::sse_decode(deserializer);
                 let mut var_binX = <i32>::sse_decode(deserializer);
                 let mut var_binY = <i32>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
@@ -8920,6 +8964,14 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 };
             }
             24 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_count = <u32>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                    device_id: var_deviceId,
+                    count: var_count,
+                };
+            }
+            25 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_intervalSecs = <u64>::sse_decode(deserializer);
@@ -8929,7 +8981,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     interval_secs: var_intervalSecs,
                 };
             }
-            25 => {
+            26 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::HeartbeatStopped {
@@ -8937,7 +8989,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     device_id: var_deviceId,
                 };
             }
-            26 => {
+            27 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_status =
@@ -8952,7 +9004,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     last_rtt_ms: var_lastRttMs,
                 };
             }
-            27 => {
+            28 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_attempt = <u32>::sse_decode(deserializer);
@@ -8964,7 +9016,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     max_attempts: var_maxAttempts,
                 };
             }
-            28 => {
+            29 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_afterAttempts = <u32>::sse_decode(deserializer);
@@ -8974,7 +9026,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     after_attempts: var_afterAttempts,
                 };
             }
-            29 => {
+            30 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -8990,7 +9042,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     unique_id: var_uniqueId,
                 };
             }
-            30 => {
+            31 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -10193,6 +10245,18 @@ impl SseDecode for Vec<(String, u32)> {
     }
 }
 
+impl SseDecode for Vec<crate::api::devices::camera::RetainedCaptureInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::devices::camera::RetainedCaptureInfo>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::event::sequencer::SchedulerScoreEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11272,6 +11336,26 @@ impl SseDecode for (String, u32) {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <u32>::sse_decode(deserializer);
         return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for crate::api::devices::camera::RetainedCaptureInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <String>::sse_decode(deserializer);
+        let mut var_cameraName = <String>::sse_decode(deserializer);
+        let mut var_location = <String>::sse_decode(deserializer);
+        let mut var_inCameraMemory = <bool>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_retainedAtMs = <i64>::sse_decode(deserializer);
+        return crate::api::devices::camera::RetainedCaptureInfo {
+            device_id: var_deviceId,
+            camera_name: var_cameraName,
+            location: var_location,
+            in_camera_memory: var_inCameraMemory,
+            reason: var_reason,
+            retained_at_ms: var_retainedAtMs,
+        };
     }
 }
 
@@ -14233,12 +14317,21 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 bin_y.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                device_id,
+                count,
+            } => [
+                24.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                count.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                 device_type,
                 device_id,
                 interval_secs,
             } => [
-                24.into_dart(),
+                25.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 interval_secs.into_into_dart().into_dart(),
@@ -14248,7 +14341,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => [
-                25.into_dart(),
+                26.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
             ]
@@ -14260,7 +14353,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => [
-                26.into_dart(),
+                27.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
@@ -14274,7 +14367,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => [
-                27.into_dart(),
+                28.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 attempt.into_into_dart().into_dart(),
@@ -14286,7 +14379,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => [
-                28.into_dart(),
+                29.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 after_attempts.into_into_dart().into_dart(),
@@ -14300,7 +14393,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => [
-                29.into_dart(),
+                30.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -14314,7 +14407,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => [
-                30.into_dart(),
+                31.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -15899,6 +15992,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::QuirkInfo>
     for crate::api::diagnostics::QuirkInfo
 {
     fn into_into_dart(self) -> crate::api::diagnostics::QuirkInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::devices::camera::RetainedCaptureInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.camera_name.into_into_dart().into_dart(),
+            self.location.into_into_dart().into_dart(),
+            self.in_camera_memory.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.retained_at_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::devices::camera::RetainedCaptureInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::camera::RetainedCaptureInfo>
+    for crate::api::devices::camera::RetainedCaptureInfo
+{
+    fn into_into_dart(self) -> crate::api::devices::camera::RetainedCaptureInfo {
         self
     }
 }
@@ -17958,8 +18076,8 @@ impl SseEncode for crate::device::CameraStatus {
         <Option<f64>>::sse_encode(self.cooler_power, serializer);
         <Option<f64>>::sse_encode(self.target_temp, serializer);
         <Option<bool>>::sse_encode(self.cooler_on, serializer);
-        <i32>::sse_encode(self.gain, serializer);
-        <i32>::sse_encode(self.offset, serializer);
+        <Option<i32>>::sse_encode(self.gain, serializer);
+        <Option<i32>>::sse_encode(self.offset, serializer);
         <i32>::sse_encode(self.bin_x, serializer);
         <i32>::sse_encode(self.bin_y, serializer);
         <u32>::sse_encode(self.sensor_width, serializer);
@@ -18500,18 +18618,26 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
             } => {
                 <i32>::sse_encode(23, serializer);
                 <String>::sse_encode(device_id, serializer);
-                <i32>::sse_encode(gain, serializer);
+                <Option<i32>>::sse_encode(gain, serializer);
                 <bool>::sse_encode(gain_is_iso, serializer);
-                <i32>::sse_encode(offset, serializer);
+                <Option<i32>>::sse_encode(offset, serializer);
                 <i32>::sse_encode(bin_x, serializer);
                 <i32>::sse_encode(bin_y, serializer);
+            }
+            crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                device_id,
+                count,
+            } => {
+                <i32>::sse_encode(24, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <u32>::sse_encode(count, serializer);
             }
             crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                 device_type,
                 device_id,
                 interval_secs,
             } => {
-                <i32>::sse_encode(24, serializer);
+                <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u64>::sse_encode(interval_secs, serializer);
@@ -18520,7 +18646,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => {
-                <i32>::sse_encode(25, serializer);
+                <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
@@ -18531,7 +18657,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => {
-                <i32>::sse_encode(26, serializer);
+                <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <crate::event::equipment::HeartbeatStatus>::sse_encode(status, serializer);
@@ -18544,7 +18670,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => {
-                <i32>::sse_encode(27, serializer);
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(attempt, serializer);
@@ -18555,7 +18681,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(after_attempts, serializer);
@@ -18568,7 +18694,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => {
-                <i32>::sse_encode(29, serializer);
+                <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -18581,7 +18707,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => {
-                <i32>::sse_encode(30, serializer);
+                <i32>::sse_encode(31, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -19504,6 +19630,16 @@ impl SseEncode for Vec<(String, u32)> {
     }
 }
 
+impl SseEncode for Vec<crate::api::devices::camera::RetainedCaptureInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::devices::camera::RetainedCaptureInfo>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::event::sequencer::SchedulerScoreEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20284,6 +20420,18 @@ impl SseEncode for (String, u32) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <u32>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for crate::api::devices::camera::RetainedCaptureInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.device_id, serializer);
+        <String>::sse_encode(self.camera_name, serializer);
+        <String>::sse_encode(self.location, serializer);
+        <bool>::sse_encode(self.in_camera_memory, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <i64>::sse_encode(self.retained_at_ms, serializer);
     }
 }
 
@@ -23019,6 +23167,13 @@ mod io {
                     }
                 }
                 24 => {
+                    let ans = unsafe { self.kind.CameraRetainedCapturesChanged };
+                    crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                        device_id: ans.device_id.cst_decode(),
+                        count: ans.count.cst_decode(),
+                    }
+                }
+                25 => {
                     let ans = unsafe { self.kind.HeartbeatStarted };
                     crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                         device_type: ans.device_type.cst_decode(),
@@ -23026,14 +23181,14 @@ mod io {
                         interval_secs: ans.interval_secs.cst_decode(),
                     }
                 }
-                25 => {
+                26 => {
                     let ans = unsafe { self.kind.HeartbeatStopped };
                     crate::event::equipment::EquipmentEvent::HeartbeatStopped {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                26 => {
+                27 => {
                     let ans = unsafe { self.kind.HeartbeatStatusChanged };
                     crate::event::equipment::EquipmentEvent::HeartbeatStatusChanged {
                         device_type: ans.device_type.cst_decode(),
@@ -23043,7 +23198,7 @@ mod io {
                         last_rtt_ms: ans.last_rtt_ms.cst_decode(),
                     }
                 }
-                27 => {
+                28 => {
                     let ans = unsafe { self.kind.HeartbeatReconnecting };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnecting {
                         device_type: ans.device_type.cst_decode(),
@@ -23052,7 +23207,7 @@ mod io {
                         max_attempts: ans.max_attempts.cst_decode(),
                     }
                 }
-                28 => {
+                29 => {
                     let ans = unsafe { self.kind.HeartbeatReconnected };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnected {
                         device_type: ans.device_type.cst_decode(),
@@ -23060,7 +23215,7 @@ mod io {
                         after_attempts: ans.after_attempts.cst_decode(),
                     }
                 }
-                29 => {
+                30 => {
                     let ans = unsafe { self.kind.DeviceDiscovered };
                     crate::event::equipment::EquipmentEvent::DeviceDiscovered {
                         device_class: ans.device_class.cst_decode(),
@@ -23071,7 +23226,7 @@ mod io {
                         unique_id: ans.unique_id.cst_decode(),
                     }
                 }
-                30 => {
+                31 => {
                     let ans = unsafe { self.kind.DeviceLost };
                     crate::event::equipment::EquipmentEvent::DeviceLost {
                         device_class: ans.device_class.cst_decode(),
@@ -23881,6 +24036,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::devices::camera::RetainedCaptureInfo>>
+        for *mut wire_cst_list_retained_capture_info
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::devices::camera::RetainedCaptureInfo> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::event::sequencer::SchedulerScoreEntry>>
         for *mut wire_cst_list_scheduler_score_entry
     {
@@ -24352,6 +24519,21 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> (String, u32) {
             (self.field0.cst_decode(), self.field1.cst_decode())
+        }
+    }
+    impl CstDecode<crate::api::devices::camera::RetainedCaptureInfo>
+        for wire_cst_retained_capture_info
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::devices::camera::RetainedCaptureInfo {
+            crate::api::devices::camera::RetainedCaptureInfo {
+                device_id: self.device_id.cst_decode(),
+                camera_name: self.camera_name.cst_decode(),
+                location: self.location.cst_decode(),
+                in_camera_memory: self.in_camera_memory.cst_decode(),
+                reason: self.reason.cst_decode(),
+                retained_at_ms: self.retained_at_ms.cst_decode(),
+            }
         }
     }
     impl CstDecode<crate::device_capabilities::types::RotatorCapabilities>
@@ -25843,8 +26025,8 @@ mod io {
                 cooler_power: core::ptr::null_mut(),
                 target_temp: core::ptr::null_mut(),
                 cooler_on: core::ptr::null_mut(),
-                gain: Default::default(),
-                offset: Default::default(),
+                gain: core::ptr::null_mut(),
+                offset: core::ptr::null_mut(),
                 bin_x: Default::default(),
                 bin_y: Default::default(),
                 sensor_width: Default::default(),
@@ -27040,6 +27222,23 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_retained_capture_info {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                device_id: core::ptr::null_mut(),
+                camera_name: core::ptr::null_mut(),
+                location: core::ptr::null_mut(),
+                in_camera_memory: Default::default(),
+                reason: core::ptr::null_mut(),
+                retained_at_ms: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_retained_capture_info {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_rotator_capabilities {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -27665,13 +27864,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_set_readout_mode(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retained_captures(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__devices__camera__api_camera_retained_captures_impl()
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retrieve_retained_capture(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
-        mode_index: i32,
+        location: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__camera__api_camera_set_readout_mode_impl(
-            port_, device_id, mode_index,
+        wire__crate__api__devices__camera__api_camera_retrieve_retained_capture_impl(
+            port_, device_id, location,
         )
     }
 
@@ -27725,6 +27930,14 @@ mod io {
             height,
             frame_type,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode(
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        mode: *mut wire_cst_list_prim_u_8_strict,
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__devices__camera__api_camera_state_readout_mode_impl(device_id, mode)
     }
 
     #[unsafe(no_mangle)]
@@ -30988,6 +31201,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_retained_capture_info(
+        len: i32,
+    ) -> *mut wire_cst_list_retained_capture_info {
+        let wrap = wire_cst_list_retained_capture_info {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_retained_capture_info>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry(
         len: i32,
     ) -> *mut wire_cst_list_scheduler_score_entry {
@@ -31378,8 +31605,8 @@ mod io {
         cooler_power: *mut f64,
         target_temp: *mut f64,
         cooler_on: *mut bool,
-        gain: i32,
-        offset: i32,
+        gain: *mut i32,
+        offset: *mut i32,
         bin_x: i32,
         bin_y: i32,
         sensor_width: u32,
@@ -31663,6 +31890,7 @@ mod io {
         CameraWarmingCompleted: wire_cst_EquipmentEvent_CameraWarmingCompleted,
         CameraTemperatureChanged: wire_cst_EquipmentEvent_CameraTemperatureChanged,
         CameraSettingsChanged: wire_cst_EquipmentEvent_CameraSettingsChanged,
+        CameraRetainedCapturesChanged: wire_cst_EquipmentEvent_CameraRetainedCapturesChanged,
         HeartbeatStarted: wire_cst_EquipmentEvent_HeartbeatStarted,
         HeartbeatStopped: wire_cst_EquipmentEvent_HeartbeatStopped,
         HeartbeatStatusChanged: wire_cst_EquipmentEvent_HeartbeatStatusChanged,
@@ -31819,11 +32047,17 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_CameraSettingsChanged {
         device_id: *mut wire_cst_list_prim_u_8_strict,
-        gain: i32,
+        gain: *mut i32,
         gain_is_iso: bool,
-        offset: i32,
+        offset: *mut i32,
         bin_x: i32,
         bin_y: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_CameraRetainedCapturesChanged {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        count: u32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -32532,6 +32766,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_retained_capture_info {
+        ptr: *mut wire_cst_retained_capture_info,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_scheduler_score_entry {
         ptr: *mut wire_cst_scheduler_score_entry,
         len: i32,
@@ -32893,6 +33133,16 @@ mod io {
     pub struct wire_cst_record_string_u_32 {
         field0: *mut wire_cst_list_prim_u_8_strict,
         field1: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_retained_capture_info {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        camera_name: *mut wire_cst_list_prim_u_8_strict,
+        location: *mut wire_cst_list_prim_u_8_strict,
+        in_camera_memory: bool,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        retained_at_ms: i64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

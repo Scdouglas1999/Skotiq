@@ -63,7 +63,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       azimuth: s.azimuth,
       siderealTime: s.siderealTime,
       trackingRate: s.trackingRate == null
-          ? dart_caps.TrackingRate.sidereal
+          ? null
           : _fromBridgeTrackingRate(s.trackingRate!),
       canPark: s.canPark,
       canSlew: s.canSlew,

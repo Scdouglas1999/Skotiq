@@ -483,11 +483,24 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> cameraSetReadoutMode(String deviceId, int modeIndex) async {
-    await _post(
-      DeviceApi.cameraSetReadoutMode,
-      body: {'deviceId': deviceId, 'modeIndex': modeIndex},
+  Future<List<RetainedCapture>> cameraRetainedCaptures() async {
+    final response = await _get(DeviceApi.cameraGetRetainedCaptures);
+    return [
+      for (final capture in (response['captures'] as List? ?? const []))
+        RetainedCapture.fromJson(Map<String, dynamic>.from(capture as Map)),
+    ];
+  }
+
+  @override
+  Future<String> cameraRetrieveRetainedCapture(
+    String deviceId,
+    String location,
+  ) async {
+    final response = await _post(
+      DeviceApi.cameraRetrieveRetainedCapture,
+      body: {'deviceId': deviceId, 'location': location},
     );
+    return response['savedTo'] as String? ?? '';
   }
 
   @override

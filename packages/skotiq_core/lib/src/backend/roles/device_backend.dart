@@ -240,9 +240,13 @@ abstract class DeviceBackend {
     double? targetTemp,
   });
 
-  /// Set camera readout mode by index
-  /// modeIndex: 0 = default/high quality, 1 = fast readout, etc.
-  Future<void> cameraSetReadoutMode(String deviceId, int modeIndex);
+  /// The captures cameras are keeping because their download failed,
+  /// oldest first.
+  Future<List<RetainedCapture>> cameraRetainedCaptures();
+
+  /// Read a kept capture off its camera and save the camera's file on the
+  /// host. Answers the path it was saved to there.
+  Future<String> cameraRetrieveRetainedCapture(String deviceId, String location);
 
   Future<void> cameraSetGain(String deviceId, int gain);
 

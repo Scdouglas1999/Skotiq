@@ -248,6 +248,10 @@ WireEvent _encodeEquipmentEvent(EquipmentEvent event) => switch (event) {
       'bin_y': event.binY,
     },
   ),
+  EquipmentEvent_CameraRetainedCapturesChanged() => (
+    'CameraRetainedCapturesChanged',
+    <String, Object?>{'device_id': event.deviceId, 'count': event.count},
+  ),
   EquipmentEvent_HeartbeatStarted() => (
     'HeartbeatStarted',
     <String, Object?>{
@@ -435,11 +439,16 @@ EquipmentEvent? _decodeEquipmentEvent(
     case 'CameraSettingsChanged':
       return EquipmentEvent.cameraSettingsChanged(
         deviceId: wireString(d, 'device_id'),
-        gain: wireInt(d, 'gain'),
+        gain: wireOptInt(d, 'gain'),
         gainIsIso: wireBool(d, 'gain_is_iso'),
-        offset: wireInt(d, 'offset'),
+        offset: wireOptInt(d, 'offset'),
         binX: wireInt(d, 'bin_x'),
         binY: wireInt(d, 'bin_y'),
+      );
+    case 'CameraRetainedCapturesChanged':
+      return EquipmentEvent.cameraRetainedCapturesChanged(
+        deviceId: wireString(d, 'device_id'),
+        count: wireInt(d, 'count'),
       );
     case 'HeartbeatStarted':
       return EquipmentEvent.heartbeatStarted(
@@ -1859,6 +1868,7 @@ const Map<EventCategory, List<String>> eventWireTypes = {
     'CameraWarmingCompleted',
     'CameraTemperatureChanged',
     'CameraSettingsChanged',
+    'CameraRetainedCapturesChanged',
     'HeartbeatStarted',
     'HeartbeatStopped',
     'HeartbeatStatusChanged',

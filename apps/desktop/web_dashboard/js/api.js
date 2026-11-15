@@ -670,22 +670,6 @@ class SkotiqApi {
     return this._post('/api/camera/offset', { deviceId, offset });
   }
 
-  // The backend uses camelCase /api/camera/readoutMode (see device_handlers
-  // and the route table in headless_api_server.dart). Match that exactly —
-  // hyphenated variants 404 on the current server.
-  async cameraSetReadoutMode(deviceId, modeIndex) {
-    return this._post('/api/camera/readoutMode', { deviceId, modeIndex });
-  }
-
-  // Dedicated readout-mode list endpoint. Backed by the camera abstraction's
-  // capabilities, but returns only the {readoutModes: [...]} subset so the
-  // dropdown doesn't have to round-trip the full capabilities payload.
-  async cameraGetReadoutModes(deviceId) {
-    return this._get(
-      '/api/camera/readout-modes?deviceId=' + encodeURIComponent(deviceId || ''),
-    );
-  }
-
   // Dedicated cooling-state endpoint. Source of truth is the camera status
   // model; this endpoint just projects the four cooling fields so the cooling
   // panel can poll at its own cadence without pulling the full status blob.

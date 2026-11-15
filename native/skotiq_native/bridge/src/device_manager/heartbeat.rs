@@ -485,11 +485,12 @@ impl DeviceManager {
                                 );
 
                                 if manager
-                                    .handle_heartbeat_lost(
+                                    .mark_lost(
                                         &device_id_clone,
                                         config.auto_reconnect,
-                                        consecutive_failures,
-                                        &error_msg,
+                                        &format!(
+                                            "Unresponsive after {consecutive_failures} heartbeat failures: {error_msg}"
+                                        ),
                                     )
                                     .await
                                     .is_some()

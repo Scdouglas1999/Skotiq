@@ -8,6 +8,7 @@ use crate::device::DriverType;
 use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{Exclusive, RigDriver};
+use crate::device_manager::ops::camera::camera_setting_or_unknown;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -158,10 +159,12 @@ impl Camera for ComCamera {
             .get_status()
             .await
             .map_err(DeviceOpError::from)?;
-        let ascom_caps = camera_guard
-            .get_capabilities()
-            .await
-            .map_err(DeviceOpError::from)?;
+        // What the camera is does not change while it is connected, so it is
+        // read from what connect recorded: a status poll asks the driver only
+        // for what can change, and one member the driver refuses mid-exposure
+        // cannot fail it.
+        let sensor = camera_guard.get_sensor_info();
+        let described = camera_guard.capabilities();
 
         Ok(crate::device::CameraStatus {
             connected: true,
@@ -177,24 +180,19 @@ impl Camera for ComCamera {
             cooler_power: native_status.cooler_power,
             target_temp: native_status.target_temp,
             cooler_on: native_status.cooler_on,
-            gain: native_status.gain,
-            offset: native_status.offset,
+            gain: camera_setting_or_unknown(native_status.gain),
+            offset: camera_setting_or_unknown(native_status.offset),
             bin_x: native_status.bin_x,
             bin_y: native_status.bin_y,
-            sensor_width: ascom_caps.max_width,
-            sensor_height: ascom_caps.max_height,
-            pixel_size_x: ascom_caps.pixel_size_x.unwrap_or(0.0),
-            pixel_size_y: ascom_caps.pixel_size_y.unwrap_or(0.0),
-            // MaxADU is the driver's range; bit depth is only its storage bucket.
-            max_adu: if ascom_caps.max_adu == 0 {
-                65535
-            } else {
-                ascom_caps.max_adu
-            },
+            sensor_width: sensor.width,
+            sensor_height: sensor.height,
+            pixel_size_x: sensor.pixel_size_x,
+            pixel_size_y: sensor.pixel_size_y,
+            max_adu: sensor.max_adu,
             saturation_adu: None,
-            can_cool: ascom_caps.can_set_ccd_temperature,
-            can_set_gain: ascom_caps.controls.gain.is_present(),
-            can_set_offset: ascom_caps.controls.offset.is_present(),
+            can_cool: described.can_cool,
+            can_set_gain: described.can_set_gain,
+            can_set_offset: described.can_set_offset,
         })
     }
 
@@ -226,20 +224,9 @@ impl Camera for ComCamera {
         camera.set_offset(offset).await.map_err(DeviceOpError::from)
     }
 
-    async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError> {
-        let camera = &self.camera;
-        let mut camera = camera.write().await;
-        let mode = skotiq_device::ReadoutMode {
-            name: format!("Mode {}", mode_index),
-            description: String::new(),
-            index: mode_index,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        };
-        camera
-            .set_readout_mode(&mode)
+    async fn use_readout_mode(&self, name: &str) -> Result<super::ReadModeUse, DeviceOpError> {
+        let mut camera = self.camera.write().await;
+        super::use_readout_mode(&mut *camera, name)
             .await
             .map_err(DeviceOpError::from)
     }

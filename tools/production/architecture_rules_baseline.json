@@ -50,10 +50,6 @@
         "count": 1,
         "reason": "Domain predicate (steps that put the rig away), not type metadata (k-nodedesc)."
       },
-      "sequence_state.dart::Sequence._nodeOverhead": {
-        "count": 1,
-        "reason": "Per-type overhead seconds read from the overhead config. Candidate NodeKind field."
-      },
       "sequence_timeline.dart::SequenceTimeline._segmentForTiming": {
         "count": 1,
         "reason": "Timeline segment kind per node type. Candidate NodeKind field."
@@ -174,7 +170,7 @@
         "reason": "Holds a Riverpod Ref; reads appSettingsProvider, cameraStateProvider, domeStateProvider, equipmentProfilesProvider, guideStatsProvider, liveSequenceStatsProvider, phd2StateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceProgressProvider, sessionImagesProvider, weatherSafetyProvider, weatherStateProvider."
       },
       "services/imaging_service.dart": {
-        "count": 15,
+        "count": 14,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads cameraSensitivityProvider, loggingServiceProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/in_app_transport.dart": {

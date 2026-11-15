@@ -34,6 +34,7 @@ const WIRE_EVENTS = Object.freeze({
     cameraWarmingCompleted: 'CameraWarmingCompleted',
     cameraTemperatureChanged: 'CameraTemperatureChanged',
     cameraSettingsChanged: 'CameraSettingsChanged',
+    cameraRetainedCapturesChanged: 'CameraRetainedCapturesChanged',
     heartbeatStarted: 'HeartbeatStarted',
     heartbeatStopped: 'HeartbeatStopped',
     heartbeatStatusChanged: 'HeartbeatStatusChanged',
