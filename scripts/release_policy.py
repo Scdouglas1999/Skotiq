@@ -33,22 +33,22 @@ def main():
         print("::error::version.yaml must declare one channel: stable, beta, or alpha.", file=sys.stderr)
         return 1
     channel = channels[0].group("channel")
-    require_signing = args.distribute and channel == "stable"
+    # Every published release is signed, whatever its channel; only a build
+    # that is never published may be unsigned.
+    require_signing = args.distribute
     if require_signing:
         missing = [name for name in SIGNING_NAMES if os.environ.get(f"{name}_CONFIGURED") != "true"]
         if missing:
             print(
-                "::error::Stable distribution requires signing configuration: "
+                "::error::Publishing a release requires signing configuration: "
                 + ", ".join(missing)
                 + ". UPDATE_* accepts the existing SKOTIQ_* or NIGHTSHADE_* identity. "
                 "Use workflow_dispatch without release_tag for a validation build only.",
                 file=sys.stderr,
             )
             return 1
-    elif not args.distribute:
-        print("Build-only validation: unsigned output is not a shipping stable release.")
     else:
-        print(f"{channel} prerelease: unsigned output is allowed; OTA requires signed manifests.")
+        print("Build-only validation: built without signing keys, so its output cannot be published.")
 
     values = {
         "release_channel": channel,
