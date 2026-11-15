@@ -281,7 +281,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
           _skippedVersion != null &&
           outcome.latestVersion != _skippedVersion) {
         _skippedVersion = null;
-        unawaited(_controller.writeSkippedVersion(null));
+        await _controller.writeSkippedVersion(null);
       }
       _promptState = _promptState.withCheckOutcome(null);
     } catch (_) {
@@ -291,10 +291,10 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
         _controller.status.lastError ?? 'The check did not finish.',
       );
     }
-    unawaited(_promptStore.write(_promptState));
     _checkedThisRun = true;
     _lastCheckTime = DateTime.now();
     _project();
+    await _promptStore.write(_promptState);
   }
 
   /// Download and stage the available update
@@ -353,18 +353,21 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     }
   }
 
-  /// Skip the current available update
-  void skipUpdate() {
+  /// Skip the current available update. The window shows it skipped at
+  /// once; the returned future completes when the skip is on disk.
+  Future<void> skipUpdate() async {
     final version = state.availableUpdate?.version;
     if (version == null) return;
     _skippedVersion = version;
     _checkedThisRun = true;
     _project();
-    unawaited(_controller.writeSkippedVersion(version));
     // A permanent skip subsumes any "not now" on the same version; leaving
     // both would re-offer the build the moment the deferral aged out.
     _promptState = _promptState.copyWith(clearDeferral: true);
-    unawaited(_promptStore.write(_promptState));
+    await Future.wait([
+      _controller.writeSkippedVersion(version),
+      _promptStore.write(_promptState),
+    ]);
   }
 
   Future<void> clearStagedUpdate() async {
