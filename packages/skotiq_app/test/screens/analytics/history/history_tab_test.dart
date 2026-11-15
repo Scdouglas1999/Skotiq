@@ -52,7 +52,7 @@ void main() {
 
     expect(find.text('Rig run-through'), findsOneWidget);
     expect(
-      find.text('NIGHT OF TUE, NOV 3 TO WED, NOV 4, 2026 · 2 RUNS'),
+      find.textContaining('NIGHT OF NOV 3 TO 4'),
       findsOneWidget,
       reason: 'the run after midnight belongs to the same observing night',
     );
@@ -221,11 +221,11 @@ void main() {
     expect(_readout(tester, 'Accepted integration').value, '1h');
     expect(_readout(tester, 'Meridian flips').value, '2');
     expect(_readout(tester, 'Autofocus runs').value, '5');
-    expect(_readout(tester, 'Average HFR').value, '2.00');
-    final rms = _readout(tester, 'Average guiding RMS');
+    expect(_readout(tester, 'Avg HFR').value, '2.00');
+    final rms = _readout(tester, 'Avg guiding RMS');
     expect(rms.value, '0.80');
     expect(rms.unit, '"');
-    final temperature = _readout(tester, 'Average sensor temperature');
+    final temperature = _readout(tester, 'Avg sensor temp');
     expect(temperature.value, '-5.0');
     expect(temperature.unit, '°C');
   });

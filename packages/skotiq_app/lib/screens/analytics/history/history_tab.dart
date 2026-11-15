@@ -13,6 +13,7 @@ import '../../../router/analytics_route.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/count_label.dart';
 import '../../../widgets/run_status/run_status_presentation.dart';
+import '../../darkroom/targets/nights_strip.dart' show darkroomNightLabel;
 import '../../sequencer/widgets/notes_panel.dart';
 import '../../sequencer/widgets/pending_session_reports_card.dart';
 import '../analytics_providers.dart';
@@ -32,14 +33,11 @@ const double _integrationColumn = 92;
 const double _hfrColumn = 76;
 const double _chevronColumn = SkotiqTokens.iconSm + SkotiqTokens.spaceMd;
 
-/// The label of an observing night: it spans two dates, so it names both.
-String observingNightLabel(DateTime night) {
-  final evening = DateTime(night.year, night.month, night.day);
-  // The next calendar day: adding 24 hours lands on the same date on the
-  // night the clocks go back.
-  final morning = DateTime(night.year, night.month, night.day + 1);
-  return 'Night of ${ClockFormat.weekdayMonthDay(evening)} to '
-      '${ClockFormat.weekdayMonthDayYear(morning)}';
+/// The label of an observing night, which spans two dates and names both:
+/// `Night of Oct 31 to Nov 1`, with the year when it is not [now]'s.
+String observingNightLabel(DateTime night, {required DateTime now}) {
+  final label = 'Night of ${darkroomNightLabel(night)}';
+  return night.year == now.year ? label : '$label, ${night.year}';
 }
 
 /// Analytics > History: every night on record, one row per run, grouped by
@@ -212,6 +210,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
               night: nights[index - 4],
               stacked: stacked,
               targetNameById: targetNameById,
+              now: now,
               onOpen: (night) => context.go(
                 AppRoutes.night(night, sequenceId: widget.sequenceId),
               ),
@@ -271,20 +270,20 @@ class _TotalsStrip extends ConsumerWidget {
             ),
             Readout(
               size: ReadoutSize.sm,
-              label: 'Average HFR',
+              label: 'Avg HFR',
               unit: 'px',
               value: fixed(totals?.meanHfr, 2),
             ),
             Readout(
               size: ReadoutSize.sm,
-              label: 'Average guiding RMS',
+              label: 'Avg guiding RMS',
               // ASCII, not U+2033: the bundled fonts have no prime glyph.
               unit: '"',
               value: fixed(totals?.meanGuidingRms, 2),
             ),
             Readout(
               size: ReadoutSize.sm,
-              label: 'Average sensor temperature',
+              label: 'Avg sensor temp',
               unit: '°C',
               value: fixed(totals?.meanSensorTemp, 1),
             ),
@@ -483,12 +482,16 @@ class _NightBlock extends StatelessWidget {
     required this.night,
     required this.stacked,
     required this.targetNameById,
+    required this.now,
     required this.onOpen,
   });
 
   final HistoryNight night;
   final bool stacked;
   final Map<int, String> targetNameById;
+
+  /// Decides whether the night's label needs its year.
+  final DateTime now;
   final ValueChanged<NightRef> onOpen;
 
   @override
@@ -523,7 +526,8 @@ class _NightBlock extends StatelessWidget {
             child: Semantics(
               header: true,
               child: Text(
-                '${observingNightLabel(night.night)} · $count'.toUpperCase(),
+                '${observingNightLabel(night.night, now: now)} · $count'
+                    .toUpperCase(),
                 style:
                     SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
                 maxLines: 1,
@@ -614,25 +618,29 @@ class _NightRow extends ConsumerWidget {
               style: DurationStyle.coarse,
             );
     }
+    // A run whose record cannot be read has no session to fall back on: its
+    // figures are unknown, not zero.
+    final frames = session?.totalExposures ?? stats?.framesCaptured;
     final integrationSecs =
-        session?.totalIntegrationSecs ?? stats?.integrationSecs ?? 0;
+        session?.totalIntegrationSecs ?? stats?.integrationSecs;
     final figures = _RowFigures(
       elapsed: elapsed,
-      frames: '${session?.totalExposures ?? stats?.framesCaptured ?? 0}',
-      integration: integrationSecs > 0
+      frames: frames?.toString(),
+      integration: integrationSecs != null && integrationSecs > 0
           ? DurationFormat.seconds(integrationSecs, style: DurationStyle.coarse)
           : null,
       hfr: session?.avgHfr?.toStringAsFixed(2),
     );
 
     final rejected = session == null
-        ? stats?.framesRejected ?? 0
-        : ref.watch(gradingBySessionProvider)?[session.id]?.rejected ?? 0;
+        ? stats?.framesRejected
+        : ref.watch(gradingBySessionProvider)?[session.id]?.rejected;
     final notes = run == null
-        ? 0
-        : ref.watch(notesForRunProvider(run.id)).valueOrNull?.length ?? 0;
-    final target = (targetName?.isNotEmpty ?? false)
-        ? targetName
+        ? null
+        : ref.watch(notesForRunProvider(run.id)).valueOrNull?.length;
+    final sessionTarget = targetName;
+    final target = sessionTarget != null && sessionTarget.isNotEmpty
+        ? sessionTarget
         : entry.runTargets.firstOrNull;
     final name = entry.name ?? 'Unnamed session';
     final facts = [
@@ -640,7 +648,7 @@ class _NightRow extends ConsumerWidget {
       if (target != null && !name.contains(target)) target,
       if (elapsedBasis != null)
         elapsed == null ? elapsedBasis : '$elapsed $elapsedBasis',
-      if (notes > 0) countLabel(notes, 'note'),
+      if (notes != null && notes > 0) countLabel(notes, 'note'),
     ];
 
     return _RowShell(
@@ -651,7 +659,7 @@ class _NightRow extends ConsumerWidget {
       stacked: stacked,
       title: name,
       facts: facts,
-      warning: rejected > 0 ? '$rejected rejected' : null,
+      warning: rejected != null && rejected > 0 ? '$rejected rejected' : null,
       statusLabel: statusLabel,
       statusTone: tone,
       statusColor: tone.resolve(colors) ?? colors.textSecondary,
@@ -815,7 +823,7 @@ class _RowShellState extends State<_RowShell> {
                     [
                       ...widget.facts.take(1),
                       if (figures.elapsed != null) figures.elapsed!,
-                      '${figures.frames} fr',
+                      if (figures.frames != null) '${figures.frames} fr',
                       if (hfr != null) '$hfr px',
                     ],
                   ),

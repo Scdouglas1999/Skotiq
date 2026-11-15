@@ -175,7 +175,7 @@ class HistoryFilter {
     final wanted = status;
     if (wanted != null) {
       final ending = entry.ending;
-      final matchesLive = wanted.isLive && (ending?.isLive ?? false);
+      final matchesLive = wanted.isLive && ending != null && ending.isLive;
       if (ending != wanted && !matchesLive) return false;
     }
 
@@ -192,7 +192,8 @@ class HistoryFilter {
 
     final needle = query.trim().toLowerCase();
     if (needle.isEmpty) return true;
-    return (entry.name?.toLowerCase().contains(needle) ?? false) ||
+    final name = entry.name;
+    return (name != null && name.toLowerCase().contains(needle)) ||
         entry.runTargets.any((name) => name.toLowerCase().contains(needle));
   }
 }
@@ -300,10 +301,7 @@ class HistoryTotals {
                 ? sum + image.exposureDuration
                 : sum,
       ),
-      meridianFlips: runs?.fold<int>(
-        0,
-        (sum, run) => sum + (parseRunStats(run.statsJson)?.meridianFlips ?? 0),
-      ),
+      meridianFlips: runs == null ? null : _meridianFlips(runs),
       autofocusRuns: sessions?.fold<int>(
         0,
         (sum, session) => sum + session.autofocusCount,
@@ -318,6 +316,16 @@ class HistoryTotals {
       ),
       meanSensorTemp: _mean(images.map((i) => i.sensorTemp)),
     );
+  }
+
+  /// A run whose record cannot be read adds nothing to the count.
+  static int _meridianFlips(List<SequenceRun> runs) {
+    var flips = 0;
+    for (final run in runs) {
+      final stats = parseRunStats(run.statsJson);
+      if (stats != null) flips += stats.meridianFlips;
+    }
+    return flips;
   }
 
   static double? _mean(Iterable<double?> values) {
