@@ -50,69 +50,35 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    return Dialog(
-      backgroundColor: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        side: BorderSide(color: colors.border),
-      ),
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 560,
-          designMaxHeight: 640,
+    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
+    return SkotiqDialog(
+      title: 'Version history',
+      width: SkotiqDialog.widthForm,
+      actions: [
+        SkotiqButton(
+          label: 'Close',
+          variant: ButtonVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(colors),
-            Flexible(child: _buildBody(colors)),
-            _buildFooter(colors),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(SkotiqColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Row(
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(LucideIcons.gitBranch, size: 20, color: colors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Version History',
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize18,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                Text(
-                  widget.sequenceName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize12,
-                    color: colors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+          Text(
+            widget.sequenceName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+                SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
           ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(LucideIcons.x, color: colors.textMuted),
-            tooltip: 'Close',
+          const SizedBox(height: SkotiqTokens.spaceXs),
+          Text(
+            'Restoring loads the version into the editor; save to keep it.',
+            style: muted,
           ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          _buildBody(colors),
         ],
       ),
     );
@@ -124,101 +90,42 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
       builder: (context, snapshot) {
         if (!snapshot.hasData && !snapshot.hasError) {
           return const Padding(
-            padding: const EdgeInsets.all(32),
-            child: const Center(
-              child:
-                  const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+            padding: EdgeInsets.all(SkotiqTokens.spaceXl),
+            child: Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
           );
         }
         if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Text(
-                'Failed to load version history: ${snapshot.error}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize13,
-                  color: colors.error,
-                ),
-              ),
-            ),
+          return EmptyState.error(
+            title: 'Could not load the version history',
+            body: userFacingError(snapshot.error!),
+            onRetry: () => setState(() => _versionsFuture = _load()),
           );
         }
         final versions = snapshot.data ?? const <SequenceVersionSummary>[];
         if (versions.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(32),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.history, size: 32, color: colors.textMuted),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No saved versions yet',
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'A version is captured each time this sequence is saved.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          return const EmptyState(
+            icon: LucideIcons.history,
+            title: 'No saved versions yet',
+            body: 'A version is kept each time this sequence is saved.',
           );
         }
-        return ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(16),
-          itemCount: versions.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) => _VersionRow(
-            colors: colors,
-            version: versions[index],
-            isLatest: index == 0,
-            onRestore: () => _restore(versions[index]),
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var index = 0; index < versions.length; index++)
+              _VersionRow(
+                colors: colors,
+                version: versions[index],
+                isLatest: index == 0,
+                isLast: index == versions.length - 1,
+                onRestore: () => _restore(versions[index]),
+              ),
+          ],
         );
       },
-    );
-  }
-
-  Widget _buildFooter(SkotiqColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: [
-          Icon(LucideIcons.info, size: 13, color: colors.textMuted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Restoring loads the version into the editor; save to keep it.',
-              style: TextStyle(
-                fontSize: SkotiqTypography.fontSize11,
-                color: colors.textMuted,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -246,26 +153,28 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
     } on UnsavedChangesException catch (e) {
       final discard = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              ctx,
-              designMaxWidth: 440,
-            ),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Restoring this version will discard them.'),
-          ),
+        builder: (ctx) => SkotiqDialog(
+          title: 'Discard unsaved changes?',
+          width: SkotiqDialog.widthConfirm,
           actions: [
-            TextButton(
+            SkotiqButton(
+              label: 'Cancel',
+              variant: ButtonVariant.ghost,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            SkotiqButton(
+              label: 'Discard and restore',
+              variant: ButtonVariant.destructive,
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Discard and restore'),
             ),
           ],
+          child: Text(
+            '"${e.currentSequenceName}" has unsaved changes. '
+            'Restoring this version will discard them.',
+            style: SkotiqTypography.body.copyWith(
+              color: widget.colors.textSecondary,
+            ),
+          ),
         ),
       );
       if (discard != true || host.isStale) {
@@ -278,7 +187,7 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
     Navigator.of(context).pop();
     ref.read(sequencerTabProvider.notifier).state = 0;
     context.showSuccessSnackBar(
-      'Restored version into the editor — save to keep it',
+      'Restored the version into the editor. Save to keep it.',
     );
   }
 }
@@ -287,91 +196,35 @@ class _VersionRow extends StatelessWidget {
   final SkotiqColors colors;
   final SequenceVersionSummary version;
   final bool isLatest;
+  final bool isLast;
   final VoidCallback onRestore;
 
   const _VersionRow({
     required this.colors,
     required this.version,
     required this.isLatest,
+    required this.isLast,
     required this.onRestore,
   });
-
-  String _formatTimestamp(DateTime date) {
-    return ClockFormat.monthDayYearHm(date.toLocal());
-  }
 
   @override
   Widget build(BuildContext context) {
     final label = version.label;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surfaceAlt,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(LucideIcons.gitCommit, size: 16, color: colors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      _formatTimestamp(version.createdAt),
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize13,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    if (isLatest) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
-                        decoration: SkotiqDecorations.tintedBadge(
-                          colors.success,
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusInline4),
-                        ),
-                        child: Text(
-                          'Latest',
-                          style: SkotiqTypography.labelStrongSm
-                              .copyWith(color: colors.success),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (label != null && label.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          SkotiqButton(
-            label: 'Restore',
-            icon: LucideIcons.undo2,
-            variant: ButtonVariant.outline,
-            size: ButtonSize.small,
-            onPressed: onRestore,
-          ),
-        ],
-      ),
+    final when = ClockFormat.monthDayYearHm(version.createdAt.toLocal());
+    return ListRow(
+      title: when,
+      subtitle: label != null && label.isNotEmpty ? label : null,
+      showDivider: !isLast,
+      trailingWidget: isLatest
+          ? const SkotiqChip(label: 'Latest', tone: ChipTone.success)
+          : null,
+      actions: [
+        SkotiqIconButton(
+          icon: LucideIcons.undo2,
+          tooltip: 'Restore the version of $when',
+          onPressed: onRestore,
+        ),
+      ],
     );
   }
 }

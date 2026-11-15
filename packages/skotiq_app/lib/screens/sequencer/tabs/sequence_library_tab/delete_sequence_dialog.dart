@@ -60,41 +60,29 @@ class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog>
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_isDeleting,
-      child: AlertDialog(
-        backgroundColor: widget.colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        ),
-        title: Text(
-          'Delete Sequence',
-          style: TextStyle(color: widget.colors.textPrimary),
-        ),
-        content: ConstrainedBox(
-          constraints: AdaptiveDialogConstraints.hybrid(
-            context,
-            designMaxWidth: 400,
-          ),
-          child: Text(
-            'Are you sure you want to delete "${widget.sequenceName}"? '
-            'This action cannot be undone.',
-            style: TextStyle(color: widget.colors.textSecondary),
-          ),
-        ),
+      child: SkotiqDialog(
+        title: 'Delete sequence',
+        width: SkotiqDialog.widthConfirm,
+        closeEnabled: !_isDeleting,
         actions: [
           SkotiqButton(
             onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
             label: 'Cancel',
             variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
           ),
           SkotiqButton(
             onPressed: _isDeleting ? null : _delete,
             label: 'Delete',
             variant: ButtonVariant.destructive,
-            size: ButtonSize.small,
             isLoading: _isDeleting,
           ),
         ],
+        child: Text(
+          'Delete "${widget.sequenceName}"? This cannot be undone.',
+          style: SkotiqTypography.body.copyWith(
+            color: widget.colors.textSecondary,
+          ),
+        ),
       ),
     );
   }

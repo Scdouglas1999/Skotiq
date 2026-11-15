@@ -422,30 +422,26 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
       if (!context.mounted) return;
       final discard = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              ctx,
-              designMaxWidth: 440,
-            ),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Opening "${_summary.name}" will discard them.'),
-          ),
+        builder: (ctx) => SkotiqDialog(
+          title: 'Discard unsaved changes?',
+          width: SkotiqDialog.widthConfirm,
           actions: [
             SkotiqButton(
               label: 'Cancel',
               variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
               onPressed: () => Navigator.of(ctx).pop(false),
             ),
             SkotiqButton(
               label: 'Discard and open',
               variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
               onPressed: () => Navigator.of(ctx).pop(true),
             ),
           ],
+          child: Text(
+            '"${e.currentSequenceName}" has unsaved changes. '
+            'Opening "${_summary.name}" will discard them.',
+            style: SkotiqTypography.body.copyWith(color: _colors.textSecondary),
+          ),
         ),
       );
       if (discard != true || host.isStale) return;

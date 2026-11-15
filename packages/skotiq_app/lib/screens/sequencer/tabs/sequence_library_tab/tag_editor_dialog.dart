@@ -34,6 +34,7 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
   late final List<String> _tags;
   late final SequenceRepository _repository;
   final _controller = TextEditingController();
+  final _field = FocusNode();
   bool _saving = false;
 
   @override
@@ -46,6 +47,7 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
   @override
   void dispose() {
     _controller.dispose();
+    _field.dispose();
     super.dispose();
   }
 
@@ -78,139 +80,81 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final dialog = AlertDialog(
-      backgroundColor: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        side: BorderSide(color: colors.border),
-      ),
-      title: Row(
-        children: [
-          Icon(LucideIcons.tags, size: 18, color: colors.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Edit Tags',
-              style: TextStyle(
-                fontSize: SkotiqTypography.fontSize16,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-      content: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 440,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.sequenceName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    // onEditingComplete, not onSubmitted: it replaces the
-                    // default unfocus on Enter, so the next tag can be typed
-                    // straight away.
-                    onEditingComplete: _addTag,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize13,
-                      color: colors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Add a tag',
-                      isDense: true,
-                      prefixIcon: Icon(LucideIcons.tag,
-                          size: 16, color: colors.textMuted),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SkotiqButton(
-                  label: 'Add',
-                  icon: LucideIcons.plus,
-                  variant: ButtonVariant.outline,
-                  size: ButtonSize.small,
-                  onPressed: _addTag,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_tags.isEmpty)
-              Text(
-                'No tags yet.',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize12,
-                  color: colors.textMuted,
-                ),
-              )
-            else
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in _tags)
-                    Container(
-                      padding: const EdgeInsets.only(
-                          left: 10, right: 4, top: 4, bottom: 4),
-                      decoration: SkotiqDecorations.tintedBadge(
-                        colors.primary,
-                        borderRadius:
-                            BorderRadius.circular(SkotiqTokens.radiusInline8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            tag,
-                            style: SkotiqTypography.labelStrongSm
-                                .copyWith(color: colors.primary),
-                          ),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: () => setState(() => _tags.remove(tag)),
-                            child: Icon(LucideIcons.x,
-                                size: 14, color: colors.primary),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-          ],
-        ),
-      ),
+    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
+    final dialog = SkotiqDialog(
+      title: 'Edit tags',
+      width: SkotiqDialog.widthConfirm,
       actions: [
         SkotiqButton(
           label: 'Cancel',
           variant: ButtonVariant.ghost,
-          size: ButtonSize.small,
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         SkotiqButton(
           label: _saving ? 'Saving…' : 'Save',
-          variant: ButtonVariant.primary,
-          size: ButtonSize.small,
           onPressed: _saving ? null : _save,
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.sequenceName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: muted,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          Row(
+            children: [
+              Expanded(
+                child: SkotiqTextField(
+                  controller: _controller,
+                  focusNode: _field,
+                  autofocus: true,
+                  hint: 'Add a tag',
+                  prefixIcon: LucideIcons.tag,
+                  textInputAction: TextInputAction.done,
+                  // Enter adds the tag and keeps the field focused, so the
+                  // next tag can be typed straight away.
+                  onSubmitted: (_) {
+                    _addTag();
+                    _field.requestFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              SkotiqButton(
+                label: 'Add',
+                icon: LucideIcons.plus,
+                variant: ButtonVariant.secondary,
+                onPressed: _addTag,
+              ),
+            ],
+          ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          if (_tags.isEmpty)
+            Text('No tags yet.', style: muted)
+          else
+            Wrap(
+              spacing: SkotiqTokens.spaceSm,
+              runSpacing: SkotiqTokens.spaceSm,
+              children: [
+                for (final tag in _tags)
+                  Tooltip(
+                    message: 'Remove $tag',
+                    child: SkotiqChip(
+                      label: tag,
+                      icon: LucideIcons.x,
+                      tone: ChipTone.primary,
+                      onTap: () => setState(() => _tags.remove(tag)),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
     return PopScope(canPop: !_saving, child: dialog);
   }

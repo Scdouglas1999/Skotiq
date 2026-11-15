@@ -256,17 +256,18 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     variant: ButtonVariant.secondary,
                     onPressed: () => showDialog<void>(
                         context: context,
-                        builder: (context) => AlertDialog(
-                              title: const Text('Camera / cooling'),
-                              content: SizedBox(
-                                  width: 420,
-                                  height: 500,
-                                  child: CameraPanel(colors: colors)),
+                        builder: (context) => SkotiqDialog(
+                              title: 'Camera / cooling',
+                              width: SkotiqDialog.widthConfirm,
                               actions: [
                                 SkotiqButton(
                                     label: 'Done',
                                     onPressed: () => Navigator.pop(context))
                               ],
+                              child: SizedBox(
+                                  width: 420,
+                                  height: 500,
+                                  child: CameraPanel(colors: colors)),
                             )),
                   ),
                 ],

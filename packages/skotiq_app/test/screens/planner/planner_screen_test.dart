@@ -967,7 +967,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget,
+    expect(find.byType(SkotiqDialog), findsOneWidget,
         reason: 'A failed combined mutation must remain retryable.');
     expect(
       find.textContaining('Failed to create list and add target'),
@@ -1062,7 +1062,7 @@ void main() {
 
     backendNotifier.use(hostB);
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
 
     pending.complete(92);
     await tester.pump();
@@ -1170,7 +1170,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The dialog does not sit there accusing the user of a failure...
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
     expect(find.textContaining('Bad state'), findsNothing);
     expect(find.textContaining('Failed to add item'), findsNothing);
     // ...it states what actually happened.
@@ -1540,10 +1540,10 @@ void main() {
     // one chip that threw a bottom sheet, so two neighbouring chips opened
     // their panels at opposite ends of the window.
     expect(find.text('Object types'), findsOneWidget);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);
 
-    final dialog = tester.getRect(find.byType(AlertDialog));
+    final dialog = tester.getRect(find.byType(SkotiqDialog));
     final chip = tester.getRect(find.text('Type: any'));
     expect(
       (dialog.center.dy - 500).abs() < 250,
