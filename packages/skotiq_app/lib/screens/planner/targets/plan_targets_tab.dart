@@ -106,6 +106,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
   bool _configSaveErrorVisible = false;
   bool _autopilotBusy = false;
   bool _groupBusy = false;
+  int? _staleGroupDropped;
 
   /// Autopilot actions and settings sent to the host; a host change drops
   /// what the old host answers.
@@ -394,6 +395,18 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     }
   }
 
+  /// The saved group no longer exists (deleted elsewhere), and the autopilot
+  /// narrowed to it would have nothing to pick: fall back to all targets.
+  void _dropStaleGroup(int staleId) {
+    if (_staleGroupDropped == staleId) return;
+    _staleGroupDropped = staleId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(activeProjectIdProvider) == staleId) {
+        unawaited(_selectGroup(null));
+      }
+    });
+  }
+
   /// Runs one group edit at a time and reports a failure in [failure].
   Future<bool> _groupEdit(
     String failure,
@@ -611,9 +624,13 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
       });
     }
     final targetsAsync = ref.watch(planTargetsProvider);
-    final groups = ref.watch(projectListProvider).valueOrNull ?? const [];
+    final groupsAsync = ref.watch(projectListProvider);
+    final groups = groupsAsync.valueOrNull ?? const [];
     final activeId = ref.watch(activeProjectIdProvider);
     final group = groups.where((g) => g.id == activeId).firstOrNull;
+    if (activeId != null && group == null && groupsAsync.hasValue) {
+      _dropStaleGroup(activeId);
+    }
     final windows = ref.watch(_tonightWindowsProvider);
 
     return LayoutBuilder(
