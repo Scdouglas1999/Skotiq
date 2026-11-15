@@ -716,3 +716,60 @@ fn a_camera_without_a_pixel_size_gets_a_notice_and_one_with_it_does_not() {
     );
     assert!(super::unknown_pixel_size_notice("half", 12.0, 0.0).is_some());
 }
+
+/// The notices published since the last drain whose text names `camera`.
+fn notices_about(rx: &mut Receiver<SkotiqEvent>, camera: &str) -> Vec<String> {
+    let mut notices = Vec::new();
+    loop {
+        match rx.try_recv() {
+            Ok(event) => {
+                if let EventPayload::System(crate::event::system::SystemEvent::Notification {
+                    title,
+                    message,
+                    ..
+                }) = event.payload
+                {
+                    if message.contains(camera) {
+                        notices.push(format!("{title}: {message}"));
+                    }
+                }
+            }
+            Err(TryRecvError::Lagged(_)) => continue,
+            Err(TryRecvError::Empty) | Err(TryRecvError::Closed) => break,
+        }
+    }
+    notices
+}
+
+/// A frame under the signal floor is kept, and the user is told: once when a
+/// run of such frames begins, not with every sub of a capped night, and again
+/// if it happens after frames with signal.
+#[tokio::test]
+async fn a_run_of_frames_with_almost_no_signal_is_told_once_until_signal_returns() {
+    let manager = get_device_manager();
+    let camera = "native:test:capped_scope";
+    let mut rx = get_state().event_bus.subscribe();
+    let dim = Some(skotiq_imaging::BelowSignalFloor {
+        max_value: 4,
+        floor: 100,
+    });
+
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    let told = notices_about(&mut rx, camera);
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert!(
+        told[0].starts_with("Frame has almost no signal")
+            && told[0].contains("4 ADU")
+            && told[0].contains("It was kept"),
+        "{told:?}"
+    );
+
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    assert!(notices_about(&mut rx, camera).is_empty());
+
+    manager.note_frame_signal(camera, 120.0, None).await;
+    assert!(notices_about(&mut rx, camera).is_empty());
+    manager.note_frame_signal(camera, 120.0, dim).await;
+    assert_eq!(notices_about(&mut rx, camera).len(), 1);
+}

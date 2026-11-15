@@ -230,9 +230,16 @@ impl CameraOps for UnifiedDeviceOps {
                 validation.is_valid
             );
 
-            // Log validation warnings (don't fail, just inform user via logging)
             for warning in &validation.warnings {
                 tracing::warn!("[CAMERA] Image validation warning: {}", warning);
+            }
+            // A dark or bias frame is meant to have no signal.
+            if matches!(
+                native_frame_type,
+                skotiq_device::FrameType::Light | skotiq_device::FrameType::Flat
+            ) {
+                mgr.note_frame_signal(camera_id, duration_secs, validation.below_signal_floor)
+                    .await;
             }
 
             // Fail on validation errors (corrupted/unusable images)

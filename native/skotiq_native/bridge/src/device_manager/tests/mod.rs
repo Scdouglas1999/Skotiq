@@ -99,6 +99,7 @@ fn build_device_manager() -> DeviceManager {
         published_temperatures: Default::default(),
         status_reads: Default::default(),
         pixel_size_notices: Default::default(),
+        dim_frame_cameras: Default::default(),
     }
 }
 

@@ -223,6 +223,11 @@ pub struct DeviceManager {
     /// Cameras already told about a pixel size they do not report; the notice
     /// goes out once per camera per run. See `publish_unknown_pixel_size_notice`.
     pub(crate) pixel_size_notices: std::sync::Mutex<std::collections::HashSet<String>>,
+
+    /// Cameras whose last light or flat frame had almost no signal, so the
+    /// notice goes out when that starts and not again with every frame. See
+    /// `note_frame_signal`.
+    pub(crate) dim_frame_cameras: std::sync::Mutex<std::collections::HashSet<String>>,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -349,6 +354,7 @@ impl DeviceManager {
             published_temperatures: Default::default(),
             status_reads: Default::default(),
             pixel_size_notices: Default::default(),
+            dim_frame_cameras: Default::default(),
         });
 
         // Start the reconnection background task
