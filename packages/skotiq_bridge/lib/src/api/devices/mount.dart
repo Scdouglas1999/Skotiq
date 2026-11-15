@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'mount.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `clear_guider_for`, `silent_guider`
+// These functions are ignored because they are not marked as `pub`: `clear_guider_for`, `guider_outcome`, `silent_guider`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SilentGuider`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`
 
