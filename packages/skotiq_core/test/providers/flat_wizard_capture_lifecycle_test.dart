@@ -273,6 +273,35 @@ void main() {
       },
     );
 
+    test('a new run starts every queued filter without the last run\'s '
+        'exposure and level', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, filterNames: const ['L', 'R']);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.setMode(FlatWizardMode.batch);
+
+      await notifier.runCapture();
+      expect(
+        container
+            .read(flatWizardProvider)
+            .filterSettings
+            .map((f) => f.calibratedExposure),
+        everyElement(isNotNull),
+      );
+
+      // Stopped before the first exposure: neither filter is reached.
+      final second = notifier.runCapture();
+      notifier.requestCancel();
+      await second;
+
+      for (final f in container.read(flatWizardProvider).filterSettings) {
+        expect(f.capturedCount, 0);
+        expect(f.calibratedExposure, isNull, reason: f.filterName);
+        expect(f.currentAdu, isNull, reason: f.filterName);
+      }
+    });
+
     test('final status PERSISTS after a fully successful run', () async {
       final backend = _AutoBackend();
       addTearDown(backend.dispose);

@@ -112,7 +112,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           setErrorMessage(
             'Flat-frame save path is not usable on the imaging host: $error',
           );
-          setStatusMessage('Failed — choose a writable host folder.');
+          setStatusMessage('Failed: choose a writable host folder.');
           return;
         }
       }
@@ -161,7 +161,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           'Reconnect the camera or refresh its capabilities before starting '
           'automatic flat calibration.',
         );
-        setStatusMessage('Failed — camera ADU range is unknown.');
+        setStatusMessage('Failed: the camera ADU range is unknown.');
         return;
       }
       final liveCameraAfterResolve = ref.read(cameraStateProvider);
@@ -173,7 +173,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           'Camera changed state while preparing flat capture. Try again once '
           'the camera is connected and idle.',
         );
-        setStatusMessage('Failed — camera changed while preparing.');
+        setStatusMessage('Failed: the camera changed while preparing.');
         return;
       }
 
@@ -760,8 +760,9 @@ extension FlatWizardRun on FlatWizardNotifier {
   }
 
   /// Reset the queued filters to a clean per-run state (pending, zero saved
-  /// count) so the final summary and progress reflect THIS run, not a prior
-  /// one. Filters not in the queue keep their state.
+  /// count, no exposure or level found yet) so the final summary and progress
+  /// reflect THIS run, not a prior one. Filters not in the queue keep their
+  /// state.
   void _prepareFiltersForRun(List<_QueuedFilter> queue) {
     final updated = [...state.filterSettings];
     for (final q in queue) {
@@ -769,6 +770,8 @@ extension FlatWizardRun on FlatWizardNotifier {
       updated[q.originalIndex] = updated[q.originalIndex].copyWith(
         status: FilterCalibrationStatus.pending,
         capturedCount: 0,
+        calibratedExposure: null,
+        currentAdu: null,
       );
     }
     state = state.copyWith(filterSettings: updated);
@@ -808,25 +811,25 @@ extension FlatWizardRun on FlatWizardNotifier {
 
     if (cancelled) {
       setStatusMessage(
-        'Canceled — saved $framesSaved frame${framesSaved == 1 ? '' : 's'}; '
+        'Canceled: saved $framesSaved frame${framesSaved == 1 ? '' : 's'}; '
         '$complete complete, $partial partial.',
       );
       return;
     }
     if (complete == queue.length && partial == 0 && failed == 0) {
       setStatusMessage(
-        'Complete — ${queue.length} filter${queue.length == 1 ? '' : 's'}, '
+        'Complete: ${queue.length} filter${queue.length == 1 ? '' : 's'}, '
         '$framesSaved frame${framesSaved == 1 ? '' : 's'} saved.',
       );
       return;
     }
     if (complete == 0 && partial == 0) {
-      setStatusMessage('Failed — no frames saved.');
-      setErrorMessage('Flat capture failed — no frames were saved.');
+      setStatusMessage('Failed: no frames saved.');
+      setErrorMessage('Flat capture failed: no frames were saved.');
       return;
     }
     setStatusMessage(
-      'Finished with issues — $complete complete, $partial partial, '
+      'Finished with issues: $complete complete, $partial partial, '
       '$failed failed; $framesSaved frame${framesSaved == 1 ? '' : 's'} saved.',
     );
   }
