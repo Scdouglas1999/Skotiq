@@ -133,8 +133,9 @@ class _NightPanel extends StatelessWidget {
             : null);
     final rejected = lights?.where((image) => !image.isAccepted).length ??
         (session == null ? stats?.framesRejected : null);
+    final exposures = session?.totalExposures ?? stats?.framesCaptured;
     final integration =
-        session?.totalIntegrationSecs ?? stats?.integrationSecs ?? 0;
+        session?.totalIntegrationSecs ?? stats?.integrationSecs;
 
     return SkotiqPanel(
       head: const PanelHead(label: 'Night', icon: SkotiqIcons.moon),
@@ -145,8 +146,7 @@ class _NightPanel extends StatelessWidget {
             children: [
               Readout(
                 label: l10n.text('analyticsTotalExposures'),
-                value:
-                    '${session?.totalExposures ?? stats?.framesCaptured ?? 0}',
+                value: exposures?.toString(),
               ),
               Readout(
                 label: l10n.text('analyticsAcceptedLights'),
@@ -155,11 +155,12 @@ class _NightPanel extends StatelessWidget {
               Readout(
                 label: l10n.text('analyticsRejectedLights'),
                 value: rejected?.toString(),
-                valueColor: (rejected ?? 0) > 0 ? colors.warning : null,
+                valueColor:
+                    rejected != null && rejected > 0 ? colors.warning : null,
               ),
               Readout(
                 label: l10n.text('analyticsIntegration'),
-                value: integration > 0
+                value: integration != null && integration > 0
                     ? DurationFormat.decimalHours(integration)
                     : null,
               ),
@@ -300,16 +301,14 @@ class _TargetsPanel extends StatelessWidget {
                         (
                           filter.key.isEmpty ? 'No filter' : filter.key,
                           [
-                            countLabel(
-                              (filter.value['captured'] as num?)?.toInt() ?? 0,
-                              'frame',
-                            ),
-                            DurationFormat.seconds(
-                              (filter.value['integrationSecs'] as num?)
-                                      ?.toDouble() ??
-                                  0,
-                              style: DurationStyle.short,
-                            ),
+                            if (filter.value['captured'] case final num n)
+                              countLabel(n.toInt(), 'frame'),
+                            if (filter.value['integrationSecs']
+                                case final num secs)
+                              DurationFormat.seconds(
+                                secs.toDouble(),
+                                style: DurationStyle.short,
+                              ),
                           ].join(' · '),
                         ),
                     ],
