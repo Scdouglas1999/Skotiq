@@ -3,7 +3,8 @@
 ///
 /// Scoped by the route: `/darkroom?tab=edit&master=<id>` opens a registered
 /// image (its newest recipe, or the offer to start one), `recipe=<id>` opens a
-/// recipe by row id, and neither shows the list alone.
+/// recipe by row id, and neither shows the list with a preview of the chosen
+/// image beside it (the list alone on a narrow window).
 library;
 
 import 'dart:io';
@@ -24,6 +25,7 @@ import 'darkroom_editor.dart';
 import '../darkroom_previews.dart';
 import 'darkroom_image_library.dart';
 import '../../../router/darkroom_route.dart';
+import '../targets/darkroom_image.dart';
 
 /// Width at and above which the image list sits beside an open editor.
 const double kDarkroomEditListBreakpoint = 1100;
@@ -74,10 +76,12 @@ class DarkroomEditTab extends ConsumerWidget {
     final scope = _scope(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (scope.isEmpty) {
-          return const _DarkroomImageList(selected: null, fill: true);
-        }
         final listShown = constraints.maxWidth >= kDarkroomEditListBreakpoint;
+        if (scope.isEmpty) {
+          return listShown
+              ? const _DarkroomEditBrowser()
+              : const _DarkroomImageList(selected: null, fill: true);
+        }
         final editor = DarkroomEditor(
           key: ValueKey('darkroom_editor_$scope'),
           scope: scope,
@@ -105,6 +109,163 @@ class DarkroomEditTab extends ConsumerWidget {
   }
 }
 
+/// Nothing open on a wide window: the image list, and a preview of the image
+/// chosen in it with the way into the editor.
+class _DarkroomEditBrowser extends ConsumerStatefulWidget {
+  const _DarkroomEditBrowser();
+
+  @override
+  ConsumerState<_DarkroomEditBrowser> createState() =>
+      _DarkroomEditBrowserState();
+}
+
+class _DarkroomEditBrowserState extends ConsumerState<_DarkroomEditBrowser> {
+  /// The previewed image's master id; null previews the first image.
+  int? _previewId;
+
+  @override
+  Widget build(BuildContext context) {
+    final targets = ref.watch(darkroomImageLibraryProvider).valueOrNull;
+    final images = [
+      for (final t in targets ?? const <DarkroomLibraryTarget>[]) ...t.images
+    ];
+    // Loading, failed and empty libraries are the list's own states.
+    if (images.isEmpty) {
+      return const _DarkroomImageList(selected: null, fill: true);
+    }
+    final previewed = images.firstWhere(
+      (i) => i.master.id == _previewId,
+      orElse: () => images.first,
+    );
+    final colors = SkotiqColors.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: kDarkroomEditListWidth,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: colors.border)),
+            ),
+            child: _DarkroomImageList(
+              selected: DarkroomScope.master(previewed.master.id),
+              fill: false,
+              onPreview: (image) =>
+                  setState(() => _previewId = image.master.id),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _DarkroomImagePreview(
+            key: ValueKey('darkroom_edit_preview_${previewed.master.id}'),
+            image: previewed,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The previewed image: what it is, its preview, and Edit.
+class _DarkroomImagePreview extends StatelessWidget {
+  final DarkroomLibraryImage image;
+
+  const _DarkroomImagePreview({super.key, required this.image});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final master = image.master;
+    final recipes = image.recipes.length;
+    final facts = [
+      if (master.frameCount > 0) '${master.frameCount} frames',
+      if (master.totalIntegrationSeconds > 0)
+        describeIntegration(master.totalIntegrationSeconds),
+      if (master.width > 0 && master.height > 0)
+        '${master.width} × ${master.height}',
+      'built ${ClockFormat.monthDay(master.createdAt.toLocal())}',
+      recipes == 0
+          ? 'no recipe yet'
+          : '$recipes recipe${recipes == 1 ? '' : 's'}',
+    ].join(' · ');
+    final path =
+        darkroomRecipeDraftPreview(image.recipes) ?? master.previewPngPath;
+    return Padding(
+      padding: SkotiqTokens.screenPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${image.target} · '
+                              '${image.isColor ? 'color image' : 'master'}'
+                          .toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          kDarkroomOverline.copyWith(color: colors.textMuted),
+                    ),
+                    const SizedBox(height: SkotiqTokens.spaceXs),
+                    Text(
+                      image.kind,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SkotiqTypography.pageTitle.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: SkotiqTokens.spaceXs),
+                    Text(
+                      facts,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SkotiqTypography.bodySm.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceLg),
+              SkotiqButton(
+                key: const ValueKey('darkroom_edit_preview_open'),
+                label: recipes == 0 ? 'Start a recipe' : 'Edit',
+                icon: SkotiqIcons.edit,
+                onPressed: () =>
+                    context.go(darkroomEditLocation(masterId: master.id)),
+              ),
+            ],
+          ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: SkotiqTokens.borderRadiusLg,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: colors.well),
+                child: LayoutBuilder(
+                  builder: (context, box) => DarkroomPreviewImage(
+                    path: path,
+                    fit: BoxFit.contain,
+                    decodeWidth:
+                        (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Every registered image, grouped by target, with the way to combine a
 /// target's per-filter masters.
 class _DarkroomImageList extends ConsumerWidget {
@@ -115,7 +276,15 @@ class _DarkroomImageList extends ConsumerWidget {
   /// editor: it then centers a wider column and says what the tab is for.
   final bool fill;
 
-  const _DarkroomImageList({required this.selected, required this.fill});
+  /// Given when the list sits beside a preview: a row tap previews its image
+  /// and a second tap, or a double tap, opens it. Otherwise a tap opens it.
+  final ValueChanged<DarkroomLibraryImage>? onPreview;
+
+  const _DarkroomImageList({
+    required this.selected,
+    required this.fill,
+    this.onPreview,
+  });
 
   bool _isSelected(DarkroomLibraryImage image) {
     final scope = selected;
@@ -258,6 +427,7 @@ class _DarkroomImageList extends ConsumerWidget {
               key: ValueKey('darkroom_edit_image_${image.master.id}'),
               image: image,
               selected: _isSelected(image),
+              onPreview: onPreview,
             ),
         ],
       ],
@@ -285,11 +455,13 @@ class _DarkroomImageList extends ConsumerWidget {
 class _DarkroomImageRow extends StatelessWidget {
   final DarkroomLibraryImage image;
   final bool selected;
+  final ValueChanged<DarkroomLibraryImage>? onPreview;
 
   const _DarkroomImageRow({
     super.key,
     required this.image,
     required this.selected,
+    this.onPreview,
   });
 
   @override
@@ -307,20 +479,25 @@ class _DarkroomImageRow extends StatelessWidget {
     final status = recipes == 0
         ? 'No recipe yet'
         : '$recipes recipe${recipes == 1 ? '' : 's'}';
+    void open() => context.go(darkroomEditLocation(masterId: master.id));
+    final preview = onPreview;
+    // Beside a preview the row picks the image and a second tap opens it;
+    // beside the editor the open image's row has nothing left to do.
+    final VoidCallback? onTap = preview != null
+        ? (selected ? open : () => preview(image))
+        : (selected ? null : open);
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
       child: Semantics(
         container: true,
         button: true,
-        enabled: !selected,
+        enabled: onTap != null,
         selected: selected,
         label: '${image.target} ${image.kind}'
             '${image.isColor ? ' color image' : ' master'}'
             '${meta.isEmpty ? '' : ', $meta'}, $status',
         excludeSemantics: true,
-        onTap: selected
-            ? null
-            : () => context.go(darkroomEditLocation(masterId: master.id)),
+        onTap: onTap,
         child: Material(
           color: selected ? colors.surfaceHover : Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -331,9 +508,8 @@ class _DarkroomImageRow extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: selected
-                ? null
-                : () => context.go(darkroomEditLocation(masterId: master.id)),
+            onTap: onTap,
+            onDoubleTap: preview == null ? null : open,
             child: Padding(
               padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
               child: Row(

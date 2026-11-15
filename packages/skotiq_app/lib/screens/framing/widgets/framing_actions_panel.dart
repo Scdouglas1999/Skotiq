@@ -189,20 +189,18 @@ class _FramingTelescopeSectionState
             // every click was swallowed in silence.
             isEnabled: canSlew,
           ),
-        // The disabled button explains itself instead of swallowing the
-        // click with no feedback at all.
+        // The disabled button explains itself in a plain note: the warning
+        // tone is the section head's status, and banners are for problems.
         if (!hasTarget)
           const FramingNote('Resolve a target above to enable slewing.')
         else if (!isMountConnected)
-          FramingNote(
+          const FramingNote(
             'Connect the mount in Equipment to enable slewing.',
-            color: colors.warning,
           )
         else if (isMountParked)
-          FramingNote(
+          const FramingNote(
             'The mount is parked. Unpark it (Imaging → Mount) before '
             'slewing.',
-            color: colors.warning,
           ),
         // The button falls back to a plain slew without a solver; this says
         // why centering is not on offer and where to set it up.
@@ -220,7 +218,6 @@ class _FramingTelescopeSectionState
             '${target.name.isEmpty ? 'The target' : target.name} is '
             '${targetAltitudeDeg.toStringAsFixed(1)}° below the horizon '
             'right now.',
-            color: colors.warning,
           ),
         _SolveStep(
           colors: colors,

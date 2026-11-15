@@ -797,8 +797,8 @@ class _Review extends ConsumerWidget {
 }
 
 /// The subs that limit the kept field: leaving one out has to keep more of
-/// it. A sub whose removal keeps the same share ("Without it: 98.9% kept"
-/// beside 98.9% covered) was listed as cutting the rest away.
+/// it, by at least the 0.1% the card shows, so "Without it" never repeats the
+/// share already kept.
 List<DarkroomLimitingFrame> framingLimitingSubs(
   List<DarkroomLimitingFrame> candidates, {
   required double retainedArea,
@@ -809,6 +809,7 @@ List<DarkroomLimitingFrame> framingLimitingSubs(
       for (final f in candidates)
         if (f.path != referencePath &&
             !leftOut.contains(f.path) &&
-            f.retainedWithout > retainedArea + 0.0005)
+            f.retainedWithout > retainedArea &&
+            percent(f.retainedWithout) != percent(retainedArea))
           f,
     ];

@@ -77,6 +77,8 @@ final _fall = Project(
 List<Override> _overrides({
   List<ndb.DbTarget>? targets,
   List<Project> groups = const [],
+  LocationSettings? site,
+  List<Override> extra = const [],
 }) =>
     [
       inMemoryDatabaseOverride(),
@@ -92,7 +94,8 @@ List<Override> _overrides({
           for (final g in groups) g.id!: {2},
         },
       ),
-      ...planTargetsTabOverrides(),
+      ...planTargetsTabOverrides(site: site),
+      ...extra,
     ];
 
 Future<ProviderContainer> _pump(
@@ -101,13 +104,20 @@ Future<ProviderContainer> _pump(
   List<Project> groups = const [],
   Size size = const Size(1400, 900),
   String? initialGroup,
+  LocationSettings? site,
+  List<Override> extra = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: _overrides(targets: targets, groups: groups),
+      overrides: _overrides(
+        targets: targets,
+        groups: groups,
+        site: site,
+        extra: extra,
+      ),
       child: MaterialApp(
         theme: SkotiqTheme.dark,
         home: Scaffold(body: PlanTargetsTab(initialGroup: initialGroup)),
@@ -186,7 +196,8 @@ void main() {
     await _pump(tester, targets: const []);
 
     expect(find.text('No targets yet'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plan-targets-add-first')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('plan-targets-add-first')), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-targets-search')), findsNothing);
     expect(find.byKey(const ValueKey('plan-targets-sort-chip')), findsNothing);
     await settleProviderTeardown(tester);
@@ -196,10 +207,48 @@ void main() {
     await _pump(tester, initialGroup: 'mosaics');
 
     expect(find.text('No mosaics yet'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plan-targets-new-mosaic')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('plan-targets-new-mosaic')), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-target-row-1')), findsNothing);
     await settleProviderTeardown(tester);
   });
+
+  // NGC 891 from latitude 47 is above the true horizon for all but a short
+  // while each day and peaks at 85 degrees.
+  for (final (name, floor, text) in [
+    (
+      'the minimum altitude',
+      const AltitudeFloor(horizon: null, minimumDeg: 0),
+      'Above 0° ',
+    ),
+    (
+      'the horizon',
+      AltitudeFloor(
+        horizon: SiteHorizonProfile.fromJson(
+          '{"N":88,"NE":89,"E":89,"SE":89,"S":89,"SW":89,"W":89,"NW":89}',
+        ),
+        minimumDeg: 0,
+      ),
+      'Does not rise above your horizon in darkness tonight',
+    ),
+  ]) {
+    testWidgets("a target's tonight line names the floor in force: $name",
+        (tester) async {
+      await _pump(
+        tester,
+        site: const LocationSettings(latitude: 47, longitude: -71),
+        extra: [altitudeFloorProvider.overrideWithValue(floor)],
+      );
+      await tester.tap(find.text('NGC0891'));
+      await tester.pumpAndSettle();
+
+      final line = tester.widget<Text>(
+        find.byKey(const Key('target-detail-tonight-window')),
+      );
+      expect(line.data, startsWith(text));
+      await settleProviderTeardown(tester);
+    });
+  }
 
   testWidgets('at phone width every row keeps its name and nothing overflows',
       (tester) async {

@@ -231,12 +231,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       if (message == null) return;
       if (_isAnnouncedRunWarning(event)) return;
 
-      // A sequencer event the notification router classifies is the router's
-      // to tell: a failed run (once per run, with its reason) and an
-      // operator's Stop arriving as the cancellation notice. A second toast
+      // A sequencer or imaging event the notification router classifies is
+      // the router's to tell: a failed run (once per run, with its reason),
+      // an operator's Stop arriving as the cancellation notice, a failed
+      // exposure. A second toast
       // here for the same happening is how one failed run raised three
       // notices.
-      if (event.category == core.EventCategory.sequencer &&
+      if ((event.category == core.EventCategory.sequencer ||
+              event.category == core.EventCategory.imaging) &&
           NotificationEventClassifier.classify(event) != null) {
         return;
       }

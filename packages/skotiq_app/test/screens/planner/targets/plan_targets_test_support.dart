@@ -9,9 +9,9 @@ import 'package:skotiq_core/providers.dart';
 import '../scheduler_test_doubles.dart';
 
 /// What Plan > Targets reads besides the targets and groups a test supplies:
-/// an idle autopilot that is ready to start, no site, no forecast, nothing
-/// taken off the autopilot's list.
-List<Override> planTargetsTabOverrides() => [
+/// an idle autopilot that is ready to start, no site unless [site] names
+/// one, no forecast, nothing taken off the autopilot's list.
+List<Override> planTargetsTabOverrides({LocationSettings? site}) => [
       allSessionsProvider.overrideWith(
         (ref) => Stream.value(const <ndb.ImagingSession>[]),
       ),
@@ -26,7 +26,7 @@ List<Override> planTargetsTabOverrides() => [
       ),
       autopilotRemovedTargetIdsProvider.overrideWith((ref) async => <int>{}),
       unusedTargetsCountProvider.overrideWith((ref) async => 0),
-      appObserverLocationProvider.overrideWithValue(null),
+      appObserverLocationProvider.overrideWithValue(site),
       weekForecastProvider.overrideWith(
         (ref) => Completer<WeekForecast>().future,
       ),

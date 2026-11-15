@@ -870,6 +870,31 @@ void main() {
     expect(library.matches, 2 * first);
   });
 
+  testWidgets('a phone shows the list, and a target opens over it', (
+    tester,
+  ) async {
+    final h = await _pump(tester, size: const Size(390, 844));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('darkroom_target_row_NGC 891')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('darkroom_target_hero')), findsNothing,
+        reason: 'a 95 px detail beside the list is not a detail');
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_target_row_NGC 891')));
+    await _settle(tester);
+    expect(tester.takeException(), isNull,
+        reason: 'the nights axis must paint in a phone-width column');
+    expect(find.byKey(const ValueKey('darkroom_target_hero')), findsOneWidget);
+    expect(find.byKey(const ValueKey('darkroom_target_row_NGC 891')),
+        findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_back_to_targets')));
+    await _settle(tester);
+    expect(h.location, isNot(contains('NGC')));
+    expect(find.byKey(const ValueKey('darkroom_target_row_NGC 891')),
+        findsOneWidget);
+  });
+
   testWidgets('the detail fits at 1280 wide without overflow', (tester) async {
     await _pump(tester, size: const Size(1190, 800));
     expect(tester.takeException(), isNull);

@@ -52,6 +52,7 @@ pub async fn measure_saved_frame(
             }
         }
         Ok(_) => SolveOutcome::Failed,
+        Err(crate::device_ops::DeviceError::NO_PLATE_SOLVER) => SolveOutcome::NotAttempted,
         Err(e) => {
             tracing::info!("[FRAME_WATCH] Plate solve of {} failed: {}", path, e);
             SolveOutcome::Failed
@@ -170,6 +171,46 @@ mod tests {
         assert_eq!(n, 2);
         assert!((rms.unwrap() - 0.5f64.sqrt()).abs() < 1e-9);
         assert_eq!(guide_rms_over(&[], Duration::from_secs(10)), (None, 0));
+    }
+
+    struct NoSolverOps {
+        inner: crate::device_ops::NullDeviceOps,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::device_ops::PlateSolveOps for NoSolverOps {
+        async fn plate_solve(
+            &self,
+            _: &ImageData,
+            _: Option<f64>,
+            _: Option<f64>,
+            _: Option<f64>,
+        ) -> crate::device_ops::DeviceResult<crate::device_ops::PlateSolveResult> {
+            Err(crate::device_ops::DeviceError::NO_PLATE_SOLVER)
+        }
+    }
+
+    crate::forward_device_ops!(NoSolverOps => inner: MountOps, CameraOps, FocuserOps, FilterWheelOps, RotatorOps, GuiderOps, DomeOps, CoverCalibratorOps, SafetyOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
+
+    /// With no solver installed a frame is measured but not solved: that is
+    /// no solve attempted, not a failed one.
+    #[tokio::test]
+    async fn a_frame_with_no_solver_installed_is_not_a_failed_solve() {
+        let dir = std::env::temp_dir().join(format!("frame-watch-nosolver-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("frame.fits");
+        let image = skotiq_imaging::ImageData::from_u16(40, 30, 1, &vec![900u16; 40 * 30]);
+        skotiq_imaging::write_fits(&path, &image, &skotiq_imaging::FitsHeader::new()).unwrap();
+
+        let ops: SharedDeviceOps = std::sync::Arc::new(NoSolverOps {
+            inner: crate::device_ops::NullDeviceOps,
+        });
+        let measured = measure_saved_frame(&ops, path.to_str().unwrap(), Some(35.6), Some(42.3))
+            .await
+            .unwrap();
+        assert_eq!(measured.solve, SolveOutcome::NotAttempted);
+        assert_eq!(measured.background_adu, Some(900.0));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

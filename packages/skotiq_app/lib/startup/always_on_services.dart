@@ -360,6 +360,12 @@ final List<AlwaysOnService> alwaysOnServices = [
         'Settings',
   ),
   AlwaysOnService(
+    'weather notices',
+    weatherNoticesProvider,
+    _hosts,
+    'unsafe weather, its end, and clouds coming and clearing told once each',
+  ),
+  AlwaysOnService(
     'planetarium altitude floor',
     planetariumAltitudeFloorSyncProvider,
     _everyRole,

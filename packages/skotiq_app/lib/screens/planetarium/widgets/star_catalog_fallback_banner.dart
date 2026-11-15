@@ -28,24 +28,28 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
     // host it is linked to has the full sky.
     final host = ref.watch(linkedHostLinkProvider)?.serverHost;
 
-    return SkotiqAlert(
-      severity: SkotiqAlertSeverity.warning,
-      compact: true,
-      title: host == null
-          ? 'Star catalog not installed'
-          : 'Star catalog not installed on this computer',
-      message: host == null
-          ? 'Showing the $count-star built-in list. Most stars, and every '
-              'catalog search that depends on them, are missing until you '
-              'install the HYG catalog.'
-          : 'This sky comes from this computer\'s catalogs, not from the '
-              'imaging host ($host). Showing the $count-star built-in list '
-              'until you install the HYG catalog here.',
-      action: SkotiqButton(
-        label: host == null ? 'Install' : 'Install here',
-        variant: ButtonVariant.outline,
-        size: ButtonSize.small,
-        onPressed: () => _openCatalogSettings(context, ref),
+    // Glass under the banner: its fill is a hairline tint, unreadable over
+    // the bright parts of the sky.
+    return Glass(
+      padding: EdgeInsets.zero,
+      child: SkotiqBanner(
+        tone: BannerTone.warning,
+        title: host == null
+            ? 'Star catalog not installed.'
+            : 'Star catalog not installed on this computer.',
+        message: host == null
+            ? 'Showing the $count-star built-in list. Most stars, and every '
+                'catalog search that depends on them, are missing until you '
+                'install the HYG catalog.'
+            : 'This sky comes from this computer\'s catalogs, not from the '
+                'imaging host ($host). Showing the $count-star built-in list '
+                'until you install the HYG catalog here.',
+        action: SkotiqButton(
+          label: host == null ? 'Install' : 'Install here',
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.small,
+          onPressed: () => _openCatalogSettings(context, ref),
+        ),
       ),
     );
   }

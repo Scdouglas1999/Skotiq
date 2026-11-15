@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(_host(onFallback: true));
     await tester.pump();
 
-    expect(find.text('Star catalog not installed'), findsOneWidget);
+    expect(find.textContaining('Star catalog not installed.'), findsOneWidget);
     expect(
         find.textContaining(
           '${HygStarCatalog.fallbackStarCount}-star built-in list',
@@ -61,7 +61,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Star catalog not installed on this computer'),
+      find.textContaining('Star catalog not installed on this computer.'),
       findsOneWidget,
     );
     expect(
@@ -82,6 +82,6 @@ void main() {
     await tester.pumpWidget(_host(onFallback: false));
     await tester.pump();
 
-    expect(find.byType(SkotiqAlert), findsNothing);
+    expect(find.byType(SkotiqBanner), findsNothing);
   });
 }

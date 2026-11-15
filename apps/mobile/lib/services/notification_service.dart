@@ -750,6 +750,18 @@ class MobileNotificationService implements MobileNotificationSink {
     );
   }
 
+  /// Replaces the guiding-lost notice it answers.
+  @override
+  Future<void> notifyGuidingRecovered(String body) async {
+    await _notifications.show(
+      _guidingLostId,
+      'Guiding Recovered',
+      body,
+      _infoDetails,
+      payload: 'guiding_lost',
+    );
+  }
+
   @override
   Future<void> notifyExposureFailed(String errorMessage) async {
     await _notifications.show(

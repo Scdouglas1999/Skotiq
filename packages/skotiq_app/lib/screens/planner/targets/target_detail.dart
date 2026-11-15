@@ -1,7 +1,9 @@
 part of 'plan_targets_tab.dart';
 
-typedef _SetInAutopilot = Future<void> Function(PlanTarget target, bool include);
-typedef _RemoveFromGroup = Future<void> Function(Project group, PlanTarget target);
+typedef _SetInAutopilot = Future<void> Function(
+    PlanTarget target, bool include);
+typedef _RemoveFromGroup = Future<void> Function(
+    Project group, PlanTarget target);
 
 /// One target's page: what is done, its goals and limits, tonight, and the
 /// ways on to framing, a sequence, its history and the Darkroom.
@@ -33,7 +35,8 @@ class _TargetDetail extends ConsumerWidget {
     final facts = [
       if (target.objectType?.isNotEmpty ?? false) target.objectType!,
       if (target.constellation?.isNotEmpty ?? false) target.constellation!,
-      if (target.magnitude != null) 'mag ${target.magnitude!.toStringAsFixed(1)}',
+      if (target.magnitude != null)
+        'mag ${target.magnitude!.toStringAsFixed(1)}',
     ].join(' · ');
     final byFilter = [...progress.filters]
       ..sort((a, b) => compareDarkroomFilters(a.filter, b.filter));
@@ -83,8 +86,8 @@ class _TargetDetail extends ConsumerWidget {
                     ),
                     if (progress.goal.isSet)
                       Readout(
-                        value: (progress.goal.goalSecs / 3600)
-                            .toStringAsFixed(1),
+                        value:
+                            (progress.goal.goalSecs / 3600).toStringAsFixed(1),
                         unit: 'h',
                         label: progress.goal.allFilters
                             ? 'Goal, all filters'
@@ -92,7 +95,8 @@ class _TargetDetail extends ConsumerWidget {
                       ),
                     Readout(
                       value: '${progress.sessionCount}',
-                      label: progress.sessionCount == 1 ? 'Session' : 'Sessions',
+                      label:
+                          progress.sessionCount == 1 ? 'Session' : 'Sessions',
                     ),
                     Readout(
                       value: '${progress.acceptedFrames}',
@@ -174,7 +178,8 @@ class _TargetDetail extends ConsumerWidget {
                   label: 'History',
                   size: ButtonSize.small,
                   variant: ButtonVariant.ghost,
-                  onPressed: () => CampaignRollupDialog.show(context, target.id),
+                  onPressed: () =>
+                      CampaignRollupDialog.show(context, target.id),
                 ),
               ],
             ),
@@ -291,14 +296,17 @@ class _SectionGap extends StatelessWidget {
 
 /// Tonight for one target: its altitude over the night and when it stands
 /// above the site's floor in darkness.
-class _TonightSection extends StatelessWidget {
+class _TonightSection extends ConsumerWidget {
   const _TonightSection({required this.window});
 
   final _TonightWindow? window;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
+    // The floor in force, in the site rule's own words: "your horizon" or
+    // the minimum altitude.
+    final floor = ref.watch(altitudeFloorProvider).asSamples().phrase;
     final w = window;
     final head = Text(
       'Tonight',
@@ -327,11 +335,12 @@ class _TonightSection extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
           w.isUp
-              ? 'Clear of your horizon '
+              ? 'Above $floor '
                   '${ClockFormat.hm(w.start!.toLocal())} to '
                   '${ClockFormat.hm(w.end!.toLocal())}, peaking at '
                   '${peak.round()}°'
-              : 'Does not clear your horizon in darkness tonight',
+              : 'Does not rise above $floor in darkness tonight',
+          key: const Key('target-detail-tonight-window'),
           style: muted,
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),

@@ -498,7 +498,7 @@ mod while_imaging_unguided {
         let result = execute_dither(&DitherConfig::default(), &ctx, None).await;
         let run = finish(&ctx, result, events, decisions).await;
 
-        assert_eq!(run.result.status, NodeStatus::Success);
+        assert_eq!(run.result.status, NodeStatus::Skipped);
         assert!(
             ops.dithers_after_frame.lock().unwrap().is_empty(),
             "no dither may be sent to a guider that is not guiding"
@@ -667,7 +667,7 @@ async fn a_dither_is_skipped_while_the_run_holds_the_guider_stopped() {
 
     let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
 
-    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(result.status, NodeStatus::Skipped, "{:?}", result.message);
     assert!(
         result
             .message
@@ -693,6 +693,46 @@ async fn a_dither_is_skipped_while_the_run_holds_the_guider_stopped() {
     trigger_state.write().await.guiding.take_resume_pending();
     let _ = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
     assert_eq!(ops.dithers_after_frame.lock().unwrap().len(), 1);
+}
+
+/// A rig with no guider cannot dither: the step says so and ends Skipped, and
+/// the guider is neither asked nor told of a dither settle, so nothing reads as
+/// guiding having stopped and started.
+#[tokio::test]
+async fn a_dither_with_no_guider_is_skipped_and_says_so() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guider_absent());
+    let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
+
+    let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Skipped, "{:?}", result.message);
+    assert_eq!(
+        result.message.as_deref(),
+        Some("Dither skipped: no guider is set up, so the frames are not dithered")
+    );
+    assert!(ops.dithers_after_frame.lock().unwrap().is_empty());
+    assert!(
+        ops.guider_stop_reasons.lock().unwrap().is_empty(),
+        "no dither settle is announced"
+    );
+    assert_eq!(
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
+        0
+    );
+    let mut performed = 0;
+    while let Ok(event) = events.try_recv() {
+        if matches!(
+            event,
+            crate::executor::ExecutorEvent::DitherPerformed { .. }
+        ) {
+            performed += 1;
+        }
+    }
+    assert_eq!(performed, 0);
 }
 
 /// A dither whose settle runs out while the guider holds the star is a

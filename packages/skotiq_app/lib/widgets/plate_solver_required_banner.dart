@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 
@@ -40,61 +39,20 @@ class PlateSolverRequiredBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = SkotiqColors.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: SkotiqDecorations.emphasisSurface(
-        colors.warning,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.alertTriangle,
-                color: colors.warning,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Plate solver not configured',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            contextMessage ??
-                'Skotiq needs ASTAP (or Astrometry.net) installed and '
-                    'reachable to perform this operation. Set one up to '
-                    'continue.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colors.textPrimary,
-            ),
-          ),
-          if (showActionButton) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: SkotiqButton(
-                label: 'Set up plate solver',
-                icon: LucideIcons.settings,
-                variant: ButtonVariant.primary,
-                onPressed: () => _navigateToSettings(context),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return SkotiqBanner(
+      tone: BannerTone.warning,
+      title: 'Plate solver not configured.',
+      message: contextMessage ??
+          'Skotiq needs ASTAP or Astrometry.net installed and reachable for '
+              'this. Set one up to continue.',
+      action: showActionButton
+          ? SkotiqButton(
+              label: 'Set up plate solver',
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () => _navigateToSettings(context),
+            )
+          : null,
     );
   }
 }
