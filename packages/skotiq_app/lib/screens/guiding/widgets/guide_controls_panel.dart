@@ -448,9 +448,9 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           id: 'dither',
           icon: LucideIcons.shuffle,
           label: 'Dither now',
-          color: colors.accent,
+          color: colors.textPrimary,
           colors: colors,
-          small: true,
+          isOutline: true,
           onPressed: widget.state.canDither ? widget.onDither : null,
         ),
       ],
@@ -561,7 +561,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     /// one of this and [onPressed] is given.
     Future<String?> Function()? onPressedReporting,
     bool isOutline = false,
-    bool small = false,
 
     /// The control's full name for assistive tech, when [label] is the short
     /// form that fits the grid.
@@ -640,29 +639,25 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: small ? MainAxisSize.min : MainAxisSize.max,
+                  mainAxisSize: MainAxisSize.max,
                   children: [
                     if (isThisBusy)
                       SizedBox(
-                        width: small ? 14 : 16,
-                        height: small ? 14 : 16,
-                        child:
-                            SkotiqSpinner(size: small ? 14 : 16, color: color),
+                        width: 16,
+                        height: 16,
+                        child: SkotiqSpinner(size: 16, color: color),
                       )
                     else
                       Icon(
                         icon,
-                        size: small ? 14 : 16,
+                        size: 16,
                         color: color,
                       ),
-                    SizedBox(width: small ? 6 : 8),
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         label,
-                        style: (small
-                                ? SkotiqTypography.labelQuiet
-                                : SkotiqTypography.labelSm)
-                            .copyWith(color: color),
+                        style: SkotiqTypography.labelSm.copyWith(color: color),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
