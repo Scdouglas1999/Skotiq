@@ -54,9 +54,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Could not load imaging sessions'), findsOneWidget);
+      expect(find.text('Sessions did not load'), findsOneWidget);
       expect(
-        find.textContaining('Bad state: session index unavailable'),
+        find.textContaining('session index unavailable'),
         findsOneWidget,
       );
       expect(standaloneScienceBuilds, 0);
@@ -132,11 +132,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Some science data could not be loaded'),
+      find.textContaining('Some science data did not load', findRichText: true),
       findsOneWidget,
     );
     expect(
-      find.textContaining('Bad state: photometry store unavailable'),
+      find.textContaining('photometry store unavailable', findRichText: true),
       findsOneWidget,
     );
     expect(photometryAttempts, 1);

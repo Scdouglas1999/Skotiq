@@ -214,7 +214,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     initialView: widget.initialScienceView,
                     onViewPicked: (view) =>
                         _writeLocation(AnalyticsTab.science, view),
-                    showHeader: false,
                   ),
                 ],
               ),

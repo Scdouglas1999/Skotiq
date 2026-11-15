@@ -67,36 +67,39 @@ class _ScienceJumpNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: colors.border),
-      ),
+    return SkotiqPanel(
+      padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+      // The section chips wrap on a narrow window; the export stays at the end
+      // of the first line.
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _JumpChip(
-            colors: colors,
-            icon: LucideIcons.lineChart,
-            label: 'Photometry',
-            onTap: onPhotometry,
+          Expanded(
+            child: Wrap(
+              spacing: SkotiqTokens.spaceSm,
+              runSpacing: SkotiqTokens.spaceXs,
+              children: [
+                _JumpChip(
+                  colors: colors,
+                  icon: LucideIcons.lineChart,
+                  label: 'Photometry',
+                  onTap: onPhotometry,
+                ),
+                _JumpChip(
+                  colors: colors,
+                  icon: LucideIcons.grid,
+                  label: 'Field quality',
+                  onTap: onFieldQuality,
+                ),
+                _JumpChip(
+                  colors: colors,
+                  icon: LucideIcons.orbit,
+                  label: 'Anomalies',
+                  onTap: onAnomalies,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 8),
-          _JumpChip(
-            colors: colors,
-            icon: LucideIcons.grid,
-            label: 'Field quality',
-            onTap: onFieldQuality,
-          ),
-          const SizedBox(width: 8),
-          _JumpChip(
-            colors: colors,
-            icon: LucideIcons.orbit,
-            label: 'Anomalies',
-            onTap: onAnomalies,
-          ),
-          const Spacer(),
           if (sessionId != null)
             _JumpChip(
               colors: colors,

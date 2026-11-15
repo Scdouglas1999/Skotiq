@@ -45,7 +45,6 @@ class ScienceLadderCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
     final collapsed = ref.watch(
       scienceSettingsProvider.select(
         (s) => s.valueOrNull?.scienceGuideCollapsed ?? false,
@@ -70,66 +69,35 @@ class ScienceLadderCard extends ConsumerWidget {
     final nextSpec =
         next == null ? null : kScienceLadder.firstWhere((s) => s.rung == next);
 
-    return SkotiqCard(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+    return SkotiqPanel(
+      head: PanelHead(
+        icon: LucideIcons.flaskConical,
+        label: 'Science guide',
+        trailing: [
+          SkotiqIconButton(
+            icon: LucideIcons.x,
+            tooltip: 'Collapse the science guide',
+            onPressed: () => _setCollapsed(ref, true),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Wraps rather than scrolls: on a phone a sideways strip hid the
+          // last three steps.
+          Wrap(
+            spacing: SkotiqTokens.spaceSm,
+            runSpacing: SkotiqTokens.spaceSm,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: colors.primary),
-                child: Icon(
-                  LucideIcons.flaskConical,
-                  color: colors.primary,
-                  size: SkotiqTokens.iconSm,
+              for (var i = 0; i < kScienceLadder.length; i++)
+                _RungChip(
+                  index: i + 1,
+                  spec: kScienceLadder[i],
+                  state: progress.states[kScienceLadder[i].rung]!,
+                  onTap: () => _openRung(context, ref, kScienceLadder[i]),
                 ),
-              ),
-              const SizedBox(width: SkotiqTokens.spaceMd),
-              Expanded(
-                child: Text(
-                  'Science guide',
-                  style: SkotiqTypography.bodyStrong.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ),
-              Semantics(
-                button: true,
-                enabled: true,
-                label: 'Collapse science guide',
-                child: SkotiqIconButton(
-                  icon: LucideIcons.x,
-                  tooltip: 'Collapse',
-                  onPressed: () => _setCollapsed(ref, true),
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: SkotiqTokens.spaceMd),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var i = 0; i < kScienceLadder.length; i++) ...[
-                  if (i != 0) ...[
-                    Container(
-                      width: 16,
-                      height: 1,
-                      color: colors.border,
-                    ),
-                  ],
-                  _RungChip(
-                    index: i + 1,
-                    spec: kScienceLadder[i],
-                    state: progress.states[kScienceLadder[i].rung]!,
-                    onTap: () => _openRung(context, ref, kScienceLadder[i]),
-                  ),
-                ],
-              ],
-            ),
           ),
           if (nextSpec != null) ...[
             const SizedBox(height: SkotiqTokens.spaceLg),
@@ -321,7 +289,7 @@ class _CollapsedRow extends StatelessWidget {
     return ScienceNavRowCard(
       icon: LucideIcons.flaskConical,
       iconColor: colors.primary,
-      label: 'Science guide — step $step of 5',
+      label: 'Science guide, step $step of 5',
       labelColor: colors.textSecondary,
       onTap: onExpand,
     );

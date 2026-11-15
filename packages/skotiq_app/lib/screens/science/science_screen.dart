@@ -4,26 +4,18 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../localization/skotiq_localizations.dart';
 import '../../router/analytics_route.dart';
 import '../analytics/widgets/science_analytics_tab.dart';
 import '../analytics/widgets/science_export_hub.dart';
 import '../first_light/first_light_view.dart';
 import '../transients/transients_screen.dart';
 
-/// Scaffold-free science workspace body: the photometry / first-light /
-/// observing-alerts tab host. Science ships folded into Analytics → Science,
-/// which mounts this with `showHeader: false` — the `/science` path is a pure
-/// deep-link redirect onto that tab and builds no page of its own.
+/// Analytics > Science: the measurements, first light and observing alerts
+/// views, chosen with a switch at the top of the tab. `/science` only
+/// redirects here.
 class ScienceWorkspaceView extends ConsumerStatefulWidget {
-  /// The view a link asked for; null opens the workspace.
+  /// The view a link asked for; null opens the measurements.
   final ScienceTab? initialView;
-
-  /// When true, the science title folds inline to the left of the sub-tab bar,
-  /// for a host that does not name the surface itself. Analytics — the only
-  /// host today — passes false because its own chrome already names it; either
-  /// way the per-tab actions sit inline at the right end of the sub-tab row.
-  final bool showHeader;
 
   /// The operator picked a view by hand, so the host can put it in the
   /// location.
@@ -32,7 +24,6 @@ class ScienceWorkspaceView extends ConsumerStatefulWidget {
   const ScienceWorkspaceView({
     super.key,
     this.initialView,
-    this.showHeader = true,
     this.onViewPicked,
   });
 
@@ -65,74 +56,38 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
     }
   }
 
-  List<AdaptiveTab> _tabs(BuildContext context) {
-    final l10n = context.l10n;
-    return [
-      AdaptiveTab(
-        label: l10n.text('analyticsScience'),
-        icon: LucideIcons.flaskConical,
-      ),
-      const AdaptiveTab(
-        label: 'First light',
-        icon: LucideIcons.sparkles,
-      ),
-      const AdaptiveTab(
-        label: 'Observing alerts',
-        icon: LucideIcons.satellite,
-      ),
-    ];
-  }
+  /// About what the three view names take on one line.
+  static const double _switchWidth = 300;
 
-  /// The per-tab action affordances: alert refresh/settings (transients sub-tab
-  /// only) plus the always-present science export hub. Shared by the standalone
-  /// header trailing slot and the embedded inline toolbar.
-  List<Widget> _actions(BuildContext context, SkotiqColors colors) {
+  /// The view names, in [ScienceTab] order.
+  static const List<String> _views = [
+    'Measurements',
+    'First light',
+    'Observing alerts',
+  ];
+
+  /// The view's actions: refresh and settings on the observing alerts, and
+  /// the science export on every view.
+  List<Widget> _actions(BuildContext context) {
     return [
       if (_currentSubTab == ScienceTab.transients.index) ...[
-        IconButton(
-          icon: Icon(
-            SkotiqIcons.refresh,
-            size: SkotiqTokens.iconMd,
-            color: colors.textSecondary,
-          ),
-          onPressed: () => refreshTransientAlerts(ref),
+        SkotiqIconButton(
+          icon: SkotiqIcons.refresh,
           tooltip: 'Refresh alerts',
-          constraints: const BoxConstraints(
-            minWidth: SkotiqTokens.minTouchTarget,
-            minHeight: SkotiqTokens.minTouchTarget,
-          ),
+          onPressed: () => refreshTransientAlerts(ref),
         ),
-        IconButton(
-          icon: Icon(
-            SkotiqIcons.settings,
-            size: SkotiqTokens.iconMd,
-            color: colors.textSecondary,
-          ),
-          onPressed: () => showTransientSettingsDialog(context, ref),
+        SkotiqIconButton(
+          icon: SkotiqIcons.settings,
           tooltip: 'Alert settings',
-          constraints: const BoxConstraints(
-            minWidth: SkotiqTokens.minTouchTarget,
-            minHeight: SkotiqTokens.minTouchTarget,
-          ),
+          onPressed: () => showTransientSettingsDialog(context, ref),
         ),
       ],
-      Tooltip(
-        message: 'Export science data',
-        child: IconButton(
-          icon: Icon(
-            LucideIcons.database,
-            size: SkotiqTokens.iconMd,
-            color: colors.textSecondary,
-          ),
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => const ScienceExportHub(),
-          ),
-          padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-          constraints: const BoxConstraints(
-            minWidth: SkotiqTokens.minTouchTarget,
-            minHeight: SkotiqTokens.minTouchTarget,
-          ),
+      SkotiqIconButton(
+        icon: LucideIcons.database,
+        tooltip: 'Export science data',
+        onPressed: () => showDialog<void>(
+          context: context,
+          builder: (_) => const ScienceExportHub(),
         ),
       ),
     ];
@@ -140,66 +95,59 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final l10n = context.l10n;
+    final isPhone = Responsive.isPhone(context);
 
-    final tabBar = AdaptiveTabBar(
-      tabs: _tabs(context),
+    // A switch inside the page, not a second row of header tabs: the header
+    // above already carries Analytics' own tabs.
+    final views = SegmentedControl(
+      segments: _views,
       selectedIndex: _currentSubTab,
+      semanticLabel: 'Science view',
       onSelected: (index) {
         setState(() => _currentSubTab = index);
         widget.onViewPicked?.call(ScienceTab.values[index]);
       },
     );
 
-    final isPhone = Responsive.isPhone(context);
-
     return Column(
       children: [
-        // Title + sub-tabs + per-tab actions share ONE row. On the standalone
-        // `/science` route the screen owns its title, so it folds inline to the
-        // left of the tab strip (icon-only on a phone) instead of sitting in a
-        // separate header row above the tabs. When embedded in Analytics
-        // the outer chrome already names the screen, so the title is omitted and
-        // only the per-tab actions ride at the right end of the row.
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceAlt,
-            border: Border(bottom: BorderSide(color: colors.border)),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            isPhone ? SkotiqTokens.spaceLg : SkotiqTokens.space2xl,
+            isPhone ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
+            isPhone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceLg,
+            0,
           ),
-          child: Row(
-            children: [
-              if (widget.showHeader)
-                Padding(
-                  padding: EdgeInsets.only(
-                    left: SkotiqTokens.spaceLg,
-                    right:
-                        isPhone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final actions = _actions(context);
+              final oneLine = constraints.maxWidth >=
+                  _switchWidth + actions.length * SkotiqTokens.minTouchTarget;
+              final switchRow = Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: views,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        LucideIcons.flaskConical,
-                        size: 18,
-                        color: colors.primary,
-                      ),
-                      if (!isPhone) ...[
-                        const SizedBox(width: SkotiqTokens.spaceSm),
-                        Text(
-                          l10n.text('analyticsScience'),
-                          style: SkotiqTypography.h5.copyWith(
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ],
+                  if (oneLine) ...actions,
+                ],
+              );
+              if (oneLine) return switchRow;
+              // Too narrow for the switch and the actions on one line: the
+              // actions go under it, at the end, so no view name is cut.
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  switchRow,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actions,
                   ),
-                ),
-              Expanded(child: tabBar),
-              ..._actions(context, colors),
-              const SizedBox(width: SkotiqTokens.spaceSm),
-            ],
+                ],
+              );
+            },
           ),
         ),
         Expanded(
