@@ -1,11 +1,5 @@
-// The Analytics tabs must present ONE empty state, and Diagnostics must not be
-// the one tab with a page title and an essay.
-//
-// Left unpinned they drift: Session centred with a full stop, History with no
-// stops, Projects left-aligned with two, Equipment Stats with no empty state at
-// all, Diagnostics with a star glyph — four structures, two punctuation rules,
-// and not one of the five offering an action, plus a Diagnostics H1 ("Optical
-// Train Diagnostics") and a ~95-word paragraph none of its siblings carry.
+// The Analytics tabs present one empty state, and the Optics view prints no
+// page title or essay.
 
 import 'dart:io';
 
@@ -166,18 +160,14 @@ void main() {
     expect(find.text('Go to Imaging'), findsOneWidget);
   });
 
-  // The other four tabs need a live database to reach their empty branch at
-  // all (run stats, project progress, sessionless PSF tiles), so the pin that
-  // they share the one widget is structural. Both halves matter: five call
-  // sites using it, and no call site keeping a hand-rolled column.
-  test('all five Analytics empty states go through AnalyticsEmptyState', () {
+  // The other tabs need more data to reach their empty branch, so the pin
+  // that they share the one widget is structural.
+  test('every Analytics empty state goes through AnalyticsEmptyState', () {
     const sites = <String, String>{
       'Session': 'lib/screens/analytics/analytics_screen/session_tab.dart',
-      'History': 'lib/screens/analytics/analytics_screen/history_tab.dart',
+      'History': 'lib/screens/analytics/history/history_tab.dart',
       'Projects': 'lib/screens/analytics/widgets/project_tracking_panel.dart',
-      'Equipment Stats':
-          'lib/screens/analytics/analytics_screen/equipment_stats.dart',
-      'Diagnostics': 'lib/screens/diagnostics/diagnostics_screen.dart',
+      'Optics': 'lib/screens/diagnostics/diagnostics_screen.dart',
     };
     final missing = <String>[];
     sites.forEach((tab, path) {
@@ -195,17 +185,18 @@ void main() {
     );
   });
 
-  group('Diagnostics chrome', () {
-    testWidgets('the Analytics tab prints no page title and no essay',
+  group('Optics chrome', () {
+    testWidgets('the view prints no page title and no essay',
         (tester) async {
-      await tester.pumpWidget(_host(const DiagnosticsTabContent()));
+      await tester.pumpWidget(
+        _host(const OpticsDiagnosticsView(sessionId: null)),
+      );
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
         find.text('Optical train diagnostics'),
         findsNothing,
-        reason: 'the tab strip two rows above already names this tab, and no '
-            'sibling tab prints an H1',
+        reason: 'the Session tab and its view switch already name the view',
       );
       expect(
         find.textContaining('Analytics tracks per-frame image quality'),
@@ -231,7 +222,7 @@ void main() {
       // and the bar is the decoration.
       await tester.pumpWidget(
         _host(
-          const DiagnosticsTabContent(),
+          const OpticsDiagnosticsView(sessionId: _measuredSessionId),
           extraOverrides: _measuredDiagnosticsOverrides(),
         ),
       );
@@ -251,15 +242,6 @@ void main() {
         find.textContaining('quick summary before diving into'),
         findsNothing,
       );
-    });
-
-    testWidgets('the standalone route keeps its title', (tester) async {
-      await tester.pumpWidget(
-        _host(const DiagnosticsTabContent(showTitle: true)),
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('Optical train diagnostics'), findsOneWidget);
     });
   });
 }

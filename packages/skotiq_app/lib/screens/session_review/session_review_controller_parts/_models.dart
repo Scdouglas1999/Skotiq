@@ -24,17 +24,6 @@ class SessionReviewScope {
   int get hashCode => Object.hash(sessionId, targetId);
 }
 
-/// Which of the two renderings of the one [SessionReviewController] is showing:
-/// the scrollable narrative (default) or the dense workbench. Held on
-/// [SessionReviewState] so a single tap flips both views over the same model.
-enum SessionReviewViewMode {
-  /// The story view: hero → verdict → improvement curve → findings → growth.
-  narrative,
-
-  /// The dense panelled view: full sub table, field maps, mixer, A/B.
-  workbench,
-}
-
 /// The distinguishable outcomes of [SessionReviewController.cullToRecommended],
 /// so the UI can tell a genuine "already optimal" no-op apart from a stale-curve
 /// guard bail (which deliberately rejects nothing).

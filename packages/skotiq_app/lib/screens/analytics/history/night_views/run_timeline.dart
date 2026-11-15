@@ -1,133 +1,164 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../widgets/run_status/run_status_presentation.dart';
-import 'session_picker_screen.dart';
-import '../../router/app_routes.dart';
+import '../../analytics_providers.dart';
 
-/// One past run as a timeline to scrub: events above the track, frames below
-/// it, and what the rig was doing at the playhead.
-///
-/// The state lives in [SessionReplayNotifier], keyed on the run and the data
-/// source; production reads the linked host's imaging records.
-class SessionReplayScreen extends ConsumerStatefulWidget {
-  final int runId;
+/// A run's replay data read from the records the imaging host keeps: the run
+/// row, the frames of its session and its logged decisions. Unlike the host's
+/// in-memory event log these survive a restart, and they reach a linked
+/// client through the same host roles as the rest of History.
+class RunRecordsReplaySource implements SessionReplayDataSource {
+  RunRecordsReplaySource({
+    required this.run,
+    required this.targetName,
+    required this.loadFrames,
+    required this.loadDecisions,
+  });
 
-  /// Replaces the linked host's records in tests.
-  final SessionReplayDataSource? dataSourceOverride;
+  final SequenceRun run;
+  final String? targetName;
+  final Future<List<DbCapturedImage>> Function() loadFrames;
+  final Future<List<ReplayDecision>> Function() loadDecisions;
 
-  const SessionReplayScreen({
+  /// Second-resolution timestamps can put a frame or decision a moment
+  /// before the run row's start; the timeline starts at the run.
+  bool _inRun(DateTime when) => !when.isBefore(run.startedAt);
+
+  @override
+  Future<RemoteSequenceRunDetail> fetchRun(int runId) async {
+    final frames = await loadFrames();
+    return RemoteSequenceRunDetail(
+      id: run.id,
+      sequenceId: run.sequenceId,
+      sequenceName: run.sequenceName,
+      startedAt: run.startedAt,
+      endedAt: run.endedAt,
+      status: run.status,
+      statsJson: run.statsJson,
+      frameCount: frames.where((f) => _inRun(f.capturedAt)).length,
+      targetName: targetName,
+    );
+  }
+
+  @override
+  Future<RemoteReplayEventsPage> fetchEvents(int runId) async {
+    final events = [
+      for (final decision in await loadDecisions())
+        if (_inRun(decision.timestamp))
+          RemoteReplayEvent(
+            timestamp: decision.timestamp,
+            timestampMs: decision.timestamp.millisecondsSinceEpoch,
+            severity: switch (decision.category) {
+              DecisionCategory.frameRejected ||
+              DecisionCategory.recoveryEntered =>
+                'warning',
+              _ => 'info',
+            },
+            source: decision.category.displayLabel,
+            message: decision.summary,
+            fields: decision.details,
+          ),
+    ]..sort((a, b) => a.timestampMs.compareTo(b.timestampMs));
+    return RemoteReplayEventsPage(
+      items: events,
+      total: events.length,
+      isPartial: false,
+      source: 'decision_log',
+    );
+  }
+
+  @override
+  Future<List<RemoteReplayFrame>> fetchFrames(int runId) async => [
+        for (final frame in await loadFrames())
+          if (_inRun(frame.capturedAt)) replayFrameOf(frame),
+      ];
+}
+
+/// The timeline of one run: scrub or play through it and read what the rig
+/// was doing at that moment, with the frames and decisions up to it.
+class RunTimeline extends ConsumerStatefulWidget {
+  const RunTimeline({
     super.key,
-    required this.runId,
+    required this.run,
+    required this.sessionId,
+    required this.targetName,
     this.dataSourceOverride,
   });
 
+  final SequenceRun run;
+
+  /// The session whose frames the run produced, or null when none is paired.
+  final int? sessionId;
+  final String? targetName;
+
+  /// Canned data for tests.
+  final SessionReplayDataSource? dataSourceOverride;
+
   @override
-  ConsumerState<SessionReplayScreen> createState() =>
-      _SessionReplayScreenState();
+  ConsumerState<RunTimeline> createState() => _RunTimelineState();
 }
 
-class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
-  SessionReplayDataSource? _dataSource;
-  HostImagingRecords? _dataSourceHost;
+class _RunTimelineState extends ConsumerState<RunTimeline> {
+  // The provider family keys on the data source's identity, so one instance
+  // lives as long as the run it reads.
+  late SessionReplayDataSource _dataSource = _source();
 
-  /// The data source for [host], kept while the host stays the same so the
-  /// notifier family keeps its state across rebuilds.
-  SessionReplayDataSource? _resolveDataSource(HostImagingRecords? host) {
-    final override = widget.dataSourceOverride;
-    if (override != null) return override;
-    if (host == null) return null;
-    final existing = _dataSource;
-    if (existing != null && identical(_dataSourceHost, host)) return existing;
-    _dataSourceHost = host;
-    return _dataSource = NetworkSessionReplayDataSource(backend: host);
+  SessionReplayDataSource _source() =>
+      widget.dataSourceOverride ??
+      RunRecordsReplaySource(
+        run: widget.run,
+        targetName: widget.targetName,
+        loadFrames: () async {
+          final sessionId = widget.sessionId;
+          return sessionId == null
+              ? const <DbCapturedImage>[]
+              : ref.read(dbSessionImagesProvider(sessionId).future);
+        },
+        loadDecisions: () =>
+            ref.read(decisionsForRunProvider(widget.run.id).future),
+      );
+
+  @override
+  void didUpdateWidget(RunTimeline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.run.id != widget.run.id ||
+        oldWidget.sessionId != widget.sessionId ||
+        !identical(oldWidget.dataSourceOverride, widget.dataSourceOverride)) {
+      _dataSource = _source();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final dataSource = _resolveDataSource(
-      ref.watch(linkedHostImagingRecordsProvider),
-    );
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const PageHeader(
-              icon: SkotiqIcons.history,
-              title: 'Replay',
-              actions: [_BackToRunList()],
-            ),
-            Expanded(
-              child: dataSource == null
-                  ? const SessionReplayNeedsRig()
-                  : _ReplayBody(
-                      stateKey: (runId: widget.runId, dataSource: dataSource),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BackToRunList extends StatelessWidget {
-  const _BackToRunList();
-
-  @override
-  Widget build(BuildContext context) {
-    return SkotiqIconButton(
-      icon: SkotiqIcons.arrowLeft,
-      tooltip: 'Back to past runs',
-      onPressed: () {
-        final navigator = Navigator.of(context);
-        if (navigator.canPop()) {
-          navigator.pop();
-          return;
-        }
-        // A deep link leaves nothing beneath this screen.
-        context.go(AppRoute.sessionReplay.path);
-      },
-    );
-  }
-}
-
-class _ReplayBody extends ConsumerWidget {
-  final SessionReplayKey stateKey;
-
-  const _ReplayBody({required this.stateKey});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+    final stateKey = (runId: widget.run.id, dataSource: _dataSource);
     final state = ref.watch(sessionReplayNotifierProvider(stateKey));
-    return switch (state) {
-      SessionReplayLoading() => const Center(
-          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-        ),
-      SessionReplayError(:final cause) => EmptyState(
-          icon: SkotiqIcons.disconnected,
-          title: 'Replay failed',
-          body: userFacingError(cause),
-          action: SkotiqButton(
-            label: 'Try again',
-            icon: SkotiqIcons.refresh,
-            onPressed: () => ref
+    return SkotiqPanel(
+      head: const PanelHead(label: 'Timeline', icon: SkotiqIcons.history),
+      child: switch (state) {
+        SessionReplayLoading() => const SizedBox(
+            height: _TimelineBar._height,
+            child: Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 24),
+            ),
+          ),
+        SessionReplayError(:final cause) => EmptyState.error(
+            title: 'The timeline did not load',
+            body: userFacingError(cause),
+            onRetry: () => ref
                 .read(sessionReplayNotifierProvider(stateKey).notifier)
                 .reload(),
           ),
-        ),
-      SessionReplayReady() =>
-        _ReplayReadyBody(stateKey: stateKey, ready: state),
-    };
+        SessionReplayReady() =>
+          _ReplayReadyBody(stateKey: stateKey, ready: state),
+      },
+    );
   }
 }
 
@@ -139,14 +170,22 @@ class _ReplayReadyBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
     final notifier = ref.read(sessionReplayNotifierProvider(stateKey).notifier);
+    if (ready.markers.isEmpty) {
+      return const EmptyState.compact(
+        icon: SkotiqIcons.history,
+        title: 'Nothing was recorded for this run',
+        body: 'It took no frames and logged no decisions.',
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _RunHeader(ready: ready),
-        if (ready.eventsPartial)
+        if (ready.eventsPartial) ...[
           _PartialBanner(reason: ready.eventsPartialReason),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+        ],
         _TimelineBar(
           ready: ready,
           onSeek: notifier.seekTo,
@@ -157,121 +196,17 @@ class _ReplayReadyBody extends ConsumerWidget {
           onTogglePlayback: notifier.togglePlayback,
           onSpeedChanged: notifier.setPlaybackSpeed,
         ),
-        Container(height: 1, color: colors.border),
-        Expanded(
-          child: StreamBuilder<ReplaySnapshot>(
-            stream: notifier.snapshotStream,
-            initialData: notifier.latestSnapshot,
-            builder: (context, snap) {
-              final s = snap.data;
-              if (s == null) return const SizedBox.shrink();
-              return _SnapshotPanel(snapshot: s, ready: ready);
-            },
-          ),
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        StreamBuilder<ReplaySnapshot>(
+          stream: notifier.snapshotStream,
+          initialData: notifier.latestSnapshot,
+          builder: (context, snap) {
+            final s = snap.data;
+            if (s == null) return const SizedBox.shrink();
+            return _SnapshotPanel(snapshot: s, ready: ready);
+          },
         ),
       ],
-    );
-  }
-}
-
-class _RunHeader extends StatelessWidget {
-  final SessionReplayReady ready;
-  const _RunHeader({required this.ready});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final run = ready.run;
-    final duration = run.duration;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceMd,
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceMd,
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            run.sequenceName ?? 'Untitled sequence',
-            style: SkotiqTypography.bodyStrong.copyWith(
-              color: colors.textPrimary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Wrap(
-            spacing: SkotiqTokens.spaceMd,
-            runSpacing: SkotiqTokens.spaceXs,
-            children: [
-              if (run.targetName != null)
-                _HeaderFact(icon: SkotiqIcons.target, label: run.targetName!),
-              _HeaderFact(
-                icon: SkotiqIcons.clock,
-                label: ClockFormat.dateHm(run.startedAt.toLocal()),
-              ),
-              if (duration != null)
-                _HeaderFact(
-                  icon: SkotiqIcons.timer,
-                  label: DurationFormat.of(
-                    duration,
-                    style: DurationStyle.short,
-                  ),
-                ),
-              _HeaderFact(
-                icon: SkotiqIcons.image,
-                label: run.frameCount == 1
-                    ? '1 frame'
-                    : '${run.frameCount} frames',
-              ),
-              _HeaderFact(
-                icon: SkotiqIcons.circle,
-                label: runStatusTokenLabel(run.status),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderFact extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _HeaderFact({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.sizeOf(context).width - 2 * SkotiqTokens.space2xl,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              size: SkotiqTokens.iconChipGlyph, color: colors.textSecondary),
-          const SizedBox(width: SkotiqTokens.spaceXs),
-          Flexible(
-            child: Text(
-              label,
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textSecondary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -327,13 +262,6 @@ class _TimelineBar extends StatelessWidget {
     );
     return Container(
       key: const Key('timeline_bar'),
-      color: colors.surface,
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceMd,
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceSm,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -539,11 +467,7 @@ class _TransportControls extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final selected = _speeds.indexOf(ready.playbackSpeed);
     return Container(
-      color: colors.surface,
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceLg,
-        vertical: SkotiqTokens.spaceSm,
-      ),
+      padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
       child: Row(
         children: [
           SkotiqIconButton(
@@ -553,13 +477,11 @@ class _TransportControls extends StatelessWidget {
             onPressed: onTogglePlayback,
           ),
           const SizedBox(width: SkotiqTokens.spaceMd),
-          Expanded(
-            child: SegmentedControl(
-              segments: [for (final s in _speeds) _speedLabel(s)],
-              selectedIndex: selected < 0 ? 0 : selected,
-              onSelected: (i) => onSpeedChanged(_speeds[i]),
-              semanticLabel: 'Playback speed',
-            ),
+          SegmentedControl(
+            segments: [for (final s in _speeds) _speedLabel(s)],
+            selectedIndex: selected < 0 ? 0 : selected,
+            onSelected: (i) => onSpeedChanged(_speeds[i]),
+            semanticLabel: 'Playback speed',
           ),
         ],
       ),
@@ -573,54 +495,77 @@ class _SnapshotPanel extends StatelessWidget {
 
   const _SnapshotPanel({required this.snapshot, required this.ready});
 
+  /// Above this width the state and the events sit side by side.
+  static const double _sideBySideAbove = 640;
+  static const double _stateWidth = 280;
+
   @override
   Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
     final hfr = snapshot.lastHfr;
     final rms = snapshot.lastGuideRmsTotal;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SkotiqPanel(
-            head: PanelHead(
-              label:
-                  'At ${ClockFormat.hms(snapshot.playheadWallClock.toLocal())}',
-              icon: SkotiqIcons.clock,
+    final eyebrow = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final stateAtPlayhead = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'AT ${ClockFormat.hms(snapshot.playheadWallClock.toLocal())}',
+          style: eyebrow,
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        KeyValueList(
+          rows: [
+            ('Target', snapshot.currentTarget ?? kReadoutUnknown),
+            ('Step', snapshot.currentNodeName ?? kReadoutUnknown),
+            ('Filter', snapshot.currentFilter ?? kReadoutUnknown),
+            (
+              'Frames captured',
+              '${snapshot.frameCount} of ${ready.run.frameCount}',
             ),
-            child: KeyValueList(
-              rows: [
-                ('Target', snapshot.currentTarget ?? kReadoutUnknown),
-                ('Step', snapshot.currentNodeName ?? kReadoutUnknown),
-                ('Filter', snapshot.currentFilter ?? kReadoutUnknown),
-                (
-                  'Frames captured',
-                  '${snapshot.frameCount} of ${ready.run.frameCount}',
-                ),
-                (
-                  'Last HFR',
-                  hfr != null ? hfr.toStringAsFixed(2) : kReadoutUnknown
-                ),
-                (
-                  'Guide RMS',
-                  rms != null ? '${rms.toStringAsFixed(2)}"' : kReadoutUnknown,
-                ),
-                ('Recovery', snapshot.recoveryState ?? kReadoutUnknown),
-              ],
+            ('Last HFR', hfr != null ? hfr.toStringAsFixed(2) : kReadoutUnknown),
+            (
+              'Guide RMS',
+              rms != null ? '${rms.toStringAsFixed(2)}"' : kReadoutUnknown,
             ),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceLg),
-          SkotiqPanel(
-            head: PanelHead(
-              label: 'Events so far (${snapshot.markersUpToPlayhead.length})',
-              icon: SkotiqIcons.list,
-            ),
-            child: _EventLogList(markers: snapshot.markersUpToPlayhead),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceLg),
-          _DataSourceFooter(ready: ready),
-        ],
-      ),
+            ('Recovery', snapshot.recoveryState ?? kReadoutUnknown),
+          ],
+        ),
+      ],
+    );
+    final events = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'UP TO HERE · ${snapshot.markersUpToPlayhead.length} OF '
+          '${ready.markers.length}',
+          style: eyebrow,
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        _EventLogList(markers: snapshot.markersUpToPlayhead),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          constraints.maxWidth >= _sideBySideAbove
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: _stateWidth, child: stateAtPlayhead),
+                    const SizedBox(width: SkotiqTokens.space2xl),
+                    Expanded(child: events),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    stateAtPlayhead,
+                    const SizedBox(height: SkotiqTokens.spaceLg),
+                    events,
+                  ],
+                ),
     );
   }
 }
@@ -632,7 +577,7 @@ class _EventLogList extends StatelessWidget {
 
   /// The newest entries, newest first; the panel stays short enough that the
   /// snapshot above it remains in view.
-  static const int _shown = 30;
+  static const int _shown = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -709,35 +654,6 @@ class _MarkerRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DataSourceFooter extends StatelessWidget {
-  final SessionReplayReady ready;
-  const _DataSourceFooter({required this.ready});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final events = ready.markers.whereType<ReplayEventMarker>().length;
-    final frames = ready.markers.whereType<ReplayFrameMarker>().length;
-    return Row(
-      children: [
-        Icon(
-          SkotiqIcons.database,
-          size: SkotiqTokens.iconChipGlyph,
-          color: colors.textMuted,
-        ),
-        const SizedBox(width: SkotiqTokens.spaceSm),
-        Expanded(
-          child: Text(
-            '$events events · $frames frames. Weather is not recorded for '
-            'replay.',
-            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
-          ),
-        ),
-      ],
     );
   }
 }

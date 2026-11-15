@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+import 'review_host.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -38,18 +39,13 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const SessionReviewScreen(scope: scope),
+          home: const ReviewHost(sessionId: 42),
         ),
       ),
     );
     await tester.pump();
 
-    expect(
-      find.text('Open Session Review on the imaging host'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Remote Session Review is unavailable'),
-        findsOneWidget);
+    expect(find.text('Open this on the imaging host'), findsOneWidget);
   });
 
   testWidgets(
@@ -80,16 +76,13 @@ void main() {
           ],
           child: MaterialApp(
             theme: SkotiqTheme.dark,
-            home: const SessionReviewScreen(scope: scope),
+            home: const ReviewHost(sessionId: 42),
           ),
         ),
       );
       await tester.pump();
 
-      expect(
-        find.text('Open Session Review on the imaging host'),
-        findsOneWidget,
-      );
+      expect(find.text('Open this on the imaging host'), findsOneWidget);
       // Every rig-executing control this screen carries is inside the arm the
       // gate returns before, so naming the pass is enough to prove the class:
       // the Stop, the integration runs, the finishing steps, the master
@@ -99,8 +92,8 @@ void main() {
         find.byKey(const ValueKey('session_review_process_now')),
         findsNothing,
       );
-      expect(find.text('Refresh'), findsNothing);
-      expect(find.text('Workbench'), findsNothing);
+      expect(find.byKey(const ValueKey('night_review_build')), findsNothing);
+      expect(find.byType(SkotiqIconButton), findsNothing);
     },
   );
 }

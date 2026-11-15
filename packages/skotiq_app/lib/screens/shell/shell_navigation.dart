@@ -27,11 +27,10 @@ abstract final class ShellNavigation {
   ];
 
   /// Everything the More sheet lists: every rail destination without a phone
-  /// slot, then Session replay and Settings, which have no rail slot.
+  /// slot, then Settings, which has no rail slot.
   static final List<AppRoute> moreSheet = [
     for (final route in rail)
       if (!phoneBar.contains(route)) route,
-    AppRoute.sessionReplay,
     AppRoute.settings,
   ];
 

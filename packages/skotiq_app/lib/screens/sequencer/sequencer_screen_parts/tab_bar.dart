@@ -34,7 +34,6 @@ class _SequencerPageHeader extends ConsumerWidget {
       case SequencerTab.templates:
         return TourTarget.sequencerTabTemplates.key;
       case SequencerTab.sequences:
-      case SequencerTab.history:
         return null;
     }
   }
@@ -98,19 +97,31 @@ class _SequencerPageHeader extends ConsumerWidget {
         // the action: the tooltip keeps the name and MobilePlaybackBar — right
         // under this header — already owns the transport, so repeating
         // Start/Stop here would be the second copy of the same control.
-        if (isPhone)
+        if (isPhone) ...[
+          SkotiqIconButton(
+            icon: LucideIcons.history,
+            tooltip: 'Last run',
+            onPressed: () => openLastRun(context, ref),
+          ),
           SkotiqIconButton(
             icon: LucideIcons.listChecks,
             tooltip: 'Preflight',
             onPressed: openPreflight,
-          )
-        else
+          ),
+        ] else ...[
+          SkotiqButton(
+            label: 'Last run',
+            icon: LucideIcons.history,
+            variant: ButtonVariant.ghost,
+            onPressed: () => openLastRun(context, ref),
+          ),
           SkotiqButton(
             label: 'Preflight',
             icon: LucideIcons.listChecks,
             variant: ButtonVariant.ghost,
             onPressed: openPreflight,
           ),
+        ],
         // The count rides beside the button rather than inside it: a chip is
         // not one of SkotiqButton's slots, and inventing a local
         // button-with-badge would be a second button style on the page.

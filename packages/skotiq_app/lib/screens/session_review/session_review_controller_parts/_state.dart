@@ -96,9 +96,6 @@ class SessionReviewState {
   /// `MasterOverlayView`.
   final AnnotationLayer? annotationLayer;
 
-  /// Which of the two renderings is showing (narrative default ↔ workbench).
-  final SessionReviewViewMode viewMode;
-
   /// Live integration progress `(phase, fraction)` bound from the post-session
   /// seam's `IntegrationProgress` event stream, or null when no run is in
   /// flight. Drives the `SkotiqProgressBar`.
@@ -132,7 +129,6 @@ class SessionReviewState {
     this.growthPoints = const [],
     this.bestNight,
     this.annotationLayer,
-    this.viewMode = SessionReviewViewMode.narrative,
     this.progress,
     this.loadingSmartData = false,
     this.deconvolving = false,
@@ -185,7 +181,6 @@ class SessionReviewState {
     bool clearBestNight = false,
     AnnotationLayer? annotationLayer,
     bool clearAnnotationLayer = false,
-    SessionReviewViewMode? viewMode,
     ({String phase, double fraction})? progress,
     bool clearLiveProgress = false,
     bool? loadingSmartData,
@@ -220,7 +215,6 @@ class SessionReviewState {
       annotationLayer: clearAnnotationLayer
           ? null
           : (annotationLayer ?? this.annotationLayer),
-      viewMode: viewMode ?? this.viewMode,
       progress: clearLiveProgress ? null : (progress ?? this.progress),
       loadingSmartData: loadingSmartData ?? this.loadingSmartData,
       deconvolving: deconvolving ?? this.deconvolving,

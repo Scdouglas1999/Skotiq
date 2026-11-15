@@ -1,11 +1,7 @@
-import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// Used by part files (history_cards.dart, session_detail_dialog.dart) for
-// context.go / context.push — part files share the library's imports.
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -15,11 +11,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
-// Exports hand off through revealExportedFile (share sheet on mobile, path
-// snackbar on desktop) rather than calling share_plus directly — shareXFiles is
-// unimplemented on Linux/Windows and threw an internal API name at the user.
-import '../../utils/darkroom_navigation.dart';
-import '../../utils/exported_file_reveal.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
@@ -27,37 +18,53 @@ import '../../widgets/accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
 import '../science/science_screen.dart';
 import '../../widgets/run_status/run_status_presentation.dart';
-import '../sequencer/widgets/session_report_dialog.dart';
 import '../../router/analytics_route.dart';
-import 'analytics_exports.dart';
+import 'analytics_providers.dart';
+import 'history/history_tab.dart';
+import 'history/night_page.dart';
 import 'quick_capture_selection.dart';
 import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';
 import 'widgets/session_chart.dart';
+import 'widgets/session_chart_grid.dart';
 import 'widgets/image_thumbnail_strip.dart';
 import 'widgets/project_tracking_panel.dart';
 import '../../router/app_routes.dart';
-export '../../router/analytics_route.dart' show AnalyticsTab, ScienceTab;
+export '../../router/analytics_route.dart'
+    show AnalyticsTab, NightRef, NightView, ScienceTab, SessionView;
+export 'analytics_providers.dart';
 
 part 'analytics_screen/session_tab.dart';
-part 'analytics_screen/history_tab.dart';
-part 'analytics_screen/history_cards.dart';
-part 'analytics_screen/session_detail_dialog.dart';
-part 'analytics_screen/equipment_stats.dart';
-part 'analytics_screen/skeletons.dart';
+part 'analytics_screen/projects_tab.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   /// The tab a link asked for; null opens Session.
   final AnalyticsTab? initialTab;
 
-  /// The Science view a link asked for. When set, the Science tab opens on it
-  /// whatever [initialTab] says.
+  /// The Science view a link asked for. A link that names no tab opens the
+  /// Science tab on it.
   final ScienceTab? initialScienceView;
+
+  /// The Session view a link asked for; null opens the charts.
+  final SessionView? initialSessionView;
+
+  /// The night a link asked History to open, or null for the list.
+  final NightRef? night;
+
+  /// The view of [night] a link asked for; null opens its summary.
+  final NightView? nightView;
+
+  /// The saved sequence a link asked History to list the runs of.
+  final int? historySequenceId;
 
   const AnalyticsScreen({
     super.key,
     this.initialTab,
     this.initialScienceView,
+    this.initialSessionView,
+    this.night,
+    this.nightView,
+    this.historySequenceId,
   });
 
   @override
@@ -66,16 +73,21 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   late int _currentSubTab;
+  late SessionView _sessionView;
 
   @override
   void initState() {
     super.initState();
     _currentSubTab = (_requestedTab ?? AnalyticsTab.session).index;
+    _sessionView = widget.initialSessionView ?? SessionView.charts;
   }
 
-  AnalyticsTab? get _requestedTab => widget.initialScienceView != null
-      ? AnalyticsTab.science
-      : widget.initialTab;
+  /// `?view=` names a Science view only when no other tab is asked for: the
+  /// Session tab and a night have views of their own.
+  AnalyticsTab? get _requestedTab =>
+      widget.initialTab == null && widget.initialScienceView != null
+          ? AnalyticsTab.science
+          : widget.initialTab;
 
   @override
   void didUpdateWidget(AnalyticsScreen oldWidget) {
@@ -89,6 +101,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         (widget.initialTab != oldWidget.initialTab ||
             widget.initialScienceView != oldWidget.initialScienceView)) {
       setState(() => _currentSubTab = requested.index);
+    }
+    final sessionView = widget.initialSessionView;
+    if (sessionView != null && sessionView != oldWidget.initialSessionView) {
+      setState(() => _sessionView = sessionView);
+    }
+  }
+
+  void _go(String location) => GoRouter.maybeOf(context)?.go(location);
+
+  /// Leaves a night for the History list: back to where the night was opened
+  /// from when that is still under this page, otherwise the list itself.
+  void _closeNight() {
+    final router = GoRouter.maybeOf(context);
+    if (router != null && router.canPop()) {
+      router.pop();
+    } else {
+      _go(AppRoutes.history(sequenceId: widget.historySequenceId));
     }
   }
 
@@ -122,17 +151,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         icon: LucideIcons.folderKanban,
       ),
       AdaptiveTab(
-        label: l10n.text('analyticsEquipmentTab'),
-        icon: LucideIcons.wrench,
-        buttonKey: TourTarget.analyticsEquipmentTab.key,
-      ),
-      AdaptiveTab(
         label: l10n.text('analyticsScience'),
         icon: LucideIcons.flaskConical,
-      ),
-      AdaptiveTab(
-        label: l10n.text('analyticsDiagnostics'),
-        icon: LucideIcons.stethoscope,
       ),
     ];
   }
@@ -149,10 +169,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         bottom: false,
         child: Column(
           children: [
-            // The one 56 px page header every screen starts with (04 §4): the
-            // bar-chart glyph, the screen name, and the six sub-tabs as the
-            // ONLY tab style in the app. The old row hand-built a title block
-            // and a divider beside the strip; PageHeader owns both now.
             PageHeader(
               icon: LucideIcons.barChart3,
               title: l10n.text('navAnalytics'),
@@ -171,17 +187,43 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               child: IndexedStack(
                 index: _currentSubTab,
                 children: [
-                  const _SessionTab(),
-                  const _HistoryTab(),
+                  _SessionTab(
+                    view: _sessionView,
+                    onViewPicked: (view) {
+                      setState(() => _sessionView = view);
+                      _go(AppRoutes.session(view: view));
+                    },
+                  ),
+                  // The list stays alive under an open night, so coming back
+                  // finds its filters and scroll position as they were.
+                  IndexedStack(
+                    index: widget.night == null ? 0 : 1,
+                    children: [
+                      HistoryTab(sequenceId: widget.historySequenceId),
+                      if (widget.night case final night?)
+                        NightPage(
+                          night: night,
+                          view: widget.nightView,
+                          onViewPicked: (view) => _go(
+                            AppRoutes.night(
+                              night,
+                              view: view,
+                              sequenceId: widget.historySequenceId,
+                            ),
+                          ),
+                          onBack: _closeNight,
+                        )
+                      else
+                        const SizedBox.shrink(),
+                    ],
+                  ),
                   const _ProjectsTab(),
-                  const _EquipmentStatsTab(),
                   ScienceWorkspaceView(
                     initialView: widget.initialScienceView,
                     onViewPicked: (view) =>
                         _writeLocation(AnalyticsTab.science, view),
                     showHeader: false,
                   ),
-                  const DiagnosticsTabContent(),
                 ],
               ),
             ),

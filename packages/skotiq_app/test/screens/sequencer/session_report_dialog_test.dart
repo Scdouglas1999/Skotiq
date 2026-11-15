@@ -230,7 +230,7 @@ void main() {
     expect(find.textContaining('Rejections:'), findsOneWidget);
   });
 
-  testWidgets('remote report directs Session Review to the imaging host',
+  testWidgets('a linked client can open the night in History too',
       (tester) async {
     await _pump(
       tester,
@@ -238,8 +238,7 @@ void main() {
       backend: _MockNetworkBackend(),
     );
 
-    expect(find.text('Review on imaging host'), findsOneWidget);
-    expect(find.text('Session review'), findsNothing);
+    expect(find.text('Open in History'), findsOneWidget);
   });
 
   testWidgets('Copy as Markdown writes to the clipboard', (tester) async {
