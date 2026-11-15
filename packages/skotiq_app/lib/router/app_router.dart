@@ -21,7 +21,6 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/settings/plate_solving_settings_screen.dart';
 import '../screens/polar_alignment/polar_alignment_screen.dart';
 import '../screens/planner/planner_screen.dart';
-import '../screens/tonight/tonight_screen.dart';
 import '../screens/diagnostics/diagnostic_dump_screen.dart';
 import '../screens/night_control/first_night_entry.dart';
 import '../screens/onboarding/onboarding_screen.dart';
@@ -127,7 +126,6 @@ Widget _screen(AppRoute route, GoRouterState state) {
       ),
     AppRoute.plateSolvingSettings => const PlateSolvingSettingsScreen(),
     AppRoute.polarAlignment => const PolarAlignmentScreen(),
-    AppRoute.oneTapTonight => const TonightScreen(),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
     AppRoute.pairing => const PairingScreen(),
@@ -145,6 +143,7 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.constellation ||
     AppRoute.collaborativeSky ||
     AppRoute.scheduler ||
+    AppRoute.bestTonight ||
     AppRoute.mosaicProjects ||
     AppRoute.diagnostics ||
     AppRoute.sessionReplay ||

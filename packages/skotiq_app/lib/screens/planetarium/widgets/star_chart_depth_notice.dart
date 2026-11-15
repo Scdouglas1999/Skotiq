@@ -30,38 +30,36 @@ class StarChartDepthNotice extends ConsumerWidget {
     final installed = ref.watch(deepStarManifestProvider).valueOrNull != null;
     final floor = kHygFaintFloorMag.toStringAsFixed(1);
 
-    return SkotiqAlert(
-      severity: SkotiqAlertSeverity.info,
-      compact: true,
-      title: 'Chart is shallower than the sky',
-      message: installed
-          ? 'The bundled catalog is complete to about magnitude $floor, so this '
-              'field shows a fraction of the real star count. Turn on the '
-              'deep-star tier to draw the rest.'
-          : 'The bundled catalog is complete to about magnitude $floor, so this '
-              'field shows a fraction of the real star count. No deep-star '
-              'tileset is published; it must be self-hosted.',
-      action: installed
-          ? SkotiqButton(
-              label: 'Enable',
-              variant: ButtonVariant.outline,
-              size: ButtonSize.small,
-              onPressed: () =>
-                  ref.read(showDeepStarsProvider.notifier).state = true,
-            )
-          // "Install" promised a download that does not exist: this only opens
-          // the Catalog Settings form asking the user to build a tileset with
-          // tools/catalog_prep and host it themselves — the same form the
-          // Layers panel's "Configure source..." row opens. Kept to one word
-          // because the alert lays the action out beside the message, and a
-          // wider button squeezes that column into a very tall block at phone
-          // widths.
-          : SkotiqButton(
-              label: 'Configure',
-              variant: ButtonVariant.outline,
-              size: ButtonSize.small,
-              onPressed: () => _openCatalogSettings(context, ref),
-            ),
+    return Glass(
+      padding: EdgeInsets.zero,
+      child: SkotiqBanner(
+        tone: BannerTone.info,
+        title: 'Chart is shallower than the sky.',
+        message: installed
+            ? 'The bundled catalog is complete to about magnitude $floor, so this '
+                'field shows a fraction of the real star count. Turn on the '
+                'deep-star tier to draw the rest.'
+            : 'The bundled catalog is complete to about magnitude $floor, so this '
+                'field shows a fraction of the real star count. No deep-star '
+                'tileset is published; it must be self-hosted.',
+        action: installed
+            ? SkotiqButton(
+                label: 'Enable',
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                onPressed: () =>
+                    ref.read(showDeepStarsProvider.notifier).state = true,
+              )
+            // Not "Install": no tileset download exists. This opens the
+            // Catalog Settings form for a self-hosted tileset, the same form the
+            // Layers panel's "Configure source..." row opens.
+            : SkotiqButton(
+                label: 'Configure',
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                onPressed: () => _openCatalogSettings(context, ref),
+              ),
+      ),
     );
   }
 

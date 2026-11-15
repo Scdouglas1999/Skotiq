@@ -224,8 +224,9 @@ class NightHarness {
           builder: (context, state) => const Scaffold(body: Text('sequencer')),
         ),
         GoRoute(
-          path: '/tonight',
-          builder: (context, state) => const Scaffold(body: Text('one tap')),
+          path: '/planner',
+          builder: (context, state) =>
+              Scaffold(body: Text('planner ${state.uri.query}')),
         ),
       ],
     );

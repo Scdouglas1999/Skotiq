@@ -54,6 +54,7 @@ CameraCapabilities _capabilities({required bool canSetCcdTemperature}) =>
 Future<ProviderContainer> _container({
   required bool canSetCcdTemperature,
   double? darkTemperature,
+  bool? coolerOn,
 }) async {
   final QueryExecutor exec = NativeDatabase.memory();
   final db = SkotiqDatabase.forTesting(exec);
@@ -72,13 +73,14 @@ Future<ProviderContainer> _container({
       cameraStateProvider.overrideWith(
         (ref) => _StubCamera(
           ref,
-          const CameraStateSnapshot(
+          CameraStateSnapshot(
             connectionState: DeviceConnectionState.connected,
             deviceId: _deviceId,
             // The uncooled rig from the report: sitting at +20 C with the
             // profile's -10 C setpoint still on the state object.
             targetTemp: -10.0,
             temperature: 20.0,
+            coolerOn: coolerOn,
           ),
         ),
       ),
@@ -193,6 +195,36 @@ void main() {
         expect(hint, contains('Settings →'));
       }
     }
+  });
+
+  test('a cooler that is off is checked at the sensor temperature', () async {
+    final covered = await _container(
+      canSetCcdTemperature: true,
+      darkTemperature: 20.0,
+      coolerOn: false,
+    );
+    expect(
+      await _withRef(
+        covered,
+        (ref) => rule.validate(_lightSequence(), ValidationContext(ref)),
+      ),
+      isEmpty,
+    );
+  });
+
+  test('the missing-dark line for a cooler that is off quotes the sensor '
+      'temperature', () async {
+    final uncovered = await _container(
+      canSetCcdTemperature: true,
+      coolerOn: false,
+    );
+    final issues = await _withRef(
+      uncovered,
+      (ref) => rule.validate(_lightSequence(), ValidationContext(ref)),
+    );
+    expect(issues.first.description, contains(', 20.0°C,'));
+    expect(issues.first.description, isNot(contains('-10.0°C')));
+    expect(issues.first.description, contains('cooler is off'));
   });
 
   test('a cooled camera still uses its setpoint', () async {

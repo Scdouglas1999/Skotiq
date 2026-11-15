@@ -98,8 +98,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   late final FocusNode _focusNode = FocusNode(onKeyEvent: _handleKey);
 
   /// Index into the FLAT filtered list. The group eyebrows are not selectable,
-  /// so selection is over entries, not over rendered rows.
-  int _selected = 0;
+  /// so selection is over entries, not over rendered rows. Null until the
+  /// arrows move it: then the best match is selected ([bestCommandIndex]).
+  int? _selected;
   String _query = '';
 
   @override
@@ -113,7 +114,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       // position, and Enter would run something the operator never read.
       setState(() {
         _query = next;
-        _selected = 0;
+        _selected = null;
       });
     });
   }
@@ -183,7 +184,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         final entries = _currentEntries();
         if (entries.isEmpty) return KeyEventResult.handled;
         _invoke(
-          entries[_selected.clamp(0, entries.length - 1)],
+          entries[_selectionIn(entries)],
           alternate: HardwareKeyboard.instance.isShiftPressed,
         );
         return KeyEventResult.handled;
@@ -201,8 +202,15 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   /// Up from the first row lands on the last without a second branch.
   void _move(int delta, int length) {
     if (length == 0) return;
-    setState(() => _selected = (_selected + delta) % length);
+    final from = _selectionIn(_currentEntries());
+    setState(() => _selected = (from + delta) % length);
     _revealSelected();
+  }
+
+  int _selectionIn(List<CommandEntry> entries) {
+    if (entries.isEmpty) return 0;
+    return (_selected ?? bestCommandIndex(entries, _query))
+        .clamp(0, entries.length - 1);
   }
 
   /// Keeps the highlighted row inside the viewport when the arrows walk past
@@ -210,7 +218,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   /// something off screen.
   void _revealSelected() {
     if (!_scrollController.hasClients) return;
-    final target = (_selected * _CommandRow.height) -
+    final target = (_selectionIn(_currentEntries()) * _CommandRow.height) -
         (CommandPalette.maxResultsHeight / 2) +
         _CommandRow.height;
     _scrollController.animateTo(
@@ -238,8 +246,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     ref.watch(targetSearchIndexProvider);
     final entries = _entries();
     _built = (query: _query, entries: entries);
-    final selected =
-        _selected.clamp(0, entries.isEmpty ? 0 : entries.length - 1);
+    final selected = _selectionIn(entries);
 
     // No ancestor Focus: the input takes the focus and keeps it, and its node
     // owns the key bindings. An `autofocus` Focus around this took the focus

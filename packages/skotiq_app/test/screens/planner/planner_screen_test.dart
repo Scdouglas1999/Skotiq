@@ -101,6 +101,22 @@ class _StubAppSettingsNotifier extends AppSettingsNotifier {
   }
 }
 
+const _searchableCandidate = TargetSuggestion(
+  targetId: 31,
+  targetName: 'M31',
+  raHours: 0.71,
+  decDegrees: 41.27,
+  totalScore: 90,
+  visibility: TargetVisibilityInfo(
+    currentAltitude: 50,
+    currentAzimuth: 60,
+    airmass: 1.3,
+    moonDistance: 90,
+    peakAltitude: 80,
+    hoursAboveMinAlt: 8,
+  ),
+);
+
 /// The live [AdaptiveTabBar.selectedIndex] — the single source of truth for
 /// which planner tab is active.
 int _selectedTabIndex(WidgetTester tester) =>
@@ -171,13 +187,21 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: _commonOverrides(),
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          // With nothing scored and no catalog the tab is one empty state
+          // with no search, so give it a candidate to filter.
+          tonightSuggestionsProvider
+              .overrideWith((ref) async => const [_searchableCandidate]),
+        ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: const PlannerScreen(),
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
 
     final search = find.widgetWithText(TextField, 'Search catalogs');
@@ -204,7 +228,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: _commonOverrides(),
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          // With nothing scored and no catalog the tab is one empty state
+          // with no search, so give it a candidate to filter.
+          tonightSuggestionsProvider
+              .overrideWith((ref) async => const [_searchableCandidate]),
+        ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: const Scaffold(
@@ -222,6 +253,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
 
     final search = find.widgetWithText(TextField, 'Search catalogs');
@@ -402,7 +434,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(TransientAlertsPanel), findsNothing);
-    expect(find.text('Transient Alerts'), findsNothing);
+    expect(find.text('Transient alerts'), findsNothing);
 
     await settleProviderTeardown(tester);
   });
@@ -595,17 +627,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // 06 SS Plan gives the detail column ONE pair of actions - "Frame it" and
-    // the page's single primary "Build sequence" - instead of repeating a
-    // framing button on the hero AND on every candidate row.
+    // The detail column carries the two alternatives, Frame it and Build
+    // sequence; the selected row's Image tonight is the page's one primary.
     expect(
       find.widgetWithText(SkotiqButton, 'Frame it'),
       findsOneWidget,
       reason: 'the selected target must still reach the framing surface',
     );
+    final variants = {
+      for (final button
+          in tester.widgetList<SkotiqButton>(find.byType(SkotiqButton)))
+        button.label: button.variant,
+    };
+    expect(variants['Image tonight'], ButtonVariant.primary);
+    expect(variants['Build sequence'], ButtonVariant.secondary);
     expect(
-      find.widgetWithText(SkotiqButton, 'Build sequence'),
-      findsOneWidget,
+      variants.values.where((v) => v == ButtonVariant.primary),
+      hasLength(1),
       reason: 'the page has exactly one primary action',
     );
 
@@ -697,10 +735,9 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  // walk-2 F18: the row's Image tonight ran its own build that ignored the
-  // detail column's suggested sub length and dropped the operator in the
-  // Sequencer; it now runs the same build as the column's Build sequence.
-  testWidgets('Image tonight on the selected row pre-fills its own sub length',
+  // walk-2 F18: the recipe review must start from the planner's suggested sub
+  // length, not a saved default that contradicts the detail column.
+  testWidgets('Build sequence pre-fills the suggested sub length',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1800, 900);
@@ -761,7 +798,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Image tonight'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Build sequence'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -1478,7 +1515,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: _commonOverrides(),
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          tonightSuggestionsProvider
+              .overrideWith((ref) async => const [_searchableCandidate]),
+        ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: const Scaffold(body: PlannerScreen()),
@@ -1513,4 +1555,183 @@ void main() {
 
     await settleProviderTeardown(tester);
   });
+
+  group('Best tonight', () {
+    const ngc1333 = TargetSuggestion(
+      targetId: 1333,
+      targetName: 'NGC1333',
+      catalogId: 'NGC1333',
+      raHours: 3.48,
+      decDegrees: 31.37,
+      totalScore: 96,
+      objectType: 'Cluster + Nebula',
+      constellation: 'Perseus',
+      magnitude: 10.9,
+      sizeArcmin: 19.5,
+      visibility: TargetVisibilityInfo(
+        currentAltitude: 40,
+        currentAzimuth: 80,
+        airmass: 1.4,
+        moonDistance: 108,
+        transitAltitude: 81,
+        peakAltitude: 81,
+        hoursAboveMinAlt: 10,
+      ),
+    );
+
+    Future<void> pumpBestTonight(
+      WidgetTester tester, {
+      Size size = const Size(1600, 900),
+      List<Override> overrides = const [],
+    }) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = size;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            ..._commonOverrides(),
+            tonightSuggestionsProvider.overrideWith((ref) async => [ngc1333]),
+            ...overrides,
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(body: PlannerScreen()),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('with no site the tab is one empty state and no filters',
+        (tester) async {
+      await pumpBestTonight(
+        tester,
+        overrides: [
+          appSettingsProvider.overrideWith(() => _NoSiteSettingsNotifier()),
+        ],
+      );
+
+      expect(find.text('Set your observing site'), findsOneWidget);
+      expect(find.byType(SkotiqTextField), findsNothing);
+      expect(find.byType(SkotiqFilterChip), findsNothing,
+          reason: 'filters over a page that cannot score anything are dead '
+              'controls; the empty state is the one place the problem shows');
+
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets('with a site the filters are live', (tester) async {
+      await pumpBestTonight(tester);
+
+      await tester.tap(find.text('Moon: any'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(find.text('Minimum moon separation'), findsOneWidget);
+      await tester.tap(find.text('Clear'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets('sort is a menu chip that names the current mode',
+        (tester) async {
+      await pumpBestTonight(tester);
+
+      expect(find.text('Sort: Score'), findsOneWidget);
+      await tester.tap(find.text('Sort: Score'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Altitude'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(PlannerScreen)),
+      );
+      expect(
+        container.read(suggestionFilterProvider).plannerSort,
+        PlannerSortMode.altitude,
+      );
+      expect(find.text('Sort: Altitude'), findsOneWidget);
+
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets('a phone row keeps the target name and its window bar',
+        (tester) async {
+      await pumpBestTonight(tester, size: const Size(390, 844));
+
+      expect(tester.takeException(), isNull);
+      final candidate = find.byType(Candidate);
+      expect(candidate, findsOneWidget);
+      final name =
+          find.descendant(of: candidate, matching: find.text('NGC1333'));
+      expect(tester.getSize(name).width, greaterThan(60));
+      final row = tester.getRect(candidate);
+      final bar = find.descendant(
+        of: candidate,
+        matching: find.byType(CandidateWindowBar),
+      );
+      if (bar.evaluate().isNotEmpty) {
+        expect(tester.getRect(bar).right, lessThanOrEqualTo(row.right));
+      }
+
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets('the detail states the coordinates the old pick card showed',
+        (tester) async {
+      await pumpBestTonight(tester);
+
+      expect(find.text('RA'), findsOneWidget);
+      expect(find.text('Dec'), findsOneWidget);
+
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets(
+        'Image tonight over a running sequence says so and starts nothing',
+        (tester) async {
+      await pumpBestTonight(
+        tester,
+        overrides: [
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(
+              null,
+              const RunRecord(lifecycle: SequenceExecutionState.running),
+            ),
+          ),
+        ],
+      );
+
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Image tonight'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final banners = tester
+          .widgetList<SkotiqBanner>(find.byType(SkotiqBanner))
+          .where((b) => b.title == 'Could not start NGC1333 tonight');
+      expect(banners, hasLength(1));
+      expect(banners.single.tone, BannerTone.error);
+      expect(banners.single.message, contains('A sequence is already running'));
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is SkotiqBanner && w.message == 'Planning the night.',
+        ),
+        findsNothing,
+        reason: 'the check comes before anything is framed or planned',
+      );
+
+      await settleProviderTeardown(tester);
+    });
+  });
+}
+
+class _NoSiteSettingsNotifier extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState();
 }

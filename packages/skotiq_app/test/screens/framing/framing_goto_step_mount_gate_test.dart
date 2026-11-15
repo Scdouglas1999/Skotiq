@@ -153,7 +153,7 @@ void main() {
 
     expect(find.text('Slew & Center'), findsNothing);
     expect(find.text('Slew'), findsOneWidget);
-    expect(find.text('Plate solver not configured'), findsOneWidget);
+    expect(find.textContaining('Plate solver not configured.'), findsOneWidget);
     expect(find.textContaining('Centering it'), findsOneWidget);
     expect(find.text('Set up plate solver'), findsOneWidget);
   });

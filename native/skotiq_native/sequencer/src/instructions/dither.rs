@@ -28,6 +28,10 @@ pub(crate) enum DitherCounts {
 /// Why a dither asked nothing of the guider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DitherSkip {
+    /// The rig has no guider, so nothing can move the mount by a dither. A
+    /// configuration state, not a guiding failure: nothing retries it and it
+    /// counts toward no failure streak.
+    NoGuider,
     /// The guide-star recovery ran out and the run images unguided. A guider
     /// that is not guiding cannot dither, and asking it costs a settle timeout;
     /// the operator was told when guiding was given up.
@@ -61,6 +65,11 @@ pub(crate) async fn dither_once(
     config: &crate::DitherConfig,
     counts: DitherCounts,
 ) -> DitherOutcome {
+    if let Err(crate::device_ops::DeviceError::NO_GUIDER) =
+        ctx.run.device_ops.guider_is_active().await
+    {
+        return DitherOutcome::Skipped(DitherSkip::NoGuider);
+    }
     if ctx.imaging_unguided().await {
         return DitherOutcome::Skipped(DitherSkip::Unguided);
     }
@@ -88,6 +97,9 @@ pub(crate) async fn dither_once(
     .await;
     ctx.run.device_ops.guider_note_stop_reason(None).await;
     let result = match result {
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => {
+            return DitherOutcome::Skipped(DitherSkip::NoGuider);
+        }
         Err(error)
             if counts == DitherCounts::OnceStarHeld
                 && is_settle_timeout(&error)
@@ -191,7 +203,8 @@ async fn star_held_after_settle_ran_out(
 
 /// The Dither node, a Smart Exposure plan's dither and the Dither Interval
 /// trigger: one dither under [`DitherCounts::OnceStarHeld`]. A dither that
-/// fails never fails the step: it costs some stacking quality, not the
+/// could not move the mount (no guider, imaging unguided, guiding held) ends
+/// the step Skipped with the reason. A dither that fails never fails the step: it costs some stacking quality, not the
 /// frames, and failing it made the sequential parent skip every remaining
 /// exposure (reproduced live as [Exposures x10, Dither, Exposures x10] ending
 /// with 10 frames and `status=failed` on a rig with no guider connected). It
@@ -222,6 +235,12 @@ pub async fn execute_dither(
         trigger_state.write().await.mark_dither_performed();
     }
 
+    let skipped = matches!(
+        outcome,
+        DitherOutcome::Skipped(
+            DitherSkip::NoGuider | DitherSkip::Unguided | DitherSkip::GuiderHeld(_)
+        )
+    );
     let (detail, message) = match outcome {
         DitherOutcome::Dithered => {
             let pattern = match config.pattern {
@@ -231,6 +250,13 @@ pub async fn execute_dither(
             (
                 "Dither complete",
                 format!("Dither ({pattern}) and settle complete"),
+            )
+        }
+        DitherOutcome::Skipped(DitherSkip::NoGuider) => {
+            tracing::info!("Dither skipped: no guider");
+            (
+                "Dither skipped: no guider",
+                "Dither skipped: no guider is set up, so the frames are not dithered".to_string(),
             )
         }
         DitherOutcome::Skipped(DitherSkip::Unguided) => {
@@ -273,7 +299,11 @@ pub async fn execute_dither(
         }
     };
     report(100.0, detail);
-    InstructionResult::success_with_message(message)
+    if skipped {
+        InstructionResult::skipped(message)
+    } else {
+        InstructionResult::success_with_message(message)
+    }
 }
 
 /// Tell the run a dither counts (see [`DitherCounts`]), so it is counted once

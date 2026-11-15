@@ -745,18 +745,22 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           SkotiqPanel(
             head: PanelHead(label: 'Statistics'),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ReadoutRow(
                   children: [
                     Readout(
-                        value: _frames(stats.stackedFrameCount),
-                        label: 'Stacked frames'),
+                        value: '${stats.stackedFrameCount}',
+                        unit: 'frames',
+                        label: 'Stacked'),
                     Readout(
-                        value: _frames(stats.totalFramesAttempted),
-                        label: 'Total attempted'),
+                        value: '${stats.totalFramesAttempted}',
+                        unit: 'frames',
+                        label: 'Attempted'),
                     Readout(
-                        value: _frames(stats.rejectedAlignmentFailures),
-                        label: 'Rejected (alignment)',
+                        value: '${stats.rejectedAlignmentFailures}',
+                        unit: 'frames',
+                        label: 'Not aligned',
                         valueColor: stats.rejectedAlignmentFailures > 0
                             ? widget.colors.warning
                             : null),
@@ -1012,9 +1016,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     }
     return value.toString();
   }
-
-  /// A frame count, carrying its unit so it cannot be read as pixels.
-  String _frames(int value) => '$value frames';
 
   /// A pixel count, carrying its unit so it cannot be read as frames.
   String _pixels(int value) => '${_formatLargeNumber(value)} px';

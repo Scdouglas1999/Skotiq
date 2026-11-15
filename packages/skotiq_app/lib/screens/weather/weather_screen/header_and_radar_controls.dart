@@ -313,14 +313,68 @@ class _WeatherLoadingBody extends StatelessWidget {
 }
 
 /// No observing site: the radar is the only thing that needs one.
-///
-/// A connected weather station or safety monitor reports without knowing where
-/// it is, and hiding those readings behind a location setting they have nothing
-/// to do with was the 2026-07-29 defect this layout keeps fixed. So the empty
-/// state owns the body and the sensors follow only when a device is actually
-/// connected.
-class _NoLocationBody extends ConsumerWidget {
+class _NoLocationBody extends StatelessWidget {
   const _NoLocationBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return _WeatherEmptyBody(
+      icon: SkotiqIcons.location,
+      title: 'No observing site',
+      body: 'Radar needs to know where you are before it can show the sky '
+          'above you.',
+      action: SkotiqButton(
+        label: 'Set your location',
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: () => openSettings(context, SettingsSectionId.location),
+      ),
+    );
+  }
+}
+
+/// A site is set, but no radar frame and no forecast came back.
+class _NoSourceBody extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _NoSourceBody({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return _WeatherEmptyBody(
+      icon: SkotiqIcons.cloud,
+      title: 'No weather source',
+      body: 'No radar, satellite or forecast service answered for your site. '
+          'Check this computer\'s internet connection.',
+      action: SkotiqButton(
+        label: 'Retry',
+        icon: SkotiqIcons.refresh,
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: onRetry,
+      ),
+    );
+  }
+}
+
+/// An empty state in place of the map, with what still applies beneath it.
+///
+/// A connected weather station or safety monitor reports without a site or a
+/// network, so its readings follow when one is connected. The safety policy is
+/// settings, not readings: it shows either way, with what it does while no
+/// data arrives, since a fail-closed rule can still park the mount here.
+class _WeatherEmptyBody extends ConsumerWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final Widget action;
+
+  const _WeatherEmptyBody({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.action,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -329,49 +383,58 @@ class _NoLocationBody extends ConsumerWidget {
             DeviceConnectionState.connected ||
         ref.watch(safetyMonitorStateProvider).connectionState ==
             DeviceConnectionState.connected;
+    final compact =
+        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
 
-    return Padding(
-      padding: const EdgeInsets.all(SkotiqTokens.space2xl),
+    return SingleChildScrollView(
+      padding: compact
+          ? SkotiqTokens.screenPaddingCompact
+          : SkotiqTokens.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: DecoratedBox(
-              decoration: SkotiqDecorations.well(colors),
+          DecoratedBox(
+            decoration: SkotiqDecorations.well(colors),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: SkotiqTokens.space3xl,
+              ),
               child: Center(
                 child: EmptyState(
-                  icon: SkotiqIcons.location,
-                  title: 'No observing site',
-                  body: 'Radar needs to know where you are before it can show '
-                      'the sky above you.',
-                  action: SkotiqButton(
-                    label: 'Set your location',
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.small,
-                    onPressed: () =>
-                        openSettings(context, SettingsSectionId.location),
-                  ),
+                  icon: icon,
+                  title: title,
+                  body: body,
+                  action: action,
                 ),
               ),
             ),
           ),
-          if (hasSensors) ...[
-            const SizedBox(height: SkotiqTokens.spaceLg),
-            const SkotiqPanel(
-              head: PanelHead(
-                icon: SkotiqIcons.weather,
-                label: 'Conditions',
-              ),
-              child: _WeatherConditions(
-                alert: null,
-                motion: null,
-                lastUpdate: null,
-                cloudCoverPercent: null,
-                alertRadiusKm: null,
-                expanded: true,
-              ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          SkotiqPanel(
+            head: PanelHead(
+              icon: hasSensors ? SkotiqIcons.weather : SkotiqIcons.shieldOk,
+              label: hasSensors ? 'Conditions' : 'Weather safety',
+              trailing: [
+                SkotiqButton(
+                  label: 'Change',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () =>
+                      openSettings(context, SettingsSectionId.weatherSafety),
+                ),
+              ],
             ),
-          ],
+            child: hasSensors
+                ? const _WeatherConditions(
+                    alert: null,
+                    motion: null,
+                    lastUpdate: null,
+                    cloudCoverPercent: null,
+                    alertRadiusKm: null,
+                    expanded: true,
+                  )
+                : const _SafetyPolicy(noData: true),
+          ),
         ],
       ),
     );

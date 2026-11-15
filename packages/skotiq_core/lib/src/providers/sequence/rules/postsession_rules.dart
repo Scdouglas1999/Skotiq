@@ -72,7 +72,7 @@ List<ValidationIssue> postSessionOpticalTrainDrift({
 }
 
 /// Renders the [PostSessionHealthSummary] (USB disconnects, cooler
-/// stability, focuser moves, sky brightness, noticed concerns) into
+/// stability, autofocus runs, sky brightness, noticed concerns) into
 /// info-severity validation issues for the session-report dialog.
 ///
 /// All issues are info — they're observations, not actionable warnings
@@ -112,15 +112,15 @@ List<ValidationIssue> postSessionEquipmentHealthSummary(
       ),
     );
   }
-  if (summary.focuserMoves > 0) {
+  if (summary.autofocusRuns > 0) {
+    final runs = summary.autofocusRuns;
     issues.add(
       ValidationIssue(
         severity: ValidationSeverity.info,
         category: ValidationCategory.equipmentHealth,
-        title: 'Focuser Activity',
+        title: 'Autofocus Runs',
         description:
-            '${summary.focuserMoves} focuser move${summary.focuserMoves == 1 ? "" : "s"} '
-            'recorded during the run (autofocus + temperature compensation).',
+            '$runs autofocus run${runs == 1 ? "" : "s"} during the run.',
       ),
     );
   }

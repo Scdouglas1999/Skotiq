@@ -1,8 +1,13 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../models/backend/device_types.dart';
 import '../../../models/equipment/equipment_models.dart';
+import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../utils/device_id.dart';
 import '../../equipment_provider.dart';
+import '../../settings_provider.dart';
+import '../exposure_dither.dart';
 import '../sequence_validation.dart';
 import '../../../models/sequence/validation/validation_issue.dart';
 
@@ -178,6 +183,55 @@ class EquipmentConnectionRule implements RefAwareSequenceValidator {
       );
     }
 
+    return issues;
+  }
+}
+
+/// Warns, per step, when light frames are set to dither and no guider is
+/// connected: the run takes them undithered. Dither nodes are
+/// [EquipmentConnectionRule]'s; this covers a burst's "dither every".
+class DitherWithoutGuiderRule implements RefAwareSequenceValidator {
+  @override
+  String get name => 'DitherWithoutGuider';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
+    final guider = ctx.ref.read(guiderStateProvider);
+    if (guider.connectionState == DeviceConnectionState.connected) {
+      return const [];
+    }
+    final settings = ctx.ref.read(appSettingsProvider).valueOrNull;
+    final issues = <ValidationIssue>[];
+    void warn(SequenceNode node, int every) => issues.add(
+      ValidationIssue(
+        severity: ValidationSeverity.warning,
+        category: ValidationCategory.equipment,
+        title: 'Frames Will Not Be Dithered',
+        description:
+            '${node.name} dithers every $every '
+            'frame${every == 1 ? '' : 's'}, but no guider is connected, so '
+            'its frames are taken undithered.',
+        affectedNodeId: node.id,
+        resolutionHint:
+            '${_guiderResolutionHint(guider)} Or set Dither every to 0 for '
+            'this step.',
+      ),
+    );
+    for (final node in sequence.enabledNodes) {
+      switch (node) {
+        case ExposureNode(frameType: FrameType.light, :final count):
+          final every = exposureDitherEvery(node, settings) ?? 0;
+          if (every > 0 && every < count) warn(node, every);
+        case SmartExposureNode(:final plans):
+          final every = plans
+              .map((plan) => plan.ditherEvery ?? 0)
+              .where((every) => every > 0)
+              .fold<int?>(null, (a, b) => a == null || b < a ? b : a);
+          if (every != null) warn(node, every);
+        default:
+          break;
+      }
+    }
     return issues;
   }
 }

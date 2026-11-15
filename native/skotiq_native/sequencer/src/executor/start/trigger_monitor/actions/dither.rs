@@ -18,11 +18,17 @@ pub(in super::super) async fn run(
     );
     let dither_ctx = rig.instruction_context(rig.target().await, run);
     let result = crate::instructions::execute_dither(&config, &dither_ctx, None).await;
-    if result.status != NodeStatus::Success {
-        tracing::warn!(
+    match result.status {
+        NodeStatus::Success => {}
+        NodeStatus::Skipped => tracing::info!(
+            "[DITHER] Trigger '{}': {}",
+            trigger_name,
+            result.message.as_deref().unwrap_or("dither skipped")
+        ),
+        _ => tracing::warn!(
             "[DITHER] Trigger-initiated dither failed: {:?}",
             result.message
-        );
+        ),
     }
     ActionFlow::Finished
 }

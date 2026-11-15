@@ -15,8 +15,7 @@ String weatherSafetyStatusText({
   DateTime? now,
 }) {
   if (!monitoring) {
-    return 'Not monitoring — weather safety is off, conditions are not '
-        'being checked';
+    return 'Weather safety is off, so conditions are not being checked.';
   }
   switch (status) {
     case WeatherSafetyStatus.safe:
@@ -30,6 +29,30 @@ String weatherSafetyStatusText({
             'safety unknown';
       }
       return 'Alerts snoozed';
+  }
+}
+
+/// What weather safety does while no weather data arrives, from the fail
+/// mode (`noDataFailModeResolution`). A null [failMode] is the shipped
+/// fail-closed default while settings load.
+@visibleForTesting
+String weatherNoDataRuleText({
+  required bool monitoring,
+  required SafetyFailMode? failMode,
+}) {
+  if (!monitoring) {
+    return 'Weather safety is off, so missing weather data never stops a run '
+        'or parks the mount.';
+  }
+  switch (failMode ?? SafetyFailMode.failClosed) {
+    case SafetyFailMode.failClosed:
+      return 'With no weather data, safety treats the sky as unsafe: a run '
+          'stops and the mount parks.';
+    case SafetyFailMode.failOpen:
+      return 'With no weather data, safety treats the sky as safe and '
+          'imaging goes on.';
+    case SafetyFailMode.warnOnly:
+      return 'With no weather data, imaging goes on and Skotiq warns you.';
   }
 }
 

@@ -334,6 +334,8 @@ class _CountBadge extends StatelessWidget {
 class _TransientAlertDropdownContent extends ConsumerWidget {
   final VoidCallback onViewAll;
 
+  static const double _width = 340;
+
   const _TransientAlertDropdownContent({
     required this.onViewAll,
   });
@@ -345,9 +347,10 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
     final states = ref.watch(transientAlertStatesProvider);
     final dropdownConstraints = AdaptiveDialogConstraints.hybrid(
       context,
-      designMaxWidth: 300,
-      designMaxHeight: 400,
+      designMaxWidth: _width,
+      designMaxHeight: 440,
     );
+    final newCount = ref.watch(unacknowledgedAlertCountProvider);
 
     return Container(
       width: dropdownConstraints.maxWidth,
@@ -357,73 +360,57 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              SkotiqTokens.spaceLg,
+              SkotiqTokens.spaceMd,
+              SkotiqTokens.spaceLg,
+              SkotiqTokens.spaceMd,
+            ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Icon(
-                  LucideIcons.radio,
-                  size: 16,
-                  color: colors.primary,
-                ),
-                const SizedBox(width: 8),
-                // Flexible: the dropdown is a fixed ~280px, so a wide text
-                // scale or a longer translation of this title would otherwise
-                // overflow the header row rather than shorten.
                 Flexible(
                   child: Text(
-                    'Transient Alerts',
+                    'Transient alerts',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize14,
-                      fontWeight: FontWeight.w600,
+                    style: SkotiqTypography.sectionTitle.copyWith(
                       color: colors.textPrimary,
                     ),
                   ),
                 ),
+                if (newCount > 0) ...[
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Text(
+                    '$newCount new',
+                    style: SkotiqTypography.bodySm.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           Divider(height: 1, color: colors.border),
-
           alertsAsync.when(
             data: (alerts) => _buildAlertList(context, alerts, states, colors),
             loading: () => _buildLoadingState(colors),
             error: (error, _) => _buildErrorState(error, colors),
           ),
-
           Divider(height: 1, color: colors.border),
-          // The tap lived on a bare gesture wrapper, which publishes an action
-          // and no role, so assistive tech read a live control as an inert
-          // disabled panel. The flags are only published when given.
-          Semantics(
-              button: true,
-              enabled: true,
-              child: InkWell(
-                onTap: onViewAll,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'View all alerts',
-                        style: TextStyle(
-                          fontSize: SkotiqTypography.fontSize12,
-                          fontWeight: FontWeight.w500,
-                          color: colors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        LucideIcons.arrowRight,
-                        size: 14,
-                        color: colors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              )),
+          Padding(
+            padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+            child: Center(
+              child: SkotiqButton(
+                label: 'View all alerts',
+                icon: SkotiqIcons.arrowRight,
+                variant: ButtonVariant.ghost,
+                size: ButtonSize.small,
+                onPressed: onViewAll,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -549,99 +536,94 @@ class _AlertListItem extends StatelessWidget {
     required this.colors,
   });
 
+  static const double _markerSize = 6;
+
   @override
   Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color:
-            isNew ? colors.primary.withValues(alpha: 0.05) : Colors.transparent,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: TransientTypeStyle.color(alert.type, colors)
-                  .withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
-            ),
-            child: Center(
+    final typeColor = TransientTypeStyle.color(alert.type, colors);
+    final typeLabel = TransientTypeStyle.label(alert.type);
+    final magnitude = alert.magnitude == null
+        ? null
+        : 'mag ${alert.magnitude!.toStringAsFixed(1)}';
+    final facts = [typeLabel, if (magnitude != null) magnitude].join(' · ');
+    final factStyle = SkotiqTypography.bodySm.copyWith(
+      color: colors.textSecondary,
+    );
+    return Semantics(
+      container: true,
+      label: '${isNew ? 'New: ' : ''}${alert.name}, $facts',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: SkotiqTokens.spaceLg,
+          vertical: SkotiqTokens.spaceSm,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
               child: Icon(
                 TransientTypeStyle.icon(alert.type),
-                size: 14,
-                color: TransientTypeStyle.color(alert.type, colors),
+                size: SkotiqTokens.iconXs,
+                color: typeColor,
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  alert.name,
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize12,
-                    fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    alert.name,
+                    style: SkotiqTypography.bodyStrong.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  TransientTypeStyle.label(alert.type),
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize10,
-                    color: colors.textMuted,
+                  // The type is its own text so every alert surface names
+                  // it with the same words.
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          typeLabel,
+                          style: factStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (magnitude != null)
+                        Flexible(
+                          child: Text(
+                            ' · $magnitude',
+                            style: factStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (isNew) ...[
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Padding(
+                padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+                child: Container(
+                  width: _markerSize,
+                  height: _markerSize,
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    shape: BoxShape.circle,
                   ),
                 ),
-              ],
-            ),
-          ),
-          if (alert.magnitude != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.surfaceAlt,
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               ),
-              child: Text(
-                'mag ${alert.magnitude!.toStringAsFixed(1)}',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize10,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
+            ],
           ],
-          if (isNew) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.primary,
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
-              ),
-              child: Text(
-                'NEW',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize9,
-                  fontWeight: FontWeight.w600,
-                  color: onPrimary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

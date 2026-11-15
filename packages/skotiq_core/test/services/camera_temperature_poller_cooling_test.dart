@@ -112,6 +112,28 @@ void main() {
     expect(container.read(cameraStateProvider).isExposing, isFalse);
   });
 
+  test('a cooler that is off records no set-point in the history', () async {
+    await pollOnce(
+      _coolingStatus(
+        sensorTemp: 20.0,
+        targetTemp: -10.0,
+        coolerPower: 0.0,
+        coolerOn: false,
+      ),
+    );
+    await pollOnce(
+      _coolingStatus(
+        sensorTemp: -9.8,
+        targetTemp: -10.0,
+        coolerPower: 40.0,
+        coolerOn: true,
+      ),
+    );
+
+    final history = container.read(temperatureHistoryProvider);
+    expect(history.map((p) => p.targetTemp), [null, -10.0]);
+  });
+
   test('records the gain, offset and binning the camera reports', () async {
     await pollOnce(
       _coolingStatus(sensorTemp: 20.0, targetTemp: -10.0, coolerPower: 0.0),
