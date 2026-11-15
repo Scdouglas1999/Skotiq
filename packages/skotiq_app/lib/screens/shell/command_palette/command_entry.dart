@@ -103,3 +103,21 @@ class CommandEntry {
     return 3;
   }
 }
+
+/// The entry Enter runs before the arrows move: the best [CommandEntry.rank]
+/// across every group, the first in display order among equals. The groups
+/// keep their fixed order for scanning, but a target found by a word in its
+/// common name must not win Enter from a screen whose name begins with what
+/// was typed ("polar" opened Framing on a star cluster, not Polar alignment).
+int bestCommandIndex(List<CommandEntry> entries, String query) {
+  var best = 0;
+  var bestRank = 1 << 30;
+  for (var i = 0; i < entries.length; i++) {
+    final rank = entries[i].rank(query);
+    if (rank < bestRank) {
+      best = i;
+      bestRank = rank;
+    }
+  }
+  return best;
+}
