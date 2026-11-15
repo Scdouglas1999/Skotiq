@@ -210,54 +210,45 @@ class TargetGroupProperties extends ConsumerWidget {
               },
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'Min altitude',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    // This target's own minimum, on top of the site's
-                    // altitude floor, which the run holds every target to.
-                    value: node.minAltitude ?? 0,
-                    suffix: '\u00B0',
-                    min: 0,
-                    max: 90,
-                    decimals: 0,
-                    helperText:
-                        'Added to the site floor '
-                        '(${altitudeFloorRuleLabel(ref.watch(altitudeFloorProvider)).toLowerCase()}). '
-                        '0 adds nothing.',
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(minAltitude: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'Max altitude',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    value: node.maxAltitude ?? 90,
-                    suffix: '\u00B0',
-                    min: 0,
-                    max: 90,
-                    decimals: 0,
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(maxAltitude: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-            ],
+          NodePropertyField(
+            colors: colors,
+            label: 'Min altitude',
+            child: NodeNumberInput(
+              colors: colors,
+              // This target's own minimum, on top of the site's altitude
+              // floor, which the run holds every target to.
+              value: node.minAltitude ?? 0,
+              suffix: '\u00B0',
+              min: 0,
+              max: 90,
+              decimals: 0,
+              helperText:
+                  'Added to the site floor '
+                  '(${altitudeFloorRuleLabel(ref.watch(altitudeFloorProvider)).toLowerCase()}). '
+                  '0 adds nothing.',
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(minAltitude: value),
+                    );
+              },
+            ),
+          ),
+          NodePropertyField(
+            colors: colors,
+            label: 'Max altitude',
+            child: NodeNumberInput(
+              colors: colors,
+              value: node.maxAltitude ?? 90,
+              suffix: '\u00B0',
+              min: 0,
+              max: 90,
+              decimals: 0,
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(maxAltitude: value),
+                    );
+              },
+            ),
           ),
           NodePropertyField(
             colors: colors,

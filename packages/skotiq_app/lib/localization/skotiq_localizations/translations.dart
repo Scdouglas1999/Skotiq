@@ -562,7 +562,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerImageTonight': 'Image tonight',
     'plannerAddTarget': 'Add',
     'plannerAboveMin': 'Above {value}°',
-    'plannerAboveHorizon': 'Above horizon',
+    'plannerAboveHorizon': 'Above floor',
     'plannerAltNow': 'Alt now',
     'plannerFromMoon': 'From moon',
     'plannerAltitudeChartSem':
@@ -2204,7 +2204,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerImageTonight': 'Fotografiar esta noche',
     'plannerAddTarget': 'Añadir',
     'plannerAboveMin': 'Sobre {value}°',
-    'plannerAboveHorizon': 'Sobre el horizonte',
+    'plannerAboveHorizon': 'Sobre el límite',
     'plannerAltNow': 'Altura ahora',
     'plannerFromMoon': 'De la luna',
     'plannerAltitudeChartSem':
