@@ -5,22 +5,21 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait ConnectionOps: Send + Sync {
-    /// Query whether a specific device id is currently connected.
-    ///
-    /// The sequencer recovery loop uses this after a device-disconnect
-    /// failure to wait for the bridge/device-manager reconnect path before
-    /// resuming the failed instruction.
-    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
+    /// Whether the device answers when asked now. The device layer probes
+    /// the device itself: a camera that left the bus a second ago is still
+    /// "connected" in every record kept from the last poll, and recovery that
+    /// trusted the record would report a dead device recovered.
+    async fn device_answers(&self, device_id: &str) -> DeviceResult<bool> {
         let _ = device_id;
         Err(DeviceError::unsupported(
-            "device_is_connected not supported by this driver",
+            "device_answers not supported by this driver",
         ))
     }
 
     /// Actively (re)connect a device by id.
     ///
-    /// The recovery loop calls this for devices not known to be connected on
-    /// a device-disconnect cause, rather than only polling `device_is_connected`.
+    /// The recovery loop calls this for each device that did not answer on a
+    /// device-disconnect cause, rather than only polling `device_answers`.
     /// Camera/focuser/filter-wheel default to `auto_reconnect = false`, so the
     /// background reconnection loop never retries them — without an active
     /// connect the recovery budget would be burned reporting "still

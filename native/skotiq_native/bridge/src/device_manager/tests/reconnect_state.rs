@@ -45,7 +45,7 @@ async fn reconnect_reapplies_mount_tracking() {
     // Simulate a heartbeat-lost disconnect: device goes to Error and the
     // driver loses tracking (sim singleton flipped off).
     manager
-        .handle_heartbeat_lost(device_id, true, 5, "simulated yank")
+        .mark_lost(device_id, true, "simulated yank")
         .await;
     get_sim_mount().write().await.status.tracking = false;
     assert_eq!(
@@ -108,7 +108,7 @@ async fn reconnect_reapplies_camera_cooler() {
 
     // Heartbeat-lost: Error state + driver loses cooler (sim defaults).
     manager
-        .handle_heartbeat_lost(device_id, true, 3, "simulated yank")
+        .mark_lost(device_id, true, "simulated yank")
         .await;
     {
         let mut cam = get_sim_camera().write().await;
@@ -418,7 +418,7 @@ async fn automatic_recovery_preserves_retained_capture_after_heartbeat_loss() {
         }),
     );
     manager
-        .handle_heartbeat_lost(id, true, 3, "lost connection")
+        .mark_lost(id, true, "lost connection")
         .await;
 
     let error = manager.connect_device_automatically(id).await.unwrap_err();
@@ -626,7 +626,7 @@ async fn a_native_serial_mount_reconnects_after_a_heartbeat_loss() {
         .expect("first connect to the fake mount");
 
     manager
-        .handle_heartbeat_lost(&device_id, true, 3, "Device not responding")
+        .mark_lost(&device_id, true, "Device not responding")
         .await;
 
     let reconnect = manager.connect_native(&info).await;

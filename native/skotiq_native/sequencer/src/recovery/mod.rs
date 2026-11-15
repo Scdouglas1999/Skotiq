@@ -383,7 +383,7 @@ pub enum AttemptOutcome {
     /// takes the ordinary give-up path — park the mount, close cover and dome,
     /// fail the run loudly. A `DeviceDisconnected` recovery entered with NO
     /// device ids configured is the shape: `connect_device` has nothing to call
-    /// and `device_is_connected` nothing to poll, so with the shipped defaults
+    /// and `device_answers` nothing to poll, so with the shipped defaults
     /// (10 min interval, 90 min cap) the operator gets nine identical failures
     /// spread over ninety minutes, presented as `recovering` at `progress 0.0`.
     Unrecoverable { message: String },
