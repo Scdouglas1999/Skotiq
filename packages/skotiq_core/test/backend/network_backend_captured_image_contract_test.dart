@@ -60,71 +60,53 @@ void main() {
       expect(images.single.format, ImageFileFormat.fits);
     });
 
-    test('refuses an image row in the old snake_case shape', () async {
+    test('a row this release cannot read is left out, not the session', () async {
+      final oldShape = <String, Object?>{
+        'image_id': 8,
+        'file_path': '/legacy/frame.fit',
+        'file_format': 'fit',
+        'frame_type': 'darkflat',
+        'exposure_duration': 2,
+        'bin_x': 1,
+        'bin_y': 1,
+        'captured_at': 1700000000,
+      };
+      final unreadable = <Map<String, Object?>>[
+        oldShape,
+        _currentRow(id: 2, frameType: 'science'),
+        _currentRow(id: 3, fileFormat: 'bmp'),
+        _currentRow(id: 4)..['gain'] = -5,
+        _currentRow(id: 5)..['binX'] = 0,
+        _currentRow(id: 6)..['hfr'] = -0.1,
+        _currentRow(id: 9)..['id'] = 4.5,
+      ];
       final fake = FakeNetworkClient()
         ..setResponse(
           '/api/sessions/4/images',
           body: jsonEncode({
-            'images': [
-              {
-                'image_id': 8,
-                'file_path': '/legacy/frame.fit',
-                'file_format': 'fit',
-                'frame_type': 'darkflat',
-                'exposure_duration': 2,
-                'bin_x': 1,
-                'bin_y': 1,
-                'captured_at': 1700000000,
-              },
-            ],
+            'images': [...unreadable, _currentRow(id: 7)],
           }),
         );
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
+      final images = await backend.getSessionImages(4);
+
+      expect(images.map((image) => image.id), ['7']);
+    });
+
+    test('a duplicate image id still refuses the list', () async {
+      final fake = FakeNetworkClient()
+        ..setResponse(
+          '/api/sessions/4/images',
+          body: jsonEncode({
+            'images': [_currentRow(), _currentRow()],
+          }),
+        );
+      final backend = _backend(fake);
+      addTearDown(backend.dispose);
       await expectLater(backend.getSessionImages(4), throwsFormatException);
     });
-
-    test('rejects duplicate and unknown-enum rows atomically', () async {
-      final cases = <List<Map<String, Object?>>>[
-        [_currentRow(), _currentRow()],
-        [_currentRow(frameType: 'science')],
-        [_currentRow(fileFormat: 'bmp')],
-      ];
-
-      for (final rows in cases) {
-        final fake = FakeNetworkClient()
-          ..setResponse(
-            '/api/sessions/4/images',
-            body: jsonEncode({'images': rows}),
-          );
-        final backend = _backend(fake);
-        addTearDown(backend.dispose);
-        await expectLater(backend.getSessionImages(4), throwsFormatException);
-      }
-    });
-
-    test(
-      'rejects fractional identifiers and invalid numeric domains',
-      () async {
-        final fractionalId = _currentRow()..['id'] = 4.5;
-        final negativeHfr = _currentRow()..['hfr'] = -0.1;
-        final zeroBinning = _currentRow()..['binX'] = 0;
-
-        for (final row in [fractionalId, negativeHfr, zeroBinning]) {
-          final fake = FakeNetworkClient()
-            ..setResponse(
-              '/api/sessions/4/images',
-              body: jsonEncode({
-                'images': [row],
-              }),
-            );
-          final backend = _backend(fake);
-          addTearDown(backend.dispose);
-          await expectLater(backend.getSessionImages(4), throwsFormatException);
-        }
-      },
-    );
 
     test('rejects non-positive session identifiers before transport', () async {
       final fake = FakeNetworkClient();

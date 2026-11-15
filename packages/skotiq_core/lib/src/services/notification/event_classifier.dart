@@ -101,7 +101,7 @@ class NotificationEventClassifier {
   static ClassifiedNotification? classify(SkotiqEvent event) {
     final payload = typedEventFromWire(event)?.payload;
     if (payload == null) return null;
-    final mapped = _categoryAndContext(payload);
+    final mapped = _categoryAndContext(payload, event.severity);
     if (mapped == null) return null;
     // Decision rows are published at info whatever they record. The
     // reject-streak and problem-noticed rows stand for a warning, so they are
@@ -127,12 +127,19 @@ class NotificationEventClassifier {
 
   static (NotificationCategory, Map<String, String>)? _categoryAndContext(
     typed.EventPayload payload,
+    EventSeverity severity,
   ) => switch (payload) {
     typed.EventPayload_Sequencer(:final field0) => _classifySequencer(field0),
     typed.EventPayload_Imaging(:final field0) => _classifyImaging(field0),
-    typed.EventPayload_Guiding(:final field0) => _classifyGuiding(field0),
+    typed.EventPayload_Guiding(:final field0) => _classifyGuiding(
+      field0,
+      severity,
+    ),
     typed.EventPayload_Safety(:final field0) => _classifySafety(field0),
-    typed.EventPayload_Equipment(:final field0) => _classifyEquipment(field0),
+    typed.EventPayload_Equipment(:final field0) => _classifyEquipment(
+      field0,
+      severity,
+    ),
     typed.EventPayload_System(:final field0) => _classifySystem(field0),
     // Shown by their own surfaces (the polar alignment screen, the Smart
     // Exposure goal card).
@@ -247,11 +254,21 @@ class NotificationEventClassifier {
           NotificationCategory.targetCompleted,
           <String, String>{'target.name': targetName, 'target.id': ''},
         );
-      case typed.SequencerEvent_InstructionProgress(:final instruction):
-        if (instruction.toLowerCase().contains('meridian')) {
-          return (NotificationCategory.meridianFlipPerformed, _none);
-        }
-        return null;
+      // The flip's verdict, once per flip. A failed or aborted flip is told
+      // by the run's fault banner and, if the run ends, by its failure.
+      case typed.SequencerEvent_MeridianFlipOutcome(
+        :final outcome,
+        :final targetName,
+        :final attempts,
+      ):
+        if (outcome != typed.FlipOutcome.success) return null;
+        return (
+          NotificationCategory.meridianFlipPerformed,
+          <String, String>{
+            'flip.target': targetName,
+            'flip.attempts': attempts > 1 ? ' after $attempts attempts' : '',
+          },
+        );
       case typed.SequencerEvent_TriggerFired(:final action, :final triggerName):
         // A trigger whose action is to carry on (a filter change in a rotating
         // Smart Exposure fires one every frame) changed nothing; notifying it
@@ -276,7 +293,7 @@ class NotificationEventClassifier {
           typed.SequencerEvent_TargetChanged() ||
           typed.SequencerEvent_ExposureStarted() ||
           typed.SequencerEvent_ExposureCompleted() ||
-          typed.SequencerEvent_MeridianFlipOutcome() ||
+          typed.SequencerEvent_InstructionProgress() ||
           typed.SequencerEvent_InstructionProgressStructured() ||
           typed.SequencerEvent_DepthGoalCompleted() ||
           typed.SequencerEvent_FrameAccepted() ||
@@ -329,11 +346,14 @@ class NotificationEventClassifier {
 
   static (NotificationCategory, Map<String, String>)? _classifyGuiding(
     typed.GuidingEvent event,
+    EventSeverity severity,
   ) => switch (event) {
-    typed.GuidingEvent_LostStar() || typed.GuidingEvent_Disconnected() => (
-      NotificationCategory.guidingLost,
-      _none,
-    ),
+    typed.GuidingEvent_LostStar() => (NotificationCategory.guidingLost, _none),
+    // Published at info when the operator disconnected the guider.
+    typed.GuidingEvent_Disconnected() =>
+      severity.index < EventSeverity.warning.index
+          ? null
+          : (NotificationCategory.guidingLost, _none),
     typed.GuidingEvent_Connected() ||
     typed.GuidingEvent_GuidingStarted() ||
     typed.GuidingEvent_GuidingStopped() ||
@@ -377,9 +397,16 @@ class NotificationEventClassifier {
     ),
   };
 
+  /// A device lost or failing. The native side publishes the operator's own
+  /// disconnect at info and a notice about a device that is still connected
+  /// (no pixel size reported, a setting not restored after a reconnect) as a
+  /// warning-level `Error`; neither is a lost device, and the equipment
+  /// screens and toasts show them.
   static (NotificationCategory, Map<String, String>)? _classifyEquipment(
     typed.EquipmentEvent event,
+    EventSeverity severity,
   ) {
+    if (severity.index < EventSeverity.error.index) return null;
     final (deviceType, deviceId) = switch (event) {
       typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) ||
       typed.EquipmentEvent_Error(

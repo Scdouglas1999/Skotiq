@@ -489,6 +489,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
         if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(
             &Vendor::PlayerOne,
             DeviceKind::Camera,
@@ -508,6 +509,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
         if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
@@ -519,6 +521,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_GAIN, gain as c_long, false)
             .await?;
@@ -527,6 +530,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         // Uses the async version, which takes the SDK lock. get_control_int_async returns c_long
         // (i64 on Linux LP64); gain fits in i32.
         self.get_control_int_async(POAConfig::POA_GAIN)
@@ -535,6 +539,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_OFFSET, offset as c_long, false)
             .await?;
@@ -543,6 +548,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         // Uses the async version, which takes the SDK lock. get_control_int_async returns c_long
         // (i64 on Linux LP64); offset fits in i32.
         self.get_control_int_async(POAConfig::POA_OFFSET)
@@ -606,6 +612,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
+        self.core.require_connected()?;
         let mut features = VendorFeatures::default();
 
         // Get USB bandwidth (uses the async version, which takes the SDK lock)

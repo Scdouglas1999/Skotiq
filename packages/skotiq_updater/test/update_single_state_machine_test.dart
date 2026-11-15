@@ -138,7 +138,7 @@ void main() {
       'offered again; a newer one clears the skip', () async {
     offerAnUpdate();
     await notifier.checkForUpdates();
-    notifier.skipUpdate();
+    await notifier.skipUpdate();
 
     expect(notifier.state.status, UpdateStatus.upToDate);
     expect(notifier.state.availableUpdate, isNull);
@@ -160,6 +160,25 @@ void main() {
     expect(notifier.state.status, UpdateStatus.available);
     expect(notifier.state.skippedVersion, isNull);
     verify(() => service.writeSkippedVersion(null)).called(1);
+  });
+
+  test('a skip is on disk, with the earlier "not now" cleared, when it '
+      'completes', () async {
+    offerAnUpdate();
+    await notifier.checkForUpdates();
+    await notifier.deferUpdate();
+    expect(
+      (await UpdatePromptStore(() async => dataDir).read()).deferredVersion,
+      '2.1.0',
+    );
+
+    await notifier.skipUpdate();
+
+    verify(() => service.writeSkippedVersion('2.1.0')).called(1);
+    expect(
+      (await UpdatePromptStore(() async => dataDir).read()).deferredVersion,
+      isNull,
+    );
   });
 
   test('a failed check is an error in the window with the reason', () async {

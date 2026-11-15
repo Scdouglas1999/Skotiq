@@ -20,6 +20,10 @@ quick-xml.workspace = true
 # Rayon for data parallelism
 rayon = "1.10"
 
+# Pure-Rust libm: star detection must give the same bits on every platform,
+# and the system libm differs between glibc releases and from Apple's.
+libm = "0.2"
+
 # Bytemuck for safe byte casting
 bytemuck = { version = "1.14", features = ["derive"] }
 

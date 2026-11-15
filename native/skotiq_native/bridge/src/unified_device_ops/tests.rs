@@ -255,10 +255,12 @@ async fn exposure_polling_short_circuits_when_complete() {
 
     let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
     let device_id_for_exposure = device_id.clone();
-    let timed_result = tokio::time::timeout(std::time::Duration::from_millis(100), async move {
+    // A 60 s exposure that the camera reports complete at once returns long
+    // before its duration; the 10 s budget leaves room for a loaded runner.
+    let timed_result = tokio::time::timeout(std::time::Duration::from_secs(10), async move {
         ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
             &device_id_for_exposure,
-            0.5,
+            60.0,
         ))
         .await
     })

@@ -12,7 +12,7 @@ abstract interface class HostNightControl {
 
   Future<EonStatus?> confirmHostEndOfNightCapped();
 
-  Future<Map<String, dynamic>?> getHostNightHistory();
+  Future<Map<String, dynamic>> getHostNightHistory();
 
   Future<void> stopHostManualLoop();
 

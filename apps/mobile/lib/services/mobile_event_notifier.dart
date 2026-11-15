@@ -182,11 +182,26 @@ class MobileEventNotifier {
         _repeatWindow,
         () => sink.notifyTargetCompleted(values['target.name'] ?? ''),
       ),
-      // A flip reports progress for minutes; one alert per flip.
       NotificationCategory.meridianFlipPerformed => (
         _preferences.notifyMeridianFlip,
-        const Duration(minutes: 5),
-        () => sink.notifyMeridianFlip('Active sequence', DateTime.now()),
+        _repeatWindow,
+        () => sink.notifyMeridianFlip(
+          values['flip.target'] ?? '',
+          DateTime.now(),
+        ),
+      ),
+      // The run's own alarms reach the phone from the host's events as well
+      // as by the host's push, so a host whose push is off still pages it.
+      NotificationCategory.sequenceFailed ||
+      NotificationCategory.recoveryGaveUp => (
+        _preferences.notifySequence,
+        _repeatWindow,
+        () => sink.notifySequenceFailed(title: title, body: body),
+      ),
+      NotificationCategory.mountFault => (
+        _preferences.notifySafety,
+        _repeatWindow,
+        () => sink.notifyMountFault(title: title, body: body),
       ),
       NotificationCategory.diskSpaceLow => (
         _preferences.notifyDiskLow,
@@ -197,7 +212,6 @@ class MobileEventNotifier {
       // their own.
       NotificationCategory.sequenceStarted ||
       NotificationCategory.sequenceCompleted ||
-      NotificationCategory.sequenceFailed ||
       NotificationCategory.sequenceStopped ||
       NotificationCategory.sequencePaused ||
       NotificationCategory.sequenceResumed ||
@@ -208,10 +222,8 @@ class MobileEventNotifier {
       NotificationCategory.problemNoticed ||
       NotificationCategory.recoveryStarted ||
       NotificationCategory.recoveryRecovered ||
-      NotificationCategory.recoveryGaveUp ||
       NotificationCategory.guidingRecovered ||
       NotificationCategory.weatherSafeAgain ||
-      NotificationCategory.mountFault ||
       NotificationCategory.cloudArriving ||
       NotificationCategory.cloudOpening ||
       NotificationCategory.transientDiscovered ||

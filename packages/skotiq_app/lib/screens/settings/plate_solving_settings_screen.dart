@@ -280,8 +280,10 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               Icon(LucideIcons.alertCircle, color: colors.error, size: 32),
               const SizedBox(height: 12),
               Text(
-                'Plate-solver detection failed. Check that your solver is '
-                'installed, then retry.',
+                error is PlateSolverSetupNotTold
+                    ? error.message
+                    : 'Plate-solver detection failed. Check that your solver '
+                        'is installed, then retry.',
                 style: SkotiqTypography.body.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -306,7 +308,9 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Could not load plate-solver preferences.',
+              error is PlateSolverSetupNotTold
+                  ? error.message
+                  : 'Could not load plate-solver preferences.',
               style: SkotiqTypography.body.copyWith(
                 color: colors.error,
               ),

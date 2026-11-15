@@ -26,7 +26,6 @@ abstract interface class HostRigSettings {
 
   Future<Map<String, String>> mergeSettingsStore(
     Map<String, Map<String, Object?>> fields, {
-    required Map<String, String> fallback,
     Map<String, Map<String, Object?>> base = const {},
   });
 

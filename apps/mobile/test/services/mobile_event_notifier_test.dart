@@ -27,16 +27,11 @@ class _RecordingNotificationService implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifySequenceFailed(
-    String targetName,
-    String errorMessage,
-  ) async {
-    calls.add(
-      NotifyCall('sequenceFailed', {
-        'target': targetName,
-        'error': errorMessage,
-      }),
-    );
+  Future<void> notifySequenceFailed({
+    required String title,
+    required String body,
+  }) async {
+    calls.add(NotifyCall('sequenceFailed', {'title': title, 'body': body}));
   }
 
   @override
@@ -45,6 +40,14 @@ class _RecordingNotificationService implements MobileNotificationSink {
     required String body,
   }) async {
     calls.add(NotifyCall('safety', {'title': title, 'body': body}));
+  }
+
+  @override
+  Future<void> notifyMountFault({
+    required String title,
+    required String body,
+  }) async {
+    calls.add(NotifyCall('mountFault', {'title': title, 'body': body}));
   }
 
   @override
@@ -300,6 +303,16 @@ void main() {
       expect(notifications.calls.single.kind, 'guidingLost');
     });
 
+    test('the operator disconnecting the guider is silent', () async {
+      // The host publishes a disconnect it was asked for at info.
+      await emitTyped(
+        sk.EventCategory.guiding,
+        const sk.EventPayload.guiding(sk.GuidingEvent.disconnected()),
+        severity: sk.EventSeverity.info,
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
     test('respects the guiding mute', () async {
       await prefs.setNotifyGuiding(false);
       await emitTyped(
@@ -391,6 +404,41 @@ void main() {
       expect(notifications.calls, isEmpty);
     });
 
+    test('a notice about a connected camera is not a disconnect', () async {
+      // What the host sends right after a camera that reports no pixel size
+      // connects.
+      await emitEquipment(
+        const sk.EquipmentEvent.connected(
+          deviceType: 'camera',
+          deviceId: 'gphoto2:canon_eos_rp',
+          deviceName: 'Canon EOS RP',
+        ),
+        severity: sk.EventSeverity.info,
+      );
+      await emitEquipment(
+        const sk.EquipmentEvent.error(
+          deviceType: 'camera',
+          deviceId: 'gphoto2:canon_eos_rp',
+          message:
+              'Canon EOS RP does not report its pixel size. Enter it in the '
+              'optical train so plate solving has a scale.',
+        ),
+        severity: sk.EventSeverity.warning,
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
+    test('the operator disconnecting a device is silent', () async {
+      await emitEquipment(
+        const sk.EquipmentEvent.disconnected(
+          deviceType: 'camera',
+          deviceId: 'sim_camera_1',
+        ),
+        severity: sk.EventSeverity.info,
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
     test('respects the equipment mute', () async {
       await prefs.setNotifyEquipmentDisconnected(false);
       await emitEquipment(
@@ -456,21 +504,142 @@ void main() {
       expect(notifications.calls.single.data['targetName'], 'M31');
     });
 
-    test('a meridian flip alerts once however long it reports', () async {
-      for (final progress in [10.0, 50.0, 90.0]) {
+    sk.EventPayload flip(sk.FlipOutcome outcome, {int attempts = 1}) =>
+        sk.EventPayload.sequencer(
+          sk.SequencerEvent.meridianFlipOutcome(
+            outcome: outcome,
+            targetName: 'M31',
+            newPierSide: 'West',
+            durationSecs: 240,
+            attempts: attempts,
+            failedSteps: const [],
+            actionTaken: 'continued',
+          ),
+        );
+
+    test('a meridian flip alerts once, from its verdict', () async {
+      // Progress of the flip step, a retry notice among it, and the mount
+      // reaching its new side all come before the verdict.
+      for (final detail in [
+        'Flipping',
+        'Meridian flip attempt 2/4 failed, retrying',
+      ]) {
         await emitTyped(
           sk.EventCategory.sequencer,
           sk.EventPayload.sequencer(
             sk.SequencerEvent.instructionProgress(
               nodeId: 'flip',
               instruction: 'Meridian flip',
-              progressPercent: progress,
-              detail: 'Flipping',
+              progressPercent: 50,
+              detail: detail,
             ),
           ),
+          severity: sk.EventSeverity.info,
         );
       }
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        flip(sk.FlipOutcome.pierChanged),
+        severity: sk.EventSeverity.info,
+      );
+      expect(notifications.calls, isEmpty);
+
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        flip(sk.FlipOutcome.success, attempts: 2),
+        severity: sk.EventSeverity.warning,
+      );
       expect(notifications.calls.single.kind, 'meridianFlip');
+      expect(notifications.calls.single.data['target'], 'M31');
+    });
+
+    test('a flip that failed is not told as performed', () async {
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        flip(sk.FlipOutcome.failed, attempts: 4),
+        severity: sk.EventSeverity.critical,
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
+    test('a failed run pages the phone with its reason', () async {
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(
+          sk.SequencerEvent.failed(error: 'Mount did not answer'),
+        ),
+        severity: sk.EventSeverity.error,
+      );
+      final call = notifications.calls.single;
+      expect(call.kind, 'sequenceFailed');
+      expect(call.data['title'], 'Sequence failed');
+      expect(call.data['body'], contains('Mount did not answer'));
+    });
+
+    test('recovery giving up pages the phone', () async {
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(
+          sk.SequencerEvent.recoveryGaveUp(
+            startedAtIso: '2026-11-15T03:00:00Z',
+            causeKind: 'GuideStarLost',
+            attemptCount: 3,
+            maxAttempts: 3,
+            retryIntervalSecs: 60,
+            maxDurationSecs: 900,
+            phase: 'GaveUp',
+            abortedByUser: false,
+          ),
+        ),
+        severity: sk.EventSeverity.critical,
+      );
+      expect(notifications.calls.single.kind, 'sequenceFailed');
+      expect(notifications.calls.single.data['title'], 'Recovery gave up');
+    });
+
+    test('respects the sequence mute', () async {
+      await prefs.setNotifySequence(false);
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(sk.SequencerEvent.failed(error: 'x')),
+        severity: sk.EventSeverity.error,
+      );
+      expect(notifications.calls, isEmpty);
+    });
+  });
+
+  group('Mount', () {
+    test('a mount fault raises the mount alarm', () async {
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.mountMotionFault(
+            deviceId: 'sim_mount_1',
+            kind: 'runaway',
+            message: 'Dec axis moving at 4 deg/s with no command',
+          ),
+        ),
+        severity: sk.EventSeverity.critical,
+      );
+      final call = notifications.calls.single;
+      expect(call.kind, 'mountFault');
+      expect(call.data['body'], contains('Dec axis'));
+    });
+
+    test('the host push for the same fault is not doubled', () async {
+      notifier.recordPushReceived(NotificationCategory.mountFault.storageKey);
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.mountMotionFault(
+            deviceId: 'sim_mount_1',
+            kind: 'runaway',
+            message: 'x',
+          ),
+        ),
+        severity: sk.EventSeverity.critical,
+      );
+      expect(notifications.calls, isEmpty);
     });
   });
 

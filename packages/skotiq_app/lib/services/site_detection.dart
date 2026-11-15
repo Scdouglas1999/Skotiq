@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
@@ -46,6 +47,28 @@ final class SiteNotFound extends SiteDetection {
   const SiteNotFound(super.attempt);
 }
 
+/// A fix too coarse to stand as the observing site: an internet estimate, or
+/// a location service working from the same internet address. Nothing is
+/// stored; [acceptEstimatedSite] stores it once the operator says so, so an
+/// estimate never feeds a run's altitude or meridian decisions unconfirmed.
+final class SiteEstimated extends SiteDetection {
+  const SiteEstimated(
+    super.attempt, {
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final double latitude;
+  final double longitude;
+
+  PositioningResult get fix => attempt.fix!;
+
+  /// The place's name, or its coordinates.
+  String get where =>
+      fix.locationName ??
+      '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+}
+
 /// The site is now [latitude], [longitude]. [keptElevation] is false when the
 /// stored elevation was cleared because it belonged to a different place.
 final class SiteDetected extends SiteDetection {
@@ -70,7 +93,8 @@ final class SiteDetected extends SiteDetection {
 
 /// One click from "where am I" to a stored site: asks before anything leaves
 /// the machine (once per session, naming each tier that will run), looks the
-/// position up, and stores it.
+/// position up, and stores a precise fix. A coarse one comes back as a
+/// [SiteEstimated] for the operator to accept.
 ///
 /// A stored elevation stays only with a fix inside [sameSiteRadiusKm] of the
 /// stored site, or when no site is stored yet (it is then what the operator
@@ -116,13 +140,40 @@ Future<SiteDetection?> detectSite(
   if (host.isStale) return null;
   final fix = attempt.fix;
   if (fix == null) return SiteNotFound(attempt);
+  final latitude = _rounded(fix.latitude);
+  final longitude = _rounded(fix.longitude);
+  if (!fix.isPrecise) {
+    return SiteEstimated(attempt, latitude: latitude, longitude: longitude);
+  }
+  return _store(ref, attempt, latitude, longitude, host);
+}
 
+/// Store [estimate] as the observing site, which the operator accepted.
+/// Returns null when the host changed meanwhile.
+Future<SiteDetected?> acceptEstimatedSite(
+  BuildContext context,
+  WidgetRef ref,
+  SiteEstimated estimate,
+) =>
+    _store(
+      ref,
+      estimate.attempt,
+      estimate.latitude,
+      estimate.longitude,
+      ref.backendScope(alive: () => context.mounted),
+    );
+
+Future<SiteDetected?> _store(
+  WidgetRef ref,
+  PositioningAttempt attempt,
+  double latitude,
+  double longitude,
+  AsyncScope<SkotiqBackend> host,
+) async {
   // Read now, not when the button was drawn: the elevation can be edited
   // while the consent dialog is up.
   final stored = await ref.read(appSettingsProvider.future);
   if (host.isStale) return null;
-  final latitude = _rounded(fix.latitude);
-  final longitude = _rounded(fix.longitude);
   final keptElevation = !stored.hasObserverLocation ||
       _kmBetween(stored.latitude, stored.longitude, latitude, longitude) <=
           sameSiteRadiusKm;

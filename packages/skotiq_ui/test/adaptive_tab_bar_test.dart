@@ -250,8 +250,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Session'), findsNothing);
-    expect(find.byIcon(Icons.bar_chart), findsOneWidget);
+    expect(find.text('History'), findsNothing);
+    expect(find.byIcon(Icons.history), findsOneWidget);
+    // The selected tab keeps its label, so the strip is never only glyphs.
+    expect(find.text('Session'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

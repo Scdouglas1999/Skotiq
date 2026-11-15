@@ -5,9 +5,16 @@ name: Release
 # (e.g. `git tag v5.0.0 && git push origin v5.0.0`). Windows desktop cannot be
 # cross-compiled from Linux, so it builds on a Windows runner here.
 #
-# `workflow_dispatch` lets you rebuild artifacts on demand. Supplying an
-# existing draft `release_tag` attaches the rebuilt assets without publishing
-# the draft; tag pushes retain the normal publish behavior.
+# A release is published only from the commit its tag names, once that commit
+# is on `main` with every required CI check green, signed, and never over a
+# release that is already public (scripts/release_gate.py, run before the
+# builds and again before publishing). The archives must carry that commit in
+# SOURCE-COMMIT.txt.
+#
+# `workflow_dispatch` without `release_tag` is a build-only validation run: it
+# gets no signing keys, so nothing it builds can be published. Run from the tag
+# with `release_tag` set to it, the dispatch builds the release and attaches it
+# to the existing draft without publishing the draft.
 on:
   push:
     tags:
@@ -15,12 +22,14 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Existing draft release tag to attach artifacts to (leave blank to build only)'
+        description: 'Existing draft release tag to attach artifacts to; run the workflow from that tag (leave blank to build only)'
         required: false
         type: string
 
 permissions:
   contents: write
+  # The release gate reads the CI check runs of the commit it publishes.
+  checks: read
 
 # Legacy secret aliases preserve the update-signing identity during migration.
 env:
@@ -43,6 +52,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # The release gate needs the tags and origin/main.
+          fetch-depth: 0
       - name: Resolve + validate version
         id: resolve
         env:
@@ -78,6 +90,11 @@ jobs:
               echo "::error::Requested release ${REQUESTED_RELEASE_TAG} (${tag_version}) does not match apps/desktop/pubspec.yaml (${pubspec_version})."
               exit 1
             fi
+            # A release is built from its tag, so the archives name its commit.
+            if [ "${GITHUB_REF:-}" != "refs/tags/${REQUESTED_RELEASE_TAG}" ]; then
+              echo "::error::Run this workflow from the tag ${REQUESTED_RELEASE_TAG} (Use workflow from: ${REQUESTED_RELEASE_TAG}), not from ${GITHUB_REF:-an unknown ref}."
+              exit 1
+            fi
             release_tag="$REQUESTED_RELEASE_TAG"
           else
             release_tag=""
@@ -87,7 +104,9 @@ jobs:
           echo "Resolved APP_VERSION=${pubspec_version}"
 
       - name: Test release policy
-        run: python3 scripts/test_release_policy.py
+        run: |
+          python3 scripts/test_release_policy.py
+          python3 scripts/test_release_gate.py
 
       - name: Resolve channel and enforce distribution signing
         id: policy
@@ -104,6 +123,14 @@ jobs:
           distribution=()
           if [ -n "$RELEASE_TAG" ]; then distribution=(--distribute); fi
           python3 scripts/release_policy.py --output "$GITHUB_OUTPUT" "${distribution[@]}"
+
+      # Before an hour of builds: is this commit allowed to become the release?
+      - name: Release gate
+        if: steps.resolve.outputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.resolve.outputs.release_tag }}
+        run: python3 scripts/release_gate.py --tag "$RELEASE_TAG" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
 
   # --------------------------------------------------------------------------
   android:
@@ -160,14 +187,14 @@ jobs:
             fi
           done
 
-      # Decode the production upload keystore when provisioned. Absent secret ->
-      # KEYSTORE_FILE stays unset and build.gradle.kts falls back to the debug
-      # keystore staged above for validation/prerelease builds only. Stable
-      # distribution is refused by the version job and Gradle without it.
-      # A configured but broken keystore fails rather than falling back.
+      # Decode the production upload keystore for a release. A build-only run
+      # gets no keystore: KEYSTORE_FILE stays unset and build.gradle.kts falls
+      # back to the debug keystore staged above, so its APKs cannot install
+      # over a released one. A release without the keystore is refused by the
+      # version job and Gradle. A broken keystore fails rather than falling back.
       - name: Decode release keystore (optional)
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_BASE64: ${{ needs.version.outputs.require_signing == 'true' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
         run: |
           set -euo pipefail
           if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
@@ -187,9 +214,9 @@ jobs:
 
       - name: Build release APKs (per-ABI)
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ needs.version.outputs.require_signing == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          KEY_ALIAS: ${{ needs.version.outputs.require_signing == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
+          KEY_PASSWORD: ${{ needs.version.outputs.require_signing == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
           SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
         run: python3 scripts/build_android_ci.py --evidence-dir "$RUNNER_TEMP/android-build-evidence"
 
@@ -233,10 +260,10 @@ jobs:
       # One signed manifest per ABI, so an arm64 phone is never offered the
       # x86_64 build. The APK is its own package here — Android installs it
       # whole — so the manifest's downloadUrl is the APK's own release asset
-      # URL. Only validation/prerelease runs may omit the signing key.
+      # URL. Only a build-only run, which is never published, goes unsigned.
       - name: Sign OTA manifests (per ABI)
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
@@ -463,11 +490,11 @@ jobs:
       # downloadUrl is baked into the signed manifest, so it must equal the
       # real published asset URL — the immutable per-tag GitHub Releases link
       # (the tag is always v<APP_VERSION>, validated by the version job).
-      # Empty SKOTIQ_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
-      # fail-closed-disabled); the build still succeeds.
+      # A build-only run has no SKOTIQ_UPDATE_PRIVATE_KEY and writes an
+      # unsigned manifest, which every install refuses.
       - name: Package + sign OTA manifest
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
@@ -566,8 +593,8 @@ jobs:
       - name: Authenticode sign (optional)
         shell: pwsh
         env:
-          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
-          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+          WINDOWS_SIGNING_CERT_BASE64: ${{ needs.version.outputs.require_signing == 'true' && secrets.WINDOWS_SIGNING_CERT_BASE64 || '' }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ needs.version.outputs.require_signing == 'true' && secrets.WINDOWS_SIGNING_CERT_PASSWORD || '' }}
         run: |
           $rel = "apps/desktop/build/windows/x64/runner/Release"
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
@@ -635,12 +662,12 @@ jobs:
       # all agree). downloadUrl is baked + signed into the manifest, so it must
       # equal the real published asset URL: the immutable per-tag GitHub Releases
       # download URL (the tag is always v<APP_VERSION>, validated by the version
-      # job). Empty SKOTIQ_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
-      # fail-closed-disabled); the build still succeeds.
+      # job). A build-only run has no SKOTIQ_UPDATE_PRIVATE_KEY and writes an
+      # unsigned manifest, which every install refuses.
       - name: Package + sign OTA manifest
         shell: pwsh
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $rel = "apps/desktop/build/windows/x64/runner/Release"
@@ -682,6 +709,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
@@ -728,17 +757,16 @@ jobs:
       # signing payload drifted from UpdateVerifier's, or a manifest naming a
       # different package would all publish cleanly and then be refused by
       # every install — and a build that cannot verify updates can only be
-      # replaced by hand. A configured private key or stable distribution
-      # requires signed manifests. Build-only runs verify their artifacts too.
+      # replaced by hand. A release requires signed manifests; build-only runs
+      # verify their unsigned artifacts too.
       - name: Verify OTA manifests against the app update key
         env:
           SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
-          SIGNING_KEY_CONFIGURED: ${{ (secrets.SKOTIQ_UPDATE_PRIVATE_KEY != '' || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY != '') }}
           REQUIRE_RELEASE_SIGNING: ${{ needs.version.outputs.require_signing }}
         run: |
           set -euo pipefail
           require=()
-          if [ "$REQUIRE_RELEASE_SIGNING" = "true" ] || [ "$SIGNING_KEY_CONFIGURED" = "true" ]; then require=(--require-signed); fi
+          if [ "$REQUIRE_RELEASE_SIGNING" = "true" ]; then require=(--require-signed); fi
           cd packages/skotiq_updater
           flutter pub get
           dart run tool/verify_release_manifests.dart \
@@ -746,6 +774,9 @@ jobs:
             --tag "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             "${require[@]}"
+
+      - name: Verify every archive was built from this commit
+        run: python3 scripts/verify_source_commit.py --assets release-assets --commit "$GITHUB_SHA"
 
       - name: Retain verified release assets
         uses: actions/upload-artifact@v7
@@ -769,6 +800,14 @@ jobs:
             exit 1
           fi
           echo "Found release notes: $notes"
+
+      # Again right before publishing: the release may have been published,
+      # or the commit's checks rerun, while the builds ran.
+      - name: Release gate
+        if: needs.version.outputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_gate.py --tag "$RELEASE_TAG" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
 
       - name: Publish release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')

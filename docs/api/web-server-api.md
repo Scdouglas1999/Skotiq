@@ -43,8 +43,7 @@ Get server information and capabilities.
 ```json
 {
   "status": "running",
-  "version": "2.6.0",
-  "apiVersion": "2.6.0",
+  "version": "9.0.1",
   "apiOnlyMode": true,
   "webUIAvailable": false,
   "timestamp": "2025-11-30T12:00:00Z",
@@ -88,16 +87,20 @@ Get server information and capabilities.
 }
 ```
 
-## Version Compatibility
+## Release check
 
-Remote clients use `/api/info.apiVersion` for API compatibility checks before
-switching into network-control mode. The `version` field is the application
-release version shown to operators. Clients fall back to `version` when talking
-to older servers that do not advertise `apiVersion`. The current client accepts
-Skotiq server API versions `2.4.0` and newer within major version `2`.
-Servers older than `2.4.0`, servers with an unknown/malformed version, and
-servers with a newer major API version are rejected with user-facing "server
-too old/new" guidance.
+A client and its host run the same Skotiq release. Every request to `/api/*`
+other than `GET /api/info`, and the WebSocket upgrade, names the client's
+release in the `X-Skotiq-Version` header (the WebSocket upgrade may use the
+`version` query parameter instead). `GET /api/info` answers `version`, the
+host's release, so a client can check before it links.
+
+A request from another release is refused with `426 Upgrade Required` and an
+error body whose `code` is `version_mismatch`; its message says which side to
+update. A request with no `X-Skotiq-Version` is handled, so a script that
+sends only its token works; one that still sends the old
+`X-Skotiq-API-Version` header is refused with `426` and code
+`release_required`.
 
 ## Authentication Scopes
 

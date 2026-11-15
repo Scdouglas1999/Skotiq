@@ -419,9 +419,8 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   /// server-side to this token's identity, expires in ~60 s, and is consumed
   /// on first use, so it's safe to place in the URL.
   ///
-  /// Returns the ticket, or null when the call fails or the server predates
-  /// the endpoint — callers then fall back to `?token=`, which the server
-  /// still accepts (with a deprecation warning) for backward compatibility.
+  /// Returns null when this client has no token (a host without auth); a
+  /// failed mint throws.
   Future<String?> _mintWsTicket() async {
     if (authToken == null || authToken!.isEmpty) {
       return null;

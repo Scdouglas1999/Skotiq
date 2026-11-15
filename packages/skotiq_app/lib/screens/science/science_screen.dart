@@ -159,7 +159,7 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
         // Title + sub-tabs + per-tab actions share ONE row. On the standalone
         // `/science` route the screen owns its title, so it folds inline to the
         // left of the tab strip (icon-only on a phone) instead of sitting in a
-        // separate ~56px ScreenHeader above the tabs. When embedded in Analytics
+        // separate header row above the tabs. When embedded in Analytics
         // the outer chrome already names the screen, so the title is omitted and
         // only the per-tab actions ride at the right end of the row.
         Container(
@@ -207,8 +207,8 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
             index: _currentSubTab,
             children: const [
               ScienceAnalyticsTab(),
-              FirstLightView(showHeader: false),
-              TransientsView(showHeader: false),
+              FirstLightView(),
+              TransientsView(),
             ],
           ),
         ),

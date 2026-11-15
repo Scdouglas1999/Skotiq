@@ -15,7 +15,7 @@ void main() {
   setUpAll(() => HttpOverrides.global = null);
 
   test(
-    'HTTP handling and response await their request records without blocking other work',
+    'a request is handled and answered while its log lines are still being written',
     () async {
       final root = await Directory.systemTemp.createTemp('sk-request-http-');
       final startEntered = Completer<void>();
@@ -75,30 +75,28 @@ void main() {
       request.write(
         jsonEncode({'message': 'handler reached', 'severity': 'info'}),
       );
-      var responded = false;
-      final responseFuture = request.close().then((response) {
-        responded = true;
-        return response;
-      });
-      await startEntered.future.timeout(const Duration(seconds: 5));
-      await Future<void>.delayed(Duration.zero);
-      expect(responded, isFalse);
-      expect(
-        logger.getRecentLogs().where((e) => e.message == 'handler reached'),
-        isEmpty,
+      // The handler runs and answers while the request log is still held.
+      final response = await request.close().timeout(
+        const Duration(seconds: 5),
       );
-      allowStart.complete();
-      await completionEntered.future.timeout(const Duration(seconds: 5));
+      expect(response.statusCode, HttpStatus.ok);
+      await response.drain<void>();
+      await startEntered.future.timeout(const Duration(seconds: 5));
       expect(
         logger.getRecentLogs().where((e) => e.message == 'handler reached'),
         hasLength(1),
       );
-      expect(responded, isFalse);
+      expect(completionEntered.isCompleted, isFalse,
+          reason: 'request lines are written in order, one at a time');
+      allowStart.complete();
+      await completionEntered.future.timeout(const Duration(seconds: 5));
       allowCompletion.complete();
-      final response = await responseFuture;
-      expect(response.statusCode, HttpStatus.ok);
-      await response.drain<void>();
-      final lines = await File(logger.currentRequestLogFile!).readAsLines();
+      final file = File(logger.currentRequestLogFile!);
+      var lines = <String>[];
+      for (var i = 0; i < 100 && lines.length < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        lines = await file.readAsLines();
+      }
       expect(lines, hasLength(2));
       expect(lines.first, contains('"phase":"started"'));
       expect(lines.last, contains('"phase":"completed"'));

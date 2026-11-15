@@ -184,15 +184,14 @@ class NightHistory {
 }
 
 /// The host's night so far, read once per link to a host; null on the host
-/// itself, from a host that predates the endpoint, or when the read failed
-/// (the charts then start from the first live event, as before).
+/// itself or when the read failed (the charts then start from the first live
+/// event).
 final hostNightHistoryProvider = FutureProvider<NightHistory?>((ref) async {
   final backend = ref.watch(backendProvider);
   final linkedHost = backend.remoteHost;
   if (linkedHost == null) return null;
   try {
     final json = await linkedHost.night.getHostNightHistory();
-    if (json == null) return null;
     final history = NightHistory.fromJson(json);
     // The cooler history lives in the camera poller, which every screen
     // shares; it takes the host's readings here rather than in a notifier of
