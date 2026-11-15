@@ -19,16 +19,14 @@ part 'flat_preview_panel_parts/_convergence_and_filters.dart';
 class FlatPreviewPanel extends ConsumerWidget {
   const FlatPreviewPanel({super.key});
 
-  /// Below this height the panel scrolls with fixed regions instead of
-  /// fighting a flex split for pixels.
+  /// Below this height the panel scrolls with fixed regions.
   static const double _shortThreshold = 560;
 
   /// Frame height in the scrolled (short) layout.
   static const double _shortPreviewHeight = 260;
 
-  /// Convergence height in the scrolled (short) layout. Sized so the section
-  /// title, the panel padding and an EmptyState all fit: at 220 the empty
-  /// state was clipped by 200px.
+  /// Convergence height in the scrolled (short) layout: room for the section
+  /// title, the panel padding and an empty state.
   static const double _shortVisualizationsHeight = 300;
 
   @override
@@ -46,39 +44,74 @@ class FlatPreviewPanel extends ConsumerWidget {
             state.isExposing ? _ExposureCountdown(state: state) : null;
         final visualizations = _VisualizationsSection(state: state);
 
-        // When the region is short (phone preview pane / landscape), the
-        // flex split would crush the visualization charts into overflow.
-        // Below a threshold, scroll the panel with sensible fixed heights
-        // instead of fighting for pixels.
-        final isShort = constraints.maxHeight.isFinite &&
-            constraints.maxHeight < _shortThreshold;
+        // A short region (a phone in landscape) or one with no height of its
+        // own (a phone sheet, which scrolls its content) gets fixed heights:
+        // a flex split has nothing to divide there.
+        final bounded = constraints.maxHeight.isFinite;
+        final isShort = !bounded || constraints.maxHeight < _shortThreshold;
+
+        const gap = SizedBox(height: SkotiqTokens.spaceLg);
 
         if (isShort) {
-          return SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: _shortPreviewHeight, child: imagePreview),
-                statsBar,
-                if (countdown != null) countdown,
-                SizedBox(
-                  height: _shortVisualizationsHeight,
-                  child: visualizations,
-                ),
-              ],
-            ),
+          final stacked = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: _shortPreviewHeight, child: imagePreview),
+              gap,
+              statsBar,
+              if (countdown != null) countdown,
+              gap,
+              SizedBox(
+                height: _shortVisualizationsHeight,
+                child: visualizations,
+              ),
+            ],
           );
+          return bounded ? SingleChildScrollView(child: stacked) : stacked;
         }
 
         return Column(
           children: [
             Expanded(flex: 3, child: imagePreview),
+            gap,
             statsBar,
             if (countdown != null) countdown,
+            gap,
             Expanded(flex: 2, child: visualizations),
           ],
         );
       },
+    );
+  }
+}
+
+/// An empty state in the middle of the area it replaces. It scrolls, so a
+/// short area (a phone sheet, a sheet that is still opening) cannot overflow.
+class _CenteredEmptyState extends StatelessWidget {
+  const _CenteredEmptyState({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight:
+                constraints.maxHeight.isFinite ? constraints.maxHeight : 0,
+          ),
+          child: Center(
+            child: EmptyState.compact(icon: icon, title: title, body: body),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -102,26 +135,23 @@ class _ImagePreview extends StatelessWidget {
     final CapturedImageResult? imageResult = _extractImageResult();
 
     // A flush panel: the frame runs edge to edge under it, clipped to the
-    // panel radius (02 rule 1, 05 §1).
-    return Padding(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-      child: SkotiqPanel(
-        flush: true,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: imageResult != null
-                  ? _buildImage(imageResult, colors)
-                  : _buildEmptyState(),
+    // panel radius.
+    return SkotiqPanel(
+      flush: true,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: imageResult != null
+                ? _buildImage(imageResult, colors)
+                : _buildEmptyState(),
+          ),
+          if (showHistogram && imageResult != null)
+            Positioned(
+              top: SkotiqTokens.spaceMd,
+              right: SkotiqTokens.spaceMd,
+              child: _buildHistogramOverlay(imageResult, colors),
             ),
-            if (showHistogram && imageResult != null)
-              Positioned(
-                top: SkotiqTokens.spaceMd,
-                right: SkotiqTokens.spaceMd,
-                child: _buildHistogramOverlay(imageResult, colors),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -161,29 +191,26 @@ class _ImagePreview extends StatelessWidget {
   }
 
   Widget _buildEmptyState() {
-    // The one empty-state pattern (05 §12), not a 64px icon over two hand-
-    // toned Texts. Scroll-safe: when the preview region is short (phone), the
-    // placeholder must not overflow its Stack/Positioned.fill bounds.
-    return const SingleChildScrollView(
-      child: Center(
-        child: EmptyState.compact(
-          icon: LucideIcons.image,
-          title: 'No flat captured yet',
-          body: 'Start a capture or a test exposure to see the frame here.',
-        ),
-      ),
+    return const _CenteredEmptyState(
+      icon: LucideIcons.image,
+      title: 'No flat captured yet',
+      body: 'The latest frame of a run shows here.',
     );
   }
 
+  /// Size of the histogram laid over the frame.
+  static const Size _histogramSize = Size(200, 120);
+
   Widget _buildHistogramOverlay(
       CapturedImageResult result, SkotiqColors colors) {
+    final axis = SkotiqTypography.monoXs.copyWith(color: colors.textMuted);
     return Container(
-      width: 200,
-      height: 120,
-      padding: const EdgeInsets.all(8),
+      width: _histogramSize.width,
+      height: _histogramSize.height,
+      padding: SkotiqTokens.paddingSm,
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+        color: colors.surface,
+        borderRadius: SkotiqTokens.borderRadiusSm,
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -193,51 +220,27 @@ class _ImagePreview extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Histogram',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize10,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textMuted,
-                ),
+                'HISTOGRAM',
+                style: SkotiqTypography.eyebrow
+                    .copyWith(color: colors.textMuted),
               ),
               Text(
-                'Mean: ${result.stats.mean.toStringAsFixed(0)} ADU',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize9,
-                  color: colors.textSecondary,
-                  fontFamily: SkotiqTypography.fontFamilyMono,
-                ),
+                'mean ${result.stats.mean.toStringAsFixed(0)} ADU',
+                style: axis.copyWith(color: colors.textSecondary),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           Expanded(
             child: _HistogramChart(
               histogram: result.histogram,
               colors: colors,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '0',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize8,
-                  color: colors.textMuted,
-                  fontFamily: SkotiqTypography.fontFamilyMono,
-                ),
-              ),
-              Text(
-                '255',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize8,
-                  color: colors.textMuted,
-                  fontFamily: SkotiqTypography.fontFamilyMono,
-                ),
-              ),
-            ],
+            children: [Text('0', style: axis), Text('255', style: axis)],
           ),
         ],
       ),
@@ -262,26 +265,25 @@ class _HistogramChart extends StatelessWidget {
     if (histogram.isEmpty) {
       return Container(
         decoration: BoxDecoration(
-          color: colors.surfaceAlt,
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
+          color: colors.well,
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
         ),
         child: Center(
           child: Text(
             'No data',
-            style: TextStyle(
-                fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
+            style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
           ),
         ),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
+      borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
       child: CustomPaint(
         painter: _HistogramPainter(
           histogram: histogram,
           barColor: colors.primary.withValues(alpha: 0.7),
-          backgroundColor: colors.surfaceAlt,
+          backgroundColor: colors.well,
         ),
         size: Size.infinite,
       ),

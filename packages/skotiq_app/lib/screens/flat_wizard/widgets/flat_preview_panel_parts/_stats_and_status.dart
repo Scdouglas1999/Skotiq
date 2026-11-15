@@ -15,16 +15,13 @@ class _StatsBar extends StatelessWidget {
         ? state.filterSettings[state.currentFilterIndex]
         : null;
 
-    // Readouts, not a stat strip: an unknown value is an em dash (Readout
-    // renders it from a null), never a hyphen, and the frame count reads
-    // "0 / 30" instead of "-/-" — a pair of hyphens said nothing about how many
-    // frames the run is even aiming for.
+    // The frame count reads "0 / 30" before a run, so the aim is on screen.
     final frameTarget =
         currentFilter?.frameCountOverride ?? state.globalSettings.frameCount;
     final readouts = <Readout>[
       Readout(
         label: 'Filter',
-        value: currentFilter?.filterName,
+        value: currentFilter?.label,
         size: ReadoutSize.sm,
       ),
       Readout(
@@ -45,16 +42,11 @@ class _StatsBar extends StatelessWidget {
       ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceLg,
-      ),
-      child: Container(
-        // A well under the image, not a card: this is a data display inside
-        // the preview column (02 rule 2).
+    // A well under the frame: a data display, not another panel.
+    return Container(
         decoration: BoxDecoration(
           color: colors.well,
-          borderRadius: SkotiqTokens.borderRadiusSm,
+          borderRadius: SkotiqTokens.borderRadiusLg,
         ),
         padding: const EdgeInsets.symmetric(
           horizontal: SkotiqTokens.spaceLg,
@@ -66,40 +58,68 @@ class _StatsBar extends StatelessWidget {
             // comfortable room; otherwise stack the status under them.
             final inline = constraints.maxWidth >= _inlineStatusWidth;
             final strip = ReadoutRow(
-              children: readouts,
               gap: SkotiqTokens.space2xl,
+              children: readouts,
             );
             final status = _StatusIndicator(
               status: currentFilter?.status ?? FilterCalibrationStatus.pending,
               colors: colors,
             );
 
-            if (inline) {
-              return Row(
-                children: [
-                  Expanded(child: strip),
-                  const SizedBox(width: SkotiqTokens.spaceLg),
-                  status,
-                ],
-              );
-            }
+            // The run's own last word (how many frames it saved, or why it
+            // stopped), once it is over. An error has its banner.
+            final outcome = !state.isCapturing && state.errorMessage == null
+                ? state.statusMessage
+                : null;
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                strip,
-                const SizedBox(height: SkotiqTokens.spaceMd),
-                Align(alignment: Alignment.centerRight, child: status),
+                if (inline)
+                  Row(
+                    children: [
+                      Expanded(child: strip),
+                      const SizedBox(width: SkotiqTokens.spaceLg),
+                      status,
+                    ],
+                  )
+                else ...[
+                  strip,
+                  const SizedBox(height: SkotiqTokens.spaceMd),
+                  Align(alignment: Alignment.centerRight, child: status),
+                ],
+                if (outcome != null) ...[
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Text(
+                    outcome,
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textSecondary),
+                  ),
+                ],
               ],
             );
           },
         ),
-      ),
     );
   }
 
   /// Below this width the status indicator drops onto its own line.
   static const double _inlineStatusWidth = 460;
 }
+
+/// The one word for a filter's state, wherever the screen says it.
+String flatFilterStatusLabel(FilterCalibrationStatus status) =>
+    switch (status) {
+      FilterCalibrationStatus.pending => 'Pending',
+      FilterCalibrationStatus.calibrating => 'Finding exposure',
+      FilterCalibrationStatus.calibrated => 'On target',
+      FilterCalibrationStatus.capturing => 'Capturing',
+      FilterCalibrationStatus.complete => 'Complete',
+      FilterCalibrationStatus.partial => 'Partial',
+      FilterCalibrationStatus.failed => 'Failed',
+      FilterCalibrationStatus.skipped => 'Skipped',
+    };
 
 class _StatusIndicator extends StatelessWidget {
   final FilterCalibrationStatus status;
@@ -112,54 +132,35 @@ class _StatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, label, color) = switch (status) {
-      FilterCalibrationStatus.pending => (
-          LucideIcons.clock,
-          'Pending',
-          colors.textMuted
-        ),
+    final (icon, color) = switch (status) {
+      FilterCalibrationStatus.pending => (LucideIcons.clock, colors.textMuted),
       FilterCalibrationStatus.calibrating => (
           LucideIcons.settings,
-          'Calibrating',
           colors.warning
         ),
-      FilterCalibrationStatus.calibrated => (
-          LucideIcons.check,
-          'On target',
-          colors.success
-        ),
-      FilterCalibrationStatus.capturing => (
-          LucideIcons.camera,
-          'Capturing',
-          colors.primary
-        ),
+      FilterCalibrationStatus.calibrated => (LucideIcons.check, colors.success),
+      FilterCalibrationStatus.capturing => (LucideIcons.camera, colors.success),
       FilterCalibrationStatus.complete => (
           LucideIcons.checkCircle,
-          'Complete',
           colors.success
         ),
       FilterCalibrationStatus.partial => (
           LucideIcons.alertTriangle,
-          'Partial',
           colors.warning
         ),
-      FilterCalibrationStatus.failed => (
-          LucideIcons.alertCircle,
-          'Failed',
-          colors.error
-        ),
+      FilterCalibrationStatus.failed => (LucideIcons.alertCircle, colors.error),
       FilterCalibrationStatus.skipped => (
           LucideIcons.skipForward,
-          'Skipped',
           colors.textMuted
         ),
     };
+    final label = flatFilterStatusLabel(status);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Icon(icon, size: SkotiqTokens.iconGlyphPanelHead, color: color),
-        const SizedBox(width: SkotiqTokens.spaceXs + 2),
+        const SizedBox(width: SkotiqTokens.spaceXs),
         Text(
           label,
           style: SkotiqTypography.bodySm.copyWith(color: color),
@@ -179,16 +180,13 @@ class _ExposureCountdown extends StatefulWidget {
 }
 
 class _ExposureCountdownState extends State<_ExposureCountdown> {
-  // Owned so we can cancel on dispose — without an explicit Timer field this
-  // recursive Future.delayed schedules a fresh timer every 100 ms whose
-  // closure would outlive the widget tree on teardown (hot reload, widget
-  // test, fast navigation).
+  /// Redraws the countdown; canceled on dispose so no tick outlives the
+  /// widget.
   Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
-    // Trigger rebuilds for countdown animation
     _scheduleNextTick();
   }
 
@@ -206,6 +204,9 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
       _scheduleNextTick();
     });
   }
+
+  /// Width of the exposure's own progress bar.
+  static const double _barWidth = 96;
 
   @override
   Widget build(BuildContext context) {
@@ -225,16 +226,20 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
     final progress = elapsed / exposure;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      margin: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceLg,
+        vertical: SkotiqTokens.spaceSm,
+      ),
       decoration: BoxDecoration(
         color: colors.well,
-        borderRadius: SkotiqTokens.borderRadiusInline8,
+        borderRadius: SkotiqTokens.borderRadiusLg,
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.timer, size: 18, color: colors.textSecondary),
-          const SizedBox(width: 12),
+          Icon(LucideIcons.timer,
+              size: SkotiqTokens.iconSm, color: colors.textSecondary),
+          const SizedBox(width: SkotiqTokens.spaceMd),
           Flexible(
             child: Text(
               flatExposureProgressLine(widget.state, remaining),
@@ -247,13 +252,10 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: SkotiqTokens.spaceLg),
           SizedBox(
-            width: 96,
-            child: SkotiqProgressBar(
-              value: progress.clamp(0.0, 1.0),
-              height: 6,
-            ),
+            width: _barWidth,
+            child: SkotiqProgressBar(value: progress.clamp(0.0, 1.0)),
           ),
         ],
       ),
@@ -286,7 +288,7 @@ String flatExposureProgressLine(FlatWizardState state, double remainingSecs) {
 }
 
 class _VisualizationsSection extends ConsumerWidget {
-  /// Below this width the two visualizations stack down to one.
+  /// Below this width the graph and the filter results stack down to one.
   static const double _sideBySideWidth = 560;
 
   final FlatWizardState state;
@@ -295,12 +297,7 @@ class _VisualizationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final visibleCount = [
-      state.showAduGraph,
-      state.showFilterCards,
-    ].where((v) => v).length;
-
-    if (visibleCount == 0) {
+    if (!state.showAduGraph && !state.showFilterCards) {
       return const SizedBox.shrink();
     }
 
@@ -312,85 +309,83 @@ class _VisualizationsSection extends ConsumerWidget {
         state.globalSettings.histogramTarget;
     final tolerancePercent = currentFilter?.toleranceOverride ??
         state.globalSettings.tolerancePercent;
-    // Target ADU against the DETECTED full scale so the convergence graph's
-    // target/tolerance bands match what a 12/14/16-bit camera can actually
-    // reach (not a hardcoded 16-bit range).
+    // Target ADU against the camera's detected full scale, so the graph's
+    // target band is one a 12, 14 or 16-bit camera can reach.
     final cameraConfig = ref.watch(flatCameraConfigProvider);
     final targetAdu = cameraConfig.targetAduFor(histogramTarget);
     final toleranceAdu = targetAdu * tolerancePercent / 100.0;
+    final notifier = ref.read(flatWizardProvider.notifier);
 
-    return Container(
-      margin: const EdgeInsets.all(SkotiqTokens.spaceLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // A section title naming what the reader is looking at, not the
-          // category word "Visualizations". The two view toggles ride in its
-          // trailing slot as kit icon buttons.
-          SectionTitle(
-            icon: LucideIcons.lineChart,
-            title: 'Convergence',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SkotiqIconButton(
-                  icon: LucideIcons.lineChart,
-                  tooltip: 'ADU graph',
-                  size: IconButtonSize.sm,
-                  selected: state.showAduGraph,
-                  onPressed: () => ref
-                      .read(flatWizardProvider.notifier)
-                      .toggleAduGraph(!state.showAduGraph),
-                ),
-                const SizedBox(width: SkotiqTokens.spaceXs),
-                SkotiqIconButton(
-                  icon: LucideIcons.layoutGrid,
-                  tooltip: 'Filter cards',
-                  size: IconButtonSize.sm,
-                  selected: state.showFilterCards,
-                  onPressed: () => ref
-                      .read(flatWizardProvider.notifier)
-                      .toggleFilterCards(!state.showFilterCards),
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionTitle(
+          icon: LucideIcons.lineChart,
+          title: 'Convergence',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SkotiqIconButton(
+                icon: LucideIcons.barChart3,
+                tooltip: 'Histogram on the frame',
+                size: IconButtonSize.sm,
+                selected: state.showHistogramOverlay,
+                onPressed: () => notifier
+                    .toggleHistogramOverlay(!state.showHistogramOverlay),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              SkotiqIconButton(
+                icon: LucideIcons.lineChart,
+                tooltip: 'ADU graph',
+                size: IconButtonSize.sm,
+                selected: state.showAduGraph,
+                onPressed: () => notifier.toggleAduGraph(!state.showAduGraph),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              SkotiqIconButton(
+                icon: LucideIcons.list,
+                tooltip: 'Filter results',
+                size: IconButtonSize.sm,
+                selected: state.showFilterCards,
+                onPressed: () =>
+                    notifier.toggleFilterCards(!state.showFilterCards),
+              ),
+            ],
           ),
+        ),
 
-          // Visualization content.
-          //
-          // Side by side only when there is room for two: on a phone the
-          // region is ~360 wide, and splitting it gave each half a ~98px
-          // column that could hold neither a chart nor its empty state.
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final graph = state.showAduGraph
-                    ? _AduConvergenceGraph(
-                        history: state.aduHistory,
-                        targetAdu: targetAdu,
-                        toleranceAdu: toleranceAdu,
-                      )
-                    : null;
-                final cards = state.showFilterCards
-                    ? _FilterProgressCards(state: state)
-                    : null;
+        // Side by side only when there is room for two; on a phone the graph
+        // is the section's subject and the results stand in when it is off.
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final graph = state.showAduGraph
+                  ? _AduConvergenceGraph(
+                      history: state.aduHistory,
+                      targetAdu: targetAdu,
+                      toleranceAdu: toleranceAdu,
+                    )
+                  : null;
+              final results = state.showFilterCards
+                  ? _FilterResults(state: state)
+                  : null;
 
-                if (constraints.maxWidth < _sideBySideWidth) {
-                  // The convergence chart is the section's subject; the filter
-                  // cards stand in only when it is switched off.
-                  return graph ?? cards ?? const SizedBox.shrink();
-                }
-                return Row(
-                  children: [
-                    if (graph != null) Expanded(child: graph),
-                    if (cards != null) Expanded(child: cards),
-                  ],
-                );
-              },
-            ),
+              if (constraints.maxWidth < _sideBySideWidth) {
+                return graph ?? results ?? const SizedBox.shrink();
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (graph != null) Expanded(child: graph),
+                  if (graph != null && results != null)
+                    const SizedBox(width: SkotiqTokens.spaceLg),
+                  if (results != null) Expanded(child: results),
+                ],
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

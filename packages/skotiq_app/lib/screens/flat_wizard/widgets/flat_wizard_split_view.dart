@@ -2,19 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Prioritize batch setup; keep the preview alongside it on wide screens and
-/// available in an adaptive panel on smaller screens.
+/// The Flat wizard's page body: a settings column beside the preview on a wide
+/// window, and the settings alone with the preview in a sheet on a narrow one.
+///
+/// Both panes sit inside the page gutter; neither pads itself.
 class FlatWizardSplitView extends StatelessWidget {
-  final Widget controlsPanel;
-  final Widget previewPanel;
-  final double controlsWidth;
-
   const FlatWizardSplitView({
     super.key,
     required this.controlsPanel,
     required this.previewPanel,
-    this.controlsWidth = 0.62,
   });
+
+  /// The settings column's content. It is scrolled here.
+  final Widget controlsPanel;
+
+  final Widget previewPanel;
+
+  /// Width of the settings column beside the preview.
+  static const double controlsWidth = 520;
+
+  /// Widest the settings run when they are the whole page.
+  static const double controlsMaxWidth = 880;
+
+  /// Below this the preview moves into a sheet.
+  static const double sideBySideMinWidth = 900;
+
+  static const double _panelGap = SkotiqTokens.spaceLg;
 
   @override
   Widget build(BuildContext context) {
@@ -23,57 +36,71 @@ class FlatWizardSplitView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final gutter = width < SkotiqTokens.breakpointTablet
+            ? SkotiqTokens.screenPaddingCompact
+            : SkotiqTokens.screenPadding;
 
-        // Keep setup visible without opening a sheet.
-        if (width < 900) {
+        if (width < sideBySideMinWidth) {
           return AdaptivePanelLayout(
-            primary: Container(
+            primary: ColoredBox(
               color: colors.background,
-              child: controlsPanel,
+              child: SingleChildScrollView(
+                padding: gutter,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(maxWidth: controlsMaxWidth),
+                    child: controlsPanel,
+                  ),
+                ),
+              ),
             ),
             phoneStrategy: PhonePanelStrategy.bottomSheet,
-            panelSide: PanelSide.start,
+            // The preview keeps its desktop side when it is a column.
+            panelSide: PanelSide.end,
             primarySegmentLabel: 'Capture controls',
             primarySegmentIcon: LucideIcons.sliders,
             secondary: [
               AdaptivePanel(
                 title: 'Preview',
                 icon: LucideIcons.image,
-                child: Container(
-                  color: colors.surface,
-                  child: previewPanel,
+                // A phone sheet scrolls its content and pads it itself; a
+                // side column does neither.
+                child: LayoutBuilder(
+                  builder: (context, panel) => panel.maxHeight.isFinite
+                      ? ColoredBox(
+                          color: colors.background,
+                          child: Padding(padding: gutter, child: previewPanel),
+                        )
+                      : previewPanel,
                 ),
               ),
             ],
           );
         }
 
-        // Tablet / desktop: fixed-fraction controls column on the left.
-        final controlsPixelWidth =
-            (constraints.maxWidth * controlsWidth).clamp(480.0, 900.0);
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: controlsPixelWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  border: Border(
-                    right: BorderSide(color: colors.border),
-                  ),
+        return ColoredBox(
+          color: colors.background,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: gutter.left + controlsWidth,
+                child: SingleChildScrollView(
+                  padding: gutter.copyWith(right: 0),
+                  child: controlsPanel,
                 ),
-                child: controlsPanel,
               ),
-            ),
-            Expanded(
-              child: Container(
-                color: colors.background,
-                child: previewPanel,
+              const SizedBox(width: _panelGap),
+              Expanded(
+                child: Padding(
+                  padding: gutter.copyWith(left: 0),
+                  child: previewPanel,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
