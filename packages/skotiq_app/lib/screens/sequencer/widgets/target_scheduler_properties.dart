@@ -51,7 +51,7 @@ class TargetSchedulerProperties extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Target Scheduler',
+            'Target scheduler',
             style: TextStyle(
               fontSize: Responsive.fontSize(context, 13),
               fontWeight: FontWeight.w600,

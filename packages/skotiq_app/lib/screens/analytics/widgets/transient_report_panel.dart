@@ -87,7 +87,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Transient Discovery Report',
+            'Transient discovery report',
             style: SkotiqTypography.bodyStrong.copyWith(
               color: colors.textPrimary,
             ),

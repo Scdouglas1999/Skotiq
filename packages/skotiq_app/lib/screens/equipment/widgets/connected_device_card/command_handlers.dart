@@ -86,7 +86,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         return StatefulBuilder(builder: (context, setState) {
           final colors = SkotiqColors.of(context);
           return SkotiqDialog(
-            title: 'Set Cooling Target',
+            title: 'Set cooling target',
             icon: LucideIcons.thermometer,
             width: 400,
             actions: [
@@ -263,7 +263,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         context: context,
         ref: ref,
         builder: (ctx, _) => SkotiqDialog(
-          title: 'Meridian Flip Now?',
+          title: 'Meridian flip now?',
           icon: LucideIcons.flipHorizontal,
           width: 400,
           actions: [

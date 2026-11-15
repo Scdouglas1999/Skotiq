@@ -89,7 +89,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
             children: [
               Expanded(
                 child: Text(
-                  'MPC Report Export',
+                  'MPC report export',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: widget.colors.textPrimary),
                 ),
@@ -250,7 +250,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: SkotiqButton(
-                  label: 'Copy to Clipboard',
+                  label: 'Copy to clipboard',
                   icon: LucideIcons.clipboard,
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,

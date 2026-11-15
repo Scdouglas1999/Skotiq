@@ -39,6 +39,6 @@ void main() {
     // Exactly one: the host's. The body contributes none.
     expect(find.text('Equipment settings'), findsOneWidget);
     // The sections themselves are untouched.
-    expect(find.text('Camera Settings'), findsOneWidget);
+    expect(find.text('Camera settings'), findsOneWidget);
   });
 }

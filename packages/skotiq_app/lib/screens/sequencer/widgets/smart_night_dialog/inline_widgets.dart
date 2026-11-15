@@ -511,7 +511,7 @@ class _StrategyTile extends StatelessWidget {
         );
       case SmartNightStrategy.oscOneShot:
         return (
-          title: 'OSC One-Shot',
+          title: 'OSC one-shot',
           subtitle: 'Single light filter: Bayer cameras and L-eXtreme.',
         );
     }

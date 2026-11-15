@@ -366,7 +366,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
                       Icon(LucideIcons.cloud, size: 20, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Backup & Sync',
+                        'Backup & sync',
                         style: SkotiqTypography.sectionTitle
                             .copyWith(color: colors.textPrimary),
                       ),

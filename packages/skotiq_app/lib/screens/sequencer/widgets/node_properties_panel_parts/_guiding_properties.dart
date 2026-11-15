@@ -16,7 +16,7 @@ class _StartGuidingProperties extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Guiding Settings',
+          'Guiding settings',
           style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 12),

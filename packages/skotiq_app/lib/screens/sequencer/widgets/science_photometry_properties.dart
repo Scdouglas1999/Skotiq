@@ -251,7 +251,7 @@ class _SciencePhotometryPropertiesState
                       Align(
                         alignment: Alignment.centerLeft,
                         child: SkotiqButton(
-                          label: 'Open Light Curve',
+                          label: 'Open light curve',
                           icon: LucideIcons.lineChart,
                           variant: ButtonVariant.ghost,
                           size: ButtonSize.small,

@@ -68,9 +68,9 @@ Future<void> _pump(WidgetTester tester, {SkotiqBackend? backend}) async {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pump();
-    if (find.text('HYG Star Database').evaluate().isNotEmpty) return;
+    if (find.text('HYG star database').evaluate().isNotEmpty) return;
   }
-  expect(find.text('HYG Star Database'), findsOneWidget);
+  expect(find.text('HYG star database'), findsOneWidget);
 }
 
 void main() {

@@ -128,7 +128,7 @@ Widget buildCheckpointRecoveryDialog({
         ),
         const SizedBox(width: 12),
         Text(
-          'Recover Sequence?',
+          'Recover sequence?',
           style: TextStyle(color: colors.textPrimary),
         ),
       ],

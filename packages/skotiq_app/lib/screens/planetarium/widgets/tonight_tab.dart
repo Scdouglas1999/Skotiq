@@ -289,7 +289,7 @@ class TonightTab extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Best Targets Tonight',
+                'Best targets tonight',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: colors.textPrimary),
               ),
@@ -500,7 +500,7 @@ class _SatellitePassesSectionState
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Satellite Passes',
+                    'Satellite passes',
                     style: SkotiqTypography.labelStrong
                         .copyWith(color: widget.colors.textPrimary),
                   ),
@@ -574,7 +574,7 @@ class _SatellitePassesSectionState
                       ref.read(passPredictionProvider.notifier).computePasses();
                     },
                     child: Text(
-                      'Compute Passes',
+                      'Compute passes',
                       style: TextStyle(
                           fontSize: SkotiqTypography.fontSize11,
                           color: widget.colors.accent),

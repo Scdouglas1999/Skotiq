@@ -77,7 +77,7 @@ Future<Object?> showRecoveryDialog(
   );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
-  expect(find.text('Recover Sequence?'), findsOneWidget);
+  expect(find.text('Recover sequence?'), findsOneWidget);
   addTearDown(() => expect(settled || popped == null, isTrue));
   return popped;
 }
@@ -139,7 +139,7 @@ void main() {
     await tester.tap(find.text('Leave it'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Recover Sequence?'), findsNothing);
+    expect(find.text('Recover sequence?'), findsNothing);
     expect(choice, AppCheckpointRecoveryChoice.later);
   });
 
@@ -185,7 +185,7 @@ void main() {
 
     // Gone, and it resolved to no choice — which runAppCheckpointRecovery
     // treats as "stop asking", leaving the checkpoint on disk.
-    expect(find.text('Recover Sequence?'), findsNothing);
+    expect(find.text('Recover sequence?'), findsNothing);
   });
 
   testWidgets('a checkpoint that cannot be resumed is not called available', (

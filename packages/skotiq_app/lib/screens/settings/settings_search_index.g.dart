@@ -170,12 +170,12 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'When enabled, each successful AF run appends a sample',
   ],
   'backup': [
-    'Auto-Save Status',
+    'Auto-save status',
     'Backup & restore',
-    'Backup & Sync',
+    'Backup & sync',
     'Backup & Sync (imaging host)',
-    'Quick Actions',
-    'Recent Backups',
+    'Quick actions',
+    'Recent backups',
   ],
   'calibration': [
     'Calibration is in the Darkroom',
@@ -192,7 +192,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Delete catalogs',
     'Download catalogs',
     'GLADE+ galaxy catalog',
-    'HYG Star Database',
+    'HYG star database',
     'Minor Planets & Comets (MPC)',
     'Mirror address',
     'OpenNGC',
@@ -538,11 +538,11 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your Pushover user or group key.',
   ],
   'observation-log': [
-    'Observation Log',
+    'Observation log',
   ],
   'observing-lists': [
     'No observing lists yet',
-    'Observing Lists',
+    'Observing lists',
   ],
   'phd2-guiding': [
     'Host',

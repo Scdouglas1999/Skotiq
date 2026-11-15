@@ -398,7 +398,7 @@ void main() {
 
     Future<void> search(WidgetTester tester, String query) async {
       await tester.enterText(
-        find.widgetWithText(TextField, 'Target Name'),
+        find.widgetWithText(TextField, 'Target name'),
         query,
       );
       // Past the 300 ms debounce, then a frame for the async result.

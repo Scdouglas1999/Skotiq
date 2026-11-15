@@ -97,7 +97,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'Skotiq Design Language',
+              'Skotiq design language',
               style: SkotiqTypography.h1.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(width: SkotiqTokens.spaceMd),

@@ -225,14 +225,14 @@ class SequenceTreeContextMenu extends ConsumerWidget {
       _entry(
         _TreeMenuAction.moveUp,
         LucideIcons.arrowUp,
-        'Move Up',
+        'Move up',
         disabledReason: moveUpDisabledReason,
         canEdit: canEdit,
       ),
       _entry(
         _TreeMenuAction.moveDown,
         LucideIcons.arrowDown,
-        'Move Down',
+        'Move down',
         disabledReason: moveDownDisabledReason,
         canEdit: canEdit,
       ),
@@ -401,7 +401,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
         _entry(
           _FoldMenuAction.moveUp,
           LucideIcons.arrowUp,
-          'Move Up',
+          'Move up',
           canEdit: canEdit,
           disabledReason:
               atTop ? 'Already the first steps in their container.' : null,
@@ -409,7 +409,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
         _entry(
           _FoldMenuAction.moveDown,
           LucideIcons.arrowDown,
-          'Move Down',
+          'Move down',
           canEdit: canEdit,
           disabledReason:
               atBottom ? 'Already the last steps in their container.' : null,

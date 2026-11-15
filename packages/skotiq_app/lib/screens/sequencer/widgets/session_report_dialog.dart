@@ -444,7 +444,7 @@ class _ReportBody extends ConsumerWidget {
                         ValidationIssue(
                           severity: ValidationSeverity.info,
                           category: ValidationCategory.opticalTrain,
-                          title: 'Optical Train Drift Not Measured',
+                          title: 'Optical train drift not measured',
                           description:
                               '${_unmeasuredOpticalAxes(tiltMeasured: tiltMeasured, collimationMeasured: collimationMeasured)} '
                               'not measured at both ends of this run, so a '

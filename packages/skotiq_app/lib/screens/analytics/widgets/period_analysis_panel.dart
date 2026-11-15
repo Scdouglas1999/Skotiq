@@ -533,7 +533,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
         _buildPeriodSummary(colors, ls, bls),
         const SizedBox(height: SkotiqTokens.spaceLg),
         Text(
-          'Lomb-Scargle Periodogram',
+          'Lomb-Scargle periodogram',
           style: SkotiqTypography.bodySm
               .copyWith(color: colors.textPrimary, fontWeight: FontWeight.w600),
         ),
@@ -615,7 +615,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
 
     final lsColumn = _ResultColumn(
       colors: colors,
-      label: 'Lomb-Scargle Best Period',
+      label: 'Lomb-Scargle best period',
       value: constrained
           ? _formatPeriod(ls.bestPeriod)
           : '≥ ${_formatPeriod(ls.bestPeriod)}',
@@ -627,7 +627,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
     );
     final blsColumn = _ResultColumn(
       colors: colors,
-      label: 'BLS Best Period',
+      label: 'BLS best period',
       value: constrained
           ? _formatPeriod(bls.bestPeriod)
           : '≥ ${_formatPeriod(bls.bestPeriod)}',

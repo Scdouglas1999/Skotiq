@@ -128,7 +128,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         : widget.label ??
             switch (mainMode) {
               SlewMode.slew => 'Slew',
-              SlewMode.slewAndCenter => 'Slew & Center',
+              SlewMode.slewAndCenter => 'Slew & center',
               SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
             };
 
@@ -179,7 +179,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                 colors,
                 mode: SlewMode.slewAndCenter,
                 icon: LucideIcons.target,
-                label: 'Slew & Center',
+                label: 'Slew & center',
                 solverMissing: solverMissing,
               ),
               if (showRotateOption)

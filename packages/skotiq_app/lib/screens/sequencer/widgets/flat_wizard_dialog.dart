@@ -466,7 +466,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     return PopScope(
       canPop: !_isCalculating,
       child: SkotiqDialog(
-        title: 'Calibrate Flat Exposures',
+        title: 'Calibrate flat exposures',
         icon: SkotiqIcons.sun,
         width: 700,
         height: 600,
@@ -542,7 +542,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
               ),
             ),
             Step(
-              title: const Text('Calculate Exposure'),
+              title: const Text('Calculate exposure'),
               isActive: _currentStep >= 1,
               state: _currentStep > 1 ? StepState.complete : StepState.indexed,
               content: Column(

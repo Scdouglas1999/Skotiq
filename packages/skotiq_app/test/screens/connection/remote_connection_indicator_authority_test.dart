@@ -138,7 +138,7 @@ void main() {
     await tester.pump();
 
     await tester.pumpAndSettle();
-    expect(find.text('Connection Status'), findsNothing);
+    expect(find.text('Connection status'), findsNothing);
     expect(find.textContaining('Disconnect blocked:'), findsNothing);
     expect(_linkLabel('Imaging host link: Not linked to a remote imaging host'),
         findsOneWidget);

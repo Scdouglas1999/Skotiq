@@ -119,7 +119,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
               Icon(LucideIcons.fileArchive, size: 22, color: colors.primary),
               const SizedBox(width: 10),
               Text(
-                'Diagnostic Dump',
+                'Diagnostic dump',
                 style: TextStyle(
                   fontSize: isMobile
                       ? SkotiqTypography.fontSize18

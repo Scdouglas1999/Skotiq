@@ -44,7 +44,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
         // Star catalog card
         _buildCatalogCard(
           context: context,
-          title: 'HYG Star Database',
+          title: 'HYG star database',
           description:
               'Combined Hipparcos, Yale, and Gliese star catalogs with ~120000 stars',
           sourceUrl: 'github.com/astronexus/HYG-Database',

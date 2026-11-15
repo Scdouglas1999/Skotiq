@@ -18,9 +18,9 @@ class _SemanticPaletteSection extends StatelessWidget {
       ('Surface Overlay', colors.surfaceOverlay),
       ('Border', colors.border),
       ('Border Highlight', colors.borderHighlight),
-      ('Text Primary', colors.textPrimary),
-      ('Text Secondary', colors.textSecondary),
-      ('Text Muted', colors.textMuted),
+      ('Text primary', colors.textPrimary),
+      ('Text secondary', colors.textSecondary),
+      ('Text muted', colors.textMuted),
       ('Success', colors.success),
       ('Warning', colors.warning),
       ('Error', colors.error),
@@ -85,7 +85,7 @@ class _DomainPaletteSection extends StatelessWidget {
                 color: SkotiqChartColors.seriesIndigo,
               ),
               ShowcaseSwatch.boardCompact(
-                label: 'Deep Blue',
+                label: 'Deep blue',
                 color: SkotiqChartColors.seriesDeepBlue,
               ),
               ShowcaseSwatch.boardCompact(

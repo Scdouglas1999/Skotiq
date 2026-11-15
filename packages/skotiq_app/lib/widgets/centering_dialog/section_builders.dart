@@ -17,7 +17,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Target Centering',
+                'Target centering',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colors.textPrimary,

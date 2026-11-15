@@ -340,7 +340,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Start fresh'), findsNothing);
-    expect(find.textContaining('Load Previous Setup'), findsNothing);
+    expect(find.textContaining('Load previous setup'), findsNothing);
     expect(backend.discardCalls, 0);
   });
 
@@ -383,8 +383,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
 
-    expect(find.text('Incomplete Sessions Found'), findsNothing);
-    expect(find.text('Continue Session'), findsNothing);
+    expect(find.text('Incomplete sessions found'), findsNothing);
+    expect(find.text('Continue session'), findsNothing);
     expect(find.text('Start fresh'), findsNothing);
   });
 

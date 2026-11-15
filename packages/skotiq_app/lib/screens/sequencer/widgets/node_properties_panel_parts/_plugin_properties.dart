@@ -75,7 +75,7 @@ class _PluginInstructionPropertiesState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Plugin Settings',
+          'Plugin settings',
           style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 12),

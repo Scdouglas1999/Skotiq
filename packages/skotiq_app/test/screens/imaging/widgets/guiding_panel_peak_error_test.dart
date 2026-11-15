@@ -113,7 +113,7 @@ void main() {
     }
 
     // The new peak row labels.
-    expect(find.text('RA Peak'), findsOneWidget,
+    expect(find.text('RA peak'), findsOneWidget,
         reason: 'The RA peak tile must render alongside RA RMS.');
     expect(find.text('Dec peak'), findsOneWidget,
         reason: 'The Dec peak tile must render alongside Dec RMS.');

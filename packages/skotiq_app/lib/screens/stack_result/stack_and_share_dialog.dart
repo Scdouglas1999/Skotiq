@@ -452,7 +452,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     final oscEnabled = _sensorMode.toLowerCase() != 'mono';
 
     final toggle = SkotiqSwitchRow(
-      label: 'OSC / Color',
+      label: 'OSC / color',
       subtitle: 'Demosaic Bayer frames to RGB',
       value: oscEnabled,
       onChanged: running

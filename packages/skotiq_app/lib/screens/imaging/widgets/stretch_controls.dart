@@ -308,7 +308,7 @@ class _ExpandedStretchControls extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             _TextButton(
-              label: 'Reset to Defaults',
+              label: 'Reset to defaults',
               colors: colors,
               enabled: settings.enabled,
               onPressed: () {
@@ -390,7 +390,7 @@ class _StretchSettingsDialogState extends State<_StretchSettingsDialog> {
     final colors = context.skotiqColors;
 
     return SkotiqDialog(
-      title: 'Auto-Stretch Settings',
+      title: 'Auto-stretch settings',
       icon: SkotiqIcons.sliders,
       width: 420,
       closeEnabled: !_applying,

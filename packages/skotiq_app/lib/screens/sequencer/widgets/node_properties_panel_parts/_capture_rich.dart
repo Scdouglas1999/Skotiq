@@ -322,7 +322,7 @@ class _NotificationProperties extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Notification Settings',
+          'Notification settings',
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: FontWeight.w600,

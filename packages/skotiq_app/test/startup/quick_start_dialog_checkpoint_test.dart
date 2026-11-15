@@ -44,7 +44,7 @@ void main() {
     await tester.pumpWidget(_host(_context(canResume: false)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Load Previous Setup'), findsOneWidget);
+    expect(find.text('Load previous setup'), findsOneWidget);
     expect(find.text('Restore progress'), findsNothing);
     expect(find.text('Start fresh'), findsNothing);
   });
@@ -56,7 +56,7 @@ void main() {
 
     expect(find.text('Start fresh'), findsOneWidget);
     expect(find.text('Restore progress'), findsOneWidget);
-    expect(find.text('Load Previous Setup'), findsNothing);
+    expect(find.text('Load previous setup'), findsNothing);
   });
 
   // The walk-through stopped a run by hand and was later offered to restore

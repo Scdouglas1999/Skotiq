@@ -438,7 +438,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Current Build',
+          Text('Current build',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,
               )),
@@ -492,7 +492,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Update Status',
+          Text('Update status',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,
               )),
@@ -634,7 +634,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       children: [
         SkotiqButton(
           onPressed: canCheck ? () => _run('Check', _doCheck) : null,
-          label: 'Check for Updates',
+          label: 'Check for updates',
           icon: LucideIcons.refreshCw,
           variant: ButtonVariant.primary,
           size: ButtonSize.small,

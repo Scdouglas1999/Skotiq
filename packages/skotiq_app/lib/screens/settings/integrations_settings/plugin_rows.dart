@@ -18,7 +18,7 @@ class _NotificationCrossLinkSection extends StatelessWidget {
           isLast: true,
           stackWhenNarrow: true,
           trailing: SkotiqButton(
-            label: 'Open Notifications',
+            label: 'Open notifications',
             icon: LucideIcons.arrowUpRight,
             variant: ButtonVariant.secondary,
             size: settingsActionButtonSize(context),

@@ -137,7 +137,7 @@ Future<void> _openDialog(WidgetTester tester) async {
 
 Future<void> _waitForDialogToClose(WidgetTester tester) async {
   for (var i = 0;
-      i < 20 && find.text('Rotate To Angle').evaluate().isNotEmpty;
+      i < 20 && find.text('Rotate to angle').evaluate().isNotEmpty;
       i++) {
     await tester.pump(const Duration(milliseconds: 25));
   }
@@ -166,7 +166,7 @@ void main() {
     }
     verify(() => backend.rotatorMoveTo(_kDeviceId, 200)).called(1);
     await _waitForDialogToClose(tester);
-    expect(find.text('Rotate To Angle'), findsNothing);
+    expect(find.text('Rotate to angle'), findsNothing);
   });
 
   testWidgets('caps_window_honored: 300 rejected for 0..270 caps (no dispatch)',
@@ -226,6 +226,6 @@ void main() {
     }
     verify(() => backend.rotatorMoveTo(_kDeviceId, 350)).called(1);
     await _waitForDialogToClose(tester);
-    expect(find.text('Rotate To Angle'), findsNothing);
+    expect(find.text('Rotate to angle'), findsNothing);
   });
 }

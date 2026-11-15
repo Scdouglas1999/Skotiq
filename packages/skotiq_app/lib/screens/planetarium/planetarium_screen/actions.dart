@@ -441,7 +441,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Slew'),
+        title: const Text('Confirm slew'),
         content: Text(
           objectName != null
               ? 'Slew mount to $objectName?\n\nRA: ${coords.ra.toStringAsFixed(4)}h\nDec: ${coords.dec.toStringAsFixed(4)}\u00b0'

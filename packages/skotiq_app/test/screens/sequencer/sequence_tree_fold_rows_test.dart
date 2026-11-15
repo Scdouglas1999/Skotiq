@@ -655,7 +655,7 @@ void main() {
     await tester.pump();
 
     await _openFoldKebab(tester);
-    await tester.tap(find.text('Move Down').last);
+    await tester.tap(find.text('Move down').last);
     await tester.pumpAndSettle();
 
     final after = handle.container.read(currentSequenceProvider)!;
@@ -675,7 +675,7 @@ void main() {
     final handle = await _pumpTree(tester, built.sequence, theme: pointerTheme);
 
     await _openFoldKebab(tester);
-    await tester.tap(find.text('Move Up').last);
+    await tester.tap(find.text('Move up').last);
     await tester.pumpAndSettle();
 
     expect(
@@ -954,7 +954,7 @@ Future<void> _openFoldKebab(WidgetTester tester) async {
   await _hoverFoldRow(tester);
   await tester.tap(find.descendant(
     of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-    matching: find.byTooltip('More Actions'),
+    matching: find.byTooltip('More actions'),
   ));
   await tester.pumpAndSettle();
 }

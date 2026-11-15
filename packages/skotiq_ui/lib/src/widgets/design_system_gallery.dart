@@ -68,7 +68,7 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Design System Gallery',
+                    'Design system gallery',
                     style: SkotiqTypography.h2.copyWith(
                       color: colors.textPrimary,
                     ),
@@ -82,7 +82,7 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                   ),
                   const SizedBox(height: SkotiqTokens.spaceLg),
                   ShowcaseSection.plain(
-                    title: 'Color Palette',
+                    title: 'Color palette',
                     child: Wrap(
                       spacing: SkotiqTokens.spaceMd,
                       runSpacing: SkotiqTokens.spaceMd,
@@ -124,15 +124,15 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                           color: colors.info,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Primary',
+                          label: 'Text primary',
                           color: colors.textPrimary,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Secondary',
+                          label: 'Text secondary',
                           color: colors.textSecondary,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Muted',
+                          label: 'Text muted',
                           color: colors.textMuted,
                         ),
                         ShowcaseSwatch.gallery(

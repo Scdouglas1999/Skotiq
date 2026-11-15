@@ -12,7 +12,7 @@ class _DitherProperties extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Dither Settings',
+          'Dither settings',
           style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 12),

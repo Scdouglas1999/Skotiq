@@ -34,7 +34,7 @@ class _BuiltinGuiderConfigSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Guider Configuration',
+                  'Guider configuration',
                   style:
                       SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                 ),

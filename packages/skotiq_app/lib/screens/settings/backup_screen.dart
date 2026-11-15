@@ -780,13 +780,13 @@ class _AutoSaveStatusCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Auto-Save Status',
+                'Auto-save status',
                 style: SkotiqTypography.sectionTitle
                     .copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: 16),
               _StatusRow(
-                label: 'Last Sequence Save',
+                label: 'Last sequence save',
                 value: status.lastSequenceSave == null
                     ? 'Never'
                     : ClockFormat.monthDayYearHm(
@@ -795,7 +795,7 @@ class _AutoSaveStatusCard extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               _StatusRow(
-                label: 'Last Full Backup',
+                label: 'Last full backup',
                 value: status.lastBackup == null
                     ? 'Never'
                     : ClockFormat.monthDayYearHm(status.lastBackup!.toLocal()),
@@ -851,7 +851,7 @@ class _QuickActionsCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Quick Actions',
+              'Quick actions',
               style: SkotiqTypography.sectionTitle
                   .copyWith(color: colors.textPrimary),
             ),
@@ -924,7 +924,7 @@ class _RecentBackupsCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  'Recent Backups',
+                  'Recent backups',
                   style: SkotiqTypography.sectionTitle
                       .copyWith(color: colors.textPrimary),
                 ),

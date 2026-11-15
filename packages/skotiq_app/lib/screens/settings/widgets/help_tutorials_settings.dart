@@ -206,7 +206,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Reset Tutorial Progress?',
+                'Reset tutorial progress?',
                 style: SkotiqTypography.sectionTitle
                     .copyWith(color: colors.textPrimary),
               ),

@@ -40,7 +40,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Transformation Coefficients',
+            'Transformation coefficients',
             style: SkotiqTypography.button.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 12),
@@ -58,7 +58,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
           _buildQualityIndicator(colors, coeff),
           const SizedBox(height: 12),
           Text(
-            'Residual Plot',
+            'Residual plot',
             style: SkotiqTypography.label.copyWith(
               color: colors.textPrimary,
             ),
@@ -175,7 +175,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
           ),
       ],
       x: ChartAxis(
-        title: 'Catalog Magnitude',
+        title: 'Catalog magnitude',
         format: (mag) => mag.toStringAsFixed(1),
       ),
       y: ChartAxis(

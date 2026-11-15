@@ -148,7 +148,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
             Icon(LucideIcons.target, size: 20, color: _colors.warning),
             const SizedBox(width: 12),
             Text(
-              'Select Target',
+              'Select target',
               style: TextStyle(color: _colors.textPrimary),
             ),
           ],
@@ -517,7 +517,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline8)),
               title: Text(
-                'Delete Template',
+                'Delete template',
                 style: TextStyle(color: _colors.textPrimary),
               ),
               content: ConstrainedBox(

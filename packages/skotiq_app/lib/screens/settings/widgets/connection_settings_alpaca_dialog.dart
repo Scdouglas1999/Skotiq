@@ -199,7 +199,7 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
           Icon(SkotiqIcons.power, color: colors.primary, size: 24),
           const SizedBox(width: 12),
           Text(
-            'Alpaca Server Configuration',
+            'Alpaca server configuration',
             style: SkotiqTypography.body.copyWith(
               color: colors.textPrimary,
             ),
@@ -251,7 +251,7 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
                 });
               },
               decoration: InputDecoration(
-                labelText: 'Alpaca Server Host',
+                labelText: 'Alpaca server host',
                 labelStyle: SkotiqTypography.body.copyWith(
                   color: colors.textMuted,
                 ),

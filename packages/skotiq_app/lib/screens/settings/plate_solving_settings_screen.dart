@@ -102,7 +102,7 @@ class PlateSolvingSettingsScreen extends ConsumerWidget {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: const Text('Plate Solving'),
+        title: const Text('Plate solving'),
         iconTheme: IconThemeData(color: colors.textPrimary),
         titleTextStyle: SkotiqTypography.pageTitle.copyWith(
           color: colors.textPrimary,

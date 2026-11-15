@@ -36,7 +36,7 @@ void main() {
       (tester) async {
     await _openDetails(tester);
 
-    expect(find.text('Connection Status'), findsOneWidget);
+    expect(find.text('Connection status'), findsOneWidget);
     expect(
       find.byType(Dialog),
       findsOneWidget,
@@ -61,6 +61,6 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Connection Status'), findsNothing);
+    expect(find.text('Connection status'), findsNothing);
   });
 }

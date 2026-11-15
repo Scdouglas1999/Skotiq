@@ -310,7 +310,7 @@ class _NodeOverflowMenu extends ConsumerWidget {
       colors,
       child: PopupMenuButton<String>(
         icon: Icon(LucideIcons.moreVertical, size: 14, color: colors.textMuted),
-        tooltip: 'More Actions',
+        tooltip: 'More actions',
         padding: EdgeInsets.zero,
         itemBuilder: (context) => [
           // The inline eye / duplicate / delete chips are not rendered on
@@ -358,7 +358,7 @@ class _NodeOverflowMenu extends ConsumerWidget {
               value: 'move_up',
               height: 32,
               enabled: canEdit,
-              child: Text('Move Up',
+              child: Text('Move up',
                   style: SkotiqTypography.bodySm.copyWith(
                     color: canEdit ? colors.textPrimary : colors.textMuted,
                   )),
@@ -368,7 +368,7 @@ class _NodeOverflowMenu extends ConsumerWidget {
               value: 'move_down',
               height: 32,
               enabled: canEdit,
-              child: Text('Move Down',
+              child: Text('Move down',
                   style: SkotiqTypography.bodySm.copyWith(
                     color: canEdit ? colors.textPrimary : colors.textMuted,
                   )),

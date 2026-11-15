@@ -158,7 +158,7 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         Text(
-          'Best Targets Tonight',
+          'Best targets tonight',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w600,

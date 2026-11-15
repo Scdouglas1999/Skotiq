@@ -9,7 +9,7 @@ extension _FilterStep on _QuickStartWizardDialogState {
       children: [
         if (hasFilters) ...[
           Text(
-            'Quick Presets',
+            'Quick presets',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 8),

@@ -224,7 +224,7 @@ void main() {
         reason: 'Initial DiagnosticDumpScreen pump under the default harness '
             'should not surface any uncaught exceptions.');
 
-    expect(find.text('Diagnostic Dump'), findsOneWidget,
+    expect(find.text('Diagnostic dump'), findsOneWidget,
         reason: 'Header title "Diagnostic Dump" must render on the screen.');
     expect(find.text('Create dump'), findsOneWidget,
         reason:

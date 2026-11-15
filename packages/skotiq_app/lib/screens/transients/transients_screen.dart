@@ -561,7 +561,7 @@ class _TransientSettingsDialogState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Alert Sources',
+            'Alert sources',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
@@ -599,7 +599,7 @@ class _TransientSettingsDialogState
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
           Text(
-            'Transient Types',
+            'Transient types',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
@@ -616,7 +616,7 @@ class _TransientSettingsDialogState
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
           Text(
-            'Magnitude Threshold',
+            'Magnitude threshold',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),

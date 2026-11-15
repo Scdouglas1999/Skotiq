@@ -42,7 +42,7 @@ class _BuiltinGuiderConnected extends GuiderStateNotifier {
     state = const GuiderState(
       connectionState: DeviceConnectionState.connected,
       deviceId: builtinGuiderDeviceId,
-      deviceName: 'Built-in Guider',
+      deviceName: 'Built-in guider',
       isGuiding: true,
     );
   }

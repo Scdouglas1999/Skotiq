@@ -186,7 +186,7 @@ class InfoTab extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Selected Coordinates',
+            'Selected coordinates',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize18,
               fontWeight: FontWeight.bold,
@@ -472,7 +472,7 @@ class ImagingHistorySection extends ConsumerWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Imaging History',
+                'Imaging history',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: colors.textPrimary),
               ),
@@ -517,7 +517,7 @@ class ImagingHistorySection extends ConsumerWidget {
           if (history.filterCounts.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              'Per-Filter Breakdown',
+              'Per-filter breakdown',
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize10,
                 fontWeight: FontWeight.w600,

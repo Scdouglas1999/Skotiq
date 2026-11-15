@@ -99,7 +99,7 @@ class SmartExposureProperties extends ConsumerWidget {
             },
             icon: Icon(LucideIcons.plus, size: 14, color: colors.primary),
             label: Text(
-              'Add Filter Plan',
+              'Add filter plan',
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 12),
                 color: colors.primary,
@@ -158,9 +158,9 @@ class SmartExposureProperties extends ConsumerWidget {
 
           NodePropertyField(
             colors: colors,
-            label: 'Dither on Filter Change',
+            label: 'Dither on filter change',
             child: NodeToggleSwitch(
-              label: 'Dither on Filter Change',
+              label: 'Dither on filter change',
               colors: colors,
               value: node.ditherOnFilterChange,
               onChanged: (v) {
@@ -174,9 +174,9 @@ class SmartExposureProperties extends ConsumerWidget {
           if (node.rotateFilters) ...[
             NodePropertyField(
               colors: colors,
-              label: 'Switch Filter Every Frame',
+              label: 'Switch filter every frame',
               child: NodeToggleSwitch(
-                label: 'Switch Filter Every Frame',
+                label: 'Switch filter every frame',
                 colors: colors,
                 // Drives "loop until stopped" mode: 1 sub per filter,
                 // round-robin, looping until the target's window ends (or the

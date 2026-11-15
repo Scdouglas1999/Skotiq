@@ -80,7 +80,7 @@ extension _SafetyStep on _QuickStartWizardDialogState {
         _buildToggleRow(
           colors: colors,
           icon: LucideIcons.parkingCircle,
-          title: 'Park on Error',
+          title: 'Park on error',
           subtitle: 'Park the mount if an unrecoverable error occurs',
           value: _parkOnError,
           onChanged: (v) => _update(() => _parkOnError = v),

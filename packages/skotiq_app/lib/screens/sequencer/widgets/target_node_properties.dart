@@ -63,7 +63,7 @@ class TargetGroupProperties extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Target Settings',
+            'Target settings',
             style: TextStyle(
               fontSize: Responsive.fontSize(context, 13),
               fontWeight: FontWeight.w600,
@@ -197,7 +197,7 @@ class TargetGroupProperties extends ConsumerWidget {
           ),
           NodePropertyField(
             colors: colors,
-            label: 'Adaptive Brightness Tier',
+            label: 'Adaptive brightness tier',
             child: NodeDropdown<_BrightnessTierChoice>(
               colors: colors,
               value: _BrightnessTierChoice.fromTier(node.brightnessTierHint),
@@ -402,7 +402,7 @@ class TargetGroupProperties extends ConsumerWidget {
             const SizedBox(height: 8),
             NodePropertyField(
               colors: colors,
-              label: 'Trigger Poll Interval',
+              label: 'Trigger poll interval',
               child: NodeNumberInput(
                 colors: colors,
                 value: node.triggerPollIntervalSecs.toDouble(),

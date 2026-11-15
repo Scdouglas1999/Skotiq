@@ -70,7 +70,7 @@ class ObservationReportService {
         await _scienceDao.getMovingObjectsForSession(sessionId);
 
     final pdf = pw.Document(
-      title: 'Skotiq Observation Report',
+      title: 'Skotiq observation report',
       author: observerName ?? 'Skotiq',
       creator: 'Skotiq',
     );
@@ -168,7 +168,7 @@ class ObservationReportService {
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
-            'Skotiq Observation Report',
+            'Skotiq observation report',
             style: pw.TextStyle(
               fontSize: 10,
               color: PdfColors.blueGrey600,
@@ -325,7 +325,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Session Summary'),
+        _sectionTitle('Session summary'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -398,7 +398,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Image Quality Statistics'),
+        _sectionTitle('Image quality statistics'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -449,7 +449,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Accepted Frames by Filter'),
+        _sectionTitle('Accepted frames by filter'),
         pw.Table(
           border: pw.TableBorder.all(
             color: PdfColors.blueGrey200,
@@ -500,7 +500,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Frame Quality Metrics'),
+        _sectionTitle('Frame quality metrics'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -550,7 +550,7 @@ class ObservationReportService {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Photometric Calibration'),
+          _sectionTitle('Photometric calibration'),
           pw.Text(
             '${calibrations.length} frames processed, none successfully calibrated.',
             style:
@@ -570,7 +570,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Photometric Calibration'),
+        _sectionTitle('Photometric calibration'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -615,7 +615,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Sky Transparency'),
+        _sectionTitle('Sky transparency'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -659,7 +659,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Differential Photometry'),
+        _sectionTitle('Differential photometry'),
         pw.Text(
           '${measurements.length} measurements across ${objectIds.length} '
           'object${objectIds.length == 1 ? '' : 's'}',
@@ -737,7 +737,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('PSF Field Analysis'),
+        _sectionTitle('PSF field analysis'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -776,7 +776,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Astrometric Residuals'),
+        _sectionTitle('Astrometric residuals'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -808,7 +808,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Moving Object Candidates'),
+        _sectionTitle('Moving object candidates'),
         pw.Table(
           border: pw.TableBorder.all(
             color: PdfColors.blueGrey200,
@@ -853,7 +853,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Weather Conditions'),
+        _sectionTitle('Weather conditions'),
         pw.Table(
           columnWidths: {
             0: const pw.FlexColumnWidth(1),
@@ -891,7 +891,7 @@ class ObservationReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Observer Notes'),
+        _sectionTitle('Observer notes'),
         pw.Container(
           padding: const pw.EdgeInsets.all(8),
           decoration: pw.BoxDecoration(
