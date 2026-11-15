@@ -183,9 +183,15 @@ class CameraTemperaturePoller {
         _ref.read(cameraStateProvider.notifier).updateTemperature(temp, power);
         _ref.read(cameraStateProvider.notifier).setCooling(status.coolerOn);
 
+        // A cooler that is off holds no set-point, whatever value the driver
+        // still reports for one.
         _ref
             .read(temperatureHistoryProvider.notifier)
-            .addPoint(temp, targetTemp: targetTemp, coolerPower: power);
+            .addPoint(
+              temp,
+              targetTemp: status.coolerOn == false ? null : targetTemp,
+              coolerPower: power,
+            );
 
         // Publish a live cooling snapshot derived from this reading. We only
         // do this inside the `temp != null` branch: with no live sensor value

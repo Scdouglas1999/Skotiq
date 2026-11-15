@@ -237,7 +237,7 @@ class SessionDiagnostics {
         _logger.debug(
           'Published post-session diagnostics for session $dbSessionId: '
           'disconnects=${summary.disconnectsDuringSession}, '
-          'focuserMoves=${summary.focuserMoves}, '
+          'autofocusRuns=${summary.autofocusRuns}, '
           'noticedConcerns=${summary.noticedConcerns.length}',
           source: 'SequenceExecutor',
         );
@@ -410,14 +410,12 @@ class SessionDiagnostics {
         ? disconnectLog.totalLast24h()
         : disconnectLog.countSince(sessionStartedAt);
 
-    final focuserMoves = stats?.autofocusRuns ?? 0;
-
     final skyStats = _skyBrightnessSummarySince(sessionStartedAt);
 
     return PostSessionHealthSummary(
       disconnectsDuringSession: disconnectsDuringSession,
       coolerOutOfBandSamples: _coolerOutOfBandSamplesSince(sessionStartedAt),
-      focuserMoves: focuserMoves,
+      autofocusRuns: stats?.autofocusRuns ?? 0,
       skyBrightnessMin: skyStats?.min,
       skyBrightnessMax: skyStats?.max,
       skyBrightnessMedian: skyStats?.median,

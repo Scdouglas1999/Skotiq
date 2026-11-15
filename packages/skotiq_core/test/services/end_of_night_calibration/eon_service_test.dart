@@ -180,10 +180,12 @@ class FakeRig implements EonRig {
     return built.exposureSecs!.round() + 1000;
   }
 
+  CameraWarmupOutcome warmUpOutcome = CameraWarmupOutcome.started;
+
   @override
-  Future<String> warmUpCamera() async {
+  Future<CameraWarmupOutcome> warmUpCamera() async {
     calls.add('warmUp');
-    return 'Camera warm-up started';
+    return warmUpOutcome;
   }
 
   @override
@@ -352,6 +354,27 @@ void main() {
     expect(report.phase, EonPhase.skipped);
     expect(rig.calls, contains('warmUp'));
     expect(rig.notifications.map((n) => n.$1), contains('Camera warm-up'));
+  });
+
+  test('a deferred warm-up of a cooler that was off says only that', () async {
+    rig.wheel = ['L', 'R', 'G', 'B'];
+    rig.warmUpOutcome = CameraWarmupOutcome.coolerAlreadyOff;
+    final skipping = EndOfNightCalibrationService(
+      rig,
+      () async => settings.copyWith(noDarkSlot: EonNoDarkSlotPolicy.skip),
+    );
+    await skipping.run(reason: 'dawn', forceWarmUp: true);
+    String warmUpNote() =>
+        rig.notifications.singleWhere((n) => n.$1 == 'Camera warm-up').$2;
+    expect(warmUpNote(), 'The cooler was already off.');
+
+    rig.notifications.clear();
+    rig.warmUpOutcome = CameraWarmupOutcome.started;
+    await skipping.run(reason: 'dawn', forceWarmUp: true);
+    expect(
+      warmUpNote(),
+      'The plan left the camera cold for calibration: Camera warm-up started.',
+    );
   });
 
   test(

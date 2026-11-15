@@ -993,6 +993,9 @@ impl GuiderOps for ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .push(self.camera_exposure_calls.load(Ordering::SeqCst));
+        if self.guider_absent {
+            return Err(crate::device_ops::DeviceError::NO_GUIDER);
+        }
         if let Some(error) = &self.dither_error {
             return Err(error.clone());
         }
@@ -1060,6 +1063,9 @@ impl GuiderOps for ScriptedDomeRotatorOps {
         Ok(())
     }
     async fn guider_is_active(&self) -> DeviceResult<bool> {
+        if self.guider_absent {
+            return Err(crate::device_ops::DeviceError::NO_GUIDER);
+        }
         Ok(self.guider_active())
     }
     async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {

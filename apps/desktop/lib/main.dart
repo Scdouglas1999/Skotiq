@@ -24,6 +24,7 @@ import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
+import 'launch_arguments.dart';
 import 'main_headless.dart' as headless;
 import 'startup_timeline.dart';
 
@@ -111,6 +112,14 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 void main(List<String> args) async {
   startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
+  final isHeadless =
+      args.contains('--headless') ||
+      Platform.environment['SKOTIQ_HEADLESS'] == '1';
+  await answerLaunchArguments(
+    args,
+    isHeadless ? LaunchMode.headless : LaunchMode.desktop,
+    version: loadDesktopAppVersion,
+  );
   // A role switch restarts the app with --relaunched-from=<pid>. It is about
   // this one start only, so it is not part of how the app was "started".
   final relaunchedFrom = relaunchedFromPid(args);
@@ -121,10 +130,6 @@ void main(List<String> args) async {
   // An update restarts the app through the updater, which needs to know how
   // it was started (for example --headless --port=...) to start it the same way.
   setUpdateRelaunchArguments(launchArgs);
-
-  final isHeadless =
-      args.contains('--headless') ||
-      Platform.environment['SKOTIQ_HEADLESS'] == '1';
 
   if (isHeadless) {
     headless.main(args);

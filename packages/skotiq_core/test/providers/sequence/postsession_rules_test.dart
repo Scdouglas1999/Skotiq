@@ -65,12 +65,12 @@ void main() {
   });
 
   group('postSessionEquipmentHealthSummary', () {
-    test('renders disconnect/cooler/focuser/sky-brightness lines', () {
+    test('renders disconnect/cooler/autofocus/sky-brightness lines', () {
       final issues = postSessionEquipmentHealthSummary(
         const PostSessionHealthSummary(
           disconnectsDuringSession: 47,
           coolerOutOfBandSamples: 4,
-          focuserMoves: 12,
+          autofocusRuns: 12,
           skyBrightnessMin: 19.0,
           skyBrightnessMax: 21.4,
           skyBrightnessMedian: 20.4,
@@ -86,7 +86,10 @@ void main() {
         issues.any((i) => i.title == 'Cooler Out of Setpoint Band'),
         isTrue,
       );
-      expect(issues.any((i) => i.title == 'Focuser Activity'), isTrue);
+      expect(
+        issues.singleWhere((i) => i.title == 'Autofocus Runs').description,
+        '12 autofocus runs during the run.',
+      );
       expect(issues.any((i) => i.title == 'Sky Brightness Range'), isTrue);
       expect(issues.any((i) => i.title == 'Noticed but Did Not Fire'), isTrue);
     });
