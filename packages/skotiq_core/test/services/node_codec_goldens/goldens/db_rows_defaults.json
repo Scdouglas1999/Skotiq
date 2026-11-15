@@ -501,6 +501,7 @@
       "frameType": "light",
       "gain": null,
       "offset": null,
+      "readoutMode": null,
       "triggers": []
     },
     "specificType": "TakeExposure"
