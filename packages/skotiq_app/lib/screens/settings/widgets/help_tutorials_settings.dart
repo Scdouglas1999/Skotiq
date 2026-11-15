@@ -117,7 +117,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               title: 'Re-run onboarding tour',
               subtitle:
                   'Replay the first-launch spotlight tour that highlights '
-                  'where Equipment, Sequencer, Scheduler, and Plate Solving '
+                  'where Equipment, the Sequencer, Plan and plate solving '
                   'live in the app.',
               trailing: _AsyncActionButton(
                 label: startOrResume(Tour.firstLaunch),

@@ -440,7 +440,7 @@ class _TargetListColumn extends ConsumerWidget {
       label: statusFilter == PlanTargetStatusFilter.any
           ? 'Status'
           : statusFilter.label,
-      name: 'Status filter',
+      name: statusFilter == PlanTargetStatusFilter.any ? null : 'Status',
       entries: [
         for (final f in PlanTargetStatusFilter.values)
           SkotiqMenuChoice(f, f.label, checked: f == statusFilter),
