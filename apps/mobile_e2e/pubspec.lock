@@ -1301,14 +1301,14 @@ packages:
       path: "../desktop"
       relative: true
     source: path
-    version: "8.2.1+36"
+    version: "9.0.0+37"
   skotiq_mobile:
     dependency: "direct dev"
     description:
       path: "../mobile"
       relative: true
     source: path
-    version: "8.2.1+36"
+    version: "9.0.0+37"
   skotiq_planetarium:
     dependency: "direct overridden"
     description:
@@ -1324,14 +1324,14 @@ packages:
     source: path
     version: "1.0.0"
   skotiq_relay:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       path: "../../tools/skotiq_relay"
       relative: true
     source: path
     version: "0.1.0"
   skotiq_remote_protocol:
-    dependency: "direct overridden"
+    dependency: "direct dev"
     description:
       path: "../../packages/skotiq_remote_protocol"
       relative: true

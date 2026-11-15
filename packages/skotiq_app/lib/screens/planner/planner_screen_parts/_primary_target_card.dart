@@ -444,8 +444,8 @@ class _TargetFieldPreview extends ConsumerWidget {
             '${size == null ? ' · size not catalogued' : ' · target ${_arcmin(size)}'}'
         : size == null
             ? 'Size not catalogued'
-            : 'Target size to scale in a ${_fullFrameArcmin.round()} arcmin '
-                'field · camera field unknown';
+            : 'Camera field unknown · drawn in a '
+                '${_fullFrameArcmin.round()}′ frame';
 
     return Semantics(
       label: 'Field preview for ${target.targetName}. $caption'
