@@ -14,8 +14,7 @@ import '../utils/touch_target.dart';
 ///
 /// There is deliberately no `subtitle`. A sentence under a page title is the
 /// app explaining itself on every visit to an operator who has read it once;
-/// the help button in the top bar is where an explanation belongs. Replaces
-/// [ScreenHeader], which is deprecated.
+/// the help button in the top bar is where an explanation belongs.
 class PageHeader extends StatelessWidget {
   /// The screen's name. One noun phrase, sentence case, no punctuation.
   final String title;
