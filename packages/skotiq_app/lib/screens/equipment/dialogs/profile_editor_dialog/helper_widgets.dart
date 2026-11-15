@@ -9,7 +9,14 @@ part of '../profile_editor_dialog.dart';
 /// defect than one that is 16 px wider and never wraps.
 const double profileEditorLabelWidth = 120;
 
-/// Side of the square an emoji profile icon is offered in.
+/// Widest a control in this editor gets: a name or a number needs no more.
+const double profileEditorFieldMaxWidth = 360;
+
+/// Widest a device row's control gets: a device picker and its display name
+/// side by side.
+const double _deviceRowMaxWidth = 600;
+
+/// Side of the square a profile icon is offered in.
 const double _iconOptionSize = SkotiqTokens.inputHeight;
 
 /// Diameter of an accent swatch (03 §1.4).
@@ -85,6 +92,7 @@ class _EditorRow extends StatelessWidget {
     required this.child,
     this.help,
     this.trailing,
+    this.maxControlWidth = profileEditorFieldMaxWidth,
   });
 
   /// The label, in sentence case.
@@ -99,29 +107,58 @@ class _EditorRow extends StatelessWidget {
   /// button) rather than inside it.
   final Widget? trailing;
 
+  /// Widest the control may grow; the row leaves the rest empty.
+  final double maxControlWidth;
+
   @override
   Widget build(BuildContext context) {
-    final named = Semantics(label: label, child: child);
+    final named = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxControlWidth),
+      child: Semantics(label: label, child: child),
+    );
     return FormRow(
       label: label,
       labelWidth: profileEditorLabelWidth,
       help: help,
-      child: trailing == null
-          ? named
-          : Row(
-              children: [
-                Expanded(child: named),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                trailing!,
-              ],
-            ),
+      child: Row(
+        children: [
+          Flexible(child: named),
+          if (trailing != null) ...[
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            trailing!,
+          ],
+        ],
+      ),
     );
   }
 }
 
 const double _rowGap = FormRow.rowGap;
 
+/// A switch row kept to the width of an [_EditorRow], so its switch sits
+/// beside the fields above it instead of at the far edge of the pane.
+class _EditorSwitchRow extends StatelessWidget {
+  const _EditorSwitchRow({required this.child});
+
+  final SkotiqSwitchRow child;
+
+  static const double _width =
+      profileEditorLabelWidth + FormRow.columnGap + profileEditorFieldMaxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _width),
+        child: child,
+      ),
+    );
+  }
+}
+
 class _IconOption extends StatelessWidget {
+  /// The stored `profileIcon` word; empty for none.
   final String icon;
   final bool isSelected;
   final VoidCallback onTap;
@@ -136,38 +173,40 @@ class _IconOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = profileGlyphs[icon]?.name ?? 'Default';
     return Semantics(
       button: true,
       enabled: true,
       selected: isSelected,
-      label: icon.isEmpty ? 'No icon' : 'Icon $icon',
+      label: '$name icon',
       onTap: onTap,
       excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: _iconOptionSize,
-          height: _iconOptionSize,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colors.primary.withValues(
-                    alpha: SkotiqTokens.opacityAccentTint,
-                  )
-                : colors.well,
-            borderRadius: SkotiqTokens.borderRadiusSm,
-            border: Border.all(
-              color: isSelected ? colors.primary : colors.border,
-              width: isSelected ? _swatchSelectedRing : 1,
+      child: Tooltip(
+        message: name,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: _iconOptionSize,
+            height: _iconOptionSize,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? colors.primary.withValues(
+                      alpha: SkotiqTokens.opacityAccentTint,
+                    )
+                  : colors.well,
+              borderRadius: SkotiqTokens.borderRadiusSm,
+              border: Border.all(
+                color: isSelected ? colors.primary : colors.border,
+                width: isSelected ? _swatchSelectedRing : 1,
+              ),
             ),
-          ),
-          child: Center(
-            child: icon.isEmpty
-                ? Icon(
-                    LucideIcons.ban,
-                    size: SkotiqTokens.iconXs,
-                    color: colors.textMuted,
-                  )
-                : Text(icon, style: SkotiqTypography.bodyLg),
+            child: Center(
+              child: Icon(
+                profileIconFor(icon),
+                size: SkotiqTokens.iconSm,
+                color: isSelected ? colors.primary : colors.textSecondary,
+              ),
+            ),
           ),
         ),
       ),
@@ -330,6 +369,7 @@ class _DeviceRow extends StatelessWidget {
     return _EditorRow(
       label: label,
       help: deviceId,
+      maxControlWidth: _deviceRowMaxWidth,
       trailing: deviceId == null
           ? null
           : SkotiqIconButton(

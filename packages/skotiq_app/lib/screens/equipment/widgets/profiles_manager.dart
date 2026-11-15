@@ -32,26 +32,27 @@ class _ProfilesManagerState extends ConsumerState<ProfilesManager>
   Widget build(BuildContext context) {
     watchProfileAuthority();
     final selectedProfileId = ref.watch(selectedEquipmentProfileIdProvider);
-    final list = ProfileSidebar(
-      key: widget.tutorialTargets
-          ? TourTarget.equipmentProfileSelector.key
-          : null,
-      tutorialTargets: widget.tutorialTargets,
-      selectedProfileId: selectedProfileId,
-      onProfileSelected: (id) =>
-          ref.read(selectedEquipmentProfileIdProvider.notifier).state = id,
-      onCreateProfile: () => showProfileEditor(context, null),
-      onEditProfile: (profile) => showProfileEditor(context, profile),
-      onConnectAll: connectAllDevices,
-      onDisconnectAll: disconnectAllDevices,
-      onSetDefault: setDefaultProfile,
-      onActivateProfile: activateProfile,
-      onDuplicateProfile: duplicateProfile,
-      onDeleteProfile: deleteProfile,
-      onReorderProfiles: reorderProfiles,
-      onImportProfiles: importProfiles,
-      onExportProfile: exportProfile,
-    );
+    Widget list({required bool editorBeside}) => ProfileSidebar(
+          key: widget.tutorialTargets
+              ? TourTarget.equipmentProfileSelector.key
+              : null,
+          tutorialTargets: widget.tutorialTargets,
+          selectedProfileId: selectedProfileId,
+          editorBeside: editorBeside,
+          onProfileSelected: (id) =>
+              ref.read(selectedEquipmentProfileIdProvider.notifier).state = id,
+          onCreateProfile: () => showProfileEditor(context, null),
+          onEditProfile: (profile) => showProfileEditor(context, profile),
+          onConnectAll: connectAllDevices,
+          onDisconnectAll: disconnectAllDevices,
+          onSetDefault: setDefaultProfile,
+          onActivateProfile: activateProfile,
+          onDuplicateProfile: duplicateProfile,
+          onDeleteProfile: deleteProfile,
+          onReorderProfiles: reorderProfiles,
+          onImportProfiles: importProfiles,
+          onExportProfile: exportProfile,
+        );
 
     final profiles = ref.watch(sortedProfilesProvider);
 
@@ -62,12 +63,15 @@ class _ProfilesManagerState extends ConsumerState<ProfilesManager>
         // and controls beside the list.
         if (profiles.isEmpty ||
             constraints.maxWidth < _profilesTwoPaneMinWidth) {
-          return list;
+          return list(editorBeside: false);
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(width: _profilesColumnWidth, child: list),
+            SizedBox(
+              width: _profilesColumnWidth,
+              child: list(editorBeside: true),
+            ),
             Expanded(
               child: _ProfileInspector(
                 profile: profiles

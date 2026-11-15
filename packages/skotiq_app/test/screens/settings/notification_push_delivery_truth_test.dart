@@ -47,7 +47,7 @@ void main() {
       expect(subtitle, contains('No device has registered for push'));
       expect(subtitle, contains('no push delivery configured'));
       // …and say what DOES happen today (in-app / LAN only).
-      expect(subtitle, contains('only appear in the app'));
+      expect(subtitle, contains('shows only in the app'));
     });
 
     test(

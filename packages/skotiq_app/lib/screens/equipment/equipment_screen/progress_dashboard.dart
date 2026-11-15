@@ -218,9 +218,8 @@ class _ConnectionStatusSummary extends ConsumerWidget {
 class _DeviceDashboard extends ConsumerWidget {
   final EquipmentProfileModel? profile;
 
-  /// Invoked when the empty-state primary CTA is pressed. Required so the
-  /// "Connect devices" button is discoverable directly from the empty state
-  /// itself rather than only from the profile menu.
+  /// Invoked by the empty state's Connect all, so the action is on the
+  /// empty state itself and not only in the header.
   final void Function(EquipmentProfileModel) onConnectAll;
 
   /// Invoked when the empty state's action routes to the profile editor so the
@@ -339,9 +338,14 @@ class _DeviceDashboard extends ConsumerWidget {
                 title: 'Nothing is connected',
                 body: 'Connect the equipment this profile assigns, or pick a '
                     'device from the list below.',
+                // The header's Connect all is the page's primary; on a phone
+                // the header has no actions, and this is the only one.
                 action: SkotiqButton(
-                  label: 'Connect devices',
+                  label: 'Connect all',
                   icon: LucideIcons.plug,
+                  variant: Responsive.isPhone(context)
+                      ? ButtonVariant.primary
+                      : ButtonVariant.secondary,
                   size: ButtonSize.small,
                   onPressed: () => onConnectAll(p),
                 ),

@@ -12,14 +12,13 @@ class _NotificationCrossLinkSection extends StatelessWidget {
       children: [
         SettingRow(
           icon: LucideIcons.bellRing,
-          title: 'Post to Discord / Pushover on observatory events',
-          subtitle:
-              'Route sequence-complete, safety, and guiding-lost alerts to '
-              'Discord, Pushover, email…',
+          title: 'Send run events to Discord, Pushover or email',
+          subtitle: 'Which events go where is set on the Notifications '
+              'page.',
           isLast: true,
           stackWhenNarrow: true,
           trailing: SkotiqButton(
-            label: 'Open Notification Routing',
+            label: 'Open Notifications',
             icon: LucideIcons.arrowUpRight,
             variant: ButtonVariant.secondary,
             size: settingsActionButtonSize(context),

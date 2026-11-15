@@ -82,13 +82,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 25));
     }
 
-    expect(find.text('Could not load push configuration'), findsOneWidget);
+    expect(find.text('Could not load the phone settings'), findsOneWidget);
     // The reason is shown; the StateError's 'Bad state: ' rendering prefix is
     // not product copy and must not reach the card.
     expect(find.textContaining('push config unavailable'), findsOneWidget);
     expect(find.textContaining('Bad state'), findsNothing);
-    expect(find.text('Enable push to mobile'), findsNothing);
-    expect(find.text('Enable notifications'), findsOneWidget);
+    expect(find.text('Push to phones'), findsNothing);
+    expect(find.text('Send these alerts'), findsOneWidget);
     // The transport sections below the push block still render. (Probing the
     // section heading rather than a field label: Discord is keyring-backed, so
     // in this bare container it renders its own load-error card — which is
@@ -106,7 +106,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(_pushLoadAttempts, 2);
-    expect(find.text('Enable push to mobile'), findsNothing);
+    expect(find.text('Push to phones'), findsNothing);
   });
 
   testWidgets('remote controller never edits a local push/routing copy',
@@ -132,13 +132,13 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Configure push on the Skotiq host'), findsOneWidget);
+    expect(find.text('Set on the imaging computer'), findsOneWidget);
     expect(
-      find.text('Configure routing on the Skotiq host'),
+      find.text('Set up on the imaging computer'),
       findsOneWidget,
     );
-    expect(find.text('Enable push to mobile'), findsNothing);
-    expect(find.text('Notification routing enabled'), findsNothing);
+    expect(find.text('Push to phones'), findsNothing);
+    expect(find.text('Send alerts'), findsNothing);
     expect(_unexpectedRemotePushLoads, 0);
   });
 }

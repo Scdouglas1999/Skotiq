@@ -67,12 +67,18 @@ class SettingsSectionDef {
   /// [SettingsFormScope].
   final WidgetBuilder build;
 
+  /// The screen this entry takes you to when its settings live there (for
+  /// example 'Darkroom'); null for a section that is a Settings page. The
+  /// navigation marks such an entry so it does not read as a page of its own.
+  final String? opensIn;
+
   const SettingsSectionDef({
     required this.id,
     required this.label,
     required this.icon,
     required this.build,
     this.keywords = const [],
+    this.opensIn,
   });
 
   /// The stable deep-link key, e.g. `'location'`.
@@ -341,6 +347,7 @@ SettingsSectionDef _sectionDef(
           'defect map',
         ],
         build: (context) => const CalibrationSettingsRedirect(),
+        opensIn: 'Darkroom',
       ),
     SettingsSectionId.imaging => SettingsSectionDef(
         id: id,
@@ -504,6 +511,7 @@ SettingsSectionDef _sectionDef(
           'unattended',
         ],
         build: (context) => const DarkroomAutopilotSettings(),
+        opensIn: 'Darkroom',
       ),
     SettingsSectionId.delivery => SettingsSectionDef(
         id: id,

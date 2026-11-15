@@ -606,9 +606,9 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
 extension _ProfileEditorSaveClose on _ProfileEditorDialogState {
   /// Dismisses the editor after a successful save.
   ///
-  /// In [ProfileEditorMode.opticalTrainPage] the editor IS the Equipment
-  /// screen's tab body, so popping would take the whole `/equipment` route off
-  /// the stack. There the save simply lands and the page stays put.
+  /// In [ProfileEditorMode.profilePage] the editor IS the Equipment screen's
+  /// tab body, so popping would take the whole `/equipment` route off the
+  /// stack. There the save simply lands and the page stays put.
   void _closeAfterSave() {
     if (widget.mode != ProfileEditorMode.full) {
       setState(() {

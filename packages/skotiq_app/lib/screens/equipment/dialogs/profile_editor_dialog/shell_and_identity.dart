@@ -57,21 +57,58 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
     ];
   }
 
-  /// The same footer for the embedded Profiles page, which has no dialog
-  /// chrome to lay the actions out for it.
-  Widget _buildFooter(SkotiqColors colors) {
+  /// The embedded Profiles page's head: the profile's name, whether the form
+  /// holds unsaved edits, and Save. It sits above the scrolling form and is as
+  /// wide as the form, so Save stays beside what it saves.
+  Widget _buildPageHead(SkotiqColors colors) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         SkotiqTokens.space2xl,
-        SkotiqTokens.spaceLg,
+        SkotiqTokens.spaceXl,
         SkotiqTokens.space2xl,
-        SkotiqTokens.spaceLg,
+        0,
       ),
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: SkotiqTokens.spaceSm,
-        runSpacing: SkotiqTokens.spaceSm,
-        children: _footerActions(),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: profilePageMaxWidth),
+          child: ListenableBuilder(
+            listenable: _formListenable,
+            builder: (context, _) {
+              final name = _nameController.text.trim();
+              return Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name.isEmpty ? 'Unnamed profile' : name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SkotiqTypography.sectionTitle
+                                .copyWith(color: colors.textPrimary),
+                          ),
+                        ),
+                        const SizedBox(width: SkotiqTokens.spaceSm),
+                        Text(
+                          _hasUnsavedChanges ? 'Unsaved changes' : 'Saved',
+                          style: SkotiqTypography.bodySm.copyWith(
+                            color: _hasUnsavedChanges
+                                ? colors.warning
+                                : colors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  ..._footerActions(),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -158,14 +195,16 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
             ),
           ),
           const SizedBox(height: _rowGap),
-          SkotiqSwitchRow(
-            label: 'Default profile',
-            subtitle: 'Set as the active profile on startup',
-            value: _isDefault,
-            onChanged: (v) => setState(() {
-              _isDefault = v;
-              _isDefaultTouched = true;
-            }),
+          _EditorSwitchRow(
+            child: SkotiqSwitchRow(
+              label: 'Default profile',
+              subtitle: 'Set as the active profile on startup',
+              value: _isDefault,
+              onChanged: (v) => setState(() {
+                _isDefault = v;
+                _isDefaultTouched = true;
+              }),
+            ),
           ),
         ],
       ),

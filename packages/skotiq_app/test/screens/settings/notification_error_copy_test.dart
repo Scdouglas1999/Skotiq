@@ -33,12 +33,12 @@ class _MockPushService extends Mock implements PushNotificationService {}
 
 Finder _pushTestButton() {
   final row = find.ancestor(
-    of: find.text('Test push notification'),
+    of: find.text('Send a test'),
     matching: find.byType(SettingRow),
   );
   return find.descendant(
     of: row,
-    matching: find.widgetWithText(SkotiqButton, 'Test'),
+    matching: find.widgetWithText(SkotiqButton, 'Send test'),
   );
 }
 

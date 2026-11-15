@@ -11,10 +11,15 @@ class SettingsSection extends StatelessWidget {
 
   final List<Widget> children;
 
+  /// Actions for the whole group (refresh, revoke all), at the right of the
+  /// eyebrow on its baseline.
+  final List<Widget> trailing;
+
   const SettingsSection({
     super.key,
     required this.title,
     required this.children,
+    this.trailing = const [],
   });
 
   @override
@@ -32,11 +37,18 @@ class SettingsSection extends StatelessWidget {
         // nothing — the dead end the row results exist to end.
         _HighlightedRow(
           active: SettingsRowHighlight.targets(context, title: title),
-          child: Text(
-            title.toUpperCase(),
-            style: SkotiqTypography.eyebrow.copyWith(
-              color: colors.textMuted,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: SkotiqTypography.eyebrow.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+              ),
+              ...trailing,
+            ],
           ),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
@@ -307,26 +319,34 @@ class SettingRow extends StatelessWidget {
   }
 
   Widget _buildRowLayout(BuildContext context, SkotiqColors colors) {
-    return Row(
-      children: [
-        Expanded(child: _label(context, colors)),
-        const SizedBox(width: SkotiqTokens.space2xl),
-        // Flexible (loose) bounds the trailing slot to the space the label's
-        // Expanded leaves free. Finite controls (dropdowns, switches) keep their
-        // intrinsic size; a content-sized [Wrap] trailing (e.g. the Integrations
-        // plugin row's pill + Configure + switch cluster) gets a finite width to
-        // wrap within instead of demanding unbounded width and overflowing.
-        //
-        // Align pins the control to the panel's right edge. Without it the
-        // control sat at the LEFT of its flexible half — i.e. at the row's
-        // horizontal midpoint — which looks correct at ~1600px only by
-        // coincidence and stranded every control mid-screen with ~2100px of
-        // empty panel beside it on an ultrawide monitor (audit 2026-07-29).
-        Flexible(
-          flex: controlFlex,
-          child: Align(alignment: Alignment.centerRight, child: trailing),
-        ),
-      ],
+    // The control takes what it needs, up to its [controlFlex] share of the
+    // row, and the title and description get the rest: a switch leaves the
+    // description the whole row to wrap in, not half of it. The cap gives a
+    // content-sized [Wrap] trailing (the Integrations plugin row's pill,
+    // Configure and switch) a finite width to wrap within.
+    //
+    // Align pins the control to the panel's right edge, where every control
+    // on the page lines up.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final share = (constraints.maxWidth - SkotiqTokens.space2xl) *
+            controlFlex /
+            (controlFlex + 1);
+        return Row(
+          children: [
+            Expanded(child: _label(context, colors)),
+            const SizedBox(width: SkotiqTokens.space2xl),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: math.max(0, share)),
+              child: Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 1,
+                child: trailing,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

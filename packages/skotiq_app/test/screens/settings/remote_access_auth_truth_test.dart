@@ -147,7 +147,7 @@ void main() {
           'nothing',
     );
     expect(
-      find.textContaining('a browser on this computer is not exempt'),
+      find.textContaining('A browser on this computer is not exempt'),
       findsOneWidget,
     );
     expect(
@@ -168,19 +168,17 @@ void main() {
       ),
     );
 
-    // Connection details is collapsed by default.
-    await tester.tap(find.textContaining('Connection details'));
     await tester.pumpAndSettle();
 
     final activeViewers = find.ancestor(
-      of: find.text('Active Viewers'),
+      of: find.text('Active viewers'),
       matching: find.byType(Row),
     );
     expect(activeViewers, findsWidgets);
     expect(
       find.descendant(of: activeViewers.first, matching: find.text('2')),
       findsOneWidget,
-      reason: 'Active Viewers must count the attached remote clients',
+      reason: 'Active viewers must count the attached remote clients',
     );
 
     final coImaging = find.ancestor(

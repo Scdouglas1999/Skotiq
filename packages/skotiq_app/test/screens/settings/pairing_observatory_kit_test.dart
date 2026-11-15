@@ -1,19 +1,16 @@
-// The pairing screen was the last route-only screen still on the Material
-// kit: a plain AppBar, two `Card`s, a full-width primary bar and Title Case
-// copy. Wave 4 puts it on the Observatory kit. These assertions pin the parts
-// a later edit is most likely to lose.
+// Pairing is a part of Settings > Remote access, in the Settings template:
 //
-//   1. one 56px PageHeader ("Pairing" / context "Remote connection"), no
-//      AppBar;
-//   2. panels, not Material Cards;
-//   3. exactly ONE primary button on the page (02 rule 4), and it is sized to
-//      its label rather than stretched across the page;
-//   4. the empty device list uses the single EmptyState pattern.
+//   1. two groups, "Pair a device" and "Paired devices", no page header or
+//      AppBar of its own;
+//   2. no primary button: a Settings page acts through its rows, and Start
+//      pairing is a secondary sized to its label;
+//   3. the empty device list uses the single EmptyState pattern.
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -30,46 +27,37 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       size: const Size(1280, 800),
       extraOverrides: [pairingProvider.overrideWith((ref) => notifier)],
     );
   }
 
-  testWidgets('wears the page header, not a Material AppBar', (tester) async {
-    await pumpPairing(tester);
-
-    expect(find.byType(AppBar), findsNothing,
-        reason: '04 §4 gives a screen one 56px page header');
-    final header = tester.widget<PageHeader>(find.byType(PageHeader));
-    expect(header.title, 'Pairing');
-    expect(header.context, 'Remote connection');
-  });
-
-  testWidgets('is built from panels with one primary, sized to its label',
+  testWidgets('is two Settings groups with no header of its own',
       (tester) async {
     await pumpPairing(tester);
 
-    expect(find.byType(SkotiqPanel), findsNWidgets(2),
-        reason: '"Pair new device" and "Paired devices" are panels');
-    expect(find.byType(Card), findsNothing,
-        reason: 'SkotiqPanel replaces Card for untappable containers');
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byType(PageHeader), findsNothing);
+    expect(find.byType(SettingsSection), findsNWidgets(2));
+    expect(find.text('PAIR A DEVICE'), findsOneWidget);
+    expect(find.text('PAIRED DEVICES'), findsOneWidget);
+    expect(find.byType(Card), findsNothing);
+  });
+
+  testWidgets('has no primary, and Start pairing is sized to its label',
+      (tester) async {
+    await pumpPairing(tester);
 
     final primaries = tester
         .widgetList<SkotiqButton>(find.byType(SkotiqButton))
-        .where((b) => b.variant == ButtonVariant.primary)
-        .toList();
-    expect(primaries.length, 1, reason: '02 rule 4: one primary per page');
-    expect(primaries.single.label, 'Start pairing');
+        .where((b) => b.variant == ButtonVariant.primary);
+    expect(primaries, isEmpty);
 
-    // It was a stretched bar spanning the whole page. A button that wide reads
-    // as a banner, so the fix is worth pinning: the rendered width must stay
-    // well under the page.
-    final width = tester
-        .getSize(find.widgetWithText(SkotiqButton, 'Start pairing'))
-        .width;
-    expect(width, lessThan(320),
-        reason: 'the primary is sized to its label, not to the page');
+    final start = find.widgetWithText(SkotiqButton, 'Start pairing');
+    expect(tester.widget<SkotiqButton>(start).variant,
+        ButtonVariant.secondary);
+    expect(tester.getSize(start).width, lessThan(320));
   });
 
   testWidgets('an empty device list uses the one empty-state pattern',

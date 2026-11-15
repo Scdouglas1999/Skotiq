@@ -2,313 +2,352 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../router/app_routes.dart';
+import '../../router/settings_sections.dart';
 import '../../utils/snackbar_helper.dart';
+import 'widgets/settings_widgets.dart';
 
 part 'pairing_screen_parts/_notifier.dart';
 part 'pairing_screen_parts/_dialogs_and_banners.dart';
 
-/// Pairing screen for managing remote connections
-class PairingScreen extends ConsumerWidget {
+/// The old `/pairing` page. Pairing lives in Settings > Remote access; this
+/// sends a link that still points here on to it.
+class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
+
+  @override
+  State<PairingScreen> createState() => _PairingScreenState();
+}
+
+class _PairingScreenState extends State<PairingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      GoRouter.maybeOf(context)
+          ?.go(AppRoutes.settings(SettingsSectionId.remoteAccess));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Settings > Remote access, "Pair a device" and "Paired devices": the code
+/// that lets a phone, tablet or browser in, and the devices already let in.
+class PairingSettings extends ConsumerWidget {
+  const PairingSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(pairingProvider);
+    final webState = ref.watch(webServerStateProvider);
     final l10n = context.l10n;
-
-    return Scaffold(
-      backgroundColor: SkotiqColors.of(context).background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // One 56px page header instead of a Material AppBar (04 §4): the
-            // route is pushed from Remote access, so the screen's identity is
-            // the title and the thing it belongs to is the context line.
-            PageHeader(
-              icon: SkotiqIcons.link,
-              title: l10n.text('pairingTitle'),
-              context: l10n.text('pairingContext'),
-              actions: <Widget>[
-                // The framework's back arrow carries a tooltip and no
-                // accessible NAME — read off the live tree, the only way off
-                // this page was an unnamed button. SkotiqIconButton
-                // requires the tooltip and publishes it as the control's name,
-                // so the node says what it is and how to press it.
-                if (Navigator.of(context).canPop())
-                  SkotiqIconButton(
-                    icon: SkotiqIcons.arrowLeft,
-                    tooltip: 'Back to Remote access',
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-              ],
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(SkotiqTokens.space2xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (state.error != null) ...[
-                      _PairingErrorBanner(
-                        message: state.error!,
-                        onDismiss: () =>
-                            ref.read(pairingProvider.notifier).clearError(),
-                      ),
-                      const SizedBox(height: SkotiqTokens.spaceLg),
-                    ],
-                    _buildPairingSection(context, ref, state),
-                    // Panel gap is spaceLg (03 §3.1), not the 32 this screen
-                    // used; 32 is the settings section gap, and these are two
-                    // panels on one page.
-                    const SizedBox(height: SkotiqTokens.spaceLg),
-                    _buildPairedDevicesSection(context, ref, state),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPairingSection(
-      BuildContext context, WidgetRef ref, PairingState state) {
-    final l10n = context.l10n;
-    final colors = SkotiqColors.of(context);
-    return SkotiqPanel(
-      head: PanelHead(
-        icon: SkotiqIcons.link,
-        label: l10n.text('pairingNewDeviceTitle'),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (state.lastPairedDevice != null) ...[
-            _PairedConfirmation(
-              device: state.lastPairedDevice!,
-              onDismiss: () =>
-                  ref.read(pairingProvider.notifier).clearLastPairedDevice(),
-            ),
-            const SizedBox(height: SkotiqTokens.spaceLg),
-          ],
-          if (state.pairingCode == null) ...[
-            Text(
-              l10n.text('pairingStartDesc'),
-              style:
-                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: SkotiqTokens.spaceMd),
-            // The page's ONE primary, sized to its label. It was a stretched
-            // full-width bar across a 1200px page — a button that wide reads
-            // as a banner, and 02 rule 4 gives the page one primary, not one
-            // primary per available pixel.
-            SkotiqButton(
-              label: l10n.text('pairingStartButton'),
-              icon: SkotiqIcons.link,
-              size: ButtonSize.small,
-              isLoading: state.isLoading,
-              onPressed: state.isLoading
-                  ? null
-                  : () => ref.read(pairingProvider.notifier).startPairing(),
-            ),
-          ] else ...[
-            _buildPairingCodeDisplay(context, ref, state),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPairingCodeDisplay(
-      BuildContext context, WidgetRef ref, PairingState state) {
-    final l10n = context.l10n;
-    final timeRemaining = state.timeRemaining;
-    final minutes = timeRemaining?.inMinutes ?? 0;
-    final seconds = (timeRemaining?.inSeconds ?? 0) % 60;
-
-    final colors = SkotiqColors.of(context);
+    final notifier = ref.read(pairingProvider.notifier);
+    final fingerprint = webState.serverFingerprint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-          // A well inside the panel — the deepest nesting the design language
-          // allows (02 rule 2). It was `primaryContainer`, a Material tone
-          // that has no place on the four-step tonal ladder.
-          decoration: BoxDecoration(
-            color: colors.well,
-            borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
-          ),
-          child: Column(
-            children: [
-              // Its own node. Bare Texts open no semantics boundary, so
-              // Flutter merged this line, the expiry line and the Cancel
-              // button's label into ONE node carrying the card's role: the
-              // live tree read `button: Pair New Device / Enter this code on
-              // your device: / Expires in 04:53 / Cancel Pairing` — a single
-              // "button" whose name was four unrelated sentences.
-              Semantics(
-                container: true,
-                child: Text(
-                  l10n.text('pairingEnterCode'),
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textSecondary),
+        SettingsSection(
+          title: 'Pair a device',
+          children: [
+            if (state.error case final error?)
+              SettingsItem(
+                child: SkotiqBanner(
+                  tone: BannerTone.error,
+                  title: l10n.text(error),
+                  onDismiss: notifier.clearError,
                 ),
               ),
-              const SizedBox(height: SkotiqTokens.spaceMd),
-              // Named for assistive tech, not just drawn. A [SelectableText]
-              // publishes its text as a semantic value; the live tree exposed
-              // "Enter this code on your device:" and "Expires in 04:55" with
-              // the code itself missing between them, so the only credential
-              // that has to be read aloud was the only thing that could not be.
-              Semantics(
-                container: true,
-                excludeSemantics: true,
-                label: 'Pairing code: ${state.pairingCode}',
-                child: SelectableText(
-                  state.pairingCode!,
-                  // The credential is the loudest thing in the panel: a
-                  // readout, mono and tabular by construction, instead of a
-                  // Material display style with an ad-hoc 'monospace' family
-                  // that resolved to whatever the platform had.
-                  style: SkotiqTypography.readoutLg.copyWith(
-                    color: colors.textPrimary,
-                    letterSpacing: SkotiqTokens.spaceXs,
+            if (state.lastPairedDevice case final device?)
+              SettingsItem(
+                child: SkotiqBanner(
+                  tone: BannerTone.success,
+                  title: '${device.deviceName} paired',
+                  onDismiss: notifier.clearLastPairedDevice,
+                ),
+              ),
+            if (state.pairingCode case final code?)
+              SettingsItem(
+                child: _PairingCodePanel(
+                  code: code,
+                  timeRemaining: state.timeRemaining,
+                  webState: webState,
+                  appVersion: ref.watch(appVersionProvider).version,
+                  busy: state.isLoading,
+                  onStop: notifier.cancelPairing,
+                ),
+              )
+            else
+              SettingRow(
+                icon: SkotiqIcons.link,
+                title: 'Pair a phone, tablet or browser',
+                subtitle: l10n.text('pairingStartDesc'),
+                trailing: SkotiqButton(
+                  label: l10n.text('pairingStartButton'),
+                  icon: SkotiqIcons.link,
+                  variant: ButtonVariant.secondary,
+                  size: ButtonSize.small,
+                  isLoading: state.isLoading,
+                  onPressed: state.isLoading ? null : notifier.startPairing,
+                ),
+              ),
+            if (fingerprint.isNotEmpty)
+              SettingRow(
+                icon: LucideIcons.fingerprint,
+                title: l10n.text('remoteAccessFingerprint'),
+                subtitle: 'The phone shows it too. Check that they match '
+                    'before you connect.',
+                trailing: SelectableText(
+                  shortServerFingerprint(fingerprint),
+                  style: SkotiqTypography.readoutSm.copyWith(
+                    color: SkotiqColors.of(context).textPrimary,
                   ),
                 ),
               ),
-              const SizedBox(height: SkotiqTokens.spaceSm),
-              // The copy control published NO accessible node at all — a bare
-              // IconButton's tooltip is not a name — and pressing it changed
-              // nothing the operator could see: two screenshots taken 3 s
-              // apart across the click were identical. It is now a named
-              // button that confirms in place.
-              _CopyCodeButton(code: state.pairingCode!),
-            ],
-          ),
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              SkotiqIcons.timer,
-              size: SkotiqTokens.iconGlyphPanelHead,
-              color: colors.textMuted,
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Semantics(
-              container: true,
-              child: Text(
-                l10n.text(
-                  'pairingExpiresIn',
-                  params: {
-                    'minutes': minutes.toString().padLeft(2, '0'),
-                    'seconds': seconds.toString().padLeft(2, '0'),
-                  },
-                ),
-                style: SkotiqTypography.monoCaption
-                    .copyWith(color: colors.textMuted),
-              ),
-            ),
           ],
         ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        // Sized to its label under the centred code, not stretched across the
-        // panel: while a code is live this is the only control here, and a
-        // full-width secondary reads as a second surface.
-        Align(
-          child: SkotiqButton(
-            label: l10n.text('pairingCancel'),
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.small,
-            isLoading: state.isLoading,
-            onPressed: state.isLoading
-                ? null
-                : () => ref.read(pairingProvider.notifier).cancelPairing(),
-          ),
-        ),
+        _PairedDevicesSection(state: state),
       ],
     );
   }
+}
 
-  Widget _buildPairedDevicesSection(
-      BuildContext context, WidgetRef ref, PairingState state) {
-    final l10n = context.l10n;
-    final colors = SkotiqColors.of(context);
-    return SkotiqPanel(
-      // The panel's own label row carries its actions (05 §2) instead of a
-      // headlineSmall title competing with the page header.
-      head: PanelHead(
-        icon: SkotiqIcons.device,
-        label: l10n.text('pairingDevicesTitle'),
-        trailing: <Widget>[
-          // Only offered when there is something to revoke: an always-present
-          // "Revoke all" on an empty list is a control that cannot do
-          // anything.
-          if (state.pairedDevices.isNotEmpty)
-            SkotiqButton(
-              label: l10n.text('pairingRevokeAllButton'),
-              icon: SkotiqIcons.shieldOff,
-              variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
-              onPressed: state.isLoading
-                  ? null
-                  : () => _showRevokeAllDialog(
-                        context,
-                        ref,
-                        state.pairedDevices,
-                      ),
-            ),
-          SkotiqIconButton(
-            icon: SkotiqIcons.refresh,
-            tooltip: l10n.text('pairingRefresh'),
-            onPressed: state.isLoading
-                ? null
-                : () => ref.read(pairingProvider.notifier).loadPairedDevices(),
-            size: IconButtonSize.sm,
-          ),
-        ],
-      ),
-      child: state.pairedDevices.isEmpty
-          // The one empty-state pattern (05 §12), not a 64px icon over two
-          // bare Texts. Padding is internal to EmptyState.
-          ? EmptyState.compact(
-              icon: SkotiqIcons.device,
-              title: l10n.text('pairingNoDevices'),
-              body: l10n.text('pairingNoDevicesDesc'),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (var i = 0;
-                    i < state.pairedDevices.length;
-                    i++) ...<Widget>[
-                  // A hairline between rows, never under the last one (05 §9).
-                  if (i > 0)
-                    Container(height: _rowHairline, color: colors.border),
-                  _buildDeviceListItem(
-                    context,
-                    ref,
-                    state.pairedDevices[i],
-                    enabled: !state.isLoading,
-                  ),
-                ],
-              ],
-            ),
+/// A live pairing code: the QR a phone scans, the code a browser asks for,
+/// how long it lasts, and the ways to copy it or stop.
+class _PairingCodePanel extends StatelessWidget {
+  const _PairingCodePanel({
+    required this.code,
+    required this.timeRemaining,
+    required this.webState,
+    required this.appVersion,
+    required this.busy,
+    required this.onStop,
+  });
+
+  final String code;
+  final Duration? timeRemaining;
+  final WebServerState webState;
+  final String appVersion;
+  final bool busy;
+  final VoidCallback onStop;
+
+  static const double _qrSize = 168;
+
+  /// The QR a phone scans, or null when this computer has no LAN address
+  /// to put in it: a phone cannot reach the computer's loopback.
+  String? get _qrPayload {
+    final host = webState.localIp;
+    if (!webState.isRunning ||
+        host.isEmpty ||
+        host == 'localhost' ||
+        host == '127.0.0.1') {
+      return null;
+    }
+    return EnhancedSkotiqDiscovery.generateQrData(
+      host: host,
+      webPort: webState.actualPort,
+      version: appVersion,
+      fingerprint: webState.serverFingerprint,
+      serverName: 'Skotiq',
+      mode: 'desktop',
+      authRequired: webState.requiresAuthentication,
+      authenticationMode: webState.requiresAuthentication ? 'token' : 'none',
+      pairingSupported: true,
+      pairingCode: code,
     );
   }
 
-  /// The 1px rule between paired-device rows.
-  static const double _rowHairline = 1;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colors = SkotiqColors.of(context);
+    final remaining = timeRemaining;
+    final expired = remaining != null && remaining <= Duration.zero;
+    final qr = _qrPayload;
+
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Its own node, so the instruction, the code and the expiry are
+        // three things to a screen reader and not one run-on button name.
+        Semantics(
+          container: true,
+          child: Text(
+            qr == null
+                ? l10n.text('pairingEnterCode')
+                : 'Scan the QR code with the Skotiq app, or enter this code:',
+            style: SkotiqTypography.bodySm.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        // The code is named for assistive tech: a SelectableText publishes
+        // its text as a value, not a name, and the code is the one thing
+        // that has to be read aloud.
+        Semantics(
+          container: true,
+          excludeSemantics: true,
+          label: 'Pairing code: $code',
+          // One line at any width: a code broken at its hyphens reads as
+          // two codes.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: SelectableText(
+              code,
+              maxLines: 1,
+              style: SkotiqTypography.readoutLg.copyWith(
+                color: colors.textPrimary,
+                letterSpacing: SkotiqTokens.spaceXs,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        Semantics(
+          container: true,
+          child: Text(
+            remaining == null
+                ? 'Works for a few minutes.'
+                : l10n.text(
+                    'pairingExpiresIn',
+                    params: {
+                      'minutes': remaining.inMinutes.toString().padLeft(2, '0'),
+                      'seconds':
+                          (remaining.inSeconds % 60).toString().padLeft(2, '0'),
+                    },
+                  ),
+            style: SkotiqTypography.monoCaption.copyWith(
+              color: expired ? colors.warning : colors.textMuted,
+            ),
+          ),
+        ),
+        if (webState.isRunning && qr == null) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Text(
+            l10n.text('remoteAccessQrNoLanIp'),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.warning),
+          ),
+        ],
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        Wrap(
+          spacing: SkotiqTokens.spaceSm,
+          runSpacing: SkotiqTokens.spaceSm,
+          children: [
+            _CopyCodeButton(code: code),
+            SkotiqButton(
+              label: l10n.text('pairingCancel'),
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              isLoading: busy,
+              onPressed: busy ? null : onStop,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    if (qr == null) return details;
+    final qrImage = QrImageView(
+      data: qr,
+      size: _qrSize,
+      backgroundColor: ImageOverlayColors.foreground,
+      semanticsLabel:
+          'Skotiq pairing QR for ${webState.localIp}:${webState.actualPort}',
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _qrSize * 2.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              qrImage,
+              const SizedBox(height: SkotiqTokens.spaceLg),
+              details,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            qrImage,
+            const SizedBox(width: SkotiqTokens.space2xl),
+            Expanded(child: details),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// The "Paired devices" group: every device let in, what it may do, when it
+/// was last seen, and the way to rename, revoke or delete it.
+class _PairedDevicesSection extends ConsumerWidget {
+  const _PairedDevicesSection({required this.state});
+
+  final PairingState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.text('pairingDevicesTitle'),
+      trailing: [
+        // Only offered when there is something to revoke.
+        if (state.pairedDevices.isNotEmpty)
+          SkotiqButton(
+            label: l10n.text('pairingRevokeAllButton'),
+            icon: SkotiqIcons.shieldOff,
+            variant: ButtonVariant.ghost,
+            size: ButtonSize.small,
+            onPressed: state.isLoading
+                ? null
+                : () => _showRevokeAllDialog(context, ref, state.pairedDevices),
+          ),
+        SkotiqIconButton(
+          icon: SkotiqIcons.refresh,
+          tooltip: l10n.text('pairingRefresh'),
+          size: IconButtonSize.sm,
+          onPressed: state.isLoading
+              ? null
+              : () => ref.read(pairingProvider.notifier).loadPairedDevices(),
+        ),
+      ],
+      children: [
+        if (state.pairedDevices.isEmpty)
+          SettingsItem(
+            child: EmptyState.compact(
+              icon: SkotiqIcons.device,
+              title: l10n.text('pairingNoDevices'),
+              body: l10n.text('pairingNoDevicesDesc'),
+            ),
+          )
+        else
+          for (final device in state.pairedDevices)
+            SettingsItem(
+              child: _buildDeviceListItem(
+                context,
+                ref,
+                device,
+                enabled: !state.isLoading,
+              ),
+            ),
+      ],
+    );
+  }
 
   Widget _buildDeviceListItem(
     BuildContext context,
@@ -319,155 +358,132 @@ class PairingScreen extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final statusText = _deviceStatus(device);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: SkotiqTokens.spaceMd,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // A list row's leading icon is a 15px muted glyph (05 §9), not a
-          // 44px accent tile — the tile was the loudest thing in a list whose
-          // subject is the device NAME.
-          Padding(
-            padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs / 2),
-            child: Icon(
-              _getDeviceIcon(device.deviceType),
-              size: SkotiqTokens.iconGlyphPanelHead,
-              color: colors.textMuted,
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs / 2),
+          child: Icon(
+            _getDeviceIcon(device.deviceType),
+            size: SkotiqTokens.iconGlyphPanelHead,
+            color: colors.textMuted,
           ),
-          const SizedBox(width: SkotiqTokens.spaceMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        device.deviceName,
-                        style: SkotiqTypography.bodyStrong
-                            .copyWith(color: colors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+        ),
+        const SizedBox(width: SkotiqTokens.spaceMd),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      device.deviceName,
+                      style: SkotiqTypography.bodyStrong
+                          .copyWith(color: colors.textPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    // The kit chip, not a bespoke pill: radiusFull is not on
-                    // the radius scale (02 "not rounded-everything"), and the
-                    // tone fill is the chip's job.
-                    SkotiqChip(
-                      label: statusText,
-                      tone: _deviceStatusTone(device),
-                      dot: true,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: SkotiqTokens.spaceXs),
-                Wrap(
-                  spacing: SkotiqTokens.spaceSm,
-                  runSpacing: SkotiqTokens.spaceXs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      _deviceTypeLabel(device.deviceType),
-                      style: SkotiqTypography.labelSm
-                          .copyWith(color: colors.textMuted),
-                    ),
-                    // What this token is allowed to DO. The host has always
-                    // stored it (paired_devices.auth_grant_spec) and the list
-                    // never showed it, so a row holding 'admin' looked exactly
-                    // like a view-only one — and revoking is the moment you
-                    // most need to know which is which.
-                    _AccessBadge(grantSpec: device.authGrantSpec),
-                  ],
-                ),
-                const SizedBox(height: SkotiqTokens.spaceSm),
-                // Timestamps are muted (03 §1.1), not body-secondary: they are
-                // the quietest thing in the row, under the name and the chip.
-                Text(
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  SkotiqChip(
+                    label: statusText,
+                    tone: _deviceStatusTone(device),
+                    dot: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: SkotiqTokens.spaceXs),
+              Wrap(
+                spacing: SkotiqTokens.spaceSm,
+                runSpacing: SkotiqTokens.spaceXs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    _deviceTypeLabel(device.deviceType),
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textMuted),
+                  ),
+                  // What this token may do: revoking is the moment it
+                  // matters which row holds full access.
+                  _AccessBadge(grantSpec: device.authGrantSpec),
+                ],
+              ),
+              const SizedBox(height: SkotiqTokens.spaceXs),
+              Text(
+                [
                   context.l10n.text(
                     'pairingPairedAt',
                     params: {'time': _formatDate(context, device.pairedAt)},
                   ),
-                  style: SkotiqTypography.caption.copyWith(
-                    color: colors.textMuted,
-                  ),
-                ),
-                Text(
-                  device.lastConnectedAt != null
-                      ? context.l10n.text(
-                          'pairingLastConnected',
-                          params: {
-                            'time':
-                                _formatDate(context, device.lastConnectedAt!),
-                          },
-                        )
-                      // Deliberately about the RECORD, not about the device:
-                      // the host only stamps this on a fresh token
-                      // verification, so a device that connects every night can
-                      // legitimately have no entry here.
-                      : 'No connection recorded yet',
-                  style: SkotiqTypography.caption.copyWith(
-                    color: colors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            enabled: enabled,
-            tooltip: 'Device actions',
-            icon: Icon(
-              SkotiqIcons.more,
-              size: SkotiqTokens.iconGlyphPanelHead,
-              color: colors.textMuted,
-            ),
-            onSelected: (value) {
-              if (value == 'rename') {
-                _showRenameDialog(context, ref, device);
-              } else if (value == 'revoke') {
-                _showRevokeDialog(context, ref, device);
-              } else if (value == 'delete') {
-                _showDeleteDialog(context, ref, device);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'rename',
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.pencil),
-                    const SizedBox(width: 8),
-                    Text(context.l10n.text('pairingRenameDevice')),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'revoke',
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.ban),
-                    const SizedBox(width: 8),
-                    Text(context.l10n.text('pairingRevokeAccess')),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    const Icon(SkotiqIcons.delete),
-                    const SizedBox(width: 8),
-                    Text(context.l10n.text('pairingDeleteDevice')),
-                  ],
-                ),
+                  if (device.lastConnectedAt case final seen?)
+                    context.l10n.text(
+                      'pairingLastConnected',
+                      params: {'time': _formatDate(context, seen)},
+                    )
+                  else
+                    // About the record, not the device: the host stamps this
+                    // only on a fresh token check, so a device that connects
+                    // every night can have no entry.
+                    'No connection recorded yet',
+                ].join(' · '),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        PopupMenuButton<String>(
+          enabled: enabled,
+          tooltip: 'Device actions',
+          icon: Icon(
+            SkotiqIcons.more,
+            size: SkotiqTokens.iconGlyphPanelHead,
+            color: colors.textMuted,
+          ),
+          onSelected: (value) {
+            if (value == 'rename') {
+              _showRenameDialog(context, ref, device);
+            } else if (value == 'revoke') {
+              _showRevokeDialog(context, ref, device);
+            } else if (value == 'delete') {
+              _showDeleteDialog(context, ref, device);
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'rename',
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.pencil),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Text(context.l10n.text('pairingRenameDevice')),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'revoke',
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.ban),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Text(context.l10n.text('pairingRevokeAccess')),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  const Icon(SkotiqIcons.delete),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Text(context.l10n.text('pairingDeleteDevice')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -611,7 +627,7 @@ class PairingScreen extends ConsumerWidget {
       confirmKey: 'pairingRevokeAccess',
       errorKey: 'pairingErrorRevoke',
       device: device,
-      variant: ButtonVariant.primary,
+      variant: ButtonVariant.destructive,
       action: () =>
           ref.read(pairingProvider.notifier).revokeDevice(device.deviceId),
     );
@@ -703,20 +719,20 @@ class PairingScreen extends ConsumerWidget {
         return StatefulBuilder(
           builder: (context, setDialogState) => PopScope(
             canPop: !busy,
-            child: AlertDialog(
-              title: Text(context.l10n.text(titleKey)),
-              content: Text(body),
+            child: SkotiqDialog(
+              title: context.l10n.text(titleKey),
+              width: SkotiqDialog.widthConfirm,
+              closeEnabled: !busy,
+              onClose: () => Navigator.of(context).pop(),
               actions: [
                 SkotiqButton(
                   label: context.l10n.text('cancel'),
                   variant: ButtonVariant.ghost,
-                  size: ButtonSize.small,
                   onPressed: busy ? null : () => Navigator.of(context).pop(),
                 ),
                 SkotiqButton(
                   label: context.l10n.text(confirmKey),
                   variant: variant,
-                  size: ButtonSize.small,
                   isLoading: busy,
                   onPressed: busy
                       ? null
@@ -735,6 +751,12 @@ class PairingScreen extends ConsumerWidget {
                         },
                 ),
               ],
+              child: Text(
+                body,
+                style: SkotiqTypography.body.copyWith(
+                  color: SkotiqColors.of(context).textSecondary,
+                ),
+              ),
             ),
           ),
         );
@@ -799,17 +821,14 @@ class _CopyCodeButtonState extends State<_CopyCodeButton> {
     final label =
         _copied ? l10n.text('pairingCodeCopied') : l10n.text('pairingCopyCode');
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Filled, not ghost. A ghost button paints no fill until hover, so its
-        // label's contrast depends on whatever card it is dropped onto — on
-        // `primaryContainer` a `textSecondary` label measures 1.15:1 and the
-        // one affordance for the credential reads as disabled. A filled variant
-        // carries its own background.
+        // Secondary, not ghost: a ghost button paints no fill until hover,
+        // and this is the one control for the credential.
         SkotiqButton(
           label: label,
           icon: _copied ? SkotiqIcons.success : SkotiqIcons.copy,
-          variant: ButtonVariant.primary,
+          variant: ButtonVariant.secondary,
           size: ButtonSize.small,
           onPressed: _copy,
         ),

@@ -6,6 +6,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../tours/tour_target.dart';
+import 'profile_glyph.dart';
 import 'profile_scan_notice.dart';
 
 /// Footer action that switches the app to the selected profile for this
@@ -49,6 +50,10 @@ class ProfileSidebar extends ConsumerWidget {
   /// global keys, so only the Equipment screen's own list may hold them.
   final bool tutorialTargets;
 
+  /// The selected profile's editor is open beside this list, so the footer
+  /// offers no Edit button of its own.
+  final bool editorBeside;
+
   const ProfileSidebar({
     super.key,
     required this.selectedProfileId,
@@ -66,6 +71,7 @@ class ProfileSidebar extends ConsumerWidget {
     this.onImportProfiles,
     this.onExportProfile,
     this.tutorialTargets = true,
+    this.editorBeside = false,
   });
 
   @override
@@ -114,7 +120,11 @@ class ProfileSidebar extends ConsumerWidget {
                     activeProfileId,
                   ),
           ),
-          if (selectedProfile != null)
+          if (selectedProfile != null &&
+              (!editorBeside ||
+                  selectedProfile.id != activeProfileId ||
+                  hasConnectedDevices ||
+                  hasDisconnectedDevices))
             _buildFooter(
               context,
               colors,
@@ -272,15 +282,18 @@ class ProfileSidebar extends ConsumerWidget {
           // Selecting a row does not switch rigs — this does. Kept separate
           // from the default-profile star, which decides what loads at
           // startup and must not move just because you looked at another rig.
+          //
+          // Secondary, like every action here: the page's one primary is the
+          // editor's Save, or on the Devices tab the header's Connect all.
           if (!isActive) ...[
             SkotiqButton(
               key: profileSidebarActivateButtonKey,
               label: 'Use this profile',
               icon: LucideIcons.check,
-              variant: ButtonVariant.primary,
+              variant: ButtonVariant.secondary,
               onPressed: () => onActivateProfile(selectedProfile),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: SkotiqTokens.spaceSm),
           ],
           if (hasDisconnectedDevices) ...[
             ProfileScanNotice(
@@ -295,13 +308,10 @@ class ProfileSidebar extends ConsumerWidget {
                   : null,
               label: 'Connect all',
               icon: LucideIcons.plug,
-              // Two primaries side by side is no emphasis at all: on a profile
-              // that is not in use yet, switching to it is the first move.
-              variant:
-                  isActive ? ButtonVariant.primary : ButtonVariant.secondary,
+              variant: ButtonVariant.secondary,
               onPressed: () => onConnectAll(selectedProfile),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: SkotiqTokens.spaceSm),
           ],
           if (hasConnectedDevices) ...[
             SkotiqButton(
@@ -310,14 +320,15 @@ class ProfileSidebar extends ConsumerWidget {
               variant: ButtonVariant.ghost,
               onPressed: onDisconnectAll,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: SkotiqTokens.spaceSm),
           ],
-          SkotiqButton(
-            label: 'Edit profile',
-            icon: LucideIcons.pencil,
-            variant: ButtonVariant.ghost,
-            onPressed: () => onEditProfile(selectedProfile),
-          ),
+          if (!editorBeside)
+            SkotiqButton(
+              label: 'Edit profile',
+              icon: LucideIcons.pencil,
+              variant: ButtonVariant.ghost,
+              onPressed: () => onEditProfile(selectedProfile),
+            ),
         ],
       ),
     );
@@ -641,23 +652,11 @@ class _ProfileCardState extends State<_ProfileCard>
                 children: [
                   Row(
                     children: [
-                      // Profile glyph. The stored emoji is a user choice and
-                      // is honoured; the DEFAULT is an icon, never the
-                      // telescope emoji 06 §Equipment removes.
-                      if (widget.profile.profileIcon != null &&
-                          widget.profile.profileIcon!.isNotEmpty)
-                        Text(
-                          widget.profile.profileIcon!,
-                          style: SkotiqTypography.body.copyWith(
-                            color: profileColor,
-                          ),
-                        )
-                      else
-                        Icon(
-                          LucideIcons.aperture,
-                          size: SkotiqTokens.iconSm,
-                          color: profileColor,
-                        ),
+                      Icon(
+                        profileIconFor(widget.profile.profileIcon),
+                        size: SkotiqTokens.iconSm,
+                        color: profileColor,
+                      ),
                       const SizedBox(width: SkotiqTokens.spaceSm),
 
                       Expanded(

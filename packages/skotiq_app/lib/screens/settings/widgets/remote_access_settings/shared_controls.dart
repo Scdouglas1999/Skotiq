@@ -14,158 +14,90 @@ class _PortRangeFormatter extends TextInputFormatter {
   }
 }
 
-class _RemoteAccessNoticeCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String body;
-
-  const _RemoteAccessNoticeCard({
-    required this.icon,
-    required this.iconColor,
+/// One way to open the dashboard: what it is, the link, and the buttons that
+/// open or copy it.
+class _DashboardLinkRow extends StatelessWidget {
+  const _DashboardLinkRow({
     required this.title,
-    required this.body,
+    required this.description,
+    required this.url,
+    required this.actions,
   });
+
+  final String title;
+  final String description;
+  final String url;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.well,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
+    final narrow = SettingsFormScope.narrowOf(context);
+    final buttons = Wrap(
+      spacing: SkotiqTokens.spaceSm,
+      runSpacing: SkotiqTokens.spaceSm,
+      children: actions,
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: SettingsItem.titleStyle(context)),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        Text(
+          description,
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        SelectableText(
+          url,
+          style: SkotiqTypography.readoutSm.copyWith(color: colors.textPrimary),
+        ),
+      ],
+    );
+    return SettingsItem(
+      child: narrow
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: SkotiqTypography.labelStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  body,
-                  style: SkotiqTypography.caption.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
+                text,
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                buttons,
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: text),
+                const SizedBox(width: SkotiqTokens.space2xl),
+                buttons,
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _AccessActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final String url;
-  final String primaryLabel;
-  final IconData primaryIcon;
-  final VoidCallback onPrimary;
-  final String secondaryLabel;
-  final IconData secondaryIcon;
-  final VoidCallback onSecondary;
-
-  const _AccessActionCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.url,
-    required this.primaryLabel,
-    required this.primaryIcon,
-    required this.onPrimary,
-    required this.secondaryLabel,
-    required this.secondaryIcon,
-    required this.onSecondary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: colors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: SkotiqTypography.labelStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colors.well,
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-            ),
-            child: SelectableText(
-              url,
-              style: SkotiqTypography.readoutSm.copyWith(
-                color: colors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              SkotiqButton(
-                label: primaryLabel,
-                icon: primaryIcon,
-                variant: ButtonVariant.primary,
-                size: ButtonSize.small,
-                onPressed: onPrimary,
-              ),
-              SkotiqButton(
-                label: secondaryLabel,
-                icon: secondaryIcon,
-                variant: ButtonVariant.secondary,
-                size: ButtonSize.small,
-                onPressed: onSecondary,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+/// Look up a localization [key], falling back to [fallback] when the key is
+/// not present in the active locale's table.
+///
+/// [SkotiqLocalizations.text] returns the *key itself* for an unknown key
+/// (see its `?? key` tail). The Tailscale strings introduced here are new and
+/// may not yet exist in every `skotiq_localizations.dart` table; routing
+/// them through this helper keeps the i18n contract live — a translator who
+/// adds the key later wins automatically — while guaranteeing we never render a
+/// raw `remoteAccessTailscale…` identifier to the operator. [params] tokens are
+/// substituted into whichever string is used.
+String _l10nOr(
+  SkotiqLocalizations l10n,
+  String key,
+  String fallback, {
+  Map<String, String> params = const {},
+}) {
+  final resolved = l10n.text(key, params: params);
+  if (resolved != key) {
+    return resolved;
   }
+  var value = fallback;
+  params.forEach((paramKey, paramValue) {
+    value = value.replaceAll('{$paramKey}', paramValue);
+  });
+  return value;
 }

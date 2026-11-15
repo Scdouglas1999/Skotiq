@@ -99,7 +99,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       extraOverrides: [
         pairingProvider.overrideWith((ref) => notifier),
       ],
@@ -110,7 +110,7 @@ void main() {
     await tester.tap(find.text('Delete device').last);
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     await tester.tap(
       find.widgetWithText(SkotiqButton, 'Delete device'),
     );
@@ -121,12 +121,12 @@ void main() {
     // known yet.
     await tester.binding.handlePopRoute();
     await tester.pump();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
 
     notifier.deleteCompletion.complete(false);
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     expect(
       find.text('Skotiq could not delete that paired device.'),
       findsOneWidget,
@@ -134,6 +134,6 @@ void main() {
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'Cancel'));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
   });
 }

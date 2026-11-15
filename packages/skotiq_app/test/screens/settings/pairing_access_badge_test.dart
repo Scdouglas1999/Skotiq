@@ -47,7 +47,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const PairingScreen(),
+      const SingleChildScrollView(child: PairingSettings()),
       size: const Size(1200, 1600),
       extraOverrides: [
         pairingProvider.overrideWith((ref) => notifier),

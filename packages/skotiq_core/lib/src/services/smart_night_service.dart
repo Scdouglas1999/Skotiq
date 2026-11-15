@@ -486,7 +486,7 @@ class SmartNightService {
       throw SmartNightBuildException(
         'None of the selected targets had a usable imaging window inside '
         'the dark window (sunset → sunrise): none clears '
-        '${_floor.followsHorizon ? 'your horizon (Settings → Location)' : 'the minimum altitude (${_floor.minimumDeg.toStringAsFixed(0)}°, Plan Tonight → Schedule)'} '
+        '${_floor.followsHorizon ? 'your horizon (Settings → Location)' : 'the minimum altitude (${_floor.minimumDeg.toStringAsFixed(0)}°, Plan > Targets, Autopilot settings)'} '
         'for long enough. Select different targets.',
       );
     }

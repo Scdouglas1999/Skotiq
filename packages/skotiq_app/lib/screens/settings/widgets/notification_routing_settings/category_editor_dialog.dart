@@ -68,260 +68,257 @@ class _CategoryEditorDialogState extends State<_CategoryEditorDialog> {
   @override
   Widget build(BuildContext context) {
     final c = SkotiqColors.of(context);
-    final dialog = AlertDialog(
-      backgroundColor: c.surface,
-      title: Text(
-        widget.category.label,
-        style: SkotiqTypography.buttonLg.copyWith(
-          color: c.textPrimary,
-        ),
-      ),
-      content: SizedBox(
-        width: dialogMaxWidth(context, 480),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  SkotiqSwitch(
-                    value: _enabled,
-                    onChanged: (v) => setState(() => _enabled = v),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Rule enabled',
-                      style: SkotiqTypography.body.copyWith(
-                        color: c.textPrimary,
-                      )),
+    final unconfigured = _unconfiguredSelection;
+    return PopScope(
+      canPop: !_saving,
+      child: SkotiqDialog(
+        title: widget.category.label,
+        width: SkotiqDialog.widthConfirm,
+        closeEnabled: !_saving,
+        onClose: () => Navigator.of(context).pop(),
+        actions: [
+          SkotiqButton(
+            label: 'Cancel',
+            variant: ButtonVariant.ghost,
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          ),
+          SkotiqButton(
+            label: 'Save',
+            isLoading: _saving,
+            onPressed: _saving ? null : _save,
+          ),
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_validationError != null) ...[
+              SkotiqBanner(tone: BannerTone.error, title: _validationError!),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+            ],
+            SkotiqSwitchRow(
+              label: 'Send this event',
+              subtitle: 'Off, it is not sent anywhere.',
+              value: _enabled,
+              onChanged: (v) => setState(() => _enabled = v),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            Text(
+              'SEND TO',
+              style: SkotiqTypography.eyebrow.copyWith(color: c.textMuted),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            for (final t in NotificationTransportKind.values)
+              _TransportChoice(
+                label: _transportLabel(t, widget.configuredTransports),
+                selected: _selectedTransports.contains(t),
+                onChanged: (v) => setState(() {
+                  if (v) {
+                    _selectedTransports.add(t);
+                  } else {
+                    _selectedTransports.remove(t);
+                  }
+                }),
+              ),
+            if (_selectedTransports.isEmpty)
+              _note('Nothing picked: it shows only in the app.', c.textMuted),
+            if (unconfigured.isNotEmpty)
+              _note(
+                '${unconfigured.map((t) => t.label).join(', ')} '
+                '${unconfigured.length == 1 ? 'is' : 'are'} not set up, so '
+                'this event will not reach you there. Set '
+                '${unconfigured.length == 1 ? 'it' : 'them'} up on the '
+                'Notifications page.',
+                c.warning,
+              ),
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            FormRow(
+              label: 'Severity',
+              labelWidth: _labelWidth,
+              child: SkotiqDropdown(
+                value: _minSeverity.name,
+                items: [for (final s in EventSeverity.values) s.name],
+                itemLabels: [
+                  for (final s in EventSeverity.values) _severityLabel(s),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Text('Transports',
-                  style: SkotiqTypography.body.copyWith(
-                    color: c.textSecondary,
-                  )),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: NotificationTransportKind.values.map((t) {
-                  final selected = _selectedTransports.contains(t);
-                  return FilterChip(
-                    label:
-                        Text(_transportLabel(t, widget.configuredTransports)),
-                    selected: selected,
-                    onSelected: (v) => setState(() {
-                      if (v) {
-                        _selectedTransports.add(t);
-                      } else {
-                        _selectedTransports.remove(t);
-                      }
-                    }),
-                  );
-                }).toList(),
-              ),
-              if (_selectedTransports.isEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'No transports selected — defaulting to in-app only.',
-                  style: SkotiqTypography.captionSm.copyWith(
-                    color: c.textMuted,
-                  ),
-                ),
-              ],
-              if (_unconfiguredSelection.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '${_unconfiguredSelection.map((t) => t.label).join(', ')} '
-                  '${_unconfiguredSelection.length == 1 ? 'is' : 'are'} not '
-                  'configured, so this rule will not reach you there. Set the '
-                  'credentials up under Transports below.',
-                  style: SkotiqTypography.captionSm.copyWith(
-                    color: c.warning,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              Text('Minimum severity',
-                  style: SkotiqTypography.body.copyWith(
-                    color: c.textSecondary,
-                  )),
-              const SizedBox(height: 6),
-              AccessibleDropdown<EventSeverity>(
-                value: _minSeverity,
-                isDense: true,
-                items: EventSeverity.values
-                    .map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(s.name),
-                        ))
-                    .toList(),
                 onChanged: (v) {
-                  if (v != null) setState(() => _minSeverity = v);
+                  final picked = EventSeverity.values
+                      .where((s) => s.name == v)
+                      .firstOrNull;
+                  if (picked != null) setState(() => _minSeverity = picked);
                 },
               ),
-              const SizedBox(height: 12),
-              _numericField(
-                label: 'Max per hour (0 = unlimited)',
-                controller: _maxPerHourController,
-              ),
-              const SizedBox(height: 12),
-              _numericField(
-                label: 'Debounce seconds (0 = none)',
-                controller: _debounceController,
-              ),
-              const SizedBox(height: 12),
-              Text('Title template (empty = default)',
-                  style: SkotiqTypography.body.copyWith(
-                    color: c.textSecondary,
-                  )),
-              const SizedBox(height: 6),
-              TextField(
+            ),
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: 'At most',
+              labelWidth: _labelWidth,
+              help: '0 sends every one.',
+              child: _numberField(_maxPerHourController, 'per hour'),
+            ),
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: 'Wait',
+              labelWidth: _labelWidth,
+              help: 'Repeats inside this time are dropped. 0 drops none.',
+              child: _numberField(_debounceController, 's'),
+            ),
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: 'Title',
+              labelWidth: _labelWidth,
+              child: SkotiqTextField(
                 controller: _titleTemplateController,
-                style: SkotiqTypography.body.copyWith(
-                  color: c.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: r'e.g. ${target.name} done',
-                ),
+                hint: r'Default, or e.g. ${target.name} done',
               ),
-              const SizedBox(height: 12),
-              Text('Body template (empty = default)',
-                  style: SkotiqTypography.body.copyWith(
-                    color: c.textSecondary,
-                  )),
-              const SizedBox(height: 6),
-              TextField(
+            ),
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: 'Message',
+              labelWidth: _labelWidth,
+              help: 'Preview: ${_previewBody()}',
+              child: SkotiqTextField(
                 controller: _bodyTemplateController,
                 maxLines: 3,
-                style: SkotiqTypography.body.copyWith(
-                  color: c.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: r'e.g. Finished ${target.name} at ${time.local}',
-                ),
+                hint: r'Default, or e.g. Finished ${target.name}',
+                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 6),
-              Text('Live preview:',
-                  style: SkotiqTypography.captionSm.copyWith(
-                    color: c.textMuted,
-                  )),
-              const SizedBox(height: 4),
-              Text(
-                _previewBody(),
-                style: SkotiqTypography.caption.copyWith(
-                  color: c.textPrimary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              if (_validationError != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _validationError!,
-                  style: SkotiqTypography.caption.copyWith(
-                    color: c.error,
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: _saving
-              ? null
-              : () async {
-                  final maxPerHour = _parseNonNegativeIntField(
-                    _maxPerHourController.text,
-                    label: 'Max per hour',
-                  );
-                  if (maxPerHour.error != null) {
-                    setState(() => _validationError = maxPerHour.error);
-                    return;
-                  }
-                  final debounce = _parseNonNegativeIntField(
-                    _debounceController.text,
-                    label: 'Debounce seconds',
-                  );
-                  if (debounce.error != null) {
-                    setState(() => _validationError = debounce.error);
-                    return;
-                  }
-                  final updated = NotificationRoutingRule(
-                    transports: _selectedTransports.isEmpty
-                        ? const [NotificationTransportKind.inApp]
-                        : _selectedTransports.toList(),
-                    minSeverity: _minSeverity,
-                    maxPerHour: maxPerHour.value!,
-                    debounceSeconds: debounce.value!,
-                    titleTemplate: _titleTemplateController.text.trim().isEmpty
-                        ? null
-                        : _titleTemplateController.text,
-                    bodyTemplate: _bodyTemplateController.text.trim().isEmpty
-                        ? null
-                        : _bodyTemplateController.text,
-                    enabled: _enabled,
-                  );
-                  setState(() {
-                    _saving = true;
-                    _validationError = null;
-                  });
-                  try {
-                    await widget.onSave(updated);
-                    if (context.mounted) Navigator.of(context).pop();
-                  } catch (_) {
-                    if (mounted) {
-                      setState(() {
-                        _saving = false;
-                        _validationError =
-                            'Could not save this routing rule. Please try again.';
-                      });
-                    }
-                  }
-                },
-          child: Text(_saving ? 'Saving…' : 'Save'),
-        ),
-      ],
     );
-    return PopScope(canPop: !_saving, child: dialog);
   }
 
-  Widget _numericField(
-      {required String label, required TextEditingController controller}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(label,
-              style: SkotiqTypography.body.copyWith(
-                color: SkotiqColors.of(context).textSecondary,
-              )),
+  static const double _labelWidth = 96;
+
+  Widget _note(String text, Color color) => Padding(
+        padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+        child: Text(
+          text,
+          style: SkotiqTypography.bodySm.copyWith(color: color),
         ),
-        SizedBox(
-          width: 80,
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            style: SkotiqTypography.body.copyWith(
-              color: SkotiqColors.of(context).textPrimary,
-            ),
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
+      );
+
+  Widget _numberField(TextEditingController controller, String unit) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        width: 120,
+        child: SkotiqTextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          suffix: unit,
+          mono: true,
         ),
-      ],
+      ),
     );
+  }
+
+  static String _severityLabel(EventSeverity severity) => switch (severity) {
+        EventSeverity.info => 'Any',
+        EventSeverity.warning => 'Warning and worse',
+        EventSeverity.error => 'Error and worse',
+        EventSeverity.critical => 'Critical only',
+      };
+
+  Future<void> _save() async {
+    final maxPerHour = _parseNonNegativeIntField(
+      _maxPerHourController.text,
+      label: 'At most per hour',
+    );
+    if (maxPerHour.error != null) {
+      setState(() => _validationError = maxPerHour.error);
+      return;
+    }
+    final debounce = _parseNonNegativeIntField(
+      _debounceController.text,
+      label: 'Wait',
+    );
+    if (debounce.error != null) {
+      setState(() => _validationError = debounce.error);
+      return;
+    }
+    final updated = NotificationRoutingRule(
+      transports: _selectedTransports.isEmpty
+          ? const [NotificationTransportKind.inApp]
+          : _selectedTransports.toList(),
+      minSeverity: _minSeverity,
+      maxPerHour: maxPerHour.value!,
+      debounceSeconds: debounce.value!,
+      titleTemplate: _titleTemplateController.text.trim().isEmpty
+          ? null
+          : _titleTemplateController.text,
+      bodyTemplate: _bodyTemplateController.text.trim().isEmpty
+          ? null
+          : _bodyTemplateController.text,
+      enabled: _enabled,
+    );
+    setState(() {
+      _saving = true;
+      _validationError = null;
+    });
+    try {
+      await widget.onSave(updated);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _validationError =
+              'Could not save: ${userFacingError(error)}. Try again.';
+        });
+      }
+    }
   }
 
   String _previewBody() {
     final tpl = _bodyTemplateController.text.trim();
-    if (tpl.isEmpty) return '(default template)';
+    if (tpl.isEmpty) return 'the default message';
     return previewInterpolation(tpl);
+  }
+}
+
+/// One place an event can be sent, as a checkbox row.
+class _TransportChoice extends StatelessWidget {
+  const _TransportChoice({
+    required this.label,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => onChanged(!selected),
+        borderRadius: SkotiqTokens.borderRadiusSm,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
+          child: Row(
+            children: [
+              SkotiqCheckbox(
+                value: selected,
+                onChanged: (v) => onChanged(v ?? false),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  label,
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -106,98 +106,82 @@ class _RemoteTailscalePanelState extends ConsumerState<_RemoteTailscalePanel> {
     final host = _effectiveTailscaleHost;
     final qrPayload = _buildQrPayload(host);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-        border: Border.all(color: colors.border),
+    return SettingsSection(
+      title: _l10nOr(
+        l10n,
+        'remoteAccessTailscaleTitle',
+        'Reach this rig over Tailscale',
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      children: [
+        SettingsItem(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(LucideIcons.globe2, size: 16, color: colors.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _l10nOr(
-                    l10n,
-                    'remoteAccessTailscaleTitle',
-                    'Reach this rig over Tailscale',
-                  ),
-                  style: SkotiqTypography.labelStrong
-                      .copyWith(color: colors.textPrimary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _l10nOr(
-              l10n,
-              'remoteAccessTailscaleBody',
-              'Tailscale lets a paired phone connect from anywhere — even on '
-                  'cellular — without opening ports on your router. Scan this '
-                  'QR while signed in to the same tailnet.',
-            ),
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (widget.webState.tailscaleReachable &&
-              widget.webState.tailscaleIp.isNotEmpty) ...[
-            _TailscaleReachableRow(
-              host: widget.webState.tailscaleIp,
-              url: widget.webState.tailscaleUrl,
-            ),
-            const SizedBox(height: 12),
-          ] else
-            _TailscaleNotDetectedSection(
-              manualHostController: _manualHostController,
-              manualHostInvalid: _manualHostInvalid,
-              onManualHostChanged: (value) =>
-                  setState(() => _manualHost = value),
-              onRecheck: widget.onRecheck,
-            ),
-          if (host.isNotEmpty) ...[
-            if (widget.pairingCode == null &&
-                widget.onStartPairing != null) ...[
-              SkotiqButton(
-                label: l10n.text('pairingStartButton'),
-                icon: LucideIcons.link,
-                variant: ButtonVariant.primary,
-                size: ButtonSize.small,
-                onPressed: widget.onStartPairing,
-              ),
-              const SizedBox(height: 8),
               Text(
                 _l10nOr(
                   l10n,
-                  'remoteAccessTailscaleStartHint',
-                  'Start pairing to arm the Tailscale QR for this session.',
+                  'remoteAccessTailscaleBody',
+                  'Tailscale lets a paired phone connect from anywhere, even '
+                      'on cellular, without opening ports on your router. '
+                      'Scan the QR code while signed in to the same tailnet.',
                 ),
-                style: SkotiqTypography.caption.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-            ] else if (widget.pairingCode != null && qrPayload != null) ...[
-              Center(
-                child: QrImageView(
-                  data: qrPayload,
-                  size: 200,
-                  backgroundColor: ImageOverlayColors.foreground,
-                  semanticsLabel: 'Skotiq Tailscale pairing QR for '
-                      '$host:${widget.webState.actualPort}',
+                style: SkotiqTypography.bodySm.copyWith(
+                  color: colors.textSecondary,
                 ),
               ),
+              const SizedBox(height: 12),
+              if (widget.webState.tailscaleReachable &&
+                  widget.webState.tailscaleIp.isNotEmpty) ...[
+                _TailscaleReachableRow(
+                  host: widget.webState.tailscaleIp,
+                  url: widget.webState.tailscaleUrl,
+                ),
+                const SizedBox(height: 12),
+              ] else
+                _TailscaleNotDetectedSection(
+                  manualHostController: _manualHostController,
+                  manualHostInvalid: _manualHostInvalid,
+                  onManualHostChanged: (value) =>
+                      setState(() => _manualHost = value),
+                  onRecheck: widget.onRecheck,
+                ),
+              if (host.isNotEmpty) ...[
+                if (widget.pairingCode == null &&
+                    widget.onStartPairing != null) ...[
+                  SkotiqButton(
+                    label: l10n.text('pairingStartButton'),
+                    icon: LucideIcons.link,
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    onPressed: widget.onStartPairing,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _l10nOr(
+                      l10n,
+                      'remoteAccessTailscaleStartHint',
+                      'Start pairing to arm the Tailscale QR for this session.',
+                    ),
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ] else if (widget.pairingCode != null && qrPayload != null) ...[
+                  Center(
+                    child: QrImageView(
+                      data: qrPayload,
+                      size: 200,
+                      backgroundColor: ImageOverlayColors.foreground,
+                      semanticsLabel: 'Skotiq Tailscale pairing QR for '
+                          '$host:${widget.webState.actualPort}',
+                    ),
+                  ),
+                ],
+              ],
             ],
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -307,19 +291,22 @@ class _TailscaleNotDetectedSection extends StatelessWidget {
               .copyWith(fontWeight: FontWeight.w600, color: colors.textPrimary),
         ),
         const SizedBox(height: 6),
-        SkotiqTextField(
-          controller: manualHostController,
-          hint: '100.96.0.7',
-          prefixIcon: LucideIcons.globe2,
-          errorText: manualHostInvalid
-              ? _l10nOr(
-                  l10n,
-                  'remoteAccessTailscaleManualInvalid',
-                  'Not a Tailscale address (must be 100.64–127.x.x or '
-                      'fd7a:115c::…).',
-                )
-              : null,
-          onChanged: onManualHostChanged,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: SkotiqTextField(
+            controller: manualHostController,
+            hint: '100.96.0.7',
+            prefixIcon: LucideIcons.globe2,
+            errorText: manualHostInvalid
+                ? _l10nOr(
+                    l10n,
+                    'remoteAccessTailscaleManualInvalid',
+                    'Not a Tailscale address (must be 100.64–127.x.x or '
+                        'fd7a:115c::…).',
+                  )
+                : null,
+            onChanged: onManualHostChanged,
+          ),
         ),
         const SizedBox(height: 12),
       ],

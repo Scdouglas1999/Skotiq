@@ -10,6 +10,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
@@ -45,7 +46,7 @@ Future<void> _pumpPairing(
 ) async {
   await pumpAppScreen(
     tester,
-    const PairingScreen(),
+    const SingleChildScrollView(child: PairingSettings()),
     size: const Size(1200, 1600),
     extraOverrides: [
       pairingProvider.overrideWith((ref) => notifier),
@@ -73,13 +74,13 @@ void main() {
 
     // Destructive and irreversible for every device at once, so it asks first
     // and says how many it is about to cut off.
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SkotiqDialog), findsOneWidget);
     expect(find.textContaining('3'), findsWidgets);
 
     await tester.tap(find.text('Revoke all access'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
 
     // The stored rows are what the auth middleware trusts: every one of them
     // must be inactive, not merely absent from the painted list.
@@ -104,7 +105,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SkotiqDialog), findsNothing);
     expect(await database.getActivePairedDevices(), hasLength(3));
   });
 

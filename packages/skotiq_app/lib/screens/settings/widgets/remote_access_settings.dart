@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -14,14 +13,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../connection/linked_rig_panel.dart';
-import '../pairing_screen.dart' show pairingProvider;
+import '../pairing_screen.dart' show PairingSettings, pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';
-import '../../../router/app_routes.dart';
 import '../../../utils/snackbar_helper.dart';
 
 part 'remote_access_settings/shared_controls.dart';
-part 'remote_access_settings/lan_pairing_panel.dart';
 part 'remote_access_settings/tailscale_panel.dart';
 part 'remote_access_settings/status_rows.dart';
 
@@ -217,6 +214,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
             // Which computer runs the rig comes first: on a linked desktop
             // everything below describes the imaging computer, not this one.
             const LinkedRigPanel(),
+            const SizedBox(height: SkotiqTokens.spaceSm),
             SettingsSection(
               title: l10n.text('remoteAccessWebServer'),
               children: [
@@ -291,100 +289,112 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                       ),
                     ),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            if (isRemote)
-              _RemoteAccessNoticeCard(
-                icon: LucideIcons.wifi,
-                iconColor: SkotiqColors.of(context).success,
-                title: l10n.text('remoteAccessHostActiveTitle'),
-                body: l10n.text('remoteAccessHostActiveBody'),
-              )
-            else if (webState.lastError.isNotEmpty)
-              _RemoteAccessNoticeCard(
-                icon: LucideIcons.alertTriangle,
-                iconColor: SkotiqColors.of(context).error,
-                title: l10n.text('remoteAccessIssueTitle'),
-                // The cause first: it used to sit only in the collapsed
-                // connection details.
-                body:
-                    '${webState.lastError}\n${l10n.text('remoteAccessIssueBody')}',
-              )
-            else if (webState.isRunning) ...[
-              _AccessActionCard(
-                icon: LucideIcons.monitor,
-                title: l10n.text('remoteAccessLocalActionTitle'),
-                description: describeLocalDashboardAction(
-                  requiresAuthentication: webState.requiresAuthentication,
-                ),
-                url: webState.localUrl,
-                primaryLabel: l10n.text('remoteAccessOpenLocal'),
-                primaryIcon: LucideIcons.externalLink,
-                onPrimary: () => _openUrl(webState.localUrl),
-                secondaryLabel: l10n.text('remoteAccessCopyLink'),
-                secondaryIcon: LucideIcons.copy,
-                onSecondary: () => _copyUrl(webState.localUrl),
-              ),
-              if (webState.networkUrl.isNotEmpty)
-                _AccessActionCard(
-                  icon: LucideIcons.wifi,
-                  title: l10n.text('remoteAccessLanActionTitle'),
-                  description: l10n.text(
-                    webState.requiresAuthentication
-                        ? 'remoteAccessLanActionBodyPaired'
-                        : 'remoteAccessLanActionBodyOpen',
+            SettingsSection(
+              title: 'Open the dashboard',
+              children: [
+                if (isRemote)
+                  SettingRow(
+                    icon: LucideIcons.wifi,
+                    title: l10n.text('remoteAccessHostActiveTitle'),
+                    subtitle: l10n.text('remoteAccessHostActiveBody'),
+                    trailing: const SizedBox.shrink(),
+                  )
+                else if (webState.lastError.isNotEmpty)
+                  SettingsItem(
+                    child: SkotiqBanner(
+                      tone: BannerTone.error,
+                      title: l10n.text('remoteAccessIssueTitle'),
+                      // The cause first, in plain words; the raw text is
+                      // under Connection details with a copy button.
+                      message: '${explainRemoteAccessError(
+                        webState.lastError,
+                        webState.configuredPort,
+                      )}\n${l10n.text('remoteAccessIssueBody')}',
+                    ),
+                  )
+                else if (webState.isRunning) ...[
+                  _DashboardLinkRow(
+                    title: l10n.text('remoteAccessLocalActionTitle'),
+                    description: describeLocalDashboardAction(
+                      requiresAuthentication: webState.requiresAuthentication,
+                    ),
+                    url: webState.localUrl,
+                    actions: [
+                      SkotiqButton(
+                        label: l10n.text('remoteAccessOpenLocal'),
+                        icon: LucideIcons.externalLink,
+                        variant: ButtonVariant.secondary,
+                        size: ButtonSize.small,
+                        onPressed: () => _openUrl(webState.localUrl),
+                      ),
+                      SkotiqButton(
+                        label: l10n.text('remoteAccessCopyLink'),
+                        icon: LucideIcons.copy,
+                        variant: ButtonVariant.ghost,
+                        size: ButtonSize.small,
+                        onPressed: () => _copyUrl(webState.localUrl),
+                      ),
+                    ],
                   ),
-                  url: webState.networkUrl,
-                  primaryLabel: l10n.text('remoteAccessCopyLan'),
-                  primaryIcon: LucideIcons.copy,
-                  onPrimary: () => _copyUrl(webState.networkUrl),
-                  secondaryLabel: l10n.text('remoteAccessOpenLink'),
-                  secondaryIcon: LucideIcons.externalLink,
-                  onSecondary: () => _openUrl(webState.networkUrl),
+                  if (webState.networkUrl.isNotEmpty)
+                    _DashboardLinkRow(
+                      title: l10n.text('remoteAccessLanActionTitle'),
+                      description: l10n.text(
+                        webState.requiresAuthentication
+                            ? 'remoteAccessLanActionBodyPaired'
+                            : 'remoteAccessLanActionBodyOpen',
+                      ),
+                      url: webState.networkUrl,
+                      actions: [
+                        SkotiqButton(
+                          label: l10n.text('remoteAccessCopyLan'),
+                          icon: LucideIcons.copy,
+                          variant: ButtonVariant.secondary,
+                          size: ButtonSize.small,
+                          onPressed: () => _copyUrl(webState.networkUrl),
+                        ),
+                        SkotiqButton(
+                          label: l10n.text('remoteAccessOpenLink'),
+                          icon: LucideIcons.externalLink,
+                          variant: ButtonVariant.ghost,
+                          size: ButtonSize.small,
+                          onPressed: () => _openUrl(webState.networkUrl),
+                        ),
+                      ],
+                    ),
+                ] else
+                  SettingRow(
+                    icon: LucideIcons.power,
+                    title: settings.webServerEnabled
+                        ? l10n.text('remoteAccessStartingTitle')
+                        : l10n.text('remoteAccessDisabledTitle'),
+                    subtitle: settings.webServerEnabled
+                        ? l10n.text('remoteAccessStartingBody')
+                        : l10n.text('remoteAccessDisabledBody'),
+                    trailing: settings.webServerEnabled
+                        ? const SkotiqSpinner(size: 16)
+                        : const SizedBox.shrink(),
+                  ),
+                SettingRow(
+                  icon: LucideIcons.shield,
+                  title: 'Who can connect',
+                  subtitle: describeRemoteAccessPairing(
+                    requiresAuthentication: webState.requiresAuthentication,
+                    linkedHost: hostLink?.serverHost,
+                    hostRequiresPairing: hostLink?.hostRequiresPairing,
+                  ),
+                  trailing: const SizedBox.shrink(),
                 ),
-            ] else
-              _RemoteAccessNoticeCard(
-                icon: settings.webServerEnabled
-                    ? LucideIcons.loader2
-                    : LucideIcons.power,
-                iconColor: settings.webServerEnabled
-                    ? SkotiqColors.of(context).info
-                    : SkotiqColors.of(context).textMuted,
-                title: settings.webServerEnabled
-                    ? l10n.text('remoteAccessStartingTitle')
-                    : l10n.text('remoteAccessDisabledTitle'),
-                body: settings.webServerEnabled
-                    ? l10n.text('remoteAccessStartingBody')
-                    : l10n.text('remoteAccessDisabledBody'),
-              ),
-            const SizedBox(height: 8),
-            _PairingCallout(
-              title: l10n.text('remoteAccessPairTitle'),
-              description: l10n.text('remoteAccessPairDesc'),
-              // Routed, not `Navigator.push`ed: a page pushed straight onto
-              // the shell's navigator survives every rail destination the
-              // operator picks afterwards.
-              onPressed: () => context.push(AppRoute.pairing.path),
+              ],
             ),
+            // A linked client pairs nothing itself: phones and browsers pair
+            // with the imaging computer that serves them.
+            if (!isRemote) const PairingSettings(),
             if (webState.isRunning &&
                 webState.serverFingerprint.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _RemotePairingQrPanel(
-                webState: webState,
-                pairingCode: pairingState.pairingCode,
-                timeRemaining: pairingState.timeRemaining,
-                appVersion: appVersion.version,
-                onStartPairing: pairingState.pairingCode == null
-                    ? () => ref.read(pairingProvider.notifier).startPairing()
-                    : null,
-                onStopPairing: pairingState.pairingCode == null
-                    ? null
-                    : () => ref.read(pairingProvider.notifier).cancelPairing(),
-              ),
-              const SizedBox(height: 8),
               _RemoteTailscalePanel(
                 webState: webState,
                 pairingCode: pairingState.pairingCode,
@@ -395,172 +405,98 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                 onRecheck: () => _recheckTailscale(webState),
               ),
             ],
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: SkotiqDecorations.chip(SkotiqColors.of(context),
-                  tone: SkotiqColors.of(context).primary),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            if (showDetails)
+              SettingsSection(
+                title: l10n.text('remoteAccessDetailsTitle'),
                 children: [
-                  Icon(
-                    LucideIcons.info,
-                    size: 16,
-                    color: SkotiqColors.of(context).primary,
+                  _StatusRow(
+                    icon: webState.isRunning
+                        ? LucideIcons.checkCircle2
+                        : LucideIcons.xCircle,
+                    iconColor: webState.isRunning
+                        ? SkotiqColors.of(context).success
+                        : SkotiqColors.of(context).textMuted,
+                    label: l10n.text('remoteAccessServerStatus'),
+                    value: webState.isRunning
+                        ? l10n.text('remoteAccessRunning')
+                        : l10n.text('remoteAccessStopped'),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      describeRemoteAccessPairing(
-                        requiresAuthentication: webState.requiresAuthentication,
-                        linkedHost: hostLink?.serverHost,
-                        hostRequiresPairing: hostLink?.hostRequiresPairing,
-                      ),
-                      style: SkotiqTypography.caption.copyWith(
-                        color: SkotiqColors.of(context).textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
+                  _StatusRow(
+                    icon: LucideIcons.shield,
+                    iconColor: webState.requiresAuthentication
+                        ? SkotiqColors.of(context).primary
+                        : SkotiqColors.of(context).textMuted,
+                    label: l10n.text('remoteAccessAuth'),
+                    value: webState.requiresAuthentication
+                        ? l10n.text('remoteAccessAuthRequired')
+                        : l10n.text('remoteAccessAuthNotRequired'),
+                  ),
+                  _StatusRow(
+                    icon: LucideIcons.wifi,
+                    iconColor: webState.bindLocalOnly
+                        ? SkotiqColors.of(context).textMuted
+                        : SkotiqColors.of(context).primary,
+                    label: l10n.text('remoteAccessScope'),
+                    value: webState.bindLocalOnly
+                        ? l10n.text('remoteAccessScopeLocal')
+                        : l10n.text('remoteAccessScopeLan'),
+                  ),
+                  // About the bundled dashboard FILES, not reachability: it
+                  // claims success only while the server is running.
+                  _StatusRow(
+                    icon: LucideIcons.monitor,
+                    iconColor: !webState.dashboardAvailable
+                        ? SkotiqColors.of(context).warning
+                        : webState.isRunning
+                            ? SkotiqColors.of(context).success
+                            : SkotiqColors.of(context).textMuted,
+                    label: l10n.text('remoteAccessDashboard'),
+                    value: !webState.dashboardAvailable
+                        ? l10n.text('remoteAccessDashboardMissing')
+                        : webState.isRunning
+                            ? l10n.text('remoteAccessDashboardServing')
+                            : l10n.text('remoteAccessDashboardIdle'),
+                  ),
+                  // Active clients and co-imaging participants are different
+                  // populations and need separate rows.
+                  _StatusRow(
+                    icon: LucideIcons.users,
+                    iconColor: webState.connectedClients > 0
+                        ? SkotiqColors.of(context).primary
+                        : SkotiqColors.of(context).textMuted,
+                    label: l10n.text('remoteAccessActiveViewers'),
+                    value: webState.connectedClients.toString(),
+                  ),
+                  _StatusRow(
+                    icon: LucideIcons.users,
+                    iconColor: webState.activeViewers > 0
+                        ? SkotiqColors.of(context).primary
+                        : SkotiqColors.of(context).textMuted,
+                    label: 'Co-imaging viewers',
+                    value: webState.activeViewers.toString(),
+                  ),
+                  // The error wraps rather than clips: the port number in it
+                  // is the actionable part. The raw text stays copyable.
+                  _StatusRow(
+                    icon: webState.lastError.isEmpty
+                        ? LucideIcons.info
+                        : LucideIcons.alertTriangle,
+                    iconColor: webState.lastError.isEmpty
+                        ? SkotiqColors.of(context).textMuted
+                        : SkotiqColors.of(context).error,
+                    label: l10n.text('remoteAccessLastError'),
+                    value: webState.lastError.isEmpty
+                        ? l10n.text('remoteAccessNoErrors')
+                        : explainRemoteAccessError(
+                            webState.lastError,
+                            webState.configuredPort,
+                          ),
+                    copyValue:
+                        webState.lastError.isEmpty ? null : webState.lastError,
+                    valueMaxLines: webState.lastError.isEmpty ? 2 : 6,
                   ),
                 ],
               ),
-            ),
-            if (showDetails) ...[
-              const SizedBox(height: 8),
-              Theme(
-                data: Theme.of(context).copyWith(
-                  dividerColor: Colors.transparent,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: SkotiqColors.of(context).surface,
-                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-                    border: Border.all(color: SkotiqColors.of(context).border),
-                  ),
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      childrenPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        LucideIcons.slidersHorizontal,
-                        size: 16,
-                        color: SkotiqColors.of(context).textMuted,
-                      ),
-                      title: Text(
-                        l10n.text('remoteAccessDetailsTitle'),
-                        style: SkotiqTypography.labelStrong.copyWith(
-                            color: SkotiqColors.of(context).textPrimary),
-                      ),
-                      subtitle: Text(
-                        l10n.text('remoteAccessDetailsBody'),
-                        style: SkotiqTypography.caption.copyWith(
-                          color: SkotiqColors.of(context).textMuted,
-                        ),
-                      ),
-                      children: [
-                        _StatusRow(
-                          icon: webState.isRunning
-                              ? LucideIcons.checkCircle2
-                              : LucideIcons.xCircle,
-                          iconColor: webState.isRunning
-                              ? SkotiqColors.of(context).success
-                              : SkotiqColors.of(context).textMuted,
-                          label: l10n.text('remoteAccessServerStatus'),
-                          value: webState.isRunning
-                              ? l10n.text('remoteAccessRunning')
-                              : l10n.text('remoteAccessStopped'),
-                        ),
-                        _StatusRow(
-                          icon: LucideIcons.shield,
-                          iconColor: webState.requiresAuthentication
-                              ? SkotiqColors.of(context).primary
-                              : SkotiqColors.of(context).textMuted,
-                          label: l10n.text('remoteAccessAuth'),
-                          value: webState.requiresAuthentication
-                              ? l10n.text('remoteAccessAuthRequired')
-                              : l10n.text('remoteAccessAuthNotRequired'),
-                        ),
-                        _StatusRow(
-                          icon: LucideIcons.wifi,
-                          iconColor: webState.bindLocalOnly
-                              ? SkotiqColors.of(context).textMuted
-                              : SkotiqColors.of(context).primary,
-                          label: l10n.text('remoteAccessScope'),
-                          value: webState.bindLocalOnly
-                              ? l10n.text('remoteAccessScopeLocal')
-                              : l10n.text('remoteAccessScopeLan'),
-                        ),
-                        // This row is about the bundled dashboard FILES, not
-                        // about reachability. Rendered green next to "Server
-                        // Status: Stopped" it read as "the dashboard is up", so
-                        // it now says whether it is actually being served and
-                        // only claims success while the server is running.
-                        _StatusRow(
-                          icon: LucideIcons.monitor,
-                          iconColor: !webState.dashboardAvailable
-                              ? SkotiqColors.of(context).warning
-                              : webState.isRunning
-                                  ? SkotiqColors.of(context).success
-                                  : SkotiqColors.of(context).textMuted,
-                          label: l10n.text('remoteAccessDashboard'),
-                          value: !webState.dashboardAvailable
-                              ? l10n.text('remoteAccessDashboardMissing')
-                              : webState.isRunning
-                                  ? l10n.text('remoteAccessDashboardServing')
-                                  : l10n.text('remoteAccessDashboardIdle'),
-                        ),
-                        // Active clients and co-imaging participants are
-                        // different populations and need separate rows.
-                        _StatusRow(
-                          icon: LucideIcons.users,
-                          iconColor: webState.connectedClients > 0
-                              ? SkotiqColors.of(context).primary
-                              : SkotiqColors.of(context).textMuted,
-                          label: l10n.text('remoteAccessActiveViewers'),
-                          value: webState.connectedClients.toString(),
-                        ),
-                        _StatusRow(
-                          icon: LucideIcons.users,
-                          iconColor: webState.activeViewers > 0
-                              ? SkotiqColors.of(context).primary
-                              : SkotiqColors.of(context).textMuted,
-                          label: 'Co-imaging viewers',
-                          value: webState.activeViewers.toString(),
-                        ),
-                        // The error is the only actionable content on this
-                        // panel and the port number is the actionable part of
-                        // it, so let it wrap rather than clip. The raw text
-                        // stays selectable and copyable.
-                        _StatusRow(
-                          icon: webState.lastError.isEmpty
-                              ? LucideIcons.info
-                              : LucideIcons.alertTriangle,
-                          iconColor: webState.lastError.isEmpty
-                              ? SkotiqColors.of(context).textMuted
-                              : SkotiqColors.of(context).error,
-                          label: l10n.text('remoteAccessLastError'),
-                          value: webState.lastError.isEmpty
-                              ? l10n.text('remoteAccessNoErrors')
-                              : explainRemoteAccessError(
-                                  webState.lastError,
-                                  webState.configuredPort,
-                                ),
-                          copyValue: webState.lastError.isEmpty
-                              ? null
-                              : webState.lastError,
-                          valueMaxLines: webState.lastError.isEmpty ? 2 : 6,
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       },
