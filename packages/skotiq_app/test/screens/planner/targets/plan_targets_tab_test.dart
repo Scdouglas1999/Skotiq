@@ -195,15 +195,6 @@ void main() {
     expect(find.text('M74'), findsOneWidget);
     expect(find.text('31.9h · no goal'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    // Chips are full touch targets on a phone.
-    final chip = tester.getSize(
-      find.ancestor(
-        of: find.byType(SkotiqFilterChip).first,
-        matching: find.byType(GestureDetector),
-      ).first,
-    );
-    expect(chip.height, greaterThanOrEqualTo(48));
-
     // A row opens the target over the list.
     await tester.tap(find.text('NGC0891'));
     await tester.pumpAndSettle();

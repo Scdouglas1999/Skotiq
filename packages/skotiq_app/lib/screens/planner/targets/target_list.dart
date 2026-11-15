@@ -194,42 +194,27 @@ Future<T?> _menuUnder<T>(BuildContext context, List<PopupMenuEntry<T>> items) {
   );
 }
 
-/// A filter chip that opens a menu of [items]. On a phone the chip's tap area
-/// is a full touch target.
+/// A filter chip that opens a menu of [items].
 class _MenuChip<T> extends StatelessWidget {
   const _MenuChip({
     super.key,
     required this.label,
     required this.items,
     required this.onSelected,
-    required this.compact,
-    this.icon,
   });
 
   final String label;
-  final IconData? icon;
   final List<PopupMenuEntry<T>> Function() items;
   final ValueChanged<T> onSelected;
-  final bool compact;
 
   @override
-  Widget build(BuildContext context) {
-    Future<void> open() async {
-      final choice = await _menuUnder<T>(context, items());
-      if (choice != null) onSelected(choice);
-    }
-
-    final chip = SkotiqFilterChip(label: label, icon: icon, onTap: open);
-    if (!compact) return chip;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: open,
-      child: SizedBox(
-        height: SkotiqTokens.minTouchTarget,
-        child: Center(widthFactor: 1, child: chip),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SkotiqFilterChip(
+        label: label,
+        onTap: () async {
+          final choice = await _menuUnder<T>(context, items());
+          if (choice != null) onSelected(choice);
+        },
+      );
 }
 
 PopupMenuItem<T> _menuItem<T>(
@@ -486,7 +471,6 @@ class _TargetListColumn extends ConsumerWidget {
       groups: groups,
       group: group,
       showMosaics: showMosaics,
-      compact: compact,
       onSelectGroup: onSelectGroup,
       onShowMosaics: onShowMosaics,
       onNewGroup: onNewGroup,
@@ -499,7 +483,6 @@ class _TargetListColumn extends ConsumerWidget {
       label: statusFilter == PlanTargetStatusFilter.any
           ? 'Status'
           : statusFilter.label,
-      compact: compact,
       items: () => [
         for (final f in PlanTargetStatusFilter.values)
           _menuItem(context, f, f.label, checked: f == statusFilter),
@@ -509,7 +492,6 @@ class _TargetListColumn extends ConsumerWidget {
     final sortChip = _MenuChip<PlanTargetSort>(
       key: const ValueKey('plan-targets-sort-chip'),
       label: 'Sort: ${sort.label}',
-      compact: compact,
       items: () => [
         for (final s in PlanTargetSort.values)
           _menuItem(context, s, s.label, checked: s == sort),

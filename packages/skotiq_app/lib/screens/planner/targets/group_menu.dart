@@ -46,7 +46,6 @@ class _GroupChip extends ConsumerWidget {
     required this.groups,
     required this.group,
     required this.showMosaics,
-    required this.compact,
     required this.onSelectGroup,
     required this.onShowMosaics,
     required this.onNewGroup,
@@ -58,7 +57,6 @@ class _GroupChip extends ConsumerWidget {
   final List<Project> groups;
   final Project? group;
   final bool showMosaics;
-  final bool compact;
   final ValueChanged<int?> onSelectGroup;
   final VoidCallback onShowMosaics;
   final VoidCallback onNewGroup;
@@ -73,7 +71,6 @@ class _GroupChip extends ConsumerWidget {
     return _MenuChip<_GroupChoice>(
       key: const ValueKey('plan-targets-group-chip'),
       label: showMosaics ? 'Mosaics' : current?.name ?? 'All targets',
-      compact: compact,
       items: () => [
         _menuItem(
           context,
