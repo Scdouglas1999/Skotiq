@@ -3894,6 +3894,7 @@ fn wire__crate__api__mount_guard__api_mount_guard_solve_impl(
 fn wire__crate__api__devices__mount__api_mount_park_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
+    for_safety: impl CstDecode<bool>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -3903,11 +3904,15 @@ fn wire__crate__api__devices__mount__api_mount_park_impl(
         },
         move || {
             let api_device_id = device_id.cst_decode();
+            let api_for_safety = for_safety.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::mount::api_mount_park(api_device_id).await?;
+                        let output_ok = crate::api::devices::mount::api_mount_park(
+                            api_device_id,
+                            api_for_safety,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3984,6 +3989,7 @@ fn wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
     device_id: impl CstDecode<String>,
     ra: impl CstDecode<f64>,
     dec: impl CstDecode<f64>,
+    guider_silent_ok: impl CstDecode<bool>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -3995,6 +4001,7 @@ fn wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
             let api_device_id = device_id.cst_decode();
             let api_ra = ra.cst_decode();
             let api_dec = dec.cst_decode();
+            let api_guider_silent_ok = guider_silent_ok.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
@@ -4002,6 +4009,7 @@ fn wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
                             api_device_id,
                             api_ra,
                             api_dec,
+                            api_guider_silent_ok,
                         )
                         .await?;
                         Ok(output_ok)
@@ -7040,6 +7048,7 @@ fn wire__crate__api__devices__mount__mount_slew_alt_az_impl(
     device_id: impl CstDecode<String>,
     altitude: impl CstDecode<f64>,
     azimuth: impl CstDecode<f64>,
+    guider_silent_ok: impl CstDecode<bool>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -7051,6 +7060,7 @@ fn wire__crate__api__devices__mount__mount_slew_alt_az_impl(
             let api_device_id = device_id.cst_decode();
             let api_altitude = altitude.cst_decode();
             let api_azimuth = azimuth.cst_decode();
+            let api_guider_silent_ok = guider_silent_ok.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
@@ -7058,6 +7068,7 @@ fn wire__crate__api__devices__mount__mount_slew_alt_az_impl(
                             api_device_id,
                             api_altitude,
                             api_azimuth,
+                            api_guider_silent_ok,
                         )
                         .await?;
                         Ok(output_ok)
@@ -10474,6 +10485,34 @@ impl SseDecode for crate::api::mount_guard::MountMotionFaultInfo {
             stop_attempts: var_stopAttempts,
             run_paused: var_runPaused,
         };
+    }
+}
+
+impl SseDecode for crate::api::devices::mount::MountMoveGuider {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::devices::mount::MountMoveGuider::Idle;
+            }
+            1 => {
+                return crate::api::devices::mount::MountMoveGuider::Stopped;
+            }
+            2 => {
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::api::devices::mount::MountMoveGuider::Unanswered {
+                    reason: var_reason,
+                };
+            }
+            3 => {
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::api::devices::mount::MountMoveGuider::Refused { reason: var_reason };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -15467,6 +15506,35 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountMotionFault
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::devices::mount::MountMoveGuider {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::devices::mount::MountMoveGuider::Idle => [0.into_dart()].into_dart(),
+            crate::api::devices::mount::MountMoveGuider::Stopped => [1.into_dart()].into_dart(),
+            crate::api::devices::mount::MountMoveGuider::Unanswered { reason } => {
+                [2.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::devices::mount::MountMoveGuider::Refused { reason } => {
+                [3.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::devices::mount::MountMoveGuider
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::mount::MountMoveGuider>
+    for crate::api::devices::mount::MountMoveGuider
+{
+    fn into_into_dart(self) -> crate::api::devices::mount::MountMoveGuider {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountPositionUnknownInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -19716,6 +19784,31 @@ impl SseEncode for crate::api::mount_guard::MountMotionFaultInfo {
         <bool>::sse_encode(self.still_moving, serializer);
         <Vec<String>>::sse_encode(self.stop_attempts, serializer);
         <bool>::sse_encode(self.run_paused, serializer);
+    }
+}
+
+impl SseEncode for crate::api::devices::mount::MountMoveGuider {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::devices::mount::MountMoveGuider::Idle => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::devices::mount::MountMoveGuider::Stopped => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::devices::mount::MountMoveGuider::Unanswered { reason } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::api::devices::mount::MountMoveGuider::Refused { reason } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -24113,6 +24206,28 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::devices::mount::MountMoveGuider> for wire_cst_mount_move_guider {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::devices::mount::MountMoveGuider {
+            match self.tag {
+                0 => crate::api::devices::mount::MountMoveGuider::Idle,
+                1 => crate::api::devices::mount::MountMoveGuider::Stopped,
+                2 => {
+                    let ans = unsafe { self.kind.Unanswered };
+                    crate::api::devices::mount::MountMoveGuider::Unanswered {
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                3 => {
+                    let ans = unsafe { self.kind.Refused };
+                    crate::api::devices::mount::MountMoveGuider::Refused {
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::api::mount_guard::MountPositionUnknownInfo>
         for wire_cst_mount_position_unknown_info
     {
@@ -26690,6 +26805,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_mount_move_guider {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: MountMoveGuiderKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_mount_move_guider {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_mount_position_unknown_info {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -29000,8 +29128,9 @@ mod io {
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        for_safety: bool,
     ) {
-        wire__crate__api__devices__mount__api_mount_park_impl(port_, device_id)
+        wire__crate__api__devices__mount__api_mount_park_impl(port_, device_id, for_safety)
     }
 
     #[unsafe(no_mangle)]
@@ -29034,9 +29163,14 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
+        guider_silent_ok: bool,
     ) {
         wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
-            port_, device_id, ra, dec,
+            port_,
+            device_id,
+            ra,
+            dec,
+            guider_silent_ok,
         )
     }
 
@@ -30233,9 +30367,14 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         altitude: f64,
         azimuth: f64,
+        guider_silent_ok: bool,
     ) {
         wire__crate__api__devices__mount__mount_slew_alt_az_impl(
-            port_, device_id, altitude, azimuth,
+            port_,
+            device_id,
+            altitude,
+            azimuth,
+            guider_silent_ok,
         )
     }
 
@@ -32742,6 +32881,29 @@ mod io {
         still_moving: bool,
         stop_attempts: *mut wire_cst_list_String,
         run_paused: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_move_guider {
+        tag: i32,
+        kind: MountMoveGuiderKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union MountMoveGuiderKind {
+        Unanswered: wire_cst_MountMoveGuider_Unanswered,
+        Refused: wire_cst_MountMoveGuider_Refused,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_MountMoveGuider_Unanswered {
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_MountMoveGuider_Refused {
+        reason: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

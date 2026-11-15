@@ -34,17 +34,13 @@ pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
 /// until someone noticed. Parking ends the guider's capture, guiding or
 /// looping, and the run no longer wants guiding.
 async fn stop_the_guider_for_park(ctx: &InstructionContext) {
-    ctx.run
-        .device_ops
-        .guider_note_stop_reason(Some(crate::GuidingStopReason::MountMove))
-        .await;
-    match ctx.run.device_ops.guider_stop().await {
-        Ok(()) => {}
-        Err(crate::device_ops::DeviceError::NO_GUIDER) => {}
-        Err(error) => {
-            tracing::warn!("[GUIDING] The guider did not stop for the park: {error}");
-        }
-    }
+    // The outcome is logged by the stop; a guider that does not answer never
+    // keeps the run from parking.
+    crate::guiding_stop::stop_guider_for_park(
+        &ctx.run.device_ops,
+        crate::GuidingStopReason::MountMove,
+    )
+    .await;
     if let Some(trigger_state) = &ctx.run.trigger_state {
         let mut state = trigger_state.write().await;
         state.set_guiding_enabled(false);

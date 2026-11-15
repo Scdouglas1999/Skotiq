@@ -7,6 +7,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
 
+import 'flat_wizard_panel.dart';
+
 /// The flat wizard's last step: build a master flat from each filter's
 /// frames of the run that just finished and add it to the calibration
 /// library, where the Darkroom and live calibration find it by filter.
@@ -108,7 +110,7 @@ class _FlatBuildMasterStepState extends ConsumerState<FlatBuildMasterStep> {
                 width: 72,
                 child: Text(
                   output.filter,
-                  style: SkotiqTypography.labelStrong.copyWith(
+                  style: SkotiqTypography.bodyStrong.copyWith(
                     color: colors.textPrimary,
                   ),
                 ),
@@ -125,24 +127,19 @@ class _FlatBuildMasterStepState extends ConsumerState<FlatBuildMasterStep> {
       );
     }
 
-    return Container(
-      padding: SkotiqTokens.paddingLg,
-      decoration: SkotiqDecorations.panel(colors),
+    return FlatWizardPanel(
+      title: run.filters.length == 1 ? 'Master flat' : 'Master flats',
+      note: run.remote
+          ? 'saved on the imaging computer'
+          : 'from the run that just finished',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Build master flat',
-            style: SkotiqTypography.sectionTitle.copyWith(
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Text(
             run.remote
-                ? 'These flats were saved on the imaging computer. Build their '
-                    'masters in the Darkroom there, under Calibration.'
+                ? 'Build their masters in the Darkroom there, under '
+                    'Calibration.'
                 : 'Bias-subtracts and combines each filter\'s flats, then adds '
                     'the master to the calibration library so builds and live '
                     'calibration use it.',
@@ -157,12 +154,14 @@ class _FlatBuildMasterStepState extends ConsumerState<FlatBuildMasterStep> {
             spacing: SkotiqTokens.spaceSm,
             runSpacing: SkotiqTokens.spaceSm,
             children: [
+              // Secondary: the page's primary is the run's own start.
               if (!run.remote && built < run.filters.length)
                 SkotiqButton(
                   label: run.filters.length == 1
                       ? 'Build master flat'
                       : 'Build master flats',
                   icon: LucideIcons.layers,
+                  variant: ButtonVariant.secondary,
                   isLoading: running > 0,
                   onPressed: buildable > 0 && running == 0
                       ? () => _buildAll(run, groups)

@@ -141,7 +141,8 @@ Future<_RawResponse> _rawSocketRequest(
   final requestLine = headers.first;
   final rest = headers.skip(1).toList();
   socket.write(
-    '$requestLine\r\nHost: $host:$port\r\n${rest.join('\r\n')}\r\n\r\n$body',
+    '$requestLine\r\nHost: $host:$port\r\nx-skotiq-version: 2.5.0\r\n'
+    '${rest.join('\r\n')}\r\n\r\n$body',
   );
   await socket.flush();
 

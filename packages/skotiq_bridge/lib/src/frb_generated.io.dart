@@ -655,6 +655,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountMotionFaultInfo dco_decode_mount_motion_fault_info(dynamic raw);
 
   @protected
+  MountMoveGuider dco_decode_mount_move_guider(dynamic raw);
+
+  @protected
   MountPositionUnknownInfo dco_decode_mount_position_unknown_info(dynamic raw);
 
   @protected
@@ -1688,6 +1691,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountMotionFaultInfo sse_decode_mount_motion_fault_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  MountMoveGuider sse_decode_mount_move_guider(SseDeserializer deserializer);
 
   @protected
   MountPositionUnknownInfo sse_decode_mount_position_unknown_info(
@@ -5575,6 +5581,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_mount_move_guider(
+    MountMoveGuider apiObj,
+    wire_cst_mount_move_guider wireObj,
+  ) {
+    if (apiObj is MountMoveGuider_Idle) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Stopped) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Unanswered) {
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 2;
+      wireObj.kind.Unanswered.reason = pre_reason;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Refused) {
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 3;
+      wireObj.kind.Refused.reason = pre_reason;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_mount_position_unknown_info(
     MountPositionUnknownInfo apiObj,
     wire_cst_mount_position_unknown_info wireObj,
@@ -8298,6 +8331,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_mount_motion_fault_info(
     MountMotionFaultInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_move_guider(
+    MountMoveGuider self,
     SseSerializer serializer,
   );
 
@@ -12850,8 +12889,13 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__devices__mount__api_mount_park(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    bool for_safety,
   ) {
-    return _wire__crate__api__devices__mount__api_mount_park(port_, device_id);
+    return _wire__crate__api__devices__mount__api_mount_park(
+      port_,
+      device_id,
+      for_safety,
+    );
   }
 
   late final _wire__crate__api__devices__mount__api_mount_parkPtr =
@@ -12860,6 +12904,7 @@ class RustLibWire implements BaseWire {
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
           )
         >
       >(
@@ -12868,7 +12913,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__devices__mount__api_mount_park =
       _wire__crate__api__devices__mount__api_mount_parkPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__devices__mount__api_mount_pulse_guide(
@@ -12944,12 +12989,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double ra,
     double dec,
+    bool guider_silent_ok,
   ) {
     return _wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
       port_,
       device_id,
       ra,
       dec,
+      guider_silent_ok,
     );
   }
 
@@ -12961,6 +13008,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
             ffi.Double,
+            ffi.Bool,
           )
         >
       >(
@@ -12974,6 +13022,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               double,
               double,
+              bool,
             )
           >();
 
@@ -16230,12 +16279,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double altitude,
     double azimuth,
+    bool guider_silent_ok,
   ) {
     return _wire__crate__api__devices__mount__mount_slew_alt_az(
       port_,
       device_id,
       altitude,
       azimuth,
+      guider_silent_ok,
     );
   }
 
@@ -16247,6 +16298,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
             ffi.Double,
+            ffi.Bool,
           )
         >
       >(
@@ -16260,6 +16312,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               double,
               double,
+              bool,
             )
           >();
 
@@ -21415,6 +21468,27 @@ final class wire_cst_mount_guard_solve extends ffi.Struct {
 
   @ffi.Double()
   external double separation_degrees;
+}
+
+final class wire_cst_MountMoveGuider_Unanswered extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_MountMoveGuider_Refused extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class MountMoveGuiderKind extends ffi.Union {
+  external wire_cst_MountMoveGuider_Unanswered Unanswered;
+
+  external wire_cst_MountMoveGuider_Refused Refused;
+}
+
+final class wire_cst_mount_move_guider extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external MountMoveGuiderKind kind;
 }
 
 final class wire_cst_mount_site extends ffi.Struct {

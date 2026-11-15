@@ -228,6 +228,10 @@
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
+    api.onMoveNotice = (notice) => {
+      addLogEntry('guider', notice);
+      showToast(notice, 'error');
+    };
     // Everything that ages data subscribes to the one clock, here, once: the
     // header's verdict, the Run panel's right to assert a state, and every
     // panel's stale line. See repaintDataState().

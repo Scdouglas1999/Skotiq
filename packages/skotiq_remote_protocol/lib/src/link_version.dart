@@ -24,21 +24,32 @@ abstract final class LinkVersion {
   /// release.
   static const mismatchCode = 'version_mismatch';
 
+  /// [ApiErrorBody.code] of the host's refusal of an API request that does
+  /// not say which release sent it.
+  static const releaseRequiredCode = 'release_required';
+
   /// Null when [host] and [client] are the same release; otherwise what is
-  /// wrong and which side to update. [host] is null or empty when the host
-  /// did not say.
+  /// wrong and which side to update. [host] is the release a host actually
+  /// reported: a host that has not answered is unreachable, not mismatched
+  /// (see `readHostInfo`).
   static LinkVersionMismatch? check({
-    required String? host,
+    required String host,
     String client = skotiqRelease,
   }) {
-    final hostRelease = host?.trim() ?? '';
+    final hostRelease = host.trim();
     final clientRelease = client.trim();
-    if (hostRelease.isNotEmpty && hostRelease == clientRelease) return null;
-    return LinkVersionMismatch(
-      host: hostRelease.isEmpty ? null : hostRelease,
-      client: clientRelease,
-    );
+    if (hostRelease == clientRelease) return null;
+    return LinkVersionMismatch(host: hostRelease, client: clientRelease);
   }
+
+  /// Whether a client of another release may still call [path]: the host's
+  /// identity, so each side can say what the other runs, and the update
+  /// routes, so a newer client can bring an older host up to its release.
+  /// Nothing else is shared between releases.
+  static bool openToOtherReleases(String path) =>
+      path == '/api/info' ||
+      path == '/api/system/version' ||
+      path.startsWith('/api/system/update/');
 }
 
 /// The side of a link that has to be updated.
@@ -48,8 +59,8 @@ enum LinkSide { host, client }
 class LinkVersionMismatch {
   const LinkVersionMismatch({required this.host, required this.client});
 
-  /// The host's release; null when it did not say.
-  final String? host;
+  /// The host's release.
+  final String host;
 
   /// The client's release.
   final String client;
@@ -57,9 +68,7 @@ class LinkVersionMismatch {
   /// The side running the older release, which is the one to update. Null
   /// when the two cannot be ordered (a development build's suffix).
   LinkSide? get older {
-    final hostRelease = host;
-    if (hostRelease == null) return LinkSide.host;
-    final hostParts = _releaseParts(hostRelease);
+    final hostParts = _releaseParts(host);
     final clientParts = _releaseParts(client);
     if (hostParts == null || clientParts == null) return null;
     for (var i = 0; i < 3; i++) {
@@ -72,16 +81,12 @@ class LinkVersionMismatch {
   /// One sentence for the operator naming both releases and which side to
   /// update.
   String get message {
-    final hostRelease = host;
-    final hostSays = hostRelease == null
-        ? 'The host did not say which Skotiq it runs'
-        : 'The host runs Skotiq $hostRelease';
     final update = switch (older) {
       LinkSide.host => 'Update the host to Skotiq $client',
-      LinkSide.client => 'Update Skotiq on this device to $hostRelease',
+      LinkSide.client => 'Update Skotiq on this device to $host',
       null => 'Install the same Skotiq release on both',
     };
-    return '$hostSays and this device runs Skotiq $client. '
+    return 'The host runs Skotiq $host and this device runs Skotiq $client. '
         '$update, then connect again.';
   }
 
@@ -101,10 +106,8 @@ class LinkVersionMismatch {
     final client = json['clientVersion'];
     if (client is! String) return null;
     final host = json['hostVersion'];
-    return LinkVersionMismatch(
-      host: host is String ? host : null,
-      client: client,
-    );
+    if (host is! String) return null;
+    return LinkVersionMismatch(host: host, client: client);
   }
 
   @override

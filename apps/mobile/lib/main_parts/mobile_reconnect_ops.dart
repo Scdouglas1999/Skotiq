@@ -274,27 +274,28 @@ mixin _MobileReconnectOps on _MobileConnectionState {
     setState(() {
       _statusMessage = 'Connecting to ${server.name}...';
       _error = null;
+      _mismatchedHost = null;
     });
 
     try {
-      // do not persist last-server based on synthetic
-      // metadata. Track whether the /api/info call actually returned
-      // server-supplied fields; if it didn't, we still allow the user
-      // to connect for this session but refuse to write the server to
-      // disk (next launch should re-discover or re-prompt).
-      final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
+      // Ask the host who it is before anything else: a host that does not
+      // answer is reported as that, and only a host that answered is saved.
+      final read = await EnhancedSkotiqDiscovery.readServer(server);
       if (!_isCurrentConnectionOperation(operationGeneration)) return false;
-      var enrichedServer = fetched ?? server;
+      var enrichedServer = read.server;
       // A saved row is shown by the name the operator gave it.
-      if (savedServerId != null && fetched != null) {
+      if (savedServerId != null) {
         enrichedServer = enrichedServer.copyWith(name: server.name);
       }
-      final mismatch = enrichedServer.linkMismatch;
-      if (mismatch != null) {
+      final problem = read.problem;
+      if (problem != null) {
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
-          _error = mismatch.message;
+          _error = problem.message;
+          _mismatchedHost = problem.kind == LinkProblemKind.mismatch
+              ? enrichedServer
+              : null;
         });
         return false;
       }
@@ -451,41 +452,34 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           _lostSessionServer = null;
         });
 
-        if (fetched != null) {
-          // Persistence is secondary to the already-live session. A disk or
-          // keychain failure must not turn a successful connection into a
-          // misleading connection error.
-          try {
-            await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
-          } catch (e, stackTrace) {
-            Log.error(
-              'Could not cache connected server for startup reconnect: $e',
-              source: 'Discovery',
-              error: e,
-              stackTrace: stackTrace,
-            );
-          }
-          if (!_isCurrentConnectionOperation(operationGeneration) ||
-              !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return false;
-          }
-          // A saved row keeps the name and address the operator gave it.
-          // Relay sessions are persisted by _connectViaRelay under their
-          // stable relay identity, not their ephemeral loopback port.
-          if (savedServerId != null) {
-            await _touchSavedServer(savedServerId);
-          } else if (_activeRelayTunnel == null) {
-            await _upsertSavedServer(enrichedServer);
-          }
-          if (!_isCurrentConnectionOperation(operationGeneration) ||
-              !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return false;
-          }
-        } else {
-          Log.warning(
-            'Skipping saveLastServer — /api/info did not return metadata',
+        // Persistence is secondary to the already-live session. A disk or
+        // keychain failure must not turn a successful connection into a
+        // misleading connection error.
+        try {
+          await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
+        } catch (e, stackTrace) {
+          Log.error(
+            'Could not cache connected server for startup reconnect: $e',
             source: 'Discovery',
+            error: e,
+            stackTrace: stackTrace,
           );
+        }
+        if (!_isCurrentConnectionOperation(operationGeneration) ||
+            !backendNotifier.isCurrentBackend(connectedBackend)) {
+          return false;
+        }
+        // A saved row keeps the name and address the operator gave it.
+        // Relay sessions are persisted by _connectViaRelay under their
+        // stable relay identity, not their ephemeral loopback port.
+        if (savedServerId != null) {
+          await _touchSavedServer(savedServerId);
+        } else if (_activeRelayTunnel == null) {
+          await _upsertSavedServer(enrichedServer);
+        }
+        if (!_isCurrentConnectionOperation(operationGeneration) ||
+            !backendNotifier.isCurrentBackend(connectedBackend)) {
+          return false;
         }
 
         _startConnectionMonitor();

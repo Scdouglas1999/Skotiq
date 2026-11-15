@@ -538,15 +538,34 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> mountSlewToCoordinates(
+  Future<GuiderForMove> mountSlewToCoordinates(
     String deviceId,
     double ra,
-    double dec,
+    double dec, {
+    bool guiderSilentOk = false,
+  }) {
+    return _mountMove(DeviceApi.mountSlew, {
+      'deviceId': deviceId,
+      'ra': ra,
+      'dec': dec,
+      GuiderForMove.silentOkKey: guiderSilentOk,
+    });
+  }
+
+  /// Sends a mount move to the host, which owns the guider rule
+  /// ([GuiderForMove]), and reads back what the guider did.
+  Future<GuiderForMove> _mountMove(
+    ApiEndpoint endpoint,
+    Map<String, dynamic> body,
   ) async {
-    await _post(
-      DeviceApi.mountSlew,
-      body: {'deviceId': deviceId, 'ra': ra, 'dec': dec},
-    );
+    try {
+      return GuiderForMove.fromResponse(await _post(endpoint, body: body));
+    } on ServerError catch (e) {
+      if (e.code == GuiderNotAnsweringException.code) {
+        throw GuiderNotAnsweringException(e.details?['reason'] as String?);
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -558,8 +577,11 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> mountPark(String deviceId) async {
-    await _post(DeviceApi.mountPark, body: {'deviceId': deviceId});
+  Future<GuiderForMove> mountPark(String deviceId, {bool forSafety = false}) {
+    return _mountMove(DeviceApi.mountPark, {
+      'deviceId': deviceId,
+      'forSafety': forSafety,
+    });
   }
 
   @override
@@ -628,20 +650,23 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> mountSlewAltAz(
+  Future<GuiderForMove> mountSlewAltAz(
     String deviceId,
     double altitude,
-    double azimuth,
-  ) async {
-    await _post(
-      DeviceApi.mountSlewAltAz,
-      body: {'deviceId': deviceId, 'altitude': altitude, 'azimuth': azimuth},
-    );
+    double azimuth, {
+    bool guiderSilentOk = false,
+  }) {
+    return _mountMove(DeviceApi.mountSlewAltAz, {
+      'deviceId': deviceId,
+      'altitude': altitude,
+      'azimuth': azimuth,
+      GuiderForMove.silentOkKey: guiderSilentOk,
+    });
   }
 
   @override
-  Future<void> mountFindHome(String deviceId) async {
-    await _post(DeviceApi.mountHomeFindHome, body: {'deviceId': deviceId});
+  Future<GuiderForMove> mountFindHome(String deviceId) {
+    return _mountMove(DeviceApi.mountHomeFindHome, {'deviceId': deviceId});
   }
 
   @override

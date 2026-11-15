@@ -9,6 +9,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         MountTimeInfo;
 
 import '../../models/backend/backend_types.dart';
+import '../../models/equipment/guider_for_move.dart';
 import '../../models/imaging/imaging_models.dart' show FrameType;
 
 /// Typed environmental telemetry shared by local FFI and remote HTTP
@@ -262,11 +263,22 @@ abstract class DeviceBackend {
     String deviceId,
   );
 
-  Future<void> mountSlewToCoordinates(String deviceId, double ra, double dec);
+  /// Slews to the coordinates, stopping the guider first ([GuiderForMove]).
+  /// Throws [GuiderNotAnsweringException] when the guider does not answer,
+  /// unless [guiderSilentOk] says the operator chose to move anyway.
+  Future<GuiderForMove> mountSlewToCoordinates(
+    String deviceId,
+    double ra,
+    double dec, {
+    bool guiderSilentOk = false,
+  });
 
   Future<void> mountSync(String deviceId, double ra, double dec);
 
-  Future<void> mountPark(String deviceId);
+  /// Parks the mount, stopping the guider first ([GuiderForMove]); a guider
+  /// that does not answer never keeps the mount from parking. A park
+  /// [forSafety] (weather, an unsafe rig) does not ask the guider at all.
+  Future<GuiderForMove> mountPark(String deviceId, {bool forSafety = false});
 
   Future<void> mountUnpark(String deviceId);
 
@@ -290,10 +302,18 @@ abstract class DeviceBackend {
   /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
   Future<void> mountMoveAxis(String deviceId, int axis, double rate);
 
-  /// Slew mount to alt/az coordinates (altitude in degrees, azimuth in degrees)
-  Future<void> mountSlewAltAz(String deviceId, double altitude, double azimuth);
+  /// Slew mount to alt/az coordinates (altitude in degrees, azimuth in
+  /// degrees), under the same guider rule as [mountSlewToCoordinates].
+  Future<GuiderForMove> mountSlewAltAz(
+    String deviceId,
+    double altitude,
+    double azimuth, {
+    bool guiderSilentOk = false,
+  });
 
-  Future<void> mountFindHome(String deviceId);
+  /// Sends the mount home, stopping the guider first ([GuiderForMove]); a
+  /// guider that does not answer never keeps the mount from homing.
+  Future<GuiderForMove> mountFindHome(String deviceId);
 
   /// Store the mount's current position as its park position. Nothing moves.
   /// Refused natively when the driver cannot set park (`canSetPark` false) or

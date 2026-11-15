@@ -7,6 +7,7 @@ import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart' show EventSeverity;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
@@ -251,6 +252,14 @@ final List<HostStartupStep> hostStartupSteps = [
     run: _checkDatabaseInBackground,
   ),
   HostStartupStep(
+    name: 'backup replace outcome',
+    phase: _services,
+    // After the server step so a daemon's linked clients hear the notice.
+    needs: ['database', 'remote access server'],
+    waitedFor: {},
+    run: _announceReplaceOutcome,
+  ),
+  HostStartupStep(
     name: 'device discovery at launch',
     phase: _services,
     only: _gui,
@@ -344,6 +353,32 @@ Future<void> _checkDatabaseInBackground(HostStartup host) async {
       case DatabaseHealthy() || DatabaseNotChecked():
         break;
     }
+  }
+}
+
+/// Tells the operator and every linked client, once, what this start did
+/// with a backup that was waiting to replace the database. The record stays
+/// on the Backup screen until dismissed there.
+Future<void> _announceReplaceOutcome(HostStartup host) async {
+  final service = host.container.read(backupServiceProvider);
+  final outcome = await service.replaceOutcome();
+  if (outcome == null || outcome.announced) return;
+  await service.markReplaceOutcomeAnnounced();
+  final notice = DatabaseHealthNotice(
+    title: outcome.restored
+        ? 'Database replaced from a backup'
+        : 'Database not replaced',
+    message: outcome.report,
+    severity: outcome.restored ? EventSeverity.info : EventSeverity.warning,
+  );
+  if (outcome.restored) {
+    host.logger.info(notice.message, source: 'BackupService');
+  } else {
+    host.logger.warning(notice.message, source: 'BackupService');
+  }
+  host.container.read(hostMutationEventHubProvider).announce(notice.toEvent());
+  if (host.kind == HostKind.gui) {
+    host.container.read(databaseRepairNoticeProvider.notifier).state = notice;
   }
 }
 

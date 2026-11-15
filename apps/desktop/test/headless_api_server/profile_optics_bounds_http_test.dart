@@ -16,6 +16,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../headless_api/handler_test_helpers.dart';
 
@@ -27,7 +28,13 @@ void main() {
     late HeadlessApiServer server;
 
     setUp(() async {
-      container = createHeadlessTestContainer();
+      container = createHeadlessTestContainer(
+        overrides: [
+          appVersionProvider.overrideWithValue(
+            const AppVersionInfo(version: '9.0.0', buildNumber: 1),
+          ),
+        ],
+      );
       server = HeadlessApiServer(
         port: 0,
         container: container,
@@ -139,6 +146,7 @@ Future<_RawResponse> _rawRequest(
   socket.write(
     '$method $path HTTP/1.1\r\n'
     'Host: $host:$port\r\n'
+    'x-skotiq-version: 9.0.0\r\n'
     'Authorization: Bearer admin-token\r\n'
     'Content-Type: application/json\r\n'
     'Content-Length: ${bytes.length}\r\n'

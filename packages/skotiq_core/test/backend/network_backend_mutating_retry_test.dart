@@ -67,9 +67,11 @@ void main() {
         }),
       );
       Object? failure;
-      backend
-          .mountSlewToCoordinates('sim_mount_1', 1.0, 2.0)
-          .catchError((Object e) => failure = e);
+      unawaited(
+        backend
+            .mountSlewToCoordinates('sim_mount_1', 1.0, 2.0)
+            .then<void>((_) {}, onError: (Object e) => failure = e),
+      );
       async.elapse(const Duration(minutes: 1));
 
       expect(failure, isNotNull);

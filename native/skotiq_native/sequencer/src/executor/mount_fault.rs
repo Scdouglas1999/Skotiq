@@ -46,7 +46,7 @@ impl ExecutorHandle {
                 .map_err(|e| e.to_string())?;
         }
         if run_guiding {
-            crate::instructions::stop_an_active_guider(
+            crate::guiding_stop::stop_guider_for_move(
                 device_ops,
                 "mount fault",
                 crate::GuidingStopReason::MountFault,

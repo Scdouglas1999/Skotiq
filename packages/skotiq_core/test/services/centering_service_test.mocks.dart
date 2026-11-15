@@ -707,9 +707,17 @@ class MockDeviceService extends _i1.Mock implements _i11.DeviceService {
           as _i8.Future<({int disconnected, List<String> failures})>);
 
   @override
-  _i8.Future<void> slewMountToCoordinates(double? ra, double? dec) =>
+  _i8.Future<void> slewMountToCoordinates(
+    double? ra,
+    double? dec, {
+    bool? guiderSilentOk = false,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#slewMountToCoordinates, [ra, dec]),
+            Invocation.method(
+              #slewMountToCoordinates,
+              [ra, dec],
+              {#guiderSilentOk: guiderSilentOk},
+            ),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )

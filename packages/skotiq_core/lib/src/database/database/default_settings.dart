@@ -23,8 +23,8 @@ final Map<String, String> _defaultSettings = {
 /// Keys that were seeded by an earlier build and no longer have an owner.
 ///
 /// A retired key is worse than a missing one: nothing writes it, so it keeps
-/// its stale seed value forever — while `BackupService._exportSettings` dumps
-/// the whole `app_settings` table into every `.skbackup`, and the settings
+/// its stale seed value forever — while every `.skbackup` holds the whole
+/// `app_settings` table, and the settings
 /// snapshot serves it. Deleting the row on open stops an already-created
 /// profile from carrying a retired key's value forward.
 const Set<String> _retiredSettingKeys = {

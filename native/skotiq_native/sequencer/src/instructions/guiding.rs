@@ -305,7 +305,7 @@ impl MountMotion {
                     stall.origin = None;
                 }
             }
-            stop_an_active_guider(device_ops, what, reason).await;
+            crate::guiding_stop::stop_guider_for_move(device_ops, what, reason).await;
             if start.run_was_guiding {
                 if let Some(state) = &trigger_state {
                     state.write().await.guiding.guiding_stopped_by_motion();
@@ -319,39 +319,6 @@ impl MountMotion {
         if let Some(trigger_state) = self.trigger_state.take() {
             trigger_state.write().await.guiding.end_motion();
         }
-    }
-}
-
-/// Stop the guider before the mount moves if it may move the mount itself
-/// (see [`crate::device_ops::DeviceOps::guider_is_active`]). A guider whose
-/// state cannot be read is stopped too: guiding through a move is the worse
-/// mistake, and stopping an idle guider costs nothing. A rig with no guider
-/// has nothing to stop.
-pub(crate) async fn stop_an_active_guider(
-    device_ops: &SharedDeviceOps,
-    what: &str,
-    reason: crate::GuidingStopReason,
-) {
-    let active = match device_ops.guider_is_active().await {
-        Ok(active) => active,
-        Err(crate::device_ops::DeviceError::NO_GUIDER) => false,
-        Err(error) => {
-            tracing::warn!(
-                "[GUIDING] Could not read the guider's state before the {what} ({error}); \
-                 stopping it so it cannot guide while the mount moves"
-            );
-            true
-        }
-    };
-    if !active {
-        return;
-    }
-    tracing::info!(
-        "[GUIDING] Stopping the guider for the {what}: it cannot guide while the mount moves"
-    );
-    device_ops.guider_note_stop_reason(Some(reason)).await;
-    if let Err(error) = device_ops.guider_stop().await {
-        tracing::warn!("[GUIDING] The guider did not stop for the {what}: {error}");
     }
 }
 
