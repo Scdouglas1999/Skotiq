@@ -19,6 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
+import 'backup_restore_support.dart';
+
 void main() {
   late SkotiqDatabase database;
   late Directory root;
@@ -38,11 +40,7 @@ void main() {
     );
     // No backupDirectoryProvider: production constructs the service exactly
     // this way, so the setting is the only thing that can redirect it.
-    service = BackupService(
-      database: database,
-      sequenceRepository: LocalSequenceRepository(database.sequencesDao),
-      logger: logger,
-    );
+    service = BackupService(database: database, logger: logger);
   });
 
   tearDown(() async {
@@ -160,12 +158,27 @@ void main() {
       }),
     );
 
-    final restore = await service.restoreBackup(filePath: foreign.path);
-    expect(restore.success, isTrue, reason: restore.errorMessage);
+    final replaced = await replacedDatabase(
+      root,
+      foreign.path,
+      logger,
+      seed: (live) => BackupService(
+        database: live,
+        logger: logger,
+      ).setBackupDirectory(chosen.path),
+      backupsBesideIt: false,
+    );
+    addTearDown(replaced.close);
     expect(
-      await SettingsDao(database).getSetting('some.other.setting'),
+      await SettingsDao(replaced).getSetting('some.other.setting'),
       'restored',
     );
-    expect(await service.getConfiguredBackupDirectory(), chosen.path);
+    expect(
+      await BackupService(
+        database: replaced,
+        logger: logger,
+      ).getConfiguredBackupDirectory(),
+      chosen.path,
+    );
   });
 }
