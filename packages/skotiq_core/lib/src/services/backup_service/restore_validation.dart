@@ -14,8 +14,11 @@ extension _BackupSections on BackupService {
   ///
   /// Every section is checked before the first write: `equipmentProfiles`
   /// and `targets` are lists of objects with a name, every entry of
-  /// `sequences` decodes to its last node.
-  Future<void> _applySections(Map<String, dynamic> backup) async {
+  /// `sequences` decodes to its last node. Returns the columns each section
+  /// names, by table ([BackupArchiveContents.columnsCarried]).
+  Future<Map<String, Set<String>>> _applySections(
+    Map<String, dynamic> backup,
+  ) async {
     final profiles = backup.containsKey('equipmentProfiles')
         ? _namedRows(backup['equipmentProfiles'], 'equipmentProfiles')
         : null;
@@ -76,6 +79,7 @@ extension _BackupSections on BackupService {
         }
       }
     });
+    return _sectionColumns;
   }
 
   List<Map<String, dynamic>> _namedRows(Object? raw, String section) {

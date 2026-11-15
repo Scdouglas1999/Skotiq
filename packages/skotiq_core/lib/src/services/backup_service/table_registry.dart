@@ -44,5 +44,23 @@ extension _BackupTableRegistry on BackupService {
       (batch) =>
           batch.insertAll(table, decoded, mode: InsertMode.insertOrIgnore),
     );
+    _noteCarried(table, rows.cast<Map>());
+  }
+
+  /// Records which columns of [table] the JSON [rows] of a section name.
+  /// Drift's JSON names a column by its Dart getter, the camel case of the
+  /// column name.
+  void _noteCarried(TableInfo table, Iterable<Map> rows) {
+    final keys = {for (final row in rows) ...row.keys};
+    (_sectionColumns[table.actualTableName] ??= {}).addAll([
+      for (final column in table.$columns)
+        if (keys.contains(_jsonKey(column.name))) column.name,
+    ]);
   }
 }
+
+/// The key drift's JSON gives the column [name].
+String _jsonKey(String name) => name.replaceAllMapped(
+  RegExp('_([a-z0-9])'),
+  (match) => match.group(1)!.toUpperCase(),
+);

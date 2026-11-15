@@ -489,8 +489,15 @@ extension _BackupMerge on BackupService {
   /// link to it follow it there. Or it is left out, with the reason, and so
   /// is every row that links to it. No row is written with a link it did not
   /// have, and none with a link taken away.
+  ///
+  /// [carried] names the columns the backup holds for each table. A column it
+  /// does not hold (the schema gained it after the backup was written) is not
+  /// compared: the backup says nothing about it, so a live row that differs
+  /// only there is the same record, and an added row takes the column's
+  /// default.
   Future<_MergeOutcome> _mergeFrom(
     File staged,
+    Map<String, Set<String>> carried,
     void Function(String step, double fraction) progress,
   ) async {
     await database.customStatement('ATTACH DATABASE ? AS $_bk', [staged.path]);
@@ -540,6 +547,7 @@ extension _BackupMerge on BackupService {
             overrides: name == 'equipment_profiles' && liveRows[name]! > 0
                 ? const {'is_active': '0', 'is_default': '0'}
                 : const {},
+            carried: carried[name],
             tick: (part) => progress(step, (done + size * part) / total),
             beforeAdding: () async =>
                 brokenBefore ??= await _brokenLinks(table),
@@ -617,9 +625,20 @@ extension _BackupMerge on BackupService {
     required bool liveIsEmpty,
     required bool yoursOnly,
     required Map<String, String> overrides,
+    required Set<String>? carried,
     required void Function(double part) tick,
     required Future<void> Function() beforeAdding,
   }) async {
+    // `1` where the backup holds none of the columns: nothing to differ in.
+    String equal(Iterable<String> columns, String a, String b) {
+      final terms = [
+        for (final c in columns)
+          if (carried == null || carried.contains(c))
+            '$a.${_q(c)} IS $b.${_q(c)}',
+      ];
+      return terms.isEmpty ? '1' : terms.join(' AND ');
+    }
+
     final x = _x(t.name);
     final m = _m(t.name);
     final live = 'main.${_q(t.name)}';
@@ -713,21 +732,31 @@ extension _BackupMerge on BackupService {
         'WHERE fate = ${_Fate.ownerNotInBackup} AND EXISTS ('
         'SELECT 1 FROM $_bk.${_q(t.name)} b JOIN $live l ON l.rowid = b.rowid '
         'WHERE b.rowid = m.bk AND '
-        '${t.columns.map((c) => 'b.${_q(c)} IS l.${_q(c)}').join(' AND ')})',
+        "${equal(t.columns, 'b', 'l')})",
       );
     }
+
+    // A key is what the backup holds of it: a key column the backup does
+    // not hold cannot tell two records apart.
+    final keys = [
+      for (final key in t.keys)
+        [
+          for (final c in key)
+            if (carried == null || carried.contains(c)) c,
+        ],
+    ].where((key) => key.isNotEmpty).toList();
 
     // One index per key, and the live table read once per key with each of
     // its rows looked up there: the time a match takes does not depend on
     // which index of the live table the planner would have liked.
     final keyIndexes = <String>[];
     if (!liveIsEmpty) {
-      for (var i = 0; i < t.keys.length; i++) {
+      for (var i = 0; i < keys.length; i++) {
         final index = _q('k\$${t.name}\$$i');
         keyIndexes.add(index);
         await database.customStatement(
           'CREATE INDEX $_bk.$index ON ${_q('x\$${t.name}')} '
-          '(${t.keys[i].map(_q).join(', ')})',
+          '(${keys[i].map(_q).join(', ')})',
         );
       }
     }
@@ -736,10 +765,8 @@ extension _BackupMerge on BackupService {
 
     Future<void> settle(int round) async {
       if (!liveIsEmpty) {
-        final same = t.content
-            .map((c) => 'x.${_q(c)} IS l.${_q(c)}')
-            .join(' AND ');
-        for (final (i, key) in t.keys.indexed) {
+        final same = equal(t.content, 'x', 'l');
+        for (final (i, key) in keys.indexed) {
           await database.customStatement(
             'INSERT OR IGNORE INTO $m '
             'SELECT x.$_rid, '

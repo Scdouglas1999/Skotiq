@@ -86,6 +86,10 @@ class BackupService {
   static const String backupDirectorySettingKey = 'backup.directory';
   final String runtimeAppVersion;
 
+  /// The columns the sections of a backup older than 3.1 named, by table,
+  /// noted as [_applySections] writes them.
+  final Map<String, Set<String>> _sectionColumns = {};
+
   BackupService({
     required this.database,
     required LoggingService logger,
@@ -214,7 +218,7 @@ class BackupService {
       await _sweepScratch();
       staged = await _scratchFile('restore');
       final replace = mode == RestoreMode.replace;
-      final contents = await _stage(
+      final loaded = await _stage(
         file,
         staged,
         (fraction) => onProgress?.call(
@@ -230,7 +234,7 @@ class BackupService {
         result = await _replaceWith(
           staged,
           backupName: path.basename(file.path),
-          backupCreatedAt: contents.sections['createdAt'],
+          backupCreatedAt: loaded.contents.sections['createdAt'],
           onProgress: (step, fraction) =>
               onProgress?.call(RestoreProgress(step, 0.7 + 0.3 * fraction)),
         );
@@ -239,6 +243,7 @@ class BackupService {
       } else {
         final outcome = await _mergeFrom(
           staged,
+          loaded.carried,
           (step, fraction) => onProgress?.call(
             RestoreProgress('Adding $step', 0.5 + 0.5 * fraction),
           ),
@@ -286,7 +291,8 @@ class BackupService {
   /// Build in [staged] the database the backup [archive] describes: this
   /// build's schema, the archive's table rows as they are, and its settings.
   /// Nothing of the live database is read or written.
-  Future<BackupArchiveContents> _stage(
+  Future<({BackupArchiveContents contents, Map<String, Set<String>> carried})>
+  _stage(
     File archive,
     File staged,
     void Function(double fraction) onProgress,
@@ -322,21 +328,24 @@ class BackupService {
     }
     // What a backup older than 3.1 holds under keys of its own goes in
     // through the importers of its day.
+    final carried = {...contents.columnsCarried};
     if (_hasOwnSections(contents.sections)) {
       db = SkotiqDatabase.onFile(staged);
       try {
         // A 2.x section can hold rows of a session the backup does not; what
         // they point at is settled by the merge or the replace, not here.
         await db.customStatement('PRAGMA foreign_keys = OFF');
-        await BackupService(
-          database: db,
-          logger: _logger,
-        )._applySections(contents.sections);
+        carried.addAll(
+          await BackupService(
+            database: db,
+            logger: _logger,
+          )._applySections(contents.sections),
+        );
       } finally {
         await db.close();
       }
     }
-    return contents;
+    return (contents: contents, carried: carried);
   }
 
   /// Where the database is, asked once: the answers below are read from

@@ -2,6 +2,7 @@
 // as those releases wrote them: 2.1 (8.x: settings, profiles, sequences,
 // targets and twenty tables each under a key of its own, as drift JSON) and
 // 3.0 (9.0.0: every table under `tables`, a row object per row).
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -129,9 +130,8 @@ void main() {
         if (t == 'sequences' || t == 'sequence_nodes') continue;
         expect(after[t], before[t], reason: t);
       }
-      // The target is here under another creation time: yours is kept.
-      expect(result.notRestored, {'targets': 1}, reason: result.report);
-      expect(result.leftOut, {RestoreLeftOut.yoursKept: 1});
+      // The target agrees in every column a 2.1 backup holds of it.
+      expect(result.notRestored, isEmpty, reason: result.report);
     });
 
     test(
@@ -186,17 +186,34 @@ void main() {
       final replaced = await replacedDatabase(dir, file, logger);
       addTearDown(replaced.close);
 
+      // The fixture is a file of its day: it holds the columns the schema
+      // had then. A column added since is not in it, and comes back as the
+      // column's default.
+      final fixture = jsonDecode(File(file).readAsStringSync()) as Map;
+      String jsonKey(String column) => column.replaceAllMapped(
+        RegExp('_([a-z0-9])'),
+        (m) => m.group(1)!.toUpperCase(),
+      );
+      bool inFixture(String t, String column) {
+        if (t == 'equipment_profiles') {
+          return ((fixture['equipmentProfiles'] as List).first as Map)
+              .containsKey(jsonKey(column));
+        }
+        final rows = (fixture['tables'] as Map)[t] as List;
+        return rows.isEmpty || (rows.first as Map).containsKey(column);
+      }
+
       Future<List<Map<String, Object?>>> rows(
         SkotiqDatabase db,
         String t,
       ) async => [
         for (final r
             in await db.customSelect('SELECT * FROM "$t" ORDER BY rowid').get())
-          // Stamped when the row was written here.
           {...r.data}..removeWhere(
             (k, _) =>
-                (t == 'equipment_profiles' || t == 'weather_settings') &&
-                k.endsWith('_at'),
+                !inFixture(t, k) ||
+                // Stamped when the row was written here.
+                (t == 'weather_settings' && k.endsWith('_at')),
           ),
       ];
       for (final t in [...seeded, 'weather_settings']) {
@@ -212,6 +229,116 @@ void main() {
       expect(
         await SettingsDao(replaced).getSetting('fixture.setting'),
         'from the backup',
+      );
+    });
+  });
+
+  group('a column the schema gains', () {
+    test('is carried by a profile section of the 3.0 kind, whatever the '
+        'column is', () async {
+      // Built from the schema as it is now: every column of the table,
+      // seeded, written the way 3.0 wrote the section.
+      final source = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(source.close);
+      await seedEveryTable(source);
+      final profiles = [
+        for (final row in await source.select(source.equipmentProfiles).get())
+          row.toJson(),
+      ];
+      final file = File('${dir.path}/section.skbackup')
+        ..writeAsStringSync(
+          jsonEncode({
+            'version': '3.0',
+            'createdAt': '2026-11-14T21:00:00.000',
+            'settings': <String, Object?>{},
+            'equipmentProfiles': profiles,
+            'tables': <String, Object?>{},
+          }),
+        );
+      Future<List<Map<String, Object?>>> rows(SkotiqDatabase db) async => [
+        for (final r
+            in await db
+                .customSelect('SELECT * FROM equipment_profiles ORDER BY id')
+                .get())
+          r.data,
+      ];
+
+      final replaced = await replacedDatabase(dir, file.path, logger);
+      addTearDown(replaced.close);
+      expect(await rows(replaced), await rows(source));
+
+      final again = await service(source).restoreBackup(filePath: file.path);
+      expect(again.success, isTrue, reason: again.errorMessage);
+      expect(again.notRestored, isEmpty, reason: again.report);
+      expect(again.itemsRestored, 0);
+    });
+
+    test('after a backup was written does not make the backup\'s rows '
+        'another record', () async {
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedEveryTable(db);
+      final whole = File('${dir.path}/whole.skbackup');
+      expect(
+        (await service(db).createBackup(customPath: whole.path)).success,
+        isTrue,
+      );
+      // The same backup as a build before the last column of each table
+      // would have written it: without that column, where the column is one
+      // a migration can add (it may be null or has a default).
+      final addable = <String>{};
+      for (final t in db.allTables.map((t) => t.actualTableName)) {
+        final last =
+            (await db.customSelect('PRAGMA table_info("$t")').get()).last;
+        if (last.read<int>('notnull') == 0 ||
+            last.readNullable<String>('dflt_value') != null) {
+          addable.add(t);
+        }
+      }
+      var dropped = 0;
+      var dropping = false;
+      String older(String line) {
+        if (line.contains('{"columns":[')) {
+          final start = jsonDecode('{$line]}}') as Map;
+          final columns = (start.values.single as Map)['columns'] as List;
+          dropping = addable.contains(start.keys.single);
+          if (!dropping) return line;
+          dropped++;
+          return '${jsonEncode(start.keys.single)}:{"columns":'
+              '${jsonEncode(columns.sublist(0, columns.length - 1))},'
+              '"rows":[';
+        }
+        if (line.startsWith('[') && dropping) {
+          final comma = line.endsWith(',');
+          final row =
+              jsonDecode(comma ? line.substring(0, line.length - 1) : line)
+                  as List;
+          return '${jsonEncode(row.sublist(0, row.length - 1))}'
+              '${comma ? ',' : ''}';
+        }
+        return line;
+      }
+
+      final file = File('${dir.path}/older.skbackup')
+        ..writeAsStringSync(whole.readAsLinesSync().map(older).join('\n'));
+      expect(dropped, greaterThan(20));
+
+      final result = await service(db).restoreBackup(filePath: file.path);
+      expect(result.success, isTrue, reason: result.errorMessage);
+      expect(result.notRestored, isEmpty, reason: result.report);
+      expect(result.itemsRestored, 0);
+      expect(result.alreadyHere, greaterThan(40));
+      expect(
+        (await db
+                .customSelect(
+                  'SELECT default_readout_mode FROM equipment_profiles',
+                )
+                .getSingle())
+            .data
+            .values
+            .single,
+        isNotNull,
+        reason: 'the live value of a column the backup lacks stays',
       );
     });
   });
