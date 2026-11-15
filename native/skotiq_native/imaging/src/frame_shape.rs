@@ -73,15 +73,15 @@ fn axial_mean(stars: &[(f64, f64)]) -> (f64, f64) {
     let (mut c, mut s, mut w) = (0.0, 0.0, 0.0);
     for &(eccentricity, angle_deg) in stars {
         let doubled = (2.0 * angle_deg).to_radians();
-        c += eccentricity * doubled.cos();
-        s += eccentricity * doubled.sin();
+        c += eccentricity * libm::cos(doubled);
+        s += eccentricity * libm::sin(doubled);
         w += eccentricity;
     }
     if w <= 0.0 {
         return (0.0, 0.0);
     }
-    let angle = (0.5 * s.atan2(c).to_degrees()).rem_euclid(180.0);
-    (angle, (c.hypot(s) / w).clamp(0.0, 1.0))
+    let angle = (0.5 * libm::atan2(s, c).to_degrees()).rem_euclid(180.0);
+    (angle, (libm::hypot(c, s) / w).clamp(0.0, 1.0))
 }
 
 /// Measure a frame's star size and shape for grading.
@@ -215,7 +215,8 @@ fn seeds(frame: &Frame, candidates: &[DetectedStar]) -> Vec<Seed> {
             (gy - 1..=gy + 1).any(|cy| {
                 grid.get(&(cx, cy)).is_some_and(|kept| {
                     kept.iter().any(|&(x, y)| {
-                        f64::from(x - seed.x).hypot(f64::from(y - seed.y)) <= SAME_STAR_RADIUS
+                        libm::hypot(f64::from(x - seed.x), f64::from(y - seed.y))
+                            <= SAME_STAR_RADIUS
                     })
                 })
             })
@@ -261,7 +262,7 @@ impl<'a> NeighborGrid<'a> {
                 self.cells.get(&(cx, cy)).is_some_and(|cell| {
                     cell.iter().any(|other| {
                         let distance =
-                            f64::from(other.x - seed.x).hypot(f64::from(other.y - seed.y));
+                            libm::hypot(f64::from(other.x - seed.x), f64::from(other.y - seed.y));
                         distance > SAME_STAR_RADIUS
                             && distance <= f64::from(ANNULUS_OUTER)
                             && other.height > limit
@@ -281,7 +282,7 @@ fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64, f64)> {
     let mut annulus = Vec::with_capacity(((2 * r + 1) * (2 * r + 1)) as usize);
     for dy in -r..=r {
         for dx in -r..=r {
-            let d = f64::from(dx).hypot(f64::from(dy));
+            let d = libm::hypot(f64::from(dx), f64::from(dy));
             if d >= ANNULUS_INNER && d <= f64::from(r) {
                 annulus.push(frame.at(px + dx, py + dy));
             }
@@ -297,7 +298,7 @@ fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64, f64)> {
             for dx in -r..=r {
                 let x = f64::from(px + dx);
                 let y = f64::from(py + dy);
-                if (x - cx).hypot(y - cy) <= APERTURE_RADIUS {
+                if libm::hypot(x - cx, y - cy) <= APERTURE_RADIUS {
                     out.push((x, y, frame.at(px + dx, py + dy) - background));
                 }
             }
@@ -327,7 +328,7 @@ fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64, f64)> {
 
     let mut radial: Vec<(f64, f64)> = samples
         .iter()
-        .map(|&(x, y, v)| ((x - cx).hypot(y - cy), v))
+        .map(|&(x, y, v)| (libm::hypot(x - cx, y - cy), v))
         .collect();
     radial.sort_by(|a, b| a.0.total_cmp(&b.0));
     let half = 0.5 * flux;
@@ -386,7 +387,7 @@ fn adaptive_eccentricity(
         let mut weighted = Vec::with_capacity(((2 * r + 1) * (2 * r + 1)) as usize);
         for dy in -r..=r {
             for dx in -r..=r {
-                if f64::from(dx).hypot(f64::from(dy)) > f64::from(r) {
+                if libm::hypot(f64::from(dx), f64::from(dy)) > f64::from(r) {
                     continue;
                 }
                 let x = f64::from(px + dx);

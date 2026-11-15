@@ -328,8 +328,7 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
         endpoint,
         min: 0,
       ),
-      // A host from before stacks were kept to one filter sends none of
-      // these.
+      // An unfiltered stack has no filter name.
       filter: _optionalFilterName(stats['filter']),
       otherFilterFrames: switch (stats['otherFilterFrames']) {
         final int count when count > 0 => count,

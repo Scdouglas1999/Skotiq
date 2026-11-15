@@ -85,7 +85,7 @@ $contracts = @(
     @{
         vendor = "ZWO"
         headers = @("SDKs/ZWO/**/ASICamera2.h", "SDKs/ZWO/**/EAF_focuser.h", "SDKs/ZWO/**/EFW_filter.h")
-        rust = "native/skotiq_native/native/src/vendor/zwo.rs"
+        rust = "native/skotiq_native/native/src/vendor/zwo"
         header_symbols = @("ASIGetNumOfConnectedCameras", "ASIGetCameraProperty", "ASIStartExposure", "ASIGetDataAfterExp", "EAFGetNum", "EAFMove", "EFWGetNum", "EFWSetPosition")
         rust_symbols = @("ASIGetNumOfConnectedCameras", "ASIGetCameraProperty", "ASIStartExposure", "ASIGetDataAfterExp", "EAFGetNum", "EAFMove", "EFWGetNum", "EFWSetPosition")
         ordered_structs = @(
@@ -95,9 +95,9 @@ $contracts = @(
     @{
         vendor = "Atik"
         headers = @("SDKs/Atik/**/AtikCameras.h", "SDKs/Atik/**/AtikDefs.h")
-        rust = "native/skotiq_native/native/src/vendor/atik.rs"
+        rust = "native/skotiq_native/native/src/vendor/atik"
         header_symbols = @("ArtemisDeviceCount", "ArtemisConnect", "ArtemisStartExposure", "ArtemisGetImageData", "ArtemisSetCooling", "ArtemisEFWConnect")
-        rust_symbols = @("ArtemisDeviceCount", "ArtemisConnect", "ArtemisStartExposure", "ArtemisGetImageData", "ArtemisSetCooling", "ArtemisDeviceHasFilterWheel")
+        rust_symbols = @("ArtemisDeviceCount", "ArtemisConnect", "ArtemisStartExposure", "ArtemisGetImageData", "ArtemisSetCooling", "ArtemisEFWIsPresent")
         ordered_structs = @(
             @{ name = "ArtemisProperties"; tokens = @("protocol: c_int", "pixels_x: c_int", "pixels_y: c_int", "pixel_microns_x: c_float", "pixel_microns_y: c_float", "camera_flags: c_int") }
         )
@@ -105,7 +105,7 @@ $contracts = @(
     @{
         vendor = "SVBONY"
         headers = @("SDKs/SVBony/**/*.h", "SDKs/SVBONY/**/*.h")
-        rust = "native/skotiq_native/native/src/vendor/svbony.rs"
+        rust = "native/skotiq_native/native/src/vendor/svbony"
         header_symbols = @("SVBGetNumOfConnectedCameras", "SVBGetCameraProperty", "SVBOpenCamera", "SVBStartVideoCapture", "SVBGetVideoData")
         rust_symbols = @("SVBGetNumOfConnectedCameras", "SVBGetCameraProperty", "SVBOpenCamera", "SVBStartVideoCapture", "SVBGetVideoData")
         ordered_structs = @()
@@ -113,7 +113,7 @@ $contracts = @(
     @{
         vendor = "Player One"
         headers = @("SDKs/PlayerOne/**/PlayerOneCamera.h")
-        rust = "native/skotiq_native/native/src/vendor/player_one.rs"
+        rust = "native/skotiq_native/native/src/vendor/player_one"
         header_symbols = @("POAGetCameraCount", "POAGetCameraProperties", "POAOpenCamera", "POAStartExposure", "POAImageReady", "POAGetImageData")
         rust_symbols = @("POAGetCameraCount", "POAGetCameraProperties", "POAOpenCamera", "POAStartExposure", "POAImageReady", "POAGetImageData")
         ordered_structs = @(
@@ -123,7 +123,7 @@ $contracts = @(
     @{
         vendor = "QHYCCD"
         headers = @("SDKs/QHY/**/qhyccd.h", "SDKs/QHY/**/qhyccdstruct.h")
-        rust = "native/skotiq_native/native/src/vendor/qhy.rs"
+        rust = "native/skotiq_native/native/src/vendor/qhy"
         header_symbols = @("InitQHYCCDResource", "ScanQHYCCD", "OpenQHYCCD", "GetQHYCCDChipInfo", "ExpQHYCCDSingleFrame", "GetQHYCCDSingleFrame", "IsQHYCCDCFWPlugged")
         rust_symbols = @("InitQHYCCDResource", "ScanQHYCCD", "OpenQHYCCD", "GetQHYCCDChipInfo", "ExpQHYCCDSingleFrame", "GetQHYCCDSingleFrame", "IsQHYCCDCFWPlugged")
         enum_values = @(
@@ -134,25 +134,27 @@ $contracts = @(
     @{
         vendor = "ToupTek/Altair/OGMA"
         headers = @("SDKs/Touptek/**/ogmacam.h", "SDKs/ToupTek/**/ogmacam.h")
-        rust = "native/skotiq_native/native/src/vendor/touptek.rs"
+        rust = "native/skotiq_native/native/src/vendor/touptek"
         header_symbols = @("Ogmacam_EnumV2", "Ogmacam_Open", "Ogmacam_StartPullModeWithCallback", "Ogmacam_PullImage", "Ogmacam_put_Option", "Ogmacam_get_Temperature")
-        rust_symbols = @("sym(""EnumV2"")", "sym(""OpenByIndex"")", "sym(""PullImageV3"")", "sym(""put_Option"")", "sym(""get_Temperature"")")
+        rust_symbols = @("sym(""EnumV2"")", "sym(""Open"")", "sym(""PullImageV3"")", "sym(""put_Option"")", "sym(""get_Temperature"")")
         ordered_structs = @(
-            @{ name = "OgmacamDeviceV2"; tokens = @("displayname: [u16; 64]", "id: [u16; 64]", "model: *const OgmacamModelV2") }
+            @{ name = "OgmacamDeviceV2"; tokens = @("displayname: [OgmacamChar; 64]", "id: [OgmacamChar; 64]", "model: *const OgmacamModelV2") }
         )
     },
     @{
         vendor = "Moravian"
+        # The Windows SIPS API (cxusb.h, gxusb.h); the driver loads no filter
+        # wheel entry points.
         headers = @("SDKs/Moravian/**/*.h")
-        rust = "native/skotiq_native/native/src/vendor/moravian.rs"
-        header_symbols = @("Enumerate", "Initialize", "Open", "BeginExposure", "GetImage", "SetTemperature", "SetFilter")
-        rust_symbols = @("Enumerate", "Initialize", "Open", "BeginExposure", "GetImage", "SetTemperature", "SetFilter")
+        rust = "native/skotiq_native/native/src/vendor/moravian"
+        header_symbols = @("Enumerate", "Initialize", "StartExposure", "ReadImage", "BeginExposure", "GetImage", "SetTemperature")
+        rust_symbols = @("Enumerate", "Initialize", "StartExposure", "ReadImage", "BeginExposure", "GetImage", "SetTemperature")
         ordered_structs = @()
     },
     @{
         vendor = "FLI"
         headers = @("SDKs/FLI/**/libfli.h")
-        rust = "native/skotiq_native/native/src/vendor/fli.rs"
+        rust = "native/skotiq_native/native/src/vendor/fli"
         header_symbols = @("FLIOpen", "FLIExposeFrame", "FLIGrabRow", "FLISetTemperature", "FLISetFilterPos", "FLIStepMotor")
         rust_symbols = @("FLIOpen", "FLIExposeFrame", "FLIGrabRow", "FLISetTemperature", "FLISetFilterPos", "FLIStepMotor")
         ordered_structs = @()
@@ -160,7 +162,7 @@ $contracts = @(
     @{
         vendor = "Fujifilm"
         headers = @("SDKs/Fujifilm/**/XAPI.H", "SDKs/Fujifilm/**/XAPI.h")
-        rust = "native/skotiq_native/native/src/vendor/fujifilm.rs"
+        rust = "native/skotiq_native/native/src/vendor/fujifilm"
         header_symbols = @("XSDK_Init", "XSDK_Detect", "XSDK_OpenEx", "XSDK_Release", "XSDK_ReadImageInfo", "XSDK_ReadImage")
         rust_symbols = @("XSDK_Init", "XSDK_Detect", "XSDK_OpenEx", "XSDK_Release", "XSDK_ReadImageInfo", "XSDK_ReadImage")
         ordered_structs = @(
@@ -184,13 +186,20 @@ foreach ($contract in $contracts) {
     $headerEvidence = if ($headersPresent) { (($headers | Select-Object -First 3 | ForEach-Object { Rel $root $_.FullName }) -join ", ") } else { "" }
     AddResult $rows $contract.vendor "sdk-header" "header files" $headersPresent $headerEvidence "required SDK header evidence is present" -Blocked:(-not $headersPresent)
 
+    # A vendor driver is a module folder; its production sources are every .rs
+    # file in it except the tests.
     $rustPath = Join-Path $root $contract.rust
-    $rustPresent = Test-Path $rustPath
+    $rustFiles = @(if (Test-Path -LiteralPath $rustPath -PathType Container) {
+        Get-ChildItem -LiteralPath $rustPath -Recurse -File -Filter *.rs |
+            Where-Object { $_.Name -ne "tests.rs" -and $_.FullName.Replace("\", "/") -notmatch "/tests?/" } |
+            Sort-Object FullName
+    })
+    $rustPresent = $rustFiles.Count -gt 0
     $rustEvidence = if ($rustPresent) { $contract.rust } else { "" }
-    AddResult $rows $contract.vendor "rust-wrapper" $contract.rust $rustPresent $rustEvidence "production Rust wrapper is present"
+    AddResult $rows $contract.vendor "rust-wrapper" $contract.rust $rustPresent $rustEvidence "production Rust driver module is present"
 
     $headerText = if ($headers.Count -gt 0) { ReadAllText $headers } else { "" }
-    $rustText = if ($rustPresent) { [IO.File]::ReadAllText($rustPath) } else { "" }
+    $rustText = if ($rustPresent) { ReadAllText $rustFiles } else { "" }
 
     foreach ($symbol in $contract.header_symbols) {
         AddResult $rows $contract.vendor "header-symbol" $symbol (TokenPresent $headerText $symbol) $headerEvidence "vendor header declares required API surface" -Blocked:(-not $headersPresent)

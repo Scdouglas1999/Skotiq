@@ -25,10 +25,10 @@ step exits non-zero, the job fails, the check shows red on the PR, and the
 | Bridge boundary | `launch-gate` → "Bridge Boundary Gate" | `skotiq_core` is the only package that imports `package:skotiq_bridge`. A reviewed exception is a `// bridge-boundary: <id>` comment above the import, with `<id>` justified in `tools/production/bridge_boundary_whitelist.json`. | `melos run audit:bridge-boundary` |
 | Dependency hygiene | `analyze` → "Dependency Hygiene Gate" | Every workspace package must declare a direct dependency for each library it imports under `lib/`. | `dart run tools/production/dependency_hygiene.dart` |
 | Analyzer rollup (production) | `analyze` → "Analyze code (production gate)" | Zero analyzer errors in production code (`docs/production-readiness/audit-scope.yaml` minus the excludes in `analyzer-policy.yaml`), zero criticals from `critical-warning-codes.txt`. | `melos run analyze:production` |
-| Dart tests | `test-dart` → "Run Dart tests" | All `flutter test` packages green. `melos run test` passes `--exclude-tags golden`, so the host-specific pixel-diff/perceptual golden suites do NOT run on the Linux runner (their committed baselines are Windows-rendered). See `docs/testing/golden-tests.md`; run the goldens with `melos run test:golden` on the canonical host. | `melos run test` |
-| Rust tests (Linux) | `test-rust` → "Run Rust tests" | `cargo test --all-features --workspace` green. Runs on every PR. | `cd native/skotiq_native && cargo test --all-features --workspace` |
+| Dart tests | `test-dart` → "Run Dart tests", "Run pure Dart package tests", "Verify v4.3.0 database migration to current schema" | All `flutter test` packages green, then the pure-Dart packages and the migration of a 4.3.0 database to the current schema. The last two run even when the first step fails, so one red package does not hide them. `melos run test` passes `--exclude-tags golden`, so the host-specific pixel-diff/perceptual golden suites do NOT run on the Linux runner (their committed baselines are Windows-rendered). See `docs/testing/golden-tests.md`; run the goldens with `melos run test:golden` on the canonical host. | `melos run test` |
+| Rust tests (Linux) | `test-rust` → "Run Rust tests" | `cargo test --all-features --workspace --no-fail-fast` green. Runs on every PR. `--no-fail-fast` runs every test binary, so one failing binary cannot hide the crates after it. | `cd native/skotiq_native && cargo test --all-features --workspace --no-fail-fast` |
 | Rust clippy (workspace, deny warnings) | `test-rust` → "Run Rust clippy (workspace, deny warnings + high-value lints)" | `cargo clippy --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` clean. Promotes `result_unit_err`, `await_holding_lock`, and `undocumented_unsafe_blocks` to errors. | `cd native/skotiq_native && cargo clippy --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` |
-| Rust tests (Windows) | `test-rust-windows` → "Run Rust tests" | `cargo test --workspace` on `windows-latest`. Runs on push to main/develop, nightly, or PRs labeled `ci:windows-rust`. Gates the Windows-only `ascom/` crate. | (Windows only) `cd native/skotiq_native && cargo test --all-features --workspace` |
+| Rust tests (Windows) | `test-rust-windows` → "Run Rust tests" | `cargo test --workspace --no-fail-fast` on `windows-2022`. Runs on push to main/master/develop, nightly, PRs from a `release/*` or `fix/*` branch, and PRs labeled `ci:windows-rust`. Gates the Windows-only `ascom/` crate. | (Windows only) `cd native/skotiq_native && cargo test --all-features --workspace --no-fail-fast` |
 | Rust clippy (Windows) | `test-rust-windows` → "Run Rust clippy (workspace, deny warnings + high-value lints)" | Same as the Linux clippy gate but on Windows so `ascom/windows_impl.rs` is exercised. | (Windows only) Same command as Linux clippy. |
 | Dart format | `format-check` → "Check Dart formatting" | `dart format --set-exit-if-changed` clean on every package. | `melos run format -- --set-exit-if-changed` |
 | Rust format | `format-check` → "Check Rust formatting" | `cargo fmt --all -- --check` clean. | `cd native/skotiq_native && cargo fmt --all -- --check` |
@@ -157,9 +157,36 @@ their flags in the source.
 
 ---
 
+## Release gate
+
+`release.yml` does not re-run these gates; it publishes only a commit that
+already passed them. Before the builds and again right before publishing,
+`scripts/release_gate.py` refuses unless:
+
+- the run builds the commit the release tag names (a dispatch has to be run
+  from the tag);
+- that commit is on `origin/main`;
+- every check in its `REQUIRED_CHECKS` (the branch-protection list in
+  `docs/branch-protection.md` plus `Rust Tests (windows)`) concluded `success`
+  on that commit; and
+- no published release has that tag. A published release's assets are never
+  replaced; a fix ships as a new version.
+
+Publishing also requires every signing credential (`scripts/release_policy.py`),
+and `scripts/verify_source_commit.py` checks that every archive's
+`SOURCE-COMMIT.txt` names the tag commit. A build-only dispatch gets no signing
+keys, so what it builds cannot be published. Local repro:
+`python3 scripts/test_release_policy.py && python3 scripts/test_release_gate.py`.
+
+---
+
 ## Current gate status
 
-All required gates above are green on `main`.
+The required gates were red from 2026-11-01 to the 9.0.1 fixes (a time-zone
+dependent Smart Night test, a stale driver fixture, an update test reading the
+wrong file); 9.0.0 was published around them by hand, which the release gate
+above now prevents. Check the live state with
+`gh run list --workflow ci.yml --branch main` before relying on this section.
 
 The placeholder/stub and behavioral gates enforce **no new high-risk markers vs
 the committed baselines** — `docs/production-readiness/highrisk-baseline.txt` and

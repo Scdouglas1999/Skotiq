@@ -187,10 +187,15 @@ jobs:
       - name: Run Dart tests
         run: melos run test
 
+      # The next two run even when a test above failed, so one red package
+      # does not hide the pure-Dart packages or the migration from an old
+      # database. The job still fails when any of them does.
       - name: Run pure Dart package tests
+        if: success() || failure()
         run: melos run test:dart
 
       - name: Verify v4.3.0 database migration to current schema
+        if: success() || failure()
         working-directory: packages/skotiq_core
         env:
           SKOTIQ_OLD_DATABASE: ${{ github.workspace }}/packages/skotiq_core/test/fixtures/skotiq-v4.3.0-profile.db
@@ -241,24 +246,29 @@ jobs:
 
       - name: Run Rust tests
         working-directory: native/skotiq_native
-        run: cargo test --locked --all-features --workspace
+        # --no-fail-fast: one failing test binary must not keep the crates
+        # after it from running.
+        run: cargo test --locked --all-features --workspace --no-fail-fast
 
   test-rust-windows:
-    # Windows runs ONLY on:
+    # Windows runs on:
     #   - push to main/master/develop
     #   - nightly schedule
-    #   - PRs labeled `ci:windows-rust` (rare opt-in)
+    #   - PRs from a release or fix branch (`release/*`, `fix/*`), which are
+    #     the ones a release is cut after
+    #   - PRs labeled `ci:windows-rust`
     # ASCOM only compiles on Windows; without this job `ascom/windows_impl.rs`
-    # has zero CI exercise.
-    # PR cycle time stays low because most PRs don't touch
-    # ascom/ — the opt-in label is the escape hatch.
+    # has zero CI exercise. Other PRs skip it to keep their cycle time low.
     name: Rust Tests (windows)
     runs-on: windows-2022
     timeout-minutes: 45
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:windows-rust'))
+      (github.event_name == 'pull_request' && (
+        startsWith(github.head_ref, 'release/') ||
+        startsWith(github.head_ref, 'fix/') ||
+        contains(github.event.pull_request.labels.*.name, 'ci:windows-rust')))
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -284,8 +294,8 @@ jobs:
         working-directory: native/skotiq_native
         # --workspace so the ascom/ crate (Windows-only) gets exercised here
         # in addition to the bridge/imaging/sequencer crates that already
-        # build on Linux.
-        run: cargo test --locked --all-features --workspace
+        # build on Linux; --no-fail-fast as on Linux.
+        run: cargo test --locked --all-features --workspace --no-fail-fast
 
   cargo-duplicates:
     # Keep the resolved multi-version dependency set reviewable. Existing

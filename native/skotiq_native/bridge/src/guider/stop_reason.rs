@@ -69,7 +69,7 @@ mod tests {
     /// the guider controls with no reason is the operator's; a start clears it.
     #[test]
     fn a_stop_reason_is_the_runs_unless_none_was_given() {
-        let _slot = crate::guider::TEST_SLOT.blocking_lock();
+        let _slot = crate::simulator::sim_singleton_test_lock().blocking_lock();
         set(None);
         note_operator_stop();
         assert_eq!(current(), Some(GuidingStopReason::Operator));

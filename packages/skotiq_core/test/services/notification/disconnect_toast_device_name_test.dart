@@ -44,12 +44,17 @@ class _RecordingTransport extends NotificationTransport {
   }
 }
 
+/// What the host's heartbeat publishes when a device stops answering.
 SkotiqEvent _disconnect(String deviceId, String deviceType) => SkotiqEvent(
   timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.warning,
+  severity: EventSeverity.error,
   category: EventCategory.equipment,
-  eventType: 'Disconnected',
-  data: {'device_id': deviceId, 'device_type': deviceType},
+  eventType: 'Error',
+  data: {
+    'device_id': deviceId,
+    'device_type': deviceType,
+    'message': 'Device unresponsive after 3 heartbeat failures: timed out',
+  },
 );
 
 /// Anything that looks like a wire id rather than a device name.

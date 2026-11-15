@@ -1516,9 +1516,11 @@ mod fake_sdk_contract {
         let devices = touptek::discover_devices_for_brand("OGMA")
             .await
             .expect("OGMA/ToupTek discovery");
-        assert_eq!(devices.len(), 2);
+        // The fake lists three cameras and a filter wheel; discovery keeps the cameras.
+        assert_eq!(devices.len(), 3);
         assert_eq!(devices[0].name, "OGMA AP26CC");
         assert_eq!(devices[1].name, "OGMA GP2000M");
+        assert_eq!(devices[2].name, "OGMA GP130M8");
         assert_eq!(
             devices[0].sdk_version.as_deref(),
             Some("OGMA SDK vfake-ogma-1.0")

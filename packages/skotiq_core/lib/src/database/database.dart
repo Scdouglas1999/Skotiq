@@ -209,6 +209,13 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   /// For testing with a custom QueryExecutor
   SkotiqDatabase.forTesting(super.e);
 
+  /// A database in [file] that is not the app's own: the copy a restore
+  /// builds from a backup before anything of the live one is touched.
+  SkotiqDatabase.onFile(File file)
+    : super(
+        NativeDatabase.createInBackground(file, setup: applySqliteBusyTimeout),
+      );
+
   @override
   int get schemaVersion => 70;
 

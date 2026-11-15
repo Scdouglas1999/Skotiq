@@ -178,6 +178,7 @@ String? routeForNotificationPayload(String payload) {
     case 'safety':
       return AppRoute.weather.path;
     case 'equipment_disconnected':
+    case 'mount_fault':
       return AppRoute.equipment.path;
     case 'low_battery':
     case 'low_disk_space':
@@ -281,6 +282,7 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _polarAlignmentFailedId = 114;
   static const int _ownershipTakenOverId = 115;
   static const int _ownershipAutoReleasedId = 116;
+  static const int _mountFaultId = 117;
 
   /// Auto-incrementing ID for push notifications from the desktop
   int _nextPushNotificationId = 200;
@@ -641,18 +643,18 @@ class MobileNotificationService implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifySequenceFailed(
-    String targetName,
-    String errorMessage,
-  ) async {
+  Future<void> notifySequenceFailed({
+    required String title,
+    required String body,
+  }) async {
     if (!enableSequenceNotifications) return;
 
     await _notifications.show(
       _sequenceFailedId,
-      'Sequence Failed',
-      'Imaging of $targetName failed: $errorMessage',
+      title,
+      body,
       _sequenceDetails,
-      payload: 'sequence_failed:$targetName',
+      payload: 'sequence_failed',
     );
   }
 
@@ -666,7 +668,7 @@ class MobileNotificationService implements MobileNotificationSink {
     await _notifications.show(
       _meridianFlipId,
       'Meridian Flip',
-      'Performing meridian flip for $targetName at $timeStr',
+      'Meridian flip finished for $targetName at $timeStr',
       _infoDetails,
       payload: 'meridian_flip:$targetName',
     );
@@ -720,6 +722,20 @@ class MobileNotificationService implements MobileNotificationSink {
       body,
       _criticalAlarmDetails,
       payload: 'safety',
+    );
+  }
+
+  @override
+  Future<void> notifyMountFault({
+    required String title,
+    required String body,
+  }) async {
+    await _notifications.show(
+      _mountFaultId,
+      title,
+      body,
+      _criticalAlarmDetails,
+      payload: 'mount_fault',
     );
   }
 

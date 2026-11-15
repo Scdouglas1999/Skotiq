@@ -16,6 +16,24 @@ Windows and Linux x64 packages and three Android APKs are distributed. macOS and
 | Distribution | APKs and OTA manifests use production signing. Windows binaries have no Authenticode signature. | Verify package checksums and expect Windows installation warnings. |
 | Device backends | Available backends do not establish support for every device. Vendor SDKs are not redistributed. | Consult the [hardware matrix](supported-hardware-by-platform.md) and install required host drivers/libraries. |
 
+### What was not tested
+
+- No physical rig night. 9.0.0 was not run on a real mount, camera, focuser or
+  guider under the sky; earlier rig nights do not cover this release.
+- No interactive Windows testing. CI ran the Windows package against
+  simulators; no one used it on a Windows desktop.
+- No ARM phone. The arm64-v8a and armeabi-v7a APKs were built and their
+  signatures checked, but not run on a phone; only the x86_64 APK was run, in
+  an Android 15 emulator.
+- No in-app update from an installed 8.2.1 was carried out on Windows, Linux
+  or a phone.
+- The packages were built from commit `4736791e4`, not from the tag commit
+  `737546bb8`; the commits between them change documentation and test code
+  only.
+
+Each release lists the same items for itself, following the
+[release notes template](release-notes-template.md).
+
 These limits are part of the accepted stable-release scope. The owner authorized publication on November 14, 2026. The [release readiness record](release/refactor-readiness.md) and [validation record](release/validation-v9.0.0.md) retain evidence and remaining checks. No runtime backend availability was changed for publication.
 
 ## 8.0.0 (previous release)

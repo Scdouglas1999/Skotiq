@@ -6,18 +6,18 @@ import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_icons.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
+import '../utils/text_measure.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_chip.dart';
 
 /// One tab in an [AdaptiveTabBar].
 @immutable
 class AdaptiveTab {
-  /// Visible label. On very narrow viewports it may be hidden in favour of the
-  /// [icon] (see [AdaptiveTabBar.collapseLabelsWhenTight]).
+  /// Visible label. When even three labelled tabs do not fit, an unselected
+  /// tab may show only its [icon] (see [AdaptiveTabBar.collapseLabelsWhenTight]).
   final String label;
 
-  /// Optional leading icon. Recommended so the tab stays meaningful when the
-  /// label collapses on a compact phone.
+  /// The leading icon. Every tab in a page header has one.
   final IconData? icon;
 
   /// Optional accessibility / tooltip override. Falls back to [label].
@@ -65,9 +65,11 @@ class AdaptiveTabBar extends StatefulWidget {
   /// Called with the tapped tab's index.
   final ValueChanged<int> onSelected;
 
-  /// When true (default) and the viewport is a compact phone, tabs that have an
-  /// [AdaptiveTab.icon] drop their text label to save width (the label remains
-  /// available as a tooltip / semantics). Tabs without an icon keep their text.
+  /// The phone rule. Labels stay and the strip scrolls as long as the three
+  /// widest labelled tabs fit side by side. Only when they do not, and this is
+  /// true (the default), do the UNSELECTED tabs that have an icon drop to the
+  /// icon, with the label as their tooltip. The selected tab always keeps its
+  /// label, so the strip never shows only glyphs.
   final bool collapseLabelsWhenTight;
 
   /// Optional trailing widgets pinned after the tabs (e.g. an overflow action).
@@ -215,6 +217,41 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
     );
   }
 
+  /// Whether the three widest tabs, with their labels, fit in [width].
+  bool _threeLabelledTabsFit(BuildContext context, double width) {
+    final widths = <double>[
+      for (final tab in widget.tabs) _labelledTabWidth(context, tab),
+    ]..sort((a, b) => b.compareTo(a));
+    final shown = widths.take(3).toList();
+    final needed =
+        shown.fold<double>(0, (sum, w) => sum + w) +
+        AdaptiveTabBar.tabGap * (shown.length - 1) +
+        widget.horizontalPadding * 2;
+    return needed <= width;
+  }
+
+  double _labelledTabWidth(BuildContext context, AdaptiveTab tab) {
+    final label = measureTextWidth(
+      context,
+      text: tab.label,
+      style: SkotiqTypography.button,
+    );
+    final icon = tab.icon == null ? 0.0 : _tabIconSize + _tabIconGap;
+    final count = tab.count == null
+        ? 0.0
+        : _tabIconGap +
+              _tabCountPadding * 2 +
+              measureTextWidth(
+                context,
+                text: tab.count!,
+                style: SkotiqChip.textStyle(),
+              );
+    final width = label + icon + count + AdaptiveTabBar.tabPadding * 2;
+    return width < SkotiqTouchTarget.minExtent(context)
+        ? SkotiqTouchTarget.minExtent(context)
+        : width;
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_updateEdgeAffordances);
@@ -234,7 +271,8 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
         final collapseLabels =
-            widget.collapseLabelsWhenTight && availableWidth < 480.0;
+            widget.collapseLabelsWhenTight &&
+            !_threeLabelledTabsFit(context, availableWidth);
 
         // Recheck after layout so the affordance is right on the very first
         // frame (the controller has no clients until then).
@@ -271,7 +309,10 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
                       buttonKey: widget.tabs[i].buttonKey,
                       tab: widget.tabs[i],
                       isSelected: i == widget.selectedIndex,
-                      hideLabel: collapseLabels && widget.tabs[i].icon != null,
+                      hideLabel:
+                          collapseLabels &&
+                          widget.tabs[i].icon != null &&
+                          i != widget.selectedIndex,
                       onTap: () => widget.onSelected(i),
                     ),
                   ],

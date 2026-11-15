@@ -134,7 +134,7 @@ impl PlaneSample for f64 {
 pub(crate) fn gaussian_taps(sigma: f64) -> Vec<f64> {
     let radius = (3.0 * sigma).ceil() as i64;
     let taps: Vec<f64> = (-radius..=radius)
-        .map(|i| (-(i * i) as f64 / (2.0 * sigma * sigma)).exp())
+        .map(|i| libm::exp(-(i * i) as f64 / (2.0 * sigma * sigma)))
         .collect();
     let sum: f64 = taps.iter().sum();
     taps.iter().map(|t| t / sum).collect()

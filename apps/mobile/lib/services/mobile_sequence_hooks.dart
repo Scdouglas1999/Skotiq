@@ -44,11 +44,6 @@ class MobileSequenceHooks {
   LanPushNotificationReceiver? _lanPushReceiver;
   StreamSubscription<PushNotificationFrame>? _lanPushSubscription;
 
-  /// Last time a meridian-flip notification fired from a progress message.
-  /// Matches the 5-minute meridian window in [MobileEventNotifier] so a
-  /// sticky `meridian flip` status doesn't refire on every progress tick.
-  DateTime? _lastMeridianFlipNotified;
-
   /// Set true once [initialize] has wired up all listeners. Code that
   /// reads this provider for event-driven work should `await
   /// waitUntilInitialized()` before assuming notifications/foreground
@@ -322,10 +317,7 @@ class MobileSequenceHooks {
             previous == SequenceExecutionState.finalizing ||
             previous == SequenceExecutionState.stopFailed ||
             previous == SequenceExecutionState.cleanupFailed) {
-          await _stopImagingSession(
-            sequenceCompleted: false,
-            errorMessage: 'Sequence stopped',
-          );
+          await _stopImagingSession(sequenceCompleted: false);
         }
         _setIosBackgroundBanner(false);
         break;
@@ -363,11 +355,7 @@ class MobileSequenceHooks {
         break;
 
       case SequenceExecutionState.failed:
-        await _stopImagingSession(
-          sequenceCompleted: false,
-          errorMessage: progress.message ?? 'Sequence failed',
-          targetName: progress.currentTarget ?? sequence?.name ?? 'Unknown',
-        );
+        await _stopImagingSession(sequenceCompleted: false);
         _setIosBackgroundBanner(false);
         break;
 
@@ -463,7 +451,7 @@ class MobileSequenceHooks {
   void _handleProgressUpdate(
     SequenceProgress? previous,
     SequenceProgress next,
-  ) async {
+  ) {
     if (_foregroundService.isRunning) {
       _foregroundService.updateProgress(
         completedExposures: next.completedExposures,
@@ -473,20 +461,6 @@ class MobileSequenceHooks {
       );
     }
 
-    if (next.message?.toLowerCase().contains('meridian flip') == true) {
-      final prefs = await SharedPreferences.getInstance();
-      if (!MobilePreferences(prefs).notifyMeridianFlip) return;
-      final last = _lastMeridianFlipNotified;
-      if (last != null &&
-          DateTime.now().difference(last) < const Duration(minutes: 5)) {
-        return;
-      }
-      _lastMeridianFlipNotified = DateTime.now();
-      await _notificationService.notifyMeridianFlip(
-        next.currentTarget ?? 'Unknown',
-        DateTime.now(),
-      );
-    }
   }
 
   Future<void> _startImagingSession(Sequence? sequence) async {
@@ -509,9 +483,10 @@ class MobileSequenceHooks {
     }
   }
 
+  /// A failed run is told by [MobileEventNotifier] from the run's `Failed`
+  /// event, with its reason; only a finished run is told here.
   Future<void> _stopImagingSession({
     required bool sequenceCompleted,
-    String? errorMessage,
     String? targetName,
     int? completedExposures,
   }) async {
@@ -526,21 +501,13 @@ class MobileSequenceHooks {
     if (Platform.isAndroid) {
       await _foregroundService.stopService(
         sequenceCompleted: sequenceCompleted,
-        errorMessage: errorMessage,
       );
-    } else {
+    } else if (sequenceCompleted) {
       // On iOS, manually send notification since we don't have foreground service
-      if (sequenceCompleted) {
-        await _notificationService.notifySequenceComplete(
-          targetName ?? 'Unknown',
-          completedExposures ?? 0,
-        );
-      } else if (errorMessage != null) {
-        await _notificationService.notifySequenceFailed(
-          targetName ?? 'Unknown',
-          errorMessage,
-        );
-      }
+      await _notificationService.notifySequenceComplete(
+        targetName ?? 'Unknown',
+        completedExposures ?? 0,
+      );
     }
   }
 

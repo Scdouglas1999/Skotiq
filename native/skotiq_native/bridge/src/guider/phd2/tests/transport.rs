@@ -6,7 +6,7 @@ use std::net::TcpListener;
 
 #[tokio::test]
 async fn stop_guiding_recovers_the_connection_and_waits_for_stopped() {
-    let _slot = PHD2_TEST_SLOT.lock().await;
+    let _slot = sim_singleton_test_lock().lock().await;
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = std::thread::spawn(move || {

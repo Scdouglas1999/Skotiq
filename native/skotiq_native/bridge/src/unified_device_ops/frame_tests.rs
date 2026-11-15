@@ -343,6 +343,21 @@ const READING_CARDS: &[&str] = &[
     "DATE-OBS", "DATE-END", "MJD-OBS", "CCD-TEMP", "FOCTEMP", "OBJCTALT", "AIRMASS",
 ];
 
+/// Cards holding the J2000 position of the mount's of-date pointing. The
+/// conversion is dated by the exposure start, so the same pointing exposed a
+/// second later moves by about 1e-9 degrees of precession, which the last
+/// printed digit can show. They are compared as numbers within
+/// [`POINTING_TOLERANCE_DEG`], which is a few minutes of precession.
+const POINTING_CARDS: &[&str] = &["RA", "DEC"];
+const POINTING_TOLERANCE_DEG: f64 = 1e-7;
+
+fn card_number(card: &str) -> f64 {
+    let value = card[10..].split('/').next().unwrap_or_default().trim();
+    value
+        .parse()
+        .unwrap_or_else(|_| panic!("card {card:?} holds no number"))
+}
+
 /// A header's 80-character cards up to END, trailing blanks trimmed.
 fn raw_cards(path: &std::path::Path) -> Vec<String> {
     let bytes = std::fs::read(path).expect("read FITS");
@@ -599,7 +614,18 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
         "the two headers hold different keys or a different order\n{both}"
     );
     for (sequence_card, manual_card) in shared.iter().zip(&manual) {
-        if READING_CARDS.contains(&card_key(sequence_card)) {
+        if POINTING_CARDS.contains(&card_key(sequence_card)) {
+            assert_eq!(
+                card_format(sequence_card),
+                card_format(manual_card),
+                "a pointing card is written in two formats\n{both}"
+            );
+            assert!(
+                (card_number(sequence_card) - card_number(manual_card)).abs()
+                    < POINTING_TOLERANCE_DEG,
+                "the two frames point differently\n{both}"
+            );
+        } else if READING_CARDS.contains(&card_key(sequence_card)) {
             assert_eq!(
                 card_format(sequence_card),
                 card_format(manual_card),

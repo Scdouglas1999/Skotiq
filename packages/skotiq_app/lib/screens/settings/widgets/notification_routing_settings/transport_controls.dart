@@ -387,9 +387,11 @@ class _SaveButtonState extends State<_SaveButton> {
     }
     if (!mounted) return;
     setState(() => _busy = false);
-    context.showInfoSnackBar(
-      result.ok ? widget.successMessage : (result.message ?? 'Failed.'),
-    );
+    if (result.ok) {
+      context.showInfoSnackBar(widget.successMessage);
+    } else {
+      context.showErrorSnackBar(result.message ?? 'Could not save.');
+    }
   }
 
   @override
@@ -457,13 +459,13 @@ class _TestSendButtonState extends ConsumerState<_TestSendButton> {
       _result = res;
       _busy = false;
     });
-    context.showInfoSnackBar(
-      res.success
-          ? 'Test sent via ${widget.kind.label}'
-          : res.skipped
-              ? 'Not sent: ${res.error}'
-              : 'Failed: ${res.error}',
-    );
+    if (res.success) {
+      context.showInfoSnackBar('Test sent via ${widget.kind.label}');
+    } else if (res.skipped) {
+      context.showWarningSnackBar('Not sent: ${res.error}');
+    } else {
+      context.showErrorSnackBar('Failed: ${res.error}');
+    }
   }
 
   @override

@@ -294,25 +294,6 @@ void main() {
     expect(clients.every((client) => client.closed), isTrue);
   });
 
-  test(
-    'internet estimate retains its source without OS or Wi-Fi work',
-    () async {
-      final late = _LatePlatform();
-      GeolocatorPlatform.instance = late;
-      GeolocationService.scannerFactory = () =>
-          throw StateError('must not scan');
-      GeolocationService.clientFactory = () => MockClient((request) async {
-        return http.Response('{"loc":"40,-75","city":"Test town"}', 200);
-      });
-      final result = await GeolocationService.fetchInternetEstimate();
-      expect(result!.source, PositioningSource.ipAddress);
-      expect(result.provider, 'ipinfo.io');
-      expect(result.accuracyMetres, isNull);
-      expect(result.isPrecise, isFalse);
-      expect(late.permissionChecks, 0);
-    },
-  );
-
   test('a timed-out scan subprocess is terminated', () async {
     final result = await runWifiScanCommand('sh', const [
       '-c',

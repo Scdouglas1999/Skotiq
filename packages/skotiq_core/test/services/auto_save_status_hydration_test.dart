@@ -9,8 +9,12 @@
 /// persisted hours earlier and which has backup files sitting on disk.
 library;
 
+import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/services/auto_save_service.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/sequence_repository.dart';
@@ -79,5 +83,28 @@ void main() {
       final first = await service.statusStream.first;
       expect(first.lastBackup, isNull);
     });
+  });
+
+  test('a manual backup made after the timer started is the last backup '
+      'the status shows', () async {
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final atStart = DateTime(2026, 11, 7, 12, 38);
+    final manual = DateTime(2026, 11, 15, 11, 49);
+    await SettingsDao(
+      db,
+    ).setSetting(BackupService.lastBackupSettingKey, manual.toIso8601String());
+    final service = _service()..start(_idleConfig, atStart);
+    addTearDown(service.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        autoSaveServiceProvider.overrideWithValue(service),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final status = await container.read(autoSaveStatusProvider.future);
+    expect(status.lastBackup, manual);
   });
 }

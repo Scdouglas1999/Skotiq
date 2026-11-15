@@ -50,13 +50,11 @@ final _tnsCredentialsReadyProvider = FutureProvider.autoDispose<bool>((
   return ref.watch(secretsStoreProvider).has(SecretField.tnsApiKey);
 });
 
-/// Embeddable transient-alerts content: header, citizen-science strip, filter
-/// bar, and the filtered alert list. Supplies no Scaffold/AppBar: it sits
-/// inside the Science screen's "Observing Alerts" tab.
+/// Transient-alerts content: citizen-science strip, filter bar and the
+/// filtered alert list. It is a tab of the Science screen, whose header row
+/// carries the refresh and settings actions.
 class TransientsView extends ConsumerWidget {
-  const TransientsView({super.key, this.showHeader = true});
-
-  final bool showHeader;
+  const TransientsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,38 +74,6 @@ class TransientsView extends ConsumerWidget {
 
     return Column(
       children: [
-        if (showHeader)
-          ScreenHeader(
-            title: 'Observing alerts',
-            icon: SkotiqIcons.sparkle,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(SkotiqIcons.refresh,
-                      size: SkotiqTokens.iconMd),
-                  onPressed: () => refreshTransientAlerts(ref),
-                  tooltip: 'Refresh alerts',
-                  color: colors.textSecondary,
-                  constraints: const BoxConstraints(
-                    minWidth: SkotiqTokens.minTouchTarget,
-                    minHeight: SkotiqTokens.minTouchTarget,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(SkotiqIcons.settings,
-                      size: SkotiqTokens.iconMd),
-                  onPressed: () => showTransientSettingsDialog(context, ref),
-                  tooltip: 'Alert settings',
-                  color: colors.textSecondary,
-                  constraints: const BoxConstraints(
-                    minWidth: SkotiqTokens.minTouchTarget,
-                    minHeight: SkotiqTokens.minTouchTarget,
-                  ),
-                ),
-              ],
-            ),
-          ),
         _CitizenScienceStrip(colors: colors),
         _SourceStatusStrip(colors: colors, alertsAsync: alertsAsync),
         _FilterTabBar(

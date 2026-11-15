@@ -472,13 +472,16 @@ class ProfileHandlers implements RouteSource {
     }
     // `merge: {key: {field: value}}` lays those fields over the JSON object
     // the row holds now, so two writers that changed different fields of the
-    // same object (the capture settings, for one) both keep their change. A
-    // client also sends its own whole value under `settings` for hosts that
-    // predate merging; for a merged key that copy is ignored here.
+    // same object (the capture settings, for one) both keep their change.
     final merge = _jsonObjectsOf(payload, 'merge');
     final mergeBase = _jsonObjectsOf(payload, 'mergeBase');
     for (final key in merge.keys) {
-      settings.remove(key);
+      if (settings.containsKey(key)) {
+        throw BadRequestError(
+          field: 'merge.$key',
+          expected: 'a key that is set or merged, not both',
+        );
+      }
     }
     if (settings.isEmpty && remove.isEmpty && merge.isEmpty) {
       throw BadRequestError(

@@ -31,6 +31,7 @@ import '../components/skotiq_toolbar.dart';
 import '../components/readout.dart';
 import '../components/section_title.dart';
 import '../components/segmented_control.dart';
+import '../components/session_picker.dart';
 import '../dialogs/skotiq_dialog.dart';
 import '../layout/side_panel.dart';
 import 'empty_state.dart';
@@ -385,6 +386,22 @@ class _TypographySpecimen extends StatelessWidget {
 /// gallery keeps its evidence markers (the `design_system_gallery_missing`
 /// audit rule reads this file for them) while the new kit gets a golden of its
 /// own.
+final _gallerySessions = <SessionPickerEntry<int>>[
+  const SessionPickerEntry(value: 0, name: 'Quick captures'),
+  SessionPickerEntry(
+    value: 1,
+    name: 'M74',
+    start: DateTime(2026, 11, 5, 19, 40),
+    count: '8 exposures',
+  ),
+  SessionPickerEntry(
+    value: 2,
+    name: 'NGC 891',
+    start: DateTime(2026, 11, 3, 21, 4),
+    count: '120 exposures',
+  ),
+];
+
 class _ObservatorySections extends StatefulWidget {
   const _ObservatorySections();
 
@@ -407,6 +424,7 @@ class _ObservatorySectionsState extends State<_ObservatorySections> {
   int _stripSection = 1;
   bool _chipSelected = true;
   String? _frameType = 'Light';
+  int? _session = 2;
   bool _autosave = true;
   bool _cooling = true;
 
@@ -744,10 +762,13 @@ class _ObservatorySectionsState extends State<_ObservatorySections> {
                   const SizedBox(height: FormRow.rowGap),
                   const FormRow(
                     label: 'Search',
-                    child: SkotiqTextField(
-                      hint: 'Search nodes…',
-                      prefixIcon: LucideIcons.search,
-                    ),
+                    child: SkotiqSearchField(hint: 'Search nodes'),
+                  ),
+                  const SizedBox(height: FormRow.rowGap),
+                  SessionPicker<int>(
+                    entries: _gallerySessions,
+                    value: _session,
+                    onChanged: (value) => setState(() => _session = value),
                   ),
                   const SizedBox(height: FormRow.rowGap),
                   FormRow(
@@ -897,6 +918,57 @@ class _ObservatorySectionsState extends State<_ObservatorySections> {
                 ),
               ),
             ),
+          ),
+        ),
+        ShowcaseSection.plain(
+          title: 'Load failed',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 170),
+            child: SkotiqPanel(
+              child: EmptyState.error(
+                body: 'The session list could not be read.',
+                onRetry: _act,
+              ),
+            ),
+          ),
+        ),
+        ShowcaseSection.plain(
+          title: 'List rows',
+          child: Column(
+            children: [
+              ListRow(
+                title: 'NGC 891 LRGB',
+                subtitle: '6 steps · 4.5 h · last run Nov 3',
+                trailingWidget: const SkotiqChip(
+                  label: 'Done',
+                  tone: ChipTone.success,
+                ),
+                trailing: '2h 32m',
+                selected: true,
+                onTap: _act,
+                actions: [
+                  SkotiqIconButton(
+                    icon: LucideIcons.star,
+                    tooltip: 'Favorite',
+                    size: IconButtonSize.sm,
+                    onPressed: _act,
+                  ),
+                  SkotiqIconButton(
+                    icon: LucideIcons.moreHorizontal,
+                    tooltip: 'More',
+                    size: IconButtonSize.sm,
+                    onPressed: _act,
+                  ),
+                ],
+              ),
+              ListRow(
+                title: 'M74 test',
+                subtitle: '3 steps · 15 min · never run',
+                trailing: '—',
+                showDivider: false,
+                onTap: _act,
+              ),
+            ],
           ),
         ),
         ShowcaseSection.plain(

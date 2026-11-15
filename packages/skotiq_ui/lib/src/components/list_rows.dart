@@ -8,36 +8,58 @@ import 'readout.dart';
 /// Icon size at the head of a list row, in logical pixels (05 §9: 15 muted).
 const double _rowIconSize = SkotiqTokens.iconGlyphRow;
 
-/// A row in a list: 13px text, 8px vertical padding, a hairline underneath,
-/// a 15px muted leading icon and a trailing mono timestamp.
-///
-/// This — not a panel — is the tappable container in this language. A panel has
+/// A row in a list, and the tappable container in this language: a panel has
 /// no hover and no `onTap`; a row has both.
+///
+/// One line: [title] in 13px `bodySm` with an optional 15px muted [icon] — a
+/// side list, search results. Two lines, when [subtitle] is given: the title
+/// steps up to `bodyStrong` with one muted `bodySm` line beneath it — the row
+/// of a page's main list (saved sequences, past nights, targets).
+///
+/// After the text, in order: [trailingWidget] (a status chip or a control),
+/// [trailing] (a right-aligned mono figure or timestamp) and at most two
+/// [actions] (icon buttons). Anything more belongs behind one "more" menu,
+/// which is then one of the two actions.
+///
+/// 8px vertical padding and a hairline underneath; a [selected] row trades the
+/// hairline for the accent ring every selected surface uses.
 class ListRow extends StatefulWidget {
   const ListRow({
     super.key,
     required this.title,
+    this.subtitle,
     this.icon,
     this.trailing,
     this.trailingWidget,
+    this.actions = const <Widget>[],
     this.onTap,
+    this.selected = false,
     this.showDivider = true,
-  });
+  }) : assert(actions.length <= maxActions, 'Put further actions in a menu.');
 
   final String title;
+
+  /// One muted line of facts under the title. Never a second sentence.
+  final String? subtitle;
 
   /// An optional 15px leading glyph in `textMuted`.
   final IconData? icon;
 
-  /// A trailing mono timestamp or count in `textMuted`.
+  /// A trailing mono figure or timestamp in `textMuted`.
   final String? trailing;
 
-  /// A trailing widget, used instead of [trailing] when the row ends in a
-  /// control or a chip.
+  /// A trailing widget before [trailing]: a status chip or a control.
   final Widget? trailingWidget;
+
+  /// Up to [maxActions] icon buttons at the row's end. They keep their own
+  /// taps and their own names; the rest of the row is [onTap].
+  final List<Widget> actions;
 
   /// Non-null makes the row tappable and gives it a `surfaceHover` fill.
   final VoidCallback? onTap;
+
+  /// Marks the row as the one whose detail is open.
+  final bool selected;
 
   /// Draws the 1px hairline under the row. The LAST row in a list passes
   /// false — a line under the final row is the bottom of nothing.
@@ -45,8 +67,14 @@ class ListRow extends StatefulWidget {
 
   static const double verticalPadding = SkotiqTokens.spaceSm;
 
-  /// Gap between the icon, the title and the trailing slot.
+  /// Gap between the icon, the text and the trailing slots.
   static const double gap = 10;
+
+  /// Gap between the title and the subtitle.
+  static const double lineGap = 2;
+
+  /// The most icon buttons a row carries.
+  static const int maxActions = 2;
 
   @override
   State<ListRow> createState() => _ListRowState();
@@ -60,22 +88,62 @@ class _ListRowState extends State<ListRow> {
     setState(() => _hovered = value);
   }
 
+  BoxBorder? _border(SkotiqColors colors) {
+    if (widget.selected) {
+      return Border.all(
+        color: colors.primary.withValues(
+          alpha: SkotiqTokens.opacitySelectedRing,
+        ),
+      );
+    }
+    if (widget.showDivider) {
+      return Border(bottom: BorderSide(color: colors.border));
+    }
+    return null;
+  }
+
+  Widget _text(SkotiqColors colors) {
+    final subtitle = widget.subtitle;
+    final title = Text(
+      widget.title,
+      style:
+          (subtitle == null
+                  ? SkotiqTypography.bodySm
+                  : SkotiqTypography.bodyStrong)
+              .copyWith(color: colors.textPrimary),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    if (subtitle == null) return title;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        title,
+        const SizedBox(height: ListRow.lineGap),
+        Text(
+          subtitle,
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final tappable = widget.onTap != null;
 
-    final row = Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: ListRow.verticalPadding,
-        horizontal: SkotiqTokens.spaceSm,
-      ),
-      decoration: BoxDecoration(
-        color: tappable && _hovered ? colors.surfaceHover : Colors.transparent,
-        borderRadius: SkotiqTokens.borderRadiusSm,
-        border: widget.showDivider
-            ? Border(bottom: BorderSide(color: colors.border))
-            : null,
+    // Everything but the actions, padding included: the part the row's own
+    // tap and name cover.
+    Widget body = Padding(
+      padding: EdgeInsets.fromLTRB(
+        SkotiqTokens.spaceSm,
+        ListRow.verticalPadding,
+        widget.actions.isEmpty ? SkotiqTokens.spaceSm : 0,
+        ListRow.verticalPadding,
       ),
       child: Row(
         children: <Widget>[
@@ -83,20 +151,12 @@ class _ListRowState extends State<ListRow> {
             Icon(widget.icon, size: _rowIconSize, color: colors.textMuted),
             const SizedBox(width: ListRow.gap),
           ],
-          Expanded(
-            child: Text(
-              widget.title,
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Expanded(child: _text(colors)),
           if (widget.trailingWidget != null) ...<Widget>[
             const SizedBox(width: ListRow.gap),
             widget.trailingWidget!,
-          ] else if (widget.trailing != null) ...<Widget>[
+          ],
+          if (widget.trailing != null) ...<Widget>[
             const SizedBox(width: ListRow.gap),
             Text(
               widget.trailing!,
@@ -109,24 +169,50 @@ class _ListRowState extends State<ListRow> {
       ),
     );
 
-    if (!tappable) return row;
-
-    return Semantics(
-      button: true,
-      // Semantics publishes isEnabled only when the field is given; without it
-      // a live row announces as dimmed.
-      enabled: true,
-      label: widget.title,
-      child: MouseRegion(
-        onEnter: (_) => _setHovered(true),
-        onExit: (_) => _setHovered(false),
-        cursor: SystemMouseCursors.click,
+    if (tappable) {
+      body = Semantics(
+        button: true,
+        // Semantics publishes isEnabled only when the field is given; without
+        // it a live row announces as dimmed.
+        enabled: true,
+        selected: widget.selected,
+        label: widget.subtitle == null
+            ? widget.title
+            : '${widget.title}, ${widget.subtitle}',
         child: GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: ExcludeSemantics(child: row),
+          child: ExcludeSemantics(child: body),
         ),
+      );
+    }
+
+    final row = Container(
+      decoration: BoxDecoration(
+        color: tappable && _hovered ? colors.surfaceHover : Colors.transparent,
+        borderRadius: SkotiqTokens.borderRadiusSm,
+        border: _border(colors),
       ),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: body),
+          for (final action in widget.actions) ...<Widget>[
+            const SizedBox(width: SkotiqTokens.spaceXs),
+            action,
+          ],
+          if (widget.actions.isNotEmpty)
+            const SizedBox(width: SkotiqTokens.spaceXs),
+        ],
+      ),
+    );
+
+    if (!tappable) return row;
+
+    return MouseRegion(
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
+      cursor: SystemMouseCursors.click,
+      child: row,
     );
   }
 }

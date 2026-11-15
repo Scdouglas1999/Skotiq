@@ -535,32 +535,35 @@ async fn run_autofocus_admitted(
     let mut pre_run_error = None;
     if let Some(target_name) = requested_filter.as_deref() {
         match &original_filter {
-            Some((original_name, _original_position)) if original_name != target_name => {
-                if let Some(target_position) =
-                    filter_names.iter().position(|name| name == target_name)
+            Some((_, original_position)) => {
+                match skotiq_device::match_filter_slot(&filter_names, target_name)
+                    .into_slot(&filter_names, target_name)
                 {
-                    // The wheel may move before verification fails, so restoration
-                    // responsibility begins before the command is sent.
-                    filter_restore_required = true;
-                    if let Err(error) =
-                        move_autofocus_filter(ctx, target_name, target_position as i32).await
-                    {
-                        pre_run_error = Some(
-                            InstructionResult::failure(format!(
-                                "Failed to switch to autofocus filter \"{}\": {}",
-                                target_name, error
-                            ))
-                            .caused_by(&error),
-                        );
+                    Ok(target_position) if target_position as i32 == *original_position => {}
+                    Ok(target_position) => {
+                        // The wheel may move before verification fails, so restoration
+                        // responsibility begins before the command is sent.
+                        filter_restore_required = true;
+                        let slot_name = filter_names[target_position].clone();
+                        if let Err(error) =
+                            move_autofocus_filter(ctx, &slot_name, target_position as i32).await
+                        {
+                            pre_run_error = Some(
+                                InstructionResult::failure(format!(
+                                    "Failed to switch to autofocus filter \"{}\": {}",
+                                    slot_name, error
+                                ))
+                                .caused_by(&error),
+                            );
+                        }
                     }
-                } else {
-                    pre_run_error = Some(InstructionResult::failure(format!(
-                        "Configured autofocus filter \"{}\" is not present in the connected wheel",
-                        target_name
-                    )));
+                    Err(reason) => {
+                        pre_run_error = Some(InstructionResult::failure(format!(
+                            "Autofocus filter: {reason}"
+                        )));
+                    }
                 }
             }
-            Some(_) => {}
             None => {
                 pre_run_error = Some(InstructionResult::failure(format!(
                     "Autofocus is configured to use filter \"{}\", but no filter wheel is connected",

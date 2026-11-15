@@ -215,9 +215,10 @@ String geolocationConsentBody({
 
 /// Closing paragraph for a lookup that writes straight to the observing site.
 const String kGeolocationWritesSiteOutcome =
-    'None of these sources reports elevation. Latitude and longitude are '
-    'replaced; the elevation is kept only if the new position is near '
-    'the current one, and is otherwise cleared for you to enter.';
+    'A precise position replaces latitude and longitude; an approximate one '
+    'is shown for you to accept first. None of these sources reports '
+    'elevation: it is kept only if the new position is near the current '
+    'one, and is otherwise cleared for you to enter.';
 
 /// Closing paragraph for a lookup that only *offers* a starting point.
 const String kGeolocationOffersEstimateOutcome =
