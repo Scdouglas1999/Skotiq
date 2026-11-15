@@ -1,7 +1,6 @@
 // A Settings row gives its description the width the control leaves, and the
 // navigation marks the entries that take you out of Settings.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
