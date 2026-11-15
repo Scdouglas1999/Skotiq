@@ -15,7 +15,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   /// Save [profile]; when [fields] is given, ask the host to update only those
   /// fields of its existing row, so edits made elsewhere to the other fields
-  /// survive. A host that predates field updates stores the whole profile.
+  /// survive.
   Future<void> saveProfileFields(
     EquipmentProfile profile, {
     required Set<String>? fields,
@@ -160,30 +160,24 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Merge [fields] into the JSON-object rows of the host's key/value store.
-  ///
-  /// [fallback] carries, for every key in [fields], the whole value this
-  /// client would write: a host that predates merging ignores `merge` and
-  /// stores it, while a current host ignores it and lays only [fields] over
-  /// its own row (or over [base] when it has none). Returns the values the
-  /// host stored, or [fallback] when the host did not say.
+  /// Merge [fields] into the JSON-object rows of the host's key/value store:
+  /// the host lays them over its own row (or over [base] when it has none).
+  /// Returns the values the host stored.
   Future<Map<String, String>> mergeSettingsStore(
     Map<String, Map<String, Object?>> fields, {
-    required Map<String, String> fallback,
     Map<String, Map<String, Object?>> base = const {},
   }) async {
     final response = await _post(
       ProfileApi.updateSettingsStore,
-      body: {
-        'settings': fallback,
-        'merge': fields,
-        if (base.isNotEmpty) 'mergeBase': base,
-      },
+      body: {'merge': fields, if (base.isNotEmpty) 'mergeBase': base},
     );
     final merged = response['merged'];
-    if (merged is! Map) return fallback;
+    if (merged is! Map || !fields.keys.every(merged.containsKey)) {
+      throw const FormatException(
+        'settings/store did not return the merged values',
+      );
+    }
     return {
-      ...fallback,
       for (final entry in merged.entries)
         entry.key.toString(): entry.value?.toString() ?? '',
     };

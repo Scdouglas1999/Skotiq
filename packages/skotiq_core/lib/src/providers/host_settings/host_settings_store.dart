@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 
 import '../../backend/roles/host_data/host_rig_settings.dart';
-import '../../database/daos/settings_dao.dart' show SettingsDao;
 import '../../models/backend/event_types.dart' show SkotiqEvent;
 import '../../models/backend/host_mutation_event.dart';
 import '../../services/logging_service.dart';
@@ -92,19 +91,12 @@ class HostSettingsStore {
     Map<String, Object?> base = const {},
   }) async {
     await ensureLoaded();
-    final fallback = SettingsDao.mergeJsonObject(
-      _values[key],
-      fields,
-      base: base,
-    );
     _writeGeneration++;
-    final stored = await _backend.mergeSettingsStore(
-      {key: fields},
-      fallback: {key: fallback},
-      base: base.isEmpty ? const {} : {key: base},
-    );
+    final stored = await _backend.mergeSettingsStore({
+      key: fields,
+    }, base: base.isEmpty ? const {} : {key: base});
     _writeGeneration++;
-    final value = stored[key] ?? fallback;
+    final value = stored[key]!;
     _values = Map.unmodifiable({..._values, key: value});
     return value;
   }

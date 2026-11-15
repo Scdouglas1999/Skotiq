@@ -90,7 +90,13 @@ _MockNetworkBackend _link(Map<String, dynamic>? night) {
   when(
     () => backend.eventStream,
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-  when(() => backend.getHostNightHistory()).thenAnswer((_) async => night);
+  if (night == null) {
+    when(
+      () => backend.getHostNightHistory(),
+    ).thenThrow(StateError('the host did not answer'));
+  } else {
+    when(() => backend.getHostNightHistory()).thenAnswer((_) async => night);
+  }
   return backend;
 }
 
@@ -149,7 +155,7 @@ void main() {
     expect(samples.first.t, _run.add(const Duration(minutes: 5)));
   });
 
-  test('a host without the endpoint leaves the charts to live events',
+  test('a host that does not answer leaves the charts to live events',
       () async {
     final client = _client(_link(null));
     client.read(nightGuideSamplesProvider);

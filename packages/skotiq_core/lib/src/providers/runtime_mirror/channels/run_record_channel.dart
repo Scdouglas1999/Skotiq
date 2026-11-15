@@ -128,11 +128,7 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
       lastEnded: lastEnded,
       startedAt: jsonInstant(value['runStartedAt'])?.toLocal(),
     );
-    // A host from before this field says nothing; what the client gathered
-    // from the events stands.
-    if (value.containsKey('stop')) {
-      run.setStopEvidence(_decodeStop(value['stop']));
-    }
+    run.setStopEvidence(_decodeStop(value['stop']));
     run.setStats(_decodeStats(value['stats']));
   }
 }
