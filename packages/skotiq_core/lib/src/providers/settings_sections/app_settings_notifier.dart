@@ -41,7 +41,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   // read-modify-write tail rather than sharing the filter one.
   Future<void> _focuserBacklashCalibrationWriteTail = Future<void>.value();
   int _backendGeneration = 0;
-  int _locationEditRevision = 0;
   bool _disposeHookRegistered = false;
   StreamSubscription<Set<String>>? _hostStoreSub;
 
@@ -485,7 +484,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   }
 
   Future<void> _saveSetting(String key, String value) {
-    _recordLocationEdit([key]);
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
     // Device-local display prefs always persist to the local store, even
@@ -571,7 +569,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   }
 
   Future<void> _saveSettings(Map<String, String> settings) {
-    _recordLocationEdit(settings.keys);
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
     final dao = backend.linksToHost ? null : ref.read(settingsDaoProvider);
@@ -752,13 +749,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// the [SettingsDao]. (On a network client, settings flow through the section
   /// setters / `_writeRemoteSettings` instead.)
   Future<void> applyRemoteSettings(models.AppSettings remote) async {
-    final current = _currentValueOrNull;
-    if (current == null ||
-        remote.latitude != current.latitude ||
-        remote.longitude != current.longitude ||
-        remote.elevation != current.elevation) {
-      _locationEditRevision++;
-    }
     final backend = ref.read(backendProvider);
     if (backend.linksToHost) {
       throw StateError(

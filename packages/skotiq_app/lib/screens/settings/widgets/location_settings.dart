@@ -220,7 +220,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Latitude',
                   subtitle: 'Decimal degrees or DMS (44 3 29 N). Positive is '
                       'North, negative is South',
-                  trailing: _locationEditor(SettingsNumberInput(
+                  trailing: SettingsNumberInput(
                     authoritativeValue: settings.latitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -233,7 +233,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLatitude(value);
                     },
-                  )),
+                  ),
                 ),
                 SettingRow(
                   key: const ValueKey('site-longitude-row'),
@@ -241,7 +241,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Longitude',
                   subtitle: 'Decimal degrees or DMS (121 18 55 W). Positive is '
                       'East, negative is West',
-                  trailing: _locationEditor(SettingsNumberInput(
+                  trailing: SettingsNumberInput(
                     authoritativeValue: settings.longitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -254,14 +254,14 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLongitude(value);
                     },
-                  )),
+                  ),
                 ),
                 SettingRow(
                   key: const ValueKey('site-elevation-row'),
                   icon: LucideIcons.mountain,
                   title: 'Elevation',
                   subtitle: 'Height above sea level',
-                  trailing: _locationEditor(SettingsNumberInput(
+                  trailing: SettingsNumberInput(
                     authoritativeValue: settings.elevation,
                     authorityKey: authority,
                     suffix: 'm',
@@ -273,7 +273,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setElevation(value);
                     },
-                  )),
+                  ),
                   isLast: false,
                 ),
                 // Only a remote session HAS a server to read from: over a local
@@ -629,18 +629,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     );
   }
 
-  /// Number inputs save on blur. Starting to edit must take precedence over
-  /// startup detection before the text is complete or valid enough to save.
-  Widget _locationEditor(Widget child) => Focus(
-        canRequestFocus: false,
-        onFocusChange: (focused) {
-          if (focused) {
-            ref.read(appSettingsProvider.notifier).noteLocationEdit();
-          }
-        },
-        child: child,
-      );
-
   /// Detect location, with consent: see [detectSite] for its rules.
   Future<void> _detectLocation({bool mayEnableWifiRadio = false}) async {
     if (_detecting) return;
@@ -661,6 +649,10 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
             '${attempt.failureMessage} Search for a place by name, or enter '
             'coordinates.',
           );
+        case SiteEstimated():
+          // The lookup is over; the question is the operator's now.
+          setState(() => _detecting = false);
+          await _offerEstimate(detection);
         case SiteDetected():
           final elevation = ref.read(appSettingsProvider).value?.elevation ?? 0;
           context.showSuccessSnackBar(
@@ -680,6 +672,28 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     } finally {
       if (mounted) setState(() => _detecting = false);
     }
+  }
+
+  /// An approximate position is the operator's to accept: until then it is
+  /// not the observing site.
+  Future<void> _offerEstimate(SiteEstimated estimate) async {
+    final accepted = await ConfirmDialog.show(
+      context: context,
+      title: 'Approximate location',
+      message: 'Near ${estimate.where}. ${estimate.fix.explanation} '
+          'Use it as your observing site? Search for a place or enter '
+          'coordinates for a precise one. '
+          '${_refinementNudge(estimate.attempt)}',
+      confirmLabel: 'Use this location',
+    );
+    if (!accepted || !mounted) return;
+    final stored = await acceptEstimatedSite(context, ref, estimate);
+    if (stored == null || !mounted) return;
+    context.showSuccessSnackBar(
+      'Coordinates set to ${stored.where}. '
+      '${stored.keptElevation ? '' : 'Elevation cleared to 0 m — enter the '
+          'elevation for this site.'}',
+    );
   }
 
   /// What to do about a fix that may be wrong.

@@ -623,7 +623,14 @@ void main() {
       await tester.tap(find.text('Detect location'));
       await tester.pumpAndSettle();
       expect(calls, 1);
+      expect(
+        (await container.read(appSettingsProvider.future)).latitude,
+        closeTo(47.6062, 0.0001),
+        reason: 'an internet estimate is offered, not stored',
+      );
 
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Use this'));
+      await tester.pumpAndSettle();
       final settings = await container.read(appSettingsProvider.future);
       expect(settings.latitude, closeTo(39.9817, 0.0001));
       expect(

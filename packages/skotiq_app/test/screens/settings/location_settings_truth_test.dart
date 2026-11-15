@@ -88,31 +88,6 @@ void main() {
       elevation: 1234,
     );
 
-    testWidgets('editing a coordinate cancels startup detection before saving',
-        (tester) async {
-      final handle = await _pumpLocation(
-        tester,
-        settings: const AppSettingsState(),
-      );
-      final notifier = handle.container.read(appSettingsProvider.notifier);
-      for (final row in ['latitude', 'longitude', 'elevation']) {
-        final before = notifier.locationEditRevision;
-        await tester.enterText(
-          find.descendant(
-            of: find.byKey(ValueKey('site-$row-row')),
-            matching: find.byType(TextField),
-          ),
-          '-',
-        );
-        await tester.pump();
-        expect(notifier.locationEditRevision, greaterThan(before),
-            reason: '$row input is not ready to commit yet');
-      }
-      final settings = handle.container.read(appSettingsProvider).value!;
-      expect((settings.latitude, settings.longitude, settings.elevation),
-          (0.0, 0.0, 0.0));
-    });
-
     SiteLocator answering(PositioningAttempt attempt) => ({
           required bool allowWifiScan,
           required bool allowIp,
@@ -214,7 +189,11 @@ void main() {
     testWidgets('consent is asked once and then remembered for the session', (
       tester,
     ) async {
-      await _pumpLocation(tester, settings: seattle, locator: answering(ipFix));
+      await _pumpLocation(
+        tester,
+        settings: seattle,
+        locator: answering(wifiFix),
+      );
 
       await consentAndDetect(tester);
       expect(find.text('Detect this site’s location?'), findsNothing);
@@ -234,7 +213,7 @@ void main() {
       final handle = await _pumpLocation(
         tester,
         settings: seattle,
-        locator: answering(ipFix),
+        locator: answering(wifiFix),
       );
 
       await consentAndDetect(tester);
@@ -295,20 +274,19 @@ void main() {
     });
 
     testWidgets(
-        'an IP fix is written, named as approximate, and offers the '
-        'precise tier', (tester) async {
+        'an IP fix is offered as approximate and becomes the site only when '
+        'accepted', (tester) async {
       final handle = await _pumpLocation(
         tester,
         settings: seattle,
         locator: answering(ipFix),
       );
+      double latitude() =>
+          handle.container.read(appSettingsProvider).requireValue.latitude;
 
       await consentAndDetect(tester);
 
-      expect(
-        handle.container.read(appSettingsProvider).requireValue.latitude,
-        closeTo(39.9817, 1e-6),
-      );
+      expect(find.text('Approximate location'), findsOneWidget);
       expect(
         find.textContaining(
           'Approximate only: from your internet address (ipinfo.io). City '
@@ -321,6 +299,30 @@ void main() {
         findsWidgets,
         reason: 'a switched-off radio is the one cause the operator can fix',
       );
+      expect(latitude(), seattle.latitude,
+          reason: 'an estimate is not the site until the operator says so');
+
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Use this location'));
+      await tester.pumpAndSettle();
+      expect(latitude(), closeTo(39.9817, 1e-6));
+    });
+
+    testWidgets('a declined estimate leaves the site as it was', (
+      tester,
+    ) async {
+      final handle = await _pumpLocation(
+        tester,
+        settings: seattle,
+        locator: answering(ipFix),
+      );
+
+      await consentAndDetect(tester);
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      final settings = handle.container.read(appSettingsProvider).requireValue;
+      expect(settings.latitude, seattle.latitude);
+      expect(settings.elevation, seattle.elevation);
     });
 
     testWidgets(
@@ -351,6 +353,8 @@ void main() {
       );
 
       await consentAndDetect(tester);
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Cancel'));
+      await tester.pumpAndSettle();
       expect(find.text('Turn Wi-Fi on for a precise fix'), findsOneWidget);
 
       // Let the first confirmation expire: ScaffoldMessenger QUEUES snackbars,
