@@ -1,60 +1,75 @@
-/// The filter-name rule. A filter's name stands for the set of bands it
-/// names: split at spaces, slashes, dashes, underscores, plus signs and bars,
+/// The filter-name rule. A filter's name stands for the bands it names: the
+/// words (split at spaces, slashes, dashes, underscores, plus signs and bars)
+/// and runs of up to three adjacent words that are a known band or product,
 /// long spellings folded onto the short ones ("Luminance" and "Clear" are L,
-/// "Red" is R, "H-alpha" is HA, "Sulfur II" is SII), and a bandwidth such as
-/// "7nm" left out. "Ha 7nm" is HA, "Ha/OIII" is HA and OIII, "UV/IR Cut" is
-/// UV, IR and CUT. Two names are the same filter when their bands are the
-/// same; a name is never matched by a piece of another ("R" is not "Dark").
+/// "Red" is R, "H-alpha" is HA, "Sulfur II" is SII, "L-eXtreme" is HA and
+/// OIII). Every other word, a brand, a product line, "CCD", a bandwidth such
+/// as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A name with
+/// no known band is its whole name ("Dark", "UV/IR Pass"). Two names are the
+/// same filter when their bands are the same; a name is never matched by a
+/// piece of another ("R" is not "Dark").
 ///
 /// `filter_name.rs` in the native `skotiq_device` crate holds the same rule
 /// for the run's wheel moves; both are tested against
 /// `test/fixtures/filter_matching_cases.json`.
 library;
 
-const Map<String, String> _bandAliases = {
-  'L': 'L',
-  'LUM': 'L',
-  'LUMINANCE': 'L',
-  'LUMINOSITY': 'L',
-  'CLEAR': 'L',
-  'R': 'R',
-  'RED': 'R',
-  'G': 'G',
-  'GREEN': 'G',
-  'B': 'B',
-  'BLUE': 'B',
-  'H': 'HA',
-  'HA': 'HA',
-  'HALPHA': 'HA',
-  'HYDROGEN': 'HA',
-  'HYDROGENALPHA': 'HA',
-  'HB': 'HB',
-  'HBETA': 'HB',
-  'HYDROGENBETA': 'HB',
-  'OIII': 'OIII',
-  'O3': 'OIII',
-  'OXYGEN': 'OIII',
-  'OXYGENIII': 'OIII',
-  'SII': 'SII',
-  'S2': 'SII',
-  'SULFUR': 'SII',
-  'SULPHUR': 'SII',
-  'SULFURII': 'SII',
-  'SULPHURII': 'SII',
-  'NII': 'NII',
-  'N2': 'NII',
-  'NITROGEN': 'NII',
-  'NITROGENII': 'NII',
+/// Every known spelling, as the letters and digits of its words run
+/// together, and the bands it names. Products are listed only where the
+/// maker states their passbands; a broadband product is its own band so the
+/// letter in its name ("L-Pro") does not make it a luminance filter.
+const Map<String, List<String>> _knownBands = {
+  'L': ['L'],
+  'LUM': ['L'],
+  'LUMINANCE': ['L'],
+  'LUMINOSITY': ['L'],
+  'CLEAR': ['L'],
+  'R': ['R'],
+  'RED': ['R'],
+  'G': ['G'],
+  'GREEN': ['G'],
+  'B': ['B'],
+  'BLUE': ['B'],
+  'H': ['HA'],
+  'HA': ['HA'],
+  'HALPHA': ['HA'],
+  'HYDROGEN': ['HA'],
+  'HYDROGENALPHA': ['HA'],
+  'HB': ['HB'],
+  'HBETA': ['HB'],
+  'HYDROGENBETA': ['HB'],
+  'OIII': ['OIII'],
+  'O3': ['OIII'],
+  'OXYGEN': ['OIII'],
+  'OXYGENIII': ['OIII'],
+  'SII': ['SII'],
+  'S2': ['SII'],
+  'SULFUR': ['SII'],
+  'SULPHUR': ['SII'],
+  'SULFURII': ['SII'],
+  'SULPHURII': ['SII'],
+  'NII': ['NII'],
+  'N2': ['NII'],
+  'NITROGEN': ['NII'],
+  'NITROGENII': ['NII'],
+  // Multi-band narrowband products, by their makers' stated passbands.
+  'LEXTREME': ['HA', 'OIII'],
+  'LULTIMATE': ['HA', 'OIII'],
+  'LENHANCE': ['HA', 'HB', 'OIII'],
+  'ALPT': ['HA', 'OIII'],
+  'NBZ': ['HA', 'OIII'],
+  'DUOBAND': ['HA', 'OIII'],
+  'TRIADULTRA': ['HA', 'HB', 'OIII', 'SII'],
+  // Broadband products, each its own band.
+  'LPRO': ['LPRO'],
+  'CLS': ['CLS'],
+  'UHC': ['UHC'],
+  'UVIRCUT': ['UVIRCUT'],
+  'IRCUT': ['UVIRCUT'],
 };
 
 final RegExp _separators = RegExp(r'[\s/\-_+|]+');
 final RegExp _notAlphanumeric = RegExp(r'[^A-Za-z0-9]');
-final RegExp _width = RegExp(
-  r'^\d+([.,]\d+)?(nm|a|å|Å)$',
-  caseSensitive: false,
-);
-final RegExp _number = RegExp(r'^\d+([.,]\d+)?$');
-final RegExp _widthUnit = RegExp(r'^(nm|a|å|Å)$', caseSensitive: false);
 
 String _letters(String text) =>
     text.replaceAll(_notAlphanumeric, '').toUpperCase();
@@ -63,29 +78,26 @@ String _letters(String text) =>
 Set<String> filterBands(String name) {
   final whole = _letters(name);
   if (whole.isEmpty) return const {};
-  if (_bandAliases[whole] case final band?) return {band};
-  final words = name.split(_separators).where((w) => w.isNotEmpty).toList();
+  if (_knownBands[whole] case final bands?) return bands.toSet();
+  final words = [
+    for (final word in name.split(_separators))
+      if (_letters(word).isNotEmpty) _letters(word),
+  ];
   final bands = <String>{};
-  for (var i = 0; i < words.length; i++) {
-    final word = words[i];
-    if (_width.hasMatch(word)) continue;
-    final next = i + 1 < words.length ? words[i + 1] : null;
-    if (next != null && _number.hasMatch(word) && _widthUnit.hasMatch(next)) {
-      i++;
-      continue;
-    }
-    final letters = _letters(word);
-    if (letters.isEmpty) continue;
-    if (next != null) {
-      if (_bandAliases[letters + _letters(next)] case final band?) {
-        bands.add(band);
-        i++;
-        continue;
+  var i = 0;
+  while (i < words.length) {
+    var taken = 1;
+    for (var run = 3; run >= 1; run--) {
+      if (i + run > words.length) continue;
+      if (_knownBands[words.sublist(i, i + run).join()] case final known?) {
+        bands.addAll(known);
+        taken = run;
+        break;
       }
     }
-    bands.add(_bandAliases[letters] ?? letters);
+    i += taken;
   }
-  return bands;
+  return bands.isEmpty ? {whole} : bands;
 }
 
 /// [name]'s bands as one key ("HA+OIII"), the same for every spelling of one

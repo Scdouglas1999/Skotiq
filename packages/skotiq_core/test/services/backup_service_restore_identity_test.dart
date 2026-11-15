@@ -105,7 +105,6 @@ void main() {
       logger = _testLogger(tempDir);
       service = BackupService(
         database: db,
-        sequenceRepository: LocalSequenceRepository(db.sequencesDao),
         logger: logger,
         backupDirectoryProvider: () async => tempDir,
       );
@@ -175,7 +174,7 @@ void main() {
       },
     );
 
-    test('a profile of the same name is updated, not duplicated', () async {
+    test('a profile of the same name stays as it is', () async {
       final localId = await db.equipmentProfilesDao.createProfile(
         EquipmentProfilesCompanion.insert(
           name: 'Shared Rig',
@@ -190,8 +189,10 @@ void main() {
       final profiles = await db.equipmentProfilesDao.getAllProfiles();
       expect(profiles, hasLength(1));
       expect(profiles.single.id, localId);
-      expect(profiles.single.focalLength, 530.0);
-      expect(result.itemsRestored, 1);
+      expect(profiles.single.focalLength, 1.0);
+      expect(result.itemsRestored, 0);
+      expect(result.notRestored, {'equipment_profiles': 1});
+      expect(result.leftOut, {RestoreLeftOut.yoursKept: 1});
     });
 
     test('an ACTIVE profile in the bundle survives a merge', () async {

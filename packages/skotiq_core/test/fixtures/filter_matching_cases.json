@@ -1,5 +1,5 @@
 {
-  "comment": "The filter-name rule, shared by device/src/filter_name.rs (Rust) and models/equipment/filter_names.dart (Dart); both tests read this file. A name is the set of bands it names (widths such as 7nm are not bands). slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
+  "comment": "The filter-name rule, shared by device/src/filter_name.rs (Rust) and models/equipment/filter_names.dart (Dart); both tests read this file. A name is the set of known bands it names; brands, product lines and widths are not bands, and a name with no known band is its whole name. slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
   "slots": [
     {
       "names": [
@@ -475,6 +475,256 @@
       ],
       "requested": "Ha/OIII",
       "index": null
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "L",
+      "index": 0
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "Red",
+      "index": 1
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "Ha",
+      "index": 4
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "O3",
+      "index": 5
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "S2",
+      "index": 6
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "Luminance",
+      "index": 0
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "H-alpha 3nm",
+      "index": 4
+    },
+    {
+      "names": [
+        "ZWO L",
+        "ZWO R",
+        "ZWO G",
+        "ZWO B",
+        "Baader Ha 7nm",
+        "Astronomik OIII 6nm",
+        "Astronomik SII 6nm CCD"
+      ],
+      "requested": "Dark",
+      "index": null
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "L",
+      "index": null
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "Ha",
+      "index": null
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "Ha/OIII",
+      "index": 1
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "L-Pro",
+      "index": 0
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "L-eXtreme",
+      "index": 1
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "OIII Ha",
+      "index": 1
+    },
+    {
+      "names": [
+        "Optolong L-Pro",
+        "Optolong L-eXtreme",
+        "Dark"
+      ],
+      "requested": "Dark",
+      "index": 2
+    },
+    {
+      "names": [
+        "Baader Ha 7nm",
+        "Baader Ha 3.5nm Ultra-Narrowband"
+      ],
+      "requested": "Ha",
+      "index": null,
+      "ambiguous": true
+    },
+    {
+      "names": [
+        "Baader Ha 7nm",
+        "Baader Ha 3.5nm Ultra-Narrowband"
+      ],
+      "requested": "baader ha 7nm",
+      "index": 0
+    },
+    {
+      "names": [
+        "Chroma Lum",
+        "Chroma Red",
+        "Chroma Green",
+        "Chroma Blue"
+      ],
+      "requested": "B",
+      "index": 3
+    },
+    {
+      "names": [
+        "Antlia V-Pro Green",
+        "Astrodon Gen2 E-Series Blue"
+      ],
+      "requested": "G",
+      "index": 0
+    },
+    {
+      "names": [
+        "Antlia V-Pro Green",
+        "Astrodon Gen2 E-Series Blue"
+      ],
+      "requested": "Blue",
+      "index": 1
+    },
+    {
+      "names": [
+        "Radian Triad Ultra",
+        "ZWO Duo-Band"
+      ],
+      "requested": "Ha OIII Hb SII",
+      "index": 0
+    },
+    {
+      "names": [
+        "Radian Triad Ultra",
+        "ZWO Duo-Band"
+      ],
+      "requested": "Ha/OIII",
+      "index": 1
+    },
+    {
+      "names": [
+        "IDAS NBZ",
+        "Optolong L-eNhance"
+      ],
+      "requested": "Ha OIII",
+      "index": 0
+    },
+    {
+      "names": [
+        "Baader UV/IR Cut",
+        "Optolong CLS"
+      ],
+      "requested": "UV/IR Cut",
+      "index": 0
+    },
+    {
+      "names": [
+        "Baader UV/IR Cut",
+        "Optolong CLS"
+      ],
+      "requested": "R",
+      "index": null
     }
   ],
   "bands": [
@@ -518,9 +768,7 @@
     {
       "name": "UV/IR Cut",
       "bands": [
-        "CUT",
-        "IR",
-        "UV"
+        "UVIRCUT"
       ]
     },
     {
@@ -532,8 +780,7 @@
     {
       "name": "L-Pro",
       "bands": [
-        "L",
-        "PRO"
+        "LPRO"
       ]
     },
     {
@@ -549,6 +796,148 @@
     {
       "name": "--",
       "bands": []
+    },
+    {
+      "name": "Baader Ha 7nm",
+      "bands": [
+        "HA"
+      ]
+    },
+    {
+      "name": "Baader H-alpha 3.5nm Ultra-Narrowband",
+      "bands": [
+        "HA"
+      ]
+    },
+    {
+      "name": "Astronomik OIII 6nm",
+      "bands": [
+        "OIII"
+      ]
+    },
+    {
+      "name": "Astronomik SII 6nm CCD",
+      "bands": [
+        "SII"
+      ]
+    },
+    {
+      "name": "ZWO R",
+      "bands": [
+        "R"
+      ]
+    },
+    {
+      "name": "Chroma Lum",
+      "bands": [
+        "L"
+      ]
+    },
+    {
+      "name": "Antlia V-Pro Green",
+      "bands": [
+        "G"
+      ]
+    },
+    {
+      "name": "Astrodon Gen2 E-Series Blue",
+      "bands": [
+        "B"
+      ]
+    },
+    {
+      "name": "Optolong L-Pro",
+      "bands": [
+        "LPRO"
+      ]
+    },
+    {
+      "name": "Optolong L-eXtreme",
+      "bands": [
+        "HA",
+        "OIII"
+      ]
+    },
+    {
+      "name": "Optolong L-Ultimate",
+      "bands": [
+        "HA",
+        "OIII"
+      ]
+    },
+    {
+      "name": "Optolong L-eNhance",
+      "bands": [
+        "HA",
+        "HB",
+        "OIII"
+      ]
+    },
+    {
+      "name": "Optolong H-Beta 7nm",
+      "bands": [
+        "HB"
+      ]
+    },
+    {
+      "name": "Optolong CLS",
+      "bands": [
+        "CLS"
+      ]
+    },
+    {
+      "name": "Antlia ALP-T 5nm",
+      "bands": [
+        "HA",
+        "OIII"
+      ]
+    },
+    {
+      "name": "IDAS NBZ",
+      "bands": [
+        "HA",
+        "OIII"
+      ]
+    },
+    {
+      "name": "ZWO Duo-Band",
+      "bands": [
+        "HA",
+        "OIII"
+      ]
+    },
+    {
+      "name": "Radian Triad Ultra",
+      "bands": [
+        "HA",
+        "HB",
+        "OIII",
+        "SII"
+      ]
+    },
+    {
+      "name": "Baader UV/IR Cut",
+      "bands": [
+        "UVIRCUT"
+      ]
+    },
+    {
+      "name": "Baader UHC-S",
+      "bands": [
+        "UHC"
+      ]
+    },
+    {
+      "name": "Antlia 3nm Nitrogen II",
+      "bands": [
+        "NII"
+      ]
+    },
+    {
+      "name": "Baader IR Pass 685nm",
+      "bands": [
+        "BAADERIRPASS685NM"
+      ]
     }
   ]
 }

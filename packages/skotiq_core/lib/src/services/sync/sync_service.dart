@@ -819,14 +819,12 @@ class SyncService {
   /// Download a bundle, verify its hash against the machine's manifest,
   /// stage it locally and hand it to [BackupService.restoreBackup].
   ///
-  /// NOTE: this REPLACES/overlays local configuration with the bundle's
-  /// contents (no merging — see the conflict stance at the top of this
-  /// file). Callers must run the same user confirmation flow the local
-  /// restore uses before invoking this.
+  /// What the restore does is [mode]'s to say ([RestoreMode.summary]); the
+  /// caller shows that to the operator and gets a yes first.
   Future<RestoreResult> pullAndRestore({
     required String machine,
     required String bundleFile,
-    bool replaceExisting = false,
+    required RestoreMode mode,
   }) async {
     final target = await _buildTarget(await loadConfig());
     try {
@@ -875,10 +873,7 @@ class SyncService {
       );
       await localFile.writeAsBytes(bytes, flush: true);
 
-      return backupService.restoreBackup(
-        filePath: localFile.path,
-        replaceExisting: replaceExisting,
-      );
+      return backupService.restoreBackup(filePath: localFile.path, mode: mode);
     } on SyncTargetException catch (e) {
       return RestoreResult(
         success: false,
