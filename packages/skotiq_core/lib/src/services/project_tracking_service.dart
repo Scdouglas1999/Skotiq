@@ -48,6 +48,12 @@ List<FilterIntegration> acceptedLightsByFilter(
   ]..sort((a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()));
 }
 
+/// A target's integration: the accepted light seconds in every filter, at
+/// whatever exposure they were taken. Every screen that states how much a
+/// target has reads it from here.
+double acceptedLightSeconds(List<FilterIntegration> accepted) =>
+    accepted.fold(0.0, (sum, f) => sum + f.seconds);
+
 /// The accepted light integration a goal for [goalFilter] counts: the groups
 /// whose filter the filter-name rule matches ("Ha" counts the "Ha 7nm"
 /// group); the unfiltered goal (empty filter) counts the frames that name no
@@ -196,7 +202,7 @@ class TargetGoal {
     if (oldTotalGoalSecs > 0) {
       return TargetGoal(
         goalSecs: oldTotalGoalSecs,
-        doneSecs: accepted.fold(0.0, (sum, f) => sum + f.seconds),
+        doneSecs: acceptedLightSeconds(accepted),
         allFilters: true,
       );
     }
@@ -311,7 +317,7 @@ class ProjectTrackingService {
             sessions: sessions,
           ).length,
           acceptedFrames: filters.fold(0, (sum, f) => sum + f.frames),
-          integratedSecs: filters.fold(0.0, (sum, f) => sum + f.seconds),
+          integratedSecs: acceptedLightSeconds(filters),
           filters: filters,
           goal: TargetGoal.of(
             accepted: filters,

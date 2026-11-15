@@ -370,7 +370,7 @@ void main() {
 
         final plan = (await service.buildProgress(projectId)).targets.single;
         expect(plan.filters.single.capturedFrames, 11);
-        expect(plan.accruedSeconds, 44);
+        expect(plan.towardGoalSeconds, 44);
         expect(plan.goalSeconds, 2100);
 
         final analytics = const ProjectTrackingService()
@@ -381,11 +381,29 @@ void main() {
               goals: await goalService.listAll(),
             )
             .single;
-        expect(analytics.goal.doneSecs, plan.accruedSeconds);
+        expect(analytics.goal.doneSecs, plan.towardGoalSeconds);
+        expect(analytics.integratedSecs, plan.accruedSeconds);
+        expect(plan.accruedSeconds, 44 + 3 * 60);
         expect(analytics.goalIntegrationSecs, plan.goalSeconds);
         expect(analytics.completionFraction, plan.percentComplete);
       },
     );
+
+    // Live (u1-audit): a target with 31.9 h and no goal read "0s / 0s".
+    test('a target with no goal still shows the integration it has', () async {
+      final projectId = await service.createProject(name: 'No goals');
+      final t = await insertTarget(name: 'NGC0891');
+      await service.addTarget(projectId: projectId, targetId: t);
+      await insertCaptures(targetId: t, filter: 'L', count: 5);
+
+      final progress = await service.buildProgress(projectId);
+      final target = progress.targets.single;
+      expect(target.accruedSeconds, 300);
+      expect(target.goalSeconds, 0);
+      expect(target.isComplete, isFalse);
+      expect(progress.totalAccruedSeconds, 300);
+      expect(ProjectTargetProgress.fromJson(target.toJson()), target);
+    });
 
     test('throws StateError on a missing project', () async {
       expect(() => service.buildProgress(9999), throwsStateError);

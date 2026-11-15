@@ -120,6 +120,7 @@ ProjectTargetProgress _targetProgress({
         capturedSeconds: capturedFrames * exposureSeconds,
       ),
     ],
+    integratedSeconds: capturedFrames * exposureSeconds,
   );
 }
 
