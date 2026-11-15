@@ -159,6 +159,7 @@ class _DesktopGroupedList extends StatelessWidget {
               (section) => _CategoryItem(
                 icon: section.icon,
                 label: section.label,
+                opensIn: section.opensIn,
                 isSelected: section.id == selected,
                 onTap: () => onSelect(section.id),
                 colors: colors,
@@ -232,6 +233,7 @@ class _DesktopSearchResults extends StatelessWidget {
             _CategoryItem(
               icon: section.icon,
               label: section.label,
+              opensIn: section.opensIn,
               isSelected: section.id == selected,
               onTap: () => onTap(section.id, null),
               colors: colors,

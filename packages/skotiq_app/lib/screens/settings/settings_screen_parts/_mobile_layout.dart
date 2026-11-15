@@ -90,6 +90,7 @@ class _MobileSectionList extends StatelessWidget {
                                 (section) => _CategoryItem(
                                   icon: section.icon,
                                   label: section.label,
+                                  opensIn: section.opensIn,
                                   isSelected: false,
                                   onTap: () => onSectionTap(section.id, null),
                                   colors: colors,
@@ -145,6 +146,7 @@ class _MobileSearchResults extends StatelessWidget {
             _CategoryItem(
               icon: section.icon,
               label: section.label,
+              opensIn: section.opensIn,
               isSelected: false,
               onTap: () => onSectionTap(section.id, null),
               colors: colors,
@@ -179,6 +181,11 @@ class _CategoryItem extends StatefulWidget {
   /// In the single-pane list the row is a navigation step rather than a
   /// selection: a taller target with a trailing chevron.
   final bool navigationStep;
+
+  /// [SettingsSectionDef.opensIn]: the entry leaves Settings for this screen,
+  /// and says so with an arrow where the chevron would be.
+  final String? opensIn;
+
   const _CategoryItem({
     required this.icon,
     required this.label,
@@ -186,6 +193,7 @@ class _CategoryItem extends StatefulWidget {
     required this.onTap,
     required this.colors,
     this.navigationStep = false,
+    this.opensIn,
   });
 
   @override
@@ -260,7 +268,17 @@ class _CategoryItemState extends State<_CategoryItem> {
                       style: SkotiqTypography.button.copyWith(color: ink),
                     ),
                   ),
-                  if (widget.navigationStep)
+                  if (widget.opensIn case final screen?)
+                    Tooltip(
+                      message: 'Opens in the $screen',
+                      child: Icon(
+                        LucideIcons.arrowUpRight,
+                        size: _navIconSize,
+                        color: colors.textMuted,
+                        semanticLabel: 'opens in the $screen',
+                      ),
+                    )
+                  else if (widget.navigationStep)
                     Icon(
                       LucideIcons.chevronRight,
                       size: _navIconSize,
