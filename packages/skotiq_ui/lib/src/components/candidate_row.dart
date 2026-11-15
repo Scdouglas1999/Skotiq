@@ -7,8 +7,8 @@ import 'skotiq_panel.dart';
 import 'readout.dart';
 
 /// A target candidate on the Plan screen: a panel laid out as a six-column
-/// grid — score badge, name and a muted line, two small readouts, a window bar
-/// and one button.
+/// grid (score badge, name and a muted line, two small readouts, a window bar
+/// and one button), or on two lines when it is narrower than [stackBelow].
 class Candidate extends StatelessWidget {
   const Candidate({
     super.key,
@@ -87,96 +87,142 @@ class Candidate extends StatelessWidget {
   /// The width of a candidate's window bar, in logical pixels.
   static const double windowBarWidth = 120;
 
+  /// Below this width a candidate without [columns] cannot hold its name,
+  /// readouts, window and action on one line, so it stacks onto two: the
+  /// score, name and action, then the readouts and a window bar that fills
+  /// what is left of the row.
+  static const double stackBelow = 640;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final tone = scoreTone ?? colors.success;
 
+    final badge = Container(
+      width: badgeSize,
+      height: badgeSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: SkotiqTokens.opacityStatusFill),
+        borderRadius: SkotiqTokens.borderRadiusLg,
+      ),
+      child: Text(
+        score,
+        style: SkotiqTypography.readoutBadge.copyWith(color: tone),
+      ),
+    );
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          name,
+          style: SkotiqTypography.bodyStrong.copyWith(
+            color: colors.textPrimary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          detail,
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+
     final grid = columns;
+    Widget oneLine() => Row(
+      children: <Widget>[
+        badge,
+        const SizedBox(width: columnGap),
+        Expanded(child: identity),
+        if (grid != null) ...<Widget>[
+          for (final readout in readouts) ...<Widget>[
+            const SizedBox(width: columnGap),
+            SizedBox(width: grid.readoutWidth, child: readout),
+          ],
+          const SizedBox(width: columnGap),
+          SizedBox(
+            width: windowBarWidth,
+            child: window == null ? null : CandidateWindowBar(window: window!),
+          ),
+          const SizedBox(width: columnGap),
+          SizedBox(
+            width: grid.actionWidth,
+            child: action == null
+                ? null
+                : Align(alignment: Alignment.centerRight, child: action),
+          ),
+        ] else ...<Widget>[
+          if (readouts.isNotEmpty) ...<Widget>[
+            const SizedBox(width: columnGap),
+            ReadoutRow(children: readouts),
+          ],
+          if (window != null) ...<Widget>[
+            const SizedBox(width: columnGap),
+            SizedBox(
+              width: windowBarWidth,
+              child: CandidateWindowBar(window: window!),
+            ),
+          ],
+          if (action != null) ...<Widget>[
+            const SizedBox(width: columnGap),
+            action!,
+          ],
+        ],
+      ],
+    );
+
+    Widget twoLines() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            badge,
+            const SizedBox(width: columnGap),
+            Expanded(child: identity),
+            if (action != null) ...<Widget>[
+              const SizedBox(width: columnGap),
+              action!,
+            ],
+          ],
+        ),
+        if (readouts.isNotEmpty || window != null) ...<Widget>[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Row(
+            children: <Widget>[
+              for (final readout in readouts) ...<Widget>[
+                readout,
+                const SizedBox(width: columnGap),
+              ],
+              Expanded(
+                child: window == null
+                    ? const SizedBox.shrink()
+                    : CandidateWindowBar(window: window!),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+
     final panel = SkotiqPanel(
       padding: EdgeInsets.symmetric(
         horizontal: padding,
         vertical: dense ? densePadding : padding,
       ),
       selected: selected,
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: badgeSize,
-            height: badgeSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: SkotiqTokens.opacityStatusFill),
-              borderRadius: SkotiqTokens.borderRadiusLg,
+      child: grid != null
+          ? oneLine()
+          : LayoutBuilder(
+              builder: (context, constraints) =>
+                  constraints.maxWidth < stackBelow - 2 * padding
+                  ? twoLines()
+                  : oneLine(),
             ),
-            child: Text(
-              score,
-              style: SkotiqTypography.readoutBadge.copyWith(color: tone),
-            ),
-          ),
-          const SizedBox(width: columnGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  name,
-                  style: SkotiqTypography.bodyStrong.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  detail,
-                  style: SkotiqTypography.bodySm.copyWith(
-                    color: colors.textMuted,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (grid != null) ...<Widget>[
-            for (final readout in readouts) ...<Widget>[
-              const SizedBox(width: columnGap),
-              SizedBox(width: grid.readoutWidth, child: readout),
-            ],
-            const SizedBox(width: columnGap),
-            SizedBox(
-              width: windowBarWidth,
-              child: window == null
-                  ? null
-                  : CandidateWindowBar(window: window!),
-            ),
-            const SizedBox(width: columnGap),
-            SizedBox(
-              width: grid.actionWidth,
-              child: action == null
-                  ? null
-                  : Align(alignment: Alignment.centerRight, child: action),
-            ),
-          ] else ...<Widget>[
-            if (readouts.isNotEmpty) ...<Widget>[
-              const SizedBox(width: columnGap),
-              ReadoutRow(children: readouts),
-            ],
-            if (window != null) ...<Widget>[
-              const SizedBox(width: columnGap),
-              SizedBox(
-                width: windowBarWidth,
-                child: CandidateWindowBar(window: window!),
-              ),
-            ],
-            if (action != null) ...<Widget>[
-              const SizedBox(width: columnGap),
-              action!,
-            ],
-          ],
-        ],
-      ),
     );
 
     if (onTap == null) return panel;
