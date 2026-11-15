@@ -68,7 +68,7 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
             child: SkotiqTextField(
               key: const ValueKey('plan-group-form-name'),
               controller: _name,
-              hint: 'Fall galaxies',
+              hint: 'Winter nebulae',
               autofocus: true,
               errorText: _nameError,
               onSubmitted: (_) => _submit(),

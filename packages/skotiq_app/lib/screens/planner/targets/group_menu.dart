@@ -124,7 +124,10 @@ Future<void> _newMosaic(BuildContext context, WidgetRef ref) async {
 
 /// The mosaics, as rows that open each mosaic's page.
 class _MosaicRows extends ConsumerWidget {
-  const _MosaicRows();
+  const _MosaicRows({required this.scrolls});
+
+  /// False inside a tab that scrolls as one.
+  final bool scrolls;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -167,6 +170,8 @@ class _MosaicRows extends ConsumerWidget {
           );
         }
         return ListView.builder(
+          shrinkWrap: !scrolls,
+          physics: scrolls ? null : const NeverScrollableScrollPhysics(),
           itemCount: list.length,
           itemBuilder: (context, i) {
             final mosaic = list[i];

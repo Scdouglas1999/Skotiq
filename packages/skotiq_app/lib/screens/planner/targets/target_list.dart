@@ -166,6 +166,9 @@ String _nextLine(_AutopilotView view, List<_TargetRow> rows, Project? group) {
               (r.window?.start?.isAfter(now) ?? false))
             r,
       ]..sort((a, b) => a.window!.start!.compareTo(b.window!.start!));
+      if (rows.every((r) => !r.target.inAutopilot)) {
+        return 'Every target here is off its list';
+      }
       if (later.isNotEmpty) {
         final first = later.first;
         return 'Nothing can be imaged until '
@@ -259,6 +262,7 @@ class _TargetListColumn extends ConsumerWidget {
     required this.statusFilter,
     required this.selectedId,
     required this.compact,
+    required this.scrolls,
     required this.busy,
     required this.onQuery,
     required this.onSort,
@@ -287,6 +291,10 @@ class _TargetListColumn extends ConsumerWidget {
   final PlanTargetStatusFilter statusFilter;
   final int? selectedId;
   final bool compact;
+
+  /// False when the tab around the list scrolls as one, so the rows are laid
+  /// out in full.
+  final bool scrolls;
   final bool busy;
   final ValueChanged<String> onQuery;
   final ValueChanged<PlanTargetSort> onSort;
@@ -353,18 +361,23 @@ class _TargetListColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
+    // A whole-area state needs a height of its own inside a scrolling tab.
+    Widget area(Widget child) =>
+        scrolls ? child : SizedBox(height: 360, child: child);
     if (error != null) {
-      return EmptyState.error(
-        title: 'Could not load your targets',
-        body: userFacingError(error!),
-        onRetry: onRetry,
+      return area(
+        EmptyState.error(
+          title: 'Could not load your targets',
+          body: userFacingError(error!),
+          onRetry: onRetry,
+        ),
       );
     }
-    if (loading) return const _ListSkeleton();
+    if (loading) return area(const _ListSkeleton());
 
     // An empty page shows its one way forward and no filters.
     if (libraryEmpty && !showMosaics && groups.isEmpty) {
-      return EmptyState(
+      return area(EmptyState(
         icon: LucideIcons.target,
         title: 'No targets yet',
         body: 'Add what you want to image and set a goal for each. The '
@@ -376,7 +389,7 @@ class _TargetListColumn extends ConsumerWidget {
           variant: ButtonVariant.secondary,
           onPressed: onAddTarget,
         ),
-      );
+      ));
     }
 
     final visible = _visible();
@@ -386,7 +399,7 @@ class _TargetListColumn extends ConsumerWidget {
 
     final Widget body;
     if (showMosaics) {
-      body = const _MosaicRows();
+      body = _MosaicRows(scrolls: scrolls);
     } else if (rows.isEmpty) {
       body = EmptyState.compact(
         icon: LucideIcons.target,
@@ -418,55 +431,65 @@ class _TargetListColumn extends ConsumerWidget {
         ),
       );
     } else {
+      Widget tile(int i) => _TargetRowTile(
+            key: ValueKey('plan-target-row-${visible[i].target.id}'),
+            row: visible[i],
+            selected: visible[i].target.id == selectedId,
+            compact: compact,
+            showGroup: group == null,
+            showDivider: i < visible.length - 1,
+            onTap: () => onOpen(visible[i]),
+          );
       body = Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (!compact) const _ColumnHeads(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: visible.length,
-              itemBuilder: (context, i) => _TargetRowTile(
-                key: ValueKey('plan-target-row-${visible[i].target.id}'),
-                row: visible[i],
-                selected: visible[i].target.id == selectedId,
-                compact: compact,
-                showGroup: group == null,
-                showDivider: i < visible.length - 1,
-                onTap: () => onOpen(visible[i]),
+          if (scrolls)
+            Expanded(
+              child: ListView.builder(
+                itemCount: visible.length,
+                itemBuilder: (context, i) => tile(i),
               ),
-            ),
-          ),
+            )
+          else
+            for (var i = 0; i < visible.length; i++) tile(i),
         ],
       );
     }
 
-    final count = showMosaics
-        ? 'Mosaics'
-        : '${rows.length} ${rows.length == 1 ? 'target' : 'targets'}'
-            '${filtered ? ' · ${visible.length} shown' : ''}'
-            ' · $upTonight up tonight';
+    // An empty group shows its one way forward and no filters or count.
+    final bare = !showMosaics && rows.isEmpty;
+    final count = '${rows.length} ${rows.length == 1 ? 'target' : 'targets'}'
+        '${filtered ? ' · ${visible.length} shown' : ''}'
+        ' · $upTonight up tonight';
+    final panel = SkotiqPanel(
+      padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+      child: body,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: scrolls ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        _toolbar(context, ref),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        Text(
-          count.toUpperCase(),
-          style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        Expanded(
-          child: SkotiqPanel(
-            padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-            child: body,
+        _toolbar(context, ref, bare: bare),
+        if (!bare && !showMosaics) ...[
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          Text(
+            count.toUpperCase(),
+            style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
           ),
-        ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+        ] else
+          const SizedBox(height: SkotiqTokens.spaceMd),
+        if (scrolls) Expanded(child: panel) else panel,
         if (!showMosaics) _WeekAhead(collapsed: rows.length > 8 || compact),
       ],
     );
   }
 
-  Widget _toolbar(BuildContext context, WidgetRef ref) {
+  Widget _toolbar(BuildContext context, WidgetRef ref, {required bool bare}) {
+    // Mosaics and an empty group have nothing to search, filter or sort.
+    final plain = showMosaics || bare;
     final groupChip = _GroupChip(
       groups: groups,
       group: group,
@@ -522,7 +545,7 @@ class _TargetListColumn extends ConsumerWidget {
             variant: ButtonVariant.secondary,
             onPressed: busy ? null : onAddTarget,
           );
-    final planTonight = onPlanTonight == null || showMosaics
+    final planTonight = onPlanTonight == null || plain
         ? null
         : SkotiqButton(
             key: const ValueKey('plan-targets-plan-tonight'),
@@ -538,7 +561,7 @@ class _TargetListColumn extends ConsumerWidget {
         children: [
           Row(
             children: [
-              if (!showMosaics) ...[
+              if (!plain) ...[
                 Expanded(child: search),
                 const SizedBox(width: SkotiqTokens.spaceSm),
               ] else
@@ -551,7 +574,7 @@ class _TargetListColumn extends ConsumerWidget {
             child: Row(
               children: [
                 groupChip,
-                if (!showMosaics) ...[
+                if (!plain) ...[
                   const SizedBox(width: SkotiqTokens.spaceSm),
                   statusChip,
                   const SizedBox(width: SkotiqTokens.spaceSm),
@@ -569,12 +592,12 @@ class _TargetListColumn extends ConsumerWidget {
     }
     return Row(
       children: [
-        if (!showMosaics) ...[
+        if (!plain) ...[
           SizedBox(width: 240, child: search),
           const SizedBox(width: SkotiqTokens.spaceSm),
         ],
         groupChip,
-        if (!showMosaics) ...[
+        if (!plain) ...[
           const SizedBox(width: SkotiqTokens.spaceSm),
           statusChip,
           const SizedBox(width: SkotiqTokens.spaceSm),
@@ -676,8 +699,20 @@ class _TargetRowTile extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
 
+    // The row reads as one button: name, progress, status.
+    Widget named(Widget child) => Semantics(
+          container: true,
+          button: true,
+          enabled: true,
+          selected: selected,
+          label: '${target.name}, ${_progressText(progress)}, ${row.status}',
+          onTap: onTap,
+          excludeSemantics: true,
+          child: child,
+        );
+
     if (compact) {
-      return ListRow(
+      return named(ListRow(
         title: target.name,
         subtitle: _progressText(progress),
         selected: selected,
@@ -695,7 +730,7 @@ class _TargetRowTile extends StatelessWidget {
             ],
           ),
         ),
-      );
+      ));
     }
 
     final facts = [
@@ -708,7 +743,7 @@ class _TargetRowTile extends StatelessWidget {
             .join(' '),
     ].join(' · ');
 
-    return ListRow(
+    return named(ListRow(
       title: target.name,
       subtitle: facts.isEmpty ? null : facts,
       selected: selected,
@@ -751,7 +786,7 @@ class _TargetRowTile extends StatelessWidget {
           SizedBox(width: _kStatusColumn, child: status),
         ],
       ),
-    );
+    ));
   }
 }
 

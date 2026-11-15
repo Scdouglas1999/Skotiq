@@ -67,7 +67,7 @@ class _WhyDialogState extends State<_WhyDialog> {
     final muted = SkotiqTypography.bodySm.copyWith(color: colors.textSecondary);
 
     return SkotiqDialog(
-      title: 'Why the autopilot chose this',
+      title: 'How the autopilot decided',
       width: 640,
       actions: [
         SkotiqButton(
@@ -198,13 +198,33 @@ class _ScoredTarget extends StatelessWidget {
                     style: SkotiqTypography.bodySm
                         .copyWith(color: colors.textSecondary),
                   ),
+                if (target.factors.isNotEmpty)
+                  const SizedBox(height: SkotiqTokens.spaceXs),
                 for (final f in target.factors)
-                  Text(
-                    '${f.name.padRight(16)} ${f.value.toStringAsFixed(2)}'
-                    ' × ${f.weight.toStringAsFixed(1)}'
-                    ' = ${f.weighted.toStringAsFixed(2)}'
-                    '${f.detail == null ? '' : '   ${f.detail}'}',
-                    style: mono,
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 112,
+                        child: Text(_factorLabel(f.name), style: mono),
+                      ),
+                      SizedBox(
+                        width: 144,
+                        child: Text(
+                          '${f.value.toStringAsFixed(2)}'
+                          ' × ${f.weight.toStringAsFixed(1)}'
+                          ' = ${f.weighted.toStringAsFixed(2)}',
+                          style: mono,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          f.detail ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: mono,
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -213,6 +233,17 @@ class _ScoredTarget extends StatelessWidget {
     );
   }
 }
+
+/// A score factor under the name the settings give its weight.
+String _factorLabel(String name) => switch (name) {
+      'altitude' => 'Altitude',
+      'meridian' => 'Near meridian',
+      'moon' => 'Moon',
+      'timeRemaining' => 'Time left',
+      'filterCoverage' => 'Filters due',
+      'userPriority' => 'Priority',
+      _ => name,
+    };
 
 /// The autopilot's scoring weights and switching rules.
 void _showAutopilotSettings(

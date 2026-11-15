@@ -618,7 +618,9 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     return LayoutBuilder(
       builder: (context, constraints) {
         final phone = constraints.maxWidth < SkotiqTokens.breakpointTablet;
-        final sideBySide = constraints.maxWidth >= _kSideBySideWidth;
+        final wide = constraints.maxWidth >= _kSideBySideWidth;
+        // Mosaics open on their own page, so their rows take the width.
+        final sideBySide = wide && !_showMosaics;
         final padding = phone
             ? SkotiqTokens.screenPaddingCompact
             : SkotiqTokens.screenPadding;
@@ -674,6 +676,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           statusFilter: _statusFilter,
           selectedId: shown?.target.id,
           compact: phone,
+          scrolls: !phone,
           busy: _groupBusy,
           onQuery: (q) => setState(() => _query = q.trim()),
           onSort: (s) => setState(() => _sort = s),
@@ -702,7 +705,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                   const SizedBox(width: SkotiqTokens.spaceLg),
                   SizedBox(
                     width: _kDetailWidth,
-                    child: _showMosaics || shown == null
+                    child: shown == null
                         ? const SizedBox.shrink()
                         : _TargetDetail(
                             key: ValueKey('plan-target-detail-${shown.target.id}'),
@@ -718,13 +721,32 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
               )
             : list;
 
+        final banner = _blockerBanner(autopilot);
+        // On a phone the bar and filters scroll away with the list.
+        if (phone) {
+          return SingleChildScrollView(
+            padding: padding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                bar,
+                if (banner != null) ...[
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  banner,
+                ],
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                body,
+              ],
+            ),
+          );
+        }
         return Padding(
           padding: padding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               bar,
-              if (_blockerBanner(autopilot) case final banner?) ...[
+              if (banner != null) ...[
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 banner,
               ],

@@ -686,7 +686,7 @@ void main() {
     expect(find.textContaining('altitude 12.0'), findsOneWidget);
     // Factor lines render with their numeric values — the test fakes
     // produce altitude + meridian factors with known weights.
-    expect(find.textContaining('altitude  '), findsOneWidget);
-    expect(find.textContaining('meridian  '), findsOneWidget);
+    expect(find.text('Altitude'), findsOneWidget);
+    expect(find.text('Near meridian'), findsOneWidget);
   });
 }

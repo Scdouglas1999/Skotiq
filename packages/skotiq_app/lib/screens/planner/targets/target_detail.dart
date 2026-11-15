@@ -13,7 +13,6 @@ class _TargetDetail extends ConsumerWidget {
     required this.onSetInAutopilot,
     required this.onRemoveFromGroup,
     required this.onLimitsChanged,
-    this.showName = true,
   });
 
   final _TargetRow row;
@@ -21,9 +20,6 @@ class _TargetDetail extends ConsumerWidget {
   final _SetInAutopilot onSetInAutopilot;
   final _RemoveFromGroup onRemoveFromGroup;
   final VoidCallback onLimitsChanged;
-
-  /// False when a page header above already carries the name.
-  final bool showName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,29 +54,21 @@ class _TargetDetail extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
               children: [
-                if (showName) ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          target.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: SkotiqTypography.pageTitle
-                              .copyWith(color: colors.textPrimary),
-                        ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        target.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SkotiqTypography.pageTitle
+                            .copyWith(color: colors.textPrimary),
                       ),
-                      _more(context),
-                    ],
-                  ),
-                  if (facts.isNotEmpty) Text(facts, style: muted),
-                ] else
-                  Row(
-                    children: [
-                      Expanded(child: Text(facts, style: muted)),
-                      _more(context),
-                    ],
-                  ),
+                    ),
+                    _more(context),
+                  ],
+                ),
+                if (facts.isNotEmpty) Text(facts, style: muted),
                 const SizedBox(height: SkotiqTokens.spaceLg),
                 ReadoutRow(
                   children: [
@@ -104,7 +92,7 @@ class _TargetDetail extends ConsumerWidget {
                       ),
                     Readout(
                       value: '${progress.sessionCount}',
-                      label: progress.sessionCount == 1 ? 'Night' : 'Nights',
+                      label: progress.sessionCount == 1 ? 'Session' : 'Sessions',
                     ),
                     Readout(
                       value: '${progress.acceptedFrames}',
@@ -158,6 +146,7 @@ class _TargetDetail extends ConsumerWidget {
               ],
             ),
           ),
+          Divider(height: 1, color: colors.border),
           Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
             child: Wrap(
@@ -187,18 +176,6 @@ class _TargetDetail extends ConsumerWidget {
                   variant: ButtonVariant.ghost,
                   onPressed: () => CampaignRollupDialog.show(context, target.id),
                 ),
-                if (progress.hasAnyProgress)
-                  SkotiqButton(
-                    key: const ValueKey('plan-target-darkroom'),
-                    label: 'Open in Darkroom',
-                    size: ButtonSize.small,
-                    variant: ButtonVariant.ghost,
-                    onPressed: () => context.go(
-                      darkroomTargetLocation(
-                        normalizeDarkroomTargetName(target.name),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -227,9 +204,17 @@ class _TargetDetail extends ConsumerWidget {
             ),
             if (current != null)
               _menuItem(context, 1, 'Take out of "${current.name}"'),
+            if (plan.progress.hasAnyProgress)
+              _menuItem(context, 2, 'Open in Darkroom'),
           ]);
+          if (!context.mounted) return;
           if (choice == 0) await onSetInAutopilot(plan, !plan.inAutopilot);
           if (choice == 1) await onRemoveFromGroup(current!, plan);
+          if (choice == 2) {
+            context.go(
+              darkroomTargetLocation(normalizeDarkroomTargetName(plan.name)),
+            );
+          }
         },
       ),
     );
@@ -398,16 +383,23 @@ class _TargetDetailPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PageHeader(
-              title: target?.name ?? 'Target',
-              actions: [
-                SkotiqIconButton(
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                phone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceLg,
+                SkotiqTokens.spaceSm,
+                SkotiqTokens.spaceLg,
+                0,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SkotiqButton(
                   key: const ValueKey('plan-target-back'),
+                  label: 'Targets',
                   icon: LucideIcons.arrowLeft,
-                  tooltip: 'Back to targets',
+                  variant: ButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-              ],
+              ),
             ),
             Expanded(
               child: target == null
@@ -434,7 +426,6 @@ class _TargetDetailPage extends ConsumerWidget {
                             group: groups
                                 .where((g) => g.id == activeId)
                                 .firstOrNull,
-                            showName: false,
                             onSetInAutopilot: onSetInAutopilot,
                             onRemoveFromGroup: onRemoveFromGroup,
                             onLimitsChanged: onLimitsChanged,
