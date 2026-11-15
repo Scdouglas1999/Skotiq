@@ -1,8 +1,47 @@
 part of '../node_properties_panel.dart';
 
-/// Marker index for the synthetic "stored filter not available" dropdown
-/// row. It is display-only — selecting it never rewrites the node.
+/// Marker index for the synthetic dropdown row that shows a step's own filter
+/// when no slot is that filter. It is display-only: selecting it never
+/// rewrites the node.
 const int _kMissingFilterSentinel = -999;
+
+/// What a step's filter dropdown shows. A step that names a filter shows the
+/// slot that name means by the filter-name rule, or its own name marked when
+/// no one slot is that filter; never another slot found by a stored index. A
+/// step that names none shows the slot at its index, if there is one.
+({int? slot, String? missing, String? note}) _stepFilterChoice(
+  String? name,
+  int? index,
+  List<String> slots,
+) {
+  final named = name?.trim() ?? '';
+  if (named.isEmpty) {
+    final valid = index != null && index >= 0 && index < slots.length;
+    return valid
+        ? (slot: index, missing: null, note: null)
+        : index == null
+        ? (slot: null, missing: null, note: null)
+        : (
+            slot: null,
+            missing: 'Filter #$index (not on the wheel)',
+            note: 'Slot #$index is not on the wheel or in the profile.',
+          );
+  }
+  if (matchingFilterIndex(named, slots) case final slot?) {
+    return (slot: slot, missing: null, note: null);
+  }
+  return isAmbiguousFilter(named, slots)
+      ? (
+          slot: null,
+          missing: '$named (several slots)',
+          note: 'Several slots are this filter. Pick the one to use.',
+        )
+      : (
+          slot: null,
+          missing: '$named (not on the wheel)',
+          note: 'Filter is not on the wheel or in the profile.',
+        );
+}
 
 /// Soft thresholds above which the editor surfaces a non-blocking "this is
 /// unusually long" warning under a duration/delay field. The values are still
@@ -483,28 +522,16 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
         source: 'InstructionNodeProperties',
       );
     }
-    final matched = filterOptions.firstWhereOrNull(
-      (f) =>
-          (node.filterIndex != null && f.index == node.filterIndex) ||
-          (node.filterIndex == null && f.name == (node.filter ?? '')),
-    );
-
-    // If the stored filter is no longer available, surface it as an
-    // explicit "(not available)" option and select it, rather than silently
-    // snapping to the first filter (which would quietly rewrite the node).
-    // `_kMissingFilterSentinel` marks that synthetic row so the renderer and
-    // onChanged handler can treat it specially.
-    final storedFilterName = node.filter ?? '';
-    final bool missingFromList = matched == null &&
-        (node.filterIndex != null || storedFilterName.isNotEmpty);
+    final choice = _stepFilterChoice(node.filter, node.filterIndex, filterNames);
+    final bool missingFromList = choice.missing != null;
     if (missingFromList) {
-      final label = storedFilterName.isNotEmpty
-          ? '$storedFilterName (not available)'
-          : 'Filter #${node.filterIndex} (not available)';
-      filterOptions.add((index: _kMissingFilterSentinel, name: label));
+      filterOptions.add((index: _kMissingFilterSentinel, name: choice.missing!));
     }
-    final currentFilter =
-        matched ?? (missingFromList ? filterOptions.last : filterOptions.first);
+    final currentFilter = missingFromList
+        ? filterOptions.last
+        : filterOptions.firstWhere(
+            (f) => f.index == (choice.slot ?? -1),
+          );
     if (kDebugMode) {
       Log.debug(
         '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
@@ -608,7 +635,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
                 child: Text(
-                  'Filter is not on the wheel or in the profile.',
+                  choice.note!,
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.warning,
                   ),

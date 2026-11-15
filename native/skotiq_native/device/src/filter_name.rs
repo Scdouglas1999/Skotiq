@@ -1,10 +1,13 @@
-//! The filter-name rule. A filter's name stands for the set of bands it names:
-//! split at spaces, slashes, dashes, underscores, plus signs and bars, long
-//! spellings folded onto the short ones ("Luminance" and "Clear" are L, "Red"
-//! is R, "H-alpha" is HA, "Sulfur II" is SII), and a bandwidth such as "7nm"
-//! left out. "Ha 7nm" is HA, "Ha/OIII" is HA and OIII, "UV/IR Cut" is UV, IR
-//! and CUT. Two names are the same filter when their bands are the same; a name
-//! is never matched by a piece of another ("R" is not "Dark").
+//! The filter-name rule. A filter's name stands for the bands it names: the
+//! words (split at spaces, slashes, dashes, underscores, plus signs and bars)
+//! and runs of up to three adjacent words that are a known band or product,
+//! long spellings folded onto the short ones ("Luminance" and "Clear" are L,
+//! "Red" is R, "H-alpha" is HA, "Sulfur II" is SII, "L-eXtreme" is HA and
+//! OIII). Every other word, a brand, a product line, "CCD", a bandwidth such
+//! as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A name with
+//! no known band is its whole name ("Dark", "UV/IR Pass"). Two names are the
+//! same filter when their bands are the same; a name is never matched by a
+//! piece of another ("R" is not "Dark").
 //!
 //! `models/equipment/filter_names.dart` in the Dart package `skotiq_core`
 //! holds the same rule for the app. Both are tested against
@@ -12,17 +15,30 @@
 
 use std::collections::BTreeSet;
 
-fn band_alias(letters: &str) -> Option<&'static str> {
+/// The bands a known spelling names, given as the letters and digits of its
+/// words run together. Products are listed only where the maker states their
+/// passbands; a broadband product is its own band so the letter in its name
+/// ("L-Pro") does not make it a luminance filter.
+fn known_bands(letters: &str) -> Option<&'static [&'static str]> {
     Some(match letters {
-        "L" | "LUM" | "LUMINANCE" | "LUMINOSITY" | "CLEAR" => "L",
-        "R" | "RED" => "R",
-        "G" | "GREEN" => "G",
-        "B" | "BLUE" => "B",
-        "H" | "HA" | "HALPHA" | "HYDROGEN" | "HYDROGENALPHA" => "HA",
-        "HB" | "HBETA" | "HYDROGENBETA" => "HB",
-        "OIII" | "O3" | "OXYGEN" | "OXYGENIII" => "OIII",
-        "SII" | "S2" | "SULFUR" | "SULPHUR" | "SULFURII" | "SULPHURII" => "SII",
-        "NII" | "N2" | "NITROGEN" | "NITROGENII" => "NII",
+        "L" | "LUM" | "LUMINANCE" | "LUMINOSITY" | "CLEAR" => &["L"],
+        "R" | "RED" => &["R"],
+        "G" | "GREEN" => &["G"],
+        "B" | "BLUE" => &["B"],
+        "H" | "HA" | "HALPHA" | "HYDROGEN" | "HYDROGENALPHA" => &["HA"],
+        "HB" | "HBETA" | "HYDROGENBETA" => &["HB"],
+        "OIII" | "O3" | "OXYGEN" | "OXYGENIII" => &["OIII"],
+        "SII" | "S2" | "SULFUR" | "SULPHUR" | "SULFURII" | "SULPHURII" => &["SII"],
+        "NII" | "N2" | "NITROGEN" | "NITROGENII" => &["NII"],
+        // Multi-band narrowband products, by their makers' stated passbands.
+        "LEXTREME" | "LULTIMATE" | "ALPT" | "NBZ" | "DUOBAND" => &["HA", "OIII"],
+        "LENHANCE" => &["HA", "HB", "OIII"],
+        "TRIADULTRA" => &["HA", "HB", "OIII", "SII"],
+        // Broadband products, each its own band.
+        "LPRO" => &["LPRO"],
+        "CLS" => &["CLS"],
+        "UHC" => &["UHC"],
+        "UVIRCUT" | "IRCUT" => &["UVIRCUT"],
         _ => return None,
     })
 }
@@ -34,67 +50,37 @@ fn letters(text: &str) -> String {
         .to_ascii_uppercase()
 }
 
-fn is_number(word: &str) -> bool {
-    let mut parts = word.splitn(2, ['.', ',']);
-    let whole = parts.next().unwrap_or("");
-    let fraction = parts.next();
-    !whole.is_empty()
-        && whole.chars().all(|c| c.is_ascii_digit())
-        && fraction.is_none_or(|f| !f.is_empty() && f.chars().all(|c| c.is_ascii_digit()))
-}
-
-fn is_width_unit(word: &str) -> bool {
-    word.eq_ignore_ascii_case("nm") || word.eq_ignore_ascii_case("a") || word == "å" || word == "Å"
-}
-
-fn is_width(word: &str) -> bool {
-    let unit_start = word
-        .char_indices()
-        .find(|(_, c)| !(c.is_ascii_digit() || *c == '.' || *c == ','))
-        .map(|(i, _)| i);
-    unit_start.is_some_and(|i| i > 0 && is_number(&word[..i]) && is_width_unit(&word[i..]))
-}
-
 /// The bands `name` names (see the module comment); empty for a blank name.
 pub fn filter_bands(name: &str) -> BTreeSet<String> {
     let whole = letters(name);
     if whole.is_empty() {
         return BTreeSet::new();
     }
-    if let Some(band) = band_alias(&whole) {
-        return BTreeSet::from([band.to_string()]);
+    if let Some(bands) = known_bands(&whole) {
+        return bands.iter().map(|band| band.to_string()).collect();
     }
-    let words: Vec<&str> = name
+    let words: Vec<String> = name
         .split(|c: char| c.is_whitespace() || matches!(c, '/' | '-' | '_' | '+' | '|'))
+        .map(letters)
         .filter(|word| !word.is_empty())
         .collect();
     let mut bands = BTreeSet::new();
     let mut i = 0;
     while i < words.len() {
-        let word = words[i];
-        let next = words.get(i + 1).copied();
-        i += 1;
-        if is_width(word) {
-            continue;
-        }
-        if let Some(next) = next {
-            if is_number(word) && is_width_unit(next) {
-                i += 1;
-                continue;
+        let known = (1..=3)
+            .rev()
+            .filter(|run| i + run <= words.len())
+            .find_map(|run| known_bands(&words[i..i + run].concat()).map(|bands| (run, bands)));
+        match known {
+            Some((run, known)) => {
+                bands.extend(known.iter().map(|band| band.to_string()));
+                i += run;
             }
+            None => i += 1,
         }
-        let word_letters = letters(word);
-        if word_letters.is_empty() {
-            continue;
-        }
-        if let Some(band) =
-            next.and_then(|next| band_alias(&(word_letters.clone() + &letters(next))))
-        {
-            bands.insert(band.to_string());
-            i += 1;
-            continue;
-        }
-        bands.insert(band_alias(&word_letters).map_or(word_letters, str::to_string));
+    }
+    if bands.is_empty() {
+        bands.insert(whole);
     }
     bands
 }
