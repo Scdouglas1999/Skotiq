@@ -104,7 +104,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      find.text('Could not load the notification routing matrix.'),
+      find.text('Could not load where alerts go.'),
       findsOneWidget,
     );
     // The reason reaches the operator; the StateError rendering prefix does
@@ -114,15 +114,15 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Bad state'), findsNothing);
-    expect(find.text('Notification routing enabled'), findsNothing);
+    expect(find.text('Send alerts'), findsNothing);
     expect(_routingLoadAttempts, 1);
 
-    await tester.tap(find.text('Retry routing settings'));
+    await tester.tap(find.byKey(const ValueKey('notification-routing-retry')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(_routingLoadAttempts, 2);
-    expect(find.text('Notification routing enabled'), findsNothing);
+    expect(find.text('Send alerts'), findsNothing);
   });
 
   testWidgets('SMTP rejects an invalid port without overwriting saved config',

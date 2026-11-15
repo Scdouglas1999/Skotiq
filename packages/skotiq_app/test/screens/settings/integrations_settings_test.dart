@@ -253,15 +253,15 @@ void main() {
       setCalls: [],
       navigated: navigated,
     ));
-    await _pumpUntil(tester, find.text('Open Notification Routing'));
+    await _pumpUntil(tester, find.text('Open Notifications'));
 
     expect(
-      find.text('Post to Discord / Pushover on observatory events'),
+      find.text('Send run events to Discord, Pushover or email'),
       findsOneWidget,
     );
-    expect(find.text('Open Notification Routing'), findsOneWidget);
+    expect(find.text('Open Notifications'), findsOneWidget);
 
-    await tester.tap(find.text('Open Notification Routing'));
+    await tester.tap(find.text('Open Notifications'));
     await _pumpFrames(tester);
 
     expect(navigated, ['notifications']);

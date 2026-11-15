@@ -16,6 +16,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
@@ -75,13 +76,17 @@ void main() {
     final handle = await _pump(tester);
     addTearDown(handle.container.dispose);
 
-    await _openEditor(tester, 'Sequence Paused');
+    await _openEditor(tester, 'Sequence paused');
 
-    expect(find.text('Email (SMTP) (not configured)'), findsOneWidget);
-    expect(find.text('Telegram (not configured)'), findsOneWidget);
-    expect(find.text('MQTT (not configured)'), findsOneWidget);
+    Finder inDialog(String text) => find.descendant(
+          of: find.byType(SkotiqDialog),
+          matching: find.text(text),
+        );
+    expect(inDialog('Email (SMTP) (not set up)'), findsOneWidget);
+    expect(inDialog('Telegram (not set up)'), findsOneWidget);
+    expect(inDialog('MQTT (not set up)'), findsOneWidget);
     // In-app needs no credentials, so it must not be smeared with the warning.
-    expect(find.text('In-app banner'), findsOneWidget);
+    expect(inDialog('In-app banner'), findsOneWidget);
   });
 
   testWidgets('selecting an unconfigured transport says it will not reach you',
@@ -89,12 +94,15 @@ void main() {
     final handle = await _pump(tester);
     addTearDown(handle.container.dispose);
 
-    await _openEditor(tester, 'Sequence Paused');
-    await tester.tap(find.text('Telegram (not configured)'));
+    await _openEditor(tester, 'Sequence paused');
+    await tester.tap(find.descendant(
+      of: find.byType(SkotiqDialog),
+      matching: find.text('Telegram (not set up)'),
+    ));
     await tester.pump();
 
     expect(
-      find.textContaining('not configured, so this rule will not reach you'),
+      find.textContaining('not set up, so this event will not reach you'),
       findsOneWidget,
     );
   });
@@ -127,8 +135,8 @@ void main() {
 
     expect(
       find.text(
-        '→ In-app banner + Email (SMTP) (not configured) + '
-        'Telegram (not configured)',
+        'In-app banner, Email (SMTP) (not set up), '
+        'Telegram (not set up)',
       ),
       findsOneWidget,
     );
@@ -165,7 +173,7 @@ void main() {
     final handle = await _pump(tester, database: database, secrets: secrets);
     addTearDown(handle.container.dispose);
 
-    expect(find.text('→ Telegram'), findsOneWidget);
-    expect(find.text('→ Telegram (not configured)'), findsNothing);
+    expect(find.text('Telegram'), findsOneWidget);
+    expect(find.text('Telegram (not set up)'), findsNothing);
   });
 }

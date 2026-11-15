@@ -215,10 +215,9 @@ class _DiscordConfigDialogState extends State<_DiscordConfigDialog> {
                   message:
                       'This plugin adds a "Discord Webhook" sequence node. Each '
                       'node carries its own webhook URL, so the same sequence '
-                      'can route different steps to different channels. The URL '
-                      'below is a default/test webhook saved for convenience — '
-                      'to fire on observatory events instead, use Notification '
-                      'Routing.',
+                      'can post different steps to different channels. The URL '
+                      'below is a default and test webhook. To post run events '
+                      'instead, set Discord up on the Notifications page.',
                 ),
                 const SizedBox(height: SkotiqTokens.spaceLg),
                 SkotiqTextField(

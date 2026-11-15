@@ -55,7 +55,7 @@ Finder _discordTestButton() {
   );
   return find.descendant(
     of: row,
-    matching: find.widgetWithText(SkotiqButton, 'Test'),
+    matching: find.widgetWithText(SkotiqButton, 'Send test'),
   );
 }
 

@@ -1,16 +1,11 @@
-// The Notifications leaf ships three overlapping systems at once and offers
-// three near-identically named controls for "a sequence finished" — Built-in
-// event alerts › Sequence complete, Push to Mobile › Sequence completed, and
-// Per-event routing › Sequence Completed. The page has to say which one decides
-// whether the operator's phone buzzes.
+// The Notifications page holds three sets of switches that each touch "a run
+// finished": Skotiq's own alerts, Push to phones, and the events list under
+// Where alerts go. The page has to say, in plain words, what each set does.
 //
-// Saying it wrong is worse than saying nothing. The three built-in switches are
-// live gates: `NotificationService._shouldNotifyForEvent` aborts the whole
-// dispatch for an event family whose flag is off. Presenting them as inert
-// decoration — disabled, captioned "not read by any delivery path" — would drop
-// meridian-flip alerts (that flag defaults to false) while refusing to let
-// anyone turn them on. So the disclosure must stay accurate AND the switches
-// must stay enabled.
+// Skotiq's own alerts are live: `NotificationService._shouldNotifyForEvent`
+// refuses the whole alert for a family whose flag is off. Showing them as
+// inert would drop meridian-flip alerts (that flag defaults to off) while
+// refusing to let anyone turn them on, so the switches must stay enabled.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,11 +25,11 @@ Future<void> _pump(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-/// Scoped to the built-in section: "Meridian flip" is also a Push to Mobile
+/// Scoped to Skotiq's own alerts: "Meridian flip" is also a Push to phones
 /// row title, so an unscoped `find.text` matches two rows.
 Finder _row(String title) => find.descendant(
       of: find.ancestor(
-        of: find.text('Built-in event alerts'.toUpperCase()),
+        of: find.text("Skotiq's own alerts".toUpperCase()),
         matching: find.byType(SettingsSection),
       ),
       matching: find.widgetWithText(SettingRow, title),
@@ -43,40 +38,36 @@ Finder _row(String title) => find.descendant(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the leaf says which system actually delivers', (tester) async {
+  testWidgets('the master switch says what it covers and what it does not',
+      (tester) async {
     await _pump(tester);
 
     expect(
-      find.textContaining('Per-event routing (Settings → Notification Routing) '
-          'maps each event to its transports and is the only thing that sends'),
+      find.descendant(
+        of: _row('Send these alerts'),
+        matching: find.textContaining('Run events further down are not '
+            'affected'),
+      ),
       findsOneWidget,
     );
   });
 
-  testWidgets('it no longer calls the built-in switches unread', (
-    tester,
-  ) async {
+  testWidgets('the page is written without engineering words', (tester) async {
     await _pump(tester);
 
-    // The exact claim that was false. `_shouldNotifyForEvent` reads all three.
-    expect(find.textContaining('not read by any delivery path'), findsNothing);
-    expect(find.textContaining('no longer sends anything'), findsNothing);
-    expect(find.text('Legacy event flags (not wired up)'), findsNothing);
-    // Uppercase: the section label is an eyebrow (06 §Settings).
-    expect(
-      find.text('Built-in event alerts'.toUpperCase()),
-      findsOneWidget,
-    );
+    final words = RegExp(r'\b(routing|transports?|gates?|toggles?)\b',
+        caseSensitive: false);
+    final offending = [
+      for (final widget in tester.widgetList<Text>(find.byType(Text)))
+        if (widget.data case final text? when words.hasMatch(text)) text,
+    ];
+    expect(offending, isEmpty);
   });
 
   testWidgets('all three built-in event switches are operable', (tester) async {
     await _pump(tester);
 
-    for (final title in const [
-      'Sequence complete',
-      'Errors',
-      'Meridian flip'
-    ]) {
+    for (final title in const ['End of the night', 'Errors', 'Meridian flip']) {
       final row = _row(title);
       expect(row, findsOneWidget, reason: '$title row is missing');
 
@@ -98,7 +89,7 @@ void main() {
       find.descendant(
         of: _row('Errors'),
         matching: find.textContaining(
-          'capture failures and device-reconnect failures',
+          'A capture that failed, or a device that would not reconnect',
         ),
       ),
       findsOneWidget,
@@ -107,7 +98,7 @@ void main() {
       find.descendant(
         of: _row('Meridian flip'),
         matching: find.textContaining(
-          'raised when the flip monitor starts and finishes a flip',
+          'When the mount starts and finishes a flip',
         ),
       ),
       findsOneWidget,

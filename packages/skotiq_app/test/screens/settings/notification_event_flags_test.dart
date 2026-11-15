@@ -93,15 +93,15 @@ Future<HarnessHandle> _pump(WidgetTester tester, _Store store) async {
   await _pumpUntil(
     tester,
     () => _builtInSection().evaluate().isNotEmpty,
-    reason: 'the built-in event alerts section to render',
+    reason: "the Skotiq's own alerts section to render",
   );
   return handle;
 }
 
-/// Scoped to the built-in section on purpose: "Meridian flip" is also a Push
-/// to Mobile row title, and an unscoped `find.text` matches both.
+/// Scoped to Skotiq's own alerts on purpose: "Meridian flip" is also a Push
+/// to phones row title, and an unscoped `find.text` matches both.
 Finder _builtInSection() => find.ancestor(
-      of: find.text('Built-in event alerts'.toUpperCase()),
+      of: find.text("Skotiq's own alerts".toUpperCase()),
       matching: find.byType(SettingsSection),
     );
 
@@ -139,36 +139,32 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('subtitle copy', () {
-    test('an enabled family names the transports it reaches', () {
+    test('an enabled family says where it is sent', () {
       final subtitle = builtInEventAlertSubtitle(
-        'Gates the built-in error alert.',
+        'A capture that failed.',
         enabled: true,
       );
-      expect(subtitle, contains('Gates the built-in error alert.'));
-      expect(subtitle, contains('alert sound'));
-      expect(subtitle, contains('Custom row of per-event routing'));
-      // The claim that started this: it must never come back.
+      expect(subtitle, startsWith('A capture that failed.'));
+      expect(subtitle, contains('Sent where Other alerts go'));
       expect(subtitle, isNot(contains('no longer sends anything')));
     });
 
     test('a disabled family says nothing is sent, not that it is unwired', () {
       final subtitle = builtInEventAlertSubtitle(
-        'Gates the built-in error alert.',
+        'A capture that failed.',
         enabled: false,
       );
-      expect(subtitle, contains('this event family sends nothing'));
+      expect(subtitle, contains('Off: none are sent.'));
       expect(subtitle, isNot(contains('Superseded')));
     });
 
-    test('an off-by-default family says the default is ours, not the user\'s',
-        () {
+    test('an off-by-default family says it stays off until turned on', () {
       final subtitle = builtInEventAlertSubtitle(
-        'Gates the built-in meridian-flip alert.',
+        'When the mount starts and finishes a flip.',
         enabled: false,
         offByDefault: true,
       );
-      expect(subtitle, contains('off is the shipped default'));
-      expect(subtitle, contains('until you turn this on'));
+      expect(subtitle, contains('Off until you turn it on.'));
     });
   });
 
@@ -194,7 +190,7 @@ void main() {
     expect(
       find.descendant(
         of: _row('Meridian flip'),
-        matching: find.textContaining('off is the shipped default'),
+        matching: find.textContaining('Off until you turn it on'),
       ),
       findsOneWidget,
     );
@@ -246,7 +242,7 @@ void main() {
     expect(
       find.descendant(
         of: _row('Meridian flip'),
-        matching: find.textContaining('Delivered by the alert sound'),
+        matching: find.textContaining('Sent where Other alerts go'),
       ),
       findsOneWidget,
     );
@@ -273,14 +269,14 @@ void main() {
     );
   });
 
-  testWidgets('the sequence-complete switch is settable too', (tester) async {
+  testWidgets('the end-of-night switch is settable too', (tester) async {
     final store = _Store();
     final handle = await _pump(tester, store);
 
     await _toggle(
       tester,
       store,
-      'Sequence complete',
+      'End of the night',
       'notify_on_sequence_complete',
     );
 

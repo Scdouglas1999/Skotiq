@@ -35,35 +35,32 @@ String pushDeliverySubtitleFor(AsyncValue<PushDeliveryTargets> async) {
         : 'Delivering to $devices registered devices';
   }
   final reason = targets.blockedReason ?? 'Push delivery is unavailable';
-  return '$reason — critical alerts will only appear in the app '
-      'while it is open on your network.';
+  return '$reason. Until then a critical alert shows only in the app, while '
+      'it is open on your network.';
 }
 
-/// Subtitle for one of the three built-in event switches.
+/// Subtitle for one of the three switches over Skotiq's own alerts.
 ///
-/// The three settings are live, not decorative: `NotificationService.notify`
-/// refuses the entire dispatch for an event family whose flag is off (see
-/// `_shouldNotifyForEvent`), so with one off that family plays no alert sound
-/// and nothing is sent through the Custom routing row. The events the router
-/// classifies from the run itself are unaffected either way.
+/// The switches are live: `NotificationService.notify` refuses the whole
+/// alert for a family whose flag is off (see `_shouldNotifyForEvent`), so it
+/// plays no sound and is sent nowhere. Run events the router reads from the
+/// event stream are not affected.
 ///
-/// [sends] names what the family covers. [offByDefault] is true for meridian
-/// flip alone, whose stored default is `false` — the one row where a switch
-/// sitting at off is Skotiq's choice rather than the operator's, which is
-/// exactly what an operator expecting a flip alert has to be told.
+/// [sends] says what the family covers. [offByDefault] is true for meridian
+/// flip alone, whose stored default is off: the one row where off is
+/// Skotiq's choice rather than the owner's, which someone expecting a flip
+/// alert has to be told.
 String builtInEventAlertSubtitle(
   String sends, {
   required bool enabled,
   bool offByDefault = false,
 }) {
   if (enabled) {
-    return '$sends Delivered by the alert sound and by every transport on '
-        'the Custom row of per-event routing.';
+    return '$sends Sent where Other alerts go, below.';
   }
   return offByDefault
-      ? '$sends Off — and off is the shipped default, so no flip alert is sent '
-          'until you turn this on.'
-      : '$sends Off — this event family sends nothing.';
+      ? '$sends Off until you turn it on.'
+      : '$sends Off: none are sent.';
 }
 
 class NotificationSettings extends ConsumerStatefulWidget {
@@ -227,8 +224,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
       if (mounted &&
           _isCurrentTest(authority, generation, _NotificationTest.push)) {
         context.showSuccessSnackBar(
-          'Test queued to the active push transport. Cloud delivery requires '
-          'FCM/APNs credentials and a registered mobile token.',
+          'Test sent. A phone receives it once it is paired and has '
+          'registered for push.',
         );
       }
     } catch (e) {
@@ -287,15 +284,17 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
           hideHeader: false,
           key: TourTarget.settingsNotifications.key,
           title: 'Notifications',
-          description: 'Configure alerts and notifications',
+          description: 'What Skotiq tells you about, and where it sends it.',
           children: [
             SettingsSection(
-              title: 'General',
+              title: "Skotiq's own alerts",
               children: [
                 SettingRow(
                   icon: LucideIcons.bell,
-                  title: 'Enable notifications',
-                  subtitle: 'Send notifications for important events',
+                  title: 'Send these alerts',
+                  subtitle: 'The end of the night, errors and meridian flips, '
+                      'below. Off sends none of them. Run events further '
+                      'down are not affected.',
                   trailing: SettingsSwitch(
                     value: settings.notificationsEnabled,
                     onChanged: (value) {
@@ -307,8 +306,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ),
                 SettingRow(
                   icon: LucideIcons.volume2,
-                  title: 'Sound alerts',
-                  subtitle: 'Play sounds for notifications',
+                  title: 'Sound',
+                  subtitle: 'Play a short sound in the app with each of them.',
                   trailing: SettingsSwitch(
                     value: settings.soundEnabled,
                     onChanged: (value) {
@@ -317,42 +316,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                           .setSoundEnabled(value);
                     },
                   ),
-                  isLast: true,
                 ),
-              ],
-            ),
-            // Three sets of near-identically named controls cover "a sequence
-            // finished" on this one leaf, and nothing told the operator which
-            // of them decides whether their phone buzzes. Say it once, at the
-            // top, before any of the switches.
-            const SettingsSection(
-              title: 'Which of these decides where an alert goes',
-              children: [
-                SettingRow(
-                  icon: LucideIcons.share2,
-                  title: 'Per-event routing is the live one',
-                  subtitle:
-                      'Per-event routing (Settings → Notification Routing) '
-                      'maps each event to its transports and is the only '
-                      'thing that sends. Push to Mobile below can mute '
-                      'individual events on the phone; an event reaches the '
-                      'phone when both allow it. The switches under '
-                      '"Built-in event alerts" turn off three kinds of alert '
-                      'Skotiq raises itself: their sound, and the message '
-                      'they send through the Custom routing row.',
-                  trailing: SizedBox.shrink(),
-                  isLast: true,
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: 'Built-in event alerts',
-              children: [
                 SettingRow(
                   icon: LucideIcons.checkCircle,
-                  title: 'Sequence complete',
+                  title: 'End of the night',
                   subtitle: builtInEventAlertSubtitle(
-                    "Gates Skotiq's built-in sequence-complete alert.",
+                    'The morning message, finished masters and the '
+                    'end-of-night calibration.',
                     enabled: settings.notifyOnSequenceComplete,
                   ),
                   trailing: SettingsSwitch(
@@ -368,8 +338,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   icon: LucideIcons.alertCircle,
                   title: 'Errors',
                   subtitle: builtInEventAlertSubtitle(
-                    'Gates the built-in error alert, raised by capture '
-                    'failures and device-reconnect failures.',
+                    'A capture that failed, or a device that would not '
+                    'reconnect.',
                     enabled: settings.notifyOnError,
                   ),
                   trailing: SettingsSwitch(
@@ -385,8 +355,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   icon: LucideIcons.rotateCw,
                   title: 'Meridian flip',
                   subtitle: builtInEventAlertSubtitle(
-                    'Gates the built-in meridian-flip alert, raised when the '
-                    'flip monitor starts and finishes a flip.',
+                    'When the mount starts and finishes a flip.',
                     enabled: settings.notifyOnMeridianFlip,
                     offByDefault: true,
                   ),
@@ -402,16 +371,16 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ),
               ],
             ),
-            // Critical-event escalation: audible alert + cross-platform
-            // push so the user walking away from the laptop / out to the
-            // scope still gets a hard, attention-grabbing alert on a fail.
+            // A critical problem reaches the owner who has walked away from
+            // the computer: a sound in the room and a push to the phone.
             SettingsSection(
-              title: 'Critical events (unattended imaging)',
+              title: 'Critical problems during a run',
               children: [
                 SettingRow(
                   icon: LucideIcons.bellRing,
-                  title: 'Audible alert on critical events',
-                  subtitle: 'Play the system bell when a critical error fires',
+                  title: 'Ring on this computer',
+                  subtitle: 'Sound an alarm here when a run hits a critical '
+                      'problem, such as a mount fault or a failed recovery.',
                   trailing: SettingsSwitch(
                     value: settings.audibleAlertsOnCritical,
                     onChanged: (value) {
@@ -423,8 +392,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ),
                 SettingRow(
                   icon: LucideIcons.volume2,
-                  title: 'Alert sound',
-                  subtitle: 'Which sound to play when critical events fire',
+                  title: 'Alarm sound',
+                  subtitle: 'What rings.',
                   trailing: SettingsDropdown(
                     value: settings.criticalAlertSound,
                     items: const ['systemBell', 'none'],
@@ -446,7 +415,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   icon: pushTargets.canDeliver
                       ? LucideIcons.smartphone
                       : LucideIcons.smartphoneNfc,
-                  title: 'Push critical alerts to mobile',
+                  title: 'Send to paired phones',
                   subtitle: pushDeliverySubtitleFor(pushTargetsAsync),
                   trailing: SettingsSwitch(
                     value: settings.pushCriticalAlerts,
@@ -462,14 +431,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
             ),
             if (isRemoteController)
               const SettingsSection(
-                title: 'Push to mobile',
+                title: 'Push to phones',
                 children: [
                   SettingRow(
                     icon: LucideIcons.server,
-                    title: 'Configure push on the Skotiq host',
-                    subtitle: 'The master push gate and event toggles are '
-                        'host-owned. This controller will not edit an '
-                        'unrelated local copy.',
+                    title: 'Set on the imaging computer',
+                    subtitle: 'Which events reach phones is set on the '
+                        'computer that runs the rig.',
                     trailing: SizedBox.shrink(),
                     isLast: true,
                   ),
@@ -477,13 +445,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               )
             else if (pushConfigAsync!.isLoading)
               SettingsSection(
-                title: 'Push to mobile',
+                title: 'Push to phones',
                 children: [
                   SettingRow(
                     icon: LucideIcons.smartphone,
-                    title: 'Loading push configuration…',
-                    subtitle: 'Push controls will be available when the '
-                        'saved configuration has loaded.',
+                    title: 'Loading',
+                    subtitle: 'The phone settings appear once they have '
+                        'loaded.',
                     trailing: SizedBox(
                       width: 18,
                       height: 18,
@@ -496,11 +464,11 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               )
             else if (pushConfigAsync.hasError)
               SettingsSection(
-                title: 'Push to mobile',
+                title: 'Push to phones',
                 children: [
                   SettingRow(
                     icon: LucideIcons.alertTriangle,
-                    title: 'Could not load push configuration',
+                    title: 'Could not load the phone settings',
                     subtitle: userFacingError(pushConfigAsync.error),
                     trailing: SkotiqButton(
                       label: 'Retry',
@@ -515,12 +483,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               ),
             if (pushConfigReady)
               SettingsSection(
-                title: 'Push to mobile',
+                title: 'Push to phones',
                 children: [
                   SettingRow(
                     icon: LucideIcons.smartphone,
-                    title: 'Enable push to mobile',
-                    subtitle: 'Send alerts to connected mobile devices',
+                    title: 'Push to phones',
+                    subtitle: 'Send these events to phones paired with this '
+                        'computer. Each one can be turned off here.',
                     trailing: SettingsSwitch(
                       value: pushConfig.enabled,
                       onChanged: (value) {
@@ -533,7 +502,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.checkCircle,
                     title: 'Sequence completed',
-                    subtitle: 'Push when sequence finishes',
+                    subtitle: 'When a run finishes.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceCompleted,
                       enabled: pushConfig.enabled,
@@ -547,7 +516,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.alertTriangle,
                     title: 'Sequence failed',
-                    subtitle: 'Push on sequence errors or stops',
+                    subtitle: 'When a run fails or is stopped.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceFailed,
                       enabled: pushConfig.enabled,
@@ -561,7 +530,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.rotateCw,
                     title: 'Meridian flip',
-                    subtitle: 'Push on meridian flip events',
+                    subtitle: 'When the mount flips.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyMeridianFlip,
                       enabled: pushConfig.enabled,
@@ -575,7 +544,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.cloudRain,
                     title: 'Weather unsafe',
-                    subtitle: 'Push when safety monitor reports unsafe',
+                    subtitle: 'When the weather turns unsafe.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyWeatherUnsafe,
                       enabled: pushConfig.enabled,
@@ -589,7 +558,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.crosshair,
                     title: 'Guiding lost',
-                    subtitle: 'Push when guide star is lost',
+                    subtitle: 'When the guide star stays lost.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyGuidingLost,
                       enabled: pushConfig.enabled,
@@ -603,7 +572,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.cameraOff,
                     title: 'Exposure failed',
-                    subtitle: 'Push when camera exposure fails',
+                    subtitle: 'When an exposure fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyExposureFailed,
                       enabled: pushConfig.enabled,
@@ -617,7 +586,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.focus,
                     title: 'Autofocus failed',
-                    subtitle: 'Push when autofocus fails',
+                    subtitle: 'When autofocus fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyAutofocusFailed,
                       enabled: pushConfig.enabled,
@@ -631,7 +600,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.unplug,
                     title: 'Equipment disconnected',
-                    subtitle: 'Push when a device disconnects',
+                    subtitle: 'When a device drops.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyEquipmentDisconnected,
                       enabled: pushConfig.enabled,
@@ -644,12 +613,12 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                   SettingRow(
                     icon: LucideIcons.send,
-                    title: 'Test push notification',
-                    subtitle:
-                        'Queue a test to the active transport (host logs report cloud failures)',
+                    title: 'Send a test',
+                    subtitle: 'Sends a test to paired phones. If it does not '
+                        'arrive, the log says why.',
                     trailing: SkotiqButton(
-                      label: 'Test',
-                      variant: ButtonVariant.primary,
+                      label: 'Send test',
+                      variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
                       isLoading: _activeTest == _NotificationTest.push,
                       onPressed: (pushConfig.enabled && _activeTest == null)
@@ -672,7 +641,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
-                    subtitle: 'Discord channel webhook for notifications',
+                    subtitle: 'The Discord channel alerts are posted to.',
                     isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
                       text: adminOnlyCredentialAdvice(settings.discordWebhook),
@@ -697,11 +666,10 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     SettingRow(
                       icon: LucideIcons.send,
                       title: 'Test Discord',
-                      subtitle:
-                          'Send a test notification to your Discord channel',
+                      subtitle: 'Post a test message to the channel.',
                       trailing: SkotiqButton(
-                        label: 'Test',
-                        variant: ButtonVariant.primary,
+                        label: 'Send test',
+                        variant: ButtonVariant.secondary,
                         size: ButtonSize.small,
                         isLoading: _activeTest == _NotificationTest.discord,
                         onPressed: _activeTest == null ? _testDiscord : null,
@@ -717,7 +685,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.key,
                     title: 'API key',
-                    subtitle: 'Pushover application API key',
+                    subtitle: 'The key of your Pushover application.',
                     trailing: AdminOnlyControl(
                       text: adminOnlyCredentialAdvice(settings.pushoverKey),
                       child: SettingsTextInput(
@@ -738,7 +706,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   SettingRow(
                     icon: LucideIcons.user,
                     title: 'User key',
-                    subtitle: 'Pushover user/group key',
+                    subtitle: 'Your Pushover user or group key.',
                     isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
                       text: adminOnlyCredentialAdvice(settings.pushoverUser),
@@ -761,10 +729,10 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     SettingRow(
                       icon: LucideIcons.send,
                       title: 'Test Pushover',
-                      subtitle: 'Send a test notification to your device',
+                      subtitle: 'Send a test to your phone.',
                       trailing: SkotiqButton(
-                        label: 'Test',
-                        variant: ButtonVariant.primary,
+                        label: 'Send test',
+                        variant: ButtonVariant.secondary,
                         size: ButtonSize.small,
                         isLoading: _activeTest == _NotificationTest.pushover,
                         onPressed: _activeTest == null ? _testPushover : null,

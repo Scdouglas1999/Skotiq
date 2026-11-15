@@ -53,16 +53,14 @@ class NotificationRoutingSettings extends ConsumerWidget {
       return const Column(
         children: [
           SettingsSection(
-            title: 'Notification routing',
+            title: 'Where alerts go',
             children: [
               SettingRow(
                 icon: LucideIcons.server,
-                title: 'Configure routing on the Skotiq host',
-                subtitle:
-                    'Email, webhook, Pushover, Telegram, Discord, and MQTT '
-                    'credentials are host-owned. This controller will not '
-                    'write a separate local configuration or duplicate the '
-                    'host’s sends.',
+                title: 'Set up on the imaging computer',
+                subtitle: 'The computer that runs the rig sends the alerts, '
+                    'so email, webhook, Pushover, Telegram, Discord and MQTT '
+                    'are set up there.',
                 trailing: SizedBox.shrink(),
                 isLast: true,
               ),
@@ -92,7 +90,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Could not load the notification routing matrix.',
+              'Could not load where alerts go.',
               style: SkotiqTypography.body.copyWith(
                 color: colors.error,
               ),
@@ -106,7 +104,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             SkotiqButton(
-              label: 'Retry routing settings',
+              key: const ValueKey('notification-routing-retry'),
+              label: 'Retry',
               icon: LucideIcons.refreshCw,
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
@@ -130,12 +129,13 @@ class NotificationRoutingSettings extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSection(
-          title: 'Routing master switch',
+          title: 'Where alerts go',
           children: [
             SettingRow(
               icon: LucideIcons.share2,
-              title: 'Notification routing enabled',
-              subtitle: 'When off, nothing is sent to any transport',
+              title: 'Send alerts',
+              subtitle: 'Off, no alert goes anywhere: not to the app, phones, '
+                  'email or chat. Each event below says where it goes.',
               trailing: SettingsSwitch(
                 value: matrix.enabled,
                 onChanged: (v) {
@@ -149,7 +149,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
           ],
         ),
         SettingsSection(
-          title: 'Per-event routing',
+          title: 'Events',
           children: [
             for (var i = 0; i < NotificationCategory.values.length; i++)
               _categoryRow(
@@ -177,16 +177,16 @@ class NotificationRoutingSettings extends ConsumerWidget {
   }) {
     final rule = matrix.ruleFor(category);
     final summary = rule.enabled && rule.transports.isNotEmpty
-        ? rule.transports.map((t) => _transportLabel(t, configured)).join(' + ')
-        : '(disabled)';
+        ? rule.transports.map((t) => _transportLabel(t, configured)).join(', ')
+        : 'Not sent';
 
     return SettingRow(
       icon: _iconFor(category),
       title: category.label,
-      subtitle: '→ $summary',
+      subtitle: summary,
       trailing: SkotiqButton(
         label: 'Edit',
-        variant: ButtonVariant.secondary,
+        variant: ButtonVariant.ghost,
         size: ButtonSize.small,
         onPressed: () async {
           await showDialog<void>(
@@ -277,6 +277,6 @@ String _transportLabel(
   NotificationTransportKind kind,
   Set<NotificationTransportKind> configured,
 ) =>
-    configured.contains(kind) ? kind.label : '${kind.label} (not configured)';
+    configured.contains(kind) ? kind.label : '${kind.label} (not set up)';
 
 // Per-category editor dialog

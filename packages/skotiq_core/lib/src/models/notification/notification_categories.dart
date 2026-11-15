@@ -23,65 +23,65 @@ import '../backend/event_types.dart';
 /// users see only these labels in the settings UI.
 enum NotificationCategory {
   // Sequence lifecycle
-  sequenceStarted('Sequence Started'),
-  sequenceCompleted('Sequence Completed'),
-  sequenceFailed('Sequence Failed'),
-  sequenceStopped('Sequence Stopped'),
-  sequencePaused('Sequence Paused'),
-  sequenceResumed('Sequence Resumed'),
+  sequenceStarted('Sequence started'),
+  sequenceCompleted('Sequence completed'),
+  sequenceFailed('Sequence failed'),
+  sequenceStopped('Sequence stopped'),
+  sequencePaused('Sequence paused'),
+  sequenceResumed('Sequence resumed'),
 
   // Target lifecycle
-  targetStarted('Target Started'),
-  targetCompleted('Target Completed'),
+  targetStarted('Target started'),
+  targetCompleted('Target completed'),
 
   // Mount / hardware milestones
-  meridianFlipPerformed('Meridian Flip Performed'),
-  autofocusCompleted('Autofocus Completed'),
-  autofocusFailed('Autofocus Failed'),
+  meridianFlipPerformed('Meridian flip performed'),
+  autofocusCompleted('Autofocus completed'),
+  autofocusFailed('Autofocus failed'),
 
   /// An autofocus (a trigger's refocus, an Autofocus node, a recovery or
   /// post-flip refocus) failed to converge and the run CONTINUES on the
   /// restored last-good focus; a failed autofocus never parks or ends a run.
   /// Info, not error: the night goes on slightly soft, and an error here would
   /// train the operator to ignore the alerts that do end a run.
-  autofocusContinued('Autofocus Continued'),
+  autofocusContinued('Autofocus continued'),
 
   // Imaging
-  frameCaptured('Frame Captured'),
+  frameCaptured('Frame captured'),
 
   /// A streak of frames failed grading and reached the operator's limit. Told
   /// once per streak; the run keeps imaging and the rejects are kept.
-  frameRejected('Frames Being Rejected'),
+  frameRejected('Frames being rejected'),
 
   /// A quality problem the sequencer judged — a Center that could not solve,
   /// guiding RMS over a limit, a dither that did not settle, a post-flip
   /// check — and carried on through, because the operator has not asked for
   /// such problems to stop the run (owner decision 2026-10-06).
-  problemNoticed('Problem Noticed'),
-  exposureFailed('Exposure Failed'),
+  problemNoticed('Problem noticed'),
+  exposureFailed('Exposure failed'),
 
   // Recovery / executor health
-  recoveryStarted('Recovery Started'),
-  recoveryRecovered('Recovery Recovered'),
-  recoveryGaveUp('Recovery Gave Up'),
+  recoveryStarted('Recovery started'),
+  recoveryRecovered('Recovery succeeded'),
+  recoveryGaveUp('Recovery gave up'),
 
   // Guiding
-  guidingLost('Guiding Lost'),
-  guidingRecovered('Guiding Recovered'),
+  guidingLost('Guiding lost'),
+  guidingRecovered('Guiding recovered'),
 
   // Weather / safety
-  weatherUnsafe('Weather Unsafe'),
-  weatherSafeAgain('Weather Safe Again'),
+  weatherUnsafe('Weather unsafe'),
+  weatherSafeAgain('Weather safe again'),
 
   /// The mount moved with no command from Skotiq, or Skotiq no longer trusts
   /// its reported position. An equipment safety fault: the run is paused and
   /// automatic moves are refused until the operator recovers the mount.
-  mountFault('Mount Fault'),
-  cloudArriving('Cloud Arriving'),
-  cloudOpening('Cloud Clearing'),
+  mountFault('Mount fault'),
+  cloudArriving('Cloud arriving'),
+  cloudOpening('Sky clearing'),
 
   // Astronomical discovery (First Light / Pillar B)
-  transientDiscovered('Transient Discovered'),
+  transientDiscovered('Transient discovered'),
 
   /// The dawn autopilot finished a night's Darkroom pass and there is a first
   /// draft to look at.
@@ -90,15 +90,15 @@ enum NotificationCategory {
   /// one notification that carries a deep link: the tap opens the draft's recipe
   /// in the Darkroom, and a category shared with the end of a run would send
   /// every run-completion push to the same place.
-  darkroomDraftReady('Darkroom Draft Ready'),
+  darkroomDraftReady('Darkroom draft ready'),
 
   // System / operational
-  diskSpaceLow('Disk Space Low'),
-  equipmentDisconnected('Equipment Disconnected'),
-  triggerFired('Sequencer Trigger Fired'),
+  diskSpaceLow('Disk space low'),
+  equipmentDisconnected('Equipment disconnected'),
+  triggerFired('Trigger fired'),
 
   // Custom (user-script / NotificationNode-defined)
-  custom('Custom');
+  custom('Other alerts');
 
   final String label;
   const NotificationCategory(this.label);

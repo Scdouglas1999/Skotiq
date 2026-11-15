@@ -67,7 +67,7 @@ void main() {
       await _pumpWithTargets(tester, PushDeliveryTargets.none);
 
       // The row is still there (the preference remains settable)…
-      expect(find.text('Push critical alerts to mobile'), findsOneWidget);
+      expect(find.text('Send to paired phones'), findsOneWidget);
 
       // …and no intent-only copy that implies delivery works.
       expect(
@@ -81,7 +81,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('only appear in the app'),
+        find.textContaining('shows only in the app'),
         findsOneWidget,
       );
       expect(find.textContaining('Delivering to'), findsNothing);
@@ -103,7 +103,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Push critical alerts to mobile'), findsOneWidget);
+      expect(find.text('Send to paired phones'), findsOneWidget);
       expect(find.text('Delivering to 1 registered device'), findsOneWidget);
       expect(
         find.textContaining('No device has registered'),
