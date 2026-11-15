@@ -128,7 +128,14 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
-    return LinkVersion.check(host: info['version'] as String?);
+    final release = info['version'];
+    if (release is! String || release.trim().isEmpty) {
+      throw HttpException(
+        'GET /api/info did not answer as a Skotiq host (no release)',
+        uri: uri,
+      );
+    }
+    return LinkVersion.check(host: release);
   }
 
   /// Enforce the pinned-fingerprint contract against the value the server

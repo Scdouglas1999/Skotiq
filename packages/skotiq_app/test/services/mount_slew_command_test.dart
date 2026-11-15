@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
+import 'package:skotiq_app/services/move_with_silent_guider.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -96,28 +97,17 @@ class _Script {
   }
 }
 
-class _GuidingGuider extends GuiderStateNotifier {
-  _GuidingGuider(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = const GuiderState(
-      connectionState: DeviceConnectionState.connected,
-      deviceId: 'phd2',
-      isGuiding: true,
-    );
-  }
-}
-
 Future<HarnessHandle> _pump(
   WidgetTester tester,
   MockBackend backend,
   _Script script, {
-  bool guiding = false,
+  Future<bool> Function()? askToMoveAnyway,
 }) {
   when(() => backend.getMountCapabilities(_mountId)).thenAnswer(
     (_) async => const MountCapabilities(canSlew: true, canAbortSlew: true),
   );
   when(() => backend.mountSlewToCoordinates(_mountId, any(), any()))
-      .thenAnswer((_) async {});
+      .thenAnswer((_) async => GuiderForMove.idle);
   when(() => backend.mountAbort(_mountId)).thenAnswer((_) async {});
   when(() => backend.getMountStatus(_mountId))
       .thenAnswer((_) async => script.next());
@@ -127,7 +117,8 @@ Future<HarnessHandle> _pump(
     backend: backend,
     extraOverrides: [
       mountStateProvider.overrideWith((ref) => _MountNotifier(ref)),
-      if (guiding) guiderStateProvider.overrideWith(_GuidingGuider.new),
+      if (askToMoveAnyway != null)
+        moveWithSilentGuiderAskProvider.overrideWithValue(askToMoveAnyway),
       mountSlewWatcherFactoryProvider.overrideWithValue(({
         required readStatus,
         required targetRa,
@@ -251,40 +242,105 @@ void main() {
     expect(handle.container.read(mountSlewProgressProvider), isNull);
   });
 
-  testWidgets('a GoTo while guiding stops the guider before the mount moves',
-      (tester) async {
-    final backend = mockBackend();
-    final calls = <String>[];
-    when(() => backend.guiderStopGuiding()).thenAnswer((_) async {
-      calls.add('stop guiding');
+  group('a GoTo the host refuses because the guider is not answering', () {
+    void refuseUntilAccepted(MockBackend backend) {
+      when(() => backend.mountSlewToCoordinates(_mountId, any(), any()))
+          .thenThrow(const GuiderNotAnsweringException('PHD2 timed out'));
+      when(
+        () => backend.mountSlewToCoordinates(
+          _mountId,
+          any(),
+          any(),
+          guiderSilentOk: true,
+        ),
+      ).thenAnswer((_) async => GuiderForMove.unanswered);
+    }
+
+    testWidgets('asks the operator once and moves on a yes', (tester) async {
+      final backend = mockBackend();
+      var asked = 0;
+      final handle = await _pump(
+        tester,
+        backend,
+        _Script(_laggingSlew()),
+        askToMoveAnyway: () async {
+          asked++;
+          return true;
+        },
+      );
+      refuseUntilAccepted(backend);
+
+      final result = await handle.container
+          .read(mountCommandServiceProvider)
+          .slewTo(_target.ra, _target.dec);
+
+      expect(result.isSuccess, isTrue, reason: result.message);
+      expect(asked, 1);
+      verify(
+        () => backend.mountSlewToCoordinates(
+          _mountId,
+          any(),
+          any(),
+          guiderSilentOk: true,
+        ),
+      ).called(1);
+      expect(
+        handle.container.read(guiderSilentMoveAcceptedProvider),
+        isTrue,
+        reason: 'the centering slews that follow are not asked about again',
+      );
+      expect(
+        handle.container.read(uiNotificationProvider).map((n) => n.message),
+        contains(GuiderForMove.unanswered.noticeFor('GoTo')),
+      );
     });
-    final handle =
-        await _pump(tester, backend, _Script(_laggingSlew()), guiding: true);
-    when(() => backend.mountSlewToCoordinates(_mountId, any(), any()))
-        .thenAnswer((_) async => calls.add('slew'));
 
-    final result = await handle.container
-        .read(mountCommandServiceProvider)
-        .slewTo(_target.ra, _target.dec);
+    testWidgets('leaves the mount where it is on a no', (tester) async {
+      final backend = mockBackend();
+      final handle = await _pump(
+        tester,
+        backend,
+        _Script(_laggingSlew()),
+        askToMoveAnyway: () async => false,
+      );
+      refuseUntilAccepted(backend);
 
-    expect(result.isSuccess, isTrue, reason: result.message);
-    expect(calls, ['stop guiding', 'slew']);
+      final result = await handle.container
+          .read(mountCommandServiceProvider)
+          .slewTo(_target.ra, _target.dec);
+
+      expect(result.isSuccess, isFalse);
+      expect(result.message, GuiderNotAnsweringException.message);
+      verifyNever(
+        () => backend.mountSlewToCoordinates(
+          _mountId,
+          any(),
+          any(),
+          guiderSilentOk: true,
+        ),
+      );
+    });
   });
 
-  testWidgets('a GoTo is refused when guiding does not stop', (tester) async {
+  testWidgets('Park goes ahead and says so when the guider is not answering', (
+    tester,
+  ) async {
     final backend = mockBackend();
-    when(() => backend.guiderStopGuiding())
-        .thenThrow(StateError('PHD2 is not answering'));
-    final handle =
-        await _pump(tester, backend, _Script(_laggingSlew()), guiding: true);
+    final handle = await _pump(tester, backend, _Script([_status(ra: 0, dec: 0)]));
+    when(() => backend.getMountCapabilities(_mountId)).thenAnswer(
+      (_) async => const MountCapabilities(canPark: true),
+    );
+    when(() => backend.mountPark(_mountId))
+        .thenAnswer((_) async => GuiderForMove.unanswered);
 
-    final result = await handle.container
-        .read(mountCommandServiceProvider)
-        .slewTo(_target.ra, _target.dec);
+    final result =
+        await handle.container.read(mountCommandServiceProvider).park();
 
-    expect(result.isSuccess, isFalse);
-    expect(result.message,
-        startsWith('Guiding did not stop, so the mount was not moved'));
-    verifyNever(() => backend.mountSlewToCoordinates(_mountId, any(), any()));
+    expect(result.isSuccess, isTrue, reason: result.message);
+    verify(() => backend.mountPark(_mountId)).called(1);
+    expect(
+      handle.container.read(uiNotificationProvider).map((n) => n.message),
+      contains(GuiderForMove.unanswered.noticeFor('park')),
+    );
   });
 }

@@ -30,15 +30,25 @@ void main() {
       );
     });
 
-    test('a host that does not say is the side to update', () {
-      for (final host in [null, '', '  ']) {
-        final mismatch = LinkVersion.check(host: host, client: '8.2.1')!;
-        expect(mismatch.host, isNull);
-        expect(mismatch.older, LinkSide.host);
-        expect(
-          mismatch.message,
-          startsWith('The host did not say which Skotiq it runs'),
-        );
+    test('only the info and update routes are open to another release', () {
+      for (final path in [
+        '/api/info',
+        '/api/system/version',
+        '/api/system/update/check',
+        '/api/system/update/status',
+        '/api/system/update/download',
+        '/api/system/update/apply',
+      ]) {
+        expect(LinkVersion.openToOtherReleases(path), isTrue, reason: path);
+      }
+      for (final path in [
+        '/api/status',
+        '/api/mount/park',
+        '/api/system/shutdown',
+        '/api/system/updates',
+        '/api/sequencer/stop',
+      ]) {
+        expect(LinkVersion.openToOtherReleases(path), isFalse, reason: path);
       }
     });
 

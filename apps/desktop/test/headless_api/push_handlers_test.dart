@@ -429,6 +429,7 @@ Future<_TestResponse> _request(
     method,
     baseUri.replace(path: path.split('?').first, query: _queryOf(path)),
   );
+  request.headers.set('x-skotiq-version', '4.0.0');
   if (token != null) {
     request.headers.set('Authorization', 'Bearer $token');
   }

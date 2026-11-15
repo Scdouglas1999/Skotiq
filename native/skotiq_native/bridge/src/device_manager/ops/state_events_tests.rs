@@ -530,7 +530,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    crate::api::devices::mount::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0)
+    crate::api::devices::mount::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0, false)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -596,7 +596,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    crate::api::devices::mount::api_mount_park(MOUNT.to_string())
+    crate::api::devices::mount::api_mount_park(MOUNT.to_string(), false)
         .await
         .unwrap();
     let events = drain(&mut rx);

@@ -32,7 +32,9 @@ PASS=0; FAIL=0
 say()  { echo "[d1] $*"; }
 ok()   { PASS=$((PASS+1)); echo "[d1]   PASS: $*"; }
 bad()  { FAIL=$((FAIL+1)); echo "[d1]   FAIL: $*"; }
-api()  { curl -sf -m 10 -H "$AH" "$@"; }
+# Every API request names the host's release, which /api/info reports.
+vh()   { echo "x-skotiq-version: $(curl -s -m 5 "$B/api/info" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')"; }
+api()  { curl -sf -m 10 -H "$AH" -H "$(vh)" "$@"; }
 
 # Reap only what a previous run of THIS script left behind. `pkill -f
 # skotiq` killed every instance on the machine — a parallel harness
@@ -127,7 +129,7 @@ python3 "$HERE/make_sequence.py" "$D1/sequence.json"
 api -X POST "$B/api/sequencer/save-path" -H 'Content-Type: application/json' -d "{\"path\":\"$OUT\"}" >/dev/null \
   && ok "save-path set" || bad "save-path"
 sleep 1
-LOAD=$(curl -s -m 15 -H "$AH" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/sequence.json")
+LOAD=$(curl -s -m 15 -H "$AH" -H "$(vh)" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/sequence.json")
 echo "$LOAD" | grep -qi "error" && { bad "load: $LOAD"; stopapp; exit 1; } || ok "sequence loaded"
 sleep 1
 api -X POST "$B/api/sequencer/start" >/dev/null && ok "sequence started" || { bad "start"; stopapp; exit 1; }
@@ -374,7 +376,7 @@ definition = {"id": "d1-grading-probe", "name": "D1 grading probe",
               "nodes": nodes, "metadata": {}}
 json.dump({"json": json.dumps(definition)}, open(sys.argv[1], "w"))
 EOF
-RLOAD=$(curl -s -m 15 -H "$AH" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/reject_sequence.json")
+RLOAD=$(curl -s -m 15 -H "$AH" -H "$(vh)" -X POST "$B/api/sequencer/load" -H 'Content-Type: application/json' --data-binary @"$D1/reject_sequence.json")
 echo "$RLOAD" | grep -qi "error" && bad "grading-probe load: $RLOAD" || ok "grading probe loaded"
 sleep 1
 api -X POST "$B/api/sequencer/start" >/dev/null && ok "grading probe started" || bad "grading probe start"

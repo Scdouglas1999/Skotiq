@@ -3,14 +3,10 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
 import 'package:multicast_dns/multicast_dns.dart';
 
 import 'discovery.dart';
 import 'enhanced_discovery.dart';
-import 'network_uri.dart';
-import 'link_version.dart';
-import 'wire/routes/system_api.dart';
 
 /// The DNS-SD service type every Skotiq host registers (GUI and headless).
 const String skotiqMdnsServiceType = '_skotiq._tcp';
@@ -60,10 +56,9 @@ class RigDiscovery {
       final seedKey = '${seed.host}:${seed.webPort}';
       if (!seenSeeds.add(seedKey)) return;
       pending.add(() async {
-        final enriched = await fetchInfo(seed, timeout: infoTimeout);
         // A seed /api/info never answered for is still listed: the operator
         // can see it and try, and the pairing step reports what goes wrong.
-        final server = enriched ?? seed;
+        final server = (await readInfo(seed, timeout: infoTimeout)).server;
         final key = _identityKey(server);
         final existing = found[key];
         found[key] = existing == null ? server : _preferred(existing, server);
@@ -86,50 +81,20 @@ class RigDiscovery {
     return controller.stream;
   }
 
-  /// `GET /api/info` on [seed] and merge what it says. Null when the host did
-  /// not answer with a Skotiq info document.
-  static Future<DiscoveredServer?> fetchInfo(
+  /// Ask [seed] who it is ([EnhancedSkotiqDiscovery.readServer]).
+  static Future<ServerRead> readInfo(
     DiscoveredServer seed, {
     Duration timeout = const Duration(seconds: 3),
-  }) async {
-    try {
-      final response = await http
-          .get(
-            buildSkotiqServerUri(
-              scheme: seed.scheme,
-              host: seed.host,
-              port: seed.webPort,
-              pathAndQuery: SystemApi.info.route.path,
-            ),
-            headers: {LinkVersion.header: skotiqRelease},
-          )
-          .timeout(timeout);
-      if (response.statusCode != 200) return null;
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) return null;
-      if (decoded['fingerprint'] is! String && decoded['version'] is! String) {
-        return null;
-      }
-      return EnhancedSkotiqDiscovery.mergeServerInfo(seed, decoded);
-    } catch (e) {
-      developer.log(
-        '/api/info failed for ${seed.host}:${seed.webPort}: $e',
-        name: 'RigDiscovery',
-        level: 500,
-      );
-      return null;
-    }
-  }
+  }) => EnhancedSkotiqDiscovery.readServer(seed, timeout: timeout);
 
-  /// The manual-address path: ask [host]:[port] who it is. Null when nothing
-  /// that looks like Skotiq answered.
-  static Future<DiscoveredServer?> probeAddress(
+  /// The manual-address path: ask [host]:[port] who it is.
+  static Future<ServerRead> probeAddress(
     String host,
     int port, {
     String scheme = 'http',
     Duration timeout = const Duration(seconds: 5),
   }) {
-    return fetchInfo(
+    return readInfo(
       DiscoveredServer(host: host, webPort: port, name: host, scheme: scheme),
       timeout: timeout,
     );

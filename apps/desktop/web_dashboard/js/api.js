@@ -142,13 +142,12 @@ class SkotiqApi {
     let body;
     try { body = JSON.parse(text); } catch (_) { return null; }
     if (!body || body.code !== 'version_mismatch') return null;
-    const host = typeof body.hostVersion === 'string' ? body.hostVersion : null;
+    const host = String(body.hostVersion);
     const page = typeof body.clientVersion === 'string' ? body.clientVersion : '';
     return new SkotiqApiError(
       'version_mismatch',
-      'This page is from Skotiq ' + page + ' and the host ' +
-        (host ? 'now runs Skotiq ' + host : 'did not say which Skotiq it runs') +
-        '. Reload the page to use the host\u2019s own dashboard.',
+      'This page is from Skotiq ' + page + ' and the host now runs Skotiq ' +
+        host + '. Reload the page to use the host\u2019s own dashboard.',
       { status, method, path, hostVersion: host, pageVersion: page },
     );
   }
@@ -743,8 +742,53 @@ class SkotiqApi {
   // Mount
   // =========================================================================
 
+  /// Send a mount move. The host stops the guider first and says what the
+  /// guider did. A park or home that went ahead with the guider silent
+  /// carries a `notice`, handed to `onMoveNotice`. A GoTo the host refused
+  /// because the guider is not answering (409 `guider_not_answering`) asks
+  /// the operator once through `confirmSilentGuider` and, on a yes, is sent
+  /// again with the guider's silence accepted; on a no it throws
+  /// `guider_not_answering`.
+  async _mountMove(path, body) {
+    // The host waits up to 10 s for the guider before it answers a move.
+    const moveTimeoutMs = 20000;
+    let result;
+    try {
+      result = await this._request('POST', path, body, moveTimeoutMs);
+    } catch (e) {
+      if (!SkotiqApi._isGuiderNotAnswering(e)) throw e;
+      const ask = this.confirmSilentGuider || ((question) => window.confirm(question));
+      const moveAnyway = await ask(
+        'The guider is not answering, so guiding cannot be stopped first. ' +
+        'A guider that is still guiding will chase the move and lose its star. ' +
+        'Move anyway?',
+      );
+      if (!moveAnyway) {
+        throw new SkotiqApiError(
+          'guider_not_answering',
+          'The guider is not answering, so the mount was not moved',
+          e.detail,
+        );
+      }
+      result = await this._request(
+        'POST', path, Object.assign({}, body, { guiderSilentOk: true }), moveTimeoutMs,
+      );
+    }
+    if (result && result.notice && this.onMoveNotice) this.onMoveNotice(result.notice);
+    return result;
+  }
+
+  static _isGuiderNotAnswering(e) {
+    if (!(e instanceof SkotiqApiError) || e.status !== 409) return false;
+    try {
+      return JSON.parse(e.detail.body).error === 'guider_not_answering';
+    } catch (_) {
+      return false;
+    }
+  }
+
   async mountSlew(deviceId, ra, dec) {
-    return this._post('/api/mount/slew', { deviceId, ra, dec });
+    return this._mountMove('/api/mount/slew', { deviceId, ra, dec });
   }
 
   async mountSync(deviceId, ra, dec) {
@@ -752,7 +796,7 @@ class SkotiqApi {
   }
 
   async mountPark(deviceId) {
-    return this._post('/api/mount/park', { deviceId });
+    return this._mountMove('/api/mount/park', { deviceId });
   }
 
   async mountUnpark(deviceId) {
@@ -1557,7 +1601,7 @@ class SkotiqApi {
 
   // Slew without solve-and-correct — the cheap "go close to" path.
   async framingSlewToTarget(ra, dec) {
-    return this._post('/api/framing/slew-to-target', { ra, dec });
+    return this._mountMove('/api/framing/slew-to-target', { ra, dec });
   }
 
   // Iterative plate-solve-and-correct centering. The server uses the
@@ -1596,7 +1640,7 @@ class SkotiqApi {
   }
 
   async planetariumSlewTo(ra, dec) {
-    return this._post('/api/planetarium/slew-to', { ra, dec });
+    return this._mountMove('/api/planetarium/slew-to', { ra, dec });
   }
 
   async planetariumGetMountPosition() {

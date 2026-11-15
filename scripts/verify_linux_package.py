@@ -51,9 +51,18 @@ def verify(args):
     def run(command, timeout=60, **kwargs):
         return subprocess.run(command, check=True, timeout=timeout, **kwargs)
 
+    release = []
+
     def api(path, body=None):
+        # Every API request names the host's release; /api/info reports it.
+        if not release:
+            info = run(['docker', 'exec', runtime, 'curl', '-fsS', '--max-time',
+                        '30', 'http://127.0.0.1:8080/api/info'],
+                       capture_output=True, text=True).stdout
+            release.append(json.loads(info)['version'])
         command = ['docker', 'exec', runtime, 'curl', '-fsS', '--max-time', '30',
                    '-H', 'Authorization: Bearer package-smoke-admin',
+                   '-H', 'x-skotiq-version: ' + release[0],
                    '-H', 'Content-Type: application/json']
         if body is not None:
             command += ['-X', 'POST', '--data-binary', json.dumps(body)]

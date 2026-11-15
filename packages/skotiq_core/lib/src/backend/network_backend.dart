@@ -9,6 +9,7 @@ import '../models/autofocus_progress.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/defect_map.dart';
 import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment/guider_for_move.dart';
 import '../models/equipment_profile.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/stack_and_share_models.dart';
