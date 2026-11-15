@@ -18,10 +18,8 @@ class _PlannerFilteredEmptyState extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final breakdown = ref.watch(plannerFilterExclusionProvider);
-    final catalogInstalled =
-        ref.watch(catalogStateProvider).dsoCatalogStatus.isInstalled;
 
-    if (breakdown.total == 0 && !catalogInstalled) {
+    if (_plannerCatalogMissing(ref)) {
       // The download itself, here: a link to Settings was one more place to
       // find before a fresh install could plan anything.
       return plannerCentredEmptyState(
@@ -81,6 +79,12 @@ class _PlannerFilteredEmptyState extends ConsumerWidget {
     );
   }
 }
+
+/// Whether the scorer had nothing to score because no object catalog is
+/// installed: the one cause of an empty list that no filter change can fix.
+bool _plannerCatalogMissing(WidgetRef ref) =>
+    ref.watch(plannerFilterExclusionProvider).total == 0 &&
+    !ref.watch(catalogStateProvider).dsoCatalogStatus.isInstalled;
 
 /// Centres an [EmptyState] when the viewport has room and scrolls it when it
 /// does not.

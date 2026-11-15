@@ -72,7 +72,8 @@ void main() {
     expect(find.textContaining('≈'), findsNothing);
   });
 
-  testWidgets('no plan says so and offers the one-tap night', (tester) async {
+  testWidgets('no plan says so and offers tonight\'s best target',
+      (tester) async {
     final harness = NightHarness(board: NightFixtures.ready(), noPlan: true);
     await harness.pump(
       tester,
@@ -83,10 +84,10 @@ void main() {
 
     await tester.tap(find.text("Image tonight's best target"));
     await tester.pumpAndSettle();
-    expect(find.text('one tap'), findsOneWidget);
+    expect(find.text('planner tab=recommendation'), findsOneWidget);
   });
 
-  testWidgets('a plan with nothing to capture offers the one-tap night',
+  testWidgets('a plan with nothing to capture offers tonight\'s best target',
       (tester) async {
     final harness = NightHarness(
       board: NightFixtures.ready(),

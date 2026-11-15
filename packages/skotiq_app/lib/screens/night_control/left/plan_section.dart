@@ -1,6 +1,6 @@
 // The Plan block: integration against the plan's estimate, the end time, and
 // one row per filter with its frames and captured time. With nothing to
-// capture it offers the one-tap night instead.
+// capture it offers Plan > Best tonight instead.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +14,7 @@ import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
 import '../../../router/app_routes.dart';
+import '../../../router/planner_route.dart';
 
 class NightPlanSection extends ConsumerWidget {
   const NightPlanSection({super.key});
@@ -31,7 +32,7 @@ class NightPlanSection extends ConsumerWidget {
         gap: 5,
         child: _NothingToImage(
           note: l10n.text('nightCtlNoPlan'),
-          offerOneTap: !live,
+          offerBestTonight: !live,
         ),
       );
     }
@@ -49,7 +50,7 @@ class NightPlanSection extends ConsumerWidget {
       child: plan.rows.isEmpty
           ? _NothingToImage(
               note: l10n.text('nightCtlPlanNoFrames'),
-              offerOneTap: !live,
+              offerBestTonight: !live,
             )
           : _FilterTable(rows: plan.rows, started: live || _anyCaptured(plan)),
     );
@@ -85,16 +86,16 @@ class NightPlanSection extends ConsumerWidget {
 }
 
 /// The note for a plan with nothing to capture and, outside a run, the way
-/// to a one-tap night.
+/// to tonight's best target.
 class _NothingToImage extends StatelessWidget {
-  const _NothingToImage({required this.note, required this.offerOneTap});
+  const _NothingToImage({required this.note, required this.offerBestTonight});
 
   final String note;
-  final bool offerOneTap;
+  final bool offerBestTonight;
 
   @override
   Widget build(BuildContext context) {
-    if (!offerOneTap) return NightLeftEmpty(note);
+    if (!offerBestTonight) return NightLeftEmpty(note);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -106,7 +107,9 @@ class _NothingToImage extends StatelessWidget {
           icon: LucideIcons.moonStar,
           variant: ButtonVariant.secondary,
           size: ButtonSize.small,
-          onPressed: () => context.go(AppRoute.oneTapTonight.path),
+          onPressed: () => context.go(
+            AppRoutes.planner(tab: PlannerTab.recommendation),
+          ),
         ),
       ],
     );
