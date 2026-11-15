@@ -33,6 +33,7 @@ export 'src/components/session_picker.dart';
 export 'src/components/skotiq_text_field.dart';
 export 'src/components/skotiq_checkbox.dart';
 export 'src/components/skotiq_chip.dart';
+export 'src/components/skotiq_menu_chip.dart';
 export 'src/components/skotiq_slider.dart';
 export 'src/components/skotiq_switch.dart';
 export 'src/components/skotiq_switch_row.dart';

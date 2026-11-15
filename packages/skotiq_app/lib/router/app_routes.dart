@@ -169,13 +169,20 @@ enum AppRoute {
     showsItself: {ShellOverlay.polarAlignmentRun},
   ),
 
-  /// One-tap "image this target tonight": pick, frame, plan, go.
-  oneTapTonight(
+  /// Forwards to Plan > Best tonight, and is how the palette finds it.
+  bestTonight(
     '/tonight',
-    label: EnglishLabel("Image tonight's best target"),
-    icon: LucideIcons.moonStar,
+    label: TranslatedLabel('plannerTabTonight'),
+    icon: LucideIcons.sparkles,
     palette: true,
-    keywords: ['one tap', 'best', 'tonight', 'automatic', 'start'],
+    keywords: [
+      'image tonight',
+      'one tap',
+      'best',
+      'recommend',
+      'what to image',
+      'automatic',
+    ],
   ),
 
   /// Analytics > History under the names people search for. The old replay
@@ -257,6 +264,7 @@ enum AppRoute {
   yourSky('/your-sky'),
   constellation('/constellation'),
   collaborativeSky('/collaborative-sky'),
+
   /// Forwards to Plan > Targets, and is how the palette finds it.
   scheduler(
     '/scheduler',
@@ -333,7 +341,6 @@ enum AppRoute {
   AppRoute? get railHost => switch (this) {
         _ when group != null => this,
         imagingPreview => imaging,
-        oneTapTonight => tonight,
         polarAlignment => equipment,
         stackResult => darkroom,
         mosaicProjects || mosaicProject => planner,
@@ -350,6 +357,7 @@ enum AppRoute {
         constellation ||
         collaborativeSky ||
         scheduler ||
+        bestTonight ||
         mosaicProjects ||
         diagnostics ||
         sessionReplay ||
@@ -384,6 +392,7 @@ enum AppRoute {
       collaborativeSky => AppRoutes.planner(
           tab: PlannerTab.discover, view: DiscoverView.collaborative),
       scheduler => AppRoutes.planner(tab: PlannerTab.targets),
+      bestTonight => AppRoutes.planner(tab: PlannerTab.recommendation),
       mosaicProjects => AppRoutes.planTargets(group: plannerMosaicsGroupWord),
       diagnostics => AppRoutes.sessionOptics(),
       // Tabs that merged into other places keep their old words working.

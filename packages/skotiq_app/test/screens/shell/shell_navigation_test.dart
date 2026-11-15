@@ -99,8 +99,6 @@ void main() {
           railIndexOf(AppRoute.equipment));
       expect(ShellNavigation.railIndexFor('/flat-wizard'),
           railIndexOf(AppRoute.flatWizard));
-      expect(ShellNavigation.railIndexFor('/tonight'),
-          railIndexOf(AppRoute.tonight));
     });
 
     // A lit rail item is the shell's strongest claim about where the operator

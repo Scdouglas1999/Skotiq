@@ -16,19 +16,19 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../framing/framing_screen.dart';
 import '../planetarium/planetarium_screen.dart';
 import '../../router/show_in_sky.dart';
-import '../../widgets/accessible_dropdown.dart';
 import '../discover/your_sky/your_sky_screen.dart';
 import '../discover/constellation/constellation_screen.dart';
 import '../discover/collaborative_sky/collaborative_sky_screen.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../tours/tour_target.dart';
 import '../../utils/authority_bound_dialog.dart';
-import '../../utils/darkroom_navigation.dart' show unavailableControlName;
+import '../../utils/held_future.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
 import '../../widgets/auto_build_options_dialog.dart';
 import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 import '../imaging/widgets/camera_panel.dart';
 import '../night_control/center/chart_axes.dart';
+import 'image_tonight_controller.dart';
 import 'targets/plan_targets_tab.dart';
 import 'widgets/planning_risks_banner.dart';
 import '../../router/planner_route.dart';
@@ -57,23 +57,10 @@ part 'planner_screen_parts/_range_controls.dart';
 /// when the user taps "Load more" or scrolls to the bottom.
 const int _kPlannerPageSize = 25;
 
-/// Why a filter measured from the observing site cannot be used yet.
-///
-/// The words the disabled chips carry, in the same clause form the rest of the
-/// app uses for a refusal ("Compare — it needs a second branch"), so
-/// [unavailableControlName] can put them straight in the accessible name.
-const String kPlannerSiteFilterRefusal =
-    'it is measured from your observing site, and no site is set — add your '
-    'latitude and longitude in Settings';
-
 /// Whether no observing site is configured.
 ///
-/// One predicate, read by the Recommendation tab's body (which answers
-/// "Location not configured") and by the filter chips that need a site. They
-/// disagreed: on a fresh install the body said the planner could not run while
-/// "Alt now" and "Moon" above it opened live sliders and applied limits the
-/// suggestion pipeline had no site to evaluate. A screen states one thing about
-/// itself, so both read this.
+/// Without a site nothing can be scored, so Best tonight is then one empty
+/// state with no filters above it, and the header leaves out the night chips.
 ///
 /// (0, 0) counts as unset, which is also what [appObserverLocationProvider]
 /// answers null for. Stating it here as well means a caller holding a raw
@@ -117,7 +104,7 @@ final _plannerOptimizationProvider =
             await ref.watch(smartNightExposureContextProvider.future);
       } catch (error) {
         logger.warning(
-          'Plan Tonight is using default exposures: the Smart Night exposure '
+          'Best tonight is using default exposures: the Smart Night exposure '
           'context could not be read ($error)',
           source: 'Planner',
         );
@@ -132,7 +119,7 @@ final _plannerOptimizationProvider =
     rethrow;
   } catch (error, stackTrace) {
     logger.error(
-      'Plan Tonight could not build tonight\'s plan: $error',
+      'Best tonight could not build tonight\'s plan: $error',
       source: 'Planner',
       fields: {'stack': stackTrace.toString()},
     );

@@ -119,6 +119,11 @@ void main() {
           '/planner?tab=discover&view=collaborative');
     });
 
+    testWidgets('/tonight opens Plan > Best tonight', (tester) async {
+      expect((await resolve(tester, '/tonight')).toString(),
+          '/planner?tab=recommendation');
+    });
+
     testWidgets('/scheduler and /diagnostics open their tabs', (tester) async {
       expect((await resolve(tester, '/scheduler')).toString(),
           '/planner?tab=targets');
@@ -190,8 +195,8 @@ void main() {
             Uri.parse(AppRoutes.planner(tab: PlannerTab.discover, view: view));
         expect(DiscoverView.fromQuery(uri.queryParameters['view']), view);
       }
-      expect(AppRoutes.planner(tab: PlannerTab.targets),
-          '/planner?tab=targets');
+      expect(
+          AppRoutes.planner(tab: PlannerTab.targets), '/planner?tab=targets');
       expect(AppRoutes.planTargets(group: '7', target: 3),
           '/planner?tab=targets&group=7&target=3');
       // Words older links used.

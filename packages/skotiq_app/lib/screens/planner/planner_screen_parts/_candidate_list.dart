@@ -27,9 +27,15 @@ class _CandidateList extends ConsumerWidget {
   final int? selectedTargetId;
   final ValueChanged<TargetSuggestion> onSelect;
 
-  /// Builds tonight's sequence for a target: the selected row's action, the
-  /// same one as the detail column's Build sequence.
+  /// Where the Image tonight chain is; the selected row's button and the
+  /// banner over the list both read it.
+  final ImageTonightState imageTonight;
+
+  /// Frames, plans and starts tonight's run for a target: the selected row's
+  /// action and the page's primary.
   final ValueChanged<TargetSuggestion> onImageTonight;
+  final VoidCallback onCancelImageTonight;
+  final VoidCallback onDismissImageTonight;
 
   /// What the optimizer flagged about tonight as a whole (a bright moon, a
   /// short window). One banner, joined — never one per factor.
@@ -41,7 +47,10 @@ class _CandidateList extends ConsumerWidget {
     required this.scrollController,
     required this.selectedTargetId,
     required this.onSelect,
+    required this.imageTonight,
     required this.onImageTonight,
+    required this.onCancelImageTonight,
+    required this.onDismissImageTonight,
     required this.riskFactors,
   });
 
@@ -58,8 +67,10 @@ class _CandidateList extends ConsumerWidget {
     final query = filters.searchQuery.trim();
     final hasLookups = query.length >= _PlannerSearchResults.localQueryFloor;
     final hasLoadMore = visibleCount < candidates.length;
-    final hasRisks = riskFactors.isNotEmpty;
-    final leading = hasRisks ? 2 : 1;
+    final banners = <Widget>[
+      if (_imageTonightBanner(l10n) case final banner?) banner,
+      if (riskFactors.isNotEmpty) PlanningRisksBanner(riskFactors: riskFactors),
+    ];
 
     return LayoutBuilder(
       builder: (context, constraints) => _buildList(
@@ -72,8 +83,7 @@ class _CandidateList extends ConsumerWidget {
         query: query,
         hasLookups: hasLookups,
         hasLoadMore: hasLoadMore,
-        hasRisks: hasRisks,
-        leading: leading,
+        banners: banners,
         columns: constraints.maxWidth - 2 * SkotiqTokens.space2xl >=
                 _kPlannerCandidateGridFloor
             ? _kPlannerCandidateColumns
@@ -92,14 +102,18 @@ class _CandidateList extends ConsumerWidget {
     required String query,
     required bool hasLookups,
     required bool hasLoadMore,
-    required bool hasRisks,
-    required int leading,
+    required List<Widget> banners,
     required CandidateColumns? columns,
   }) {
+    final leading = banners.length + 1;
+    final gutter = MediaQuery.sizeOf(context).width <
+            ShellChromeMetrics.shellLayoutBreakpoint
+        ? SkotiqTokens.spaceLg
+        : SkotiqTokens.space2xl;
     return ListView.separated(
       controller: scrollController,
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.space2xl,
+      padding: EdgeInsets.symmetric(
+        horizontal: gutter,
         vertical: SkotiqTokens.spaceMd,
       ),
       itemCount: visible.length +
@@ -108,9 +122,7 @@ class _CandidateList extends ConsumerWidget {
           (hasLookups ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (context, index) {
-        if (hasRisks && index == 0) {
-          return PlanningRisksBanner(riskFactors: riskFactors);
-        }
+        if (index < banners.length) return banners[index];
         if (index == leading - 1) {
           return _CandidateColumnHeader(
             count: _candidateCountLabel(
@@ -157,9 +169,47 @@ class _CandidateList extends ConsumerWidget {
           night: night,
           columns: columns,
           onSelect: () => onSelect(candidate),
+          imageTonightBusy: imageTonight.isBusy,
           onImageTonight: () => onImageTonight(candidate),
         );
       },
+    );
+  }
+
+  /// The one banner for an Image tonight chain: what it is doing, with Cancel
+  /// while nothing has reached the rig, or why it stopped.
+  Widget? _imageTonightBanner(SkotiqLocalizations l10n) {
+    final state = imageTonight;
+    final name = state.target?.targetName;
+    if (name == null) return null;
+    if (state.phase == ImageTonightPhase.failed) {
+      return SkotiqBanner(
+        key: const ValueKey('image-tonight-failed'),
+        tone: BannerTone.error,
+        title: l10n.text('plannerImageTonightFailed', params: {'target': name}),
+        message: state.error,
+        onDismiss: onDismissImageTonight,
+      );
+    }
+    if (!state.isBusy) return null;
+    final step = switch (state.phase) {
+      ImageTonightPhase.checking => 'plannerImageTonightChecking',
+      ImageTonightPhase.framing => 'plannerImageTonightFraming',
+      ImageTonightPhase.planning => 'plannerImageTonightPlanning',
+      _ => 'plannerImageTonightStarting',
+    };
+    return SkotiqBanner(
+      key: const ValueKey('image-tonight-progress'),
+      title: l10n.text('plannerImageTonightTitle', params: {'target': name}),
+      message: l10n.text(step),
+      action: state.canCancel
+          ? SkotiqButton(
+              label: l10n.text('cancel'),
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: onCancelImageTonight,
+            )
+          : null,
     );
   }
 }
@@ -256,6 +306,10 @@ class _PlannerCandidateRow extends ConsumerWidget {
   final _PlannerNightWindow? night;
   final CandidateColumns? columns;
   final VoidCallback onSelect;
+
+  /// Whether an Image tonight chain is running, for this target or another;
+  /// one night starts at a time.
+  final bool imageTonightBusy;
   final VoidCallback onImageTonight;
 
   const _PlannerCandidateRow({
@@ -265,6 +319,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
     required this.night,
     required this.columns,
     required this.onSelect,
+    required this.imageTonightBusy,
     required this.onImageTonight,
   });
 
@@ -309,20 +364,24 @@ class _PlannerCandidateRow extends ConsumerWidget {
         ),
       ],
       window: night?.windowFor(visibility),
-      // 06 SS Plan: the SELECTED row carries "Image tonight" - the thing you
-      // do with the target the detail column is describing - and every other
-      // row parks it instead. One button per row either way, and neither is
-      // the page's primary.
-      action: SkotiqButton(
-        label: selected
-            ? l10n.text('plannerImageTonight')
-            : l10n.text('plannerAddTarget'),
-        variant: ButtonVariant.secondary,
-        size: ButtonSize.small,
-        onPressed: () => selected
-            ? onImageTonight()
-            : _addToObservingList(context, ref, colors),
-      ),
+      // The selected row carries "Image tonight", the page's one primary:
+      // the thing you do with the target the detail column describes. Every
+      // other row parks its target on an observing list instead.
+      action: selected
+          ? SkotiqButton(
+              key: const ValueKey('planner-image-tonight'),
+              label: l10n.text('plannerImageTonight'),
+              variant: ButtonVariant.primary,
+              size: ButtonSize.small,
+              isLoading: imageTonightBusy,
+              onPressed: imageTonightBusy ? null : onImageTonight,
+            )
+          : SkotiqButton(
+              label: l10n.text('plannerAddTarget'),
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () => _addToObservingList(context, ref, colors),
+            ),
     );
   }
 
