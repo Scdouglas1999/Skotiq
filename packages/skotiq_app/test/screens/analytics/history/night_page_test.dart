@@ -166,12 +166,12 @@ void main() {
     expect(readout(tester, 'Avg HFR').value, '2.14');
     expect(
       find.textContaining(
-        'The run reported a problem Guider lost the star',
+        'Reported by the run Guider lost the star',
         findRichText: true,
       ),
       findsOneWidget,
     );
-    expect(find.text('Meridian flips'), findsOneWidget);
+    expect(readout(tester, 'Meridian flips').value, '1');
     expect(find.text('M 31'), findsOneWidget);
     expect(find.textContaining('12 frames'), findsOneWidget);
   });

@@ -147,30 +147,35 @@ class _DiagnosticsLoadingSkeleton extends StatelessWidget {
             ),
           ),
         );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: card(220)),
-            const SizedBox(width: 12),
-            Expanded(child: card(220)),
-            const SizedBox(width: 12),
-            Expanded(child: card(220)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: card(280)),
-            const SizedBox(width: 12),
-            Expanded(child: card(280)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        card(140),
-      ],
+    // The skeleton has the shape of the content, which scrolls; in a short
+    // area it is cut at the bottom the same way.
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: card(220)),
+              const SizedBox(width: 12),
+              Expanded(child: card(220)),
+              const SizedBox(width: 12),
+              Expanded(child: card(220)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: card(280)),
+              const SizedBox(width: 12),
+              Expanded(child: card(280)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          card(140),
+        ],
+      ),
     );
   }
 }

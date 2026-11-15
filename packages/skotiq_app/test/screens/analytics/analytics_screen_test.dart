@@ -116,6 +116,12 @@ void main() {
           dbSessionImagesProvider.overrideWith(
             (ref, id) => Stream.value(const <DbCapturedImage>[]),
           ),
+          sessionPsfTilesProvider.overrideWith(
+            (ref, id) => Stream.value(const <PsfFieldTileRow>[]),
+          ),
+          sessionResidualVectorsProvider.overrideWith(
+            (ref, id) => Stream.value(const <AstrometryResidualVectorRow>[]),
+          ),
           allSessionsProvider.overrideWith(
             (ref) => Stream.value([
               ImagingSession(
@@ -153,7 +159,12 @@ void main() {
       ),
     );
     expect(views.selectedIndex, SessionView.optics.index);
-    expect(find.text('Select an imaging session to analyze'), findsOneWidget);
+    expect(
+      find.text('Select an imaging session to analyze'),
+      findsNothing,
+      reason: 'the Optics view analyzes the session the tab is reviewing',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   // "View all alerts" did nothing the second time: the operator had moved to
