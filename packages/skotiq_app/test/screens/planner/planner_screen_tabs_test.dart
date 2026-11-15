@@ -220,7 +220,7 @@ void main() {
   group('PlannerScreen tab structure', () {
     void sizeDesktop(WidgetTester tester) {
       tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.physicalSize = const Size(1800, 900);
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
@@ -404,7 +404,7 @@ void main() {
       var coverageBuilds = 0;
       var disposed = 0;
       tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.physicalSize = const Size(1800, 900);
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();

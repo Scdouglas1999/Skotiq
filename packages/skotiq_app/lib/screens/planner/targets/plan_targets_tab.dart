@@ -47,7 +47,7 @@ part 'tonight_windows.dart';
 
 /// The width from which the detail sits beside the list; below it the list
 /// is the tab and a target opens over it.
-const double _kSideBySideWidth = 1000;
+const double _kSideBySideWidth = 1160;
 
 /// The detail column's width beside the list.
 const double _kDetailWidth = 420;
@@ -296,6 +296,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     final host = _hostScopes.begin();
     final scheduler = ref.read(schedulerControlProvider);
     setState(() => _requestedConfig = config);
+    _shownConfig.value = config;
     scheduler.preview(config);
 
     _configSaveTail = _configSaveTail.then((_) async {

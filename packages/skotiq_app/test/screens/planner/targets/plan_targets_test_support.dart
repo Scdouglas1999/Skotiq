@@ -6,6 +6,8 @@ import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
+import '../scheduler_test_doubles.dart';
+
 /// What Plan > Targets reads besides the targets and groups a test supplies:
 /// an idle autopilot that is ready to start, no site, no forecast, nothing
 /// taken off the autopilot's list.
@@ -27,6 +29,20 @@ List<Override> planTargetsTabOverrides() => [
       appObserverLocationProvider.overrideWithValue(null),
       weekForecastProvider.overrideWith(
         (ref) => Completer<WeekForecast>().future,
+      ),
+      smartNightExposureContextProvider.overrideWith((ref) async => null),
+      integrationGoalServiceProvider
+          .overrideWithValue(FakeIntegrationGoalService()),
+      targetConstraintServiceProvider
+          .overrideWithValue(FakeTargetConstraintService()),
+      schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
+      schedulerStatusProvider.overrideWith(
+        (ref) => FakeSchedulerStatusNotifier(
+          const SchedulerStatus(state: SchedulerState.idle),
+        ),
+      ),
+      currentSchedulerDecisionProvider.overrideWith(
+        (ref) => FakeCurrentSchedulerDecisionNotifier(null),
       ),
       schedulerEngineReadyProvider.overrideWith(
         (ref) => ref.read(schedulerEngineProvider),

@@ -119,6 +119,15 @@ Future<ProviderContainer> _pump(
   );
 }
 
+void _expectNoLayoutError(WidgetTester tester) {
+  final error = tester.takeException();
+  expect(
+    error,
+    isNull,
+    reason: error is FlutterError ? error.toStringDeep() : '$error',
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -194,12 +203,12 @@ void main() {
     expect(find.text('NGC0891'), findsOneWidget);
     expect(find.text('M74'), findsOneWidget);
     expect(find.text('31.9h · no goal'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    _expectNoLayoutError(tester);
     // A row opens the target over the list.
     await tester.tap(find.text('NGC0891'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plan-target-back')), findsOneWidget);
     expect(find.text('Goals'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    _expectNoLayoutError(tester);
   });
 }

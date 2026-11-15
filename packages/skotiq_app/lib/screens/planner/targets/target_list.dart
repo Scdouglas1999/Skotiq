@@ -139,7 +139,7 @@ String _nextLine(_AutopilotView view, List<_TargetRow> rows, Project? group) {
   final status = view.status;
   if (status == null) {
     return view.error != null
-        ? 'Could not read the autopilot'
+        ? 'Could not read the autopilot: ${userFacingError(view.error!)}'
         : 'Reading the autopilot';
   }
   final current = status.currentTargetName;
@@ -590,24 +590,27 @@ class _TargetListColumn extends ConsumerWidget {
         ],
       );
     }
+    // The filters wrap to a second line before they push the buttons out.
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!plain) ...[
-          SizedBox(width: 240, child: search),
-          const SizedBox(width: SkotiqTokens.spaceSm),
-        ],
-        groupChip,
-        if (!plain) ...[
-          const SizedBox(width: SkotiqTokens.spaceSm),
-          statusChip,
-          const SizedBox(width: SkotiqTokens.spaceSm),
-          sortChip,
-        ],
-        const Spacer(),
+        Expanded(
+          child: Wrap(
+            spacing: SkotiqTokens.spaceSm,
+            runSpacing: SkotiqTokens.spaceSm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (!plain) SizedBox(width: 240, child: search),
+              groupChip,
+              if (!plain) ...[statusChip, sortChip],
+            ],
+          ),
+        ),
         if (planTonight != null) ...[
-          planTonight,
           const SizedBox(width: SkotiqTokens.spaceSm),
+          planTonight,
         ],
+        const SizedBox(width: SkotiqTokens.spaceSm),
         add,
       ],
     );

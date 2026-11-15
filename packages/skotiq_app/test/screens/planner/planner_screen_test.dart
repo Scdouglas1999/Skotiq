@@ -286,7 +286,7 @@ void main() {
       'renders all sub-tabs (Tonight, Projects, Schedule, '
       'Framing, Planetarium, Your sky)', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -354,7 +354,7 @@ void main() {
   testWidgets('defaults to Recommendation when no query param is supplied',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -383,7 +383,7 @@ void main() {
   testWidgets('Tonight no longer carries the transient-alerts card',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -411,7 +411,7 @@ void main() {
       '?tab=scheduler (folded) selects the Schedule tab on initial '
       'render', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -439,7 +439,7 @@ void main() {
       '?tab=progress (folded) selects the Projects tab on initial '
       'render', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -477,7 +477,7 @@ void main() {
     // the static "?tab=" tests but silently freeze the user on whichever
     // tab they landed on.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -518,7 +518,7 @@ void main() {
     // regression that dropped the last entry's onSelected (e.g. a missing index
     // in the asMap().entries loop) would pass the Schedule test but fail here.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -549,7 +549,7 @@ void main() {
 
   testWidgets('the selected target exposes a Frame it action', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -616,7 +616,7 @@ void main() {
       'every candidate row carries its own action, not only the top one',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -703,7 +703,7 @@ void main() {
   testWidgets('Image tonight on the selected row pre-fills its own sub length',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -787,7 +787,7 @@ void main() {
   testWidgets('the selected target shows its altitude, with no expand toggle',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -849,7 +849,7 @@ void main() {
       'candidate create-and-add rolls back a partial list and keeps the dialog open',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -945,7 +945,7 @@ void main() {
   testWidgets('candidate add dialog closes on host switch without touching B',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1051,7 +1051,7 @@ void main() {
       'a duplicate add closes with a plain-language outcome, not a '
       'raw Dart exception', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1146,7 +1146,7 @@ void main() {
       'a list that already holds the target says so instead of '
       'offering a no-op add', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -1227,7 +1227,7 @@ void main() {
   testWidgets('the altitude the target reaches is stated once, and named',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1800, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

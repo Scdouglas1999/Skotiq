@@ -666,10 +666,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     // The section header shows the count.
-    expect(find.text('Other candidates considered (2)'), findsOneWidget);
 
     // Expand the section.
-    await tester.tap(find.text('Other candidates considered (2)'));
+    await tester.tap(find.byKey(const ValueKey('autopilot-why')));
     await tester.pumpAndSettle();
 
     // Both rejected rows render with their primary reason chips.

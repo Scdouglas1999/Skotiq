@@ -328,7 +328,6 @@ enum AppRoute {
         imagingPreview => imaging,
         plateSolvingSettings => settings,
         sessionReplayRun => sessionReplay,
-        mosaicProject => mosaicProjects,
         _ => null,
       };
 

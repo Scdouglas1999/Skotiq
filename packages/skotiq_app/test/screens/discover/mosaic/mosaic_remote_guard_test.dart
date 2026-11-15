@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,7 @@ import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_controller.dar
 import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_screen.dart';
 import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -25,6 +28,16 @@ void main() {
         inMemoryDatabaseOverride(),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, _MockNetworkBackend()),
+        ),
+        // The tab around the mosaics reads nothing from the mocked host.
+        planTargetsProvider.overrideWith((ref) => const AsyncValue.data([])),
+        projectListProvider.overrideWith((ref) => Stream.value(const [])),
+        unusedTargetsCountProvider.overrideWith((ref) async => 0),
+        schedulerRemoteSnapshotProvider.overrideWith(
+          (ref) => Completer<SchedulerRemoteSnapshot>().future,
+        ),
+        weekForecastProvider.overrideWith(
+          (ref) => Completer<WeekForecast>().future,
         ),
         mosaicProjectsListProvider.overrideWith(
           (ref) => throw StateError(
