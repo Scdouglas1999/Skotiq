@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 
 import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
@@ -104,7 +106,8 @@ PlateSolveData plateSolveDataFromSolvedWcs(SolvedWcs wcs) => PlateSolveData(
 );
 
 /// The projection model of a stored solve, or null when the row is not
-/// solved. Uses the stored CD matrix and SIP when present.
+/// solved. Uses the stored CD matrix and SIP when present; a row with a CD
+/// matrix but no rotation or pixel scale takes both from the matrix.
 SolvedWcs? solvedWcsFromStored({
   required double? raHours,
   required double? decDegrees,
@@ -118,6 +121,18 @@ SolvedWcs? solvedWcsFromStored({
   double? cd2_2,
   String? sip,
 }) {
+  if (cd1_1 != null && cd1_2 != null && cd2_1 != null && cd2_2 != null) {
+    final determinant = cd1_1 * cd2_2 - cd1_2 * cd2_1;
+    if (determinant.isFinite && determinant.abs() > 1e-30) {
+      rotationDeg ??= SolvedWcs.rotationFromCd(
+        cd1_1: cd1_1,
+        cd1_2: cd1_2,
+        cd2_1: cd2_1,
+        cd2_2: cd2_2,
+      );
+      pixelScaleArcsec ??= math.sqrt(determinant.abs()) * 3600.0;
+    }
+  }
   if (raHours == null ||
       decDegrees == null ||
       rotationDeg == null ||
