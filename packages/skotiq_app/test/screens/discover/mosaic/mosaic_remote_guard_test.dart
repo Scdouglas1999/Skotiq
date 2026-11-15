@@ -13,7 +13,15 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
-class _MockNetworkBackend extends Mock implements NetworkBackend {}
+class _MockNetworkBackend extends Mock implements NetworkBackend {
+  _MockNetworkBackend() {
+    // The tab's saved group is kept per linked host.
+    when(() => scheme).thenReturn('https');
+    when(() => serverHost).thenReturn('host.local');
+    when(() => serverPort).thenReturn(8080);
+    when(() => pinnedFingerprint).thenReturn(null);
+  }
+}
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
