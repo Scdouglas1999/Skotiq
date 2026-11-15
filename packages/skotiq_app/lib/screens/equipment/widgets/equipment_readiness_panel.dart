@@ -78,7 +78,9 @@ class EquipmentReadinessPanel extends ConsumerWidget {
               showDivider: i < items.length - 1,
               action: items[i].hasFix
                   ? SkotiqButton(
-                      label: items[i].fixLabel!,
+                      label: _connectsHere(items[i])
+                          ? 'Connect all'
+                          : items[i].fixLabel!,
                       variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
                       onPressed: () => _fix(context, ref, items[i]),
@@ -106,14 +108,18 @@ class EquipmentReadinessPanel extends ConsumerWidget {
   /// is. Every other item opens its route.
   static void _fix(BuildContext context, WidgetRef ref, ReadinessItem item) {
     final profile = ref.read(activeEquipmentProfileProvider);
-    final connectsHere = item.id == ReadinessItemId.criticalDevices ||
-        item.id == ReadinessItemId.profileDevices;
-    if (connectsHere && profile != null) {
+    if (_connectsHere(item) && profile != null) {
       runConnectAllForProfile(context, ref, profile);
       return;
     }
     context.go(item.fixRoute!);
   }
+
+  /// Device items, whose fix is the header's Connect all and carries its
+  /// name.
+  static bool _connectsHere(ReadinessItem item) =>
+      item.id == ReadinessItemId.criticalDevices ||
+      item.id == ReadinessItemId.profileDevices;
 
   static String _countLabel(int outstanding, int blockers) {
     if (outstanding == 0) return 'All clear';
