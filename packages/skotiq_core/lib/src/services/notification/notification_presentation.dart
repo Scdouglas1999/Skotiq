@@ -213,20 +213,20 @@ class NotificationPresentation {
     ),
     NotificationCategory.guidingLost => const NotificationPresentation(
       title: 'Guiding lost',
-      body: 'Guide star lost; guiding stopped.',
+      body: '\${guide.problem}',
       eventCategory: EventCategory.guiding,
       tone: NotificationTone.alert,
       push: PhonePush(_critical, PushToggle.guidingLost),
     ),
     NotificationCategory.guidingRecovered => const NotificationPresentation(
       title: 'Guiding recovered',
-      body: 'Guiding recovered.',
+      body: 'The guider found the guide star again and is guiding.',
       eventCategory: EventCategory.guiding,
       tone: NotificationTone.good,
     ),
     NotificationCategory.weatherUnsafe => const NotificationPresentation(
       title: 'Weather unsafe',
-      body: 'Safety monitor reports unsafe conditions.',
+      body: '\${weather.reason}.',
       eventCategory: EventCategory.safety,
       tone: NotificationTone.alert,
       push: PhonePush(_critical, PushToggle.weatherUnsafe),
@@ -281,7 +281,7 @@ class NotificationPresentation {
     ),
     NotificationCategory.diskSpaceLow => const NotificationPresentation(
       title: 'Disk space low',
-      body: 'Storage usage exceeded safe threshold.',
+      body: '\${disk.message}',
       eventCategory: EventCategory.system,
       tone: NotificationTone.alert,
       push: PhonePush(_critical),

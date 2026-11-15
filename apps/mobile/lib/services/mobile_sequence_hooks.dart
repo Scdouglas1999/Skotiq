@@ -460,7 +460,6 @@ class MobileSequenceHooks {
         statusMessage: next.message,
       );
     }
-
   }
 
   Future<void> _startImagingSession(Sequence? sequence) async {
