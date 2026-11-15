@@ -356,7 +356,12 @@ void main() {
       (tester) async {
     await _pumpPanel(tester);
 
-    expect(find.text('32 frames'), findsWidgets);
+    final frameReadouts = tester
+        .widgetList<Readout>(find.byType(Readout))
+        .where((r) => r.unit == 'frames')
+        .toList();
+    expect(frameReadouts, hasLength(3));
+    expect(frameReadouts.first.value, '32');
     expect(find.text('7.3M px'), findsOneWidget);
     expect(find.text('271.8K px'), findsOneWidget);
     expect(find.text('PIXELS REJECTED BY SIGMA CLIPPING'), findsOneWidget);
