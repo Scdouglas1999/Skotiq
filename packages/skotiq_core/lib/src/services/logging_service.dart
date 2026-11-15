@@ -507,8 +507,9 @@ class LoggingService {
   }
 
   /// Record an HTTP request without blocking the UI isolate on disk I/O.
-  /// Callers await the write before handling the request or returning its
-  /// response. Writes are ordered, unbuffered, and drained by [dispose].
+  /// The returned future completes when the line is on disk; the HTTP
+  /// middleware does not wait on it, so a stalled disk never holds up a
+  /// request. Writes are ordered, unbuffered, and drained by [dispose].
   /// Ordinary [log] calls retain their synchronous file-write contract.
   Future<void> logRequest(
     LogLevel level,

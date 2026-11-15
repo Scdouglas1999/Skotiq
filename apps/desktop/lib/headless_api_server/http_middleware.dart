@@ -16,9 +16,11 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           },
         );
 
+        // The request log is written beside the handler, never in front of
+        // it: a stalled log disk must not hold up a command, Stop above all.
         final isRead = request.method == 'GET' || request.method == 'HEAD';
         if (!isRead) {
-          await _logger.logRequest(
+          unawaited(_logger.logRequest(
             LogLevel.info,
             '[REQ][$requestId] ${request.method} $path started',
             source: 'HeadlessApiServer',
@@ -28,7 +30,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
               'path': path,
               'phase': 'started',
             },
-          );
+          ));
         }
         try {
           final response = await innerHandler(scopedRequest);
@@ -38,7 +40,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
             statusCode: response.statusCode,
             elapsedMs: elapsedMs,
           )) {
-            await _logger.logRequest(
+            unawaited(_logger.logRequest(
               LogLevel.info,
               '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
               source: 'HeadlessApiServer',
@@ -50,7 +52,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
                 'statusCode': response.statusCode,
                 'elapsedMs': elapsedMs,
               },
-            );
+            ));
           }
           if (RouteTable.of(request).isWebSocket) {
             return response;
@@ -68,7 +70,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           rethrow;
         } catch (e, stackTrace) {
           final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-          await _logger.logRequest(
+          unawaited(_logger.logRequest(
             LogLevel.error,
             '[REQ][$requestId] ${request.method} $path failed ms=$elapsedMs error=$e\n$stackTrace',
             source: 'HeadlessApiServer',
@@ -80,7 +82,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
               'elapsedMs': elapsedMs,
               'error': e.toString(),
             },
-          );
+          ));
           rethrow;
         }
       };
@@ -297,7 +299,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
       // would block the request before this middleware ever ran.
       'Access-Control-Allow-Headers':
           'Origin, Content-Type, X-Auth-Token, Authorization, '
-          'X-Skotiq-API-Version, X-Request-ID, X-Skotiq-CSRF',
+          'X-Skotiq-Version, X-Skotiq-Device-Id, X-Request-ID, X-Skotiq-CSRF',
       // Why expose Set-Cookie on the wire but not allow-credentials: the
       // cookie is HttpOnly so the browser stores it without JS seeing it;
       // `credentials: 'include'` on the SPA fetch is what makes the cookie
