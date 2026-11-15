@@ -215,7 +215,8 @@ fn seeds(frame: &Frame, candidates: &[DetectedStar]) -> Vec<Seed> {
             (gy - 1..=gy + 1).any(|cy| {
                 grid.get(&(cx, cy)).is_some_and(|kept| {
                     kept.iter().any(|&(x, y)| {
-                        libm::hypot(f64::from(x - seed.x), f64::from(y - seed.y)) <= SAME_STAR_RADIUS
+                        libm::hypot(f64::from(x - seed.x), f64::from(y - seed.y))
+                            <= SAME_STAR_RADIUS
                     })
                 })
             })
