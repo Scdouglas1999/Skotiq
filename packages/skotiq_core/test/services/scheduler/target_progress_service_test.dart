@@ -245,31 +245,6 @@ void main() {
     });
   });
 
-  // Live (u1-audit): Plan > Projects read "0s / 0s" for a target with 31.9 h
-  // and no goals, while Analytics and the Darkroom said 31.9 h.
-  test('the integration captured is every accepted light second, goal or no '
-      'goal, at the exposure it was taken', () async {
-    // 10 Lum at 120 s (the goal says 60 s) and 4 R, which has no goal.
-    await insertCaptures(
-      filter: 'Lum',
-      count: 10,
-      capturedAt: DateTime(2026, 5, 9, 23, 0),
-      exposureSeconds: 120.0,
-    );
-    await insertCaptures(
-      filter: 'R',
-      count: 4,
-      capturedAt: DateTime(2026, 5, 9, 23, 30),
-      exposureSeconds: 300.0,
-    );
-    final progress = await progressService.forTarget(
-      targetId: targetId,
-      targetName: 'M31',
-    );
-    expect(progress.totalIntegrationCaptured, const Duration(seconds: 2400));
-    expect(progress.totalCapturedFrames, 10, reason: 'goal frames only');
-  });
-
   group('forTargets — bulk path', () {
     test('returns one entry per requested target', () async {
       final secondId = await database

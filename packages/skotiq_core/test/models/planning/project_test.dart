@@ -202,10 +202,6 @@ void main() {
           raHours: 0.712,
           decDegrees: 41.27,
           filters: filters,
-          integratedSeconds: filters.fold(
-            0.0,
-            (sum, f) => sum + f.capturedSeconds,
-          ),
         );
 
     test('aggregates accrued/goal/remaining across filters', () {
@@ -333,7 +329,6 @@ void main() {
           capturedSeconds: capturedFrames * 60.0,
         ),
       ],
-      integratedSeconds: capturedFrames * 60.0,
     );
 
     test('totals, counts, and incompleteTargets filter', () {

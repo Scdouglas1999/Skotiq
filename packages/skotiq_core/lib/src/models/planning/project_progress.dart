@@ -120,10 +120,6 @@ class ProjectTargetProgress extends Equatable {
   /// [allFiltersGoalSeconds].
   final double allFiltersAccruedSeconds;
 
-  /// The target's integration on disk: accepted light seconds in every
-  /// filter, goal or no goal (`acceptedLightSeconds`).
-  final double integratedSeconds;
-
   const ProjectTargetProgress({
     required this.targetId,
     required this.targetName,
@@ -132,14 +128,10 @@ class ProjectTargetProgress extends Equatable {
     required this.filters,
     this.allFiltersGoalSeconds,
     this.allFiltersAccruedSeconds = 0.0,
-    required this.integratedSeconds,
   });
 
-  /// Integration seconds already on disk, in every filter.
-  double get accruedSeconds => integratedSeconds;
-
-  /// The part of [accruedSeconds] the goals count: the goal filters' seconds.
-  double get towardGoalSeconds => allFiltersGoalSeconds != null
+  /// Integration seconds already on disk, summed across filters.
+  double get accruedSeconds => allFiltersGoalSeconds != null
       ? allFiltersAccruedSeconds
       : filters.fold(0.0, (sum, f) => sum + f.accruedSeconds);
 
@@ -150,7 +142,7 @@ class ProjectTargetProgress extends Equatable {
 
   /// Outstanding integration seconds, clamped to zero on overshoot.
   double get remainingSeconds {
-    final r = goalSeconds - towardGoalSeconds;
+    final r = goalSeconds - accruedSeconds;
     return r < 0.0 ? 0.0 : r;
   }
 
@@ -158,7 +150,7 @@ class ProjectTargetProgress extends Equatable {
   /// (nothing to be a fraction of) and clamps to 1.0 on overshoot.
   double get percentComplete {
     if (goalSeconds <= 0.0) return 0.0;
-    final ratio = towardGoalSeconds / goalSeconds;
+    final ratio = accruedSeconds / goalSeconds;
     if (ratio < 0.0) return 0.0;
     if (ratio > 1.0) return 1.0;
     return ratio;
@@ -176,7 +168,6 @@ class ProjectTargetProgress extends Equatable {
     'filters': filters.map((f) => f.toJson()).toList(),
     'allFiltersGoalSeconds': allFiltersGoalSeconds,
     'allFiltersAccruedSeconds': allFiltersAccruedSeconds,
-    'integratedSeconds': integratedSeconds,
     'accruedSeconds': accruedSeconds,
     'goalSeconds': goalSeconds,
     'remainingSeconds': remainingSeconds,
@@ -206,7 +197,6 @@ class ProjectTargetProgress extends Equatable {
           ?.toDouble(),
       allFiltersAccruedSeconds:
           (json['allFiltersAccruedSeconds'] as num?)?.toDouble() ?? 0.0,
-      integratedSeconds: (json['integratedSeconds'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -219,7 +209,6 @@ class ProjectTargetProgress extends Equatable {
     filters,
     allFiltersGoalSeconds,
     allFiltersAccruedSeconds,
-    integratedSeconds,
   ];
 }
 
@@ -254,14 +243,10 @@ class CampaignProgress extends Equatable {
   double get totalGoalSeconds =>
       targets.fold(0.0, (sum, t) => sum + t.goalSeconds);
 
-  /// The part of [totalAccruedSeconds] the goals count.
-  double get totalTowardGoalSeconds =>
-      targets.fold(0.0, (sum, t) => sum + t.towardGoalSeconds);
-
   /// Outstanding integration seconds across the whole project, clamped to
   /// zero on overshoot.
   double get totalRemainingSeconds {
-    final r = totalGoalSeconds - totalTowardGoalSeconds;
+    final r = totalGoalSeconds - totalAccruedSeconds;
     return r < 0.0 ? 0.0 : r;
   }
 
@@ -271,7 +256,7 @@ class CampaignProgress extends Equatable {
   double get totalPercentComplete {
     final goal = totalGoalSeconds;
     if (goal <= 0.0) return 0.0;
-    final ratio = totalTowardGoalSeconds / goal;
+    final ratio = totalAccruedSeconds / goal;
     if (ratio < 0.0) return 0.0;
     if (ratio > 1.0) return 1.0;
     return ratio;

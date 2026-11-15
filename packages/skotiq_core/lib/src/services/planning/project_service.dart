@@ -284,7 +284,6 @@ class ProjectService {
           filters: lines,
           allFiltersGoalSeconds: goal.allFilters ? goal.goalSecs : null,
           allFiltersAccruedSeconds: goal.allFilters ? goal.doneSecs : 0.0,
-          integratedSeconds: acceptedLightSeconds(accepted),
         ),
       );
     }
