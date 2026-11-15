@@ -165,6 +165,12 @@ void main() {
 
     expect(row.integratedSecs, darkroom.keptSeconds);
     expect(row.integratedSecs, 638 * 180);
+    // Nights, as the Darkroom counts them, not sessions.
+    expect(darkroom.nights.length, greaterThan(1));
+    expect(row.progress.nightCount, darkroom.nights.length);
+    // The detail open beside the list labels its count as nights.
+    expect(find.textContaining(RegExp(r'^NIGHTS?$')), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^SESSIONS?$')), findsNothing);
     // Listed and, as the first row, opened beside the list.
     expect(find.text('31.9h · no goal'), findsOneWidget);
     expect(find.textContaining('0s / 0s'), findsNothing);
@@ -219,7 +225,7 @@ void main() {
     (
       'the minimum altitude',
       const AltitudeFloor(horizon: null, minimumDeg: 0),
-      'Above 0° ',
+      'Clears 0° from ',
     ),
     (
       'the horizon',
@@ -229,7 +235,7 @@ void main() {
         ),
         minimumDeg: 0,
       ),
-      'Does not rise above your horizon in darkness tonight',
+      'Does not clear your horizon in darkness tonight',
     ),
   ]) {
     testWidgets("a target's tonight line names the floor in force: $name",

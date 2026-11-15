@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
@@ -18,10 +17,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../services/host_folders.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/frame_rows_hold.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import '../analytics_screen.dart'
     show dbSessionImagesProvider, standaloneImagesProvider;
 import '../quick_capture_selection.dart';
+import 'analytics_session_picker.dart';
 import 'mpc_export_panel.dart';
 import 'period_analysis_panel.dart';
 import 'photometric_calibration_wizard.dart';
@@ -40,7 +39,6 @@ import 'science_trend_cards.dart';
 import '../../../widgets/adaptive_chart_container.dart';
 import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
-import 'science_onboarding/science_nav_row_card.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -101,7 +99,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         (sessionsAsync.isLoading ||
             sessionsAsync.hasError ||
             !sessionsAsync.hasValue)) {
-      return _buildSessionIndexState(colors, sessionsAsync);
+      return _buildSessionIndexState(sessionsAsync);
     }
     final allSessions = sessionsAsync.valueOrNull ?? const <ImagingSession>[];
     // A manual pick wins, then the live session, then the session the host's
@@ -254,7 +252,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         .firstWhere((s) => s?.id == activeSessionId, orElse: () => null);
     final campaignTargetId = activeSession?.targetId;
     var campaignLightCurve = const <LightCurvePoint>[];
-    var campaignSessionCount = 0;
     if (campaignTargetId != null) {
       // Same object as the single-night curve above, or the campaign strip
       // would report "no data" for the very star the night below it plots.
@@ -266,9 +263,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             const [],
         filter: lightCurveFilter,
       );
-      campaignSessionCount = allSessions
-          .where((session) => session.targetId == campaignTargetId)
-          .length;
     }
 
     final latestPsfTiles = _latestPsfSnapshot(psfTiles);
@@ -333,7 +327,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         tileMetrics.isEmpty;
     if (allEmpty && (scienceLoading || scienceErrors.isNotEmpty)) {
       return _buildScienceDataState(
-        colors,
         activeSessionId: sessionBarSelection,
         isLoading: scienceLoading,
         errors: scienceErrors,
@@ -344,18 +337,18 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       );
     }
     if (allEmpty) {
+      final nothingCaptured = activeSessionId == null && lightFrames.isEmpty;
       // P0.2 + P0.3: even when no science products exist yet, show the live
       // pipeline status and the solve-rate card so users can see *why*
       // products are missing (queue idle, plate solver not configured, etc.)
       // and take action.
       return SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(SkotiqTokens.space2xl),
+        padding: _bodyPadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _sessionBar(
-              colors: colors,
               sessions: allSessions,
               activeSessionId: sessionBarSelection,
               offerQuickCaptures: offerQuickCaptures,
@@ -367,25 +360,29 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             // restart.
             ScienceStatusBanner(storedFrameCount: lightFrames.length),
             const SizedBox(height: SkotiqTokens.spaceLg),
-            ScienceSolveRateCard(
-              colors: colors,
-              lightFrames: lightFrames,
-            ),
-            const SizedBox(height: SkotiqTokens.spaceLg),
-            // The night's narrative is not a science product, so `allEmpty`
-            // must not hide it. The operator this branch exists for — imaged
-            // all night, no plate solver, therefore no photometry, no PSF
-            // tiles, no calibrations — was exactly the operator whose narrator
-            // feed was suppressed, along with every detail sheet reachable from
-            // it. It renders its own empty state when there is nothing to tell.
-            _SectionHeading(
-              colors: colors,
-              label: 'NIGHT STORY',
-              icon: LucideIcons.bookOpen,
-            ),
-            const SizedBox(height: 12),
-            NightStoryTimeline(sessionId: activeSessionId),
-            const SizedBox(height: SkotiqTokens.spaceLg),
+            // With no session and no frame there is no solving and no night
+            // to report on; the guide and the onramp below are the page.
+            if (!nothingCaptured) ...[
+              ScienceSolveRateCard(
+                colors: colors,
+                lightFrames: lightFrames,
+              ),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+              // The night's narrative is not a science product, so `allEmpty`
+              // must not hide it. The operator this branch exists for — imaged
+              // all night, no plate solver, therefore no photometry, no PSF
+              // tiles, no calibrations — was exactly the operator whose narrator
+              // feed was suppressed, along with every detail sheet reachable from
+              // it. It renders its own empty state when there is nothing to tell.
+              _SectionHeading(
+                colors: colors,
+                label: 'NIGHT STORY',
+                icon: LucideIcons.bookOpen,
+              ),
+              const SizedBox(height: 12),
+              NightStoryTimeline(sessionId: activeSessionId),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+            ],
             KeyedSubtree(
               key: _sectionKeys.ladder,
               child: ScienceLadderCard(
@@ -415,12 +412,11 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
 
     return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.all(24),
+      padding: _bodyPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sessionBar(
-            colors: colors,
             sessions: allSessions,
             activeSessionId: sessionBarSelection,
             offerQuickCaptures: offerQuickCaptures,
@@ -434,7 +430,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           if (scienceLoading || scienceErrors.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildScienceDataNotice(
-              colors,
               activeSessionId: activeSessionId,
               isLoading: scienceLoading,
               errors: scienceErrors,
@@ -456,14 +451,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             // and exports them, it does not choose the star.
             onPickTarget: () => _goPickPhotometryTarget(context),
             onOpenExport: () => _openExportHub(context, moving),
-          ),
-          const SizedBox(height: 12),
-          ScienceNavRowCard(
-            icon: LucideIcons.satellite,
-            iconColor: colors.info,
-            label: 'Observing alerts (Transients)',
-            labelColor: colors.textPrimary,
-            onTap: () => context.go(AppRoutes.observingAlerts()),
           ),
           const SizedBox(height: 12),
           // Jump nav for the three logical sections below. Sits at the top of
@@ -637,7 +624,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             colors: colors,
             lightCurve: lightCurve,
             campaignLightCurve: campaignLightCurve,
-            campaignSessionCount: campaignSessionCount,
           ),
           const SizedBox(height: 24),
           KeyedSubtree(

@@ -37,11 +37,21 @@ class ScienceKpiStrip extends StatelessWidget {
       _MovingObjectsKpi(colors: colors, count: movingCandidateCount),
     ];
 
+    const gap = SkotiqTokens.spaceMd;
     if (MediaQuery.sizeOf(context).width < 720) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: tiles,
+      // Two to a line, each half the width, so the four read as one grid
+      // rather than four boxes as wide as their own text.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final half = (constraints.maxWidth - gap) / 2;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final tile in tiles) SizedBox(width: half, child: tile),
+            ],
+          );
+        },
       );
     }
 
@@ -49,7 +59,7 @@ class ScienceKpiStrip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < tiles.length; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
+          if (i > 0) const SizedBox(width: gap),
           Expanded(child: tiles[i]),
         ],
       ],
@@ -71,9 +81,11 @@ class _CalibrationKpi extends StatelessWidget {
         : c.isCalibrated
             ? 'Calibrated'
             : 'Uncalibrated';
-    final value = c?.zeroPoint == null
-        ? kReadoutUnknown
-        : 'ZP ${c!.zeroPoint!.toStringAsFixed(2)}';
+    final value = c == null
+        ? 'No calibration yet'
+        : c.zeroPoint == null
+            ? 'No zero point'
+            : 'ZP ${c.zeroPoint!.toStringAsFixed(2)}';
     final tone = c == null
         ? colors.textMuted
         : c.isCalibrated
@@ -182,7 +194,7 @@ class _TransparencyKpi extends StatelessWidget {
       title: 'Transparency',
       headline: headline,
       headlineTone: tone,
-      value: t == null ? kReadoutUnknown : 'Sky model',
+      value: t == null ? 'No sky samples yet' : 'Sky model',
       trust: trust,
     );
   }

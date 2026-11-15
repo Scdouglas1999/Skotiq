@@ -64,7 +64,7 @@ class ScienceOverlayComposer extends ConsumerWidget {
           Row(
             children: [
               Text(
-                'Overlay Composer',
+                'Overlay composer',
                 style: SkotiqTypography.bodyStrong
                     .copyWith(color: colors.textPrimary),
               ),
@@ -171,7 +171,7 @@ class ScienceOverlayComposer extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Overlay Opacity ${(prefs.overlayOpacity * 100).round()}%',
+                  'Overlay opacity ${(prefs.overlayOpacity * 100).round()}%',
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textSecondary),
                 ),

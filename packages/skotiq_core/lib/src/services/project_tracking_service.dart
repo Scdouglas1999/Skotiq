@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
+
 import '../models/imaging/frame_type_record.dart';
 import '../database/database.dart' as db;
 import '../models/equipment/filter_names.dart';
@@ -216,6 +218,12 @@ class TargetGoal {
   bool get isComplete => isSet && doneSecs >= goalSecs;
 }
 
+/// How many observing nights (noon to noon, [observingNightOf]) [frames]
+/// were taken on. The Darkroom groups a target's lights by the same night, so
+/// a target's night count is the same wherever it is shown.
+int observingNightCount(Iterable<db.DbCapturedImage> frames) =>
+    {for (final frame in frames) observingNightOf(frame.capturedAt)}.length;
+
 bool _isAcceptedLight(db.DbCapturedImage frame) =>
     frame.isLight && frame.isAccepted;
 
@@ -225,6 +233,10 @@ class ProjectProgress {
 
   /// Sessions that imaged the target ([targetSessionIds]).
   final int sessionCount;
+
+  /// Observing nights the target's light frames were taken on
+  /// ([observingNightCount]).
+  final int nightCount;
 
   /// Accepted light frames of the target.
   final int acceptedFrames;
@@ -244,6 +256,7 @@ class ProjectProgress {
   const ProjectProgress({
     required this.target,
     required this.sessionCount,
+    required this.nightCount,
     required this.acceptedFrames,
     required this.integratedSecs,
     required this.filters,
@@ -303,6 +316,7 @@ class ProjectTrackingService {
             frames: targetFrames,
             sessions: sessions,
           ).length,
+          nightCount: observingNightCount(targetFrames.where((f) => f.isLight)),
           acceptedFrames: filters.fold(0, (sum, f) => sum + f.frames),
           integratedSecs: filters.fold(0.0, (sum, f) => sum + f.seconds),
           filters: filters,

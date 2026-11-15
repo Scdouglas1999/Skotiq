@@ -126,7 +126,10 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
                     controller: _controller,
                     autofocus: true,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _addTag(),
+                    // onEditingComplete, not onSubmitted: it replaces the
+                    // default unfocus on Enter, so the next tag can be typed
+                    // straight away.
+                    onEditingComplete: _addTag,
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize13,
                       color: colors.textPrimary,

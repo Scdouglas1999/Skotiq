@@ -21,7 +21,7 @@ class _HealthGradeCard extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Optical Health',
+            'Optical health',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 16),

@@ -83,7 +83,7 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    await tester.tap(find.byType(DropdownButton<int>).first);
+    await tester.tap(find.byType(SkotiqDropdown).first);
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }

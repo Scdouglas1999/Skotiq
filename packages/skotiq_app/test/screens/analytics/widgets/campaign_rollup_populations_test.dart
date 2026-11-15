@@ -33,6 +33,7 @@ CampaignRollup _rollup({required DateTime? endTime}) => CampaignRollup(
           avgSeeing: null,
         ),
       ],
+      nightCount: 1,
       filters: const [],
       firstSessionAt: DateTime.utc(2026, 7, 31, 23),
       lastSessionAt: DateTime.utc(2026, 7, 31, 23),
@@ -64,6 +65,7 @@ CampaignRollup _partlyRejectedRollup() => CampaignRollup(
           avgSeeing: null,
         ),
       ],
+      nightCount: 1,
       filters: const [
         CampaignFilterRollup(
           filter: 'L',

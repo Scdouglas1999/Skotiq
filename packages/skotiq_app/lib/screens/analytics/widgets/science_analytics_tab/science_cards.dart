@@ -146,7 +146,7 @@ class _LightCurveChartCard extends StatelessWidget {
           height: 240,
           child: Center(
             child: Text(
-              'Differential Photometry has no data yet',
+              'Differential photometry has no data yet',
               style: SkotiqTypography.body.copyWith(color: colors.textMuted),
             ),
           ),
@@ -165,8 +165,8 @@ class _LightCurveChartCard extends StatelessWidget {
         ),
     ];
     final title = filter == null || filter!.isEmpty
-        ? 'Differential Photometry'
-        : 'Differential Photometry, $filter filter';
+        ? 'Differential photometry'
+        : 'Differential photometry, $filter filter';
 
     return SkotiqPanel(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -243,13 +243,13 @@ class _PsfHeatmapCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'PSF Field Map',
+                  'PSF field map',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: colors.textPrimary),
                 ),
               ),
               if (hubExportButton != null) hubExportButton!,
-              const _ScienceInfoButton(title: 'PSF Field Map'),
+              const _ScienceInfoButton(title: 'PSF field map'),
             ],
           ),
           const SizedBox(height: 10),
@@ -406,7 +406,7 @@ class _ResidualCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Astrometric Residuals',
+                  'Astrometric residuals',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: colors.textPrimary),
                 ),

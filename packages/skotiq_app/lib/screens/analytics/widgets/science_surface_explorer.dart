@@ -301,7 +301,7 @@ class _ScienceSurfaceExplorerState extends State<ScienceSurfaceExplorer> {
           Row(
             children: [
               Text(
-                '3D Surface Explorer',
+                '3D surface explorer',
                 style: SkotiqTypography.bodyStrong
                     .copyWith(color: widget.colors.textPrimary),
               ),
@@ -431,7 +431,7 @@ class _ScienceSurfaceExplorerState extends State<ScienceSurfaceExplorer> {
             children: [
               Expanded(
                 child: _SliderLabeled(
-                  label: 'Z Exaggeration',
+                  label: 'Z exaggeration',
                   value: _zExaggeration,
                   min: 0.6,
                   max: 3.2,

@@ -119,8 +119,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Differential Photometry has no data yet'), findsNothing);
-    expect(find.text('Differential Photometry'), findsOneWidget);
+    expect(find.text('Differential photometry has no data yet'), findsNothing);
+    expect(find.text('Differential photometry'), findsOneWidget);
+  });
+
+  testWidgets('every chart card that has an explanation offers it',
+      (tester) async {
+    await tester.pumpWidget(_tab(_storedCurve(4, 'V-TEST')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // The explanations are keyed by the card's title; a key spelled in
+    // another case hid the button.
+    for (final title in [
+      'Differential photometry',
+      'Astrometric residuals',
+      'Narrowband ratios',
+      'Photometric transforms',
+    ]) {
+      final head = find
+          .ancestor(of: find.text(title), matching: find.byType(Row))
+          .first;
+      expect(
+        find.descendant(of: head, matching: find.byType(ScienceInfoButton)),
+        findsOneWidget,
+        reason: '$title has an explanation to offer',
+      );
+    }
   });
 
   testWidgets('comparison stars are not promoted into a light curve',
@@ -147,6 +172,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Differential Photometry'), findsNothing);
+    expect(find.text('Differential photometry'), findsNothing);
   });
 }

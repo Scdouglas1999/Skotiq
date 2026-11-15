@@ -12,6 +12,7 @@ import '../sequencer_screen.dart';
 import 'package:skotiq_app/utils/authority_bound_dialog.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import '../widgets/quick_start_wizard_dialog.dart';
+import '../widgets/more_menu_button.dart';
 import '../../../utils/count_label.dart';
 import '../sequence_counts.dart';
 
@@ -25,7 +26,7 @@ part 'templates_tab_parts/_builtin_templates.dart';
 part 'templates_tab_parts/_builtin_core_nodes.dart';
 part 'templates_tab_parts/_builtin_advanced_nodes.dart';
 part 'templates_tab_parts/_builtin_specialty_nodes.dart';
-part 'templates_tab_parts/_header_and_filters.dart';
+part 'templates_tab_parts/_toolbar.dart';
 part 'templates_tab_parts/_template_card.dart';
 part 'templates_tab_parts/_save_template_dialog.dart';
 part 'templates_tab_parts/_starters_section.dart';
@@ -89,213 +90,272 @@ String _inferTemplateCategory(Sequence template) {
   return 'intermediate';
 }
 
+/// Sequencer > Templates: the bundled starters, then the built-in and saved
+/// templates, as cards as tall as their text.
 class TemplatesTab extends ConsumerWidget {
   const TemplatesTab({super.key});
 
+  List<Sequence> _filter(
+    List<Sequence> templates,
+    String query,
+    String? category,
+  ) {
+    final q = query.toLowerCase();
+    return [
+      for (final template in templates)
+        if ((q.isEmpty ||
+                template.name.toLowerCase().contains(q) ||
+                template.description.toLowerCase().contains(q)) &&
+            (category == null ||
+                category.isEmpty ||
+                _inferTemplateCategory(template) == category))
+          template,
+    ];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
     final templatesAsync = ref.watch(sequenceTemplatesProvider);
     final searchQuery = ref.watch(templateSearchProvider);
     final category = ref.watch(templateCategoryProvider);
-    final isMobile = Responsive.isMobile(context);
-    final snippets = ref.watch(allSnippetsProvider);
 
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 24),
-      child: Column(
-        children: [
-          _TemplatesHeader(colors: colors),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < BreakpointTokens.breakpointPhone;
+        return ListView(
+          padding: compact
+              ? SkotiqTokens.screenPaddingCompact
+              : SkotiqTokens.screenPadding,
+          children: [
+            _TemplatesToolbar(compact: compact),
+            const SizedBox(height: SkotiqTokens.space2xl),
 
-          const SizedBox(height: 24),
+            // Starters: bundled, read-only sample sequences. Only the search
+            // filters them; category is a template concept.
+            _StartersSection(searchQuery: searchQuery),
 
-          if (!isMobile && snippets.isNotEmpty)
-            _SnippetSummaryCard(colors: colors, snippetCount: snippets.length),
-
-          if (!isMobile && snippets.isNotEmpty) const SizedBox(height: 16),
-
-          // Content — a single scroll view holding the bundled "Starters"
-          // followed by the user's saved / built-in templates. Both honour the
-          // search box; the category chips filter the templates section only.
-          Expanded(
-            child: ListView(
-              children: [
-                // Starters: bundled, read-only sample sequences. Only the
-                // search box filters these — category is a template concept.
-                _StartersSection(
-                  colors: colors,
-                  searchQuery: searchQuery,
-                  isMobile: isMobile,
-                ),
-
-                _TemplatesSectionHeader(
-                  colors: colors,
-                  icon: LucideIcons.fileStack,
-                  title: 'Templates',
-                  subtitle:
-                      'Built-in recipes and templates you saved for quick reuse.',
-                ),
-                const SizedBox(height: 12),
-                templatesAsync.when(
-                  data: (templates) {
-                    var filtered = templates;
-
-                    if (searchQuery.isNotEmpty) {
-                      filtered = filtered
-                          .where((t) =>
-                              t.name
-                                  .toLowerCase()
-                                  .contains(searchQuery.toLowerCase()) ||
-                              t.description
-                                  .toLowerCase()
-                                  .contains(searchQuery.toLowerCase()))
-                          .toList();
-                    }
-
-                    if (category != null && category.isNotEmpty) {
-                      filtered = filtered
-                          .where((template) =>
-                              _inferTemplateCategory(template) == category)
-                          .toList();
-                    }
-
-                    if (filtered.isEmpty) {
-                      final hasSearch = searchQuery.isNotEmpty;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: EmptyState(
-                          icon: hasSearch
-                              ? LucideIcons.searchX
-                              : LucideIcons.fileStack,
-                          title: hasSearch
-                              ? 'No templates found'
-                              : 'No templates yet',
-                          body: hasSearch
-                              ? 'Try a different search term'
-                              : 'Save your sequences as templates for easy '
-                                  'reuse, or start from a Starter above',
-                        ),
-                      );
-                    }
-
-                    final gridSpacing = isMobile ? 12.0 : 20.0;
-                    final maxExtent = isMobile ? 320.0 : 400.0;
-
-                    return GridView.builder(
-                      // The outer ListView already scrolls; this grid lays
-                      // out at its natural height inside it.
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      // A max-extent delegate chooses two ~195 px columns on
-                      // a 430 px phone, far below what the card's actions and
-                      // footer can lay out in. Mobile is deliberately one
-                      // card wide; desktop keeps the adaptive multi-column
-                      // grid.
-                      gridDelegate: isMobile
-                          ? SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 1,
-                              childAspectRatio: 1.2,
-                              mainAxisSpacing: gridSpacing,
-                            )
-                          : SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: maxExtent,
-                              childAspectRatio: 1.3,
-                              crossAxisSpacing: gridSpacing,
-                              mainAxisSpacing: gridSpacing,
-                            ),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        return _TemplateCard(
-                          colors: colors,
-                          template: filtered[index],
-                        );
-                      },
-                    );
-                  },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                        child: SkotiqMark(
-                            motion: SkotiqMarkMotion.loading, size: 36)),
-                  ),
-                  error: (error, stack) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(LucideIcons.alertTriangle,
-                              size: 48, color: colors.error),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load templates',
-                            style: SkotiqTypography.sectionTitle
-                                .copyWith(color: colors.textPrimary),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            userFacingError(error),
-                            style: SkotiqTypography.caption
-                                .copyWith(color: colors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            const _CatalogSectionHead(
+              title: 'Templates',
+              clause: 'Built-in recipes and the templates you saved',
             ),
-          ),
-        ],
+            templatesAsync.when(
+              data: (templates) {
+                final filtered = _filter(templates, searchQuery, category);
+                if (filtered.isEmpty) {
+                  final narrowed = searchQuery.isNotEmpty || category != null;
+                  return EmptyState(
+                    icon:
+                        narrowed ? LucideIcons.searchX : LucideIcons.fileStack,
+                    title: narrowed ? 'No templates match' : 'No templates yet',
+                    body: narrowed
+                        ? 'Try a different search or category.'
+                        : 'Save a sequence as a template to reuse it here.',
+                  );
+                }
+                return _CardGrid(
+                  children: [
+                    for (final template in filtered)
+                      _TemplateCard(template: template),
+                  ],
+                );
+              },
+              loading: () => const Padding(
+                padding: SkotiqTokens.padding2xl,
+                child: Center(
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+                ),
+              ),
+              error: (error, _) => EmptyState.error(
+                title: 'Could not load templates',
+                body: userFacingError(error),
+                onRetry: () => ref.invalidate(sequenceTemplatesProvider),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A section head: the title in `sectionTitle` and a muted clause on the same
+/// baseline.
+class _CatalogSectionHead extends StatelessWidget {
+  const _CatalogSectionHead({required this.title, required this.clause});
+
+  final String title;
+  final String clause;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: title,
+              style: SkotiqTypography.sectionTitle
+                  .copyWith(color: colors.textPrimary),
+            ),
+            TextSpan(
+              text: '  $clause',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Shared section heading used to delineate the merged Templates tab into
-/// "Starters" (bundled samples) and "Your Templates" (user-saved).
-class _TemplatesSectionHeader extends StatelessWidget {
-  final SkotiqColors colors;
-  final IconData icon;
-  final String title;
-  final String subtitle;
+/// Lays cards out in one to three columns. Each card is as tall as its text;
+/// the cards of one line share the tallest one's height so their buttons
+/// line up.
+class _CardGrid extends StatelessWidget {
+  const _CardGrid({required this.children});
 
-  const _TemplatesSectionHeader({
-    required this.colors,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  final List<Widget> children;
+
+  static const double _gap = SkotiqTokens.spaceLg;
+
+  static int _columnsFor(double width) {
+    if (width < 640) return 1;
+    if (width < 1100) return 2;
+    return 3;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(icon, size: 18, color: colors.textSecondary),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: SkotiqTypography.sectionTitle.copyWith(
-                  color: colors.textPrimary,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columnsFor(constraints.maxWidth);
+        final lines = <Widget>[];
+        for (var start = 0; start < children.length; start += columns) {
+          final end = (start + columns).clamp(0, children.length);
+          lines.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = start; i < start + columns; i++) ...[
+                    if (i > start) const SizedBox(width: _gap),
+                    Expanded(
+                      child: i < end ? children[i] : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: SkotiqTypography.caption.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < lines.length; i++) ...[
+              if (i > 0) const SizedBox(height: _gap),
+              lines[i],
             ],
-          ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One starter or template: a neutral icon tile, the name, one muted facts
+/// line, the description in full, then the card's buttons.
+class _CatalogCard extends StatelessWidget {
+  const _CatalogCard({
+    required this.icon,
+    required this.title,
+    required this.facts,
+    required this.description,
+    required this.primary,
+    this.actions = const <Widget>[],
+  });
+
+  final IconData icon;
+  final String title;
+  final String facts;
+  final String description;
+
+  /// The card's one labeled button ("Use this starter", "Use template").
+  final Widget primary;
+
+  /// At most two icon buttons after it.
+  final List<Widget> actions;
+
+  static const double _tileSize = SkotiqTokens.iconButtonSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return DecoratedBox(
+      decoration: SkotiqDecorations.panel(colors),
+      child: Padding(
+        padding: SkotiqTokens.cardPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: _tileSize,
+                  height: _tileSize,
+                  decoration: SkotiqDecorations.well(colors),
+                  child: Icon(
+                    icon,
+                    size: SkotiqTokens.iconGlyphRow,
+                    color: colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: SkotiqTypography.bodyStrong
+                            .copyWith(color: colors.textPrimary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        facts,
+                        style: SkotiqTypography.bodySm
+                            .copyWith(color: colors.textMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            Text(
+              description,
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            const Spacer(),
+            Row(
+              children: [
+                primary,
+                const Spacer(),
+                for (final action in actions) ...[
+                  const SizedBox(width: SkotiqTokens.spaceXs),
+                  action,
+                ],
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

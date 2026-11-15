@@ -127,6 +127,6 @@ void main() {
     expect(find.text('Quick Capture'), findsNothing);
     expect(find.text('No quick captures'), findsOneWidget);
     expect(find.text('Choose a session above to review it.'), findsOneWidget);
-    expect(find.text('Reviewing'), findsOneWidget);
+    expect(find.byType(SessionPicker<int>), findsOneWidget);
   });
 }

@@ -89,13 +89,16 @@ void main() {
   testWidgets('the Session tab does not report 0s for an unclosed session',
       (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.session));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      find.text('0s'),
-      findsNothing,
-      reason: 'a 20-minute session must not be reported as lasting 0s',
-    );
+    // The session, its frames and the newest-frame map arrive over a few
+    // frames; at no frame may the duration read 0s.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        find.text('0s'),
+        findsNothing,
+        reason: 'a 20-minute session must not be reported as lasting 0s',
+      );
+    }
     expect(find.text('20m'), findsWidgets);
     // The stat strip uppercases its caption.
     expect(find.textContaining('TO LAST FRAME'), findsOneWidget);

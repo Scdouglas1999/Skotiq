@@ -94,9 +94,8 @@ class _TargetDetail extends ConsumerWidget {
                             : 'Goal',
                       ),
                     Readout(
-                      value: '${progress.sessionCount}',
-                      label:
-                          progress.sessionCount == 1 ? 'Session' : 'Sessions',
+                      value: '${progress.nightCount}',
+                      label: progress.nightCount == 1 ? 'Night' : 'Nights',
                     ),
                     Readout(
                       value: '${progress.acceptedFrames}',
@@ -335,11 +334,11 @@ class _TonightSection extends ConsumerWidget {
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
           w.isUp
-              ? 'Above $floor '
+              ? 'Clears $floor from '
                   '${ClockFormat.hm(w.start!.toLocal())} to '
                   '${ClockFormat.hm(w.end!.toLocal())}, peaking at '
                   '${peak.round()}°'
-              : 'Does not rise above $floor in darkness tonight',
+              : 'Does not clear $floor in darkness tonight',
           key: const Key('target-detail-tonight-window'),
           style: muted,
         ),

@@ -6,6 +6,7 @@ import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
+import '../utils/touch_target.dart';
 
 /// A panel — the `surface`-toned container that every non-tappable block of
 /// content sits in.
@@ -155,6 +156,9 @@ class _DashedSlotBorder extends CustomPainter {
 ///
 /// The eyebrow is [SkotiqTypography.eyebrow] in `textMuted` and uppercased
 /// here so call sites write the label the way it reads in prose.
+///
+/// On a touch platform a head with [trailing] controls grows to the minimum
+/// touch target, so a button in it is not squeezed to 20px.
 class PanelHead extends StatelessWidget {
   const PanelHead({
     super.key,
@@ -179,7 +183,9 @@ class PanelHead extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     return SizedBox(
-      height: height,
+      height: trailing.isEmpty
+          ? height
+          : math.max(height, SkotiqTouchTarget.minExtent(context)),
       child: Row(
         children: <Widget>[
           if (icon != null) ...<Widget>[

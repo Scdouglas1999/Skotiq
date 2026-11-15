@@ -327,7 +327,7 @@ void main() {
 
       await pumpAppScreen(
         tester,
-        const TemplatesTab(),
+        const SaveAsTemplateButton(),
         size: const Size(1400, 900),
         settle: false,
         extraOverrides: [

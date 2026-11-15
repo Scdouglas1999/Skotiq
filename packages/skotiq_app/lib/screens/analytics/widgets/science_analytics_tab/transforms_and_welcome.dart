@@ -18,7 +18,7 @@ class _PhotometricTransformsCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Photometric Transforms',
+                  'Photometric transforms',
                   style: SkotiqTypography.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary,

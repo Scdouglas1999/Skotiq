@@ -128,7 +128,7 @@ void main() {
 
     var generateButton = find.widgetWithText(
       SkotiqButton,
-      'Generate From Session Frames',
+      'Generate from session frames',
     );
     expect(generateButton, findsOneWidget);
     await tester.ensureVisible(generateButton);
@@ -139,7 +139,7 @@ void main() {
     backendNotifier.switchTo(hostB);
     await tester.pump();
     expect(
-      find.widgetWithText(SkotiqButton, 'Generate From Session Frames'),
+      find.widgetWithText(SkotiqButton, 'Generate from session frames'),
       findsOneWidget,
     );
 
@@ -152,7 +152,7 @@ void main() {
 
     generateButton = find.widgetWithText(
       SkotiqButton,
-      'Generate From Session Frames',
+      'Generate from session frames',
     );
     await tester.ensureVisible(generateButton);
     await tester.tap(generateButton);

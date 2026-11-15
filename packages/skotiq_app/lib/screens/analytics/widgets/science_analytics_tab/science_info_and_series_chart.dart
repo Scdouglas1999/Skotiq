@@ -141,16 +141,16 @@ Once saved, these coefficients are automatically applied to new photometry measu
 
 const _kScienceInfoContent = <String, String>{
   'Calibration': _kCalibrationInfo,
-  'Lim Mag (5-sigma)': _kLimMagInfo,
+  'Limiting magnitude (5 sigma)': _kLimMagInfo,
   'Transparency': _kTransparencyInfo,
-  'Moving Objects': _kMovingObjectsInfo,
-  'Differential Photometry': _kDifferentialPhotometryInfo,
-  'Transparency Trend': _kTransparencyTrendInfo,
-  'PSF Field Map': _kPsfFieldMapInfo,
-  'Astrometric Residuals': _kAstrometricResidualsInfo,
-  'Moving Object Candidates': _kMovingObjectCandidatesInfo,
-  'Narrowband Ratios': _kNarrowbandRatiosInfo,
-  'Photometric Transforms': _kPhotometricTransformsInfo,
+  'Moving objects': _kMovingObjectsInfo,
+  'Differential photometry': _kDifferentialPhotometryInfo,
+  'Transparency trend': _kTransparencyTrendInfo,
+  'PSF field map': _kPsfFieldMapInfo,
+  'Astrometric residuals': _kAstrometricResidualsInfo,
+  'Moving object candidates': _kMovingObjectCandidatesInfo,
+  'Narrowband ratios': _kNarrowbandRatiosInfo,
+  'Photometric transforms': _kPhotometricTransformsInfo,
 };
 
 class _ScienceInfoButton extends StatelessWidget {

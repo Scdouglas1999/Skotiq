@@ -18,7 +18,7 @@ class _PsfFieldMapCard extends StatelessWidget {
               Icon(LucideIcons.grid, size: 16, color: colors.primary),
               const SizedBox(width: 8),
               Text(
-                'PSF Field Map',
+                'PSF field map',
                 style: SkotiqTypography.h5.copyWith(
                   color: colors.textPrimary,
                 ),
