@@ -1,41 +1,19 @@
 part of '../templates_tab.dart';
 
-class _TemplateCard extends ConsumerStatefulWidget {
-  final SkotiqColors colors;
-  final Sequence template;
+/// What a template card's "more" menu offers.
+enum _TemplateAction { duplicate, delete }
 
-  const _TemplateCard({
-    required this.colors,
-    required this.template,
-  });
+class _TemplateCard extends ConsumerStatefulWidget {
+  const _TemplateCard({required this.template});
+
+  final Sequence template;
 
   @override
   ConsumerState<_TemplateCard> createState() => _TemplateCardState();
 }
 
-class _TemplateCardState extends ConsumerState<_TemplateCard>
-    with SingleTickerProviderStateMixin {
-  bool _isHovered = false;
-  late AnimationController _animController;
-  late Animation<double> _scaleAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
+class _TemplateCardState extends ConsumerState<_TemplateCard> {
+  SkotiqColors get _colors => SkotiqColors.of(context);
 
   IconData _getTemplateIcon() {
     final name = widget.template.name.toLowerCase();
@@ -70,255 +48,76 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     return LucideIcons.fileStack;
   }
 
-  Color _getTemplateColor() {
-    final name = widget.template.name.toLowerCase();
-    if (name.contains('first light')) return widget.colors.success;
-    if (name.contains('osc') || name.contains('one-shot')) {
-      return widget.colors.info;
-    }
-    if (name.contains('quick')) return widget.colors.success;
-    if (name.contains('beginner')) return widget.colors.info;
-    if (name.contains('ha-oiii') || name.contains('bicolor')) {
-      return widget.colors.accent;
-    }
-    if (name.contains('sho') || name.contains('hubble')) {
-      return widget.colors.accent;
-    }
-    if (name.contains('lrgb')) return widget.colors.primary;
-    if (name.contains('narrowband')) return widget.colors.accent;
-    if (name.contains('multi-target')) return widget.colors.primary;
-    if (name.contains('mosaic')) return widget.colors.warning;
-    if (name.contains('planetary')) return widget.colors.warning;
-    if (name.contains('unattended') || name.contains('all-night')) {
-      return widget.colors.warning;
-    }
-    if (name.contains('comet') || name.contains('asteroid')) {
-      return widget.colors.warning;
-    }
-    if (name.contains('solar')) return widget.colors.warning;
-    if (name.contains('lunar')) return widget.colors.warning;
-    if (name.contains('remote') || name.contains('observatory')) {
-      return widget.colors.warning;
-    }
-    return widget.colors.textMuted;
+  String get _facts {
+    final template = widget.template;
+    final steps = visibleInstructionCount(template);
+    return <String>[
+      _templateCategoryOptions
+          .firstWhere(
+            (option) => option.key == _inferTemplateCategory(template),
+          )
+          .value,
+      countLabel(steps, 'step'),
+      if (template.databaseId == null)
+        'built in'
+      else
+        'saved ${ClockFormat.monthDayYear(template.createdAt.toLocal())}',
+    ].join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
-
-    final templateColor = _getTemplateColor();
-    // Touch devices have no hover state. Keeping every secondary action
-    // behind `_isHovered` made customize/duplicate/delete desktop-only even
-    // though the Templates tab is shipped on mobile.
-    final showActions = Responsive.isMobile(context) || _isHovered;
-    // "Use Template" calls mergeTemplateNodes /
-    // loadSequence — both replace tree state and must be gated. "Edit"
-    // also calls loadSequence, "Duplicate" goes through the repository
-    // (not the editor) so it stays enabled. Delete operates on the
-    // template database row, not the active sequence, so also stays
-    // enabled. We grey out the whole card's primary action while
-    // running so the user can't accidentally clobber their in-flight run.
+    // Use and Edit replace the Builder's tree and wait for the run to end.
+    // Duplicate and Delete work on the library row and stay available.
     final canEdit = ref.watch(canEditSequenceProvider);
+    final builtIn = widget.template.databaseId == null;
+    final editLabel = builtIn ? 'Customize a copy' : 'Edit template';
 
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() => _isHovered = true);
-        _animController.forward();
-      },
-      onExit: (_) {
-        setState(() => _isHovered = false);
-        _animController.reverse();
-      },
-      child: ScaleTransition(
-        scale: _scaleAnim,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: widget.colors.surface,
-            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-            border: Border.all(
-              color: _isHovered
-                  ? templateColor.withValues(alpha: 0.6)
-                  : widget.colors.border,
-              width: _isHovered ? 2 : 1,
-            ),
-            boxShadow: null,
-          ),
-          child: InkWell(
-            onTap: canEdit ? () => _useTemplate(context) : null,
-            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: SkotiqDecorations.tintedBadge(
-                          templateColor,
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusInline8),
-                        ),
-                        child: Icon(
-                          _getTemplateIcon(),
-                          size: 24,
-                          color: templateColor,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (showActions) ...[
-                        // "Duplicate" operates on the template DB row,
-                        // not the active sequence — stays enabled.
-                        _SmallIconButton(
-                          colors: widget.colors,
-                          icon: LucideIcons.copy,
-                          tooltip: 'Duplicate',
-                          onPressed: () => _duplicateTemplate(context),
-                        ),
-                        const SizedBox(width: 4),
-                        // "Edit" calls loadSequence — this replaces the
-                        // active sequence and MUST be gated.
-                        _SmallIconButton(
-                          colors: widget.colors,
-                          icon: LucideIcons.pencil,
-                          tooltip: canEdit
-                              ? widget.template.databaseId == null
-                                  ? 'Customize a copy'
-                                  : 'Edit template'
-                              : 'Edit (locked while sequence is running)',
-                          onPressed:
-                              canEdit ? () => _editTemplate(context) : null,
-                        ),
-                        if (widget.template.databaseId != null) ...[
-                          const SizedBox(width: 4),
-                          // Bundled templates are immutable and expose no
-                          // pretend delete action. A custom template has a
-                          // real backing row and can be removed.
-                          _SmallIconButton(
-                            colors: widget.colors,
-                            icon: LucideIcons.trash2,
-                            tooltip: 'Delete',
-                            color: widget.colors.error,
-                            onPressed: () => _deleteTemplate(context),
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.template.name,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize16,
-                      fontWeight: FontWeight.w700,
-                      color: widget.colors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Expanded(
-                    child: Text(
-                      widget.template.description.isEmpty
-                          ? 'No description'
-                          : widget.template.description,
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize12,
-                        color: widget.colors.textSecondary,
-                        height: 1.5,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.layoutList,
-                              size: 12,
-                              color: widget.colors.textMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                countLabel(
-                                  widget.template.nodes.length,
-                                  'node',
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: SkotiqTypography.fontSize11,
-                                  color: widget.colors.textMuted,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Icon(
-                              LucideIcons.calendar,
-                              size: 12,
-                              color: widget.colors.textMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                ClockFormat.monthDayYear(
-                                  widget.template.createdAt.toLocal(),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: SkotiqTypography.fontSize11,
-                                  color: widget.colors.textMuted,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AnimatedOpacity(
-                        opacity: showActions ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 150),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: templateColor,
-                            borderRadius:
-                                BorderRadius.circular(SkotiqTokens.radiusMd),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(LucideIcons.play,
-                                  size: 12, color: onPrimary),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Use',
-                                style: SkotiqTypography.labelStrongSm
-                                    .copyWith(color: onPrimary),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    return _CatalogCard(
+      icon: _getTemplateIcon(),
+      title: widget.template.name,
+      facts: _facts,
+      description: widget.template.description.isEmpty
+          ? 'No description'
+          : widget.template.description,
+      primary: SkotiqButton(
+        label: 'Use template',
+        icon: LucideIcons.play,
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: canEdit ? () => _useTemplate(context) : null,
+        semanticsHint: canEdit
+            ? null
+            : 'The sequence is running, so the builder cannot change.',
       ),
+      actions: [
+        SkotiqIconButton(
+          icon: LucideIcons.pencil,
+          tooltip: canEdit ? editLabel : '$editLabel (not while running)',
+          onPressed: canEdit ? () => _editTemplate(context) : null,
+        ),
+        _moreMenu(builtIn: builtIn),
+      ],
+    );
+  }
+
+  Widget _moreMenu({required bool builtIn}) {
+    return MoreMenuButton<_TemplateAction>(
+      tooltip: 'More actions for ${widget.template.name}',
+      entries: [
+        const MoreMenuEntry(_TemplateAction.duplicate, 'Duplicate'),
+        // A bundled template is part of the product and cannot be deleted.
+        if (!builtIn)
+          const MoreMenuEntry(
+            _TemplateAction.delete,
+            'Delete',
+            destructive: true,
+          ),
+      ],
+      onSelected: (action) => switch (action) {
+        _TemplateAction.duplicate => _duplicateTemplate(context),
+        _TemplateAction.delete => _deleteTemplate(context),
+      },
     );
   }
 
@@ -341,16 +140,16 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: widget.colors.surface,
+        backgroundColor: _colors.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8)),
         title: Row(
           children: [
-            Icon(LucideIcons.target, size: 20, color: widget.colors.warning),
+            Icon(LucideIcons.target, size: 20, color: _colors.warning),
             const SizedBox(width: 12),
             Text(
               'Select Target',
-              style: TextStyle(color: widget.colors.textPrimary),
+              style: TextStyle(color: _colors.textPrimary),
             ),
           ],
         ),
@@ -367,11 +166,11 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
               children: [
                 Text(
                   'Which target should "${widget.template.name}" be added to?',
-                  style: TextStyle(color: widget.colors.textSecondary),
+                  style: TextStyle(color: _colors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 ...targets.map((target) => _TargetOption(
-                      colors: widget.colors,
+                      colors: _colors,
                       target: target,
                       onTap: () {
                         Navigator.of(dialogContext).pop();
@@ -546,7 +345,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     }
 
     // Re-key the node graph for the editor while retaining the backing row.
-    // The row identity is what lets "Update Template" persist in place.
+    // The row identity is what lets "Update template" persist in place.
     final newNodes = <String, SequenceNode>{};
     final idMapping = <String, String>{};
 
@@ -625,8 +424,8 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     ref.read(sequencerTabProvider.notifier).state = 0;
 
     context.showInfoSnackBar(
-      'Editing "${editableTemplate.name}" — use Update Template in the '
-      'Templates tab to save changes.',
+      'Editing "${editableTemplate.name}". Update template on the Templates '
+      'tab saves your changes.',
     );
   }
 
@@ -713,13 +512,13 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           builder: (dialogContext, setDialogState) => PopScope(
             canPop: !isDeleting,
             child: AlertDialog(
-              backgroundColor: widget.colors.surface,
+              backgroundColor: _colors.surface,
               shape: RoundedRectangleBorder(
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline8)),
               title: Text(
                 'Delete Template',
-                style: TextStyle(color: widget.colors.textPrimary),
+                style: TextStyle(color: _colors.textPrimary),
               ),
               content: ConstrainedBox(
                 constraints: AdaptiveDialogConstraints.hybrid(
@@ -728,7 +527,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                 ),
                 child: Text(
                   'Are you sure you want to delete "${widget.template.name}"? This action cannot be undone.',
-                  style: TextStyle(color: widget.colors.textSecondary),
+                  style: TextStyle(color: _colors.textSecondary),
                 ),
               ),
               actions: [
@@ -780,74 +579,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           ),
         );
       },
-    );
-  }
-}
-
-class _SmallIconButton extends StatefulWidget {
-  final SkotiqColors colors;
-  final IconData icon;
-  final String tooltip;
-  final Color? color;
-  // Nullable so the template card can gray out the "Edit" pencil while
-  // the sequence is running. Other callers may still pass a non-null
-  // callback unchanged.
-  final VoidCallback? onPressed;
-
-  const _SmallIconButton({
-    required this.colors,
-    required this.icon,
-    required this.tooltip,
-    this.color,
-    required this.onPressed,
-  });
-
-  @override
-  State<_SmallIconButton> createState() => _SmallIconButtonState();
-}
-
-class _SmallIconButtonState extends State<_SmallIconButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.color ?? widget.colors.textSecondary;
-    final disabled = widget.onPressed == null;
-    final iconColor = disabled
-        ? widget.colors.textMuted.withValues(alpha: 0.4)
-        : (_isHovered ? color : widget.colors.textMuted);
-
-    return Tooltip(
-      message: widget.tooltip,
-      child: MouseRegion(
-        onEnter: disabled ? null : (_) => setState(() => _isHovered = true),
-        onExit: disabled ? null : (_) => setState(() => _isHovered = false),
-        cursor:
-            disabled ? SystemMouseCursors.forbidden : SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: !disabled && _isHovered
-                  ? SkotiqDecorations.tintedBadge(
-                      color,
-                      borderRadius:
-                          BorderRadius.circular(SkotiqTokens.radiusMd),
-                    ).color
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-            ),
-            child: Icon(
-              widget.icon,
-              size: 14,
-              color: iconColor,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

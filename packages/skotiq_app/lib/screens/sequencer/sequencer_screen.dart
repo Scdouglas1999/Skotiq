@@ -173,7 +173,13 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
       vsync: this,
     );
     if (persistedIndex != initialIndex) {
-      ref.read(sequencerTabProvider.notifier).state = initialIndex;
+      // initState runs inside the parent's build, where a provider must not
+      // change; the tab a link asked for is published after this frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(sequencerTabProvider.notifier).state = initialIndex;
+        }
+      });
     }
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {

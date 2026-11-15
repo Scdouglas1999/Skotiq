@@ -99,35 +99,3 @@ class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog>
     );
   }
 }
-
-/// Star toggle that flips the favorite flag for a sequence. Filled (warning
-/// color) when favorited, outline-muted otherwise.
-class _FavoriteToggle extends StatelessWidget {
-  final SkotiqColors colors;
-  final bool isFavorite;
-  final VoidCallback onPressed;
-
-  const _FavoriteToggle({
-    required this.colors,
-    required this.isFavorite,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: isFavorite ? 'Remove from favorites' : 'Add to favorites',
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(
-          LucideIcons.star,
-          size: 18,
-          color: isFavorite ? colors.warning : colors.textMuted,
-        ),
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      ),
-    );
-  }
-}

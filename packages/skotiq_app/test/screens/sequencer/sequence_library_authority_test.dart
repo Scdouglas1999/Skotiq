@@ -100,7 +100,9 @@ void main() {
       editor: CurrentSequenceNotifier(),
     );
 
-    await tester.tap(find.byTooltip('Delete'));
+    await tester.tap(find.byTooltip('More actions for Orion run'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Delete Sequence'), findsOneWidget);
 
@@ -130,7 +132,7 @@ void main() {
       editor: editor,
     );
 
-    await tester.tap(find.byTooltip('Load'));
+    await tester.tap(find.text('Orion run'));
     await tester.pump();
     notifier.switchTo(hostB);
     await tester.pump();
@@ -175,7 +177,7 @@ void main() {
       editor: editor,
     );
 
-    await tester.tap(find.byTooltip('Load'));
+    await tester.tap(find.text('Orion run'));
     await tester.pump();
     await tester.pump();
 
