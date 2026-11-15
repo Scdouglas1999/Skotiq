@@ -203,12 +203,12 @@ class SmartNightService {
       now: reference,
     );
     if (!reference.isAfter(night.start)) return night;
-    final truncated = DateTime(
-      reference.year,
-      reference.month,
-      reference.day,
-      reference.hour,
-      reference.minute,
+    final truncated = reference.subtract(
+      Duration(
+        seconds: reference.second,
+        milliseconds: reference.millisecond,
+        microseconds: reference.microsecond,
+      ),
     );
     final start = truncated == reference
         ? reference

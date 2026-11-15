@@ -459,7 +459,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       if (id != null) {
         context.showInfoSnackBar('Added $_objectName to list');
       } else if (uiState.errorMessage != null) {
-        context.showInfoSnackBar(uiState.errorMessage!);
+        context.showErrorSnackBar(uiState.errorMessage!);
       } else if (uiState.statusMessage != null) {
         // No row written and no error: the benign "already in this list"
         // outcome. Say so instead of closing silently.
@@ -478,7 +478,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       if (mounted) {
         final uiState = ref.read(observingListNotifierProvider);
         if (uiState.errorMessage != null) {
-          context.showInfoSnackBar(uiState.errorMessage!);
+          context.showErrorSnackBar(uiState.errorMessage!);
         }
       }
       return;

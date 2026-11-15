@@ -275,6 +275,11 @@ sealed class ExposureSensitivity {
   /// The value the camera takes for [requested].
   int accept(int requested);
 
+  /// The lowest and highest value the camera reports it takes; null when it
+  /// reports none.
+  int? get lowest;
+  int? get highest;
+
   /// What a frame from this camera records its gain as.
   GainKind get gainKind;
 }
@@ -308,6 +313,12 @@ class GainSensitivity extends ExposureSensitivity {
 
   @override
   GainKind get gainKind => GainKind.gain;
+
+  @override
+  int? get lowest => min;
+
+  @override
+  int? get highest => max;
 
   @override
   int accept(int requested) {
@@ -352,6 +363,12 @@ class IsoSensitivity extends ExposureSensitivity {
 
   @override
   GainKind get gainKind => GainKind.iso;
+
+  @override
+  int? get lowest => speeds.firstOrNull;
+
+  @override
+  int? get highest => speeds.lastOrNull;
 
   /// The offered speed nearest to [requested] by ratio, the way the camera
   /// drivers choose; a tie goes to the lower speed.

@@ -108,6 +108,46 @@ void main() {
     expect(issues.single.affectedNodeId, 'ex');
   });
 
+  test(
+    'a one-letter filter is not offered a slot that only holds its letter',
+    () {
+      final container = _container(
+        profileFilters: const ['L', 'Dark', 'UV/IR Cut', 'Ha/OIII'],
+      );
+      final issues = _run(
+        container,
+        _sequenceWith([
+          ExposureNode(id: 'r', name: 'Red', durationSecs: 120, filter: 'R'),
+          ExposureNode(id: 'ha', name: 'Ha', durationSecs: 300, filter: 'Ha'),
+        ]),
+      );
+
+      expect(issues.map((i) => i.affectedNodeId), ['r', 'ha']);
+      for (final issue in issues) {
+        expect(issue.resolutionHint, isNot(contains('is the same filter')));
+      }
+    },
+  );
+
+  test('a filter two slots could be names both and picks neither', () {
+    final container = _container(
+      profileFilters: const ['L', 'Ha 3nm', 'Ha 7nm'],
+    );
+    final issues = _run(
+      container,
+      _sequenceWith([
+        ExposureNode(id: 'ha', name: 'Ha', durationSecs: 300, filter: 'Ha'),
+      ]),
+    );
+
+    expect(issues, hasLength(1));
+    expect(
+      issues.single.resolutionHint,
+      '"Ha 3nm" and "Ha 7nm" are both "Ha". Change the step to name the one '
+      'to use.',
+    );
+  });
+
   test('a name that matches the profile (any case) is silent', () {
     final container = _container(profileFilters: const ['L', 'H-alpha']);
     final issues = _run(

@@ -349,7 +349,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
           .setTargetCoordinates(ra, dec, name: 'Custom Location');
       // Alt/Az auto-refreshes on the next build (framingProvider watch triggers it).
     } else {
-      context.showInfoSnackBar('Invalid coordinates');
+      context.showErrorSnackBar('Invalid coordinates');
     }
   }
 

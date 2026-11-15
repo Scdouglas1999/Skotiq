@@ -440,16 +440,10 @@ const List<Setting<Object?>> kAppSettingsTable = [
     adminOnly: AdminOnly.administration,
   ),
 
-  /// A camera's gain, or a DSLR or mirrorless body's ISO: no camera's gain and
-  /// no body's ISO is above the bound.
-  IntSetting(
-    'defaultGain',
-    'default_gain',
-    100,
-    inputMin: 0,
-    inputMax: 1000000,
-    seeded: true,
-  ),
+  /// A camera's gain, or a DSLR or mirrorless body's ISO. The connected
+  /// camera's own gain range or ISO list bounds what Equipment settings
+  /// accepts, since bodies differ widely (a Nikon D6 reaches ISO 3,280,000).
+  IntSetting('defaultGain', 'default_gain', 100, inputMin: 0, seeded: true),
 
   /// The black-level pedestal, in ADU of a 16-bit frame.
   IntSetting(

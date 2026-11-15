@@ -49,8 +49,8 @@ List<FilterIntegration> acceptedLightsByFilter(
 }
 
 /// The accepted light integration a goal for [goalFilter] counts: the groups
-/// whose filter the filter-name rule matches ("Ha" counts the "Ha 7nm"
-/// group); the unfiltered goal (empty filter) counts the frames that name no
+/// that are the same filter by the filter-name rule ("Ha" counts the "Ha 7nm"
+/// group, "R" never counts "UV/IR Cut"); the unfiltered goal (empty filter) counts the frames that name no
 /// filter.
 FilterIntegration acceptedInGoalFilter(
   List<FilterIntegration> accepted,
@@ -74,16 +74,9 @@ List<FilterIntegration> _goalGroups(
         if (f.filter == _unfiltered) f,
     ];
   }
-  final named = [
-    for (final f in accepted)
-      if (f.filter != _unfiltered) f,
-  ];
-  final matched = matchingFilterNames(goalFilter, [
-    for (final f in named) f.filter,
-  ]).toSet();
   return [
-    for (final f in named)
-      if (matched.contains(f.filter)) f,
+    for (final f in accepted)
+      if (f.filter != _unfiltered && sameFilter(f.filter, goalFilter)) f,
   ];
 }
 

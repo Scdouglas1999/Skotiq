@@ -458,19 +458,16 @@ class SmartProjectService {
 
       final deltaFrames = math.max(1, (filterDeficitSeconds / exposure).ceil());
 
-      // The goal for these frames: one at this exposure whose filter the
-      // filter-name rule matches ("Ha 7nm" frames raise the operator's "Ha"
-      // goal), or for unfiltered frames the unfiltered goal.
-      final atExposure = [
-        for (final g in existingGoals)
-          if (_closeEnough(g.exposureSeconds, exposure)) g,
-      ];
-      final goalFilter = matchingRecordedFilter(filter, [
-        for (final g in atExposure) g.filter,
-      ]);
-      final existing = goalFilter == null
-          ? null
-          : atExposure.firstWhere((g) => g.filter == goalFilter);
+      // The goal for these frames: one at this exposure that is the same
+      // filter by the filter-name rule ("Ha 7nm" frames raise the operator's
+      // "Ha" goal), or for unfiltered frames the unfiltered goal.
+      final existing = existingGoals
+          .where(
+            (g) =>
+                _closeEnough(g.exposureSeconds, exposure) &&
+                sameFilter(g.filter, filter),
+          )
+          .firstOrNull;
 
       // Idempotency: the deficit is a function of the master's state alone
       // (current vs target SNR, captured count), NOT of the goal's current

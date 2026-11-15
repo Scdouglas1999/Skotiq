@@ -183,6 +183,36 @@ void main() {
     expect(await tester.runAsync(store.readToken), 'tok');
   });
 
+  testWidgets('a pairing that fails keeps this computer on its own rig', (
+    tester,
+  ) async {
+    await setSize(tester);
+    service.oneTapFailure = const RigPairingFailure(
+      RigPairingFailureKind.unreachable,
+      'DESKTOP-MMAJGAK did not answer.',
+    );
+    await tester.pumpWidget(
+      app(LinkRigDialog(request: LinkRigRequest.pair(_host))),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link.oneTap')));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text("Can't reach DESKTOP-MMAJGAK at 192.168.1.32:8099."),
+      findsOneWidget,
+    );
+    expect(relauncher.reasons, isEmpty, reason: 'nothing restarts linked');
+    expect(await tester.runAsync(store.load), isNull);
+    expect(await tester.runAsync(store.readToken), isNull);
+    expect(find.byKey(const ValueKey('link.oneTap')), findsOneWidget,
+        reason: 'the dialog stays open to try again');
+  });
+
   testWidgets(
       'a host of another release says which side to update and '
       'offers no pairing', (tester) async {

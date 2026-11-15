@@ -832,7 +832,8 @@ void main() {
     test(
       'calculateRemainingWindow starts at now once the night is under way',
       () {
-        final now = DateTime(2026, 5, 18, 1, 0, 20);
+        // UTC, so the night is under way wherever the test runs.
+        final now = DateTime.utc(2026, 5, 18, 5, 0, 20);
         final night = service.calculateWindow(
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
@@ -845,10 +846,10 @@ void main() {
           longitudeDeg: -73.0,
           now: now,
         );
-        expect(remaining.start, DateTime(2026, 5, 18, 1, 1));
+        expect(remaining.start, DateTime.utc(2026, 5, 18, 5, 1));
         expect(remaining.end, night.end);
 
-        final afternoon = DateTime(2026, 5, 17, 14);
+        final afternoon = DateTime.utc(2026, 5, 17, 18);
         expect(
           service
               .calculateRemainingWindow(
