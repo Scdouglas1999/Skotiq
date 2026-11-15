@@ -13,6 +13,7 @@ import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../utils/profile_save_errors.dart';
+import '../widgets/profile_glyph.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/device_format_utils.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -23,23 +24,15 @@ part 'profile_editor_dialog/optical_and_devices.dart';
 part 'profile_editor_dialog/filters_and_camera_defaults.dart';
 part 'profile_editor_dialog/helper_widgets.dart';
 
+/// Widest the Profiles tab's editor column gets: a form never stretches past
+/// about 880 px, and its fields are capped well inside that
+/// ([profileEditorFieldMaxWidth]).
+const double profilePageMaxWidth = 880.0;
+
 /// Stable keys for the profile editor's inline field errors.
 ///
 /// Kept as constants (not an enum) because they double as the map keys the
 /// section builders read, and widget tests match on them.
-/// Widest the Optical train page's form column gets before it stops growing.
-const double opticalTrainPageMaxWidth = 720.0;
-
-/// Widest the Profiles tab's editor column gets before it stops growing.
-///
-/// Wider than [opticalTrainPageMaxWidth] because this hosts every section, and
-/// it shares its row with the 360 px profile list: at the 1920 px width the
-/// owner's laptop runs, the pane is ~1340 px, so the form fills it rather than
-/// leaving the empty half the tab used to be. The cap only bites on an
-/// ultrawide monitor, where an unbounded form would stretch a "Profile name"
-/// field across 2000 px.
-const double profilePageMaxWidth = 1200.0;
-
 abstract final class ProfileEditorField {
   static const focalLength = 'focalLength';
   static const reducer = 'reducer';
@@ -53,11 +46,6 @@ abstract final class ProfileEditorField {
 enum ProfileEditorMode {
   /// The whole editor, as a dialog (desktop) or a full-screen route (phone).
   full,
-
-  /// Only the optical-train section, embedded as a page — the Equipment
-  /// screen's "Optical train" tab (06 §Equipment). No dialog chrome, no
-  /// Navigator pops: the tab stays put and the footer just saves.
-  opticalTrainPage,
 
   /// The whole editor, embedded as a page beside the profile list — the
   /// Equipment screen's "Profiles" tab. Same sections as [full] and the same
@@ -210,18 +198,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   CameraRecommendedSettings? _recommendedSettings;
   bool _isQueryingRecommendation = false;
 
-  static const List<String> _availableIcons = [
-    '',
-    '\u{1F52D}', // Telescope emoji
-    '\u{1F319}', // Moon emoji
-    '\u{1FA90}', // Ringed planet emoji
-    '\u{2B50}', // Star emoji
-    '\u{1F4F7}', // Camera emoji
-    '\u{1F534}', // Red circle
-    '\u{1F535}', // Blue circle
-    '\u{1F7E2}', // Green circle
-    '\u{1F7E1}', // Yellow circle
-  ];
+  /// The icon choices: none (the default aperture), then every glyph.
+  static final List<String> _availableIcons = ['', ...profileGlyphs.keys];
 
   static const List<Color> _accentColors = [
     EquipmentProfileColors.defaultProfile, // Cyan-blue (default)
@@ -339,7 +317,10 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     if (profile != null) {
       _nameController.text = profile.name;
       _descriptionController.text = profile.description ?? '';
-      _selectedIcon = profile.profileIcon ?? '';
+      // A word this build does not offer (an emoji from an older build)
+      // reads as no icon, which is what the list shows for it.
+      final icon = profile.profileIcon;
+      _selectedIcon = profileGlyphs.containsKey(icon) ? icon! : '';
       _selectedColor =
           profile.profileColor != null ? Color(profile.profileColor!) : null;
       _isDefault = profile.isDefault;
@@ -463,56 +444,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     final isEditing = widget.profile != null;
     final isPhone = Responsive.isPhone(context);
 
-    // Embedded as the Equipment screen's Optical train tab: only that section,
-    // on the page's own background, with no dialog chrome.
-    if (widget.mode == ProfileEditorMode.opticalTrainPage) {
-      return Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SkotiqTokens.space2xl,
-                  vertical: SkotiqTokens.spaceXl,
-                ),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: opticalTrainPageMaxWidth,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildValidationBanner(colors),
-                        _buildOpticalTrainSection(colors, theme),
-                        // Under the form it saves, not pinned to the window's
-                        // bottom-right corner: the section is a few rows tall,
-                        // and the page footer left Save a screen away from it.
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: SkotiqTokens.spaceLg,
-                          ),
-                          child: Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: SkotiqTokens.spaceSm,
-                            runSpacing: SkotiqTokens.spaceSm,
-                            children: _footerActions(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     // The form itself — the same body whether it is shown as a dialog or as a
     // full-screen route.
     final body = Form(
@@ -539,17 +470,21 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
 
     // Embedded as the Equipment screen's Profiles tab: every section on the
     // page's own background beside the profile list, with no dialog chrome and
-    // no pop (see [_closeAfterSave]). The footer carries Save alone — there is
-    // nothing to cancel back to when the pane simply shows the selected row.
+    // no pop (see [_closeAfterSave]). Save sits in the pane's head above the
+    // form, where it stays in view while the form scrolls; there is nothing to
+    // cancel back to when the pane simply shows the selected row.
     if (widget.mode == ProfileEditorMode.profilePage) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildPageHead(colors),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: SkotiqTokens.space2xl,
-                vertical: SkotiqTokens.spaceXl,
+              padding: const EdgeInsets.fromLTRB(
+                SkotiqTokens.space2xl,
+                SkotiqTokens.spaceLg,
+                SkotiqTokens.space2xl,
+                SkotiqTokens.spaceXl,
               ),
               child: Align(
                 alignment: Alignment.topLeft,
@@ -561,7 +496,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
               ),
             ),
           ),
-          _buildFooter(colors),
         ],
       );
     }

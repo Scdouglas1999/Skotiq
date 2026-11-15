@@ -15,7 +15,6 @@ import 'widgets/equipment_health_panel.dart';
 import 'widgets/equipment_readiness_panel.dart';
 import 'widgets/profile_scan_notice.dart';
 import 'widgets/switch_control_card.dart';
-import 'dialogs/profile_editor_dialog.dart';
 import '../../router/equipment_route.dart';
 import 'tabs/settings_tab.dart';
 import 'profile_actions.dart';
@@ -141,9 +140,8 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
         ? profiles.where((p) => p.id == selectedProfileId).firstOrNull
         : null;
 
-    // NOT clamped to 0 during first run: Profiles and Optical train are
-    // reachable before a profile exists, which is when someone most wants to
-    // look at them.
+    // NOT clamped to 0 during first run: Profiles is reachable before a
+    // profile exists, which is when someone most wants to look at it.
     final tabIndex = ref.watch(equipmentTabIndexProvider);
     // Drives whether "Disconnect all" exists at all (see the header actions).
     final anythingConnected = ref.watch(rigDevicesProvider).connected > 0;
@@ -155,7 +153,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
             ? activeProfile
             : null;
     // Below DESKTOP width, not the shell breakpoint: this header seats a
-    // title, three tabs, a chip and two actions, and measured at 800 px the
+    // title, two tabs, a chip and two actions, and measured at 800 px the
     // labelled buttons overflow the row by 7.7 px — which shows up as a
     // truncated screen name, or a yellow overflow stripe in a test. The verbs
     // move into tooltips there.
@@ -185,7 +183,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
                   label: 'Profiles',
                   count: profiles.isEmpty ? null : '${profiles.length}',
                 ),
-                const AdaptiveTab(label: 'Optical train'),
               ],
             ),
             actions: [
@@ -244,7 +241,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
           Expanded(
             child: switch (tabIndex) {
               1 => const ProfilesManager(tutorialTargets: true),
-              2 => const _OpticalTrainTab(),
               // First run owns the Devices tab only. The discovery drawer
               // is mounted BENEATH the empty state so the header's "Scan
               // for devices" has something to expand: before this it
@@ -367,39 +363,6 @@ class _HeaderAction extends StatelessWidget {
       variant: primary ? ButtonVariant.primary : ButtonVariant.secondary,
       size: ButtonSize.small,
       onPressed: onPressed,
-    );
-  }
-}
-
-/// The Optical train tab: the profile editor's optical-train section, hosted
-/// as a page instead of a dialog section.
-class _OpticalTrainTab extends ConsumerWidget {
-  const _OpticalTrainTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    if (profile == null) {
-      return Center(
-        child: EmptyState(
-          icon: LucideIcons.aperture,
-          title: 'No profile is active',
-          body: 'Activate a profile in the Profiles tab to edit its telescope, '
-              'focal length and aperture.',
-          action: SkotiqButton(
-            label: 'Open profiles',
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.small,
-            onPressed: () =>
-                ref.read(equipmentTabIndexProvider.notifier).state = 1,
-          ),
-        ),
-      );
-    }
-    return ProfileEditorDialog(
-      key: ValueKey<int?>(profile.id),
-      profile: profile,
-      mode: ProfileEditorMode.opticalTrainPage,
     );
   }
 }
