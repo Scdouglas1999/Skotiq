@@ -75,13 +75,16 @@ class _TemplatesToolbarState extends ConsumerState<_TemplatesToolbar> {
       children: [
         SizedBox(width: _searchWidth, child: searchField),
         const SizedBox(width: SkotiqTokens.spaceLg),
-        const Flexible(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: category,
+        const Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: category,
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: SkotiqTokens.spaceLg),
         if (snippetCount > 0) ...[
           SkotiqButton(
             label: countLabel(snippetCount, 'snippet'),

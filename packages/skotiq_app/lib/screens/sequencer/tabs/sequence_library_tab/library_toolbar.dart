@@ -54,7 +54,7 @@ class _LibraryToolbarState extends ConsumerState<_LibraryToolbar> {
 
     final searchField = SkotiqSearchField(
       controller: _search,
-      hint: 'Search sequences, targets and tags',
+      hint: 'Search sequences',
       onChanged: _onSearchChanged,
     );
     final chips = <Widget>[

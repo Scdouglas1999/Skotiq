@@ -101,7 +101,10 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
       countLabel(_summary.exposureCount, 'capture step'),
       if (duration != null) duration,
       if (_summary.runCount > 0) countLabel(_summary.runCount, 'run'),
-      if (widget.compact) _lastRunLabel.toLowerCase(),
+      if (widget.compact)
+        _summary.lastRunAt == null
+            ? 'never run'
+            : 'last run ${_formatDate(_summary.lastRunAt!)}',
       'edited ${_formatDate(_summary.modifiedAt)}',
       if (_summary.tags.isNotEmpty) _summary.tags.join(', '),
     ].join(' · ');
@@ -122,7 +125,6 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
           icon: LucideIcons.star,
           tooltip: favorite ? 'Remove from favorites' : 'Add to favorites',
           color: favorite ? colors.warning : null,
-          selected: favorite,
           onPressed: _toggleFavorite,
         ),
         _moreMenu(),

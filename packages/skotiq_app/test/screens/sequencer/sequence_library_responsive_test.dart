@@ -80,6 +80,9 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+    // No last-run column on a phone: the facts line says it.
+    expect(find.textContaining('never run'), findsOneWidget);
+    expect(find.text('LAST RUN'), findsNothing);
     expect(find.byTooltip('Add to favorites'), findsOneWidget);
     await _openMenu(tester, name);
     for (final action in [
