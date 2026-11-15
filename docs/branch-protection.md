@@ -13,8 +13,9 @@
 
 Branch protection **is enabled** on `main` with these **required status checks**:
 `Analyze`, `Launch Gate`, `Dart Tests`, `Rust Tests (linux)`, `Format Check`, and
-`Build Test (Desktop) (ubuntu-latest)`. These are the checks that run on every PR
-and are currently green.
+`Build Test (Desktop) (ubuntu-latest)`. These are the checks that run on every PR.
+They were red on every commit from 2026-11-01 until the 9.0.1 fixes; check the
+live state with `gh run list --workflow ci.yml --branch main`.
 
 Deliberately **not** required:
 - **`Code Coverage`** — currently overruns its 20-minute timeout because it
@@ -22,9 +23,10 @@ Deliberately **not** required:
   It is slow, not broken; requiring it would block merges on a timeout rather
   than a code problem. Re-add it once the timeout is raised or the run is
   de-duplicated.
-- **`Rust Tests (windows)`** — conditional (push/schedule/`ci:windows-rust`
-  label), so it does not run on most PRs; requiring it would block PRs where it
-  never starts.
+- **`Rust Tests (windows)`** — conditional (push, schedule, `release/*` and
+  `fix/*` PRs, `ci:windows-rust` label), so it does not run on most PRs;
+  requiring it would block PRs where it never starts. The release gate
+  requires it on the commit being released (section 3).
 - **`Cargo Duplicate Versions`** — advisory (never fails the build).
 
 **Admin bypass is intentionally left on** (`enforce_admins: false`): the
@@ -88,13 +90,18 @@ Two more workflows exist but are **not** PR merge gates:
 if: >-
   github.event_name == 'push' ||
   github.event_name == 'schedule' ||
-  (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:windows-rust'))
+  (github.event_name == 'pull_request' && (
+    startsWith(github.head_ref, 'release/') ||
+    startsWith(github.head_ref, 'fix/') ||
+    contains(github.event.pull_request.labels.*.name, 'ci:windows-rust')))
 ```
 
 In words, the Windows Rust job runs when **any** of these is true:
 
 - the event is a **push** (to `main`, `master`, or `develop`);
-- the event is the nightly **schedule**; or
+- the event is the nightly **schedule**;
+- the event is a **pull request** from a `release/*` or `fix/*` branch, the
+  branches a release is cut after; or
 - the event is a **pull request** carrying the `ci:windows-rust` label.
 
 **Why it is gated this way.** The ASCOM integration (`ascom/`, including
@@ -121,67 +128,55 @@ not-applicable and must not block that PR.
 
 ## 3. What must pass before tagging a release
 
-`release.yml` is **tag-triggered**: it fires on pushing a tag matching
-`v*.*.*` (e.g. `git tag v4.1.0 && git push origin v4.1.0`), with a
-`workflow_dispatch` for on-demand artifact rebuilds. It builds the Android APK,
-the Linux x64 bundle, and the Windows x64 package, then publishes them to a
-public GitHub Release.
+`release.yml` runs on a pushed `v*.*.*` tag, or by `workflow_dispatch` run from
+that tag with `release_tag` set to it (to attach the assets to an existing
+draft). It builds the Android APKs, the Linux x64 bundle and the Windows x64
+package and publishes them.
 
-**The release workflow does not re-run the CI gate suite.** It assumes the
-commit it builds is already green. Therefore the release precondition is:
+**The release workflow does not re-run the CI gate suite; it refuses a commit
+that has not passed it.** `scripts/release_gate.py` runs in the `version` job,
+before an hour of builds, and again in `publish`, right before anything is
+uploaded. It refuses unless:
 
-1. The commit you are about to tag is already merged to `main`.
-2. The CI run for that commit on `main` is fully green — every required check
-   from section 1, **including** the `test-rust-windows` job (which runs on the
-   push to `main`, so a merged commit has been Windows-verified).
-3. The version is consistent across the tag, the app pubspecs, and the
-   `APP_VERSION` env in `release.yml` (currently `4.1.0`). The published
-   artifact file names derive from `APP_VERSION`, and the release notes are read
-   from `docs/release/<tag>.md` (e.g. `docs/release/v4.1.0.md`), so that file
-   must exist for the tagged version.
+1. The run builds the commit the tag names. A dispatch run from a branch with
+   `release_tag` set is refused, so `SOURCE-COMMIT.txt` in every archive is
+   the tag commit (`scripts/verify_source_commit.py` checks it).
+2. That commit is on `origin/main`. Merge a release branch with a merge commit
+   (not a squash), so the tagged commit is an ancestor of `main`.
+3. Every check in `REQUIRED_CHECKS` concluded `success` on that commit: the
+   required checks of section 1 and `Rust Tests (windows)`, which runs on the
+   push to `main` and on `release/*` and `fix/*` pull requests.
+4. No published release has the tag. A published release's packages, checksums
+   and signed manifests are never replaced; a fix ships as a new version.
 
-Only tag a commit that satisfies all three. A tag pointing at a red or
-unverified commit will still build and publish artifacts, because nothing in
-`release.yml` checks gate status — the discipline lives here, not in the YAML.
+Publishing also requires every Android and update signing credential
+(`scripts/release_policy.py`), for every channel. A `workflow_dispatch` without
+`release_tag` is a build-only validation run: it gets no signing keys, so its
+APKs are debug-signed and its OTA manifests unsigned, and nothing it builds can
+be published or installed over a release.
+
+The version must also be consistent across the tag, the app pubspecs and
+`version.yaml`, and `docs/release/<tag>.md` must exist; the `version` and
+`publish` jobs check both.
+
+A run started before these checks existed runs the workflow file of its own
+commit. Re-running such a run (for example the cancelled 9.0.0 tag run
+43626418799) skips the gate; delete those runs (`gh run delete <id>`) rather
+than re-running them.
 
 ---
 
-## 4. Verifying a release tag was built from green CI
+## 4. Verifying a release after the fact
 
-A release tag is trustworthy only if the commit it points at has a passing CI
-run on `main`. To verify after the fact:
-
-1. **Resolve the tag to its commit SHA:**
-
-   ```bash
-   git rev-list -n 1 v4.1.0
-   ```
-
-2. **Confirm that SHA has a passing CI run on `main`.** Either use the Actions
-   UI (filter the `CI` workflow by branch `main` and locate the commit), or the
-   `gh` CLI:
-
-   ```bash
-   gh run list --workflow ci.yml --branch main --commit <SHA>
-   gh run view <run-id>
-   ```
-
-   Every required check from section 1 should be `success`. Confirm
-   `Rust Tests (windows)` ran and passed on that push run — it is the proof the
-   Windows-only ASCOM crate was exercised for the released commit.
-
-3. **Inspect the release workflow run for the tag** to confirm all three
-   platform build jobs (`android`, `linux`, `windows`) and `publish` succeeded:
-
-   ```bash
-   gh run list --workflow release.yml
-   gh run view <run-id>
-   ```
-
-   The `publish` job runs only for tag refs
-   (`if: startsWith(github.ref, 'refs/tags/')`) and publishes with
-   `fail_on_unmatched_files: true`, so a missing platform artifact fails the
-   release rather than shipping a partial one.
+1. **Resolve the tag to its commit:** `git rev-list -n 1 v9.0.1`.
+2. **Read the release gate's log line** in the release run's `version` and
+   `publish` jobs: it names the commit, confirms it is on `origin/main`, every
+   required check green, and the release not yet published.
+3. **Compare `SOURCE-COMMIT.txt`** in the release assets with the tag commit.
+4. **Inspect the release workflow run** (`gh run list --workflow release.yml`,
+   `gh run view <run-id>`): all three platform jobs and `publish` succeeded,
+   and `publish` used `fail_on_unmatched_files: true`, so a missing platform
+   artifact fails the release rather than shipping a partial one.
 
 ---
 

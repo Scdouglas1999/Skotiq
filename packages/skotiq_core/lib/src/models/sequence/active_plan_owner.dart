@@ -48,9 +48,8 @@ enum ActivePlanOwner {
   }
 }
 
-/// Parsing helpers for the remote-sync wire value. Backward-compatible: an
-/// absent/unknown token resolves to [ActivePlanOwner.manual] so an older host
-/// (which never sends the field) is treated as manual ownership.
+/// Parsing helpers for the remote-sync wire value. No open plan, or a plan
+/// with no owner, is the operator's own ([ActivePlanOwner.manual]).
 extension ActivePlanOwnerWire on ActivePlanOwner {
   static ActivePlanOwner fromWire(Object? value) {
     if (value is! String) return ActivePlanOwner.manual;

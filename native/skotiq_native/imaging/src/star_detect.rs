@@ -420,7 +420,7 @@ fn measure(
         .iter()
         .map(|&p| {
             let p = p as usize;
-            ((p % w) as f64 - cx).hypot((p / w) as f64 - cy)
+            libm::hypot((p % w) as f64 - cx, (p / w) as f64 - cy)
         })
         .fold(0.0f64, f64::max);
     let cap = (4 * config.hfr_radius.max(1)) as f64;
@@ -437,7 +437,7 @@ fn measure(
     let (icx, icy) = (cx.round() as i64, cy.round() as i64);
     for yy in (icy - r_out).max(0)..=(icy + r_out).min(h as i64 - 1) {
         for xx in (icx - r_out).max(0)..=(icx + r_out).min(w as i64 - 1) {
-            let d = (xx as f64 - cx).hypot(yy as f64 - cy);
+            let d = libm::hypot(xx as f64 - cx, yy as f64 - cy);
             if d > outer {
                 continue;
             }
@@ -537,7 +537,7 @@ fn measure(
 /// Direction of the major axis of second moments `mxx`, `myy`, `mxy`, in
 /// degrees from +x toward +y, in `[0, 180)`.
 pub(crate) fn elongation_angle_deg(mxx: f64, myy: f64, mxy: f64) -> f64 {
-    (0.5 * (2.0 * mxy).atan2(mxx - myy))
+    (0.5 * libm::atan2(2.0 * mxy, mxx - myy))
         .to_degrees()
         .rem_euclid(180.0)
 }
@@ -700,7 +700,7 @@ fn deblend(
     let dist = |a: u32, b: u32| -> f64 {
         let (ax, ay) = ((a as usize % width) as f64, (a as usize / width) as f64);
         let (bx, by) = ((b as usize % width) as f64, (b as usize / width) as f64);
-        (ax - bx).hypot(ay - by)
+        libm::hypot(ax - bx, ay - by)
     };
 
     for &p in &order {

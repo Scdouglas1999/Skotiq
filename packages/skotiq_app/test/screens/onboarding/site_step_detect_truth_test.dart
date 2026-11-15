@@ -123,6 +123,12 @@ Future<ProviderContainer> _pumpSiteStep(
   return container;
 }
 
+/// An approximate fix is offered; "Use this" makes it the site.
+Future<void> acceptEstimate(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(SkotiqButton, 'Use this'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -131,71 +137,6 @@ void main() {
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-  });
-
-  Finder siteInput(Key key) => find.descendant(
-        of: find.byKey(key),
-        matching: find.byType(TextField),
-      );
-
-  testWidgets('a background location fills untouched site fields',
-      (tester) async {
-    final container = await _pumpSiteStep(tester, db);
-    await container.read(appSettingsProvider.notifier).updateLocation(
-          latitude: 40.71,
-          longitude: -74.01,
-          elevation: 42,
-        );
-    await tester.pumpAndSettle();
-
-    expect(
-        tester
-            .widget<TextField>(siteInput(onboardingSiteLatitudeKey))
-            .controller!
-            .text,
-        '40.71');
-    expect(
-        tester
-            .widget<TextField>(siteInput(onboardingSiteLongitudeKey))
-            .controller!
-            .text,
-        '-74.01');
-    expect(find.textContaining('No site on record yet'), findsNothing);
-
-    await tester.enterText(siteInput(onboardingSiteLatitudeKey), '100');
-    await tester.pumpAndSettle();
-    expect(container.read(appSettingsProvider).value!.latitude, 40.71,
-        reason: 'an invalid edit restores the newly detected baseline');
-    expect(container.read(appSettingsProvider).value!.longitude, -74.01);
-  });
-
-  testWidgets('a background location never replaces edited site fields',
-      (tester) async {
-    final container = await _pumpSiteStep(tester, db);
-    final notifier = container.read(appSettingsProvider.notifier);
-    final before = notifier.locationEditRevision;
-    await tester.enterText(siteInput(onboardingSiteLatitudeKey), '39 5');
-    await tester.pumpAndSettle();
-    expect(notifier.locationEditRevision, greaterThan(before),
-        reason: 'incomplete input cancels startup detection before persisting');
-    await container.read(appSettingsProvider.notifier).updateLocation(
-          latitude: 40.71,
-          longitude: -74.01,
-        );
-    await tester.pumpAndSettle();
-
-    expect(
-        tester
-            .widget<TextField>(siteInput(onboardingSiteLatitudeKey))
-            .controller!
-            .text,
-        '39 5');
-    expect(
-        tester
-            .widget<TextField>(siteInput(onboardingSiteLongitudeKey))
-            .controller!
-            .text,
-        isEmpty);
   });
 
   testWidgets('a stalled device lookup releases the onboarding button',
@@ -247,6 +188,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
+    await acceptEstimate(tester);
 
     expect(container.read(appSettingsProvider).valueOrNull?.latitude, 39.9527);
     expect(find.textContaining('No site on record yet'), findsNothing);
@@ -265,6 +207,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
+    await acceptEstimate(tester);
 
     TextField field(Key key) => tester.widget<TextField>(
           find.descendant(
@@ -372,7 +315,8 @@ void main() {
   // A desktop with no GPS still lands a site in one click — and the
   // confirmation names the internet path, because a ~10 km estimate is not
   // the same answer a receiver gives.
-  testWidgets('an internet fix is written and named as approximate',
+  testWidgets(
+      'an internet fix is offered, then written and named as approximate',
       (tester) async {
     final container = await _pumpSiteStep(
       tester,
@@ -384,6 +328,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
+    await acceptEstimate(tester);
 
     expect(
       container.read(appSettingsProvider).valueOrNull?.latitude,
@@ -454,6 +399,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
+    await acceptEstimate(tester);
 
     expect(find.textContaining(bannerBody), findsOneWidget);
 

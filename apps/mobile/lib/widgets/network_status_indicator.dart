@@ -543,11 +543,11 @@ class _ConnectionDetailsSheetState
     if (!mounted) return;
     if (server == null) {
       setState(() => _searching = false);
-      context.showInfoSnackBar(
-        discoveryError == null
-            ? 'No servers found on this network.'
-            : 'Server discovery failed: $discoveryError',
-      );
+      if (discoveryError == null) {
+        context.showInfoSnackBar('No servers found on this network.');
+      } else {
+        context.showErrorSnackBar('Server discovery failed: $discoveryError');
+      }
       return;
     }
     final connect = ref.read(rigConnectProvider);

@@ -159,7 +159,6 @@ void main() {
           backupServiceProvider.overrideWith(
             (ref) => BackupService(
               database: ref.watch(databaseProvider),
-              sequenceRepository: ref.watch(sequenceRepositoryProvider),
               logger: ref.watch(loggingServiceProvider),
               backupDirectoryProvider: () async => backupDir,
             ),
@@ -173,25 +172,24 @@ void main() {
       container.dispose();
     });
 
-    test('restored settings are what the next reader sees', () async {
+    test('a merge adds records, leaves the settings and says so', () async {
       final dao = container.read(settingsDaoProvider);
       final service = container.read(backupServiceProvider);
+      final database = container.read(databaseProvider);
 
       await dao.setSetting('bortle_class', '2');
-      await dao.setSetting('observer_name', 'restored-observer');
+      await database.customStatement(
+        "INSERT INTO targets (id, name, ra, dec) VALUES (4, 'In the backup', 1, 2)",
+      );
       final backupId = const Uuid().v4();
       final created = await service.createBackup(
         customPath: '${backupDir.path}/skotiq-backup-manual-$backupId.skbackup',
       );
       expect(created.success, isTrue, reason: created.errorMessage);
 
-      // Drift the live database away from the backup, then let the process
-      // take its in-memory snapshot — the restore must re-hydrate it.
       await dao.setSetting('bortle_class', '7');
-      await dao.setSetting('observer_name', 'stale-observer');
-      final stale = await container.read(appSettingsProvider.future);
-      expect(stale.bortleClass, 7);
-      expect(stale.observerName, 'stale-observer');
+      await database.customStatement('DELETE FROM targets');
+      expect((await container.read(appSettingsProvider.future)).bortleClass, 7);
 
       final response = await handlers.handleRestoreBackup(
         Request(
@@ -203,18 +201,101 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['status'], 'restored');
-
-      expect(await dao.getSetting('bortle_class'), '2');
-      final live = await container.read(appSettingsProvider.future);
-      expect(
-        live.bortleClass,
-        2,
-        reason:
-            'the in-memory settings must come from the restored database, '
-            'or the next write flushes the pre-restore snapshot back over it',
-      );
-      expect(live.observerName, 'restored-observer');
+      expect(body['mode'], 'merge');
+      expect(body['categoryCounts'], {'targets': 1});
+      expect(body['message'], contains('Your settings were not changed'));
       expect(body['reloaded'], isTrue);
+
+      expect(await dao.getSetting('bortle_class'), '7');
+      expect((await container.read(appSettingsProvider.future)).bortleClass, 7);
+      expect((await database.targetsDao.getAllTargets()).map((t) => t.name), [
+        'In the backup',
+      ]);
+
+      final state = await handlers.handleRestoreState(
+        Request('GET', Uri.parse('http://localhost/api/backup/restore-state')),
+      );
+      expect(jsonDecode(await state.readAsString()), {
+        'progress': null,
+        'pendingReplace': null,
+        'lastReplace': null,
+      });
     });
+
+    test(
+      'an uploaded copy of a backup that is here gets an id of its own',
+      () async {
+        final service = container.read(backupServiceProvider);
+        final backupId = const Uuid().v4();
+        final name = 'skotiq-backup-manual-$backupId.skbackup';
+        final created = await service.createBackup(
+          customPath: '${backupDir.path}/$name',
+        );
+        expect(created.success, isTrue, reason: created.errorMessage);
+        final bytes = File(created.filePath!).readAsBytesSync();
+
+        for (var copy = 0; copy < 2; copy++) {
+          final response = await handlers.handleUploadRestoreBackup(
+            Request(
+              'POST',
+              Uri.parse(
+                'http://localhost/api/backup/upload-restore?fileName=$name',
+              ),
+              body: bytes,
+            ),
+          );
+          expect(response.statusCode, HttpStatus.ok);
+        }
+
+        Future<List<Map>> list() async {
+          final response = await handlers.handleListBackups(
+            Request('GET', Uri.parse('http://localhost/api/backup/list')),
+          );
+          return ((jsonDecode(await response.readAsString()) as Map)['backups']
+                  as List)
+              .cast<Map>();
+        }
+
+        final listed = await list();
+        expect(listed, hasLength(3));
+        expect(listed.map((b) => b['id']).toSet(), hasLength(3));
+        expect(listed.map((b) => b['id']), contains(backupId));
+
+        // Each id is one file: deleting a copy leaves the original.
+        final copyId = listed.firstWhere((b) => b['id'] != backupId)['id'];
+        await handlers.handleDeleteBackup(
+          Request('DELETE', Uri.parse('http://localhost/api/backup/$copyId')),
+          copyId as String,
+        );
+        final left = await list();
+        expect(left, hasLength(2));
+        expect(left.map((b) => b['fileName']), contains(name));
+      },
+    );
+
+    test(
+      'two files that already share a UUID are listed under two ids',
+      () async {
+        final service = container.read(backupServiceProvider);
+        final backupId = const Uuid().v4();
+        final created = await service.createBackup(
+          customPath:
+              '${backupDir.path}/skotiq-backup-manual-$backupId.skbackup',
+        );
+        File(created.filePath!).copySync(
+          '${backupDir.path}/skotiq-backup-manual-${backupId}_upload_x.skbackup',
+        );
+        final response = await handlers.handleListBackups(
+          Request('GET', Uri.parse('http://localhost/api/backup/list')),
+        );
+        final ids = [
+          for (final b
+              in (jsonDecode(await response.readAsString()) as Map)['backups']
+                  as List)
+            (b as Map)['id'],
+        ];
+        expect(ids.toSet(), hasLength(2));
+      },
+    );
   });
 }

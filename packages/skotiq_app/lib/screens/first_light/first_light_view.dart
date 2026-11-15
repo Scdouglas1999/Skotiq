@@ -42,10 +42,7 @@ final _firstLightFilterProvider = StateProvider<FirstLightFilter>((ref) {
 /// endpoints over [NetworkBackend] on a companion tablet, so the surface is
 /// identical on desktop and mobile.
 class FirstLightView extends ConsumerWidget {
-  const FirstLightView({super.key, this.showHeader = true});
-
-  /// Whether to render the [ScreenHeader]. Off when embedded as a Science tab.
-  final bool showHeader;
+  const FirstLightView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,11 +52,6 @@ class FirstLightView extends ConsumerWidget {
 
     return Column(
       children: [
-        if (showHeader)
-          const ScreenHeader(
-            title: 'First light',
-            icon: SkotiqIcons.sparkle,
-          ),
         // First Light differences each frame against the atlas, so with
         // Your Sky off no new candidates arrive; earlier ones still list.
         if (ref.watch(skyAtlasEnabledProvider) == false)

@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
+import '../utils/intrinsic_safe_layout.dart';
 import 'skotiq_icon_button.dart';
 
 /// The four banner tones.
@@ -135,63 +136,73 @@ class SkotiqBanner extends StatelessWidget {
         color: toneColor.withValues(alpha: SkotiqTokens.opacityHairline),
         borderRadius: SkotiqTokens.borderRadiusSm,
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stacked =
-              actions.isNotEmpty &&
-              constraints.hasBoundedWidth &&
-              constraints.maxWidth < stackBelow;
-
-          final leading = Padding(
-            // The glyph is taller than one line of 13px text, so it is nudged
-            // down to sit on the first line rather than above it.
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon ?? _defaultIcon, size: iconSize, color: toneColor),
-          );
-
-          if (stacked) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                leading,
-                const SizedBox(width: gap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      text,
-                      const SizedBox(height: gap),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: <Widget>[
-                          for (var i = 0; i < actions.length; i++) ...<Widget>[
-                            if (i > 0) const SizedBox(width: gap - 2),
-                            actions[i],
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              leading,
-              const SizedBox(width: gap),
-              Expanded(child: text),
-              for (final widget in actions) ...<Widget>[
-                const SizedBox(width: gap - 2),
-                widget,
-              ],
-            ],
-          );
-        },
-      ),
+      // Only a banner with an action reads its width (to stack the action on a
+      // phone), and a LayoutBuilder cannot answer intrinsic queries, so that
+      // case is shielded and the plain banner is laid out directly. Either
+      // way the banner can sit in an AlertDialog.
+      child: actions.isEmpty
+          ? _row(_leading(toneColor), text, actions)
+          : IntrinsicSafeLayout(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.hasBoundedWidth &&
+                      constraints.maxWidth < stackBelow;
+                  return stacked
+                      ? _stacked(_leading(toneColor), text, actions)
+                      : _row(_leading(toneColor), text, actions);
+                },
+              ),
+            ),
     );
   }
+
+  /// The glyph is taller than one line of 13px text, so it is nudged down to
+  /// sit on the first line rather than above it.
+  Widget _leading(Color toneColor) => Padding(
+    padding: const EdgeInsets.only(top: 1),
+    child: Icon(icon ?? _defaultIcon, size: iconSize, color: toneColor),
+  );
+
+  Widget _stacked(Widget leading, Widget text, List<Widget> actions) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        leading,
+        const SizedBox(width: gap),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              text,
+              const SizedBox(height: gap),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  for (var i = 0; i < actions.length; i++) ...<Widget>[
+                    if (i > 0) const SizedBox(width: gap - 2),
+                    actions[i],
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(Widget leading, Widget text, List<Widget> actions) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: <Widget>[
+      leading,
+      const SizedBox(width: gap),
+      Expanded(child: text),
+      for (final widget in actions) ...<Widget>[
+        const SizedBox(width: gap - 2),
+        widget,
+      ],
+    ],
+  );
 }

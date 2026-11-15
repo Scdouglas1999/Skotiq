@@ -2153,6 +2153,7 @@
         if (EXPOSURE_DONE_EVENTS.has(type)) {
           cancelPendingImageFetch();
           fetchLastImage();
+          markGalleryFresh();
         }
         markPanelFresh('camera');
         break;
@@ -3681,11 +3682,7 @@
     previewFallback.status = 'reading';
     try {
       const resp = await api.imagesGetAll({ limit: 1 });
-      // Same two spellings the gallery accepts, for the same reason.
-      const named = resp && typeof resp === 'object' &&
-        Array.isArray(resp.items) && !Array.isArray(resp.images)
-        ? 'items' : 'images';
-      const rows = requireWireList(resp, named, 'Image listing');
+      const rows = requireWireList(resp, 'images', 'Image listing');
       previewFallback.item = rows.length ? rows[0] : null;
       previewFallback.error = '';
       previewFallback.status = 'read';
@@ -6066,8 +6063,6 @@
       const result = await api.plateSolve(filePath, hint);
       state.lastPlateSolve = result;
 
-      // A host from before a failed solve ended its job `failed` reports the
-      // failure inside a finished job's result.
       if (!result || !result.success) {
         throw new Error(
           result && result.error ? result.error : 'the solver found no solution',
@@ -7373,7 +7368,6 @@
   const gallery = {
     items: [],
     loading: false,
-    freshSinceLastView: 0,
     thumbnailObjectUrls: new Set(),
     modalPreviewUrl: '',
     modalLoadGeneration: 0,
@@ -7405,19 +7399,15 @@
         if (imageId) downloadGalleryOriginal(imageId, download);
       });
     }
-    // Listen for ExposureComplete events to surface the "NEW" badge.
-    api.on('event', (data) => {
-      const cat = data.category || data.event_category || '';
-      if (cat !== 'camera' && cat !== 'imaging') return;
-      const type = data.eventType || data.event || '';
-      if (!isExposureCompleteEvent(type)) return;
-      gallery.freshSinceLastView += 1;
-      const badge = document.getElementById('gallery-fresh-badge');
-      if (badge) {
-        badge.textContent = 'NEW';
-        badge.classList.remove('hidden-inline');
-      }
-    });
+  }
+
+  /** A frame finished since the gallery was last loaded: show its "NEW" badge. */
+  function markGalleryFresh() {
+    const badge = document.getElementById('gallery-fresh-badge');
+    if (badge) {
+      badge.textContent = 'NEW';
+      badge.classList.remove('hidden-inline');
+    }
   }
 
   async function refreshGalleryFromServer() {
@@ -7428,17 +7418,12 @@
     if (status) status.textContent = 'Loading recent images...';
     try {
       const resp = await api.imagesGetAll({ limit: 24 });
-      // `/api/images` names its listing `images`; `items` is accepted because
-      // an older build of the same route used that name. Neither present means
-      // the answer said nothing about this night's frames, and the branch
-      // below would print "No images captured yet." over it.
-      const named = resp && typeof resp === 'object' &&
-        Array.isArray(resp.items) && !Array.isArray(resp.images)
-        ? 'items' : 'images';
-      gallery.items = requireWireList(resp, named, 'Image listing');
+      // An answer with no `images` list said nothing about this night's
+      // frames, and the branch below would print "No images captured yet."
+      // over it.
+      gallery.items = requireWireList(resp, 'images', 'Image listing');
       renderGallery();
       if (status) status.textContent = galleryCountLine(gallery.items);
-      gallery.freshSinceLastView = 0;
       const badge = document.getElementById('gallery-fresh-badge');
       if (badge) badge.classList.add('hidden-inline');
     } catch (e) {
@@ -7463,9 +7448,9 @@
   // tiles on screen were rejects and the panel called them all "38 images
   // shown."
   //
-  // Absent is distinct from accepted: an older server, or a frame graded
-  // before the column existed, says nothing about the verdict, and the card
-  // must not invent one in either direction.
+  // Absent is distinct from accepted: a frame graded before the column
+  // existed says nothing about the verdict, and the card must not invent one
+  // in either direction.
   function galleryRejection(item) {
     if (!item || item.isAccepted !== false) return null;
     const reason = typeof item.rejectionReason === 'string'

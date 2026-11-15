@@ -87,7 +87,7 @@ Get server information and capabilities.
 }
 ```
 
-## Version Compatibility
+## Release check
 
 A client links only to a host of its own Skotiq release. `GET /api/info`
 reports the host's release as `version` and is answered to everyone.

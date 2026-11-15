@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 
 /// A retired settings key keeps its seeded value forever: nothing writes it,
-/// but `BackupService._exportSettings` dumps the whole `app_settings` table
-/// into every `.skbackup`, so the stale row is exported as if it were
+/// but every `.skbackup` holds the whole `app_settings` table, so the stale
+/// row is exported as if it were
 /// configuration. `auto_save_sequences` (seeded `'true'`) contradicts
 /// `autosave.sequence_enabled` (default `false`), the key the toggle shows and
 /// `AutoSaveService` obeys.

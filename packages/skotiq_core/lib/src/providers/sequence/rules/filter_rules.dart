@@ -20,8 +20,19 @@ Iterable<({SequenceNode node, String filter})> _filterUses(
 }
 
 /// The hint for a filter [available] does not list by that name: the one it
-/// does list for the same filter, when there is one.
+/// does list for the same filter, or the several it could mean, when there
+/// are any.
 String _filterHint(String filter, List<String> available, String otherwise) {
+  if (isAmbiguousFilter(filter, available)) {
+    final names = [
+      for (final i in filterSlotCandidates(filter, available))
+        '"${available[i]}"',
+    ];
+    final listed =
+        '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
+    return '$listed are ${names.length == 2 ? 'both' : 'all'} "$filter". '
+        'Change the step to name the one to use.';
+  }
   final match = matchingFilterName(filter, available);
   if (match == null) return otherwise;
   return '"$match" is the same filter. Use "Match filter names" to rename '

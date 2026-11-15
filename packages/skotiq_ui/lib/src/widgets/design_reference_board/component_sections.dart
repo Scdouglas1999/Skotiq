@@ -248,7 +248,7 @@ class _StatusAndFeedbackSection extends StatelessWidget {
   }
 }
 
-// Layout primitives (ScreenHeader / SectionHeader / SectionWell)
+// Layout primitives (SectionHeader / SectionWell)
 
 class _LayoutPrimitivesSection extends StatelessWidget {
   const _LayoutPrimitivesSection({required this.colors});
@@ -260,23 +260,6 @@ class _LayoutPrimitivesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SubLabel('ScreenHeader', colors: colors),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        ClipRRect(
-          borderRadius: SkotiqTokens.borderRadiusSm,
-          child: const ScreenHeader(
-            title: 'Sequencer',
-            subtitle: 'Build and run unattended imaging sequences',
-            icon: LucideIcons.listOrdered,
-            trailing: SkotiqButton(
-              label: 'Run',
-              icon: LucideIcons.play,
-              size: ButtonSize.small,
-              onPressed: _noop,
-            ),
-          ),
-        ),
-        const SizedBox(height: SkotiqTokens.spaceLg),
         _SubLabel('SectionHeader + SectionWell', colors: colors),
         const SizedBox(height: SkotiqTokens.spaceSm),
         SectionWell(

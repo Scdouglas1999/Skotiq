@@ -90,11 +90,7 @@ class _Host {
       typedWrites.add(settings);
     });
     when(
-      () => backend.mergeSettingsStore(
-        any(),
-        fallback: any(named: 'fallback'),
-        base: any(named: 'base'),
-      ),
+      () => backend.mergeSettingsStore(any(), base: any(named: 'base')),
     ).thenAnswer((invocation) async {
       final fields =
           invocation.positionalArguments.first

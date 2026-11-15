@@ -32,7 +32,9 @@ _MockNetworkBackend _link() {
   when(
     () => backend.eventStream,
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-  when(() => backend.getHostNightHistory()).thenAnswer((_) async => null);
+  when(
+    () => backend.getHostNightHistory(),
+  ).thenAnswer((_) async => <String, dynamic>{});
   return backend;
 }
 

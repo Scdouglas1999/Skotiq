@@ -10,8 +10,8 @@ part of '../network_backend.dart';
 /// providers in `replay_debug_provider.dart` reach these through
 /// `backend.remoteHost?.replayDebug`, which is null locally.
 ///
-/// Every method fails loud: a 404 from an older host (no replay endpoints)
-/// surfaces as a thrown error, never a false-empty list or fabricated
+/// Every method fails loud: a refused request surfaces as a thrown error,
+/// never a false-empty list or fabricated
 /// default, and each response is strictly decoded via the centralized
 /// [ReplayDecision.fromWireJson] / [ReplayDebugSettings.fromWireJson]
 /// codecs so a malformed payload throws rather than yielding a

@@ -12,7 +12,7 @@ import '../components/skotiq_checkbox.dart';
 import '../components/skotiq_progress_bar.dart';
 import '../components/skotiq_switch.dart';
 import '../components/skotiq_text_field.dart';
-import '../components/screen_header.dart';
+import '../components/section_header.dart';
 import '../components/status_dot.dart';
 import '../components/status_pill.dart';
 import '../theme/skotiq_chart_colors.dart';

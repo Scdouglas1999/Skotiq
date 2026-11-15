@@ -71,12 +71,20 @@ typedef _Field<T> = SettingField<AppSettingsState, T>;
 AppSettingsNotifier _settings(WidgetRef ref) =>
     ref.read(appSettingsProvider.notifier);
 
-final _defaultGain = _Field<int>(
-  label: 'Default gain',
-  read: (s) => s.defaultGain,
-  write: (ref, v) => _settings(ref).setDefaultGain(v),
-  codec: IntCodec.of(AppSettingDefs.defaultGain),
-);
+/// The default gain, or ISO for a DSLR or mirrorless body, bounded by what
+/// the connected camera reports it takes. With no camera connected only a
+/// negative value is refused.
+_Field<int> _defaultGain(ExposureSensitivity sensitivity) => _Field<int>(
+      label: 'Default ${sensitivity is IsoSensitivity ? 'ISO' : 'gain'}',
+      read: (s) => s.defaultGain,
+      write: (ref, v) => _settings(ref).setDefaultGain(v),
+      codec: IntCodec(
+        min: sensitivity.lowest ?? AppSettingDefs.defaultGain.inputMin!,
+        max: sensitivity.highest ?? _int32Max,
+      ),
+    );
+
+const _int32Max = 0x7fffffff;
 
 final _defaultOffset = _Field<int>(
   label: 'Default offset',
@@ -114,14 +122,16 @@ final _backlashIn = _Field<int>(
   codec: IntCodec.of(AppSettingDefs.afBacklashIn, unit: 'steps'),
 );
 
-class _CameraSettingsCard extends StatelessWidget {
+class _CameraSettingsCard extends ConsumerWidget {
   final AppSettingsState settings;
 
   const _CameraSettingsCard({required this.settings});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    final defaultGain = _defaultGain(sensitivity);
     return SkotiqPanel(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -134,15 +144,25 @@ class _CameraSettingsCard extends StatelessWidget {
                   .copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: 16),
-            _SettingRow(
-              label: _defaultGain.label,
-              child: SettingsField(field: _defaultGain, state: settings),
-            ),
-            const SizedBox(height: 12),
-            _SettingRow(
-              label: _defaultOffset.label,
-              child: SettingsField(field: _defaultOffset, state: settings),
-            ),
+            if (sensitivity.hasGain)
+              _SettingRow(
+                label: defaultGain.label,
+                child: SettingsField(field: defaultGain, state: settings),
+              ),
+            if (sensitivity.hasGain && sensitivity.hasOffset)
+              const SizedBox(height: 12),
+            if (sensitivity.hasOffset)
+              _SettingRow(
+                label: _defaultOffset.label,
+                child: SettingsField(field: _defaultOffset, state: settings),
+              ),
+            if (!sensitivity.hasGain && !sensitivity.hasOffset)
+              Text(
+                'The connected camera has no gain or offset control.',
+                style: SkotiqTypography.caption.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
           ],
         ),
       ),

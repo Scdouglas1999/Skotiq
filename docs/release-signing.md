@@ -1,10 +1,18 @@
 # Release Signing
 
 Skotiq's release pipeline (`.github/workflows/release.yml`) has three
-independent signing tracks. **Every track is fail-closed: if its secret is
-absent the build still succeeds but ships unsigned/fail-closed-disabled. A
-secret that is _present but broken_ fails the build loudly rather than silently
-downgrading.**
+independent signing tracks. **A published release is always signed:** a tag
+push, or a dispatch with `release_tag`, is refused before any build unless
+every Android and update signing credential is configured
+(`scripts/release_policy.py`), whatever the channel in `version.yaml`. A
+`workflow_dispatch` without `release_tag` is a build-only validation run and
+gets **no** signing material at all: its APKs are debug-signed, its OTA
+manifests unsigned and its Windows binaries unsigned, so nothing it builds can
+be published as, or installed over, a release. A secret that is _present but
+broken_ fails the build loudly rather than silently downgrading.
+
+The commit a release is built from is gated too; see
+[`docs/branch-protection.md`](./branch-protection.md) section 3.
 
 Private signing material is kept outside the repo. The workflow reads the
 GitHub Actions secrets below from **Settings → Secrets and variables → Actions**.
@@ -16,11 +24,11 @@ public-key secret. Keep both public keys matched to the private signing seed.
 
 | Secret | Track | Consumer | Absent → behavior |
 | --- | --- | --- | --- |
-| `SKOTIQ_UPDATE_PUBLIC_KEY` | OTA | The Windows, Linux and Android jobs bake it into the app via `--dart-define` on `flutter build windows`, `flutter build linux` and `flutter build apk` | Empty define → runtime OTA stays fail-closed-disabled (the app refuses every update). Build succeeds. |
-| `SKOTIQ_UPDATE_PRIVATE_KEY` | OTA | `packages/skotiq_updater/tool/build_update_manifest.dart` signs the canonical manifest payload on every platform (Windows reaches it through `scripts/build_update_package.ps1`) | Manifest emitted unsigned → no build can apply it (fail-closed). Build succeeds. |
-| `WINDOWS_SIGNING_CERT_BASE64` | Authenticode | "Authenticode sign (optional)" step signs every `*.exe`/`*.dll` in the Release tree | Step skips → unsigned beta (SmartScreen prompt). |
+| `SKOTIQ_UPDATE_PUBLIC_KEY` | OTA | The Windows and Linux jobs bake it into the app via `--dart-define` through `scripts/build.dart`; the Android job passes it to `scripts/build_android_ci.py`, which adds the define to each per-ABI `flutter build apk` | Release refused. In a build-only run an empty define falls back to the key built into `update_verifier.dart`. |
+| `SKOTIQ_UPDATE_PRIVATE_KEY` | OTA | `packages/skotiq_updater/tool/build_update_manifest.dart` signs the canonical manifest payload on every platform (Windows reaches it through `scripts/build_update_package.ps1`) | Release refused. Never given to a build-only run, whose manifests are unsigned, so no install applies them. |
+| `WINDOWS_SIGNING_CERT_BASE64` | Authenticode | "Authenticode sign (optional)" step signs every `*.exe`/`*.dll` in the Release tree | Step skips → unsigned binaries (SmartScreen prompt). Not required for a release; never given to a build-only run. |
 | `WINDOWS_SIGNING_CERT_PASSWORD` | Authenticode | PFX password for `signtool` | Only used when the cert is present. |
-| `ANDROID_KEYSTORE_BASE64` | Android | "Decode release keystore" step writes `$RUNNER_TEMP/release.jks` and exports `KEYSTORE_FILE` | `KEYSTORE_FILE` unset → `build.gradle.kts` falls back to the debug keystore (debug-signed beta). |
+| `ANDROID_KEYSTORE_BASE64` | Android | "Decode release keystore" step writes `$RUNNER_TEMP/release.jks` and exports `KEYSTORE_FILE` | Release refused. A build-only run never gets it: `KEYSTORE_FILE` stays unset and `build.gradle.kts` falls back to the debug keystore. |
 | `ANDROID_KEYSTORE_PASSWORD` | Android | gradle env `KEYSTORE_PASSWORD` | Required when `KEYSTORE_FILE` is set, else gradle throws. |
 | `ANDROID_KEY_ALIAS` | Android | gradle env `KEY_ALIAS` | Required when `KEYSTORE_FILE` is set, else gradle throws. |
 | `ANDROID_KEY_PASSWORD` | Android | gradle env `KEY_PASSWORD` | Required when `KEYSTORE_FILE` is set, else gradle throws. |
@@ -48,8 +56,8 @@ The two secrets have to be a pair. Before publishing, the release workflow runs
 manifest it is about to attach, with the same verifier the apps run and the
 public key they were built with. It fails the release when a manifest does not
 verify against that key, when its package is not the attached file, when its
-download URL points somewhere other than this release, or (once the private key
-is set) when a manifest is unsigned. This matters more than any other check in
+download URL points somewhere other than this release, or, for a release,
+when a manifest is unsigned. This matters more than any other check in
 the release: a build whose compiled-in key does not match the signing key
 refuses every later update, and can only be replaced by a manual reinstall.
 
@@ -78,8 +86,10 @@ base64 -w0 release.jks            # -> ANDROID_KEYSTORE_BASE64
 # key password   -> ANDROID_KEY_PASSWORD
 ```
 
-The release job builds **per-ABI** APKs (`flutter build apk --release
---split-per-abi`): `armeabi-v7a`, `arm64-v8a`, `x86_64`, published as
+The release job builds **per-ABI** APKs through `scripts/build_android_ci.py`
+(one `flutter build apk --release --split-per-abi --target-platform=<abi>` per
+ABI, each with the update public key): `armeabi-v7a`, `arm64-v8a`, `x86_64`,
+published as
 `skotiq-<version>-android-<abi>.apk`. These are sideload artifacts; all
 splits share one `versionCode`. Distinct per-ABI `versionCode`s are only needed
 for a Play Store upload and are intentionally out of scope here.
@@ -127,10 +137,14 @@ curl -sSL https://github.com/<owner>/<repo>/releases/download/v<version>/manifes
 
 ## Fail-closed contract (summary)
 
-- No `SKOTIQ_UPDATE_PUBLIC_KEY` → app cannot authenticate any update; OTA off.
-- No `SKOTIQ_UPDATE_PRIVATE_KEY` → manifest unsigned; no app applies it.
-- No `WINDOWS_SIGNING_CERT_BASE64` → Windows binaries unsigned (beta).
-- No `ANDROID_KEYSTORE_BASE64` → APKs debug-signed (beta).
+- A release (tag push, or dispatch with `release_tag`) without the update key
+  pair or the Android keystore and its three credentials → refused in the
+  `version` job, before anything is built.
+- A build-only dispatch → no signing material: unsigned manifests (no install
+  applies them), debug-signed APKs, unsigned Windows binaries. It is never
+  published.
+- No `WINDOWS_SIGNING_CERT_BASE64` → Windows binaries unsigned in a release
+  too; OTA signatures are checked separately.
 - Secret **present but broken** (bad cert, missing keystore creds, wrong key) →
   the build **fails loudly**; it never silently produces an unsigned/downgraded
   "release".

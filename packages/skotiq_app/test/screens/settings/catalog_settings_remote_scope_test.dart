@@ -22,8 +22,24 @@ class _PinnedBackendNotifier extends BackendNotifier {
   _PinnedBackendNotifier(super.ref, SkotiqBackend backend) {
     // ignore: invalid_use_of_protected_member
     state = backend;
+    latest = this;
   }
+
+  static _PinnedBackendNotifier? latest;
+
+  // ignore: invalid_use_of_protected_member
+  void use(SkotiqBackend backend) => state = backend;
 }
+
+RemoteCatalogStatusResponse _rigWith(String status) =>
+    RemoteCatalogStatusResponse(
+      catalogs: [
+        for (final name in ['stars', 'dso', 'annotation'])
+          RemoteCatalogStatus(name: name, status: status),
+      ],
+      totalBytes: 0,
+      dataDir: '/var/lib/skotiq/catalogs',
+    );
 
 Future<void> _pump(WidgetTester tester, {SkotiqBackend? backend}) async {
   tester.view.devicePixelRatio = 1.0;
@@ -142,6 +158,30 @@ void main() {
         find.textContaining(
             'Plate solving, framing and annotation run on the rig'),
         findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switching rigs shows the new rig\'s catalogs, not the last one\'s',
+      (tester) async {
+    final first = _MockNetworkBackend();
+    when(() => first.getCatalogStatus())
+        .thenAnswer((_) async => _rigWith('installed'));
+    final second = _MockNetworkBackend();
+    when(() => second.getCatalogStatus())
+        .thenAnswer((_) async => _rigWith('missing'));
+    await _pump(tester, backend: first);
+    expect(find.text('On the rig'), findsNWidgets(3));
+
+    _PinnedBackendNotifier.latest!.use(second);
+    for (var attempt = 0; attempt < 10; attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+
+    expect(find.text('On the rig'), findsNothing);
+    expect(find.text('Not on the rig'), findsNWidgets(3));
     expect(tester.takeException(), isNull);
   });
 

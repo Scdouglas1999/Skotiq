@@ -200,11 +200,6 @@ class GeolocationService {
   static Future<(double latitude, double longitude, String? locationName)?>
   fetchLocation() async => _tupleOf((await _internetFix()).fix);
 
-  /// A labeled, approximate internet estimate, without requesting OS
-  /// permissions, scanning nearby Wi-Fi networks, or changing the radio.
-  static Future<PositioningResult?> fetchInternetEstimate() async =>
-      (await _internetFix()).fix;
-
   /// Look up a town, observatory, or address by name.
   ///
   /// This is the accurate desktop path: a wired observatory PC has no GPS and

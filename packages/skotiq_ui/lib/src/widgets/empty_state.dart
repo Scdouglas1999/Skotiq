@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../components/skotiq_button.dart';
 import '../theme/skotiq_colors.dart';
+import '../theme/skotiq_icons.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
 
 /// The ONE empty-state pattern: a 28px muted glyph, a title, one sentence and
-/// one button, centred in whatever container it was given.
+/// one button, centred in whatever container it was given. A load that failed
+/// is the same pattern with a Retry button ([EmptyState.error]).
 ///
 /// Padding is internal and fixed — 24 all round, 16 in [EmptyState.compact] —
 /// because an empty state that each screen pads differently stops being one
@@ -26,6 +29,24 @@ class EmptyState extends StatelessWidget {
     this.body,
     this.action,
   }) : _padding = const EdgeInsets.all(SkotiqTokens.space2xl),
+       _iconTitleGap = iconTitleGap;
+
+  /// What a list or panel shows when its data could not be loaded: the error
+  /// glyph, [title], the reason in [body] and a Retry button.
+  EmptyState.error({
+    super.key,
+    this.title = 'Could not load this',
+    this.body,
+    required VoidCallback onRetry,
+  }) : icon = SkotiqIcons.error,
+       action = SkotiqButton(
+         label: 'Retry',
+         icon: SkotiqIcons.refresh,
+         variant: ButtonVariant.secondary,
+         size: ButtonSize.small,
+         onPressed: onRetry,
+       ),
+       _padding = const EdgeInsets.all(SkotiqTokens.space2xl),
        _iconTitleGap = iconTitleGap;
 
   /// Tighter variant for side panels and embedded slots.

@@ -1,11 +1,7 @@
-// P1 DATA-LOSS GUARD — restore must validate the ENTIRE backup payload
-// before it touches (wipes) the live database.
-//
-// These tests prove that a corrupt / truncated / wrong-shaped backup file
-// aborts the restore with the user's live equipment profiles, targets, and
-// sequences fully intact — i.e. `_clearAllData` is never reached when the
-// payload is invalid. The happy-path test confirms a well-formed backup still
-// round-trips and replaces data as before.
+// A backup file that is corrupt, cut short or wrong-shaped fails while it is
+// being read into a database of its own, with the live equipment profiles,
+// targets and sequences as they were. A well-formed one replaces them at the
+// next start.
 
 import 'dart:convert';
 import 'dart:io';
@@ -15,6 +11,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
+
+import 'backup_restore_support.dart';
 import 'package:path/path.dart' as p;
 
 LoggingService _testLogger(Directory tempDir) {
@@ -47,11 +45,8 @@ void main() {
       }
     });
 
-    BackupService serviceFor(SkotiqDatabase d) => BackupService(
-      database: d,
-      sequenceRepository: LocalSequenceRepository(d.sequencesDao),
-      logger: logger,
-    );
+    BackupService serviceFor(SkotiqDatabase d) =>
+        BackupService(database: d, logger: logger);
 
     /// Seed one profile and one target so we can prove they survive an
     /// aborted restore.
@@ -77,8 +72,7 @@ void main() {
     test('missing version aborts without wiping live data', () async {
       await seedLiveData();
 
-      // replaceExisting:true would normally wipe the DB. A version-less
-      // payload must abort BEFORE that.
+      // A replace is the restore that would take the most away.
       final backupFile = await writeBackup(
         jsonEncode({
           'equipmentProfiles': [
@@ -89,7 +83,7 @@ void main() {
 
       final result = await serviceFor(
         db,
-      ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
+      ).restoreBackup(filePath: backupFile.path, mode: RestoreMode.replace);
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('version'));
@@ -107,7 +101,7 @@ void main() {
       await seedLiveData();
       final backup = await writeBackup(
         jsonEncode({
-          'version': '3.1',
+          'version': '3.2',
           'settings': <String, dynamic>{},
           'equipmentProfiles': <Object>[],
           'sequences': <Object>[],
@@ -117,7 +111,7 @@ void main() {
 
       final result = await serviceFor(
         db,
-      ).restoreBackup(filePath: backup.path, replaceExisting: true);
+      ).restoreBackup(filePath: backup.path, mode: RestoreMode.replace);
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('newer than supported'));
@@ -141,7 +135,7 @@ void main() {
 
         final result = await serviceFor(
           db,
-        ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
+        ).restoreBackup(filePath: backupFile.path, mode: RestoreMode.replace);
 
         expect(result.success, isFalse);
         expect(result.errorMessage, contains('targets'));
@@ -167,7 +161,7 @@ void main() {
 
       final result = await serviceFor(
         db,
-      ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
+      ).restoreBackup(filePath: backupFile.path, mode: RestoreMode.replace);
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('name'));
@@ -194,7 +188,7 @@ void main() {
 
       final result = await serviceFor(
         db,
-      ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
+      ).restoreBackup(filePath: backupFile.path, mode: RestoreMode.replace);
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('sequences'));
@@ -210,7 +204,7 @@ void main() {
 
       final result = await serviceFor(
         db,
-      ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
+      ).restoreBackup(filePath: backupFile.path, mode: RestoreMode.replace);
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('JSON'));
@@ -221,11 +215,7 @@ void main() {
       expect(targets, hasLength(1));
     });
 
-    test('valid backup still replaces live data on replaceExisting', () async {
-      await seedLiveData();
-
-      // Build a real backup from a source DB so the payload is structurally
-      // perfect, then restore it over the seeded live DB with replace.
+    test('a valid backup replaces the live data at the next start', () async {
       final srcDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(srcDb.close);
       await srcDb.equipmentProfilesDao.createProfile(
@@ -234,30 +224,31 @@ void main() {
       await srcDb.targetsDao.createTarget(
         TargetsCompanion.insert(name: 'M42', ra: 5.6, dec: -5.4),
       );
-
       final backupFile = File(p.join(tempDir.path, 'good.skbackup'));
       final backupResult = await serviceFor(
         srcDb,
       ).createBackup(customPath: backupFile.path);
       expect(backupResult.success, isTrue, reason: backupResult.errorMessage);
 
-      final result = await serviceFor(
-        db,
-      ).restoreBackup(filePath: backupFile.path, replaceExisting: true);
-      expect(result.success, isTrue, reason: result.errorMessage);
-
-      final profiles = await db.equipmentProfilesDao.getAllProfiles();
-      final names = profiles.map((e) => e.name).toSet();
-      expect(names, contains('Restored Rig'));
-      expect(
-        names,
-        isNot(contains('Live Rig')),
-        reason: 'replaceExisting wiped the old profile after validation',
+      final replaced = await replacedDatabase(
+        tempDir,
+        backupFile.path,
+        logger,
+        seed: (live) async {
+          await live.equipmentProfilesDao.createProfile(
+            EquipmentProfilesCompanion.insert(name: 'Live Rig'),
+          );
+          await live.targetsDao.createTarget(
+            TargetsCompanion.insert(name: 'M31', ra: 0.7, dec: 41.3),
+          );
+        },
       );
+      addTearDown(replaced.close);
 
-      final targets = await db.targetsDao.getAllTargets();
-      final tNames = targets.map((t) => t.name).toSet();
-      expect(tNames, contains('M42'));
+      final profiles = await replaced.equipmentProfilesDao.getAllProfiles();
+      expect(profiles.map((e) => e.name), ['Restored Rig']);
+      final targets = await replaced.targetsDao.getAllTargets();
+      expect(targets.map((t) => t.name), ['M42']);
     });
   });
 }

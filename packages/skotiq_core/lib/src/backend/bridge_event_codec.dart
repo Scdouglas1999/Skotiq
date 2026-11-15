@@ -1,6 +1,7 @@
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../models/backend/event_types.dart' as core;
+import '../services/logging_service.dart';
 
 /// The two forms an event takes: the typed union the native side sends
 /// ([bridge.SkotiqEvent]) and the event type plus data map that travels
@@ -50,16 +51,37 @@ bridge.SkotiqEvent? _decode(core.SkotiqEvent event) {
       event.data,
       severity: severity,
     );
-  } on FormatException {
+  } on FormatException catch (error) {
+    _reportUndecodable(event, error.message);
     return null;
   }
-  if (payload == null) return null;
+  if (payload == null) {
+    _reportUndecodable(event, 'no event of that type in this release');
+    return null;
+  }
   return bridge.SkotiqEvent(
     eventId: BigInt.from(event.timestamp),
     timestamp: event.timestamp,
     severity: severity,
     category: category,
     payload: payload,
+  );
+}
+
+/// The event kinds already reported as undecodable, so a kind that arrives
+/// several times a second is logged once.
+final Set<String> _reportedUndecodable = <String>{};
+
+/// Host and client run the same release and share one codec, so an event this
+/// build cannot read is a defect: every reader of it misses it, a `Stopped`
+/// included.
+void _reportUndecodable(core.SkotiqEvent event, String why) {
+  final kind = '${event.category.name}/${event.eventType}';
+  if (!_reportedUndecodable.add(kind)) return;
+  Log.warning(
+    'Dropped a $kind event this build cannot read ($why). Later $kind '
+    'events that cannot be read are dropped without another line.',
+    source: 'BridgeEventCodec',
   );
 }
 
