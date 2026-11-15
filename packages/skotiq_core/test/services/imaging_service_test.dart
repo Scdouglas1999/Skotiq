@@ -460,7 +460,6 @@ void main() {
   group('ImagingService Capture Pipeline', () {
     late ProviderContainer container;
     late MockBackend mockBackend;
-    late TestBackendNotifier backendNotifier;
     late StreamController<SkotiqEvent> eventStreamController;
 
     setUp(() {
@@ -481,7 +480,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           backendProvider.overrideWith(
-            (ref) => backendNotifier = TestBackendNotifier(ref, mockBackend),
+            (ref) => TestBackendNotifier(ref, mockBackend),
           ),
           // Set camera as connected with a device ID
           cameraStateProvider.overrideWith((ref) {

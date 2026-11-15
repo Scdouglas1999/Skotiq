@@ -171,7 +171,8 @@ String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
     // Telemetry the night log leaves out by this title.
     EquipmentEvent_CameraTemperatureChanged() => 'Camera temperature',
     EquipmentEvent_CameraSettingsChanged() => 'Camera settings',
-    EquipmentEvent_CameraRetainedCapturesChanged() => 'Captures kept on the camera',
+    EquipmentEvent_CameraRetainedCapturesChanged() =>
+      'Captures kept on the camera',
     EquipmentEvent_HeartbeatStarted() => 'Heartbeat started',
     EquipmentEvent_HeartbeatStopped() => 'Heartbeat stopped',
     EquipmentEvent_HeartbeatStatusChanged() => 'Heartbeat status',
