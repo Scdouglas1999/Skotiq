@@ -5,6 +5,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
+import 'package:skotiq_ui/skotiq_ui.dart';
+
 import '../../../utils/snackbar_helper.dart';
 
 /// The run checkpoint that can be continued, or null. A run that was stopped,
@@ -68,14 +70,16 @@ class ContinueRunButton extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final frames = info.completedExposures;
-    return IconButton(
-      onPressed: () => _restore(context, ref, info),
-      icon: const Icon(LucideIcons.playCircle, size: 16),
-      tooltip: 'Continue this run from frame $frames. Nothing moves until '
+    return Tooltip(
+      message: 'Loads this run again at frame $frames. Nothing moves until '
           'you press Start.',
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      child: SkotiqButton(
+        label: 'Continue run',
+        icon: LucideIcons.playCircle,
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: () => _restore(context, ref, info),
+      ),
     );
   }
 

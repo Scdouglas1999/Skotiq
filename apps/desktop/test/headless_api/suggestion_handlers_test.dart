@@ -99,17 +99,6 @@ void main() {
       expect(body['field'], field, reason: qs);
     }
 
-    test(
-      'minAltitude: malformed / NaN / infinity / out-of-range → 400',
-      () async {
-        await expectBadField('?minAltitude=abc', 'minAltitude');
-        await expectBadField('?minAltitude=NaN', 'minAltitude');
-        await expectBadField('?minAltitude=Infinity', 'minAltitude');
-        await expectBadField('?minAltitude=-91', 'minAltitude');
-        await expectBadField('?minAltitude=91', 'minAltitude');
-      },
-    );
-
     test('minScore: malformed / NaN / out-of-range → 400', () async {
       await expectBadField('?minScore=abc', 'minScore');
       await expectBadField('?minScore=NaN', 'minScore');
@@ -183,8 +172,8 @@ void main() {
       'valid boundary + enum + normalized values are accepted (200)',
       () async {
         for (final qs in [
-          '?minAltitude=-90&minScore=0&maxResults=1',
-          '?minAltitude=90&minScore=100&maxResults=1000',
+          '?minScore=0&maxResults=1',
+          '?minScore=100&maxResults=1000',
           '?sortMode=leastDataCollected&prioritizeIncomplete=false',
           '?sortMode=nearestTransit&prioritizeIncomplete=true',
           '?objectTypes=Galaxy,,Nebula', // blank entries are normalized away
@@ -230,7 +219,7 @@ void main() {
     test(
       'returns the ranking the host screen shows, readable by a client',
       () async {
-        final r = await ranked('?minAltitude=0&minScore=0');
+        final r = await ranked('?minScore=0');
         expect(r.statusCode, HttpStatus.ok);
         final body = jsonDecode(await r.readAsString()) as Map<String, dynamic>;
         final rows = (body['suggestions'] as List).cast<Map<String, dynamic>>();
@@ -238,7 +227,7 @@ void main() {
 
         final local = await container.read(
           localTonightSuggestionsProvider(
-            const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+            const TargetSuggestionConfig(minScore: 0),
           ).future,
         );
         final decoded = rows.map(TargetSuggestion.fromJson).toList();

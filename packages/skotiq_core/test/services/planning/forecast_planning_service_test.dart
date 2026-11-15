@@ -14,10 +14,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/site/altitude_floor.dart';
 import 'package:skotiq_core/src/models/weather/radar_frame.dart';
 import 'package:skotiq_core/src/services/planning/forecast_planning_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/src/services/weather/radar_provider.dart';
+
+/// No horizon set and a 30 degree minimum altitude.
+const minimum30 = AltitudeFloor(horizon: null, minimumDeg: 30);
 
 void main() {
   // Mid-latitude site with long winter nights, so the dark window is several
@@ -89,7 +93,6 @@ void main() {
     name: 'Polaris-ish',
     raHours: 6.0,
     decDegrees: 75.0,
-    minAltitudeDeg: 30.0,
   );
 
   // A deep-southern target that never rises above 30° at lat 40
@@ -99,11 +102,14 @@ void main() {
     name: 'Deep South',
     raHours: 12.0,
     decDegrees: -60.0,
-    minAltitudeDeg: 30.0,
   );
 
   ForecastPlanningService service() =>
-      ForecastPlanningService(latitudeDegrees: lat, longitudeDegrees: lon);
+      ForecastPlanningService(
+        latitudeDegrees: lat,
+        longitudeDegrees: lon,
+        floor: minimum30,
+      );
 
   group('construction', () {
     test('rejects a cloud threshold outside [0,1]', () {
@@ -111,6 +117,7 @@ void main() {
         () => ForecastPlanningService(
           latitudeDegrees: lat,
           longitudeDegrees: lon,
+          floor: minimum30,
           cloudClearThreshold: 1.5,
         ),
         throwsArgumentError,
@@ -119,6 +126,7 @@ void main() {
         () => ForecastPlanningService(
           latitudeDegrees: lat,
           longitudeDegrees: lon,
+          floor: minimum30,
           cloudClearThreshold: -0.1,
         ),
         throwsArgumentError,
@@ -291,6 +299,7 @@ void main() {
       final polarService = ForecastPlanningService(
         latitudeDegrees: 78.0,
         longitudeDegrees: 15.0,
+        floor: minimum30,
       );
       final polarNoon = DateTime(2026, 6, 21, 12);
       // Frames are irrelevant (no dark hours to sample) but must be non-empty
@@ -443,7 +452,6 @@ void main() {
             name: 'T$i',
             raHours: 6.0,
             decDegrees: 50.0 + i * 2.0, // 50..62
-            minAltitudeDeg: 20.0,
           ),
       ];
 

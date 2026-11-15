@@ -617,6 +617,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
 
   @protected
+  List<RetainedCaptureInfo> dco_decode_list_retained_capture_info(dynamic raw);
+
+  @protected
   List<SchedulerScoreEntry> dco_decode_list_scheduler_score_entry(dynamic raw);
 
   @protected
@@ -650,6 +653,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MountMotionFaultInfo dco_decode_mount_motion_fault_info(dynamic raw);
+
+  @protected
+  MountMoveGuider dco_decode_mount_move_guider(dynamic raw);
 
   @protected
   MountPositionUnknownInfo dco_decode_mount_position_unknown_info(dynamic raw);
@@ -839,6 +845,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, int) dco_decode_record_string_u_32(dynamic raw);
+
+  @protected
+  RetainedCaptureInfo dco_decode_retained_capture_info(dynamic raw);
 
   @protected
   RotatorCapabilities dco_decode_rotator_capabilities(dynamic raw);
@@ -1634,6 +1643,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RetainedCaptureInfo> sse_decode_list_retained_capture_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SchedulerScoreEntry> sse_decode_list_scheduler_score_entry(
     SseDeserializer deserializer,
   );
@@ -1677,6 +1691,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountMotionFaultInfo sse_decode_mount_motion_fault_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  MountMoveGuider sse_decode_mount_move_guider(SseDeserializer deserializer);
 
   @protected
   MountPositionUnknownInfo sse_decode_mount_position_unknown_info(
@@ -1916,6 +1933,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
+
+  @protected
+  RetainedCaptureInfo sse_decode_retained_capture_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RotatorCapabilities sse_decode_rotator_capabilities(
@@ -2936,6 +2958,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_record_string_u_32(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_record_string_u_32(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_retained_capture_info>
+  cst_encode_list_retained_capture_info(List<RetainedCaptureInfo> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_retained_capture_info(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_retained_capture_info(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4106,8 +4139,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.cooler_power = cst_encode_opt_box_autoadd_f_64(apiObj.coolerPower);
     wireObj.target_temp = cst_encode_opt_box_autoadd_f_64(apiObj.targetTemp);
     wireObj.cooler_on = cst_encode_opt_box_autoadd_bool(apiObj.coolerOn);
-    wireObj.gain = cst_encode_i_32(apiObj.gain);
-    wireObj.offset = cst_encode_i_32(apiObj.offset);
+    wireObj.gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
+    wireObj.offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
     wireObj.bin_x = cst_encode_i_32(apiObj.binX);
     wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.sensor_width = cst_encode_u_32(apiObj.sensorWidth);
@@ -4639,9 +4672,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is EquipmentEvent_CameraSettingsChanged) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_gain = cst_encode_i_32(apiObj.gain);
+      var pre_gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
       var pre_gain_is_iso = cst_encode_bool(apiObj.gainIsIso);
-      var pre_offset = cst_encode_i_32(apiObj.offset);
+      var pre_offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
       var pre_bin_x = cst_encode_i_32(apiObj.binX);
       var pre_bin_y = cst_encode_i_32(apiObj.binY);
       wireObj.tag = 23;
@@ -4653,11 +4686,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.CameraSettingsChanged.bin_y = pre_bin_y;
       return;
     }
+    if (apiObj is EquipmentEvent_CameraRetainedCapturesChanged) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_count = cst_encode_u_32(apiObj.count);
+      wireObj.tag = 24;
+      wireObj.kind.CameraRetainedCapturesChanged.device_id = pre_device_id;
+      wireObj.kind.CameraRetainedCapturesChanged.count = pre_count;
+      return;
+    }
     if (apiObj is EquipmentEvent_HeartbeatStarted) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_interval_secs = cst_encode_u_64(apiObj.intervalSecs);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.HeartbeatStarted.device_type = pre_device_type;
       wireObj.kind.HeartbeatStarted.device_id = pre_device_id;
       wireObj.kind.HeartbeatStarted.interval_secs = pre_interval_secs;
@@ -4666,7 +4707,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_HeartbeatStopped) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.HeartbeatStopped.device_type = pre_device_type;
       wireObj.kind.HeartbeatStopped.device_id = pre_device_id;
       return;
@@ -4679,7 +4720,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.consecutiveFailures,
       );
       var pre_last_rtt_ms = cst_encode_opt_box_autoadd_u_64(apiObj.lastRttMs);
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.HeartbeatStatusChanged.device_type = pre_device_type;
       wireObj.kind.HeartbeatStatusChanged.device_id = pre_device_id;
       wireObj.kind.HeartbeatStatusChanged.status = pre_status;
@@ -4693,7 +4734,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_attempt = cst_encode_u_32(apiObj.attempt);
       var pre_max_attempts = cst_encode_u_32(apiObj.maxAttempts);
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.HeartbeatReconnecting.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnecting.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnecting.attempt = pre_attempt;
@@ -4704,7 +4745,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_after_attempts = cst_encode_u_32(apiObj.afterAttempts);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.HeartbeatReconnected.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnected.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnected.after_attempts = pre_after_attempts;
@@ -4717,7 +4758,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_name = cst_encode_String(apiObj.name);
       var pre_display_name = cst_encode_String(apiObj.displayName);
       var pre_unique_id = cst_encode_opt_String(apiObj.uniqueId);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.DeviceDiscovered.device_class = pre_device_class;
       wireObj.kind.DeviceDiscovered.driver = pre_driver;
       wireObj.kind.DeviceDiscovered.id = pre_id;
@@ -4730,7 +4771,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_class = cst_encode_String(apiObj.deviceClass);
       var pre_driver = cst_encode_String(apiObj.driver);
       var pre_id = cst_encode_String(apiObj.id);
-      wireObj.tag = 30;
+      wireObj.tag = 31;
       wireObj.kind.DeviceLost.device_class = pre_device_class;
       wireObj.kind.DeviceLost.driver = pre_driver;
       wireObj.kind.DeviceLost.id = pre_id;
@@ -5540,6 +5581,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_mount_move_guider(
+    MountMoveGuider apiObj,
+    wire_cst_mount_move_guider wireObj,
+  ) {
+    if (apiObj is MountMoveGuider_Idle) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Stopped) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Unanswered) {
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 2;
+      wireObj.kind.Unanswered.reason = pre_reason;
+      return;
+    }
+    if (apiObj is MountMoveGuider_Refused) {
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 3;
+      wireObj.kind.Refused.reason = pre_reason;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_mount_position_unknown_info(
     MountPositionUnknownInfo apiObj,
     wire_cst_mount_position_unknown_info wireObj,
@@ -5855,6 +5923,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.field0 = cst_encode_String(apiObj.$1);
     wireObj.field1 = cst_encode_u_32(apiObj.$2);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_retained_capture_info(
+    RetainedCaptureInfo apiObj,
+    wire_cst_retained_capture_info wireObj,
+  ) {
+    wireObj.device_id = cst_encode_String(apiObj.deviceId);
+    wireObj.camera_name = cst_encode_String(apiObj.cameraName);
+    wireObj.location = cst_encode_String(apiObj.location);
+    wireObj.in_camera_memory = cst_encode_bool(apiObj.inCameraMemory);
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.retained_at_ms = cst_encode_i_64(apiObj.retainedAtMs);
   }
 
   @protected
@@ -8182,6 +8263,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_retained_capture_info(
+    List<RetainedCaptureInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_scheduler_score_entry(
     List<SchedulerScoreEntry> self,
     SseSerializer serializer,
@@ -8244,6 +8331,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_mount_motion_fault_info(
     MountMotionFaultInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_move_guider(
+    MountMoveGuider self,
     SseSerializer serializer,
   );
 
@@ -8541,6 +8634,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_u_32(
     (String, int) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_retained_capture_info(
+    RetainedCaptureInfo self,
     SseSerializer serializer,
   );
 
@@ -9247,34 +9346,51 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__camera__api_camera_set_readout_mode(
+  WireSyncRust2DartDco
+  wire__crate__api__devices__camera__api_camera_retained_captures() {
+    return _wire__crate__api__devices__camera__api_camera_retained_captures();
+  }
+
+  late final _wire__crate__api__devices__camera__api_camera_retained_capturesPtr =
+      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retained_captures',
+      );
+  late final _wire__crate__api__devices__camera__api_camera_retained_captures =
+      _wire__crate__api__devices__camera__api_camera_retained_capturesPtr
+          .asFunction<WireSyncRust2DartDco Function()>();
+
+  void wire__crate__api__devices__camera__api_camera_retrieve_retained_capture(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int mode_index,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> location,
   ) {
-    return _wire__crate__api__devices__camera__api_camera_set_readout_mode(
+    return _wire__crate__api__devices__camera__api_camera_retrieve_retained_capture(
       port_,
       device_id,
-      mode_index,
+      location,
     );
   }
 
-  late final _wire__crate__api__devices__camera__api_camera_set_readout_modePtr =
+  late final _wire__crate__api__devices__camera__api_camera_retrieve_retained_capturePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int32,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_set_readout_mode',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retrieve_retained_capture',
       );
-  late final _wire__crate__api__devices__camera__api_camera_set_readout_mode =
-      _wire__crate__api__devices__camera__api_camera_set_readout_modePtr
+  late final _wire__crate__api__devices__camera__api_camera_retrieve_retained_capture =
+      _wire__crate__api__devices__camera__api_camera_retrieve_retained_capturePtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__imaging__api_camera_start_exposure(
@@ -9393,6 +9509,37 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<ffi.Uint32>,
               ffi.Pointer<ffi.Uint32>,
               ffi.Pointer<ffi.Uint32>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  WireSyncRust2DartDco
+  wire__crate__api__devices__camera__api_camera_state_readout_mode(
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+  ) {
+    return _wire__crate__api__devices__camera__api_camera_state_readout_mode(
+      device_id,
+      mode,
+    );
+  }
+
+  late final _wire__crate__api__devices__camera__api_camera_state_readout_modePtr =
+      _lookup<
+        ffi.NativeFunction<
+          WireSyncRust2DartDco Function(
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode',
+      );
+  late final _wire__crate__api__devices__camera__api_camera_state_readout_mode =
+      _wire__crate__api__devices__camera__api_camera_state_readout_modePtr
+          .asFunction<
+            WireSyncRust2DartDco Function(
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
@@ -12742,8 +12889,13 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__devices__mount__api_mount_park(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    bool for_safety,
   ) {
-    return _wire__crate__api__devices__mount__api_mount_park(port_, device_id);
+    return _wire__crate__api__devices__mount__api_mount_park(
+      port_,
+      device_id,
+      for_safety,
+    );
   }
 
   late final _wire__crate__api__devices__mount__api_mount_parkPtr =
@@ -12752,6 +12904,7 @@ class RustLibWire implements BaseWire {
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
           )
         >
       >(
@@ -12760,7 +12913,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__devices__mount__api_mount_park =
       _wire__crate__api__devices__mount__api_mount_parkPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__devices__mount__api_mount_pulse_guide(
@@ -12836,12 +12989,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double ra,
     double dec,
+    bool guider_silent_ok,
   ) {
     return _wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
       port_,
       device_id,
       ra,
       dec,
+      guider_silent_ok,
     );
   }
 
@@ -12853,6 +13008,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
             ffi.Double,
+            ffi.Bool,
           )
         >
       >(
@@ -12866,6 +13022,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               double,
               double,
+              bool,
             )
           >();
 
@@ -16122,12 +16279,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double altitude,
     double azimuth,
+    bool guider_silent_ok,
   ) {
     return _wire__crate__api__devices__mount__mount_slew_alt_az(
       port_,
       device_id,
       altitude,
       azimuth,
+      guider_silent_ok,
     );
   }
 
@@ -16139,6 +16298,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
             ffi.Double,
+            ffi.Bool,
           )
         >
       >(
@@ -16152,6 +16312,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               double,
               double,
+              bool,
             )
           >();
 
@@ -17521,6 +17682,23 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_record_string_u_32> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_retained_capture_info>
+  cst_new_list_retained_capture_info(int len) {
+    return _cst_new_list_retained_capture_info(len);
+  }
+
+  late final _cst_new_list_retained_capture_infoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_retained_capture_info> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_retained_capture_info');
+  late final _cst_new_list_retained_capture_info =
+      _cst_new_list_retained_capture_infoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_retained_capture_info> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_scheduler_score_entry>
   cst_new_list_scheduler_score_entry(int len) {
     return _cst_new_list_scheduler_score_entry(len);
@@ -18685,20 +18863,26 @@ final class wire_cst_EquipmentEvent_CameraTemperatureChanged
 final class wire_cst_EquipmentEvent_CameraSettingsChanged extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
 
-  @ffi.Int32()
-  external int gain;
+  external ffi.Pointer<ffi.Int32> gain;
 
   @ffi.Bool()
   external bool gain_is_iso;
 
-  @ffi.Int32()
-  external int offset;
+  external ffi.Pointer<ffi.Int32> offset;
 
   @ffi.Int32()
   external int bin_x;
 
   @ffi.Int32()
   external int bin_y;
+}
+
+final class wire_cst_EquipmentEvent_CameraRetainedCapturesChanged
+    extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  @ffi.Uint32()
+  external int count;
 }
 
 final class wire_cst_EquipmentEvent_HeartbeatStarted extends ffi.Struct {
@@ -18823,6 +19007,9 @@ final class EquipmentEventKind extends ffi.Union {
   CameraTemperatureChanged;
 
   external wire_cst_EquipmentEvent_CameraSettingsChanged CameraSettingsChanged;
+
+  external wire_cst_EquipmentEvent_CameraRetainedCapturesChanged
+  CameraRetainedCapturesChanged;
 
   external wire_cst_EquipmentEvent_HeartbeatStarted HeartbeatStarted;
 
@@ -20517,6 +20704,29 @@ final class wire_cst_list_record_string_field_availability extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_retained_capture_info extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> location;
+
+  @ffi.Bool()
+  external bool in_camera_memory;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  @ffi.Int64()
+  external int retained_at_ms;
+}
+
+final class wire_cst_list_retained_capture_info extends ffi.Struct {
+  external ffi.Pointer<wire_cst_retained_capture_info> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_star_crop_api extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> pixels_base64;
 
@@ -20784,11 +20994,9 @@ final class wire_cst_camera_status extends ffi.Struct {
 
   external ffi.Pointer<ffi.Bool> cooler_on;
 
-  @ffi.Int32()
-  external int gain;
+  external ffi.Pointer<ffi.Int32> gain;
 
-  @ffi.Int32()
-  external int offset;
+  external ffi.Pointer<ffi.Int32> offset;
 
   @ffi.Int32()
   external int bin_x;
@@ -21260,6 +21468,27 @@ final class wire_cst_mount_guard_solve extends ffi.Struct {
 
   @ffi.Double()
   external double separation_degrees;
+}
+
+final class wire_cst_MountMoveGuider_Unanswered extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_MountMoveGuider_Refused extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class MountMoveGuiderKind extends ffi.Union {
+  external wire_cst_MountMoveGuider_Unanswered Unanswered;
+
+  external wire_cst_MountMoveGuider_Refused Refused;
+}
+
+final class wire_cst_mount_move_guider extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external MountMoveGuiderKind kind;
 }
 
 final class wire_cst_mount_site extends ffi.Struct {

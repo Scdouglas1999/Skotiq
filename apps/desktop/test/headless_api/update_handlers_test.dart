@@ -627,6 +627,7 @@ void main() {
       String? token,
     }) async {
       final req = await client.openUrl(method, baseUri.replace(path: path));
+      req.headers.set('x-skotiq-version', '2.6.0');
       req.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (token != null) {
         req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
@@ -701,7 +702,7 @@ void main() {
     test('UpdateAvailable controller event reaches WS broadcast', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token',
+        '?token=admin-token&version=2.6.0',
       );
       final received = <Map<String, dynamic>>[];
       final completer = Completer<Map<String, dynamic>>();

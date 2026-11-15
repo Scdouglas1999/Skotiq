@@ -488,8 +488,11 @@ pub fn write_wcs_into_frame(path: &Path, wcs: &crate::SipWcs) -> Result<(), Fram
 
 /// A frame in another format written out as FITS, for readers that take only
 /// FITS (an external plate solver, a band-by-band reader). The copy is a
-/// working file in the system's temporary folder, never beside the user's
-/// frames, and is removed when this is dropped.
+/// working file, never beside the user's frames, and is removed when this is
+/// dropped. One copy for a solver goes to the system's temporary folder
+/// ([`Self::new`]); a caller that makes many names a folder on a real disk
+/// ([`Self::new_in`]), because the temporary folder is memory on most Linux
+/// desktops.
 #[derive(Debug)]
 pub struct FitsCopy {
     path: std::path::PathBuf,
@@ -500,8 +503,13 @@ static COPY_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 impl FitsCopy {
     /// Decode `frame` and write it as FITS, with its header.
     pub fn new(frame: &Path) -> Result<Self, FrameIoError> {
+        Self::new_in(frame, &std::env::temp_dir())
+    }
+
+    /// As [`Self::new`], with the copy written into `folder`.
+    pub fn new_in(frame: &Path, folder: &Path) -> Result<Self, FrameIoError> {
         let (image, header) = read_frame(frame)?;
-        let path = std::env::temp_dir().join(format!(
+        let path = folder.join(format!(
             ".skotiq-fits-copy-{}-{}.fits",
             std::process::id(),
             COPY_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)

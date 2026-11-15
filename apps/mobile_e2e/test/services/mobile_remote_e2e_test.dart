@@ -92,6 +92,11 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   }
 
   @override
+  Future<void> notifyGuidingRecovered(String body) async {
+    calls.add(_NotifyCall('guidingRecovered', {'body': body}));
+  }
+
+  @override
   Future<void> notifyExposureFailed(String errorMessage) async {
     calls.add(_NotifyCall('exposureFailed', {'error': errorMessage}));
   }

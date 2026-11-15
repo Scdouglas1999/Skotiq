@@ -12,6 +12,7 @@ use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
+use crate::device_manager::ops::camera::camera_setting_or_unknown;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -151,12 +152,28 @@ impl RigDriver for DriverCamera {
 
 #[async_trait]
 impl Camera for DriverCamera {
-    async fn check_automatic_reconnect(&self) -> Result<(), DeviceOpError> {
-        let Some(camera) = self.driver.read().await else {
-            return Ok(());
-        };
+    async fn take_notices(&self) -> Vec<skotiq_device::DriverNotice> {
+        match self.driver.write().await {
+            Some(mut camera) => camera.take_notices(),
+            None => Vec::new(),
+        }
+    }
+
+    async fn retained_captures(&self) -> Vec<skotiq_device::RetainedCapture> {
+        match self.driver.read().await {
+            Some(camera) => camera.retained_captures(),
+            None => Vec::new(),
+        }
+    }
+
+    async fn retrieve_capture(
+        &self,
+        location: &str,
+    ) -> Result<skotiq_device::CameraFile, DeviceOpError> {
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera
-            .check_automatic_reconnect()
+            .retrieve_capture(location)
+            .await
             .map_err(DeviceOpError::from)
     }
 
@@ -276,8 +293,8 @@ impl Camera for DriverCamera {
             cooler_power: status.cooler_power,
             target_temp: status.target_temp,
             cooler_on: status.cooler_on,
-            gain: status.gain,
-            offset: status.offset,
+            gain: camera_setting_or_unknown(status.gain),
+            offset: camera_setting_or_unknown(status.offset),
             bin_x: status.bin_x,
             bin_y: status.bin_y,
             sensor_width: sensor.width,
@@ -333,21 +350,19 @@ impl Camera for DriverCamera {
         camera.set_offset(offset).await.map_err(DeviceOpError::from)
     }
 
-    async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError> {
+    async fn use_readout_mode(&self, name: &str) -> Result<super::ReadModeUse, DeviceOpError> {
         let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
-        let mode = skotiq_device::ReadoutMode {
-            name: format!("Mode {}", mode_index),
-            description: String::new(),
-            index: mode_index,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        };
-        camera
-            .set_readout_mode(&mode)
+        super::use_readout_mode(&mut *camera, name)
             .await
-            .map_err(DeviceOpError::from)
+            .map_err(|e| {
+                self.failed(
+                    format!(
+                        "Failed to put {} camera {} in read mode {name}",
+                        self.protocol.in_sentence, self.device_id
+                    ),
+                    e,
+                )
+            })
     }
 
     async fn set_cooler(

@@ -67,16 +67,19 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
     final colors = SkotiqColors.of(context);
     final isRemoteMode = ref.watch(isRemoteModeProvider);
     final qualityColor = _getQualityColor(colors);
-    final qualityBorderColor =
-        !widget.image.isAccepted ? colors.error : qualityColor;
-    final qualityBorderWidth = widget.image.isAccepted &&
-            widget.assessment != null &&
-            widget.assessment!.level == FrameQualityLevel.good
-        ? 1.0
-        : 2.0;
+    // Only a frame that needs attention is outlined in its verdict's color;
+    // a good or unrated frame keeps the quiet hairline.
+    final needsAttention = !widget.image.isAccepted ||
+        (widget.assessment != null &&
+            widget.assessment!.level != FrameQualityLevel.good);
+    final qualityBorderColor = !widget.image.isAccepted
+        ? colors.error
+        : needsAttention
+            ? qualityColor
+            : colors.border;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: _kThumbnailGap),
+    return SizedBox(
+      height: _kThumbnailHeight,
       child: Tooltip(
         message: _qualityTooltip(),
         waitDuration: const Duration(milliseconds: 400),
@@ -89,13 +92,11 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
             onSecondaryTap: () => _showFrameMenu(context),
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             child: Container(
-              width: _kThumbnailWidth,
               decoration: BoxDecoration(
                 color: colors.well,
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(
                   color: qualityBorderColor,
-                  width: qualityBorderWidth,
                 ),
               ),
               child: Column(
@@ -149,7 +150,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                         ),
                                         errorBuilder: (_, __, ___) => Icon(
                                           SkotiqIcons.imageOff,
-                                          size: 32,
+                                          size: _kTileGlyphSize,
                                           color: colors.textMuted,
                                         ),
                                       ),
@@ -175,7 +176,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                         ),
                                         errorBuilder: (_, __, ___) => Icon(
                                           SkotiqIcons.image,
-                                          size: 32,
+                                          size: _kTileGlyphSize,
                                           color: colors.textMuted,
                                         ),
                                       ),
@@ -186,7 +187,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                 if (payload.fileExists) {
                                   return Icon(
                                     SkotiqIcons.image,
-                                    size: 32,
+                                    size: _kTileGlyphSize,
                                     color: colors.textMuted,
                                   );
                                 }
@@ -194,17 +195,20 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                 if (payload.errorMessage != null) {
                                   return Tooltip(
                                     message: payload.errorMessage!,
+                                    // The picture could not be read; the
+                                    // tooltip says why. It is not a verdict
+                                    // on the frame, so it is not drawn red.
                                     child: Icon(
-                                      SkotiqIcons.error,
-                                      size: 32,
-                                      color: colors.error,
+                                      SkotiqIcons.imageOff,
+                                      size: _kTileGlyphSize,
+                                      color: colors.textMuted,
                                     ),
                                   );
                                 }
 
                                 return Icon(
                                   SkotiqIcons.imageOff,
-                                  size: 32,
+                                  size: _kTileGlyphSize,
                                   color: colors.textMuted,
                                 );
                               },
@@ -218,9 +222,9 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                           // chip rather than a missing badge, so "no grade"
                           // reads as a statement instead of a rendering gap.
                           Positioned(
-                            top: 4,
-                            left: 4,
-                            right: 4,
+                            top: SkotiqTokens.spaceXs,
+                            left: SkotiqTokens.spaceXs,
+                            right: SkotiqTokens.spaceXs,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -249,8 +253,8 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                           // and quality badges, and only appear when there is
                           // something meaningful to report.
                           Positioned(
-                            right: 4,
-                            bottom: 4,
+                            right: SkotiqTokens.spaceXs,
+                            bottom: SkotiqTokens.spaceXs,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -281,32 +285,19 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                   ) !=
                                   null)
                             Positioned(
-                              bottom: 4,
-                              left: 4,
+                              bottom: SkotiqTokens.spaceXs,
+                              left: SkotiqTokens.spaceXs,
                               child: FrameExclusionBadge.forReason(
                                 widget.image.rejectionReason,
                               ),
                             )
                           else if (!widget.image.isAccepted)
                             Positioned(
-                              bottom: 4,
-                              left: 4,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colors.error,
-                                  borderRadius: BorderRadius.circular(
-                                      SkotiqTokens.radiusInline4),
-                                ),
-                                child: Text(
-                                  'REJECTED',
-                                  style: SkotiqTypography.caption.copyWith(
-                                      color: colors.background,
-                                      fontWeight: FontWeight.w600),
-                                ),
+                              bottom: SkotiqTokens.spaceXs,
+                              left: SkotiqTokens.spaceXs,
+                              child: _TileBadge(
+                                label: 'Rejected',
+                                color: colors.error,
                               ),
                             ),
                         ],
@@ -587,3 +578,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
     );
   }
 }
+
+/// The placeholder glyph of a tile with no picture. Small enough to sit
+/// between the badges along the picture's top and bottom edges.
+const double _kTileGlyphSize = SkotiqTokens.iconMd;

@@ -16,6 +16,7 @@ class RunTimers {
     required String Function() capturePath,
     required DiskSpaceGuardService Function() diskGuard,
     required Future<void> Function(String reason) safeTheRig,
+    required void Function(String message) notifyDiskLow,
     required LoggingService Function() logger,
   }) : _isPaused = isPaused,
        _onElapsed = onElapsed,
@@ -24,6 +25,7 @@ class RunTimers {
        _capturePath = capturePath,
        _diskGuard = diskGuard,
        _safeTheRig = safeTheRig,
+       _notifyDiskLow = notifyDiskLow,
        _logger = logger;
 
   final bool Function() _isPaused;
@@ -33,6 +35,7 @@ class RunTimers {
   final String Function() _capturePath;
   final DiskSpaceGuardService Function() _diskGuard;
   final Future<void> Function(String reason) _safeTheRig;
+  final void Function(String message) _notifyDiskLow;
   final LoggingService Function() _logger;
 
   Timer? _progressTimer;
@@ -124,6 +127,9 @@ class RunTimers {
         '[disk-watchdog] ${event.message}',
         source: 'SequenceExecutor',
       );
+      // A reading, not a failed query. The guard tells each threshold once
+      // until the space comes back.
+      if (event.snapshot.totalBytes > 0) _notifyDiskLow(event.message);
       if (event.severity != DiskSpaceSeverity.blocking) return;
       try {
         await _safeTheRig('Disk space critically low: ${event.message}');

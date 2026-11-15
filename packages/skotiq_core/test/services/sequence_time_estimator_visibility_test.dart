@@ -10,10 +10,12 @@ import 'package:skotiq_core/services.dart';
 /// what comes back is the NEXT night's rise. Testing membership of that
 /// interval is guaranteed to report a target at the zenith as "not up yet".
 void main() {
-  const estimator = SequenceTimeEstimator();
+  const minAltitude = 20.0;
+  const estimator = SequenceTimeEstimator(
+    floor: AltitudeFloor(horizon: null, minimumDeg: minAltitude),
+  );
   const latitude = 40.0;
   const longitude = 0.0;
-  const minAltitude = 20.0;
 
   // RA 6h30m / Dec +40: from latitude 40 it passes within a degree of the
   // zenith, so "is it up" is never a marginal call.
@@ -65,7 +67,6 @@ void main() {
         scheduled,
         latitude: latitude,
         longitude: longitude,
-        minAltitude: minAltitude,
       );
       final window = windows['target1']!;
       final altitude = window.altitudeAt(scheduled);
@@ -88,7 +89,6 @@ void main() {
       testCase.scheduled,
       latitude: latitude,
       longitude: longitude,
-      minAltitude: minAltitude,
     );
 
     // Guard the premise: the window really does report a rise that has not
@@ -125,7 +125,6 @@ void main() {
       scheduled,
       latitude: latitude,
       longitude: longitude,
-      minAltitude: minAltitude,
     );
     final window = windows['target1']!;
     expect(window.altitudeAt(scheduled), lessThan(minAltitude));

@@ -53,3 +53,32 @@ String targetEndWhenSkipWarning(String triggerName) =>
 const kNothingImagedRunError =
     'Nothing was imaged: every target this run reached had already met its '
     'end condition, so no frames were captured.';
+
+/// Trigger id the native run publishes under when it skips a target that
+/// stays below the site's altitude floor until dawn. Must stay byte-identical
+/// to `TARGET_BELOW_FLOOR_TRIGGER_ID` in `target_header.rs`.
+const String kTargetBelowFloorTriggerId = 'target_below_floor';
+
+/// True when this `TriggerFired` event is a target skipped for staying below
+/// the altitude floor.
+bool isTargetBelowFloorSkip(String triggerId) =>
+    triggerId == kTargetBelowFloorTriggerId;
+
+/// The run-record sentence for a target skipped for staying below the floor.
+/// [triggerName] arrives naming the target and what it stays below.
+String targetBelowFloorSkipWarning(String triggerName) =>
+    '$triggerName, so the target was skipped without imaging and no frames '
+    'were captured for it. The floor is your horizon when one is set in '
+    'Settings → Location, otherwise the minimum altitude.';
+
+/// How a target step's reading begins while the target waits to start (for
+/// its start time, or to clear the site's altitude floor). Must stay
+/// byte-identical to `TARGET_WAIT_MESSAGE_PREFIX` in `target_header.rs`.
+const String kTargetWaitMessagePrefix = 'Waiting for ';
+
+/// [stepReading] when it says the target is waiting to start, otherwise
+/// null.
+String? targetWaitMessage(String? stepReading) =>
+    stepReading != null && stepReading.startsWith(kTargetWaitMessagePrefix)
+    ? stepReading
+    : null;

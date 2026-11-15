@@ -6,7 +6,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../database/database.dart';
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
-import '../models/site/site_horizon_profile.dart' show SiteHorizonProfile;
+import '../models/site/altitude_floor.dart';
 import 'logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
@@ -57,7 +57,7 @@ class TargetSuggestionService {
     required List<ImagingSession> sessions,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
-    SiteHorizonProfile? horizonProfile,
+    required AltitudeFloor floor,
   }) async {
     if (targets.isEmpty) return [];
     final elapsed = Stopwatch()..start();
@@ -73,7 +73,7 @@ class TargetSuggestionService {
       sessions: sessions,
       observationTime: observationTime ?? DateTime.now(),
       opticalConfig: opticalConfig,
-      horizonProfile: horizonProfile,
+      floor: floor,
     ), debugLabel: 'tonight-target-scoring');
     for (final warning in result.warnings) {
       _logging.warning(warning, source: _source);
@@ -95,7 +95,7 @@ typedef _SuggestionRequest = ({
   List<ImagingSession> sessions,
   DateTime observationTime,
   OpticalConfig? opticalConfig,
-  SiteHorizonProfile? horizonProfile,
+  AltitudeFloor floor,
 });
 
 typedef _SuggestionResult = ({
@@ -114,7 +114,7 @@ _SuggestionResult _scoreTonight(_SuggestionRequest request) {
     sessions: request.sessions,
     observationTime: request.observationTime,
     opticalConfig: request.opticalConfig,
-    horizonProfile: request.horizonProfile,
+    floor: request.floor,
   );
   return (suggestions: suggestions, warnings: scorer.warnings);
 }
@@ -131,7 +131,7 @@ class _TonightSuggestionScorer {
     required List<ImagingSession> sessions,
     required DateTime observationTime,
     OpticalConfig? opticalConfig,
-    SiteHorizonProfile? horizonProfile,
+    required AltitudeFloor floor,
   }) {
     final now = observationTime;
 
@@ -148,15 +148,8 @@ class _TonightSuggestionScorer {
     final moonDecDeg = moonPos.$2;
     final moonIllumination = AstronomyCalculations.moonIllumination(nightMid);
 
-    // Create the scoring service. When a custom horizon profile is set, feed
-    // it in as a per-azimuth altitude mask so "hours above minimum altitude"
-    // becomes "hours above the LOCAL skyline" — a target whose entire nightly
-    // track stays behind a hill/tree yields zero observable hours and a peak
-    // altitude that already reflects the obstruction.
-    final HorizonMask? horizonMask =
-        (horizonProfile != null && !horizonProfile.isFlat)
-        ? horizonProfile.altitudeAtAzimuth
-        : null;
+    // "Hours above the floor" and the peak altitude are measured against
+    // the site's altitude floor in the direction the target stands.
     final scoringService = TargetScoringService(
       latitude: latitude,
       longitude: longitude,
@@ -164,7 +157,7 @@ class _TonightSuggestionScorer {
       moonPosition: (moonRaDeg, moonDecDeg),
       moonIllumination: moonIllumination,
       twilight: nightWindow.twilight,
-      horizonMask: horizonMask,
+      floorAt: floor.atAzimuth,
     );
 
     // Compute FOV short axis in arcminutes if optical config is available
@@ -180,21 +173,12 @@ class _TonightSuggestionScorer {
       targets: targets.map(_targetToCelestialObject),
       nightStart: nightWindow.start,
       nightEnd: nightWindow.end,
-      minAltitude: config.minAltitude,
     );
     for (final (index, score) in scores.indexed) {
       final target = targets[index];
 
-      // Skip targets that never clear the minimum altitude during the night.
-      // With [horizonMask] wired into the scorer above, the reported peak
-      // altitude is the highest point the target reaches WHILE clearing the
-      // local skyline (or, if it never clears it, the unobstructed peak with
-      // zero observable hours) — so this single check enforces both the flat
-      // minimum and the custom horizon profile.
-      final peakAlt =
-          score.visibility.peakAltitude ?? score.visibility.currentAltitude;
-      final hoursAboveHorizon = score.visibility.hoursAboveMinAlt ?? 0.0;
-      if (peakAlt < config.minAltitude || hoursAboveHorizon <= 0.0) {
+      // Skip targets that never clear the altitude floor during the night.
+      if ((score.visibility.hoursAboveMinAlt ?? 0.0) <= 0.0) {
         continue;
       }
 
@@ -495,7 +479,7 @@ class _TonightSuggestionScorer {
     final hoursAbove = score.visibility.hoursAboveMinAlt;
     if (hoursAbove != null && hoursAbove > 0) {
       reasoning +=
-          ' ${hoursAbove.toStringAsFixed(1)} hours above minimum altitude.';
+          ' ${hoursAbove.toStringAsFixed(1)} hours above the altitude floor.';
     }
 
     // Bright-moon disclosure, independent of separation. A wide separation does

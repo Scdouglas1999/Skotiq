@@ -19,6 +19,9 @@
 // (ILCE, `bulb` toggle) and Fujifilm X (no trigger capture, "2m" speeds).
 // A test drives it through the `fake_gp_*` functions. A process without a test
 // (the app) gets its bodies from FAKE_GPHOTO2_BODIES="model|port|raw file;...".
+// For such a process, a file at the path FAKE_GPHOTO2_FAIL_GET_FILE names
+// makes every file read fail with GP_ERROR_IO, and one at the path
+// FAKE_GPHOTO2_REFUSE_BULB_FILE names makes the body refuse to open for bulb.
 #![allow(non_snake_case, non_camel_case_types, clippy::missing_safety_doc)]
 use std::collections::{HashMap, VecDeque};
 use std::ffi::{c_char, c_float, c_int, c_ulong, c_void, CStr, CString};
@@ -296,6 +299,11 @@ fn state() -> std::sync::MutexGuard<'static, State> {
         }
     });
     STATE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Whether a file exists at the path the environment variable `name` holds.
+fn switched_on(name: &str) -> bool {
+    std::env::var(name).is_ok_and(|path| std::path::Path::new(&path).exists())
 }
 
 fn attach(st: &mut State, model: &str, port: &str, raw_path: &str) -> c_int {
@@ -710,7 +718,7 @@ pub unsafe extern "C" fn gp_camera_set_config(cam: *mut FakeCamera, root: *mut W
                 "eosremoterelease" if value.starts_with("Press Full") => { press(body, &mut trace_lines); }
                 "eosremoterelease" if value.starts_with("Release") => release(body),
                 "bulb" if value == "1" => {
-                    if !body.on_bulb() {
+                    if !body.on_bulb() || switched_on("FAKE_GPHOTO2_REFUSE_BULB_FILE") {
                         return Err(GP_ERROR);
                     }
                     body.open_since = Some(Instant::now());
@@ -898,6 +906,7 @@ pub unsafe extern "C" fn gp_camera_file_get(cam: *mut FakeCamera, folder: *const
     let (folder, name) = (text(folder), text(name));
     let mut st = state();
     let body = match body_of(&mut st, cam) { Ok(b) => b, Err(e) => return e };
+    if switched_on("FAKE_GPHOTO2_FAIL_GET_FILE") { return GP_ERROR_IO; }
     match body.files.iter().find(|f| f.folder == folder && f.name == name) {
         Some(f) => { (*file).0 = f.data.clone(); GP_OK }
         None => GP_ERROR_FILE_NOT_FOUND,

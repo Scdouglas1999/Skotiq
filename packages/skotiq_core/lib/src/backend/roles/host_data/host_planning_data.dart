@@ -79,7 +79,6 @@ abstract interface class HostPlanningData {
   );
 
   Future<Map<String, dynamic>> getSuggestionsForTonight({
-    double? minAltitude,
     double? minScore,
     int? maxResults,
     String? sortMode,

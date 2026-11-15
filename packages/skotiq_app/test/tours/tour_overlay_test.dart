@@ -453,7 +453,7 @@ void main() {
       expect(tester.getRect(target).top, greaterThan(900));
 
       await _do(tester, () => shell.runner.start(Tour.analytics));
-      await _do(tester, () => shell.runner.goTo(6));
+      await _do(tester, () => shell.runner.goTo(5));
 
       expect(shell.runner.state.step!.target, TourTarget.analyticsThumbnails);
       final rect = tester.getRect(target);

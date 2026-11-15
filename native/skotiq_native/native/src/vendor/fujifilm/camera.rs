@@ -36,6 +36,11 @@ pub struct FujifilmCamera {
 
     pub(crate) is_exposing: bool,
     pub(crate) is_bulb_mode: bool,
+    /// The body refused to open its shutter for bulb on this connection, so
+    /// later exposures that need bulb take the nearest timed speed.
+    pub(crate) bulb_refused: bool,
+    /// What the user is to be told; see `CameraDriver::take_notices`.
+    pub(crate) notices: Vec<skotiq_device::DriverNotice>,
     pub(crate) exposure_start: Option<Instant>,
     pub(crate) exposure_duration: Duration,
 
@@ -90,6 +95,8 @@ impl FujifilmCamera {
             measured_white_level: None,
             is_exposing: false,
             is_bulb_mode: false,
+            bulb_refused: false,
+            notices: Vec::new(),
             exposure_start: None,
             exposure_duration: Duration::ZERO,
             live_view: Arc::default(),

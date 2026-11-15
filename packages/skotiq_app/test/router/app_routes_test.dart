@@ -121,12 +121,36 @@ void main() {
 
     testWidgets('/scheduler and /diagnostics open their tabs', (tester) async {
       expect((await resolve(tester, '/scheduler')).toString(),
-          '/planner?tab=scheduler');
+          '/planner?tab=targets');
+      // The old Analytics tab and the old mosaic list are in Plan > Targets.
+      expect((await resolve(tester, '/analytics?tab=projects')).toString(),
+          '/planner?tab=targets');
+      expect((await resolve(tester, '/mosaic')).toString(),
+          '/planner?tab=targets&group=mosaics');
       expect((await resolve(tester, '/diagnostics')).toString(),
-          '/analytics?tab=diagnostics');
+          '/analytics?tab=session&view=optics');
       // The dump page sits below the old path and is a page of its own.
       expect((await resolve(tester, '/diagnostics/dump')).toString(),
           '/diagnostics/dump');
+    });
+
+    testWidgets('the places History took in land on it', (tester) async {
+      for (final (from, to) in [
+        ('/sequencer?tab=history', '/analytics?tab=history'),
+        ('/sequencer?tab=runs', '/analytics?tab=history'),
+        ('/session-replay', '/analytics?tab=history'),
+        ('/session-replay/12', '/analytics?tab=history&run=12&view=log'),
+        ('/replay/7?name=M31', '/analytics?tab=history&run=7&view=log'),
+        ('/session-review?session=3',
+            '/analytics?tab=history&night=3&view=report'),
+        ('/session-review', '/analytics?tab=history'),
+        ('/session-review?target=4', '/darkroom?tab=targets'),
+        ('/analytics?tab=equipment', '/analytics?tab=history'),
+        ('/analytics?tab=equipment-stats', '/analytics?tab=history'),
+        ('/analytics?tab=diagnostics', '/analytics?tab=session&view=optics'),
+      ]) {
+        expect((await resolve(tester, from)).toString(), to, reason: from);
+      }
     });
 
     testWidgets('old calibration settings open the Darkroom Calibration tab',
@@ -166,12 +190,15 @@ void main() {
             Uri.parse(AppRoutes.planner(tab: PlannerTab.discover, view: view));
         expect(DiscoverView.fromQuery(uri.queryParameters['view']), view);
       }
-      expect(AppRoutes.planner(tab: PlannerTab.schedule),
-          '/planner?tab=scheduler');
+      expect(AppRoutes.planner(tab: PlannerTab.targets),
+          '/planner?tab=targets');
+      expect(AppRoutes.planTargets(group: '7', target: 3),
+          '/planner?tab=targets&group=7&target=3');
       // Words older links used.
-      expect(PlannerTab.fromQuery('schedule'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('WEEK'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('WEEK'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('projects'), PlannerTab.targets);
       expect(PlannerTab.fromQuery('your-sky'), PlannerTab.discover);
       expect(DiscoverView.fromQuery('collab'), DiscoverView.collaborative);
       expect(PlannerTab.fromQuery('not-a-tab'), isNull);
@@ -188,8 +215,21 @@ void main() {
             AppRoutes.analytics(tab: AnalyticsTab.science, scienceView: view));
         expect(ScienceTab.fromQuery(uri.queryParameters['view']), view);
       }
-      expect(AnalyticsTab.fromQuery('equipment-stats'), AnalyticsTab.equipment);
       expect(ScienceTab.fromQuery('first_light'), ScienceTab.firstLight);
+      for (final view in NightView.values) {
+        final uri = Uri.parse(
+            AppRoutes.night(const NightRef.session(4), view: view));
+        expect(NightView.fromQuery(uri.queryParameters['view']), view);
+        expect(NightRef.fromQuery(uri.queryParameters),
+            const NightRef.session(4));
+      }
+      expect(
+          NightRef.fromQuery(Uri.parse(AppRoutes.night(const NightRef.run(9)))
+              .queryParameters),
+          const NightRef.run(9));
+      expect(AppRoutes.history(sequenceId: 5),
+          '/analytics?tab=history&sequence=5');
+      expect(AppRoutes.sessionOptics(), '/analytics?tab=session&view=optics');
     });
 
     test('Sequencer tabs', () {
@@ -197,7 +237,8 @@ void main() {
         final uri = Uri.parse(AppRoutes.sequencer(tab: tab));
         expect(SequencerTab.fromQuery(uri.queryParameters['tab']), tab);
       }
-      expect(SequencerTab.fromQuery('RUNS'), SequencerTab.history);
+      expect(SequencerTab.fromQuery('RUNS'), isNull);
+      expect(SequencerTab.namesHistory('RUNS'), isTrue);
       expect(SequencerTab.fromQuery('library'), SequencerTab.sequences);
       expect(SequencerTab.fromQuery('made-up'), isNull);
     });
@@ -239,12 +280,10 @@ void main() {
       expect(SkyTarget.fromQuery({'ra': '0', 'dec': '-90'}), isNotNull);
     });
 
-    test('ids, the first-light flow and the replay window', () {
+    test('ids and the first-light flow', () {
       expect(AppRoutes.stackResult(9), '/stack-result?id=9');
       expect(AppRoutes.sessionReviewOfSession(3), '/session-review?session=3');
-      expect(AppRoutes.sessionReviewOfTarget(4), '/session-review?target=4');
       expect(AppRoutes.mosaicProject(7), '/mosaic/7');
-      expect(AppRoutes.sessionReplayRun(12), '/session-replay/12');
       expect(AppRoutes.imagingPreview('a/b c'), '/imaging/preview/a%2Fb%20c');
 
       expect(
@@ -253,14 +292,6 @@ void main() {
           isTrue);
       expect(
           AppRoutes.asksForFirstLight(Uri.parse(AppRoutes.imaging())), isFalse);
-
-      final started = DateTime.utc(2026, 11, 10, 22);
-      final replay = Uri.parse(
-          AppRoutes.replay(runId: 5, name: 'M31 night', startedAt: started));
-      expect(AppRoute.of(replay.toString()), AppRoute.replay);
-      expect(replay.queryParameters['name'], 'M31 night');
-      expect(DateTime.parse(replay.queryParameters['started']!), started);
-      expect(replay.queryParameters.containsKey('ended'), isFalse);
     });
   });
 

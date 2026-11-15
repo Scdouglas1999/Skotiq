@@ -20,10 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
-import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
-import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
-import 'package:skotiq_app/screens/planner/widgets/progress_tab_content.dart';
-import 'package:skotiq_app/screens/planner/widgets/week_forecast_strip.dart';
+import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -53,9 +50,6 @@ List<Override> _allTabOverrides() {
     smartNightExposureContextProvider.overrideWith((ref) async => null),
     appSettingsProvider.overrideWith(() => _StubAppSettingsNotifier()),
     // Progress tab.
-    allTargetProgressProvider.overrideWith(
-      (ref) async => <int, TargetProgress>{},
-    ),
     // Target Queue (scheduler) tab.
     schedulerEngineProvider.overrideWithValue(buildTestSchedulerEngine()),
     schedulerStatusProvider.overrideWith(
@@ -101,9 +95,8 @@ Widget _harness({PlannerTab? initialTab, String? linkWord}) {
 /// Index of the planner tab matching [label], per the rendered tab order.
 int _tabIndex(String label) {
   const order = <String>[
-    'Tonight',
-    'Projects',
-    'Schedule',
+    'Best tonight',
+    'Targets',
     'Framing',
     'Planetarium',
     'Your sky',
@@ -163,32 +156,33 @@ void main() {
     test('maps Projects + the folded Progress aliases', () {
       // Projects now absorbs the former standalone Progress tab, so its legacy
       // deep-links resolve onto Projects (the all-targets scope).
-      expect(PlannerTab.fromQuery('projects'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('project'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('campaign'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('projects'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('project'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('campaign'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.targets);
     });
 
     test('maps Schedule + the folded Target Queue / This Week aliases', () {
       // Schedule unifies the former Target Queue scheduler and This Week
       // forecast, so all of their legacy deep-links resolve onto Schedule.
-      expect(PlannerTab.fromQuery('schedule'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('week'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('forecast'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('thisweek'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('this-week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('targets'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('schedule'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('week'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('forecast'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('thisweek'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('this-week'), PlannerTab.targets);
     });
 
     test('is case-insensitive for the consolidated tabs', () {
-      expect(PlannerTab.fromQuery('Projects'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('CAMPAIGNS'), PlannerTab.projects);
-      expect(PlannerTab.fromQuery('Week'), PlannerTab.schedule);
-      expect(PlannerTab.fromQuery('This-Week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('Targets'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('CAMPAIGNS'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('Week'), PlannerTab.targets);
+      expect(PlannerTab.fromQuery('This-Week'), PlannerTab.targets);
     });
 
     test('still maps the pre-existing tabs (no regression)', () {
@@ -214,8 +208,7 @@ void main() {
         PlannerTab.values,
         const [
           PlannerTab.recommendation,
-          PlannerTab.projects,
-          PlannerTab.schedule,
+          PlannerTab.targets,
           PlannerTab.framing,
           PlannerTab.planetarium,
           PlannerTab.discover,
@@ -227,7 +220,7 @@ void main() {
   group('PlannerScreen tab structure', () {
     void sizeDesktop(WidgetTester tester) {
       tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.physicalSize = const Size(1800, 900);
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
@@ -278,28 +271,10 @@ void main() {
             'extra child mis-routes the body for some tab.',
       );
 
-      // Projects is built eagerly (Offstage when not selected) in its campaign
-      // scope, so ProjectsTabContent is built, not the all-targets
-      // ProgressTabContent. Schedule reads host state, so it is built only
-      // while selected.
+      // Targets reads host state (the autopilot), so it is built only while
+      // selected.
       expect(
-        find.byType(ProjectsTabContent, skipOffstage: false),
-        findsOneWidget,
-      );
-      expect(
-        find.byType(SchedulerTabContent, skipOffstage: false),
-        findsNothing,
-      );
-      // ProgressTabContent is the Projects tab's *other* scope — not built until
-      // the user switches to "All Targets". WeekForecastStrip only mounts atop
-      // the scheduler when the forecast has rankable nights (here the forecast
-      // double is unavailable), so neither is present in the default state.
-      expect(
-        find.byType(ProgressTabContent, skipOffstage: false),
-        findsNothing,
-      );
-      expect(
-        find.byType(WeekForecastStrip, skipOffstage: false),
+        find.byType(PlanTargetsTab, skipOffstage: false),
         findsNothing,
       );
     });
@@ -311,7 +286,7 @@ void main() {
         (tester) async {
       sizeDesktop(tester);
       final router = GoRouter(
-        initialLocation: AppRoutes.planner(tab: PlannerTab.projects),
+        initialLocation: AppRoutes.planner(tab: PlannerTab.targets),
         routes: [
           GoRoute(
             path: AppRoute.planner.path,
@@ -335,15 +310,15 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 200));
-      _expectSelected(tester, 'Projects');
+      _expectSelected(tester, 'Targets');
 
-      await tester.tap(find.text('Schedule').first);
+      await tester.tap(find.text('Targets').first);
       await tester.pump(const Duration(milliseconds: 200));
-      _expectSelected(tester, 'Schedule');
+      _expectSelected(tester, 'Targets');
 
-      router.go(AppRoutes.planner(tab: PlannerTab.projects));
+      router.go(AppRoutes.planner(tab: PlannerTab.targets));
       await tester.pump(const Duration(milliseconds: 200));
-      _expectSelected(tester, 'Projects');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('?tab=projects selects the Projects tab on initial render',
@@ -352,7 +327,7 @@ void main() {
       await tester.pumpWidget(_harness(linkWord: 'projects'));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Projects');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('?tab=campaigns alias selects the Projects tab',
@@ -361,7 +336,7 @@ void main() {
       await tester.pumpWidget(_harness(linkWord: 'campaigns'));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Projects');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('?tab=week (folded) selects the Schedule tab on initial render',
@@ -370,7 +345,7 @@ void main() {
       await tester.pumpWidget(_harness(linkWord: 'week'));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Schedule');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('?tab=forecast alias selects the Schedule tab', (tester) async {
@@ -378,7 +353,7 @@ void main() {
       await tester.pumpWidget(_harness(linkWord: 'forecast'));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Schedule');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('junk ?tab= falls back to the default Recommendation tab',
@@ -387,7 +362,7 @@ void main() {
       await tester.pumpWidget(_harness(linkWord: 'not-a-tab'));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Tonight');
+      _expectSelected(tester, 'Best tonight');
     });
 
     testWidgets('tapping the Schedule tab switches the selection',
@@ -399,12 +374,12 @@ void main() {
       await tester.pumpWidget(_harness());
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Tonight');
+      _expectSelected(tester, 'Best tonight');
 
-      await _tapTab(tester, 'Schedule');
+      await _tapTab(tester, 'Targets');
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Schedule');
+      _expectSelected(tester, 'Targets');
     });
 
     testWidgets('tapping the Projects tab switches the selection',
@@ -413,10 +388,10 @@ void main() {
       await tester.pumpWidget(_harness());
       await tester.pump(const Duration(milliseconds: 200));
 
-      await _tapTab(tester, 'Projects');
+      await _tapTab(tester, 'Targets');
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Projects');
+      _expectSelected(tester, 'Targets');
     });
   });
 
@@ -429,7 +404,7 @@ void main() {
       var coverageBuilds = 0;
       var disposed = 0;
       tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.physicalSize = const Size(1800, 900);
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
@@ -457,7 +432,7 @@ void main() {
       ));
       await tester.pump(const Duration(milliseconds: 200));
 
-      _expectSelected(tester, 'Tonight');
+      _expectSelected(tester, 'Best tonight');
       expect(regionBuilds, 0);
       expect(coverageBuilds, 0);
 

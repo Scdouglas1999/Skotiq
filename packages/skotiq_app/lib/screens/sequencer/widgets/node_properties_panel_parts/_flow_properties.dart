@@ -850,11 +850,17 @@ class _RecoveryProperties extends ConsumerWidget {
             label: 'Min altitude',
             child: NodeNumberInput(
               colors: colors,
-              value: node.triggerThreshold ?? 30,
+              // On top of the site's altitude floor, which this trigger
+              // holds the target to when the step names no altitude.
+              value: node.triggerThreshold ?? 0,
               suffix: '°',
               min: 0,
               max: 90,
               decimals: 0,
+              helperText:
+                  'Added to the site floor '
+                  '(${altitudeFloorRuleLabel(ref.watch(altitudeFloorProvider)).toLowerCase()}). '
+                  '0 adds nothing.',
               onChanged: (value) {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(triggerThreshold: value),

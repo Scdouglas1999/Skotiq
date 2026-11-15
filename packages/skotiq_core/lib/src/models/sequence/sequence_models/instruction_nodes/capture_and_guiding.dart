@@ -223,6 +223,10 @@ class ExposureNode extends SequenceNode {
   final int? filterIndex;
   final int? gain;
   final int? offset;
+
+  /// The camera read mode this step's frames are taken in, by the name the
+  /// camera lists. Null takes the equipment profile's default.
+  final String? readoutMode;
   final BinningMode binning;
   final int? ditherEvery;
   final List<Map<String, dynamic>> triggers;
@@ -247,6 +251,7 @@ class ExposureNode extends SequenceNode {
     this.filterIndex,
     this.gain,
     this.offset,
+    this.readoutMode,
     this.binning = BinningMode.one,
     this.ditherEvery = 3,
     this.triggers = const [],
@@ -279,6 +284,9 @@ class ExposureNode extends SequenceNode {
     bool clearFilter = false,
     int? gain,
     int? offset,
+    // `clearReadoutMode: true` goes back to the profile's default.
+    String? readoutMode,
+    bool clearReadoutMode = false,
     BinningMode? binning,
     int? ditherEvery,
     List<Map<String, dynamic>>? triggers,
@@ -306,6 +314,7 @@ class ExposureNode extends SequenceNode {
       filterIndex: clearFilter ? null : (filterIndex ?? this.filterIndex),
       gain: gain ?? this.gain,
       offset: offset ?? this.offset,
+      readoutMode: clearReadoutMode ? null : (readoutMode ?? this.readoutMode),
       binning: binning ?? this.binning,
       ditherEvery: ditherEvery ?? this.ditherEvery,
       triggers: triggers ?? this.triggers,
@@ -325,6 +334,7 @@ class ExposureNode extends SequenceNode {
     filterIndex,
     gain,
     offset,
+    readoutMode,
     binning,
     ditherEvery,
     triggers,

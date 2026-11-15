@@ -31,6 +31,7 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
     estimator: SequenceTimeEstimator(
       overhead: ref.watch(sequencerOverheadConfigProvider),
       autofocus: ref.watch(autofocusSettingsProvider),
+      floor: ref.watch(altitudeFloorProvider),
     ),
     site: site == null
         ? null
@@ -43,9 +44,6 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
     ),
     autoFocusOnFilterChange: s.autoFocusOnFilterChange,
     autoFocusEveryMinutes: s.autoFocusEveryMinutes,
-    // The estimator holds one number for the night: the lowest the floor
-    // goes, so no target is timed out for a direction it may not be in.
-    minAltitude: ref.watch(altitudeFloorProvider).lowestDeg,
   );
 });
 

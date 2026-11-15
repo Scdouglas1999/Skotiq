@@ -290,15 +290,8 @@ void main() {
   });
 
   testWidgets(
-      'W1: Load into Sequencer gives every panel a minAltitude altitude gate',
-      (tester) async {
-    // W1 no-daylight/altitude gate: the wizard's "Load into Sequencer" path
-    // must default MosaicSequenceOptions.minAltitude to the Smart Night floor
-    // so every panel TargetHeader carries a minAltitude (serialized as
-    // `min_altitude` => a `start_when AltitudeAbove` wait in the executor).
-    // With no minAltitude every panel header's is null and a panel can begin
-    // imaging below the horizon floor. This taps the real button and reads the
-    // generated sequence back.
+      'Load into Sequencer builds panel targets with no altitude of their '
+      'own: the run holds each to the site floor', (tester) async {
     final service = _MockService();
     _recordCreateCalls(service, returns: 1);
     await _pumpWizard(
@@ -321,12 +314,6 @@ void main() {
     final headers =
         sequence!.nodes.values.whereType<TargetHeaderNode>().toList();
     expect(headers, isNotEmpty, reason: '3x3 default => 9 panel headers');
-    expect(
-      headers.every(
-          (h) => h.minAltitude == const SmartNightSettings().minAltitudeDeg),
-      isTrue,
-      reason: 'every panel must gate on the Smart Night minimum altitude floor',
-    );
-    expect(headers.every((h) => h.hasAltitudeConstraints), isTrue);
+    expect(headers.every((h) => h.minAltitude == null), isTrue);
   });
 }

@@ -1,38 +1,5 @@
 part of '../smart_night_service.dart';
 
-/// One sidereal day — the period on which a fixed target's horizon crossings
-/// repeat. [TargetVisibilityInfo] reports rise/set for a single noon-to-noon
-/// day picked by whoever called the scorer, so those instants have to be
-/// stepped by whole sidereal days before they mean anything relative to an
-/// arbitrary imaging interval.
-const Duration _siderealDay = Duration(hours: 23, minutes: 56, seconds: 4);
-
-/// The latest `crossing + n × sidereal day` that is at or before [notAfter].
-DateTime _crossingAtOrBefore(DateTime crossing, DateTime notAfter) {
-  final cycles =
-      notAfter.difference(crossing).inMicroseconds /
-      _siderealDay.inMicroseconds;
-  return crossing.add(_siderealDay * cycles.floor());
-}
-
-/// The earliest `crossing + n × sidereal day` that is at or after [notBefore].
-DateTime _crossingAtOrAfter(DateTime crossing, DateTime notBefore) {
-  final cycles =
-      notBefore.difference(crossing).inMicroseconds /
-      _siderealDay.inMicroseconds;
-  return crossing.add(_siderealDay * cycles.ceil());
-}
-
-/// Pick the longer of two candidate windows, tolerating nulls.
-(DateTime, DateTime)? _longerWindow(
-  (DateTime, DateTime)? a,
-  (DateTime, DateTime)? b,
-) {
-  if (a == null) return b;
-  if (b == null) return a;
-  return b.$2.difference(b.$1) > a.$2.difference(a.$1) ? b : a;
-}
-
 extension _SmartNightSequenceEmitter on SmartNightService {
   Sequence _emitSingleTargetSequence({
     required EquipmentProfileModel profile,
@@ -160,8 +127,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   static const double _kUnknownCameraFullWellE = 18000;
   static const double _kUnknownCameraQePeak = 0.65;
 
-  /// Seconds of integration budget for one target: sampled time above
-  /// [minAltitude] during tonight, capped by rise/set and optional budget.
+  /// Seconds of integration budget for one target: sampled time above the
+  /// altitude floor tonight, capped by its window and optional budget.
   double _integrationWindowSecs({
     required TargetSuggestion suggestion,
     required double intervalWindowSecs,
@@ -178,58 +145,26 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     return math.min(naturalSecs, budgetSecs);
   }
 
-  /// Compute the usable window inside `[intervalStart, intervalEnd]`
-  /// where the target is above [minAltitude]. Returns null if the
-  /// target never reaches that altitude during the interval.
-  ///
-  /// The visibility's rise/set are the crossings of ONE noon-to-noon day, and
-  /// which day that is depends on the date the scorer handed
-  /// `AstronomyCalculations.calculateObjectVisibility` — the night scorer
-  /// passes the night MIDPOINT, which for any night that straddles midnight is
-  /// the morning-after date, so the crossings it gets back describe the NEXT
-  /// day. Clipping this interval with those raw instants deleted the entire
-  /// night for every target with a finite rise/set (only circumpolar targets,
-  /// which report no crossings at all, survived). Horizon crossings repeat
-  /// every sidereal day, so step them onto the cycle that actually overlaps
-  /// the interval first, then clip.
+  /// The longest stretch inside [intervalStart]..[intervalEnd] that the
+  /// target stands above the site's altitude floor, or null when it never
+  /// clears it in that time.
   (DateTime, DateTime)? _usableTargetWindow({
     required TargetSuggestion suggestion,
     required DateTime intervalStart,
     required DateTime intervalEnd,
-    required double minAltitude,
+    required double latitudeDeg,
+    required double longitudeDeg,
   }) {
-    final v = suggestion.visibility;
-    final peakAlt = v.peakAltitude ?? v.currentAltitude;
-    if (peakAlt < minAltitude) return null;
-
-    (DateTime, DateTime)? clip(DateTime? upStart, DateTime? upEnd) {
-      var start = intervalStart;
-      var end = intervalEnd;
-      if (upStart != null && upStart.isAfter(start)) start = upStart;
-      if (upEnd != null && upEnd.isBefore(end)) end = upEnd;
-      return start.isBefore(end) ? (start, end) : null;
-    }
-
-    final rise = v.riseTime;
-    final set = v.setTime;
-    // No crossings at all — circumpolar (never-rises was rejected by the peak
-    // altitude gate above), so the target is up for the whole interval.
-    if (rise == null && set == null) return clip(null, null);
-    if (set == null) return clip(_crossingAtOrBefore(rise!, intervalEnd), null);
-    if (rise == null) return clip(null, _crossingAtOrAfter(set, intervalStart));
-
-    // Both crossings known: rebuild the up-period that overlaps the interval
-    // as [rise, following set]. A target can be up at both ends of the
-    // interval and dip below the horizon in the middle (high declination, low
-    // culmination inside the dark window), which yields two disjoint usable
-    // spans — this returns one contiguous window by contract, so take the
-    // longer of the two.
-    final risen = _crossingAtOrBefore(rise, intervalEnd);
-    final sets = _crossingAtOrAfter(set, risen);
-    return _longerWindow(
-      clip(risen, sets),
-      clip(risen.subtract(_siderealDay), sets.subtract(_siderealDay)),
+    final above = _floor.windowAbove(
+      raDeg: suggestion.raHours * 15.0,
+      decDeg: suggestion.decDegrees,
+      from: intervalStart,
+      until: intervalEnd,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
     );
+    if (above == null || !above.start.isBefore(above.end)) return null;
+    return (above.start, above.end);
   }
 
   String _composeTargetRationale({
@@ -818,10 +753,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     // 4. Start guiding when profile has a guider and target is usable. Placed
     //    after the initial autofocus so the freshly-started guiding is not
     //    immediately torn down by it.
-    if (_profileHasGuider(profile) &&
-        (planned.suggestion.visibility.peakAltitude ??
-                planned.suggestion.visibility.currentAltitude) >=
-            settings.minAltitudeDeg) {
+    if (_profileHasGuider(profile)) {
       children.add(
         StartGuidingNode(
           id: SmartNightService._uuid.v4(),
@@ -909,20 +841,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       raHours: planned.suggestion.raHours,
       decDegrees: planned.suggestion.decDegrees,
       priority: 0,
-      minAltitude: settings.minAltitudeDeg,
+      // The window's times only: the run itself holds every target to the
+      // site's altitude floor.
       startAfter: planned.windowStart,
       endBefore: planned.windowEnd,
       integrationBudget: integrationBudget,
-      // Explicit triggers take precedence over legacy time fields in the
-      // executor, so include both altitude and time in the conditions.
-      startWhen: AndTrigger([
-        AltitudeAboveTrigger(settings.minAltitudeDeg),
-        TimeAfterTrigger(planned.windowStart.millisecondsSinceEpoch ~/ 1000),
-      ]),
-      endWhen: OrTrigger([
-        AltitudeBelowTrigger(settings.minAltitudeDeg),
-        TimeAfterTrigger(planned.windowEnd.millisecondsSinceEpoch ~/ 1000),
-      ]),
       childIds: children.map((c) => c.id).toList(),
     );
 

@@ -244,9 +244,10 @@ bool applyCameraSettings(
   final offset = data['offset'];
   final binX = data['bin_x'];
   final binY = data['bin_y'];
+  // A null gain or offset is a value the camera would not report.
   if (deviceId is! String ||
-      gain is! num ||
-      offset is! num ||
+      gain is! num? ||
+      offset is! num? ||
       binX is! num ||
       binY is! num) {
     return false;
@@ -254,8 +255,8 @@ bool applyCameraSettings(
   final camera = container.read(cameraStateProvider.notifier);
   if (camera.deviceId != deviceId) return false;
   camera.updateReadout(
-    gain: gain.toInt(),
-    offset: offset.toInt(),
+    gain: gain?.toInt(),
+    offset: offset?.toInt(),
     binX: binX.toInt(),
     binY: binY.toInt(),
   );

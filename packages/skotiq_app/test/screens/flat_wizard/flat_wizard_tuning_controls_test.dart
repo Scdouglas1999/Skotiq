@@ -17,7 +17,7 @@ Future<HarnessHandle> _pump(WidgetTester tester) async {
   final handle = await pumpAppScreen(
     tester,
     const FlatWizardScreen(),
-    size: const Size(1280, 900),
+    size: const Size(1600, 900),
     settle: false,
   );
   for (var i = 0; i < 4; i++) {
@@ -89,7 +89,7 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '3');
     await tester.pump();
     // Anywhere outside the field: the Start button, a label, the background.
-    await tester.tap(find.text('Frames').first);
+    await tester.tap(find.text('Frames per filter').first);
     await tester.pump();
 
     expect(
@@ -117,13 +117,11 @@ void main() {
       await _pump(tester);
       await _openTab(tester, tab);
 
-      // The labels live in the FormRow's left column now, not in a caption
-      // stacked above each control.
       expect(find.text('Histogram target'), findsWidgets,
           reason: '$tab must say which slider is the target');
       expect(find.text('Tolerance'), findsWidgets,
           reason: '$tab must say which slider is the tolerance');
-      expect(find.text('Frames'), findsWidgets);
+      expect(find.text('Frames per filter'), findsOneWidget);
     });
   }
 }

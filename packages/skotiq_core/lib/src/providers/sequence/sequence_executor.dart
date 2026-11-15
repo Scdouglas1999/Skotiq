@@ -17,6 +17,8 @@ import '../../services/logging_service.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart' show targetsDaoProvider;
 import '../disk_space_provider.dart';
+import '../notification_router_provider.dart';
+import '../../models/notification/notification_categories.dart';
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // Sky-brightness poll reads the tracker via this
@@ -131,6 +133,11 @@ class SequenceExecutor {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: reason, park: true);
     },
+    notifyDiskLow: (message) => _ref.read(notificationRouterProvider).route(
+      NotificationCategory.diskSpaceLow,
+      {'disk.message': message},
+      severity: NotificationCategory.diskSpaceLow.defaultSeverity,
+    ),
     logger: () => _logger,
   );
 

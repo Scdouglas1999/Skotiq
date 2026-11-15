@@ -14,8 +14,8 @@ impl ConnectionOps for UnifiedDeviceOps {
     // USB/comms blip aborts the night. They delegate straight to the
     // `DeviceManager` primitives.
 
-    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
-        Ok(get_device_manager().is_connected(device_id).await)
+    async fn device_answers(&self, device_id: &str) -> DeviceResult<bool> {
+        Ok(get_device_manager().answers_now(device_id).await)
     }
 
     async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {

@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 
-import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/targets.dart';
@@ -182,45 +181,5 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (select(
       targets,
     )..orderBy([(t) => OrderingTerm.desc(t.priority)])).get();
-  }
-
-  /// Get targets that are observable tonight
-  Future<List<DbTarget>> getObservableTargets(
-    double latitude,
-    double longitude,
-  ) async {
-    final allTargets = await getAllTargets();
-    final nowUtc = DateTime.now().toUtc();
-
-    final observable = allTargets.where((target) {
-      final altitudeDeg = _calculateAltitudeDegrees(
-        latitudeDeg: latitude,
-        longitudeDeg: longitude,
-        raHours: target.ra,
-        decDeg: target.dec,
-        atUtc: nowUtc,
-      );
-      return altitudeDeg >= target.minAltitude;
-    }).toList();
-
-    observable.sort((a, b) => b.priority.compareTo(a.priority));
-    return observable;
-  }
-
-  double _calculateAltitudeDegrees({
-    required double latitudeDeg,
-    required double longitudeDeg,
-    required double raHours,
-    required double decDeg,
-    required DateTime atUtc,
-  }) {
-    final (altitude, _) = AstronomyCalculations.objectAltAz(
-      raDeg: raHours * 15.0,
-      decDeg: decDeg,
-      dt: atUtc,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-    );
-    return altitude;
   }
 }

@@ -105,11 +105,6 @@ class SmartNightSettings {
   /// decision math.
   final bool adaptiveTargetSwap;
 
-  /// Minimum altitude (deg) below which a target is considered "not usable".
-  /// Drives the per-target start/end altitude triggers and the schedule
-  /// window math.
-  final double minAltitudeDeg;
-
   /// Hard ceiling on a single sub-exposure (seconds). Surfaced into the
   /// exposure calculator.
   final double subExposureCeilingSecs;
@@ -188,7 +183,6 @@ class SmartNightSettings {
     this.useSchedulerForMultiTarget = true,
     this.schedulerTargetThreshold = 3,
     this.adaptiveTargetSwap = true,
-    this.minAltitudeDeg = 30.0,
     this.subExposureCeilingSecs = 300.0,
     this.subExposureFloorSecs = 30.0,
     this.targetSnr = 30.0,
@@ -217,7 +211,6 @@ class SmartNightSettings {
     bool? useSchedulerForMultiTarget,
     int? schedulerTargetThreshold,
     bool? adaptiveTargetSwap,
-    double? minAltitudeDeg,
     double? subExposureCeilingSecs,
     double? subExposureFloorSecs,
     double? targetSnr,
@@ -249,7 +242,6 @@ class SmartNightSettings {
       schedulerTargetThreshold:
           schedulerTargetThreshold ?? this.schedulerTargetThreshold,
       adaptiveTargetSwap: adaptiveTargetSwap ?? this.adaptiveTargetSwap,
-      minAltitudeDeg: minAltitudeDeg ?? this.minAltitudeDeg,
       subExposureCeilingSecs:
           subExposureCeilingSecs ?? this.subExposureCeilingSecs,
       subExposureFloorSecs: subExposureFloorSecs ?? this.subExposureFloorSecs,
@@ -284,7 +276,6 @@ class SmartNightSettings {
     'useSchedulerForMultiTarget': useSchedulerForMultiTarget,
     'schedulerTargetThreshold': schedulerTargetThreshold,
     'adaptiveTargetSwap': adaptiveTargetSwap,
-    'minAltitudeDeg': minAltitudeDeg,
     'subExposureCeilingSecs': subExposureCeilingSecs,
     'subExposureFloorSecs': subExposureFloorSecs,
     'targetSnr': targetSnr,
@@ -324,7 +315,6 @@ class SmartNightSettings {
           json['useSchedulerForMultiTarget'] as bool? ?? true,
       schedulerTargetThreshold: _jsonInt(json['schedulerTargetThreshold'], 3),
       adaptiveTargetSwap: json['adaptiveTargetSwap'] as bool? ?? true,
-      minAltitudeDeg: _jsonDouble(json['minAltitudeDeg'], 30.0),
       subExposureCeilingSecs: _jsonDouble(
         json['subExposureCeilingSecs'],
         300.0,

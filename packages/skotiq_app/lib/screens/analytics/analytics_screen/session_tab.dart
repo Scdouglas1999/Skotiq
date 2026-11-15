@@ -1,7 +1,11 @@
 part of '../analytics_screen.dart';
 
 class _SessionTab extends ConsumerStatefulWidget {
-  const _SessionTab();
+  const _SessionTab({required this.view, required this.onViewPicked});
+
+  /// Charts of the session's frames, or its optical diagnostics.
+  final SessionView view;
+  final ValueChanged<SessionView> onViewPicked;
 
   @override
   ConsumerState<_SessionTab> createState() => _SessionTabState();
@@ -261,158 +265,106 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           );
         }
 
-        Widget chartGrid(List<DbCapturedImage> allImages) {
-          // One population for all four charts, and it is the same one the
-          // stat strip above counts.
-          final images = acceptedLights(allImages);
-          final excluded = allImages.length - images.length;
-          // Four ~250 px cards that each say "No … recorded" are one fact
-          // stated four times. When no plotted frame carries any of the four
-          // measurements, say it once; one frame with one value brings the
-          // charts back.
-          final anythingToPlot = images.any(
-            (image) =>
-                image.hfr != null ||
-                image.guidingRmsTotal != null ||
-                image.focuserPosition != null ||
-                image.sensorTemp != null,
-          );
-          if (!anythingToPlot) {
-            return _NothingToChart(
-              accepted: images.length,
-              excluded: excluded,
-            );
-          }
-          final hfr =
-              HfrChart(key: TourTarget.analyticsHfrChart.key, images: images);
-          final guiding = GuidingRmsChart(
-              key: TourTarget.analyticsGuidingChart.key, images: images);
-          final focuser = FocuserPositionChart(images: images);
-          final temperature = TemperatureChart(images: images);
-          // Say which frames are plotted rather than letting the reader assume
-          // the charts cover everything the session captured.
-          final population = Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),
-            child: Text(
-              excluded == 0
-                  ? 'All four charts plot the same ${images.length} accepted light frames.'
-                  : 'All four charts plot the same ${images.length} accepted light frames '
-                      '· $excluded excluded (rejected or calibration)',
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-          );
-
-          // Phone: a single column of full-width charts so each reads at the
-          // viewport width. Tablet/desktop keep the 2-up grid.
-          if (isPhone) {
-            return Column(
-              children: [
-                population,
-                hfr,
-                const SizedBox(height: SkotiqTokens.spaceLg),
-                guiding,
-                const SizedBox(height: SkotiqTokens.spaceLg),
-                focuser,
-                const SizedBox(height: SkotiqTokens.spaceLg),
-                temperature,
-              ],
-            );
-          }
-          return Column(
-            children: [
-              population,
-              Row(
-                children: [
-                  Expanded(child: hfr),
-                  const SizedBox(width: SkotiqTokens.spaceLg),
-                  Expanded(child: guiding),
-                ],
-              ),
-              const SizedBox(height: SkotiqTokens.spaceLg),
-              Row(
-                children: [
-                  Expanded(child: focuser),
-                  const SizedBox(width: SkotiqTokens.spaceLg),
-                  Expanded(child: temperature),
-                ],
-              ),
-            ],
-          );
-        }
-
-        // With sessions to pick from, the picker IS the session's identity:
-        // it names the session and its date, so the panel does not repeat
-        // them in a title and subtitle under a second bar that said the same.
         final showPicker = allSessions.isNotEmpty && !isLive;
         final reviewStatus = showPicker ? reviewSession?.status : null;
+
+        final summaryPanel = SkotiqPanel(
+          head: PanelHead(
+            icon: LucideIcons.activity,
+            label: l10n.text('analyticsSession'),
+            trailing: [
+              SegmentedControl(
+                dense: true,
+                segments: const ['Charts', 'Optics'],
+                selectedIndex: widget.view.index,
+                onSelected: (index) =>
+                    widget.onViewPicked(SessionView.values[index]),
+                semanticLabel: 'Session view',
+              ),
+              if (isLive)
+                SkotiqChip(
+                  label: l10n.text('analyticsLive'),
+                  tone: ChipTone.success,
+                  dot: true,
+                ),
+              if (reviewStatus != null)
+                SkotiqChip(
+                  label: sessionStatusLabel(reviewStatus),
+                  tone: sessionStatusTone(reviewStatus),
+                ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showPicker)
+                _SessionReviewBar(
+                  sessions: allSessions,
+                  selectedId: reviewSelectionId,
+                  offerQuickCaptures: offerQuickCaptures,
+                  framed: false,
+                  onSelected: _pick,
+                  onClear:
+                      _selectedSessionId == null ? null : () => _pick(null),
+                )
+              else ...[
+                Text(
+                  headerTitle,
+                  style: SkotiqTypography.sectionTitle.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: SkotiqTokens.spaceXs),
+                Text(
+                  headerSubtitle,
+                  style: SkotiqTypography.bodySm.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: SkotiqTokens.spaceLg),
+              Wrap(
+                spacing: _summaryReadoutGap,
+                runSpacing: SkotiqTokens.spaceLg,
+                children: summaryReadouts,
+              ),
+            ],
+          ),
+        );
+
+        if (widget.view == SessionView.optics) {
+          return Padding(
+            padding: outerPadding,
+            child: Column(
+              children: [
+                summaryPanel,
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                Expanded(
+                  child: OpticsDiagnosticsView(
+                    sessionId: reviewSelectionId,
+                    onOpenLatest: allSessions.isEmpty
+                        ? null
+                        : () => _pick(
+                              allSessions
+                                  .reduce(
+                                    (a, b) => a.startTime.isAfter(b.startTime)
+                                        ? a
+                                        : b,
+                                  )
+                                  .id,
+                            ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
 
         return SingleChildScrollView(
           padding: outerPadding,
           child: Column(
             children: [
-              // Session summary — one panel: the eyebrow head names it, the
-              // session's own name and date sit under it, and the four numbers
-              // are Readouts that wrap instead of overflowing a phone column.
-              SkotiqPanel(
-                head: PanelHead(
-                  icon: LucideIcons.activity,
-                  label: l10n.text('analyticsSession'),
-                  trailing: [
-                    if (isLive)
-                      SkotiqChip(
-                        label: l10n.text('analyticsLive'),
-                        tone: ChipTone.success,
-                        dot: true,
-                      ),
-                    if (reviewStatus != null)
-                      SkotiqChip(
-                        label: sessionStatusLabel(reviewStatus),
-                        tone: sessionStatusTone(reviewStatus),
-                      ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showPicker)
-                      _SessionReviewBar(
-                        sessions: allSessions,
-                        selectedId: reviewSelectionId,
-                        offerQuickCaptures: offerQuickCaptures,
-                        framed: false,
-                        onSelected: _pick,
-                        onClear: _selectedSessionId == null
-                            ? null
-                            : () => _pick(null),
-                      )
-                    else ...[
-                      Text(
-                        headerTitle,
-                        style: SkotiqTypography.sectionTitle.copyWith(
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: SkotiqTokens.spaceXs),
-                      Text(
-                        headerSubtitle,
-                        style: SkotiqTypography.bodySm.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: SkotiqTokens.spaceLg),
-                    Wrap(
-                      spacing: _summaryReadoutGap,
-                      runSpacing: SkotiqTokens.spaceLg,
-                      children: summaryReadouts,
-                    ),
-                  ],
-                ),
-              ),
-
+              summaryPanel,
               const SizedBox(height: SkotiqTokens.space2xl),
 
               // ONE banner for ONE problem (05 §11). The charts and the
@@ -427,7 +379,11 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                 )
               else ...[
                 imagesAsyncValue.when(
-                  data: chartGrid,
+                  data: (frames) => SessionChartGrid(
+                    frames: frames,
+                    stacked: isPhone,
+                    tourTargets: true,
+                  ),
                   loading: () => const _AnalyticsLoading(
                     height: _chartGridSkeletonHeight,
                   ),
@@ -468,49 +424,6 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           ),
         );
       },
-    );
-  }
-}
-
-/// The chart grid's state when no plotted frame has anything to plot: one
-/// line in place of four empty charts.
-class _NothingToChart extends StatelessWidget {
-  const _NothingToChart({required this.accepted, required this.excluded});
-
-  /// Accepted light frames — the population the charts would plot.
-  final int accepted;
-
-  /// Frames left out of that population (rejected or calibration).
-  final int excluded;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final what = accepted == 0
-        ? 'No accepted light frames to chart'
-        : 'None of the $accepted accepted light frames recorded HFR, '
-            'guiding RMS, focuser position or sensor temperature';
-    return SkotiqPanel(
-      child: Row(
-        children: [
-          Icon(
-            LucideIcons.lineChart,
-            size: SkotiqTokens.iconSm,
-            color: colors.textMuted,
-          ),
-          const SizedBox(width: SkotiqTokens.spaceMd),
-          Expanded(
-            child: Text(
-              excluded == 0
-                  ? what
-                  : '$what · $excluded excluded (rejected or calibration)',
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -605,81 +518,6 @@ String? _formatAnalyticsIntegration(double seconds) =>
     !seconds.isFinite || seconds <= 0
         ? null
         : DurationFormat.seconds(seconds, style: DurationStyle.short);
-
-final dbSessionImagesProvider =
-    StreamProvider.family<List<DbCapturedImage>, int>(
-  (ref, sessionId) =>
-      ref.watch(capturedImageRowsProvider).watchSession(sessionId),
-);
-
-final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>(
-  (ref) => ref.watch(capturedImageRowsProvider).watchStandalone(),
-);
-
-/// The label of the History target filter's "no filter" entry.
-const String kAllTargetsFilter = 'All Targets';
-
-/// The label of the History target filter's "sessions with no target" entry.
-/// Only offered when at least one session actually has a null `targetId`.
-const String kUntargetedSessionsFilter = 'Untargeted sessions';
-
-/// Options for the History tab's target filter — REAL targets.
-///
-/// The filter lists rows from `targets`, not session names; session names
-/// remain filterable through the search field beside the dropdown.
-///
-/// The list is the names of the targets that the recorded sessions actually
-/// reference (a target with no sessions would filter to nothing), plus
-/// [kUntargetedSessionsFilter] when some sessions carry no target.
-final sessionTargetNamesProvider = Provider<AsyncValue<List<String>>>((ref) {
-  final sessionsAsync = ref.watch(allSessionsProvider);
-  final targetsAsync = ref.watch(allDbTargetsProvider);
-  if (sessionsAsync.hasError) {
-    return AsyncValue.error(sessionsAsync.error!, sessionsAsync.stackTrace!);
-  }
-  if (targetsAsync.hasError) {
-    return AsyncValue.error(targetsAsync.error!, targetsAsync.stackTrace!);
-  }
-  final sessions = sessionsAsync.valueOrNull;
-  final targets = targetsAsync.valueOrNull;
-  if (sessions == null || targets == null) return const AsyncValue.loading();
-
-  final nameById = {for (final t in targets) t.id: t.name};
-  final referenced = <String>{};
-  var hasUntargeted = false;
-  for (final session in sessions) {
-    final id = session.targetId;
-    final name = id == null ? null : nameById[id];
-    if (name != null && name.isNotEmpty) {
-      referenced.add(name);
-    } else {
-      hasUntargeted = true;
-    }
-  }
-  final sorted = referenced.toList()..sort();
-  return AsyncValue.data([
-    kAllTargetsFilter,
-    ...sorted,
-    if (hasUntargeted && sorted.isNotEmpty) kUntargetedSessionsFilter,
-  ]);
-});
-
-/// Maps a target-filter label to the predicate the History list applies.
-/// Exposed (rather than inlined in the tab) so the mapping is unit-testable and
-/// cannot drift from [sessionTargetNamesProvider]'s labels.
-bool sessionMatchesTargetFilter(
-  ImagingSession session,
-  String filter,
-  Map<int, String> targetNameById,
-) {
-  if (filter == kAllTargetsFilter) return true;
-  final id = session.targetId;
-  final name = id == null ? null : targetNameById[id];
-  if (filter == kUntargetedSessionsFilter) {
-    return name == null || name.isEmpty;
-  }
-  return name == filter;
-}
 
 class _SessionReviewBar extends StatelessWidget {
   final List<ImagingSession> sessions;

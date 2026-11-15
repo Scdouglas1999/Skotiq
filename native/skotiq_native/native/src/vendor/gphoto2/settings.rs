@@ -186,6 +186,13 @@ impl BodyFacts {
         digits.parse().ok().filter(|p| *p <= 100)
     }
 
+    pub(crate) fn is_fujifilm(&self) -> bool {
+        [&self.manufacturer, &self.model]
+            .into_iter()
+            .flatten()
+            .any(|text| text.to_ascii_lowercase().contains("fuji"))
+    }
+
     pub(crate) fn is_canon(&self) -> bool {
         self.manufacturer
             .as_deref()

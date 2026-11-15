@@ -188,7 +188,9 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
                 padding: const EdgeInsets.all(24),
                 child: Center(
                   child: Text(
-                    'Nothing clears 30° during tonight’s darkness',
+                    'Nothing clears '
+                    '${ref.watch(planetariumAltitudeFloorProvider).phrase} '
+                    'during tonight’s darkness',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: widget.colors.textMuted),
                   ),

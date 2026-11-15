@@ -1,4 +1,5 @@
 import '../../models/planning/night_forecast.dart';
+import '../../models/site/altitude_floor.dart';
 import '../../models/weather/radar_frame.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../weather/radar_provider.dart';
@@ -22,16 +23,11 @@ class ProjectTargetCandidate {
   /// Declination in degrees (the `targets.dec` convention).
   final double decDegrees;
 
-  /// Minimum altitude in degrees the target must clear to count as "up"
-  /// (the `targets.minAltitude` convention, default 30° in the schema).
-  final double minAltitudeDeg;
-
   const ProjectTargetCandidate({
     required this.targetId,
     required this.name,
     required this.raHours,
     required this.decDegrees,
-    required this.minAltitudeDeg,
   });
 }
 
@@ -65,6 +61,10 @@ class ForecastPlanningService {
   /// Site longitude in degrees, east positive.
   final double longitudeDegrees;
 
+  /// The site's altitude floor: a target is "up" in a dark hour when it
+  /// stands above it.
+  final AltitudeFloor floor;
+
   /// Cloud opacity (0..1) at or below which a sampled dark hour counts as
   /// "clear".
   ///
@@ -92,6 +92,7 @@ class ForecastPlanningService {
   ForecastPlanningService({
     required this.latitudeDegrees,
     required this.longitudeDegrees,
+    required this.floor,
     this.cloudClearThreshold = 0.35,
   }) {
     if (cloudClearThreshold < 0.0 || cloudClearThreshold > 1.0) {
@@ -228,15 +229,17 @@ class ForecastPlanningService {
 
       // Target visibility at this dark hour.
       for (final t in targets) {
-        final alt = _targetAltitudeDeg(
-          raHours: t.raHours,
-          decDegrees: t.decDegrees,
-          timeUtc: sampleUtc,
+        final (alt, az) = AstronomyCalculations.objectAltAz(
+          raDeg: t.raHours * 15.0,
+          decDeg: t.decDegrees,
+          dt: sampleUtc,
+          latitudeDeg: latitudeDegrees,
+          longitudeDeg: longitudeDegrees,
         );
         if (alt > (maxAlt[t.targetId] ?? double.negativeInfinity)) {
           maxAlt[t.targetId] = alt;
         }
-        if (alt >= t.minAltitudeDeg) {
+        if (floor.clears(alt, az)) {
           upHours[t.targetId] = (upHours[t.targetId] ?? 0) + 1;
         }
       }
@@ -358,22 +361,5 @@ class ForecastPlanningService {
       return entries.sublist(0, _maxBestTargets);
     }
     return entries;
-  }
-
-  /// Geometric altitude (degrees) of a J2000 target at [timeUtc] for this
-  /// site.
-  double _targetAltitudeDeg({
-    required double raHours,
-    required double decDegrees,
-    required DateTime timeUtc,
-  }) {
-    final (altitude, _) = AstronomyCalculations.objectAltAz(
-      raDeg: raHours * 15.0,
-      decDeg: decDegrees,
-      dt: timeUtc,
-      latitudeDeg: latitudeDegrees,
-      longitudeDeg: longitudeDegrees,
-    );
-    return altitude;
   }
 }

@@ -269,6 +269,8 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
         .await
         .expect("clearing an empty slot is a no-op");
 
+    use crate::event::imaging::ImagingEvent;
+    let mut events = get_state().event_bus.subscribe();
     let cancel_id = device_id.clone();
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
@@ -305,6 +307,21 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
     assert!(
         stored.is_err(),
         "an aborted exposure must not store a frame"
+    );
+    let mut ends = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::Imaging(
+            imaging @ (ImagingEvent::ExposureComplete { .. }
+            | ImagingEvent::ExposureFailed { .. }
+            | ImagingEvent::ExposureCancelled),
+        ) = event.payload
+        {
+            ends.push(imaging);
+        }
+    }
+    assert!(
+        matches!(ends.as_slice(), [ImagingEvent::ExposureCancelled]),
+        "an abort is told as a cancelled exposure, once: {ends:?}"
     );
 }
 

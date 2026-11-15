@@ -94,10 +94,15 @@ final nightTargetWindowsProvider = Provider<List<NightTargetWindow>>((ref) {
         ? recorded.completed[target.id]
         : null;
     // A target that really started late or early keeps its estimated length
-    // from the recorded start, rather than ending before it began.
+    // from the recorded start, rather than ending before it began. The
+    // length runs from when the estimate reaches the target, which is
+    // before its first step when the target waits for the altitude floor:
+    // the target starts when the run reaches it, and waits inside it.
+    final estimatedReach =
+        from == 0 ? timing.anchor : timings[from - 1].estimatedEnd;
     final projectedEnd = startedAt == null
         ? estimatedEnd
-        : startedAt.add(estimatedEnd.difference(estimatedStart));
+        : startedAt.add(estimatedEnd.difference(estimatedReach));
     windows.add(
       NightTargetWindow(
         target: target,

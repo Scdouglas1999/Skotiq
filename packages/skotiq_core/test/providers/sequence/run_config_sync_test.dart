@@ -265,6 +265,43 @@ void main() {
     expect(container.read(namingPatternProvider).format.extension, 'xisf');
   });
 
+  test('the run is sent the altitude floor by azimuth, and again when the '
+      'horizon changes', () async {
+    // East behind trees to 40 degrees, the west open.
+    const trees =
+        '{"samples":[[0,0],[44,0],[45,40],[135,40],[136,0],[359,0]]}';
+    build(
+      settings: const AppSettingsState().copyWith(
+        latitude: 40,
+        longitude: -75,
+      ),
+    );
+    await settle();
+    // No horizon: the minimum altitude, the same all round.
+    expect(backend.runConfigs.last['altitude_floor'], {
+      'samples': [
+        {'az': 0.0, 'alt': SchedulerConfig.defaults.minAltitudeDegrees},
+      ],
+    });
+
+    replaceSettings(
+      const AppSettingsState().copyWith(
+        latitude: 40,
+        longitude: -75,
+        horizonProfileJson: trees,
+      ),
+    );
+    await settle();
+    final samples =
+        ((backend.runConfigs.last['altitude_floor'] as Map)['samples'] as List)
+            .cast<Map<String, dynamic>>();
+    double at(double azimuth) =>
+        (samples.firstWhere((s) => s['az'] == azimuth)['alt'] as num)
+            .toDouble();
+    expect(at(90), 40);
+    expect(at(270), 0, reason: 'a horizon replaces the minimum altitude');
+  });
+
   test('a linked client sends no run config', () async {
     build(remoteClient: true);
     final sync = container.read(runConfigSyncProvider);

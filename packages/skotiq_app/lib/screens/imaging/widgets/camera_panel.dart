@@ -12,6 +12,11 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/sensitivity_field.dart';
 import 'panel_widgets.dart';
+import 'retained_captures_section.dart';
+
+/// The read-mode choice that states none: the camera stays in the mode it is
+/// in. Short, because the panel's dropdown shows about ten characters.
+const String kCameraOwnReadMode = 'Not set';
 
 class CameraPanel extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -388,62 +393,48 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                       }
                     : null,
               ),
-              // Read Mode is driver-reported. Hide the row entirely when the
-              // camera exposes no readout modes (matches the hide-when-
-              // unsupported pattern used for unsupported device features);
-              // there is intentionally no synthetic binary fallback.
+              // The read mode belongs to the equipment profile: the device
+              // layer puts the camera in it when a frame is taken, for a
+              // capture from here and for a run alike. The row is absent for
+              // a camera that lists no read modes.
               if ((capabilities?.readoutModes ?? const []).isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Builder(
                   builder: (context) {
                     final readoutModes = capabilities!.readoutModes;
-                    final selectedIndex = exposureSettings
-                        .resolveReadoutModeIndex(readoutModes.length);
-                    final selectedMode = selectedIndex >= 0 &&
-                            selectedIndex < readoutModes.length
-                        ? readoutModes[selectedIndex]
-                        : null;
+                    final profile = ref.watch(activeEquipmentProfileProvider);
+                    final stated = profile?.defaultReadoutMode;
+                    final statedListed = stated != null &&
+                        readoutModes.any(
+                          (m) => m.toLowerCase() == stated.toLowerCase(),
+                        );
+                    final profileId = profile?.id;
                     return DropdownRow(
                       label: 'Read mode',
                       helpId: FieldHelpId.cameraReadoutMode,
-                      value: selectedMode,
-                      items: readoutModes,
+                      value: statedListed
+                          ? readoutModes.firstWhere(
+                              (m) => m.toLowerCase() == stated.toLowerCase(),
+                            )
+                          : kCameraOwnReadMode,
+                      items: [kCameraOwnReadMode, ...readoutModes],
                       colors: widget.colors,
-                      onChanged: isConnected && !_isChangingReadoutMode
+                      onChanged: profileId != null && !_isChangingReadoutMode
                           ? (value) async {
                               if (value == null) return;
-                              final idx = readoutModes.indexOf(value);
-                              if (idx < 0) return;
-                              final deviceId = cameraState.deviceId;
-                              if (deviceId == null) return;
                               final host =
                                   ref.backendScope(alive: () => mounted);
-                              final deviceBackend =
-                                  ref.read(deviceBackendProvider);
-                              final exposureUpdater = ref.read(
-                                manualExposureSettingsUpdaterProvider,
-                              );
+                              final profiles = ref.read(profileServiceProvider);
                               setState(() => _isChangingReadoutMode = true);
                               try {
-                                await deviceBackend.cameraSetReadoutMode(
-                                  deviceId,
-                                  idx,
+                                await profiles.setProfileReadMode(
+                                  profileId,
+                                  value == kCameraOwnReadMode ? null : value,
                                 );
-                                if (host.isCurrent) {
-                                  final latestSettings =
-                                      ref.read(exposureSettingsProvider);
-                                  exposureUpdater.update(
-                                    latestSettings.copyWith(
-                                      readoutModeIndex: idx,
-                                      fastReadout:
-                                          idx == readoutModes.length - 1,
-                                    ),
-                                  );
-                                }
                               } catch (e) {
                                 if (context.mounted && host.isCurrent) {
                                   context.showErrorSnackBar(
-                                    'Failed to set read mode: ${userFacingError(e)}',
+                                    'Failed to save the read mode: ${userFacingError(e)}',
                                   );
                                 }
                               } finally {
@@ -537,6 +528,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
+        RetainedCapturesSection(colors: widget.colors),
       ],
     );
     if (!widget.scrollable) return content;

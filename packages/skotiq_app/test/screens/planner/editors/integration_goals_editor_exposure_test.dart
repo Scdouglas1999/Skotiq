@@ -78,7 +78,7 @@ void main() {
 
     expect(find.text('180'), findsOneWidget);
 
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byType(SkotiqDropdown));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ha').last);
     await tester.pumpAndSettle();
@@ -134,7 +134,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byType(SkotiqDropdown));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ha').last);
     await tester.pumpAndSettle();
@@ -162,8 +162,8 @@ void main() {
     expect(find.textContaining('old host failed'), findsNothing);
     expect(
       tester
-          .widget<DropdownButton<String>>(
-            find.byType(DropdownButton<String>),
+            .widget<SkotiqDropdown>(
+            find.byType(SkotiqDropdown),
           )
           .value,
       'Ha',
@@ -174,8 +174,8 @@ void main() {
     await tester.pump();
     expect(
       tester
-          .widget<DropdownButton<String>>(
-            find.byType(DropdownButton<String>),
+            .widget<SkotiqDropdown>(
+            find.byType(SkotiqDropdown),
           )
           .value,
       isNull,

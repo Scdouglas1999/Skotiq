@@ -150,8 +150,9 @@ sk.SkotiqEvent nodeEvent(
 }
 
 /// A container with every P1a input pinned. Defaults: no plan, idle, camera
-/// connected, commands allowed, Boston with the night above, meridian flips
-/// off, the host's clock, a local backend.
+/// connected, commands allowed, Boston with the night above and no altitude
+/// floor above the true horizon, meridian flips off, the host's clock, a
+/// local backend.
 ProviderContainer planContainer({
   required DateTime now,
   Clock clock = const SystemClock(),
@@ -161,6 +162,7 @@ ProviderContainer planContainer({
   RunRecord run = const RunRecord(),
   SessionState session = const SessionState(),
   bool site = true,
+  AltitudeFloor floor = const AltitudeFloor(horizon: null, minimumDeg: 0),
   TonightNight? night,
   bool cameraConnected = true,
   bool canCommand = true,
@@ -184,9 +186,7 @@ ProviderContainer planContainer({
         site ? (night ?? bostonNight()) : null,
       ),
       appObserverLocationProvider.overrideWithValue(site ? boston : null),
-      altitudeFloorProvider.overrideWithValue(
-        const AltitudeFloor(horizon: null, minimumDeg: 30),
-      ),
+      altitudeFloorProvider.overrideWithValue(floor),
       sequencerOverheadConfigProvider.overrideWithValue(
         SequenceTimeEstimator.defaultEstimatorOverhead,
       ),

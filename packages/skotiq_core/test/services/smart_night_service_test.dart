@@ -6,6 +6,14 @@ import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
+/// No horizon and no minimum: a target is held to the true horizon only.
+const _openSky = AltitudeFloor(horizon: null, minimumDeg: 0);
+
+// Far enough north that the tests' targets never set: these tests are not
+// about the sky.
+const _siteLatitude = 80.0;
+const _siteLongitude = -73.0;
+
 /// A wall-clock time at the 41 N, 73 W test site, on daylight time (UTC-4),
 /// so the plans do not depend on the time zone of the machine running them.
 DateTime siteTime(
@@ -30,6 +38,7 @@ void main() {
           loggingService: _MockLoggingService(),
         ),
         logging: _MockLoggingService(),
+        floor: _openSky,
       );
 
       monoProfile = const EquipmentProfileModel(
@@ -130,6 +139,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'Target'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: filters,
         );
         final plans = result.sequence.nodes.values
@@ -146,6 +157,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'Target'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: const [],
         settings: const SmartNightSettings(
           gainOverride: 80,
@@ -163,8 +176,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -213,8 +226,8 @@ void main() {
       SmartNightPlan buildWith(PlanTimer timer) => service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: timer,
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -257,8 +270,8 @@ void main() {
         final plan = service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 7, name: 'M33')],
@@ -279,8 +292,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -301,8 +314,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext().copyWith(
           rainOrCloudProbability: 0.55,
@@ -345,8 +358,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
@@ -375,8 +388,8 @@ void main() {
       final baseline = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -386,8 +399,8 @@ void main() {
       final lowFullWell = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -429,8 +442,8 @@ void main() {
       final plan = service.build(
         profile: narrowbandProfile,
         availableFilters: narrowbandProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
@@ -458,8 +471,8 @@ void main() {
       final plan = service.build(
         profile: oscProfile,
         availableFilters: oscProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
@@ -484,8 +497,8 @@ void main() {
         () => service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: const [],
@@ -501,8 +514,8 @@ void main() {
         () => service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -549,8 +562,8 @@ void main() {
         () => service.build(
           profile: oscProfile,
           availableFilters: oscProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'NGC 7000')],
@@ -572,8 +585,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: context,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -635,8 +648,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: context,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -656,8 +669,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -711,8 +724,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -749,8 +762,8 @@ void main() {
         () => service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: tightContext,
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -765,8 +778,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
@@ -790,8 +803,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: tightContext,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -809,8 +822,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -969,6 +982,8 @@ void main() {
         suggestion: suggestionWithHours(6),
         windowStart: windowStart,
         windowEnd: windowEnd,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
         exposureContext: exposureContext,
         settings: settings,
@@ -978,6 +993,8 @@ void main() {
         suggestion: suggestionWithHours(2),
         windowStart: windowStart,
         windowEnd: windowEnd,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
         exposureContext: exposureContext,
         settings: settings,
@@ -997,6 +1014,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1032,6 +1051,8 @@ void main() {
         ),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: narrowbandProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1058,6 +1079,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: lOnlyProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1088,6 +1111,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: const [],
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
@@ -1104,6 +1129,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: const [],
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
@@ -1135,6 +1162,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: const [],
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
@@ -1153,6 +1182,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: const [],
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
@@ -1168,6 +1199,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: const [],
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
@@ -1183,6 +1216,8 @@ void main() {
             suggestion: fakeSuggestion(id: 1, name: 'M51'),
             windowStart: siteTime(2026, 5, 17, 22),
             windowEnd: siteTime(2026, 5, 18, 5),
+            latitudeDeg: _siteLatitude,
+            longitudeDeg: _siteLongitude,
             availableFilters: narrowbandProfile.filterNames,
             strategy: SmartNightStrategy.monoLrgb,
             settings: const SmartNightSettings(subExposureFloorSecs: 1),
@@ -1208,6 +1243,8 @@ void main() {
             suggestion: fakeSuggestion(id: 1, name: 'M51'),
             windowStart: siteTime(2026, 5, 17, 22),
             windowEnd: end,
+            latitudeDeg: _siteLatitude,
+            longitudeDeg: _siteLongitude,
             availableFilters: filters,
             fillWindow: true,
             includeSessionShutdown: true,
@@ -1242,6 +1279,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
         includeSessionPreamble: true,
         includeSessionShutdown: false,
@@ -1262,6 +1301,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: monoProfile.filterNames,
           settings: const SmartNightSettings(
             useExposurePresets: true,
@@ -1290,6 +1331,8 @@ void main() {
           suggestion: fakeSuggestion(id: 1, name: 'M51'),
           windowStart: siteTime(2026, 5, 17, 22),
           windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           availableFilters: filters,
         );
         final nodes = result.sequence.nodes.values;
@@ -1337,6 +1380,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: monoProfile.filterNames,
         integrationGoalProgress: goals,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
@@ -1367,6 +1412,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: partialLrgbProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1397,6 +1444,8 @@ void main() {
         ),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: hooProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1423,6 +1472,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: noGuiderProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1450,6 +1501,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: guiderProfile.filterNames,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
@@ -1481,6 +1534,8 @@ void main() {
         suggestion: fakeSuggestion(id: 1, name: 'M51'),
         windowStart: siteTime(2026, 5, 17, 22),
         windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         availableFilters: ['L'],
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
         includeSessionPreamble: true,
@@ -1526,8 +1581,8 @@ void main() {
         final plan = service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: darkGapContext(
             notes: const [
@@ -1568,8 +1623,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1611,8 +1666,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(
           notes: const [
@@ -1681,8 +1736,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1729,8 +1784,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1768,8 +1823,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1803,8 +1858,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1868,8 +1923,8 @@ void main() {
       final tightPlan = service.build(
         profile: narrowbandProfile,
         availableFilters: narrowbandProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [emissionTarget],
@@ -1900,8 +1955,8 @@ void main() {
       final loosePlan = service.build(
         profile: narrowbandProfile,
         availableFilters: narrowbandProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [emissionTarget],
@@ -1937,8 +1992,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1972,8 +2027,8 @@ void main() {
         () => service.build(
           profile: unknownCameraProfile,
           availableFilters: unknownCameraProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -1999,8 +2054,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -2017,8 +2072,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -2086,8 +2141,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -2164,8 +2219,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
@@ -2200,6 +2255,7 @@ void main() {
           loggingService: _MockLoggingService(),
         ),
         logging: _MockLoggingService(),
+        floor: _openSky,
       );
       monoProfile = const EquipmentProfileModel(
         id: 1,
@@ -2260,8 +2316,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(),
         selectedSuggestions: threeTargets(),
@@ -2286,8 +2342,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(),
         selectedSuggestions: threeTargets(),
@@ -2318,8 +2374,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(horizon: horizon),
         selectedSuggestions: threeTargets(),
@@ -2350,8 +2406,8 @@ void main() {
         final plan = service.build(
           profile: monoProfile,
           availableFilters: monoProfile.filterNames,
-          latitudeDeg: 41.0,
-          longitudeDeg: -73.0,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
           planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: contextWith(),
           selectedSuggestions: threeTargets(),
@@ -2376,8 +2432,8 @@ void main() {
       final plan = service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
         planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(horizon: horizon),
         selectedSuggestions: threeTargets(),

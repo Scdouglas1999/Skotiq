@@ -216,7 +216,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsNoSessionHistoryDesc':
         'Complete an imaging session to see history here',
     'analyticsNoSessionInProgress': 'No session in progress',
-    'analyticsProjects': 'Projects',
     'analyticsQuickCapture': 'Quick Capture',
     'analyticsQuickCaptureSubtitle':
         'Standalone snapshots taken outside sequences',
@@ -471,8 +470,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'equipmentDeleteFailed': 'Failed to delete: {error}',
     'equipmentRestoreFailed': 'Failed to restore profile: {error}',
     // Planner (Plan Tonight) sub-tab labels.
-    'plannerTabProjects': 'Projects',
-    'plannerTabSchedule': 'Schedule',
+    'plannerTabTargets': 'Targets',
     'plannerTabFraming': 'Framing',
     'plannerTabPlanetarium': 'Planetarium',
     // Settings catalog section labels.
@@ -545,7 +543,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Set it in Settings → Location.',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Plan',
-    'plannerTabTonight': 'Tonight',
+    'plannerTabTonight': 'Best tonight',
     'plannerTabYourSky': 'Your sky',
     'plannerChipMoon': 'Moon {value}%',
     'plannerChipMoonAt': 'Moon {value}% at {time}',
@@ -562,10 +560,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerImageTonight': 'Image tonight',
     'plannerAddTarget': 'Add',
     'plannerAboveMin': 'Above {value}°',
+    'plannerAboveHorizon': 'Above floor',
     'plannerAltNow': 'Alt now',
     'plannerFromMoon': 'From moon',
     'plannerAltitudeChartSem':
-        '{name} altitude across tonight, 0 to 90 degrees, with the {deg} degree limit, astronomical dusk and dawn, and now',
+        '{name} altitude across tonight, 0 to 90 degrees, with the altitude floor where it stands, astronomical dusk and dawn, and now',
     'plannerWindow': 'Window',
     'plannerFrameIt': 'Frame it',
     'plannerBuildSequence': 'Build sequence',
@@ -1223,6 +1222,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeParked': 'Parked',
     'nightScopeNotTracking': 'Not tracking',
     'nightScopeTrackingAt': 'Tracking · {rate}',
+    'nightScopeTrackingRateUnknown': 'Tracking · rate not reported',
     'nightScopeRaJNow': 'RA (JNow)',
     'nightScopeDecJNow': 'Dec (JNow)',
     'nightScopeRa': 'RA',
@@ -1852,7 +1852,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsNoSessionHistoryDesc':
         'Completa una sesi\u00F3n para ver el historial aqu\u00ED',
     'analyticsNoSessionInProgress': 'No hay una sesi\u00F3n en curso',
-    'analyticsProjects': 'Proyectos',
     'analyticsQuickCapture': 'Captura r\u00E1pida',
     'analyticsQuickCaptureSubtitle':
         'Instant\u00E1neas hechas fuera de las secuencias',
@@ -2118,8 +2117,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'equipmentDeleteFailed': 'No se pudo eliminar: {error}',
     'equipmentRestoreFailed': 'No se pudo restaurar el perfil: {error}',
     // Planner (Plan Tonight) sub-tab labels.
-    'plannerTabProjects': 'Proyectos',
-    'plannerTabSchedule': 'Calendario',
+    'plannerTabTargets': 'Objetivos',
     'plannerTabFraming': 'Encuadre',
     'plannerTabPlanetarium': 'Planetario',
     // Settings catalog section labels.
@@ -2186,7 +2184,7 @@ final Map<String, Map<String, String>> _localizedValues = {
             'Defínelo en Ajustes → Ubicación.',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Planificar',
-    'plannerTabTonight': 'Esta noche',
+    'plannerTabTonight': 'Lo mejor de hoy',
     'plannerTabYourSky': 'Tu cielo',
     'plannerChipMoon': 'Luna {value} %',
     'plannerChipMoonAt': 'Luna {value} % a las {time}',
@@ -2203,10 +2201,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerImageTonight': 'Fotografiar esta noche',
     'plannerAddTarget': 'Añadir',
     'plannerAboveMin': 'Sobre {value}°',
+    'plannerAboveHorizon': 'Sobre el límite',
     'plannerAltNow': 'Altura ahora',
     'plannerFromMoon': 'De la luna',
     'plannerAltitudeChartSem':
-        'Altitud de {name} esta noche, de 0 a 90 grados, con el límite de {deg} grados, el anochecer y el amanecer astronómicos, y ahora',
+        'Altitud de {name} esta noche, de 0 a 90 grados, con el límite de altitud donde se encuentra, el anochecer y el amanecer astronómicos, y ahora',
     'plannerWindow': 'Ventana',
     'plannerFrameIt': 'Encuadrar',
     'plannerBuildSequence': 'Crear secuencia',
@@ -2868,6 +2867,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeParked': 'Aparcada',
     'nightScopeNotTracking': 'Sin seguimiento',
     'nightScopeTrackingAt': 'Siguiendo · {rate}',
+    'nightScopeTrackingRateUnknown': 'Siguiendo · velocidad no informada',
     'nightScopeRaJNow': 'AR (JNow)',
     'nightScopeDecJNow': 'Dec (JNow)',
     'nightScopeRa': 'AR',

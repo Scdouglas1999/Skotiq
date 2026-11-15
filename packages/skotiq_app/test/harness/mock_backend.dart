@@ -152,6 +152,10 @@ MockBackend mockBackend() {
   // dispose() returns void; mocktail won't auto-stub void getters/setters but
   // void methods are fine. Still, set up explicitly so `verify(() => ...)`
   // works for tests that want to assert disposal.
+  // No camera is keeping a capture unless a test says one is.
+  when(
+    () => backend.cameraRetainedCaptures(),
+  ).thenAnswer((_) async => const <RetainedCapture>[]);
   when(() => backend.dispose()).thenAnswer((_) {
     eventController.close();
     polarAlignController.close();

@@ -296,10 +296,20 @@ pub async fn api_sequencer_resume_from_checkpoint() -> Result<(), SkotiqError> {
     let ops = create_unified_device_ops();
     executor.set_device_ops(ops);
 
-    executor
-        .resume_from_checkpoint()
+    restore_from_checkpoint(&mut executor)
         .await
-        .map_err(|e| SkotiqError::OperationFailed(e))
+        .map_err(SkotiqError::OperationFailed)
+}
+
+/// Restore `executor` from its checkpoint with the observing site in force. A
+/// checkpoint written with no site leaves the restored run without one; it
+/// takes the app's, as a start does.
+async fn restore_from_checkpoint(
+    executor: &mut skotiq_sequencer::SequenceExecutor,
+) -> Result<(), String> {
+    executor.resume_from_checkpoint().await?;
+    seed_executor_site_from_settings(executor).await;
+    Ok(())
 }
 
 /// Ask the RUNNING sequence to flip at its next safe point.
@@ -482,6 +492,57 @@ mod executor_site_tests {
             "the run started with no observing site even though app settings had one"
         );
     }
+
+    /// A run restored from a checkpoint that recorded no site takes the app's
+    /// site, as a started run does; without one its altitude floor and its
+    /// meridian flip are off.
+    #[tokio::test]
+    async fn restoring_a_checkpoint_seeds_the_site_from_app_settings() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        get_state()
+            .set_observer_location(Some(ObserverLocation {
+                latitude: 41.5,
+                longitude: -71.25,
+                elevation: 30.0,
+            }))
+            .expect("test site should be settable");
+
+        let dir = tempfile::tempdir().expect("a scratch folder");
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("Interrupted".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 0.01,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        let mut checkpoint = skotiq_sequencer::SessionCheckpoint::new(sequence);
+        checkpoint.is_active = true;
+        checkpoint.executor_state = skotiq_sequencer::ExecutorState::Running;
+        assert_eq!((checkpoint.latitude, checkpoint.longitude), (None, None));
+        skotiq_sequencer::CheckpointManager::new(dir.path())
+            .save(&checkpoint)
+            .expect("the checkpoint saves");
+
+        let mut executor = skotiq_sequencer::SequenceExecutor::new();
+        executor.set_checkpoint_dir(dir.path());
+        executor.set_device_ops(std::sync::Arc::new(
+            skotiq_sequencer::device_ops::NullDeviceOps,
+        ));
+        super::restore_from_checkpoint(&mut executor)
+            .await
+            .expect("the checkpoint restores");
+
+        assert_eq!(
+            executor.observer_location(),
+            (Some(41.5), Some(-71.25)),
+            "the restored run has no observing site even though app settings had one"
+        );
+    }
+
     /// The run's start names the plan it runs; the app shows "Started
     /// sequence: <name>" and used to show "Started sequence: Sequence" for
     /// every plan.

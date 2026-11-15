@@ -56,7 +56,7 @@ void main() {
 
     test(
         'the More sheet lists every destination without a slot, then '
-        'Session replay and Settings', () {
+        'Settings', () {
       expect(
         ShellNavigation.moreSheet.map((d) => d.path).toList(),
         [
@@ -66,7 +66,6 @@ void main() {
           '/weather',
           '/darkroom',
           '/analytics',
-          '/session-replay',
           '/settings',
         ],
       );
@@ -76,19 +75,16 @@ void main() {
 
     test('railIndexFor resolves planner and ignores query', () {
       expect(
-        ShellNavigation.railIndexFor('/planner?tab=scheduler'),
+        ShellNavigation.railIndexFor('/planner?tab=targets'),
         railIndexOf(AppRoute.planner),
       );
     });
 
-    // A prefix walk cannot answer these: /session-review shares no prefix with
+    // A prefix walk cannot answer these: /stack-result shares no prefix with
     // /darkroom, and /settings shares one with nothing yet must light nothing.
     test('route-only screens light the rail item that owns them', () {
       for (final location in [
-        '/session-review?session=3',
         '/stack-result?id=9',
-        '/mosaic',
-        '/mosaic/7',
       ]) {
         expect(
           ShellNavigation.railIndexFor(location),
@@ -96,6 +92,9 @@ void main() {
           reason: '$location is a Darkroom surface',
         );
       }
+      // A mosaic is a target with panels: Plan hosts it.
+      expect(ShellNavigation.railIndexFor('/mosaic/7'),
+          railIndexOf(AppRoute.planner));
       expect(ShellNavigation.railIndexFor('/polar-alignment'),
           railIndexOf(AppRoute.equipment));
       expect(ShellNavigation.railIndexFor('/flat-wizard'),
@@ -116,6 +115,7 @@ void main() {
         '/replay/17',
         '/session-replay',
         '/session-replay/4',
+        '/session-review?session=3',
         '/diagnostics',
         '/diagnostics/dump',
         '/tutorial/first-night',

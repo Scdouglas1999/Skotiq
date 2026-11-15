@@ -474,6 +474,7 @@
     "offset": null,
     "orderIndex": 0,
     "parentId": null,
+    "readoutMode": null,
     "triggers": []
   },
   "n-TargetHeader": {

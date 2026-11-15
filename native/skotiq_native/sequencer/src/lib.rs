@@ -89,7 +89,9 @@ pub use focuser_calibration::{
     BacklashAnalysisThresholds, CalibrationConfidence, CalibrationRefusal, DirectionalScan,
     FocuserBacklashCalibration, MeasurementContext,
 };
-pub use guiding_stop::GuidingStopReason;
+pub use guiding_stop::{
+    stop_guider_for_move, stop_guider_for_park, GuiderForMove, GuidingStopReason, GUIDER_STOP_BOUND,
+};
 pub use instructions::*;
 pub use meridian_events::*;
 pub use meridian_flip_executor::*;
@@ -1931,6 +1933,10 @@ pub struct ExposureConfig {
     pub filter_index: Option<i32>,
     pub gain: Option<i32>,
     pub offset: Option<i32>,
+    /// The read mode this step's frames are taken in, by the name the
+    /// camera lists. `None` takes the equipment profile's default.
+    #[serde(default)]
+    pub readout_mode: Option<String>,
     pub binning: Binning,
     pub dither_every: Option<u32>,
     #[serde(default = "default_dither_pixels")]
@@ -2060,6 +2066,7 @@ impl Default for ExposureConfig {
             filter_index: None,
             gain: None,
             offset: None,
+            readout_mode: None,
             binning: Binning::One,
             dither_every: Some(1),
             dither_pixels: default_dither_pixels(),
@@ -3007,8 +3014,13 @@ pub enum TriggerType {
         #[serde(default = "default_guiding_rms_retention_secs")]
         rms_retention_secs: u64,
     },
-    /// Trigger when altitude too low
-    AltitudeLimit { min_altitude: f64 },
+    /// The target is below the site's altitude floor in the direction it
+    /// stands, or below `min_altitude` when the step names a limit of its
+    /// own. With both, it must clear both.
+    AltitudeLimit {
+        #[serde(default)]
+        min_altitude: Option<f64>,
+    },
     /// Trigger when weather unsafe
     WeatherUnsafe,
     /// Trigger when temperature changes

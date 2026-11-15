@@ -188,7 +188,9 @@ typedef ObjectVisibilityKey = ({
   DateTime nightDate,
   double latitudeDeg,
   double longitudeDeg,
-  double minAltitude,
+
+  /// Against the site's altitude floor rather than the horizon.
+  bool againstFloor,
 });
 
 /// Memoised rise/set/transit for one object on one night from one site.
@@ -201,13 +203,29 @@ typedef ObjectVisibilityKey = ({
 /// isolate. Nothing in the key moves faster than local noon.
 final objectVisibilityProvider = Provider.autoDispose
     .family<ObjectVisibility, ObjectVisibilityKey>((ref, key) {
-      return AstronomyCalculations.calculateObjectVisibility(
+      final floor = key.againstFloor
+          ? ref.watch(planetariumAltitudeFloorProvider)
+          : null;
+      if (floor == null || floor.isFlat) {
+        return AstronomyCalculations.calculateObjectVisibility(
+          raDeg: key.raDeg,
+          decDeg: key.decDeg,
+          date: key.nightDate,
+          latitudeDeg: key.latitudeDeg,
+          longitudeDeg: key.longitudeDeg,
+          minAltitude: floor?.at(0) ?? 0,
+        );
+      }
+      // The same local noon-to-noon night, searched against the floor in
+      // the direction the object stands.
+      final night = key.nightDate;
+      return objectVisibilityAboveFloor(
+        floor.at,
         raDeg: key.raDeg,
         decDeg: key.decDeg,
-        date: key.nightDate,
+        center: DateTime(night.year, night.month, night.day, 24),
         latitudeDeg: key.latitudeDeg,
         longitudeDeg: key.longitudeDeg,
-        minAltitude: key.minAltitude,
       );
     });
 

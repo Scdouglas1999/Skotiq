@@ -350,10 +350,10 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // the connection to connectToRig. connectToRig's NetworkBackend
     // also pins via /api/info, but checking here keeps the failure local to the
     // QR flow with a QR-specific message.
-    final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
+    final fetched = (await EnhancedSkotiqDiscovery.readServer(server)).server;
     if (!mounted) return;
-    if (fetched?.fingerprint != null &&
-        fetched!.fingerprint != data.fingerprint) {
+    if (fetched.fingerprint != null &&
+        fetched.fingerprint != data.fingerprint) {
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
@@ -421,7 +421,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     });
 
     // Build a DiscoveredServer carrying the operator's scheme + token so
-    // fetchServerInfo probes the right protocol and the pairing branch in
+    // readServer probes the right protocol and the pairing branch in
     // connectToRig only fires when no token was supplied.
     final server = DiscoveredServer(
       name: result.host,
@@ -477,46 +477,38 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       pairingSupported: true,
     );
 
-    final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
-    if (fetched != null) {
-      server = fetched;
-      if ((authToken == null || authToken.isEmpty) &&
-          server.authRequired &&
-          server.pairingSupported) {
-        final paired = await _pairWithServer(
-          host: host,
-          port: port,
-          // Use the scheme + identity the enriched /api/info reported so a
-          // TLS-fronted host pairs over https and the pre-flight pins the
-          // server before the code is sent.
-          scheme: server.scheme,
-          pinnedFingerprint: server.fingerprint,
-        );
-        if (paired == null) {
-          return;
-        }
-        authToken = paired;
-        server = server.copyWith(authToken: authToken);
-      }
-    } else {
+    final read = await EnhancedSkotiqDiscovery.readServer(server);
+    final problem = read.problem;
+    if (problem != null && problem.kind != LinkProblemKind.mismatch) {
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
-        // Keep this platform-neutral: the host may be a Windows or Linux
-        // desktop *or* a headless Raspberry Pi appliance, and this client runs
-        // on phones as well as tablets. Naming "Windows Firewall" / "the
-        // tablet" sent appliance users chasing settings that do not exist.
-        _error =
-            'Cannot reach ${endpoint.scheme}://${endpoint.authority}/api/info '
-            'from this device.\n\n'
-            'On the computer running Skotiq: confirm Settings → Remote '
-            'Access shows "Running" (on a headless appliance, that the service '
-            'is up), note the LAN URL, and allow port $port through that '
-            "machine's firewall on the private/local network.\n\n"
-            'On this device: open that URL in a browser — you should see JSON. '
-            'Then try Connect again or scan the QR after starting pairing.';
+        _error = problem.message;
+        _mismatchedHost = null;
       });
       return;
+    }
+    server = read.server;
+    // A host of another release is not paired with: connectToRig says which
+    // side to update.
+    if (problem == null &&
+        (authToken == null || authToken.isEmpty) &&
+        server.authRequired &&
+        server.pairingSupported) {
+      final paired = await _pairWithServer(
+        host: host,
+        port: port,
+        // Use the scheme + identity the enriched /api/info reported so a
+        // TLS-fronted host pairs over https and the pre-flight pins the
+        // server before the code is sent.
+        scheme: server.scheme,
+        pinnedFingerprint: server.fingerprint,
+      );
+      if (paired == null) {
+        return;
+      }
+      authToken = paired;
+      server = server.copyWith(authToken: authToken);
     }
 
     await connectToRig(server);

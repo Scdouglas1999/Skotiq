@@ -171,6 +171,8 @@ String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
     // Telemetry the night log leaves out by this title.
     EquipmentEvent_CameraTemperatureChanged() => 'Camera temperature',
     EquipmentEvent_CameraSettingsChanged() => 'Camera settings',
+    EquipmentEvent_CameraRetainedCapturesChanged() =>
+      'Captures kept on the camera',
     EquipmentEvent_HeartbeatStarted() => 'Heartbeat started',
     EquipmentEvent_HeartbeatStopped() => 'Heartbeat stopped',
     EquipmentEvent_HeartbeatStatusChanged() => 'Heartbeat status',
@@ -248,7 +250,11 @@ String _equipmentDetail(EquipmentEvent v) {
       binX: final x,
       binY: final y,
     ) =>
-      iso ? 'ISO $g · $x×$y' : 'Gain $g · offset $o · $x×$y',
+      iso
+          ? 'ISO ${g ?? 'unknown'} · $x×$y'
+          : 'Gain ${g ?? 'unknown'} · offset ${o ?? 'unknown'} · $x×$y',
+    EquipmentEvent_CameraRetainedCapturesChanged(count: final kept) =>
+      kept == 0 ? 'None kept' : '$kept kept',
     EquipmentEvent_HeartbeatStarted(deviceType: final t, deviceId: final id) =>
       '$t · $id',
     EquipmentEvent_HeartbeatStopped(deviceType: final t, deviceId: final id) =>

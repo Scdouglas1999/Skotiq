@@ -85,6 +85,13 @@ pub fn sun_altitude_degrees(latitude: f64, longitude: f64, at: &DateTime<Utc>) -
         .to_degrees()
 }
 
+/// The Sun's azimuth in degrees at `at`, from north through east in
+/// `[0, 360)`, for an observer at `latitude` / `longitude` (degrees).
+pub fn sun_azimuth_degrees(latitude: f64, longitude: f64, at: &DateTime<Utc>) -> f64 {
+    let (sun_ra_hours, sun_dec) = sun_equatorial(crate::meridian::julian_day(at));
+    crate::meridian::calculate_alt_az(sun_ra_hours, sun_dec, latitude, longitude, *at).1
+}
+
 /// Unix timestamp of the next time the Sun crosses `altitude_degrees` on the
 /// requested side of solar noon.
 ///

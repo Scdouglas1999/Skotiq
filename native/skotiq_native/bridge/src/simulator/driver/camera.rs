@@ -105,10 +105,10 @@ impl Camera for SimCamera {
             let mut guard = sim.write().await;
             // A camera without the control ignores the request.
             if let Some(g) = gain.filter(|_| guard.status.can_set_gain) {
-                guard.status.gain = g;
+                guard.status.gain = Some(g);
             }
             if let Some(o) = offset.filter(|_| guard.status.can_set_offset) {
-                guard.status.offset = o;
+                guard.status.offset = Some(o);
             }
             guard.status.bin_x = bin_x;
             guard.status.bin_y = bin_y;
@@ -167,8 +167,8 @@ impl Camera for SimCamera {
                 sensor_width: sim.sensor_width.max(1),
                 sensor_height: sim.sensor_height.max(1),
                 pixel_size_um: sim.pixel_size_x,
-                gain: crate::simulator::camera::sim_render_gain(device_id, sim.gain),
-                offset: sim.offset,
+                gain: crate::simulator::camera::sim_render_gain(device_id, sim.gain.unwrap_or(0)),
+                offset: sim.offset.unwrap_or(0),
                 bin_x: sim.bin_x.max(1) as u32,
                 bin_y: sim.bin_y.max(1) as u32,
                 subframe: request.subframe,
@@ -187,8 +187,8 @@ impl Camera for SimCamera {
             bayer_pattern: None,
             metadata: skotiq_device::ImageMetadata {
                 exposure_time: request.secs,
-                gain: sim.gain,
-                offset: sim.offset,
+                gain: sim.gain.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
+                offset: sim.offset.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
                 bin_x: sim.bin_x,
                 bin_y: sim.bin_y,
                 temperature: sim.sensor_temp,
@@ -244,7 +244,9 @@ impl Camera for SimCamera {
                 "This simulated camera has no gain control",
             ));
         }
-        cam.status.gain = crate::simulator::camera::sim_camera_accepted_gain(device_id, gain);
+        cam.status.gain = Some(crate::simulator::camera::sim_camera_accepted_gain(
+            device_id, gain,
+        ));
         Ok(())
     }
 
@@ -263,18 +265,15 @@ impl Camera for SimCamera {
                 "This simulated camera has no offset control",
             ));
         }
-        cam.status.offset = offset;
+        cam.status.offset = Some(offset);
         Ok(())
     }
 
-    async fn set_readout_mode(&self, _mode_index: i32) -> Result<(), DeviceOpError> {
-        // `SimulatedCamera::status` has no readout-mode field and the
-        // simulator advertises no readout modes, so there is no index
-        // to select and nothing a read-back could contradict. Reporting
-        // success would leave the caller believing a mode was applied.
-        Err(DeviceOpError::unsupported(
-            "Simulated cameras do not support readout modes",
-        ))
+    async fn use_readout_mode(
+        &self,
+        _name: &str,
+    ) -> Result<crate::device_manager::rig::camera::ReadModeUse, DeviceOpError> {
+        Ok(crate::device_manager::rig::camera::ReadModeUse::NoModes)
     }
 
     async fn set_cooler(

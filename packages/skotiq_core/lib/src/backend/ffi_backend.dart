@@ -8,6 +8,7 @@ import '../database/daos/images_dao.dart';
 import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment/guider_for_move.dart';
 import '../models/equipment_profile.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/mount_guard.dart';

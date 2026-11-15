@@ -552,6 +552,11 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       meridianFlipOverrides: widget.profile?.meridianFlipOverrides,
       defaultGain: parsed.gain,
       defaultOffset: parsed.offset,
+      // Chosen on the Imaging camera panel, where the camera's own list of
+      // read modes is at hand. A profile moved to another camera states none.
+      defaultReadoutMode: _cameraId == widget.profile?.cameraId
+          ? widget.profile?.defaultReadoutMode
+          : null,
       defaultBinX: parsed.binning,
       defaultBinY: parsed.binning,
       defaultCoolingTemp: parsed.coolingTemp,

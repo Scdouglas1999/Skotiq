@@ -428,7 +428,7 @@ const CANON_HALF_STOPS: &[&str] = &["bulb", "30", "20.3", "15", "10", "8", "6", 
 fn canon_step_labels_are_read_as_the_seconds_the_body_exposes() {
     let timed = |list: &[&str], seconds: f64| {
         let canon = ShutterSpeeds::from_choices("shutterspeed", &strings(list), true);
-        match plan_exposure("Canon EOS 6D", &canon, true, seconds).unwrap() {
+        match plan_exposure("Canon EOS 6D", &canon, true, false, seconds).unwrap() {
             ExposurePlan::Timed(speed) => Some((speed.choice, speed.seconds)),
             ExposurePlan::Bulb => None,
         }
@@ -493,7 +493,7 @@ fn shutter_choices_of_every_maker_read_as_seconds() {
 #[test]
 fn an_exposure_uses_a_timed_speed_only_when_it_lasts_as_long() {
     let canon = speeds("shutterspeed", CANON_SPEEDS);
-    let timed = |seconds| match plan_exposure("Canon EOS 6D", &canon, true, seconds).unwrap() {
+    let timed = |seconds| match plan_exposure("Canon EOS 6D", &canon, true, false, seconds).unwrap() {
         ExposurePlan::Timed(speed) => Some(speed.choice),
         ExposurePlan::Bulb => None,
     };
@@ -512,6 +512,37 @@ fn an_exposure_uses_a_timed_speed_only_when_it_lasts_as_long() {
 
 #[test]
 fn a_timed_speed_over_30_s_is_made_as_bulb_when_the_body_can() {
+    // A list with minutes, on a body of another make.
+    let listed = speeds(
+        "shutterspeed",
+        &[
+            "bulb", "60m", "4m", "2m", "60s", "30s", "1s", "1/2", "1/250",
+        ],
+    );
+    assert_eq!(
+        plan_exposure("Sony ILCE-7M4", &listed, true, false, 240.0).unwrap(),
+        ExposurePlan::Bulb
+    );
+    assert_eq!(
+        plan_exposure("Sony ILCE-7M4", &listed, true, false, 60.0).unwrap(),
+        ExposurePlan::Bulb
+    );
+    match plan_exposure("Sony ILCE-7M4", &listed, true, false, 30.0).unwrap() {
+        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "30s"),
+        other => panic!("{other:?}"),
+    }
+    // Without bulb the listed speed is the only way to make the frame.
+    match plan_exposure("Sony ILCE-7M4", &listed, false, false, 240.0).unwrap() {
+        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "4m"),
+        other => panic!("{other:?}"),
+    }
+}
+
+/// The owner's FujiCOM driver takes every exposure one of the body's timed
+/// speeds can make with that speed and uses bulb for the rest; a long sub on
+/// an X-T5 must not depend on the body accepting bulb over USB.
+#[test]
+fn a_fujifilm_body_takes_its_listed_speeds_as_timed_at_any_length() {
     // libgphoto2 2.5.34's Fujifilm list (config.c fuji_new_shutterspeed).
     let fuji = speeds(
         "shutterspeed",
@@ -519,42 +550,42 @@ fn a_timed_speed_over_30_s_is_made_as_bulb_when_the_body_can() {
             "bulb", "60m", "4m", "2m", "60s", "30s", "1s", "1/2", "1/250",
         ],
     );
-    assert_eq!(
-        plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 240.0).unwrap(),
-        ExposurePlan::Bulb
-    );
-    assert_eq!(
-        plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 60.0).unwrap(),
-        ExposurePlan::Bulb
-    );
-    match plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 30.0).unwrap() {
-        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "30s"),
-        other => panic!("{other:?}"),
+    let plan = |seconds| plan_exposure("Fuji Fujifilm X-T5", &fuji, true, true, seconds).unwrap();
+    for (seconds, choice) in [(30.0, "30s"), (60.0, "60s"), (120.0, "2m"), (240.0, "4m")] {
+        match plan(seconds) {
+            ExposurePlan::Timed(speed) => assert_eq!(speed.choice, choice),
+            other => panic!("{seconds} s: {other:?}"),
+        }
     }
-    // Without bulb the listed speed is the only way to make the frame.
-    match plan_exposure("Fuji Fujifilm X-T5", &fuji, false, 240.0).unwrap() {
-        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "4m"),
-        other => panic!("{other:?}"),
+    // What no listed speed makes is a bulb exposure of exactly that length.
+    for seconds in [90.0, 180.0, 300.0] {
+        assert_eq!(plan(seconds), ExposurePlan::Bulb, "{seconds} s");
     }
+    // A body that refuses bulb falls back to the nearest timed speed, and
+    // above its longest speed to the longest.
+    let nearest = |seconds: f64| fuji.nearest_timed(seconds).unwrap().choice.clone();
+    assert_eq!(nearest(300.0), "4m");
+    assert_eq!(nearest(90.0), "2m");
+    assert_eq!(nearest(7200.0), "60m");
 }
 
 #[test]
 fn a_body_without_bulb_takes_the_nearest_speed_and_refuses_longer_exposures() {
     let nikon = speeds("shutterspeed2", NIKON_SPEEDS2);
-    match plan_exposure("Nikon Z6", &nikon, false, 20.0).unwrap() {
+    match plan_exposure("Nikon Z6", &nikon, false, false, 20.0).unwrap() {
         ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "15"),
         other => panic!("{other:?}"),
     }
-    let err = plan_exposure("Nikon Z6", &nikon, false, 120.0).unwrap_err();
+    let err = plan_exposure("Nikon Z6", &nikon, false, false, 120.0).unwrap_err();
     assert!(
         err.to_string().contains("longest shutter speed is 30 s"),
         "{err}"
     );
-    assert!(plan_exposure("Nikon Z6", &nikon, false, 0.0).is_err());
+    assert!(plan_exposure("Nikon Z6", &nikon, false, false, 0.0).is_err());
     let none = ShutterSpeeds::default();
-    assert!(plan_exposure("Nikon Z6", &none, false, 10.0).is_err());
+    assert!(plan_exposure("Nikon Z6", &none, false, false, 10.0).is_err());
     assert_eq!(
-        plan_exposure("Nikon Z6", &none, true, 0.5).unwrap(),
+        plan_exposure("Nikon Z6", &none, true, false, 0.5).unwrap(),
         ExposurePlan::Bulb
     );
 }
@@ -954,7 +985,7 @@ fn a_device_address_names_the_body_by_its_model_key_and_port() {
 /// the real download/cleanup calls without opening any USB device.
 #[tokio::test]
 #[ignore = "needs the installed libgphoto2; uses only a disk: camera"]
-async fn an_undecodable_ram_capture_survives_cleanup_and_a_retry() {
+async fn an_undecodable_ram_capture_is_kept_in_hand_and_handed_over() {
     let root = std::env::temp_dir().join(format!("skotiq-gphoto2-retained-{}", std::process::id()));
     let folder = root.join("DCIM");
     std::fs::create_dir_all(&folder).unwrap();
@@ -988,61 +1019,53 @@ async fn an_undecodable_ram_capture_survives_cleanup_and_a_retry() {
         error.to_string().contains("Failed to decode RAW"),
         "{error}"
     );
-    assert!(error.to_string().contains("/DCIM/failed.CR2"), "{error}");
-    assert_eq!(std::fs::read(&disk_path).unwrap(), original);
-    assert_eq!(camera.protected_files, vec![path.clone()]);
-    assert!(camera.is_connected());
-    assert!(camera.check_automatic_reconnect().is_err());
-    camera.core.connected = false;
-    assert!(camera.check_automatic_reconnect().is_err());
-    camera.core.connected = true;
-    let sdk = GPhoto2Sdk::lock().await.unwrap();
-    camera.discard_files(&sdk, std::slice::from_ref(&path));
-    camera.delete_file(&sdk, &path);
-    assert_eq!(camera.download_file(&sdk, &path).unwrap(), original);
-    drop(sdk);
-    let retry = camera
-        .start_exposure(ExposureParams {
-            duration_secs: 1.0,
-            gain: None,
-            offset: None,
-            bin_x: 1,
-            bin_y: 1,
-            subframe: None,
-            readout_mode: None,
-            frame_type: FrameType::Light,
-        })
-        .await
-        .unwrap_err();
-    assert!(retry.to_string().contains("could overwrite"), "{retry}");
-    assert!(retry.to_string().contains("/DCIM/failed.CR2"), "{retry}");
-    assert_eq!(std::fs::read(&disk_path).unwrap(), original);
+    assert!(error.to_string().contains("is not lost"), "{error}");
+    // The file was read, so the driver holds it and the camera's memory is
+    // cleared as after any capture; nothing waits on the operator.
+    assert!(!disk_path.exists());
+    let retained = camera.retained_captures();
+    assert_eq!(retained.len(), 1);
+    assert_eq!(retained[0].location, "/DCIM/failed.CR2");
+    assert!(retained[0].in_hand && !retained[0].in_camera_memory);
+    let file = camera.retrieve_capture("/DCIM/failed.CR2").await.unwrap();
+    assert_eq!(file.file_name, "failed.CR2");
+    assert_eq!(file.bytes.as_slice(), original);
+    assert!(camera.retained_captures().is_empty());
     let sdk = GPhoto2Sdk::lock().await.unwrap();
     camera.close(&sdk);
     drop(sdk);
     std::fs::remove_dir_all(root).unwrap();
 }
 
+/// A capture whose download failed is recorded where it is, and neither the
+/// next exposure nor a reconnect waits for it.
 #[test]
-fn a_retained_capture_blocks_automatic_replacement_even_after_a_lost_connection() {
+fn a_capture_that_could_not_be_downloaded_is_recorded_and_blocks_nothing() {
     let mut camera = camera_with_model_table("Canon EOS 1000D");
-    assert!(camera.check_automatic_reconnect().is_ok());
-    camera.facts.capture_target = Some("Internal RAM".into());
-    let mut path = CameraFilePath::default();
-    for (dst, byte) in path.folder.iter_mut().zip(b"/DCIM") {
-        *dst = *byte as c_char;
-    }
-    for (dst, byte) in path.name.iter_mut().zip(b"failed.CR2") {
-        *dst = *byte as c_char;
-    }
-    let error =
-        camera.protect_failed_capture(&[path], DriverError::SdkError("decode failed".into()));
-    assert!(error.to_string().contains("/DCIM/failed.CR2"));
-    assert!(!camera.is_connected());
-    let blocked = camera.check_automatic_reconnect().unwrap_err();
+    let path = GPhoto2Camera::file_at("/DCIM/failed.CR2").unwrap();
+    assert_eq!(GPhoto2Camera::file_location(&path), "/DCIM/failed.CR2");
+
+    // On the card: the file stays where the camera wrote it.
+    camera.facts.capture_target = Some("Memory card".into());
+    let error = camera.retain_capture(&path, None, DriverError::SdkError("read failed".into()));
     assert!(
-        blocked.to_string().contains("/DCIM/failed.CR2"),
-        "{blocked}"
+        error.to_string().contains("on the camera's card at /DCIM/failed.CR2"),
+        "{error}"
     );
-    assert!(camera.require_recovered_capture().is_err());
+    let retained = camera.retained_captures();
+    assert_eq!(retained.len(), 1);
+    assert!(!retained[0].in_camera_memory && !retained[0].in_hand);
+    assert_eq!(retained[0].reason, "SDK error: read failed");
+    assert!(camera.is_retained_on_camera(&path));
+
+    // In the camera's memory: said so, and still nothing is blocked.
+    camera.retained.clear();
+    camera.facts.capture_target = Some("Internal RAM".into());
+    let error = camera.retain_capture(&path, None, DriverError::SdkError("read failed".into()));
+    assert!(error.to_string().contains("in its memory"), "{error}");
+    assert!(camera.retained_captures()[0].in_camera_memory);
+
+    // A file whose bytes are in hand is no longer the camera's to keep.
+    camera.retained[0].bytes = Some(std::sync::Arc::new(vec![1, 2, 3]));
+    assert!(!camera.is_retained_on_camera(&path));
 }

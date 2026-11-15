@@ -14,6 +14,7 @@ import '../command_correlator.dart';
 import '../device_commands_route.dart';
 import '../display_buffer_jpeg.dart';
 import '../job_manager.dart';
+import '../mount_move.dart';
 import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';
@@ -63,8 +64,9 @@ class DeviceHandlers implements RouteSource {
     DeviceApi.cameraStartWarmUp: handleCameraStartWarmUp,
     DeviceApi.cameraCancelWarmUp: handleCameraCancelWarmUp,
     DeviceApi.cameraGetWarmUp: handleCameraGetWarmUp,
-    DeviceApi.cameraGetReadoutModes: handleCameraGetReadoutModes,
-    DeviceApi.cameraSetReadoutMode: handleCameraSetReadoutMode,
+    DeviceApi.cameraGetRetainedCaptures: handleCameraGetRetainedCaptures,
+    DeviceApi.cameraRetrieveRetainedCapture:
+        handleCameraRetrieveRetainedCapture,
     DeviceApi.cameraSetGain: handleCameraSetGain,
     DeviceApi.cameraSetOffset: handleCameraSetOffset,
     DeviceApi.cameraGetRecommendedSettings: handleCameraGetRecommendedSettings,

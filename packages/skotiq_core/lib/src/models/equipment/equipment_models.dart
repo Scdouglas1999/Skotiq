@@ -7,6 +7,7 @@ import '../errors/skotiq_error.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
 export '../backend/device_capabilities.dart' show TrackingRate;
+export 'guider_for_move.dart';
 
 part 'equipment_models/camera_and_mount_states.dart';
 part 'equipment_models/focus_filter_and_guider_states.dart';

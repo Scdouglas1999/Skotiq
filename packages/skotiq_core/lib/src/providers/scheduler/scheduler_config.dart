@@ -66,14 +66,14 @@ final schedulerConfigUserDirtyProvider = StateProvider<bool>((ref) => false);
 
 /// How high a target must stand at this site: the one altitude-floor rule
 /// ([AltitudeFloor]). The operator's horizon when one is set, otherwise the
-/// scheduler's minimum altitude ([SchedulerConfig.minAltitudeDegrees], Plan
-/// Tonight → Schedule → Scoring weights), with learned obstructions merged in.
-/// The scheduler, the sequence builders, framing waits, the altitude charts,
-/// the time-to-set readouts and the plan timer all read it here.
+/// minimum altitude ([SchedulerConfig.minAltitudeDegrees], Plan Tonight →
+/// Targets → Autopilot settings), with learned obstructions merged in. The
+/// scheduler, target scoring, Smart Night, the sequence builders, the plan
+/// timer and pre-flight, Best Targets, the altitude charts, the time-to-set
+/// readouts and the run (through its configuration) all read it here.
 ///
-/// Per-target overrides (`targets.min_altitude`, carried on
-/// `ForecastTarget.minAltitudeDeg`) are a deliberate exception: a specific
-/// target may need to clear more than the site does.
+/// A target's own minimum (a target step's "Min altitude") is not a second
+/// rule: the target must clear it and the floor ([AltitudeFloor.forTargetMinimum]).
 final altitudeFloorProvider = Provider<AltitudeFloor>((ref) {
   final persisted = ref.watch(schedulerPersistedConfigProvider).valueOrNull;
   // Before the durable row has loaded (or when it has never been written) the

@@ -110,8 +110,9 @@ class TargetWindow {
   final double? latitudeDeg;
   final double? longitudeDeg;
 
-  /// Altitude that defines "up" for this window, in degrees.
-  final double? minAltitudeDeg;
+  /// What defines "up" for this window: the site's altitude floor with the
+  /// target's own minimum, when it has one.
+  final AltitudeFloor? floor;
 
   TargetWindow({
     required this.targetId,
@@ -126,7 +127,7 @@ class TargetWindow {
     this.decDeg,
     this.latitudeDeg,
     this.longitudeDeg,
-    this.minAltitudeDeg,
+    this.floor,
   });
 
   /// Apparent altitude of the target at [time], in degrees, or null when this
@@ -161,7 +162,14 @@ class TargetWindow {
 
     final altitude = altitudeAt(time);
     if (altitude != null) {
-      return altitude >= (minAltitudeDeg ?? 0);
+      final azimuth = AstronomyCalculations.objectAltAz(
+        raDeg: raDeg!,
+        decDeg: decDeg!,
+        dt: time,
+        latitudeDeg: latitudeDeg!,
+        longitudeDeg: longitudeDeg!,
+      ).$2;
+      return altitude >= (floor?.atAzimuth(azimuth) ?? 0);
     }
 
     if (riseTime == null || setTime == null) return false;

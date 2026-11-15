@@ -128,7 +128,7 @@ void main() {
     await tester.pump(const Duration(minutes: 5));
   });
 
-  testWidgets('the threshold line marks the SITE minimum, not a fixed 30 deg', (
+  testWidgets('the floor line marks the SITE minimum, not a fixed 30 deg', (
     tester,
   ) async {
     // The dashed warning line is what the operator reads as "below this I
@@ -161,10 +161,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     final chart = tester.widget<LineChart>(find.byType(LineChart));
-    final thresholds = chart.data.extraLinesData.horizontalLines
+    final floors = chart.data.lineBarsData
         .where((line) => line.dashArray != null)
         .toList();
-    expect(thresholds, hasLength(1));
-    expect(thresholds.single.y, 45);
+    expect(floors, hasLength(1));
+    expect(floors.single.spots, isNotEmpty);
+    expect(floors.single.spots.every((spot) => spot.y == 45), isTrue);
   });
 }

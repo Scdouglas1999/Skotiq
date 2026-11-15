@@ -1,3 +1,4 @@
+import '../models/site/altitude_floor.dart';
 import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
@@ -131,8 +132,8 @@ class SessionTargetAltitudeTrace {
   /// while frames were being captured for it.
   final double secondsBelowMinAltitude;
 
-  /// The minimum altitude (deg) below which we count "wasted" time.
-  /// Defaults to 30° if the caller has no per-target preference.
+  /// The altitude (deg) below which capture time counts as wasted: the
+  /// site's altitude floor where the target stood.
   final double minRecommendedAltitudeDeg;
 
   /// The lowest altitude (deg) observed during the run for this
@@ -455,6 +456,7 @@ class SessionOptimizerService {
     required double longitude,
     required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
+    required AltitudeFloor floor,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
   }) async {
@@ -467,6 +469,7 @@ class SessionOptimizerService {
       sessions: sessions,
       observationTime: generatedAt,
       opticalConfig: opticalConfig,
+      floor: floor,
     );
 
     return buildPlanFromSuggestions(suggestions, generatedAt: generatedAt);

@@ -839,45 +839,9 @@ class DbReadHandlers implements RouteSource {
 
     return jsonOk(
       RemotePage(
-        items: frames.map(_replayFrame).toList(growable: false),
+        items: frames.map(replayFrameOf).toList(growable: false),
         total: total,
       ).toJson((frame) => frame.toJson()),
     );
   }
-
-  /// Uses [DbCapturedImage] because the skotiq_core barrel hides the raw
-  /// drift `CapturedImage` entity to avoid colliding with the imaging-domain
-  /// class of the same name.
-  RemoteReplayFrame _replayFrame(DbCapturedImage row) => RemoteReplayFrame(
-    id: row.id,
-    fileName: row.fileName,
-    filePath: row.filePath,
-    capturedAt: row.capturedAt,
-    capturedAtMs: row.capturedAt.millisecondsSinceEpoch,
-    frameType: row.frameType,
-    exposureDuration: row.exposureDuration,
-    filter: row.filter,
-    gain: row.gain,
-    offset: row.offset,
-    binX: row.binX,
-    binY: row.binY,
-    sensorTemp: row.sensorTemp,
-    hfr: row.hfr,
-    starCount: row.starCount,
-    background: row.background,
-    noise: row.noise,
-    qualityScore: row.qualityScore,
-    guidingRmsRa: row.guidingRmsRa,
-    guidingRmsDec: row.guidingRmsDec,
-    guidingRmsTotal: row.guidingRmsTotal,
-    mountRa: row.mountRa,
-    mountDec: row.mountDec,
-    mountAltitude: row.mountAltitude,
-    mountAzimuth: row.mountAzimuth,
-    focuserPosition: row.focuserPosition,
-    isAccepted: row.isAccepted,
-    rejectionReason: row.rejectionReason,
-    sessionId: row.sessionId,
-    targetId: row.targetId,
-  );
 }

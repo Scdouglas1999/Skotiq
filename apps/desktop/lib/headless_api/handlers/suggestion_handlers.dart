@@ -48,10 +48,6 @@ class SuggestionHandlers implements RouteSource {
     // non-boolean flag) is a 400 rather than silently snapping to the default.
     final query = request.url.queryParameters;
 
-    // Altitude filter is in degrees; the sky spans -90..90 (negatives are valid
-    // for below-horizon inclusion, as the per-target score endpoint uses).
-    final minAltitude =
-        optionalQueryDouble(query, 'minAltitude', min: -90, max: 90) ?? 30.0;
     // Score is documented 0..100 (TargetSuggestionConfig.minScore).
     final minScore =
         optionalQueryDouble(query, 'minScore', min: 0, max: 100) ?? 0.0;
@@ -91,7 +87,6 @@ class SuggestionHandlers implements RouteSource {
     final sessions = await database.sessionsDao.getAllSessions();
 
     final config = TargetSuggestionConfig(
-      minAltitude: minAltitude,
       minScore: minScore,
       sortMode: sortMode,
       prioritizeIncomplete: prioritizeIncomplete,
@@ -109,6 +104,7 @@ class SuggestionHandlers implements RouteSource {
       longitude: longitude,
       targets: targets,
       sessions: sessions,
+      floor: container.read(altitudeFloorProvider),
     );
 
     final limited = suggestions.take(maxResults).toList();
@@ -152,9 +148,6 @@ class SuggestionHandlers implements RouteSource {
     final query = request.url.queryParameters;
     const defaults = TargetSuggestionConfig();
     final config = TargetSuggestionConfig(
-      minAltitude:
-          optionalQueryDouble(query, 'minAltitude', min: -90, max: 90) ??
-          defaults.minAltitude,
       minScore:
           optionalQueryDouble(query, 'minScore', min: 0, max: 100) ??
           defaults.minScore,
@@ -193,7 +186,6 @@ class SuggestionHandlers implements RouteSource {
 
     return jsonOk({
       "config": {
-        "minAltitude": config.minAltitude,
         "minScore": config.minScore,
         "maxMoonDistance": config.maxMoonDistance,
         "sortMode": config.sortMode.name,
@@ -229,7 +221,6 @@ class SuggestionHandlers implements RouteSource {
     );
 
     const config = TargetSuggestionConfig(
-      minAltitude: -90, // Include all altitudes
       minScore: -1000, // Include all scores
     );
 
@@ -239,6 +230,9 @@ class SuggestionHandlers implements RouteSource {
       longitude: longitude,
       targets: [target],
       sessions: sessions,
+      // Scored wherever it stands: this answers for one target, not for
+      // what is worth imaging tonight.
+      floor: const AltitudeFloor(horizon: null, minimumDeg: -90),
     );
 
     if (suggestions.isEmpty) {

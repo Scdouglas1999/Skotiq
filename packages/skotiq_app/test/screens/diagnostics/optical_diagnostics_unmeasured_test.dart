@@ -13,11 +13,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
+import 'optics_host.dart';
 
 const int _sessionId = 4;
 
@@ -83,7 +83,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1400, 1200),
       settle: false,
       extraOverrides: _overrides(tiles: const [], residuals: const []),
@@ -114,7 +114,7 @@ void main() {
     // the tilt penalty is genuinely near zero and the green verdict is earned.
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1400, 1200),
       settle: false,
       extraOverrides: _overrides(

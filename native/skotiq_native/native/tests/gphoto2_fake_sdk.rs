@@ -420,22 +420,123 @@ async fn a_raw_and_jpeg_body_hands_over_its_raw_file() {
     assert_eq!(fake.files_left(CANON_PORT), 0, "the JPEG is deleted too");
 }
 
+/// A body that will not open for bulb (its dial is not on M or B) still
+/// takes the frame, with its nearest timed speed, and says so once: a night
+/// of long subs must not end at the first one.
 #[tokio::test]
 #[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
-async fn a_body_in_a_mode_without_bulb_refuses_a_bulb_exposure() {
+async fn a_body_that_refuses_bulb_takes_its_nearest_timed_speed_and_says_so_once() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
     fake.set(CANON_PORT, "autoexposuremode", "AV");
     let mut canon = connected(0, CANON, CANON_PORT).await;
-    let err = canon
-        .start_exposure(exposure(45.0, None))
-        .await
-        .unwrap_err();
-    assert!(err.to_string().contains("mode dial"), "{err}");
+
+    take(&mut canon, exposure(45.0, None)).await;
+    let notices = canon.take_notices();
+    assert_eq!(notices.len(), 1, "{notices:?}");
+    assert_eq!(notices[0].title, "Camera refused bulb");
     assert!(
-        fake.made(CANON_PORT).is_empty(),
-        "no frame of another length"
+        notices[0].message.contains("45 s") && notices[0].message.contains("30"),
+        "{}",
+        notices[0].message
     );
+
+    take(&mut canon, exposure(120.0, None)).await;
+    assert!(canon.take_notices().is_empty(), "told once per connection");
+    assert_eq!(fake.made(CANON_PORT), ["timed 30", "timed 30"]);
+}
+
+/// The owner's FujiCOM driver takes a speed the body lists with that speed
+/// at any length; only what no speed makes is bulb.
+#[tokio::test]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
+async fn a_fujifilm_xt5_takes_its_minute_speeds_as_timed() {
+    let fake = Fake::new();
+    fake.attach(FUJI, FUJI_PORT);
+    let mut fuji = connected(0, FUJI, FUJI_PORT).await;
+
+    take(&mut fuji, exposure(60.0, None)).await;
+    take(&mut fuji, exposure(120.0, None)).await;
+    assert_eq!(fake.made(FUJI_PORT), ["timed 60", "timed 120"]);
+    assert!(fuji.take_notices().is_empty());
+}
+
+/// A capture whose download fails is kept, said where it is, and the next
+/// exposure goes ahead. On a body that captures to its memory the file is
+/// read before that exposure can take its place.
+#[tokio::test]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
+async fn a_failed_download_keeps_the_capture_and_the_next_exposure_goes_ahead() {
+    let fake = Fake::new();
+    fake.attach(CANON, CANON_PORT);
+    let mut canon = connected(0, CANON, CANON_PORT).await;
+    let switch = std::env::temp_dir().join(format!("skotiq-fake-get-fails-{}", std::process::id()));
+    std::env::set_var("FAKE_GPHOTO2_FAIL_GET_FILE", &switch);
+
+    std::fs::write(&switch, b"").unwrap();
+    canon
+        .start_exposure(exposure(1.0, None))
+        .await
+        .expect("start exposure");
+    let error = canon.download_image().await.unwrap_err();
+    assert!(error.to_string().contains("is not lost"), "{error}");
+    let kept = canon.retained_captures();
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert!(kept[0].in_camera_memory && !kept[0].in_hand, "{kept:?}");
+    assert!(fake.files_left(CANON_PORT) >= 1, "the file is still on the camera");
+
+    // The cable is good again. The next exposure is not refused, and the
+    // kept file is read off the camera's memory first.
+    std::fs::remove_file(&switch).unwrap();
+    take(&mut canon, exposure(1.0, None)).await;
+    let kept = canon.retained_captures();
+    assert_eq!(kept.len(), 1);
+    assert!(kept[0].in_hand, "{kept:?}");
+    let file = canon.retrieve_capture(&kept[0].location).await.unwrap();
+    assert_eq!(
+        file.bytes.as_slice(),
+        std::fs::read(Fake::sample("canon_1000d.cr2")).unwrap()
+    );
+    assert!(canon.retained_captures().is_empty());
+    assert_eq!(fake.files_left(CANON_PORT), 0);
+    std::env::remove_var("FAKE_GPHOTO2_FAIL_GET_FILE");
+}
+
+/// On a body that writes to its card the kept file stays on the card, and
+/// reading it later leaves it there.
+#[tokio::test]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
+async fn a_capture_kept_on_the_card_is_retrieved_later_and_stays_on_the_card() {
+    let fake = Fake::new();
+    fake.attach(NIKON, NIKON_PORT);
+    let mut nikon = connected(0, NIKON, NIKON_PORT).await;
+    let switch = std::env::temp_dir().join(format!("skotiq-fake-get-fails-card-{}", std::process::id()));
+    std::env::set_var("FAKE_GPHOTO2_FAIL_GET_FILE", &switch);
+
+    std::fs::write(&switch, b"").unwrap();
+    nikon
+        .start_exposure(exposure(1.0, None))
+        .await
+        .expect("start exposure");
+    let error = nikon.download_image().await.unwrap_err();
+    assert!(error.to_string().contains("on the camera's card"), "{error}");
+    let kept = nikon.retained_captures();
+    assert_eq!(kept.len(), 1);
+    assert!(!kept[0].in_camera_memory && !kept[0].in_hand, "{kept:?}");
+    let on_card = fake.files_left(NIKON_PORT);
+
+    // Still failing: the next exposure is started all the same.
+    nikon
+        .start_exposure(exposure(1.0, None))
+        .await
+        .expect("the night goes on");
+    let _ = nikon.download_image().await;
+
+    std::fs::remove_file(&switch).unwrap();
+    let file = nikon.retrieve_capture(&kept[0].location).await.unwrap();
+    assert!(!file.bytes.is_empty());
+    assert!(fake.files_left(NIKON_PORT) >= on_card, "card files are kept");
+    std::env::remove_var("FAKE_GPHOTO2_FAIL_GET_FILE");
 }
 
 #[tokio::test]

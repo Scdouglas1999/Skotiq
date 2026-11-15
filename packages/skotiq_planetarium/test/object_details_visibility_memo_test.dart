@@ -82,7 +82,6 @@ void main() {
             date: key.nightDate,
             latitudeDeg: key.latitudeDeg,
             longitudeDeg: key.longitudeDeg,
-            minAltitude: key.minAltitude,
           );
         }),
       ],
@@ -152,7 +151,6 @@ void main() {
             date: key.nightDate,
             latitudeDeg: key.latitudeDeg,
             longitudeDeg: key.longitudeDeg,
-            minAltitude: key.minAltitude,
           );
         }),
       ],

@@ -7,6 +7,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shelf/shelf.dart';
 
+import '../mount_move.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'centering_request.dart';
@@ -114,7 +115,7 @@ class PlanetariumHandlers implements RouteSource {
       'parked': status.parked,
       'atHome': status.atHome,
       'sideOfPier': status.sideOfPier.name,
-      'trackingRate': status.trackingRate.name,
+      'trackingRate': status.trackingRate?.name,
       'rotatorAngle': rotatorAngle,
     });
   }
@@ -220,9 +221,22 @@ class PlanetariumHandlers implements RouteSource {
       return jsonBadRequest({'error': 'No mount connected'});
     }
 
-    await backend.mountSlewToCoordinates(mount.id, ra, dec);
+    final guider = await mountMoveFields(
+      'GoTo',
+      () => backend.mountSlewToCoordinates(
+        mount.id,
+        ra,
+        dec,
+        guiderSilentOk: guiderSilentOk(payload),
+      ),
+    );
 
-    return jsonOk({'status': 'slewing', 'targetRa': ra, 'targetDec': dec});
+    return jsonOk({
+      'status': 'slewing',
+      'targetRa': ra,
+      'targetDec': dec,
+      ...guider,
+    });
   }
 
   /// POST /api/planetarium/center-on

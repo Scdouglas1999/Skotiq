@@ -1,22 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
-
-class _ConfiguredWizard extends FlatWizardNotifier {
-  _ConfiguredWizard(super.ref) {
-    state = state.copyWith(
-      mode: FlatWizardMode.batch,
-      filterSettings: const [
-        FlatFilterSettings(filterName: 'L', filterPosition: 0),
-        FlatFilterSettings(filterName: 'Ha', filterPosition: 4),
-      ],
-    );
-  }
-}
 
 void main() {
   testWidgets('batch flats let the operator edit gain and offset per filter',
@@ -24,17 +11,18 @@ void main() {
     final handle = await pumpAppScreen(
       tester,
       const FlatWizardScreen(),
-      size: const Size(1280, 800),
+      size: const Size(1600, 900),
       settle: false,
+      // The wizard lists the filters the rig has, in slot order.
       extraOverrides: [
-        flatWizardProvider.overrideWith((ref) => _ConfiguredWizard(ref)),
+        effectiveFiltersProvider.overrideWithValue(const ['L', 'Ha']),
       ],
     );
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Multi-filter batch'));
     await tester.pump(const Duration(milliseconds: 400));
-    final gain = find.byKey(const ValueKey('flat-filter-gain-4'));
-    final offset = find.byKey(const ValueKey('flat-filter-offset-4'));
+    final gain = find.byKey(const ValueKey('flat-filter-gain-1'));
+    final offset = find.byKey(const ValueKey('flat-filter-offset-1'));
     expect(gain, findsOneWidget,
         reason: 'Ha needs its own gain rather than a read-only profile value');
     expect(offset, findsOneWidget);

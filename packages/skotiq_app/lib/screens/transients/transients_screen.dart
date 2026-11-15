@@ -236,7 +236,7 @@ class TransientsView extends ConsumerWidget {
   }
 
   void _planAlert(BuildContext context) {
-    context.go(AppRoutes.planner(tab: PlannerTab.schedule));
+    context.go(AppRoutes.planner(tab: PlannerTab.targets));
   }
 
   void _viewInFraming(

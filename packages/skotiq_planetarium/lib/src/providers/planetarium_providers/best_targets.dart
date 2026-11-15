@@ -5,7 +5,7 @@ part of '../planetarium_providers.dart';
 class TonightTarget {
   final DeepSkyObject object;
 
-  /// Rise / transit / set against the [kTonightMinAltitudeDeg] floor.
+  /// Rise / transit / set against the site's altitude floor.
   final ObjectVisibility visibility;
 
   /// Hours above that floor INSIDE tonight's darkness window.
@@ -61,6 +61,7 @@ final bestTargetsProvider = FutureProvider<List<TonightTarget>?>((ref) async {
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
     nightDate: nightDate,
+    floor: ref.watch(planetariumAltitudeFloorProvider),
   );
   final ranked = await compute(_rankTonightTargetsOffThread, args);
   return [
@@ -98,6 +99,9 @@ class _BestTargetsArgs {
   /// disagreed with its Best Targets card for the same object.
   final DateTime nightDate;
 
+  /// The site's altitude floor by azimuth.
+  final AltitudeFloorSamples floor;
+
   const _BestTargetsArgs({
     required this.raDeg,
     required this.decDeg,
@@ -108,6 +112,7 @@ class _BestTargetsArgs {
     required this.latitudeDeg,
     required this.longitudeDeg,
     required this.nightDate,
+    required this.floor,
   });
 }
 
@@ -124,5 +129,6 @@ List<TonightRanking> _rankTonightTargetsOffThread(_BestTargetsArgs a) {
     latitudeDeg: a.latitudeDeg,
     longitudeDeg: a.longitudeDeg,
     nightDate: a.nightDate,
+    floor: a.floor,
   );
 }

@@ -1021,13 +1021,16 @@ class _AltitudeFloorInForce extends StatelessWidget {
       child: Text(
         floor.followsHorizon
             ? 'In force: this horizon is how high a target must be to image, '
-                'for the scheduler, built sequences, framing and every '
-                'time-to-set. The minimum altitude ($minimum, Plan Tonight > '
-                'Schedule) applies again if every direction is set to 0\u00B0.'
+                'in each direction, everywhere a target is planned, scored '
+                'or imaged. A direction left at 0\u00B0 is open down to the '
+                'true horizon. The minimum altitude ($minimum, Plan Tonight > '
+                'Targets > Autopilot settings) is not applied while a horizon '
+                'is set; it applies again if every direction is set to '
+                '0\u00B0.'
             : 'Not in force: every direction is 0\u00B0, so the minimum '
-                'altitude ($minimum, Plan Tonight > Schedule) is how high a '
-                'target must be. Set a direction above 0\u00B0 and this '
-                'horizon takes over.',
+                'altitude ($minimum, Plan Tonight > Targets > Autopilot '
+                'settings) is how high a target must be. Set a direction '
+                'above 0\u00B0 and this horizon takes over.',
         key: const Key('location.altitudeFloorInForce'),
         style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
       ),

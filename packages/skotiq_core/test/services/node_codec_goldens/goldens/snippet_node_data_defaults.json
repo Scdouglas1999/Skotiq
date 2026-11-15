@@ -136,6 +136,7 @@
     "name": "Take Exposures",
     "nodeType": "TakeExposure",
     "offset": null,
+    "readoutMode": null,
     "triggers": []
   },
   {

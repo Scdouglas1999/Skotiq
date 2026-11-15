@@ -554,10 +554,21 @@ impl Trigger {
                 // — never the mount's own pointing, which is a different
                 // question with a different answer whenever the mount is not
                 // on the target.
-                if let Some(alt) = state.target.current_altitude {
-                    alt < *min_altitude
-                } else {
-                    false
+                let Some(alt) = state.target.current_altitude else {
+                    return false;
+                };
+                let site_floor = state
+                    .settings
+                    .altitude_floor
+                    .as_ref()
+                    .zip(state.target.current_azimuth)
+                    .map(|(floor, az)| floor.at_azimuth(az));
+                // With neither a floor from the settings nor a limit of the
+                // step's own there is nothing to hold the target to.
+                match (site_floor, *min_altitude) {
+                    (Some(floor), Some(own)) => alt < floor.max(own),
+                    (Some(limit), None) | (None, Some(limit)) => alt < limit,
+                    (None, None) => false,
                 }
             }
             TriggerType::WeatherUnsafe => {

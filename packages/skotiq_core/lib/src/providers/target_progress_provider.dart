@@ -44,26 +44,7 @@ final targetProgressProvider = FutureProvider.autoDispose
       return null;
     });
 
-/// Progress for every target with at least one row in the targets table.
-///
-/// Returns a `Map<targetId, TargetProgress>` so the consuming UI can do
-/// O(1) lookups without re-iterating the full list. Re-evaluated whenever
-/// targets or captured-images change.
-final allTargetProgressProvider =
-    FutureProvider.autoDispose<Map<int, TargetProgress>>((ref) async {
-      final images = await ref.watch(allDbImagesProvider.future);
-      final targets = await ref.watch(allDbTargetsProvider.future);
-      final useHostImages = ref.watch(isRemoteModeProvider);
-
-      final service = ref.watch(targetProgressServiceProvider);
-      return service.forTargets(
-        targets.map((t) => (id: t.id, name: t.name)).toList(),
-        capturedImages: useHostImages ? images : null,
-      );
-    });
-
 /// Invalidates target-progress readers after host catalog or capture changes.
 void invalidateTargetProgressReaders(Ref ref) {
-  ref.invalidate(allTargetProgressProvider);
   ref.invalidate(targetProgressProvider);
 }

@@ -11,16 +11,14 @@ extension _SequenceTimeEstimatorWindowSolver on SequenceTimeEstimator {
     return _minDate(node.endBefore, triggerTime);
   }
 
-  double _effectiveMinAltitude(
-    TargetHeaderNode node,
-    double globalMinAltitude,
-  ) {
-    final triggerAltitude = _startAltitudeAbove(node.startWhen);
-    return [
-      globalMinAltitude,
+  /// The altitude [node] names for itself (its minimum, or its start
+  /// condition's), which it must clear on top of the site's floor.
+  double? _ownMinimumAltitude(TargetHeaderNode node) {
+    final own = [
       if (node.minAltitude != null) node.minAltitude!,
-      if (triggerAltitude != null) triggerAltitude,
-    ].reduce((a, b) => a > b ? a : b);
+      if (_startAltitudeAbove(node.startWhen) case final altitude?) altitude,
+    ];
+    return own.isEmpty ? null : own.reduce((a, b) => a > b ? a : b);
   }
 
   DateTime? _startTimeAfter(TargetTrigger? trigger) {

@@ -21,9 +21,7 @@ import 'settings_provider.dart';
 import 'target_suggestion_provider.dart';
 import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
-import 'logging_service_provider.dart';
 import 'scheduler/integration_goal_service_provider.dart';
-import 'scheduler_provider.dart' show altitudeFloorProvider;
 
 /// Service provider for SessionOptimizerService.
 ///
@@ -416,10 +414,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
       window;
       try {
         window =
-            SmartNightService(
-              suggestionService: ref.read(targetSuggestionServiceProvider),
-              logging: ref.read(loggingServiceProvider),
-            ).calculateWindow(
+            ref.read(smartNightServiceProvider).calculateWindow(
               latitudeDeg: settings.latitude,
               longitudeDeg: settings.longitude,
             );
@@ -435,18 +430,16 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
         targetSnr: settings.smartNightTargetSnr,
         subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
         subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
-        minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
       );
 
-      return SmartNightService(
-        suggestionService: ref.read(targetSuggestionServiceProvider),
-        logging: ref.read(loggingServiceProvider),
-      ).previewTargetIntegration(
+      return ref.read(smartNightServiceProvider).previewTargetIntegration(
         profile: profile,
         suggestion: suggestion,
         windowStart: window.start,
         windowEnd: window.end,
         availableFilters: filters,
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
         exposureContext: exposureContext,
         settings: smartNightSettings,
         integrationGoalProgress: integrationGoals,

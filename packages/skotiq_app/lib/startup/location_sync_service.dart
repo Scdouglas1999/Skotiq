@@ -113,14 +113,13 @@ Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
 }
 
 /// The planetarium package cannot depend on skotiq_core, so the app pumps the
-/// site's altitude floor across: the planetarium's altitude card and rise/set
-/// times read its own horizon provider. One number there: the lowest the
-/// floor goes.
+/// site's altitude floor across, by azimuth: the planetarium's altitude card,
+/// rise/set times and Best Targets Tonight read its own floor provider.
 final planetariumAltitudeFloorSyncProvider = Provider<void>((ref) {
   ref.listen<AltitudeFloor>(altitudeFloorProvider, (previous, next) {
     Future.microtask(
-      () => ref.read(planetariumEffectiveHorizonDegProvider.notifier).state =
-          next.lowestDeg,
+      () => ref.read(planetariumAltitudeFloorProvider.notifier).state = next
+          .asSamples(),
     );
   }, fireImmediately: true);
 });

@@ -126,7 +126,6 @@ void main() {
                   exposureTime: 120,
                   filter: 'Ha',
                   frameType: FrameType.dark,
-                  fastReadout: true,
                 ),
           );
       await pumpEventQueue(times: 20);
@@ -137,7 +136,6 @@ void main() {
       expect(fresh.exposureTime, 2);
       expect(fresh.frameType, FrameType.light);
       expect(fresh.filter, isNull);
-      expect(fresh.fastReadout, isFalse);
       expect(fresh.gain, 222);
     },
   );

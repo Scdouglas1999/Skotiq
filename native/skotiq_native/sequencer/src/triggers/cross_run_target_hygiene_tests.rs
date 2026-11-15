@@ -58,7 +58,9 @@ async fn altitude_limit_does_not_fire_for_a_run_with_no_target() {
     let mut previous_run = Trigger::new(
         "altitude_limit",
         "Altitude Limit",
-        TriggerType::AltitudeLimit { min_altitude: 30.0 },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(30.0),
+        },
         RecoveryAction::NextTarget,
     );
     assert!(
@@ -71,7 +73,9 @@ async fn altitude_limit_does_not_fire_for_a_run_with_no_target() {
     let mut next_run = Trigger::new(
         "altitude_limit",
         "Altitude Limit",
-        TriggerType::AltitudeLimit { min_altitude: 30.0 },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(30.0),
+        },
         RecoveryAction::NextTarget,
     );
     assert!(
@@ -294,7 +298,9 @@ fn altitude_trigger(min_altitude: f64) -> Trigger {
     Trigger::new(
         "altitude_limit",
         "Altitude Limit",
-        TriggerType::AltitudeLimit { min_altitude },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(min_altitude),
+        },
         RecoveryAction::NextTarget,
     )
 }

@@ -593,7 +593,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   }
 
   Future<Map<String, dynamic>> getSuggestionsForTonight({
-    double? minAltitude,
     double? minScore,
     int? maxResults,
     String? sortMode,
@@ -601,7 +600,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     List<String>? objectTypes,
   }) async {
     final params = <String, dynamic>{};
-    if (minAltitude != null) params['minAltitude'] = minAltitude.toString();
     if (minScore != null) params['minScore'] = minScore.toString();
     if (maxResults != null) params['maxResults'] = maxResults.toString();
     if (sortMode != null) params['sortMode'] = sortMode;
@@ -626,7 +624,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     TargetSuggestionConfig config,
   ) async {
     final params = <String, dynamic>{
-      'minAltitude': config.minAltitude.toString(),
       'minScore': config.minScore.toString(),
       'sortMode': config.sortMode.name,
       'prioritizeIncomplete': config.prioritizeIncomplete.toString(),

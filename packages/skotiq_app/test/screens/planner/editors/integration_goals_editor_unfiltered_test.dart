@@ -93,9 +93,9 @@ void main() {
         find.textContaining('configure a filter wheel first'),
         findsNothing,
       );
-      expect(find.byType(DropdownButton<String>), findsOneWidget);
+      expect(find.byType(SkotiqDropdown), findsOneWidget);
 
-      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.tap(find.byType(SkotiqDropdown));
       await tester.pumpAndSettle();
       await tester.tap(find.text('No filter').last);
       await tester.pumpAndSettle();
@@ -124,7 +124,7 @@ void main() {
         find.textContaining('reports no filter slots'),
         findsOneWidget,
       );
-      expect(find.byType(DropdownButton<String>), findsNothing);
+      expect(find.byType(SkotiqDropdown), findsNothing);
     },
   );
 

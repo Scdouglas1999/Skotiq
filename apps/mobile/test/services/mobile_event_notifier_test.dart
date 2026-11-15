@@ -56,6 +56,11 @@ class _RecordingNotificationService implements MobileNotificationSink {
   }
 
   @override
+  Future<void> notifyGuidingRecovered(String body) async {
+    calls.add(NotifyCall('guidingRecovered', {'body': body}));
+  }
+
+  @override
   Future<void> notifyExposureFailed(String errorMessage) async {
     calls.add(NotifyCall('exposureFailed', {'error': errorMessage}));
   }
@@ -168,11 +173,12 @@ SkotiqEvent _fromHost(
   sk.EventCategory category,
   sk.EventPayload payload, {
   sk.EventSeverity severity = sk.EventSeverity.warning,
+  int? timestamp,
 }) {
   final wire = wireEventFromTyped(
     sk.SkotiqEvent(
       eventId: BigInt.zero,
-      timestamp: DateTime.now().millisecondsSinceEpoch,
+      timestamp: timestamp ?? DateTime.now().millisecondsSinceEpoch,
       severity: severity,
       category: category,
       payload: payload,
@@ -220,7 +226,10 @@ void main() {
     sk.EventCategory category,
     sk.EventPayload payload, {
     sk.EventSeverity severity = sk.EventSeverity.warning,
-  }) => emit(_fromHost(category, payload, severity: severity));
+    int? timestamp,
+  }) => emit(
+    _fromHost(category, payload, severity: severity, timestamp: timestamp),
+  );
 
   Future<void> emitEquipment(
     sk.EquipmentEvent event, {
@@ -287,12 +296,33 @@ void main() {
   });
 
   group('Guiding', () {
-    test('a lost star raises guiding lost', () async {
-      await emitTyped(
-        sk.EventCategory.guiding,
-        const sk.EventPayload.guiding(sk.GuidingEvent.lostStar()),
+    test('a star lost for a while, then found, is one notice each', () async {
+      var at = DateTime.utc(2026, 11, 15, 3).millisecondsSinceEpoch;
+      Future<void> frames(sk.GuidingEvent event, int count) async {
+        for (var i = 0; i < count; i++) {
+          await emitTyped(
+            sk.EventCategory.guiding,
+            sk.EventPayload.guiding(event),
+            timestamp: at,
+          );
+          at += 2000;
+        }
+      }
+
+      const guided = sk.GuidingEvent.correction(
+        ra: 0.1,
+        dec: 0.1,
+        raRaw: 0.1,
+        decRaw: 0.1,
       );
-      expect(notifications.calls.single.kind, 'guidingLost');
+      await frames(guided, 5);
+      await frames(const sk.GuidingEvent.lostStar(), 30);
+      await frames(guided, 30);
+
+      expect(notifications.calls.map((c) => c.kind), [
+        'guidingLost',
+        'guidingRecovered',
+      ]);
     });
 
     test('the guider disconnecting raises guiding lost', () async {
@@ -860,7 +890,8 @@ void main() {
       },
     );
 
-    test('JobFailed for focuser.autofocus -> autofocusFailed', () async {
+    test('JobFailed for focuser.autofocus is told by the autofocus outcome, '
+        'not the job', () async {
       await emit(
         _ev(
           EventCategory.job,
@@ -873,6 +904,18 @@ void main() {
           },
           severity: EventSeverity.error,
         ),
+      );
+      expect(notifications.calls, isEmpty);
+      await emitEquipment(
+        const sk.EquipmentEvent.propertyChanged(
+          deviceType: 'focuser',
+          deviceId: 'native:zwo_eaf:0',
+          property: 'AutofocusFinished',
+          value:
+              '{"status":"Failure","message":"V-curve fit failed",'
+              '"result":null,"in_run":false}',
+        ),
+        severity: sk.EventSeverity.info,
       );
       expect(notifications.calls.single.kind, 'autofocusFailed');
     });

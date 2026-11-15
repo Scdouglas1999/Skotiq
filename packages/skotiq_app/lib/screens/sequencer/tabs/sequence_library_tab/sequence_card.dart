@@ -620,11 +620,9 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     }
   }
 
-  /// Switch to the History tab pre-filtered to this sequence's runs.
-  void _openHistory(BuildContext context) {
-    ref.read(historyFilterSequenceIdProvider.notifier).state = _summary.id;
-    ref.read(sequencerTabProvider.notifier).state = SequencerTab.history.index;
-  }
+  /// Opens Analytics > History narrowed to this sequence's runs.
+  void _openHistory(BuildContext context) =>
+      context.go(AppRoutes.history(sequenceId: _summary.id));
 
   void _openVersionHistory(BuildContext context) {
     showDialog<void>(

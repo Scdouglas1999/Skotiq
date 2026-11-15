@@ -218,8 +218,8 @@ impl Default for SimulatedCamera {
                 cooler_power: Some(0.0),
                 target_temp: Some(-10.0),
                 cooler_on: Some(false),
-                gain: 100,
-                offset: 10,
+                gain: Some(100),
+                offset: Some(10),
                 bin_x: 1,
                 bin_y: 1,
                 sensor_width: crate::simulator::frame::SIM_W as u32,
@@ -244,8 +244,8 @@ impl SimulatedCamera {
         if traits.no_gain {
             camera.status.can_set_gain = false;
             camera.status.can_set_offset = false;
-            camera.status.gain = 0;
-            camera.status.offset = 0;
+            camera.status.gain = Some(0);
+            camera.status.offset = Some(0);
         }
         if traits.no_cooler {
             camera.status.can_cool = false;
@@ -261,8 +261,8 @@ impl SimulatedCamera {
             camera.status.target_temp = None;
             camera.status.cooler_power = None;
             camera.status.can_set_offset = false;
-            camera.status.offset = 0;
-            camera.status.gain = 800;
+            camera.status.offset = Some(0);
+            camera.status.gain = Some(800);
         }
         camera
     }
@@ -277,7 +277,7 @@ impl SimulatedCamera {
         camera.status.can_cool = false;
         camera.status.target_temp = None;
         camera.status.cooler_power = None;
-        camera.status.gain = 50;
+        camera.status.gain = Some(50);
         camera
     }
 }

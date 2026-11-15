@@ -260,7 +260,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     }
     if (mountUnparkIssued && mountDeviceId != null) {
       try {
-        await backend.mountPark(mountDeviceId);
+        await backend.mountPark(mountDeviceId, forSafety: true);
       } catch (error) {
         failures.add('park mount: $error');
       }

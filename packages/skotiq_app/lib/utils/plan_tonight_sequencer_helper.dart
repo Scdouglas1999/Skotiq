@@ -118,13 +118,10 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final exposureContext =
       await readHeld(ref, smartNightExposureContextProvider);
 
-  final window = SmartNightService(
-    suggestionService: ref.read(targetSuggestionServiceProvider),
-    logging: ref.read(loggingServiceProvider),
-  ).calculateWindow(
-    latitudeDeg: settings.latitude,
-    longitudeDeg: settings.longitude,
-  );
+  final window = ref.read(smartNightServiceProvider).calculateWindow(
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
+      );
 
   final end = switch (options?.end) {
     AutoBuildEnd.astronomical => window.twilight.astronomicalDawn,
@@ -172,12 +169,6 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     useExposurePresets: options != null && !options.useCalculator,
     defaultFrameDurationSecs: options?.exposures ??
         const SmartNightSettings().defaultFrameDurationSecs,
-    // The site's altitude floor belongs to the site, not to this builder.
-    // Leaving it at the SmartNightSettings default meant this path refused
-    // targets at 27 deg ("no usable imaging window ... at min altitude 30")
-    // that the scheduler on the very same screen was scoring as eligible
-    // against its own 25 deg.
-    minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
     defaultIntegrationBudgetHours: integrationBudgetHours ??
         const SmartNightSettings().defaultIntegrationBudgetHours,
     targetSnr: settings.smartNightTargetSnr,
@@ -188,16 +179,14 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
         profile.coverCalibratorId!.trim().isNotEmpty,
   );
 
-  return SmartNightService(
-    suggestionService: ref.read(targetSuggestionServiceProvider),
-    logging: ref.read(loggingServiceProvider),
-    cameraLibrary: ref.read(hardwarePresetsServiceProvider),
-  ).buildSingleTargetSequence(
+  return ref.read(smartNightServiceProvider).buildSingleTargetSequence(
     profile: captureProfile,
     suggestion: target,
     windowStart: start,
     windowEnd: end,
     availableFilters: filters,
+    latitudeDeg: settings.latitude,
+    longitudeDeg: settings.longitude,
     exposureContext: exposureContext,
     settings: smartNightSettings,
     strategy: options?.strategy,
@@ -247,27 +236,30 @@ Future<TargetSuggestion> catalogTargetSuggestion({
     );
   }
 
-  final window = SmartNightService(
-    suggestionService: ref.read(targetSuggestionServiceProvider),
-    logging: ref.read(loggingServiceProvider),
-  ).calculateWindow(
+  final window = ref.read(smartNightServiceProvider).calculateWindow(
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
+      );
+
+  // When the target clears and leaves the site's altitude floor, in the
+  // direction it stands, around the middle of the dark window.
+  final floor = ref.read(altitudeFloorProvider);
+  final objectVisibility = visibility ??
+      floor.visibilityAround(
+        raDeg: raHours * 15.0,
+        decDeg: decDegrees,
+        center: window.start.add(window.end.difference(window.start) ~/ 2),
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
+      );
+  final darkAboveFloor = floor.windowAbove(
+    raDeg: raHours * 15.0,
+    decDeg: decDegrees,
+    from: window.start,
+    until: window.end,
     latitudeDeg: settings.latitude,
     longitudeDeg: settings.longitude,
   );
-
-  final objectVisibility = visibility ??
-      AstronomyCalculations.calculateObjectVisibility(
-        raDeg: raHours * 15.0,
-        decDeg: decDegrees,
-        // window.start is the dark window's opening INSTANT, which at the west
-        // edge of a timezone in mid-summer falls after local midnight. Handing
-        // that to a noon-to-noon scan selected the next night — the same slip
-        // that made "Best Targets Tonight" a sidereal day out.
-        date: AstronomyCalculations.nightDateOf(window.start),
-        latitudeDeg: settings.latitude,
-        longitudeDeg: settings.longitude,
-        minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
-      );
 
   final altAz = AstronomyCalculations.objectAltAz(
     raDeg: raHours * 15.0,
@@ -285,9 +277,9 @@ Future<TargetSuggestion> catalogTargetSuggestion({
     dec2Deg: moonDec,
   );
 
-  final hoursAbove = objectVisibility.durationAboveHorizon?.inMinutes != null
-      ? objectVisibility.durationAboveHorizon!.inMinutes / 60.0
-      : null;
+  final hoursAbove = darkAboveFloor == null
+      ? 0.0
+      : darkAboveFloor.end.difference(darkAboveFloor.start).inMinutes / 60.0;
 
   // Ensure a host/local library row exists so integration goals and progress
   // use a stable numeric id (not a synthetic hash fallback).
@@ -442,8 +434,8 @@ String framingMosaicNameFor(FramingTarget target) {
 ///
 /// The targets are [MosaicService]'s panel headers for the drawn panels, in
 /// the canvas's capture order, so this and Add to sequence give the same
-/// targets. Each panel waits for the site's altitude floor, so a panel
-/// never starts imaging below it.
+/// targets. The run holds each panel to the site's altitude floor, as it
+/// does every target.
 Future<bool> _addFramedMosaicToSequencer({
   required BuildContext context,
   required WidgetRef ref,
@@ -460,9 +452,6 @@ Future<bool> _addFramedMosaicToSequencer({
     panels: framingState.mosaicPanels,
     rotation: rotationDegrees ?? framingState.rotation,
     exposure: smartNightMosaicExposureSettings(exposureContext),
-    options: MosaicSequenceOptions(
-      minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
-    ),
   );
 
   return _loadMosaicNodesIntoEditor(

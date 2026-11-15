@@ -51,6 +51,7 @@ const _onceLazyTables = {
 /// comparisons leave them out; each step's own migration test covers it.
 const _columnsAddedAfterBase = {
   'captured_images': {'gain_kind'},
+  'equipment_profiles': {'default_readout_mode'},
   'mosaic_projects': {'start_corner', 'serpentine'},
 };
 
@@ -159,7 +160,7 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [70]);
+        expect(db.select('PRAGMA user_version').first.values, [71]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
       // altered or added but the two tables schema 67 rebuilt, which keep
@@ -365,7 +366,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [70]);
+      expect(db.select('PRAGMA user_version').first.values, [71]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(

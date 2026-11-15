@@ -43,6 +43,7 @@ Future<_Reply> _get(
   required String token,
 }) async {
   final request = await client.getUrl(baseUri.resolve(path));
+  request.headers.set('x-skotiq-version', '7.0.0');
   request.headers.set('Authorization', 'Bearer $token');
   final response = await request.close();
   final text = await response.transform(utf8.decoder).join();

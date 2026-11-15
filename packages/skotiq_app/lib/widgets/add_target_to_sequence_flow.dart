@@ -56,11 +56,11 @@ class _SequenceDestination {
 /// Carries the framing composition forward: [rotationDegrees] (when non-zero)
 /// becomes the header's `rotation` so the Sequencer's slew/center/rotate step
 /// reproduces the framing the user dialed in. RA/Dec/name come straight from
-/// the resolved [target]. [minAltitude] is the altitude the target waits for.
+/// the resolved [target]. The run holds it to the site's altitude floor, as
+/// it does every target.
 TargetHeaderNode bareTargetHeaderForFramedTarget({
   required FramingTarget target,
   double? rotationDegrees,
-  double? minAltitude,
 }) {
   final rotation = (rotationDegrees != null && rotationDegrees != 0)
       ? rotationDegrees
@@ -71,7 +71,6 @@ TargetHeaderNode bareTargetHeaderForFramedTarget({
     raHours: target.raHours,
     decDegrees: target.decDegrees,
     rotation: rotation,
-    minAltitude: minAltitude,
   );
 }
 
@@ -82,7 +81,6 @@ List<TargetHeaderNode> bareTargetHeadersForMosaicPanels({
   required FramingTarget target,
   required FramingState framingState,
   double? rotationDegrees,
-  double? minAltitude,
 }) {
   const service = MosaicService();
   final panels = framingState.mosaicPanels;
@@ -93,7 +91,6 @@ List<TargetHeaderNode> bareTargetHeadersForMosaicPanels({
         panel: panel,
         totalPanels: panels.length,
         rotation: rotationDegrees ?? framingState.rotation,
-        minAltitude: minAltitude,
       ),
   ];
 }
@@ -177,23 +174,17 @@ Future<bool> addFramedTargetToExistingSequence({
   );
   if (chosen == null || !context.mounted) return false;
 
-  // A framed target waits for the site's altitude floor, as every target the
-  // app builds does, so it never starts imaging below it. The step holds one
-  // number for a night not yet run: the lowest the floor goes.
-  final minAltitude = ref.read(altitudeFloorProvider).lowestDeg;
   final headers = panels.isEmpty
       ? [
           bareTargetHeaderForFramedTarget(
             target: target,
             rotationDegrees: rotationDegrees,
-            minAltitude: minAltitude,
           ),
         ]
       : bareTargetHeadersForMosaicPanels(
           target: target,
           framingState: mosaic!,
           rotationDegrees: rotationDegrees,
-          minAltitude: minAltitude,
         );
   final notifier = ref.read(currentSequenceProvider.notifier);
   void addAll() {

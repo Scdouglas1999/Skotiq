@@ -166,14 +166,23 @@ pub enum EquipmentEvent {
     /// the camera's full current value, not only the one that changed.
     CameraSettingsChanged {
         device_id: String,
-        gain: i32,
+        /// `None` when the camera would not report the value.
+        gain: Option<i32>,
         /// `gain` is an ISO speed, and the camera has no offset (a DSLR or
         /// mirrorless body).
         #[serde(default)]
         gain_is_iso: bool,
-        offset: i32,
+        /// `None` when the camera would not report the value.
+        offset: Option<i32>,
         bin_x: i32,
         bin_y: i32,
+    },
+
+    /// The list of captures a camera is keeping changed (one was kept after
+    /// a failed download, or one was retrieved); `count` are kept now.
+    CameraRetainedCapturesChanged {
+        device_id: String,
+        count: u32,
     },
 
     // Heartbeat monitoring events
@@ -261,6 +270,7 @@ impl EquipmentEvent {
             | EquipmentEvent::CameraWarmingCompleted { device_id }
             | EquipmentEvent::CameraTemperatureChanged { device_id, .. }
             | EquipmentEvent::CameraSettingsChanged { device_id, .. }
+            | EquipmentEvent::CameraRetainedCapturesChanged { device_id, .. }
             | EquipmentEvent::HeartbeatStarted { device_id, .. }
             | EquipmentEvent::HeartbeatStopped { device_id, .. }
             | EquipmentEvent::HeartbeatStatusChanged { device_id, .. }

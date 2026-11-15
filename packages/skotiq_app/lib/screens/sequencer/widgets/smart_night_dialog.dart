@@ -14,6 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
+import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/camera_sensor_specs_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';

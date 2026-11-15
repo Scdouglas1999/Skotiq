@@ -43,8 +43,13 @@ class CameraStatus {
   /// `None` when the camera does not say and this connection has not set
   /// it; see `skotiq_device::CameraStatus::cooler_on`.
   final bool? coolerOn;
-  final int gain;
-  final int offset;
+
+  /// `None` when the camera has the setting and would not report its
+  /// value: unknown, which is not zero.
+  final int? gain;
+
+  /// As [`Self::gain`].
+  final int? offset;
   final int binX;
   final int binY;
   final int sensorWidth;
@@ -68,8 +73,8 @@ class CameraStatus {
     this.coolerPower,
     this.targetTemp,
     this.coolerOn,
-    required this.gain,
-    required this.offset,
+    this.gain,
+    this.offset,
     required this.binX,
     required this.binY,
     required this.sensorWidth,

@@ -48,7 +48,7 @@ void main() {
     await _pump(tester, container);
 
     expect(find.byType(PendingSessionReportsCard), findsOneWidget);
-    expect(find.textContaining('session report'), findsNothing);
+    expect(find.textContaining('SESSION REPORT'), findsNothing);
   });
 
   testWidgets('queued reports are listed and openable', (tester) async {
@@ -74,8 +74,9 @@ void main() {
 
     await _pump(tester, container);
 
+    // The count is the panel's head, which renders uppercase.
     expect(
-      find.text('2 session reports from unattended imaging'),
+      find.text('2 SESSION REPORTS FROM UNATTENDED IMAGING'),
       findsOneWidget,
     );
     expect(find.text('Open report'), findsNWidgets(2));

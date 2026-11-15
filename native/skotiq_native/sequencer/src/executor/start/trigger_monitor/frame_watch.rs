@@ -739,11 +739,12 @@ impl FrameWatchStage {
             );
             return self.recenter_after_probe(dispatcher, claim).await;
         }
-        let (lat, lon) = {
+        let (lat, lon, floor) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
                 rc.latitude.or(dispatcher.rig.devices().latitude),
                 rc.longitude.or(dispatcher.rig.devices().longitude),
+                rc.altitude_floor.clone(),
             )
         };
         let next = match (lat, lon) {
@@ -751,6 +752,7 @@ impl FrameWatchStage {
                 self.sequence.as_ref(),
                 obs.target_name.as_deref(),
                 self.watch.config(),
+                floor.as_ref(),
                 lat,
                 lon,
                 chrono::Utc::now(),

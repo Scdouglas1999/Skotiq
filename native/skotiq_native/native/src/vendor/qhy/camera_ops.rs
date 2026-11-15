@@ -566,6 +566,10 @@ impl CameraDriver for QhyCamera {
         Ok(modes)
     }
 
+    async fn get_readout_mode(&self) -> Result<Option<String>, DriverError> {
+        Ok(self.core.readout_mode.clone())
+    }
+
     /// A read mode only takes effect after re-initializing the camera, and
     /// the re-initialization resets the camera's settings (INDI: SetReadMode,
     /// InitQHYCCD, re-read the chip; NINA also restores gain and offset).

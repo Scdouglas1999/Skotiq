@@ -253,6 +253,32 @@ pub struct SensorInfo {
     pub saturation_adu: Option<u32>,
 }
 
+/// Something a driver has to tell the user that is not an error of the
+/// call in hand: the exposure was made another way than asked, a file was
+/// left on the camera.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DriverNotice {
+    pub title: String,
+    pub message: String,
+}
+
+/// A capture whose file did not become a frame: its download or its decode
+/// failed. The capture is not lost and the night is not held for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RetainedCapture {
+    /// Where the file is on the camera (`/store_00010001/DCIM/100_FUJI/DSCF0042.RAF`).
+    pub location: String,
+    /// The file is in the camera's memory, not on its card: it goes when
+    /// the camera is switched off or disconnected, and a later exposure can
+    /// take its place.
+    pub in_camera_memory: bool,
+    /// The driver holds the file's bytes: it was read, and could not be
+    /// decoded. Retrieving it needs no camera.
+    pub in_hand: bool,
+    /// Why the capture did not become a frame.
+    pub reason: String,
+}
+
 /// The file a camera delivered for a frame (a DSLR's or mirrorless body's raw
 /// file), kept so it can be saved exactly as the camera made it.
 #[derive(Clone, PartialEq, Eq)]

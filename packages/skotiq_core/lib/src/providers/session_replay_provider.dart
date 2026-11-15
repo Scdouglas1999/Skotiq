@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend.dart';
 import '../backend/remote_host.dart';
+import '../database/database.dart' show DbCapturedImage;
 
 /// One playhead-positioned snapshot of "what the dashboard would have
 /// shown at this moment". Built by [SessionReplayNotifier] by scanning
@@ -317,6 +318,40 @@ abstract class SessionReplayDataSource {
   /// Fetch ALL frames produced by the run.
   Future<List<RemoteReplayFrame>> fetchFrames(int runId);
 }
+
+/// The replay form of a stored frame row.
+RemoteReplayFrame replayFrameOf(DbCapturedImage row) => RemoteReplayFrame(
+  id: row.id,
+  fileName: row.fileName,
+  filePath: row.filePath,
+  capturedAt: row.capturedAt,
+  capturedAtMs: row.capturedAt.millisecondsSinceEpoch,
+  frameType: row.frameType,
+  exposureDuration: row.exposureDuration,
+  filter: row.filter,
+  gain: row.gain,
+  offset: row.offset,
+  binX: row.binX,
+  binY: row.binY,
+  sensorTemp: row.sensorTemp,
+  hfr: row.hfr,
+  starCount: row.starCount,
+  background: row.background,
+  noise: row.noise,
+  qualityScore: row.qualityScore,
+  guidingRmsRa: row.guidingRmsRa,
+  guidingRmsDec: row.guidingRmsDec,
+  guidingRmsTotal: row.guidingRmsTotal,
+  mountRa: row.mountRa,
+  mountDec: row.mountDec,
+  mountAltitude: row.mountAltitude,
+  mountAzimuth: row.mountAzimuth,
+  focuserPosition: row.focuserPosition,
+  isAccepted: row.isAccepted,
+  rejectionReason: row.rejectionReason,
+  sessionId: row.sessionId,
+  targetId: row.targetId,
+);
 
 /// Default [SessionReplayDataSource] backed by an HTTP
 /// [NetworkBackend]. The pagination loops are bounded by the

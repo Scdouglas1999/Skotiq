@@ -272,8 +272,8 @@ Future<DarkroomSessionTarget> _resolveDarkroomTarget({
   final blocked = set.withoutFile.isEmpty ? null : set.withoutFile.first;
   return DarkroomSessionTarget.unavailable(
     blocked == null
-        ? 'This session has no integrated master yet. Integrate it in Session '
-            'Review first, then refine it here.'
+        ? 'This session has no integrated master yet. Build the target\'s '
+            'masters in Darkroom > Targets first.'
         : '${blocked.name}: ${blocked.reason}.',
   );
 }

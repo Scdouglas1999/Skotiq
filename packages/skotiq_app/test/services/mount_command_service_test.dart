@@ -266,6 +266,7 @@ void main() {
         .thenAnswer((_) async {
       slewStarted.complete();
       await slewFinished.future;
+      return GuiderForMove.idle;
     });
     final handle = await _pump(tester, backend);
     final command =

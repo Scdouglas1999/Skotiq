@@ -88,20 +88,17 @@ final observerLocationProvider =
       return PlanetariumObserverNotifier();
     });
 
-/// The user-configured effective horizon in degrees, as observed by the
-/// planetarium widgets.
+/// The site's altitude floor by azimuth: the property horizon when the
+/// operator set one, otherwise the minimum altitude. Rise/set times, the
+/// altitude card's shading and Best Targets Tonight read it, so the
+/// planetarium and the rest of the app hold a target to one floor.
 ///
-/// 0° = mathematical horizon; a non-zero value (e.g. 20°) accounts for trees,
-/// buildings or hills. Rise/transit/set times and the altitude card's shading
-/// both read it, so the planetarium and the Run Dashboard quote one number.
-///
-/// Planetarium-local because `skotiq_core` owns the persisted setting and
-/// already depends on this package for catalog access; the app layer syncs the
-/// two (`skotiq_app/lib/startup/location_sync_service.dart`). The name is
-/// deliberately distinct from core's `effectiveHorizonDegProvider` to avoid
-/// `ambiguous_import` where both umbrellas are in scope.
-final planetariumEffectiveHorizonDegProvider = StateProvider<double>(
-  (ref) => 0.0,
+/// Planetarium-local because `skotiq_core` owns the rule and already depends
+/// on this package; the app layer pumps it across
+/// (`skotiq_app/lib/startup/location_sync_service.dart`). Until then nothing
+/// is held to a floor.
+final planetariumAltitudeFloorProvider = StateProvider<AltitudeFloorSamples>(
+  (ref) => AltitudeFloorSamples.flat(0),
 );
 
 /// Current observation time (can be simulated or real-time)

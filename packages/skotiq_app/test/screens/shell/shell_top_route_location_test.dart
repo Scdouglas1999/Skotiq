@@ -2,8 +2,8 @@
 //
 // The rail is a statement about where the operator is, so the location it is
 // handed has to be the route on top of the navigator. A `context.push` of a
-// route that lives inside the ShellRoute — which is how every Darkroom and
-// session-review entry point navigates — folds its match into the existing
+// route that lives inside the ShellRoute — which is how every Darkroom entry
+// point navigates — folds its match into the existing
 // shell match, so the top-level match list still ends with the shell and the
 // shell's own `matchedLocation` is the rail route the push started from.
 
@@ -49,8 +49,8 @@ import 'package:skotiq_core/models.dart';
           GoRoute(
               path: '/darkroom', builder: (_, __) => const Text('darkroom')),
           GoRoute(
-            path: '/session-review',
-            builder: (_, __) => const Text('review'),
+            path: '/stack-result',
+            builder: (_, __) => const Text('stack result'),
           ),
         ],
       ),
@@ -108,7 +108,7 @@ void main() {
         AppScreen.darkroom);
   });
 
-  testWidgets('a pushed session review answers the same way', (tester) async {
+  testWidgets('a pushed stack result answers the same way', (tester) async {
     final built = buildRouter();
     addTearDown(built.router.dispose);
     await tester.pumpWidget(MaterialApp.router(routerConfig: built.router));
@@ -116,13 +116,13 @@ void main() {
 
     built.router.go('/analytics');
     await tester.pumpAndSettle();
-    unawaited(built.shellKey.currentContext!.push('/session-review'));
+    unawaited(built.shellKey.currentContext!.push('/stack-result'));
     await tester.pumpAndSettle();
 
-    expect(topRouteLocation(built.router), '/session-review');
-    // /session-review is a Darkroom surface (04 §3.2's alias table), and it
-    // shares no path prefix with /darkroom — which is exactly why the table
-    // exists and a prefix walk could not answer this.
+    expect(topRouteLocation(built.router), '/stack-result');
+    // /stack-result is a Darkroom surface and shares no path prefix with
+    // /darkroom, which is why the route table answers this and a prefix walk
+    // could not.
     expect(
       ShellNavigation.railIndexFor(topRouteLocation(built.router)),
       ShellNavigation.rail.indexOf(AppRoute.darkroom),

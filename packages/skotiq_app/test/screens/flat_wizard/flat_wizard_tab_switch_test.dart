@@ -1,18 +1,15 @@
-// Changing the Flat Wizard's mode tab must not throw.
+// Changing the Flat wizard's mode tab must not throw.
 //
-// The three mode tabs live in a TabBarView, which keeps the OUTGOING tab
-// mounted across a switch. _BatchCaptureControls and _SkyFlatsControls both
-// attach TourTarget.flatFilterSelect.key / targetAdu / frameCount, and all
-// three tabs mount _ActionButtons with TourTarget.flatStartButton.key — those
-// are GlobalKeys, so two live elements claiming one key throws "The following
-// GlobalKey was specified multiple times in the widget tree" in a debug build
-// and silently reparents state in release. Only the tab whose mode is selected
-// may claim them.
+// The tutorial targets (filter table, histogram target, frame count, start
+// button) are GlobalKeys, and a GlobalKey may be on one live element only. The
+// screen builds one settings column for the selected mode, so every mode
+// switch must leave each key attached exactly once.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 
 import '../../harness/harness.dart';
 
@@ -30,9 +27,9 @@ void main() {
     await pumpAppScreen(
       tester,
       const FlatWizardScreen(),
-      // Desktop width: the tab strip shows its labels and the controls panel
-      // sits beside the preview, which is where the duplicated keys mount.
-      size: const Size(1280, 900),
+      // Desktop width: the tab strip shows its labels and the settings sit
+      // beside the preview.
+      size: const Size(1600, 900),
       settle: false,
     );
     await _drain(tester);
@@ -51,6 +48,15 @@ void main() {
         isNull,
         reason: 'selecting "$tab" must not duplicate a tutorial GlobalKey',
       );
+      for (final target in const [
+        TourTarget.flatFilterSelect,
+        TourTarget.flatTargetAdu,
+        TourTarget.flatFrameCount,
+        TourTarget.flatStartButton,
+      ]) {
+        expect(find.byKey(target.key), findsOneWidget,
+            reason: '"$tab" must carry the ${target.name} tutorial target');
+      }
     }
   });
 }
