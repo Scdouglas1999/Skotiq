@@ -24,9 +24,6 @@ class EquipmentReadinessPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final report = ref.watch(readinessReportProvider);
-    // Device rows connect the active profile here, so they carry the name of
-    // the header's action; with no profile they keep their own fix.
-    final connects = ref.watch(activeEquipmentProfileProvider) != null;
 
     // The title must count what the list below actually SHOWS. Blocked rows
     // cannot be hidden at all, so only caution rows can go missing — those are
@@ -81,9 +78,7 @@ class EquipmentReadinessPanel extends ConsumerWidget {
               showDivider: i < items.length - 1,
               action: items[i].hasFix
                   ? SkotiqButton(
-                      label: connects && _connectsHere(items[i])
-                          ? 'Connect all'
-                          : items[i].fixLabel!,
+                      label: items[i].fixLabel!,
                       variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
                       onPressed: () => _fix(context, ref, items[i]),
@@ -111,18 +106,14 @@ class EquipmentReadinessPanel extends ConsumerWidget {
   /// is. Every other item opens its route.
   static void _fix(BuildContext context, WidgetRef ref, ReadinessItem item) {
     final profile = ref.read(activeEquipmentProfileProvider);
-    if (_connectsHere(item) && profile != null) {
+    final connectsHere = item.id == ReadinessItemId.criticalDevices ||
+        item.id == ReadinessItemId.profileDevices;
+    if (connectsHere && profile != null) {
       runConnectAllForProfile(context, ref, profile);
       return;
     }
     context.go(item.fixRoute!);
   }
-
-  /// Device items, whose fix is the header's Connect all and carries its
-  /// name.
-  static bool _connectsHere(ReadinessItem item) =>
-      item.id == ReadinessItemId.criticalDevices ||
-      item.id == ReadinessItemId.profileDevices;
 
   static String _countLabel(int outstanding, int blockers) {
     if (outstanding == 0) return 'All clear';
