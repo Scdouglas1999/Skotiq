@@ -201,11 +201,18 @@ class _PairingCodePanel extends StatelessWidget {
           container: true,
           excludeSemantics: true,
           label: 'Pairing code: $code',
-          child: SelectableText(
-            code,
-            style: SkotiqTypography.readoutLg.copyWith(
-              color: colors.textPrimary,
-              letterSpacing: SkotiqTokens.spaceXs,
+          // One line at any width: a code broken at its hyphens reads as
+          // two codes.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: SelectableText(
+              code,
+              maxLines: 1,
+              style: SkotiqTypography.readoutLg.copyWith(
+                color: colors.textPrimary,
+                letterSpacing: SkotiqTokens.spaceXs,
+              ),
             ),
           ),
         ),

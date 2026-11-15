@@ -170,7 +170,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
             title: 'Equipment',
             icon: LucideIcons.plug,
             tabs: AdaptiveTabBar(
-              horizontalPadding: 0,
               selectedIndex: tabIndex,
               onSelected: (index) =>
                   ref.read(equipmentTabIndexProvider.notifier).state = index,

@@ -147,7 +147,7 @@ void main() {
           'nothing',
     );
     expect(
-      find.textContaining('a browser on this computer is not exempt'),
+      find.textContaining('A browser on this computer is not exempt'),
       findsOneWidget,
     );
     expect(

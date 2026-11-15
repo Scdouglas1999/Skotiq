@@ -214,6 +214,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
             // Which computer runs the rig comes first: on a linked desktop
             // everything below describes the imaging computer, not this one.
             const LinkedRigPanel(),
+            const SizedBox(height: SkotiqTokens.spaceSm),
             SettingsSection(
               title: l10n.text('remoteAccessWebServer'),
               children: [
@@ -403,7 +404,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     : null,
                 onRecheck: () => _recheckTailscale(webState),
               ),
-              const SizedBox(height: SkotiqTokens.space2xl),
             ],
             if (showDetails)
               SettingsSection(

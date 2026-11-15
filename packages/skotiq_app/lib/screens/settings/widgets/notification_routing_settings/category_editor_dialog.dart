@@ -133,7 +133,7 @@ class _CategoryEditorDialogState extends State<_CategoryEditorDialog> {
               ),
             const SizedBox(height: SkotiqTokens.spaceLg),
             FormRow(
-              label: 'Least severe',
+              label: 'Severity',
               labelWidth: _labelWidth,
               child: SkotiqDropdown(
                 value: _minSeverity.name,
@@ -216,10 +216,10 @@ class _CategoryEditorDialogState extends State<_CategoryEditorDialog> {
   }
 
   static String _severityLabel(EventSeverity severity) => switch (severity) {
-        EventSeverity.info => 'Information',
-        EventSeverity.warning => 'Warning',
-        EventSeverity.error => 'Error',
-        EventSeverity.critical => 'Critical',
+        EventSeverity.info => 'Any',
+        EventSeverity.warning => 'Warning and worse',
+        EventSeverity.error => 'Error and worse',
+        EventSeverity.critical => 'Critical only',
       };
 
   Future<void> _save() async {

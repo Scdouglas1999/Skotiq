@@ -78,25 +78,31 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
               final name = _nameController.text.trim();
               return Row(
                 children: [
-                  Flexible(
-                    child: Text(
-                      name.isEmpty ? 'Unnamed profile' : name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: SkotiqTypography.sectionTitle
-                          .copyWith(color: colors.textPrimary),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name.isEmpty ? 'Unnamed profile' : name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SkotiqTypography.sectionTitle
+                                .copyWith(color: colors.textPrimary),
+                          ),
+                        ),
+                        const SizedBox(width: SkotiqTokens.spaceSm),
+                        Text(
+                          _hasUnsavedChanges ? 'Unsaved changes' : 'Saved',
+                          style: SkotiqTypography.bodySm.copyWith(
+                            color: _hasUnsavedChanges
+                                ? colors.warning
+                                : colors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Text(
-                    _hasUnsavedChanges ? 'Unsaved changes' : 'Saved',
-                    style: SkotiqTypography.bodySm.copyWith(
-                      color: _hasUnsavedChanges
-                          ? colors.warning
-                          : colors.textMuted,
-                    ),
-                  ),
-                  const Spacer(),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
                   ..._footerActions(),
                 ],
               );

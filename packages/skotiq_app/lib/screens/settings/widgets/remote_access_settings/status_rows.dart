@@ -19,13 +19,13 @@ String describeRemoteAccessPairing({
     };
   }
   if (requiresAuthentication) {
-    return 'Desktop remote access serves the same dashboard locally and on '
-        'your LAN. Every client has to pair before it can load data or control '
-        'the app — a browser on this computer is not exempt.';
+    return 'The dashboard is served on this computer and your network. Every '
+        'phone and browser has to pair before it can load data or control the '
+        'rig. A browser on this computer is not exempt.';
   }
-  return 'Desktop remote access serves the same dashboard locally and on your '
-      'LAN. Pairing is currently not required, so anything that can reach this '
-      'port can control the app.';
+  return 'The dashboard is served on this computer and your network. Pairing '
+      'is not required, so anything that can reach this port can control the '
+      'rig.';
 }
 
 /// Body for the "Open on this computer" card.
@@ -36,8 +36,8 @@ String describeRemoteAccessPairing({
 @visibleForTesting
 String describeLocalDashboardAction({required bool requiresAuthentication}) {
   if (requiresAuthentication) {
-    return 'Opens the dashboard on this computer. This browser pairs like any '
-        'other client — until it does, the page loads but stays empty.';
+    return 'Opens the dashboard in a browser here. The browser pairs like any '
+        'other client; until it does, the page loads but stays empty.';
   }
   return 'Opens the dashboard on this computer.';
 }
@@ -104,20 +104,26 @@ class _StatusRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: SkotiqTypography.bodySm.copyWith(
-              color: colors.textSecondary,
+          Expanded(
+            child: Text(
+              label,
+              style: SkotiqTypography.bodySm.copyWith(
+                color: colors.textSecondary,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: SkotiqTokens.spaceLg),
           Flexible(
-            child: SelectableText(
-              value,
-              maxLines: valueMaxLines,
-              textAlign: TextAlign.right,
-              style: SkotiqTypography.labelStrong
-                  .copyWith(color: colors.textPrimary),
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SelectableText(
+                value,
+                maxLines: valueMaxLines,
+                textAlign: TextAlign.right,
+                style: SkotiqTypography.labelStrong
+                    .copyWith(color: colors.textPrimary),
+              ),
             ),
           ),
           if (copyable != null) ...[
