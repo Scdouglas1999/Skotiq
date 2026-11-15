@@ -4,7 +4,7 @@ part of '../flat_wizard_screen.dart';
 class _SaveFolderButton extends ConsumerWidget {
   const _SaveFolderButton({required this.compact});
 
-  /// Icon only, for a phone header.
+  /// Icon only, where the header has no room for the folder's name.
   final bool compact;
 
   /// The widest the folder's tail runs in the header.

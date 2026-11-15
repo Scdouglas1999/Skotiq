@@ -108,4 +108,14 @@ void main() {
     expect(find.text('No flat captured yet'), findsOneWidget);
     expect(find.text('Convergence'), findsOneWidget);
   });
+
+  testWidgets('a narrow window keeps the save folder as an icon',
+      (tester) async {
+    await _pump(tester, const Size(1000, 800));
+
+    expect(find.widgetWithText(SkotiqButton, 'Choose folder'), findsNothing);
+    expect(find.byTooltip('Choose where flats are saved'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'Start capture'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

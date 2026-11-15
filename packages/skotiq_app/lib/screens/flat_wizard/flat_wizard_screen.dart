@@ -34,6 +34,10 @@ class FlatWizardScreen extends ConsumerStatefulWidget {
 }
 
 class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen> {
+  /// Below this window width the save folder is an icon, so the mode tabs
+  /// keep their labels.
+  static const double _folderLabelMinWidth = 1100;
+
   @override
   void initState() {
     super.initState();
@@ -47,8 +51,8 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen> {
     final mode = ref.watch(flatWizardProvider.select((s) => s.mode));
     final isCapturing =
         ref.watch(flatWizardProvider.select((s) => s.isCapturing));
-    final narrow = MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final width = MediaQuery.sizeOf(context).width;
+    final narrow = width < ShellChromeMetrics.shellLayoutBreakpoint;
 
     return Column(
       children: [
@@ -81,7 +85,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen> {
                 tone: ChipTone.success,
                 dot: true,
               ),
-            _SaveFolderButton(compact: narrow),
+            _SaveFolderButton(compact: width < _folderLabelMinWidth),
             const _RunButton(),
           ],
         ),
