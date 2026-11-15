@@ -16,7 +16,7 @@ class SessionReviewState {
   /// The integration settings the A/B compare and the accumulating masters use.
   final IntegrationSettings settings;
 
-  /// Persisted masters for this target (newest first); empty when none. This is
+  /// Persisted masters of this target (newest first); empty when none. This is
   /// the *library* list (what the master-library panel offers), NOT the master
   /// this screen is reviewing — see [reviewedMaster].
   final List<IntegratedMaster> masters;

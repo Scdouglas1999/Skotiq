@@ -9,9 +9,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       final subs = await _loadSubs();
       final (targetId, targetName) = await _resolveTarget(subs);
       final title = await _resolveTitle(targetName);
-      final masters = targetId != null
-          ? await _mastersDao.getForTarget(targetId)
-          : await _mastersDao.getAll();
+      final masters = await _mastersOfTarget(targetId, subs);
       // Scope the reviewed master to THIS review's subs (see
       // [SessionReviewState.reviewedMaster]); `masters` stays the library list.
       final reviewed = await _resolveReviewedMaster(masters, subs);
@@ -407,9 +405,26 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     return best;
   }
 
-  Future<List<IntegratedMaster>> _refreshMasters() {
-    final tid = state.targetId;
-    return tid != null ? _mastersDao.getForTarget(tid) : _mastersDao.getAll();
+  Future<List<IntegratedMaster>> _refreshMasters() =>
+      _mastersOfTarget(state.targetId, state.subs);
+
+  /// The masters of the target under review, newest first: the target's own
+  /// when the subs name a target row, else the masters that folded these
+  /// subs. Never the whole library, whose other targets' masters would sit
+  /// here with Add tonight and Delete beside them.
+  Future<List<IntegratedMaster>> _mastersOfTarget(
+    int? targetId,
+    List<DbCapturedImage> subs,
+  ) async {
+    if (targetId != null) return _mastersDao.getForTarget(targetId);
+    if (subs.isEmpty) return const [];
+    final folded =
+        (await _mastersDao.masterIdsForImages(subs.map((s) => s.id))).toSet();
+    if (folded.isEmpty) return const [];
+    return [
+      for (final master in await _mastersDao.getAll())
+        if (folded.contains(master.id)) master,
+    ];
   }
 
   /// Refresh the master library AND re-resolve [SessionReviewState.reviewedMaster],
