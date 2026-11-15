@@ -9,6 +9,8 @@
 // so a new event variant does not compile until someone decides whether it
 // notifies. It is pure and has no side effects.
 
+import 'dart:convert';
+
 import '../../backend/bridge_event_codec.dart';
 import '../../backend/bridge_events.dart' as typed;
 import '../../models/backend/event_types.dart';
@@ -47,6 +49,107 @@ class ConnectingDevices {
     }
     return false;
   }
+}
+
+/// What the guiding notice says went wrong.
+const String kGuideProblemContextKey = 'guide.problem';
+
+/// One notice per lost-guide-star episode, from the guider's own lost and
+/// guiding states rather than from each lost frame.
+///
+/// The guider reports a lost star on every frame it cannot find it and, while
+/// it hunts through clouds, picks a star and loses it again every few
+/// seconds. The star counts as lost once it has stayed lost for [lostAfter];
+/// that raises one guiding-lost notice. It counts as back once the guider has
+/// guided for [recoveredAfter] with no loss, which raises one guiding-recovered
+/// notice; until then further losses raise nothing. Guiding stopped on
+/// purpose (autofocus, a flip, the operator) ends the episode quietly.
+class GuideStarEpisodes {
+  GuideStarEpisodes({
+    this.lostAfter = const Duration(seconds: 15),
+    this.recoveredAfter = const Duration(seconds: 30),
+  });
+
+  final Duration lostAfter;
+  final Duration recoveredAfter;
+
+  _GuideStarPhase _phase = _GuideStarPhase.guiding;
+
+  /// When the current phase began.
+  int _since = 0;
+
+  /// When the guider began guiding without a loss, while lost; null while
+  /// the star is lost.
+  int? _guidedSince;
+
+  /// Follow [event]; the notice it completes, if any.
+  ClassifiedNotification? observe(SkotiqEvent event) {
+    final payload = typedEventFromWire(event)?.payload;
+    if (payload is! typed.EventPayload_Guiding) return null;
+    final at = event.timestamp;
+    switch (payload.field0) {
+      case typed.GuidingEvent_LostStar():
+        _guidedSince = null;
+        if (_phase == _GuideStarPhase.guiding) {
+          _enter(_GuideStarPhase.losing, at);
+        }
+      case typed.GuidingEvent_Correction() ||
+          typed.GuidingEvent_GuidingStarted():
+        if (_phase == _GuideStarPhase.guiding) return null;
+        final guidedSince = _guidedSince ??= at;
+        if (at - guidedSince < recoveredAfter.inMilliseconds) return null;
+        final told = _phase == _GuideStarPhase.lost;
+        _enter(_GuideStarPhase.guiding, at);
+        // A loss too short to tell ends without a word.
+        if (!told) return null;
+        return const ClassifiedNotification(
+          category: NotificationCategory.guidingRecovered,
+          context: <String, String>{},
+          severity: EventSeverity.info,
+        );
+      case typed.GuidingEvent_GuidingStopped() ||
+          typed.GuidingEvent_Disconnected() ||
+          typed.GuidingEvent_Paused() ||
+          typed.GuidingEvent_Looping() ||
+          typed.GuidingEvent_Calibrating():
+        _enter(_GuideStarPhase.guiding, at);
+        return null;
+      default:
+    }
+    if (_phase == _GuideStarPhase.losing &&
+        _guidedSince == null &&
+        at - _since >= lostAfter.inMilliseconds) {
+      _enter(_GuideStarPhase.lost, at);
+      return const ClassifiedNotification(
+        category: NotificationCategory.guidingLost,
+        context: {
+          kGuideProblemContextKey:
+              'The guide star is lost. The guider keeps looking for it and '
+              'the run carries on.',
+        },
+        severity: EventSeverity.error,
+      );
+    }
+    return null;
+  }
+
+  void _enter(_GuideStarPhase phase, int at) {
+    _phase = phase;
+    _since = at;
+    _guidedSince = null;
+  }
+}
+
+enum _GuideStarPhase {
+  guiding,
+
+  /// Lost, not told yet: told once it has been lost for
+  /// [GuideStarEpisodes.lostAfter] with no guided stretch long enough to count
+  /// as found.
+  losing,
+
+  /// Lost, and told; found once guided for [GuideStarEpisodes.recoveredAfter].
+  lost,
 }
 
 /// What a step problem's notice names as its source: the event carries the
@@ -106,8 +209,11 @@ class NotificationEventClassifier {
     // Decision rows are published at info whatever they record. The
     // reject-streak and problem-noticed rows stand for a warning, so they are
     // routed at their category's own level and clear its warning floor.
+    // A guider that dropped its connection is published as a warning, as is
+    // every guiding problem; the guiding-lost notice clears its own floor.
     final severity =
         mapped.$1 == NotificationCategory.problemNoticed ||
+            mapped.$1 == NotificationCategory.guidingLost ||
             (_isDecisionRow(payload) &&
                 mapped.$1 == NotificationCategory.frameRejected)
         ? mapped.$1.defaultSeverity
@@ -278,8 +384,18 @@ class NotificationEventClassifier {
           NotificationCategory.triggerFired,
           <String, String>{'trigger.name': triggerName},
         );
+      case typed.SequencerEvent_TargetChanged(:final targetName):
+        return (
+          NotificationCategory.targetStarted,
+          <String, String>{'target.name': targetName},
+        );
       case typed.SequencerEvent_RecoveryStarted():
         return (NotificationCategory.recoveryStarted, _none);
+      // Also sent when recovery hands the mount to a meridian flip, which is
+      // not a recovery.
+      case typed.SequencerEvent_RecoveryCompleted(:final phase):
+        if (phase != 'Recovered') return null;
+        return (NotificationCategory.recoveryRecovered, _none);
       case typed.SequencerEvent_RecoveryGaveUp():
         return (NotificationCategory.recoveryGaveUp, _none);
       // One rejected frame is not news: the run dashboard and the reject
@@ -290,7 +406,6 @@ class NotificationEventClassifier {
       case typed.SequencerEvent_NodeStarted() ||
           typed.SequencerEvent_NodeCompleted() ||
           typed.SequencerEvent_Progress() ||
-          typed.SequencerEvent_TargetChanged() ||
           typed.SequencerEvent_ExposureStarted() ||
           typed.SequencerEvent_ExposureCompleted() ||
           typed.SequencerEvent_InstructionProgress() ||
@@ -304,7 +419,6 @@ class NotificationEventClassifier {
           typed.SequencerEvent_PhotometryCadenceBroken() ||
           typed.SequencerEvent_PhotometrySummary() ||
           typed.SequencerEvent_RecoveryProgress() ||
-          typed.SequencerEvent_RecoveryCompleted() ||
           typed.SequencerEvent_PluginNodeRequested() ||
           typed.SequencerEvent_PluginNodeProgress():
         return null;
@@ -348,12 +462,17 @@ class NotificationEventClassifier {
     typed.GuidingEvent event,
     EventSeverity severity,
   ) => switch (event) {
-    typed.GuidingEvent_LostStar() => (NotificationCategory.guidingLost, _none),
     // Published at info when the operator disconnected the guider.
     typed.GuidingEvent_Disconnected() =>
       severity.index < EventSeverity.warning.index
           ? null
-          : (NotificationCategory.guidingLost, _none),
+          : (
+              NotificationCategory.guidingLost,
+              const {kGuideProblemContextKey: 'The guider disconnected.'},
+            ),
+    // A lost star is told once per episode by [GuideStarEpisodes], not per
+    // frame.
+    typed.GuidingEvent_LostStar() ||
     typed.GuidingEvent_Connected() ||
     typed.GuidingEvent_GuidingStarted() ||
     typed.GuidingEvent_GuidingStopped() ||
@@ -388,12 +507,15 @@ class NotificationEventClassifier {
       NotificationCategory.weatherSafeAgain,
       _none,
     ),
-    typed.SafetyEvent_WeatherUnsafe() ||
-    typed.SafetyEvent_EmergencyStop() ||
-    typed.SafetyEvent_ParkInitiated() ||
+    typed.SafetyEvent_WeatherUnsafe(:final reason) ||
+    typed.SafetyEvent_EmergencyStop(:final reason) ||
+    typed.SafetyEvent_ParkInitiated(:final reason) => (
+      NotificationCategory.weatherUnsafe,
+      <String, String>{'weather.reason': reason},
+    ),
     typed.SafetyEvent_ParkCompleted() => (
       NotificationCategory.weatherUnsafe,
-      _none,
+      const {'weather.reason': 'The mount parked for safety'},
     ),
   };
 
@@ -406,6 +528,12 @@ class NotificationEventClassifier {
     typed.EquipmentEvent event,
     EventSeverity severity,
   ) {
+    if (event case typed.EquipmentEvent_PropertyChanged(
+      property: 'AutofocusFinished',
+      :final value,
+    )) {
+      return _autofocusOutcome(value);
+    }
     if (severity.index < EventSeverity.error.index) return null;
     final (deviceType, deviceId) = switch (event) {
       typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) ||
@@ -428,6 +556,29 @@ class NotificationEventClassifier {
         'equipment.device_name': _disconnectedDeviceName(deviceId, deviceType),
       },
     );
+  }
+
+  /// An autofocus sweep's outcome, the one every sweep publishes. A sweep a
+  /// run ran that missed focus is told by the run's continuation notice
+  /// instead, so it is not told twice.
+  static (NotificationCategory, Map<String, String>)? _autofocusOutcome(
+    String value,
+  ) {
+    final Object? outcome;
+    try {
+      outcome = jsonDecode(value);
+    } on FormatException {
+      return null;
+    }
+    if (outcome is! Map<String, dynamic>) return null;
+    return switch (outcome['status']) {
+      'Success' => (NotificationCategory.autofocusCompleted, _none),
+      'Failure' when outcome['in_run'] != true => (
+        NotificationCategory.autofocusFailed,
+        _none,
+      ),
+      _ => null,
+    };
   }
 
   /// The name a disconnect notification calls the device.

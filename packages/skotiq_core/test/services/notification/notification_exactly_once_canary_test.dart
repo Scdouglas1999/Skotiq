@@ -89,8 +89,14 @@ final _criticalCases =
         ),
         category: NotificationCategory.weatherUnsafe,
       ),
+      // The guider dropping its connection; a lost star is told per episode
+      // (guide_star_episode_replay_test.dart).
       'guidingLost': (
-        event: _evt(EventCategory.guiding, 'StarLost', EventSeverity.error),
+        event: _evt(
+          EventCategory.guiding,
+          'Disconnected',
+          EventSeverity.warning,
+        ),
         category: NotificationCategory.guidingLost,
       ),
       'exposureFailed': (
@@ -449,7 +455,7 @@ void main() {
       );
       router.routeCriticalPush(
         title: 'Weather unsafe',
-        body: 'Safety monitor reports unsafe conditions.',
+        body: 'clouds.',
         eventType: 'WeatherUnsafe',
         eventCategory: EventCategory.safety,
       );

@@ -25,7 +25,11 @@ ClassifiedNotification? _equipment(
   bridge.EquipmentEvent event,
   EventSeverity severity,
 ) => NotificationEventClassifier.classify(
-  _wire(bridge.EventPayload.equipment(event), EventCategory.equipment, severity),
+  _wire(
+    bridge.EventPayload.equipment(event),
+    EventCategory.equipment,
+    severity,
+  ),
 );
 
 ClassifiedNotification? _guiding(
@@ -102,16 +106,22 @@ void main() {
     );
   });
 
-  test('a guider that dropped its connection or lost its star is told', () {
-    for (final event in const [
-      bridge.GuidingEvent.disconnected(),
-      bridge.GuidingEvent.lostStar(),
-    ]) {
-      expect(
-        _guiding(event, EventSeverity.warning)?.category,
-        NotificationCategory.guidingLost,
-      );
-    }
+  test('a guider that dropped its connection is told at once', () {
+    expect(
+      _guiding(
+        const bridge.GuidingEvent.disconnected(),
+        EventSeverity.warning,
+      )?.category,
+      NotificationCategory.guidingLost,
+    );
+  });
+
+  test('one lost frame is not a notice of its own', () {
+    expect(
+      _guiding(const bridge.GuidingEvent.lostStar(), EventSeverity.warning),
+      isNull,
+      reason: 'GuideStarEpisodes tells a lost star once per episode',
+    );
   });
 
   test('a meridian flip is told once, from its successful verdict', () {
@@ -141,5 +151,98 @@ void main() {
       NotificationContext(done.context),
     );
     expect(body, 'Meridian flip completed for M31 after 2 attempts.');
+  });
+
+  NotificationCategory? sequencer(bridge.SequencerEvent event) =>
+      NotificationEventClassifier.classify(
+        _wire(
+          bridge.EventPayload.sequencer(event),
+          EventCategory.sequencer,
+          EventSeverity.info,
+        ),
+      )?.category;
+
+  test('a target starting is told by name', () {
+    final told = NotificationEventClassifier.classify(
+      _wire(
+        const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.targetChanged(targetName: 'NGC 891'),
+        ),
+        EventCategory.sequencer,
+        EventSeverity.info,
+      ),
+    )!;
+    expect(told.category, NotificationCategory.targetStarted);
+    expect(told.context['target.name'], 'NGC 891');
+  });
+
+  test('recovery is told as recovered only when it recovered', () {
+    bridge.SequencerEvent completed(String phase) =>
+        bridge.SequencerEvent.recoveryCompleted(
+          startedAtIso: '2026-11-15T03:00:00Z',
+          causeKind: 'GuideStarLost',
+          attemptCount: 1,
+          maxAttempts: 3,
+          retryIntervalSecs: 60,
+          maxDurationSecs: 900,
+          phase: phase,
+        );
+    expect(
+      sequencer(completed('Recovered')),
+      NotificationCategory.recoveryRecovered,
+    );
+    expect(
+      sequencer(completed('Attempting')),
+      isNull,
+      reason: 'recovery handed the mount to a meridian flip',
+    );
+  });
+
+  NotificationCategory? autofocus(String status, {required bool inRun}) =>
+      _equipment(
+        bridge.EquipmentEvent.propertyChanged(
+          deviceType: 'focuser',
+          deviceId: 'native:zwo_eaf:0',
+          property: 'AutofocusFinished',
+          value:
+              '{"status":"$status","message":null,"result":null,'
+              '"in_run":$inRun}',
+        ),
+        EventSeverity.info,
+      )?.category;
+
+  test('an autofocus outcome is told once, by whoever ran it', () {
+    expect(
+      autofocus('Success', inRun: false),
+      NotificationCategory.autofocusCompleted,
+    );
+    expect(
+      autofocus('Success', inRun: true),
+      NotificationCategory.autofocusCompleted,
+    );
+    expect(
+      autofocus('Failure', inRun: false),
+      NotificationCategory.autofocusFailed,
+    );
+    expect(
+      autofocus('Failure', inRun: true),
+      isNull,
+      reason: "a run tells a missed focus by its continuation notice",
+    );
+    expect(autofocus('Cancelled', inRun: false), isNull);
+  });
+
+  test('a failed exposure is told with its reason', () {
+    final told = NotificationEventClassifier.classify(
+      _wire(
+        const bridge.EventPayload.imaging(
+          bridge.ImagingEvent.exposureFailed(error: 'Image download timed out'),
+        ),
+        EventCategory.imaging,
+        EventSeverity.error,
+      ),
+    )!;
+    expect(told.category, NotificationCategory.exposureFailed);
+    expect(told.context['frame.reason'], 'Image download timed out');
   });
 }

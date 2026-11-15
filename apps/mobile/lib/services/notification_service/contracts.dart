@@ -49,6 +49,7 @@ abstract class MobileNotificationSink {
   Future<void> notifySafety({required String title, required String body});
   Future<void> notifyMountFault({required String title, required String body});
   Future<void> notifyGuidingLost(String reason);
+  Future<void> notifyGuidingRecovered(String body);
   Future<void> notifyExposureFailed(String errorMessage);
   Future<void> notifyAutofocusFailed();
   Future<void> notifyEquipmentDisconnected(String deviceType, String deviceId);
