@@ -193,7 +193,9 @@ async fn test_altitude_trigger() {
     let mut trigger = Trigger::new(
         "test",
         "Test Altitude",
-        TriggerType::AltitudeLimit { min_altitude: 30.0 },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(30.0),
+        },
         RecoveryAction::NextTarget,
     );
 
@@ -937,7 +939,9 @@ async fn test_trigger_manager() {
     manager.add_trigger(Trigger::new(
         "altitude",
         "Altitude Limit",
-        TriggerType::AltitudeLimit { min_altitude: 30.0 },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(30.0),
+        },
         RecoveryAction::NextTarget,
     ));
 
@@ -1492,4 +1496,41 @@ async fn autofocus_attempt_consumes_old_hfr_but_requires_new_bad_frames() {
             "fresh degradation must still refocus"
         );
     }
+}
+
+/// The standard altitude trigger holds the target to the site's floor in the
+/// direction the target stands, and to nothing when the run has no floor.
+#[tokio::test]
+async fn the_altitude_trigger_reads_the_site_floor_toward_the_target() {
+    use crate::scheduling::{AltitudeFloor, HorizonProfile, HorizonSample};
+    let mut trigger = Trigger::new(
+        "altitude_limit",
+        "Altitude Limit",
+        StandardTrigger::AltitudeLimit.condition(),
+        RecoveryAction::NextTarget,
+    );
+    let mut state = TriggerState::new();
+    state.target.current_altitude = Some(30.0);
+    state.target.current_azimuth = Some(90.0);
+    assert!(
+        !trigger.check(&state).await,
+        "a run with no floor holds the target to nothing"
+    );
+
+    // Trees to 40 degrees in the east, open sky in the west.
+    state.settings.altitude_floor = Some(AltitudeFloor::new(
+        HorizonProfile::new(vec![
+            HorizonSample::new(0.0, 0.0),
+            HorizonSample::new(45.0, 40.0),
+            HorizonSample::new(135.0, 40.0),
+            HorizonSample::new(180.0, 0.0),
+        ])
+        .unwrap(),
+    ));
+    assert!(trigger.check(&state).await, "behind the trees");
+    state.target.current_azimuth = Some(270.0);
+    assert!(!trigger.check(&state).await, "over open sky");
+
+    state.settings.altitude_floor = Some(AltitudeFloor::flat(35.0));
+    assert!(trigger.check(&state).await, "below the minimum altitude");
 }

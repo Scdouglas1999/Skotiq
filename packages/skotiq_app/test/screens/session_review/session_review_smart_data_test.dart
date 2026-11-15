@@ -224,16 +224,6 @@ void main() {
     expect(failingState().error, contains('Night analysis failed'));
   });
 
-  test('default view mode is narrative and setViewMode toggles it', () async {
-    final c = controller();
-    await waitUntilLoaded();
-    expect(state().viewMode, SessionReviewViewMode.narrative);
-    c.setViewMode();
-    expect(state().viewMode, SessionReviewViewMode.workbench);
-    c.setViewMode(SessionReviewViewMode.narrative);
-    expect(state().viewMode, SessionReviewViewMode.narrative);
-  });
-
   test('cullToRecommended is a no-op with no improvement curve loaded',
       () async {
     final c = controller();

@@ -9,11 +9,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
+import 'optics_host.dart';
 
 PsfFieldTileRow _tile({
   required int row,
@@ -67,30 +68,18 @@ List<Override> _overrides({required bool withQuickCaptureData}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('quick-capture frames are selectable and diagnosable',
-      (tester) async {
+  testWidgets('quick-capture frames are diagnosable', (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
-      extraOverrides: _overrides(withQuickCaptureData: true),
+      extraOverrides: [
+        ..._overrides(withQuickCaptureData: true),
+        analyticsSessionPickProvider
+            .overrideWith((ref) => kQuickCaptureSessionSelection),
+      ],
     );
-    await _drainAsyncFrames(tester);
-
-    // The picker renders only the selected entry (or the hint) while closed,
-    // so the offer is asserted with the menu open.
-    expect(find.text('Select session'), findsOneWidget);
-    await tester.tap(find.byType(DropdownButton<int>));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Quick captures (no session)'),
-      findsWidgets,
-      reason: 'a night of quick captures must be offered by the picker',
-    );
-
-    await tester.tap(find.text('Quick captures (no session)').last);
     await _drainAsyncFrames(tester);
 
     expect(
@@ -106,18 +95,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('no quick-capture entry when there is nothing to diagnose',
+  testWidgets('quick captures with nothing measured show the empty state',
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
-      extraOverrides: _overrides(withQuickCaptureData: false),
+      extraOverrides: [
+        ..._overrides(withQuickCaptureData: false),
+        analyticsSessionPickProvider
+            .overrideWith((ref) => kQuickCaptureSessionSelection),
+      ],
     );
     await _drainAsyncFrames(tester);
 
-    expect(find.text('Quick captures (no session)'), findsNothing);
     expect(find.text('Select an imaging session to analyze'), findsOneWidget);
   });
 }

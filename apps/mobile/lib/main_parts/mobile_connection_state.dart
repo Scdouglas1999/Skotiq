@@ -33,6 +33,10 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   RelayTunnelClient? _activeRelayTunnel;
   bool _isDiscovering = false;
   String? _error;
+
+  /// The host the last connect attempt reached but cannot link to because it
+  /// runs another Skotiq release; the connect card offers to update one side.
+  DiscoveredServer? _mismatchedHost;
   String _statusMessage = '';
   final TextEditingController _ipController = TextEditingController(text: '');
   final TextEditingController _accessTokenController = TextEditingController(

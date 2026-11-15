@@ -78,7 +78,9 @@ class CameraStateSnapshot extends Equatable
     bool clearCoolerPower = false,
     double? targetTemp,
     int? gain,
+    bool clearGain = false,
     int? offset,
+    bool clearOffset = false,
     String? binning,
     bool? coolerOn,
     bool clearCoolerOn = false,
@@ -97,8 +99,8 @@ class CameraStateSnapshot extends Equatable
       temperature: temperature ?? this.temperature,
       coolerPower: clearCoolerPower ? null : (coolerPower ?? this.coolerPower),
       targetTemp: targetTemp ?? this.targetTemp,
-      gain: gain ?? this.gain,
-      offset: offset ?? this.offset,
+      gain: clearGain ? null : (gain ?? this.gain),
+      offset: clearOffset ? null : (offset ?? this.offset),
       binning: binning ?? this.binning,
       coolerOn: clearCoolerOn ? null : (coolerOn ?? this.coolerOn),
       isWarming: isWarming ?? this.isWarming,
@@ -161,7 +163,9 @@ class MountState extends Equatable implements DeviceSlotState<MountState> {
   /// mount moves again or parks.
   final bool homeUnconfirmed;
   final String? sideOfPier;
-  final TrackingRate trackingRate;
+
+  /// The rate the mount last reported; null when its driver cannot say.
+  final TrackingRate? trackingRate;
   final bool canSetTrackingRate;
   final bool canPark;
   @override
@@ -187,7 +191,7 @@ class MountState extends Equatable implements DeviceSlotState<MountState> {
     this.isHoming = false,
     this.homeUnconfirmed = false,
     this.sideOfPier,
-    this.trackingRate = TrackingRate.sidereal,
+    this.trackingRate,
     this.canSetTrackingRate = false,
     this.canPark = true,
     this.lastError,
@@ -221,6 +225,7 @@ class MountState extends Equatable implements DeviceSlotState<MountState> {
     bool clearError = false,
     bool clearHorizonFrame = false,
     bool clearSideOfPier = false,
+    bool clearTrackingRate = false,
   }) {
     return MountState(
       connectionState: connectionState ?? this.connectionState,
@@ -243,7 +248,8 @@ class MountState extends Equatable implements DeviceSlotState<MountState> {
       // Like the horizon frame, a mount that stops reporting its side of pier
       // needs [clearSideOfPier]: a null argument means "leave unchanged".
       sideOfPier: clearSideOfPier ? null : (sideOfPier ?? this.sideOfPier),
-      trackingRate: trackingRate ?? this.trackingRate,
+      trackingRate:
+          clearTrackingRate ? null : (trackingRate ?? this.trackingRate),
       canSetTrackingRate: canSetTrackingRate ?? this.canSetTrackingRate,
       canPark: canPark ?? this.canPark,
       lastError: clearError ? null : (lastError ?? this.lastError),

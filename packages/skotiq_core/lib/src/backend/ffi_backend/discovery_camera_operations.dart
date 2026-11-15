@@ -403,15 +403,32 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> cameraSetReadoutMode(String deviceId, int modeIndex) async {
-    await _native(
-      'setReadoutMode',
-      () => bridge.apiCameraSetReadoutMode(
-        deviceId: deviceId,
-        modeIndex: modeIndex,
+  Future<List<RetainedCapture>> cameraRetainedCaptures() async => [
+    for (final kept in bridge.apiCameraRetainedCaptures())
+      RetainedCapture(
+        deviceId: kept.deviceId,
+        cameraName: kept.cameraName,
+        location: kept.location,
+        inCameraMemory: kept.inCameraMemory,
+        reason: kept.reason,
+        retainedAt: DateTime.fromMillisecondsSinceEpoch(
+          kept.retainedAtMs.toInt(),
+          isUtc: true,
+        ),
       ),
-    );
-  }
+  ];
+
+  @override
+  Future<String> cameraRetrieveRetainedCapture(
+    String deviceId,
+    String location,
+  ) => _native(
+    'retrieveRetainedCapture',
+    () => bridge.apiCameraRetrieveRetainedCapture(
+      deviceId: deviceId,
+      location: location,
+    ),
+  );
 
   @override
   Future<void> cameraSetGain(String deviceId, int gain) async {

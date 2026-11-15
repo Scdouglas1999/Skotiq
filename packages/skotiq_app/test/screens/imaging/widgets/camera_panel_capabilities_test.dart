@@ -26,6 +26,7 @@ import 'package:skotiq_app/screens/imaging/widgets/panel_widgets.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show ProfileService;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
@@ -62,6 +63,8 @@ SliderRowInteractive _coolerSlider(WidgetTester tester) {
     find.byType(SliderRowInteractive),
   );
 }
+
+class _MockProfiles extends Mock implements ProfileService {}
 
 /// Build the standard override list pinning the camera to connected and the
 /// capability provider for [_kDeviceId] to [caps].
@@ -179,12 +182,12 @@ void main() {
     final dropdowns = readModeRow.where((d) => d.label == 'Read mode').toList();
     expect(dropdowns, hasLength(1),
         reason: 'Read Mode row must be present when modes are reported.');
-    expect(dropdowns.single.items, ['Mode A', 'Mode B'],
+    expect(dropdowns.single.items, [kCameraOwnReadMode, 'Mode A', 'Mode B'],
         reason:
             'Dropdown items must mirror CameraCapabilities.readoutModes with no '
             'synthetic High Quality/Fast fallback.');
-    // Default selection resolves to index 0 (no explicit mode chosen yet).
-    expect(dropdowns.single.value, 'Mode A');
+    // A profile that states no read mode leaves the camera in its own.
+    expect(dropdowns.single.value, kCameraOwnReadMode);
   });
 
   testWidgets(
@@ -204,106 +207,70 @@ void main() {
             'readout modes (hide-when-unsupported pattern).');
   });
 
-  testWidgets('read mode selection persists only when the driver accepts it',
-      (tester) async {
-    final backend = mockBackend();
-    when(
-      () => backend.cameraSetReadoutMode(_kDeviceId, 1),
-    ).thenAnswer((_) async {});
-    final handle = await pumpAppScreen(
-      tester,
-      const CameraPanel(colors: SkotiqColors.dark),
-      backend: backend,
-      extraOverrides: _overrides(
-        _caps(readoutModes: const ['Mode A', 'Mode B']),
-      ),
-      settle: false,
-    );
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 25));
-    }
-
-    final row = tester
-        .widgetList<DropdownRow>(find.byType(DropdownRow))
-        .singleWhere((widget) => widget.label == 'Read mode');
-    row.onChanged!('Mode B');
-    await tester.pump();
-
-    verify(() => backend.cameraSetReadoutMode(_kDeviceId, 1)).called(1);
-    final settings = handle.container.read(exposureSettingsProvider);
-    expect(settings.readoutModeIndex, 1);
-    expect(settings.fastReadout, isTrue);
-    expect(
-      handle.container.read(exposureSettingsUserDirtyProvider),
-      isTrue,
-    );
-  });
-
-  testWidgets('rejected read mode rolls settings back and surfaces the error',
-      (tester) async {
-    final backend = mockBackend();
-    when(
-      () => backend.cameraSetReadoutMode(_kDeviceId, 1),
-    ).thenThrow(Exception('unsupported mode'));
-    final handle = await pumpAppScreen(
-      tester,
-      const CameraPanel(colors: SkotiqColors.dark),
-      backend: backend,
-      extraOverrides: _overrides(
-        _caps(readoutModes: const ['Mode A', 'Mode B']),
-      ),
-      settle: false,
-    );
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 25));
-    }
-
-    final row = tester
-        .widgetList<DropdownRow>(find.byType(DropdownRow))
-        .singleWhere((widget) => widget.label == 'Read mode');
-    row.onChanged!('Mode B');
-    await tester.pump();
-
-    final settings = handle.container.read(exposureSettingsProvider);
-    expect(settings.readoutModeIndex, isNull);
-    expect(settings.fastReadout, isFalse);
-    expect(
-      handle.container.read(exposureSettingsUserDirtyProvider),
-      isFalse,
-    );
-    expect(find.textContaining('Failed to set read mode'), findsOneWidget);
-  });
-
-  testWidgets('stale saved read mode is shown as unselected, not remapped',
-      (tester) async {
-    final handle = await pumpAppScreen(
+  // The read mode is the equipment profile's. Picking one saves it there and
+  // sends nothing to the camera: the device layer puts the camera in the mode
+  // when a frame is taken, for a capture from here and for a run alike.
+  testWidgets('the read mode shown and saved is the profile\'s', (tester) async {
+    final profiles = _MockProfiles();
+    when(() => profiles.setProfileReadMode(any(), any()))
+        .thenAnswer((_) async {});
+    await pumpAppScreen(
       tester,
       const CameraPanel(colors: SkotiqColors.dark),
       extraOverrides: [
         ..._overrides(_caps(readoutModes: const ['Mode A', 'Mode B'])),
-        exposureSettingsProvider.overrideWith(
-          (ref) => const ExposureSettings(
-            exposureTime: 120,
-            gain: 100,
-            offset: 50,
-            readoutModeIndex: 4,
+        activeEquipmentProfileProvider.overrideWithValue(
+          const EquipmentProfileModel(
+            id: 7,
+            name: 'Rig',
+            defaultReadoutMode: 'mode b',
+          ),
+        ),
+        profileServiceProvider.overrideWithValue(profiles),
+      ],
+      settle: false,
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump();
+    }
+    DropdownRow row() => tester
+        .widgetList<DropdownRow>(find.byType(DropdownRow))
+        .singleWhere((widget) => widget.label == 'Read mode');
+    expect(row().value, 'Mode B', reason: 'matched by name, whatever its case');
+
+    row().onChanged!('Mode A');
+    await tester.pump();
+    verify(() => profiles.setProfileReadMode(7, 'Mode A')).called(1);
+
+    row().onChanged!(kCameraOwnReadMode);
+    await tester.pump();
+    verify(() => profiles.setProfileReadMode(7, null)).called(1);
+  });
+
+  testWidgets('a read mode the camera does not list is shown as not stated',
+      (tester) async {
+    await pumpAppScreen(
+      tester,
+      const CameraPanel(colors: SkotiqColors.dark),
+      extraOverrides: [
+        ..._overrides(_caps(readoutModes: const ['Mode A', 'Mode B'])),
+        activeEquipmentProfileProvider.overrideWithValue(
+          const EquipmentProfileModel(
+            id: 7,
+            name: 'Rig',
+            defaultReadoutMode: 'High speed',
           ),
         ),
       ],
       settle: false,
     );
     for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 25));
+      await tester.pump();
     }
-
     final row = tester
         .widgetList<DropdownRow>(find.byType(DropdownRow))
         .singleWhere((widget) => widget.label == 'Read mode');
-    expect(row.value, isNull);
-    expect(
-      handle.container.read(exposureSettingsProvider).readoutModeIndex,
-      4,
-    );
+    expect(row.value, kCameraOwnReadMode);
   });
 
   testWidgets('Warm up starts the gradual ramp instead of disabling cooling',

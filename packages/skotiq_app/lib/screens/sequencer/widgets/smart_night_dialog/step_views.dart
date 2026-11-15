@@ -118,6 +118,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
   }
 
   Widget _buildWindowStep(SkotiqColors colors) {
+    final floor = ref.watch(altitudeFloorProvider);
     _ensureWindowInitialised();
     final start = _windowStart;
     final end = _windowEnd;
@@ -234,14 +235,21 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               },
             ),
           ),
+          // Not a Smart Night setting: the plan is held to the site's floor.
           _SettingsRow(
-            label: 'Min altitude',
+            label: 'Altitude floor',
             colors: colors,
-            child: SmartNightNumberField(
-              initial: _settings.minAltitudeDeg,
-              suffix: '°',
-              onChanged: (v) => _update(() => _settings =
-                  _settings.copyWith(minAltitudeDeg: v.clamp(10.0, 80.0))),
+            child: Tooltip(
+              message: altitudeFloorRuleDetail(floor),
+              child: Text(
+                altitudeFloorRuleLabel(floor),
+                key: const Key('smartNight.altitudeFloorInForce'),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: SkotiqTypography.fontSize12,
+                ),
+              ),
             ),
           ),
         ],

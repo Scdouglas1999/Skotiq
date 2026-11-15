@@ -41,6 +41,7 @@ void main() {
       now: lateEvening,
       sequence: TwoTargetPlan().sequence,
       site: false,
+      floor: const AltitudeFloor(horizon: null, minimumDeg: 30),
     );
     addTearDown(container.dispose);
 

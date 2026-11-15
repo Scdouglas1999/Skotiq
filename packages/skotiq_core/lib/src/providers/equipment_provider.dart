@@ -6,16 +6,18 @@
 ///
 library;
 
+export 'equipment/camera_read_mode_owner.dart';
 export 'equipment/camera_state_provider.dart';
 export 'equipment/cover_calibrator_state_provider.dart';
 export 'equipment/dome_state_provider.dart';
 export 'equipment/filter_wheel_state_provider.dart';
+export 'equipment/retained_captures_provider.dart';
 export 'equipment/focuser_state_provider.dart';
 export 'equipment/focus_compensation_rule.dart';
 export 'equipment/focuser_temp_compensation_provider.dart';
 export 'equipment/focuser_temperature_poller.dart';
 export 'equipment/guider_state_provider.dart';
-export 'equipment/guiding_for_move.dart';
+export 'equipment/guider_silent_move.dart';
 export 'equipment/mount_state_provider.dart';
 export 'equipment/device_read_health_provider.dart';
 export 'equipment/profile_connection_status_provider.dart';

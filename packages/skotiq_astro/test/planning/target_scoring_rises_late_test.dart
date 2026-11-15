@@ -50,6 +50,7 @@ void main() {
         latitude: lat,
         longitude: lon,
         observationTime: nightStart,
+        floorAt: (_) => minAltitude,
       ).scoreTargetForNight(
         target: _Fixture(
           id: 'ra$ra',
@@ -58,7 +59,6 @@ void main() {
         ),
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: minAltitude,
       );
 
   DateTime? solvedRise(double ra) =>

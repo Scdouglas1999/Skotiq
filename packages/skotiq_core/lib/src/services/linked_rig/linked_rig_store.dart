@@ -150,6 +150,20 @@ class LinkedRigStore {
   static const _tokenFile = 'linked_rig_token';
   static const _deviceIdFile = 'link_device_id';
 
+  /// Every change to the record and token runs after the one before it, so
+  /// a quick link, unlink or forget can never interleave with another write.
+  Future<void> _changes = Future<void>.value();
+
+  Future<T> _afterPendingChanges<T>(Future<T> Function() change) {
+    final result = _changes.then((_) => change());
+    _changes = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  /// Completes once every save, [setActive] and [forget] started so far has
+  /// finished, whether or not it succeeded.
+  Future<void> get settled => _changes;
+
   Future<File> _file(String name) async =>
       File(p.join((await _dataDirectory()).path, name));
 
@@ -188,14 +202,12 @@ class LinkedRigStore {
   }
 
   /// Remember [rig] with [token]. Returns where the token went.
-  Future<LinkedRigTokenStorage> save(
-    LinkedRig rig, {
-    required String token,
-  }) async {
-    final storage = await _writeToken(token);
-    await _writeRecord(rig);
-    return storage;
-  }
+  Future<LinkedRigTokenStorage> save(LinkedRig rig, {required String token}) =>
+      _afterPendingChanges(() async {
+        final storage = await _writeToken(token);
+        await _writeRecord(rig);
+        return storage;
+      });
 
   Future<LinkedRigTokenStorage> _writeToken(String token) async {
     final tokenFile = await _file(_tokenFile);
@@ -216,7 +228,9 @@ class LinkedRigStore {
   Future<void> _writeRecord(LinkedRig rig) async {
     final file = await _file(_recordFile);
     await file.parent.create(recursive: true);
-    final temp = File('${file.path}.tmp');
+    // Changes are serialized within this store; the process id keeps another
+    // process on the same data directory off this temporary file.
+    final temp = File('${file.path}.$pid.tmp');
     await temp.writeAsString(
       const JsonEncoder.withIndent('  ').convert(rig.toJson()),
       flush: true,
@@ -225,14 +239,14 @@ class LinkedRigStore {
   }
 
   /// Keep the pairing but stop (or start) launching as its client.
-  Future<void> setActive(bool active) async {
+  Future<void> setActive(bool active) => _afterPendingChanges(() async {
     final rig = await load();
     if (rig == null || rig.active == active) return;
     await _writeRecord(rig.copyWith(active: active));
-  }
+  });
 
   /// Drop the rig and its token entirely.
-  Future<void> forget() async {
+  Future<void> forget() => _afterPendingChanges(() async {
     try {
       await _secure.delete(key: await _keyringKey());
     } catch (e) {
@@ -242,7 +256,7 @@ class LinkedRigStore {
       final file = await _file(name);
       if (await file.exists()) await file.delete();
     }
-  }
+  });
 
   /// A stable id for this install, sent as `deviceId` when pairing so the host
   /// lists one entry per desktop however many times it re-pairs.

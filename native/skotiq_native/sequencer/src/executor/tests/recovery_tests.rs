@@ -1056,7 +1056,9 @@ fn only_rig_protecting_triggers_evaluate_while_paused() {
         TriggerType::DawnApproaching {
             minutes_before: 30.0,
         },
-        TriggerType::AltitudeLimit { min_altitude: 30.0 },
+        TriggerType::AltitudeLimit {
+            min_altitude: Some(30.0),
+        },
         TriggerType::MountTrackingLost,
     ] {
         assert!(

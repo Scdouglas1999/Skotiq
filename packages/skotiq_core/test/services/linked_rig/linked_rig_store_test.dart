@@ -1,6 +1,7 @@
 // The remembered rig survives a restart, keeps its token out of the record,
 // and falls back to an owner-only file only when the keyring is unusable.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,22 @@ class _BrokenKeyring implements SecureKeyValueStore {
   @override
   Future<void> delete({required String key}) async =>
       throw Exception('no Secret Service');
+}
+
+/// A keyring whose first write waits until [release], so a test can start a
+/// second change while the first is still in flight.
+class _HeldKeyring extends InMemorySecureKeyValueStore {
+  final _held = Completer<void>();
+  int writesStarted = 0;
+
+  void release() => _held.complete();
+
+  @override
+  Future<void> write({required String key, required String value}) async {
+    writesStarted++;
+    if (writesStarted == 1) await _held.future;
+    await super.write(key: key, value: value);
+  }
 }
 
 LinkedRig _rig({bool active = true, String scope = 'control'}) => LinkedRig(
@@ -104,6 +121,64 @@ void main() {
     expect(await store.load(), isNull);
     expect(await store.readToken(), isNull);
     expect(keyring.values, isEmpty);
+  });
+
+  test('a save started during another waits for it and lands last', () async {
+    final keyring = _HeldKeyring();
+    final store = storeWith(keyring);
+    final first = store.save(_rig(), token: 'first');
+    final second = store.save(_rig(scope: 'admin'), token: 'second');
+    await pumpEventQueue();
+    expect(keyring.writesStarted, 1, reason: 'the second save has not begun');
+
+    keyring.release();
+    await Future.wait([first, second]);
+    expect((await store.load())!.hasFullAccess, isTrue);
+    expect(await store.readToken(), 'second');
+    expect(
+      dir.listSync().map((e) => e.uri.pathSegments.last),
+      isNot(contains(endsWith('.tmp'))),
+    );
+  });
+
+  test('forget while a save is in flight leaves nothing remembered', () async {
+    final keyring = _HeldKeyring();
+    final store = storeWith(keyring);
+    final saving = store.save(_rig(), token: 't');
+    final forgetting = store.forget();
+    await pumpEventQueue();
+    keyring.release();
+    await Future.wait([saving, forgetting]);
+
+    expect(await store.load(), isNull);
+    expect(await store.readToken(), isNull);
+  });
+
+  test('settled waits for the change in flight', () async {
+    final keyring = _HeldKeyring();
+    final store = storeWith(keyring);
+    final saving = store.save(_rig(), token: 't');
+    var settled = false;
+    unawaited(store.settled.then((_) => settled = true));
+    await pumpEventQueue();
+    expect(settled, isFalse);
+
+    keyring.release();
+    await saving;
+    await store.settled;
+    expect(settled, isTrue);
+    expect(await store.load(), isNotNull);
+  });
+
+  test('a failed change does not block the next one', () async {
+    final store = storeWith(InMemorySecureKeyValueStore());
+    await File('${dir.path}/linked_rig.json').create(recursive: true);
+    await Directory('${dir.path}/linked_rig.json.$pid.tmp').create();
+    await expectLater(store.save(_rig(), token: 't'), throwsA(anything));
+    await Directory('${dir.path}/linked_rig.json.$pid.tmp').delete();
+
+    await store.save(_rig(), token: 't');
+    expect(await store.load(), isNotNull);
   });
 
   test('a damaged record launches this computer as its own host', () async {

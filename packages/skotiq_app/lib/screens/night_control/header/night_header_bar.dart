@@ -524,6 +524,12 @@ class _InfoRow extends ConsumerWidget {
               params: {'index': '$ti', 'count': '$tc'}),
         );
       }
+      // A target waiting to start says what for; it has no step or frame to
+      // report yet.
+      if (header.waitingFor case final waiting?) {
+        parts.add(waiting);
+        return parts.join(' · ');
+      }
       final (si, sc) = (header.stepIndex, header.stepCount);
       if (si != null && sc != null) {
         parts.add(

@@ -209,11 +209,11 @@ final Map<String, NarratorAction> narratorActions = <String, NarratorAction>{
 
   // Equipment → the per-corner / diagnostics maps.
   'equipment.tilt': NarratorAction(
-    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+    route: AppRoutes.sessionOptics(),
     label: 'Open diagnostics',
   ),
   'equipment.gradient': NarratorAction(
-    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+    route: AppRoutes.sessionOptics(),
     label: 'Open diagnostics',
   ),
 
@@ -229,7 +229,7 @@ final Map<String, NarratorAction> narratorActions = <String, NarratorAction>{
 
   // Pipeline failures → diagnostics.
   'quality.pipeline_failure': NarratorAction(
-    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+    route: AppRoutes.sessionOptics(),
     label: 'Open diagnostics',
   ),
 };

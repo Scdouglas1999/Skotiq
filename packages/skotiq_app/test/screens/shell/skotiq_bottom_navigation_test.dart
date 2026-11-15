@@ -185,7 +185,8 @@ void main() {
     }
   });
 
-  testWidgets('the More sheet opens Session replay', (tester) async {
+  testWidgets('the More sheet opens Analytics, where past nights live',
+      (tester) async {
     final selected = <AppRoute>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -201,15 +202,16 @@ void main() {
     await tester.tap(find.text('More'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Session replay'), findsNothing);
     // The default 800x600 test view gives the sheet less height than the
     // list needs, so this also proves the sheet scrolls instead of clipping.
-    await tester.ensureVisible(find.text('Session replay'));
+    await tester.ensureVisible(find.text('Analytics'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Session replay'));
+    await tester.tap(find.text('Analytics'));
     await tester.pumpAndSettle();
 
-    expect(selected, [AppRoute.sessionReplay]);
-    expect(find.text('Session replay'), findsNothing);
-    expect(await _selectedLabels(tester, '/session-replay/12'), ['More']);
+    expect(selected, [AppRoute.analytics]);
+    expect(await _selectedLabels(tester, '/analytics?tab=history&night=12'),
+        ['More']);
   });
 }

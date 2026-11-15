@@ -17,6 +17,7 @@ import '../../database/database.dart' show CoImagingSessionRow;
 import '../../models/collaboration/collaboration_models.dart'
     show ContributionLicense;
 import '../../database/daos/coimaging_sessions_dao.dart';
+import '../../models/site/altitude_floor.dart';
 import '../../database/daos/constellation_contributions_dao.dart';
 import '../constellation/constellation_client.dart';
 import '../constellation/constellation_models.dart';
@@ -77,11 +78,6 @@ class CoImagingSessionService {
   /// radius is ~1.5 deg; 2.0 keeps a slightly-off plate-solve or a framing-offset
   /// tile inside the match while staying well clear of an unrelated target.
   static const double membershipMatchToleranceDeg = 2.0;
-
-  /// The imaging-altitude floor (degrees) the longitude-baton automation
-  /// claims-above / releases-below by default — the same 20 deg the planner
-  /// treats as the practical horizon for useful integration.
-  static const double defaultImagingAltitudeFloorDeg = 20.0;
 
   final int _order;
 
@@ -602,7 +598,8 @@ class CoImagingSessionService {
   /// observer location — productizes the site->site hand-off so the combined
   /// stack keeps growing without anyone touching the UI:
   ///
-  ///   * when the session target is above [altitudeFloorDeg] here, CLAIM the
+  ///   * when the session target is above the site's altitude [floor] here,
+  ///     in the direction it stands, CLAIM the
   ///     baton (begin/continue imaging) — a [HandoffClaim] when granted, null
   ///     when another site still holds it;
   ///   * when it has set (or dropped below the floor), RELEASE the baton so the
@@ -617,18 +614,18 @@ class CoImagingSessionService {
     String sessionId, {
     required double latitudeDeg,
     required double longitudeDeg,
-    double altitudeFloorDeg = defaultImagingAltitudeFloorDeg,
+    required AltitudeFloor floor,
     DateTime? atUtc,
   }) async {
     final center = await _sessionCenter(sessionId);
-    final altitudeDeg = observerAltitudeDegrees(
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
+    final (altitudeDeg, azimuthDeg) = AstronomyCalculations.objectAltAz(
       raDeg: center.raDeg,
       decDeg: center.decDeg,
-      atUtc: atUtc ?? DateTime.now().toUtc(),
+      dt: atUtc ?? DateTime.now().toUtc(),
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
     );
-    if (altitudeDeg >= altitudeFloorDeg) {
+    if (floor.clears(altitudeDeg, azimuthDeg)) {
       final claim = await claimBaton(sessionId);
       _logger.info(
         'evaluateBaton($sessionId): target up at ${altitudeDeg.toStringAsFixed(1)}'
@@ -714,25 +711,5 @@ class CoImagingSessionService {
     } finally {
       client.close();
     }
-  }
-
-  /// Geometric altitude (degrees) of a J2000 sky position from an observer
-  /// site at a UTC instant. Static so the longitude-baton automation can drive
-  /// it without a DAO, for simulated longitudes too.
-  static double observerAltitudeDegrees({
-    required double latitudeDeg,
-    required double longitudeDeg,
-    required double raDeg,
-    required double decDeg,
-    required DateTime atUtc,
-  }) {
-    final (altitude, _) = AstronomyCalculations.objectAltAz(
-      raDeg: raDeg,
-      decDeg: decDeg,
-      dt: atUtc,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-    );
-    return altitude;
   }
 }

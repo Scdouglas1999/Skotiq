@@ -173,13 +173,6 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
     final options = MosaicSequenceOptions(
       centerAfterSlew: true,
       autofocusPerPanel: false,
-      // W1 STRENGTHEN (never weaken): default each panel's minAltitude to the
-      // Smart Night floor so every panel TargetHeader carries an altitude gate
-      // — matching the wizard / headless mosaic paths. This ADDS the
-      // no-daylight/altitude gate to the durable-project capture sequence; it
-      // does not touch the live Dart Sun gate (W1) or the fail-closed weather
-      // gate (W5).
-      minAltitude: const SmartNightSettings().minAltitudeDeg,
     );
 
     final mosaicName = project.name.isEmpty

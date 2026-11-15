@@ -40,17 +40,30 @@ Future<void> setCameraOffset({required String deviceId, required int offset}) =>
       offset: offset,
     );
 
-/// Set camera readout mode by index
-///
-/// mode_index: 0 = default/high quality, 1 = fast readout, etc.
-/// The available modes are camera-dependent.
-Future<void> apiCameraSetReadoutMode({
+/// State the read mode a camera is to take its frames in: its equipment
+/// profile's default, by the name the camera lists. Nothing is written to
+/// the camera now; the next exposure puts it in the mode if it is in
+/// another. `None` leaves the camera in the mode it is in.
+void apiCameraStateReadoutMode({required String deviceId, String? mode}) =>
+    RustLib.instance.api.crateApiDevicesCameraApiCameraStateReadoutMode(
+      deviceId: deviceId,
+      mode: mode,
+    );
+
+/// The captures cameras are keeping, oldest first.
+List<RetainedCaptureInfo> apiCameraRetainedCaptures() =>
+    RustLib.instance.api.crateApiDevicesCameraApiCameraRetainedCaptures();
+
+/// Read a retained capture off its camera and save the camera's file.
+/// Answers the path it was saved to.
+Future<String> apiCameraRetrieveRetainedCapture({
   required String deviceId,
-  required int modeIndex,
-}) => RustLib.instance.api.crateApiDevicesCameraApiCameraSetReadoutMode(
-  deviceId: deviceId,
-  modeIndex: modeIndex,
-);
+  required String location,
+}) =>
+    RustLib.instance.api.crateApiDevicesCameraApiCameraRetrieveRetainedCapture(
+      deviceId: deviceId,
+      location: location,
+    );
 
 /// Capture a live-view / preview JPEG frame when the driver supports it.
 Future<Uint8List> apiCameraCapturePreview({required String deviceId}) => RustLib
@@ -78,3 +91,51 @@ Future<CameraRecommendedSettings> apiCameraGetRecommendedSettings({
 }) => RustLib.instance.api.crateApiDevicesCameraApiCameraGetRecommendedSettings(
   deviceId: deviceId,
 );
+
+/// One capture a camera is keeping because its download failed.
+class RetainedCaptureInfo {
+  final String deviceId;
+  final String cameraName;
+
+  /// Where the file is on the camera.
+  final String location;
+
+  /// In the camera's memory rather than on its card.
+  final bool inCameraMemory;
+
+  /// Why the capture did not become a frame.
+  final String reason;
+
+  /// Milliseconds since the Unix epoch (UTC).
+  final PlatformInt64 retainedAtMs;
+
+  const RetainedCaptureInfo({
+    required this.deviceId,
+    required this.cameraName,
+    required this.location,
+    required this.inCameraMemory,
+    required this.reason,
+    required this.retainedAtMs,
+  });
+
+  @override
+  int get hashCode =>
+      deviceId.hashCode ^
+      cameraName.hashCode ^
+      location.hashCode ^
+      inCameraMemory.hashCode ^
+      reason.hashCode ^
+      retainedAtMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RetainedCaptureInfo &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          cameraName == other.cameraName &&
+          location == other.location &&
+          inCameraMemory == other.inCameraMemory &&
+          reason == other.reason &&
+          retainedAtMs == other.retainedAtMs;
+}

@@ -95,7 +95,7 @@ void main() {
     test('a valid legacy ?token= still upgrades the WebSocket', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token',
+        '?token=admin-token&version=2.5.0',
       );
       try {
         expect(socket.readyState, WebSocket.open);
@@ -129,6 +129,7 @@ void main() {
 
 Future<_Resp> _post(HttpClient client, Uri baseUri, String path) async {
   final request = await client.openUrl('POST', baseUri.replace(path: path));
+  request.headers.set('x-skotiq-version', '2.5.0');
   request.headers.contentType = ContentType.json;
   request.write('{}');
   final response = await request.close();
@@ -154,6 +155,7 @@ Future<int> _wsTokenAttempt(int port, String token) async {
   socket.write(
     'GET /api/ws?token=$token HTTP/1.1\r\n'
     'Host: 127.0.0.1:$port\r\n'
+    'x-skotiq-version: 2.5.0\r\n'
     'Connection: Upgrade\r\n'
     'Upgrade: websocket\r\n'
     'Sec-WebSocket-Version: 13\r\n'

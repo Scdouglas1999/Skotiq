@@ -11,6 +11,10 @@ mixin QueryWord on Enum {
 
 /// The value of [values] that [word] names, ignoring case; null for null or
 /// an unknown word, so the caller decides the fallback.
+/// The whole number a query parameter holds, or null when it is missing or
+/// is not one.
+int? readQueryInt(String? word) => word == null ? null : int.tryParse(word);
+
 T? readQueryWord<T extends QueryWord>(List<T> values, String? word) {
   if (word == null) return null;
   final wanted = word.toLowerCase();

@@ -16,11 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
+import 'optics_host.dart';
 
 List<Override> _overrides() => [
       allSessionsProvider.overrideWith(
@@ -43,7 +43,7 @@ const _phonePortraitSizes = <Size>[
 Future<void> _pumpAndCheck(WidgetTester tester, Size size) async {
   await pumpAppScreen(
     tester,
-    const DiagnosticsTabContent(showTitle: true),
+    const OpticsHost(),
     size: size,
     settle: false,
     extraOverrides: _overrides(),
@@ -56,8 +56,8 @@ Future<void> _pumpAndCheck(WidgetTester tester, Size size) async {
     reason: 'DiagnosticsScreen must not overflow at '
         '${size.width}x${size.height}',
   );
-  expect(find.text('Optical train diagnostics'), findsOneWidget,
-      reason: 'Diagnostics header title must render at '
+  expect(find.text('Select an imaging session to analyze'), findsOneWidget,
+      reason: 'the empty state must render at '
           '${size.width}x${size.height}');
 }
 

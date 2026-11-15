@@ -222,8 +222,6 @@ final autofocusPreviewFeederProvider = Provider<void>((ref) {
       binningY: base.binningY,
       filter: filter ?? base.filter,
       frameType: FrameType.light,
-      fastReadout: base.fastReadout,
-      readoutModeIndex: base.readoutModeIndex,
     );
     ref
         .read(capturePreviewPublisherProvider)

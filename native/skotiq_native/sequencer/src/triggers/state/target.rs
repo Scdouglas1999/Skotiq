@@ -15,6 +15,9 @@ state_part! {
             /// Target Dec in degrees
             pub target_dec: Option<f64>,
             pub current_altitude: Option<f64>,
+            /// Azimuth of the ACTIVE TARGET in degrees, computed with
+            /// `current_altitude`; the altitude floor is read in this direction.
+            pub current_azimuth: Option<f64>,
             /// Hour angle of the ACTIVE TARGET in hours, signed and normalized to
             /// `[-12, +12]`: negative is east of the meridian (not yet transited),
             /// positive is west of it.

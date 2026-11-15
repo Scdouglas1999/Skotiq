@@ -11,8 +11,7 @@ import 'query_word.dart';
 enum SequencerTab with QueryWord {
   builder('Builder', LucideIcons.workflow, 'builder', []),
   templates('Templates', LucideIcons.fileStack, 'templates', []),
-  sequences('Saved', LucideIcons.folderOpen, 'sequences', ['library']),
-  history('History', LucideIcons.history, 'history', ['runs']);
+  sequences('Saved', LucideIcons.folderOpen, 'sequences', ['library']);
 
   const SequencerTab(this.label, this.icon, this.word, this.olderWords);
 
@@ -28,4 +27,9 @@ enum SequencerTab with QueryWord {
 
   /// The tab a `?tab=` word names, or null.
   static SequencerTab? fromQuery(String? word) => readQueryWord(values, word);
+
+  /// True for the `?tab=` words of the run history, which is now Analytics >
+  /// History.
+  static bool namesHistory(String? word) =>
+      const {'history', 'runs'}.contains(word?.toLowerCase());
 }

@@ -342,6 +342,12 @@
         "old": "(default)"
       },
       {
+        "describe": "Read mode: (profile default) → High speed",
+        "field": "Read mode",
+        "new": "High speed",
+        "old": "(profile default)"
+      },
+      {
         "describe": "Binning: one → two",
         "field": "Binning",
         "new": "two",

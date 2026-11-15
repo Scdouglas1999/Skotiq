@@ -16,6 +16,7 @@ import 'analytics_route.dart';
 import 'darkroom_route.dart';
 import 'equipment_route.dart';
 import 'planner_route.dart';
+import 'query_word.dart';
 import 'sequencer_route.dart';
 import 'settings_sections.dart';
 
@@ -184,24 +185,19 @@ enum AppRoute {
     ],
   ),
 
-  /// Past runs on the linked host, replayed as a timeline.
+  /// Analytics > History under the names people search for. The old replay
+  /// paths land on the night they named.
   sessionReplay(
     '/session-replay',
-    label: TranslatedLabel('navSessionReplay'),
+    label: EnglishLabel('History'),
     icon: LucideIcons.history,
     palette: true,
     keywords: ['replay', 'history', 'past', 'night', 'run', 'timeline'],
   ),
   sessionReplayRun('/session-replay/:runId'),
 
-  /// One night (`?session=`) or every night of one target (`?target=`).
-  sessionReview(
-    '/session-review',
-    label: EnglishLabel('Session review'),
-    icon: LucideIcons.clipboardList,
-    palette: true,
-    keywords: ['session', 'review', 'night', 'report'],
-  ),
+  /// The old address of a night's report; see [redirect].
+  sessionReview('/session-review'),
   mosaicProjects(
     '/mosaic',
     label: EnglishLabel('Mosaic'),
@@ -335,7 +331,6 @@ enum AppRoute {
   AppRoute? get parent => switch (this) {
         imagingPreview => imaging,
         plateSolvingSettings => settings,
-        sessionReplayRun => sessionReplay,
         _ => null,
       };
 
@@ -347,7 +342,7 @@ enum AppRoute {
         _ when group != null => this,
         imagingPreview => imaging,
         polarAlignment => equipment,
-        sessionReview || stackResult => darkroom,
+        stackResult => darkroom,
         mosaicProjects || mosaicProject => planner,
         _ => null,
       };
@@ -364,7 +359,11 @@ enum AppRoute {
         scheduler ||
         bestTonight ||
         mosaicProjects ||
-        diagnostics =>
+        diagnostics ||
+        sessionReplay ||
+        sessionReplayRun ||
+        sessionReview ||
+        replay =>
           true,
         _ => false,
       };
@@ -395,11 +394,39 @@ enum AppRoute {
       scheduler => AppRoutes.planner(tab: PlannerTab.targets),
       bestTonight => AppRoutes.planner(tab: PlannerTab.recommendation),
       mosaicProjects => AppRoutes.planTargets(group: plannerMosaicsGroupWord),
-      // Per-target progress moved to Plan > Targets.
-      analytics => q['tab']?.trim().toLowerCase() == 'projects'
-          ? AppRoutes.planner(tab: PlannerTab.targets)
-          : null,
-      diagnostics => AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+      diagnostics => AppRoutes.sessionOptics(),
+      // Tabs that merged into other places keep their old words working.
+      analytics => switch (q['tab']?.trim().toLowerCase()) {
+          // Per-target progress moved to Plan > Targets.
+          'projects' => AppRoutes.planner(tab: PlannerTab.targets),
+          'equipment' ||
+          'equipment-stats' ||
+          'equipmentstats' =>
+            AppRoutes.history(),
+          'diagnostics' => AppRoutes.sessionOptics(),
+          _ => null,
+        },
+      sequencer =>
+        SequencerTab.namesHistory(q['tab']) ? AppRoutes.history() : null,
+      sessionReplay => AppRoutes.history(),
+      sessionReplayRun || replay => switch (int.tryParse(
+          uri.pathSegments.last,
+        )) {
+          final int runId =>
+            AppRoutes.night(NightRef.run(runId), view: NightView.log),
+          null => AppRoutes.history(),
+        },
+      // A target-wide review has no night to open; the Darkroom lists the
+      // target's nights.
+      sessionReview => switch (readQueryInt(q['session'])) {
+          final int sessionId => AppRoutes.night(
+              NightRef.session(sessionId),
+              view: NightView.report,
+            ),
+          null => q.containsKey('target')
+              ? AppRoutes.darkroom(const DarkroomRoute())
+              : AppRoutes.history(),
+        },
       // The calibration pages moved to the Darkroom's Calibration tab.
       settings =>
         SettingsSectionId.resolve(q['section']) == SettingsSectionId.calibration
@@ -420,10 +447,24 @@ enum AppRoute {
             'view': (word) => DiscoverView.fromQuery(word) != null,
           },
         analytics => {
-            'tab': (word) => AnalyticsTab.fromQuery(word) != null,
-            'view': (word) => ScienceTab.fromQuery(word) != null,
+            'tab': (word) =>
+                AnalyticsTab.fromQuery(word) != null ||
+                const {
+                  'equipment',
+                  'equipment-stats',
+                  'equipmentstats',
+                  'diagnostics',
+                }.contains(word.toLowerCase()),
+            'view': (word) =>
+                ScienceTab.fromQuery(word) != null ||
+                SessionView.fromQuery(word) != null ||
+                NightView.fromQuery(word) != null,
           },
-        sequencer => {'tab': (word) => SequencerTab.fromQuery(word) != null},
+        sequencer => {
+            'tab': (word) =>
+                SequencerTab.fromQuery(word) != null ||
+                SequencerTab.namesHistory(word),
+          },
         settings => {
             'section': (word) => SettingsSectionId.resolve(word) != null,
           },
@@ -574,6 +615,33 @@ abstract final class AppRoutes {
         if (scienceView != null) 'view': scienceView.word,
       });
 
+  /// Analytics > Session on [view].
+  static String session({SessionView? view}) =>
+      _location(AppRoute.analytics.path, {
+        'tab': AnalyticsTab.session.word,
+        if (view != null) 'view': view.word,
+      });
+
+  /// The optical diagnostics of the session Analytics > Session is showing.
+  static String sessionOptics() => session(view: SessionView.optics);
+
+  /// Analytics > History, optionally narrowed to one saved sequence's runs.
+  static String history({int? sequenceId}) =>
+      _location(AppRoute.analytics.path, {
+        'tab': AnalyticsTab.history.word,
+        if (sequenceId != null) 'sequence': '$sequenceId',
+      });
+
+  /// One night of Analytics > History, opened on [view]. [sequenceId] keeps
+  /// the list's sequence filter for the way back.
+  static String night(NightRef night, {NightView? view, int? sequenceId}) =>
+      _location(AppRoute.analytics.path, {
+        'tab': AnalyticsTab.history.word,
+        ...night.query,
+        if (view != null) 'view': view.word,
+        if (sequenceId != null) 'sequence': '$sequenceId',
+      });
+
   /// Analytics > Science > Observing alerts.
   static String observingAlerts() =>
       analytics(tab: AnalyticsTab.science, scienceView: ScienceTab.transients);
@@ -610,34 +678,15 @@ abstract final class AppRoutes {
   static String imagingPreview(String imageId) =>
       _withParam(AppRoute.imagingPreview, Uri.encodeComponent(imageId));
 
+  /// The report of the night [sessionId] names; lands on its History page.
   static String sessionReviewOfSession(int sessionId) =>
       _location(AppRoute.sessionReview.path, {'session': '$sessionId'});
-
-  static String sessionReviewOfTarget(int targetId) =>
-      _location(AppRoute.sessionReview.path, {'target': '$targetId'});
 
   static String stackResult(int resultId) =>
       _location(AppRoute.stackResult.path, {'id': '$resultId'});
 
   static String mosaicProject(int projectId) =>
       _withParam(AppRoute.mosaicProject, '$projectId');
-
-  static String sessionReplayRun(int runId) =>
-      _withParam(AppRoute.sessionReplayRun, '$runId');
-
-  /// One run's decision replay. The name and time window ride along so the
-  /// header and the scrubber survive a reload and the back stack.
-  static String replay({
-    required int runId,
-    required String name,
-    DateTime? startedAt,
-    DateTime? endedAt,
-  }) =>
-      _location(_withParam(AppRoute.replay, '$runId'), {
-        'name': name,
-        if (startedAt != null) 'started': startedAt.toIso8601String(),
-        if (endedAt != null) 'ended': endedAt.toIso8601String(),
-      });
 
   static String _location(String path, Map<String, String> query) =>
       query.isEmpty ? path : Uri(path: path, queryParameters: query).toString();

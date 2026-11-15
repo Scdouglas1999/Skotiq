@@ -55,6 +55,7 @@ void main() {
 
     Future<HttpClientResponse> get(String path, {String? accept}) async {
       final request = await client.getUrl(baseUri.resolve(path));
+      request.headers.set('x-skotiq-version', '2.5.0');
       // Do NOT follow the redirect: the 302 itself is what is under test.
       request.followRedirects = false;
       if (accept != null) request.headers.set(HttpHeaders.acceptHeader, accept);

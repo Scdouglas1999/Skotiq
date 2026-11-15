@@ -42,8 +42,8 @@ class SuggestionFilterState {
   final Set<String> selectedObjectTypes;
 
   /// Filter on the target's altitude RIGHT NOW (not the night peak). Null
-  /// means "no filter". Distinct from the scoring service's [minAltitude],
-  /// which is evaluated against the entire night window.
+  /// means "no filter". Distinct from the site's altitude floor, which the
+  /// scoring holds a target to across the whole night.
   final double? minCurrentAltitude;
 
   /// UI-only sort override for the planner workspace. Null means "use the

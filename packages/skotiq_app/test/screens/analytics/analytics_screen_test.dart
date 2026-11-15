@@ -1,34 +1,20 @@
-// Tests for the Analytics screen tab structure, Diagnostics tab included.
+// Tests for the Analytics screen tab structure.
 // We don't spin up the full Riverpod graph
 // (which would require a real drift database, an Ffi backend, and the full
 // event bus). Instead we override the stream providers each tab reads with
 // deterministic test doubles that emit a single empty list, so the tab
 // chrome renders without the heavy database stack.
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mocktail/mocktail.dart';
 
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
-import '../../harness/provider_teardown.dart';
-
-class _MockNetworkBackend extends Mock implements NetworkBackend {}
-
-class _FixedBackendNotifier extends BackendNotifier {
-  _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
-    state = backend;
-  }
-}
 
 List<Override> _commonOverrides() {
   return [
@@ -40,6 +26,9 @@ List<Override> _commonOverrides() {
     ),
     allDbImagesProvider.overrideWith(
       (ref) => Stream<List<DbCapturedImage>>.value(const []),
+    ),
+    sequenceRunsProvider.overrideWith(
+      (ref) => Stream<List<SequenceRun>>.value(const []),
     ),
   ];
 }
@@ -59,28 +48,18 @@ void main() {
     test('maps canonical tab names', () {
       expect(AnalyticsTab.fromQuery('session'), AnalyticsTab.session);
       expect(AnalyticsTab.fromQuery('history'), AnalyticsTab.history);
-      expect(AnalyticsTab.fromQuery('equipment'), AnalyticsTab.equipment);
       expect(AnalyticsTab.fromQuery('science'), AnalyticsTab.science);
-      expect(AnalyticsTab.fromQuery('diagnostics'), AnalyticsTab.diagnostics);
     });
 
-    test('accepts case-insensitive equipment aliases', () {
-      expect(AnalyticsTab.fromQuery('Diagnostics'), AnalyticsTab.diagnostics);
-      expect(AnalyticsTab.fromQuery('equipment-stats'), AnalyticsTab.equipment);
-      expect(AnalyticsTab.fromQuery('equipmentstats'), AnalyticsTab.equipment);
-    });
-
-    test('Diagnostics is the right-most enum entry', () {
-      expect(
-        AnalyticsTab.values.last,
-        AnalyticsTab.diagnostics,
-        reason:
-            'UX consolidation places Diagnostics as the right-most Analytics tab',
-      );
+    test('the tabs that merged into others name no tab of their own', () {
+      expect(AnalyticsTab.fromQuery('Session'), AnalyticsTab.session);
+      for (final word in ['equipment', 'equipment-stats', 'diagnostics']) {
+        expect(AnalyticsTab.fromQuery(word), isNull, reason: word);
+      }
     });
   });
 
-  testWidgets('renders all analytics tabs including Diagnostics',
+  testWidgets('renders the analytics tabs',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
@@ -112,20 +91,14 @@ void main() {
       const [
         'Session',
         'History',
-        // 06 names this tab 'Equipment'; the copy rules put it in
-        // sentence case.
-        'Equipment',
         'Science',
-        'Diagnostics',
       ],
     );
     expect(find.text('Session'), findsWidgets);
     expect(find.text('History'), findsWidgets);
-    expect(find.text('Diagnostics'), findsWidgets);
   });
 
-  testWidgets('?tab=diagnostics selects the Diagnostics tab on initial render',
-      (tester) async {
+  testWidgets('a link to the Optics view opens Session on it', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {
@@ -135,23 +108,61 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: _commonOverrides(),
+        overrides: [
+          ..._commonOverrides(),
+          scienceDefaultSessionProvider.overrideWith((ref) async => 3),
+          dbSessionImagesProvider.overrideWith(
+            (ref, id) => Stream.value(const <DbCapturedImage>[]),
+          ),
+          sessionPsfTilesProvider.overrideWith(
+            (ref, id) => Stream.value(const <PsfFieldTileRow>[]),
+          ),
+          sessionResidualVectorsProvider.overrideWith(
+            (ref, id) => Stream.value(const <AstrometryResidualVectorRow>[]),
+          ),
+          allSessionsProvider.overrideWith(
+            (ref) => Stream.value([
+              ImagingSession(
+                id: 3,
+                name: 'A night',
+                startTime: DateTime(2026, 7, 13, 21),
+                endTime: DateTime(2026, 7, 13, 23),
+                totalExposures: 0,
+                successfulExposures: 0,
+                failedExposures: 0,
+                totalIntegrationSecs: 0,
+                autofocusCount: 0,
+                status: 'completed',
+              ),
+            ]),
+          ),
+        ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: Scaffold(
+          home: const Scaffold(
             body: AnalyticsScreen(
-                initialTab: AnalyticsTab.fromQuery('diagnostics')),
+              initialTab: AnalyticsTab.session,
+              initialSessionView: SessionView.optics,
+            ),
           ),
         ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(
-      _selectedAdaptiveTabIndex(tester),
-      AnalyticsTab.diagnostics.index,
-      reason: '?tab=diagnostics must select the right-most Diagnostics tab.',
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.session.index);
+    final views = tester.widget<SegmentedControl>(
+      find.byWidgetPredicate(
+        (w) => w is SegmentedControl && w.segments.contains('Optics'),
+      ),
     );
+    expect(views.selectedIndex, SessionView.optics.index);
+    expect(
+      find.text('Select an imaging session to analyze'),
+      findsNothing,
+      reason: 'the Optics view analyzes the session the tab is reviewing',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   // "View all alerts" did nothing the second time: the operator had moved to
@@ -167,7 +178,7 @@ void main() {
     });
 
     final router = GoRouter(
-      initialLocation: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+      initialLocation: AppRoutes.analytics(tab: AnalyticsTab.science),
       routes: [
         GoRoute(
           path: AppRoute.analytics.path,
@@ -191,7 +202,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.science.index);
 
     await tester.tap(find.text('History').first);
     await tester.pump(const Duration(milliseconds: 100));
@@ -201,9 +212,9 @@ void main() {
       AppRoutes.analytics(tab: AnalyticsTab.history),
     );
 
-    router.go(AppRoutes.analytics(tab: AnalyticsTab.diagnostics));
+    router.go(AppRoutes.analytics(tab: AnalyticsTab.science));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.science.index);
   });
 
   testWidgets('defaults to Session when no query param is supplied',
@@ -229,153 +240,7 @@ void main() {
     expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.session.index);
   });
 
-  testWidgets('remote session detail directs review to the imaging host',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final backend = _MockNetworkBackend();
-    final session = ImagingSession(
-      id: 7,
-      name: 'Remote M42',
-      startTime: DateTime(2026, 7, 13),
-      totalExposures: 12,
-      successfulExposures: 12,
-      failedExposures: 0,
-      totalIntegrationSecs: 1440,
-      autofocusCount: 1,
-      status: 'completed',
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(),
-          backendProvider.overrideWith(
-            (ref) => _FixedBackendNotifier(ref, backend),
-          ),
-          allSessionsProvider.overrideWith(
-            (ref) => Stream<List<ImagingSession>>.value([session]),
-          ),
-          dbSessionImagesProvider(7).overrideWith(
-            (ref) => Stream<List<DbCapturedImage>>.value(const []),
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: AnalyticsScreen(initialTab: AnalyticsTab.history),
-          ),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-
-    await tester.tap(find.text('Remote M42'));
-    await tester.pumpAndSettle();
-
-    // The refusal is ON the control, and in the NAME rather than only in the
-    // tooltip: Flutter publishes `tooltip:` as `SemanticsProperties.tooltip`,
-    // which the Linux AT-SPI bridge does not fold into the accessible name, so
-    // a tooltip-only refusal on an icon-only button reaches a pointer and
-    // nobody else. Read off the published node for that reason.
-    final handle = tester.ensureSemantics();
-    final reviewButton = find.byKey(const ValueKey('session_detail_review'));
-    expect(reviewButton, findsOneWidget);
-    expect(
-      tester.getSemantics(reviewButton).label,
-      allOf(
-        startsWith('Review on imaging host — '),
-        contains('Session Review works on the imaging host'),
-      ),
-    );
-    expect(
-      tester.widget<SkotiqIconButton>(reviewButton).tooltip,
-      startsWith('Session Review works on the imaging host'),
-    );
-    expect(tester.widget<SkotiqIconButton>(reviewButton).onPressed, isNull);
-    handle.dispose();
-
-    await tester.ensureVisible(reviewButton);
-    await tester.pump();
-    await tester.tap(reviewButton, warnIfMissed: false);
-    await tester.pump();
-
-    expect(
-      reviewButton,
-      findsOneWidget,
-      reason: 'the dialog stays up; a disabled action navigates nowhere',
-    );
-
-    await settleProviderTeardown(tester);
-  });
-
-  // Share is offered only where an OS share sheet exists: `shareXFiles()` is
-  // unimplemented on the shipping desktop build. The CSV button beside it
-  // covers desktop.
-  testWidgets('desktop session detail offers no Share action', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final session = ImagingSession(
-      id: 9,
-      name: 'Local M81',
-      startTime: DateTime(2026, 7, 25),
-      totalExposures: 8,
-      successfulExposures: 8,
-      failedExposures: 0,
-      totalIntegrationSecs: 24,
-      autofocusCount: 0,
-      status: 'completed',
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          ..._commonOverrides(),
-          allSessionsProvider.overrideWith(
-            (ref) => Stream<List<ImagingSession>>.value([session]),
-          ),
-          dbSessionImagesProvider(9).overrideWith(
-            (ref) => Stream<List<DbCapturedImage>>.value(const []),
-          ),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: AnalyticsScreen(initialTab: AnalyticsTab.history),
-          ),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-
-    await tester.tap(find.text('Local M81'));
-    // pump, not pumpAndSettle: in local mode the screen's image/thumbnail
-    // futures never go idle.
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    // The dialog is open (its export actions are there)…
-    expect(findIconButtonByTooltip('Export to CSV'), findsOneWidget);
-    // …and the unimplemented-on-desktop Share action is not.
-    expect(findIconButtonByTooltip('Share'), findsNothing);
-
-    await settleProviderTeardown(tester);
-  }, skip: Platform.isAndroid || Platform.isIOS);
-
-  // Phone responsiveness: the six-tab bar must not overflow on a phone in
+  // Phone responsiveness: the tab bar must not overflow on a phone in
   // either orientation, and every tab must remain reachable (the bar scrolls).
   group('Analytics phone responsiveness (AdaptiveTabBar)', () {
     Future<void> pumpAt(WidgetTester tester, Size size) async {
@@ -413,8 +278,7 @@ void main() {
           (tester) async {
         await pumpAt(tester, size);
 
-        // The AdaptiveTabBar exists and renders all six tabs (collapsed to
-        // icons below 480px, so we assert on the widget's tab list, not text).
+        // The AdaptiveTabBar exists and renders every tab.
         expect(find.byType(AdaptiveTabBar), findsOneWidget);
         final bar = tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar));
         expect(bar.tabs.length, AnalyticsTab.values.length);
@@ -451,16 +315,7 @@ void main() {
 /// Reads the live [AdaptiveTabBar.selectedIndex] from the pumped tree. The tab
 /// bar is the single source of truth for which Analytics tab is active.
 int _selectedAdaptiveTabIndex(WidgetTester tester) {
-  final bar = tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar));
+  // The page header's bar is the first; Science has a tab row of its own.
+  final bar = tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar).first);
   return bar.selectedIndex;
 }
-
-/// Finds a [SkotiqIconButton] by the tooltip it publishes.
-///
-/// `find.byTooltip` cannot: SkotiqIconButton draws its own overlay tooltip
-/// rather than wrapping a Material [Tooltip]. The string is still the button's
-/// Semantics label, so this is the same contract read from the widget.
-Finder findIconButtonByTooltip(String tooltip) => find.byWidgetPredicate(
-      (widget) => widget is SkotiqIconButton && widget.tooltip == tooltip,
-      description: 'SkotiqIconButton(tooltip: "$tooltip")',
-    );

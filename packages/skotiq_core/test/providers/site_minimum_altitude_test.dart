@@ -1,11 +1,5 @@
 // One altitude floor (`altitudeFloorProvider`): the site horizon when one is
-// set, otherwise the scheduler's minimum altitude, and nothing may quietly
-// grow a second one.
-//
-// The scheduler shipped with 25 deg while SmartNightSettings (the sequence
-// builder), the `targets.min_altitude` column and the planner's altitude
-// threshold all used 30, so Plan Tonight both admitted and refused the same
-// 27 deg target on one screen.
+// set, otherwise the minimum altitude.
 
 import 'dart:async';
 
@@ -13,20 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import '../harness/in_memory_database.dart';
 
 void main() {
-  test('scheduler and Smart Night agree on the default minimum altitude', () {
-    expect(
-      SchedulerConfig.defaults.minAltitudeDegrees,
-      const SmartNightSettings().minAltitudeDeg,
-      reason:
-          'these are the same physical quantity - a site floor. Two '
-          'defaults means two answers to "can I image this target".',
-    );
-  });
-
   test('the provider serves the persisted scheduler minimum', () async {
     final container = ProviderContainer(
       overrides: [
@@ -80,14 +63,13 @@ void main() {
       expect(floor.atAzimuth(250), closeTo(35, 0.01));
       expect(floor.clears(20, 90), isTrue);
       expect(floor.clears(30, 250), isFalse);
-      expect(floor.lowestDeg, closeTo(10, 0.01));
     });
 
     test('a flat horizon leaves the minimum in force', () {
       final floor = AltitudeFloor(horizon: flat, minimumDeg: 25);
       expect(floor.followsHorizon, isFalse);
       expect(floor.atAzimuth(250), 25);
-      expect(floor.lowestDeg, 25);
+      expect(floor.isFlat, isTrue);
       expect(floor.denseSamples(), [(azimuth: 0.0, altitude: 25.0)]);
     });
 
@@ -97,7 +79,7 @@ void main() {
       );
       final floor = AltitudeFloor(horizon: skyline, minimumDeg: 25);
       expect(skyline.isFlat, isFalse);
-      expect(floor.lowestDeg, 40);
+      expect(floor.atAzimuth(45), 40);
       expect(
         floor.denseSamples().every((sample) => sample.altitude == 40),
         isTrue,

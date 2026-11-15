@@ -401,8 +401,10 @@ class CoImagingHandlers implements RouteSource {
         sessionId,
         latitudeDeg: latitudeDeg,
         longitudeDeg: longitudeDeg,
-        altitudeFloorDeg:
-            floor ?? CoImagingSessionService.defaultImagingAltitudeFloorDeg,
+        // The altitude the caller names, otherwise the site's floor.
+        floor: floor == null
+            ? container.read(altitudeFloorProvider)
+            : AltitudeFloor(horizon: null, minimumDeg: floor),
       );
       return jsonOk({
         'sessionId': sessionId,

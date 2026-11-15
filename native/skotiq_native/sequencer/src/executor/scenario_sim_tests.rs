@@ -689,8 +689,8 @@ impl OperatorNotifyOps for ScriptedDeviceOps {
 impl ConnectionOps for ScriptedDeviceOps {
     // Scripted, recorded methods
 
-    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
-        self.record(format!("device_is_connected:{device_id}"));
+    async fn device_answers(&self, device_id: &str) -> DeviceResult<bool> {
+        self.record(format!("device_answers:{device_id}"));
         if let Some(answer) = self
             .connection_answers
             .lock()
@@ -767,7 +767,7 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
     );
 
     // It must ACTIVELY reconnect (not merely poll): connect_device fires BEFORE
-    // the verifying device_is_connected. Camera/focuser/FW default to
+    // the verifying device_answers. Camera/focuser/FW default to
     // auto_reconnect=false, so a passive poll would never recover them.
     let calls = ops_concrete.calls();
     let connect_idx = ops_concrete
@@ -775,7 +775,7 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
         .expect("recovery must actively call connect_device");
     let verify_idx = calls
         .iter()
-        .rposition(|call| call == &format!("device_is_connected:{cam}"))
+        .rposition(|call| call == &format!("device_answers:{cam}"))
         .expect("recovery must verify the reconnect");
     assert!(
         connect_idx < verify_idx,
@@ -812,11 +812,11 @@ async fn recovery_reconnects_a_lost_focuser_without_replacing_the_connected_came
     );
     assert_eq!(devices.call_count(&format!("connect_device:{focuser}")), 1);
     assert_eq!(
-        devices.call_count(&format!("device_is_connected:{camera}")),
+        devices.call_count(&format!("device_answers:{camera}")),
         2
     );
     assert_eq!(
-        devices.call_count(&format!("device_is_connected:{focuser}")),
+        devices.call_count(&format!("device_answers:{focuser}")),
         2
     );
     assert!(devices.connected.lock().unwrap().contains(focuser));
@@ -844,15 +844,15 @@ async fn recovery_attempts_reconnect_when_the_initial_connection_query_fails() {
     assert_eq!(
         devices.calls(),
         [
-            "device_is_connected:focuser",
+            "device_answers:focuser",
             "connect_device:focuser",
-            "device_is_connected:focuser",
+            "device_answers:focuser",
         ]
     );
 }
 
-#[tokio::test]
-async fn recovery_verifies_even_a_device_that_was_connected_before_the_attempt() {
+#[tokio::test(start_paused = true)]
+async fn recovery_asks_a_device_again_after_the_attempt_even_if_it_answered_before() {
     for final_answer in [Ok(false), Err("connection query failed".into())] {
         let devices = Arc::new(ScriptedDeviceOps::new());
         let id = "camera";
@@ -861,6 +861,7 @@ async fn recovery_verifies_even_a_device_that_was_connected_before_the_attempt()
             .lock()
             .unwrap()
             .insert(id.to_string(), VecDeque::from([Ok(true), final_answer]));
+        devices.connect_succeeds.store(false, Ordering::SeqCst);
         let ops: SharedDeviceOps = devices.clone();
         let (manager, _) = manager_with_state().await;
         let outcome = super::run_recovery_attempt(
@@ -875,9 +876,40 @@ async fn recovery_verifies_even_a_device_that_was_connected_before_the_attempt()
             matches!(outcome, AttemptOutcome::Failed { .. }),
             "{outcome:?}"
         );
-        assert_eq!(devices.call_count("connect_device:"), 0);
-        assert_eq!(devices.call_count("device_is_connected:"), 2);
+        // It answered before the first round, so that round left it alone;
+        // the two later rounds found it silent and tried to reconnect it.
+        assert_eq!(devices.call_count("connect_device:"), 2);
     }
+}
+
+/// A camera that drops off a USB bus is enumerated again within seconds. The
+/// first reconnect lands while it is still gone; the attempt must not then
+/// report failure and leave the run idle for the operator's retry interval.
+#[tokio::test(start_paused = true)]
+async fn a_device_back_on_the_bus_seconds_later_recovers_within_one_attempt() {
+    let devices = Arc::new(ScriptedDeviceOps::new());
+    let camera = "native:zwo:0";
+    devices.set_connected(camera, false);
+    devices.connect_succeeds.store(false, Ordering::SeqCst);
+    let ops: SharedDeviceOps = devices.clone();
+    let (manager, _) = manager_with_state().await;
+
+    let back = devices.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        back.connect_succeeds.store(true, Ordering::SeqCst);
+    });
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::DeviceDisconnected,
+        &ops,
+        None,
+        &[camera.to_string()],
+        &manager,
+    )
+    .await;
+
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    assert_eq!(devices.call_count(&format!("connect_device:{camera}")), 2);
 }
 
 #[tokio::test]
@@ -1499,7 +1531,7 @@ async fn scenario5j_a_settled_recovery_clears_its_record() {
 // the rig SAFE.
 // =============================================================================
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn scenario6_disconnect_that_never_recovers_keeps_failing_then_parks_safe() {
     let ops_concrete = Arc::new(ScriptedDeviceOps::new());
     let ops: SharedDeviceOps = ops_concrete.clone();
@@ -3902,4 +3934,82 @@ async fn a_stopped_run_checkpoint_says_stopped_with_its_final_counts() {
         );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
+}
+
+/// A run that has a target and no observing site cannot work out how high the
+/// target stands or when it crosses the meridian. It carries on, and the
+/// operator is told once, as a notice (a decision row carrying the notice and
+/// the run's warning for it), not in a log line alone. The site set during
+/// the run takes effect at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_run_with_a_target_and_no_site_says_so_once_as_a_notice() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    let mut decisions = executor.subscribe_decisions();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+    assert_eq!(executor.observer_location(), (None, None));
+    {
+        let manager = executor.trigger_manager.read().await;
+        manager.state().write().await.set_target(150.0, 20.0);
+    }
+
+    let is_site_notice = |notice: &crate::decision::RunNotice| {
+        matches!(
+            notice,
+            crate::decision::RunNotice::ProblemNoticed { source, .. }
+                if source == "No observing site"
+        )
+    };
+    let mut warnings = 0;
+    let mut rows = 0;
+    // Several monitor ticks: the notice is given on the first and not again.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(6);
+    while tokio::time::Instant::now() < deadline {
+        while let Ok(event) = events.try_recv() {
+            if let super::ExecutorEvent::NoticedWarning { notice, message } = event {
+                if is_site_notice(&notice) {
+                    assert!(message.contains("Settings > Location"), "{message}");
+                    warnings += 1;
+                }
+            }
+        }
+        while let Ok(decision) = decisions.try_recv() {
+            if decision.notice.as_ref().is_some_and(is_site_notice) {
+                assert_eq!(decision.summary, super::NO_OBSERVING_SITE_SUMMARY);
+                rows += 1;
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert_eq!((warnings, rows), (1, 1));
+    assert_eq!(
+        trigger_state_of(&executor.trigger_manager)
+            .await
+            .target
+            .current_altitude,
+        None
+    );
+
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(40.0);
+            config.longitude = Some(-75.0);
+        })
+        .await
+        .expect("the site is accepted");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut altitude = None;
+    while altitude.is_none() && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        altitude = trigger_state_of(&executor.trigger_manager)
+            .await
+            .target
+            .current_altitude;
+    }
+    let _ = executor.stop().await;
+    assert!(altitude.is_some(), "the site set during the run was not used");
 }

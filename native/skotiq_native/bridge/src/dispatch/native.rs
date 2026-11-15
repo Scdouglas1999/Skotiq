@@ -19,16 +19,6 @@ use std::sync::Arc;
 
 impl DeviceManager {
     pub(crate) async fn connect_native(&self, info: &DeviceInfo) -> Result<(), String> {
-        // Dart and native recovery both reach this replacement seam. Retain
-        // the old camera until the operator retrieves protected captures and
-        // explicitly disconnects it, even if heartbeat marked its state Error.
-        if let Some(DeviceHandle::Camera(camera)) = self.handles.get(&info.id) {
-            camera
-                .check_automatic_reconnect()
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {
@@ -214,20 +204,7 @@ impl DeviceManager {
         let Some(message) = long_exposure_noise_reduction_notice(camera_name, state) else {
             return;
         };
-        tracing::warn!("{}", message);
-        self.app_state
-            .publish_event(crate::event::correlation::create_event_auto_id(
-                crate::event::equipment::EventSeverity::Warning,
-                crate::event::equipment::EventCategory::Equipment,
-                crate::event::bus::EventPayload::System(
-                    crate::event::system::SystemEvent::Notification {
-                        title: "Camera noise reduction".to_string(),
-                        message,
-                        level: "warning".to_string(),
-                        explicit_transports: None,
-                    },
-                ),
-            ));
+        self.publish_notice("Camera noise reduction", message);
     }
 }
 

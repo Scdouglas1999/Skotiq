@@ -250,7 +250,7 @@ const List<TourStep> _advancedFeatures = [
     id: 'af_history',
     title: 'Session history',
     description:
-        'Click the History tab in Analytics to browse past sessions. Review captured frames, total integration time, and conditions for each imaging night.',
+        'Click the History tab in Analytics to browse past nights. Open one to review its frames, integration time and run log.',
     target: TourTarget.analyticsHistoryTab,
     side: TourCardSide.bottom,
   ),

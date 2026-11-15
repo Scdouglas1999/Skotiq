@@ -63,7 +63,6 @@ Map<String, dynamic> _$TargetSuggestionToJson(_TargetSuggestion instance) =>
 _TargetSuggestionConfig _$TargetSuggestionConfigFromJson(
   Map<String, dynamic> json,
 ) => _TargetSuggestionConfig(
-  minAltitude: (json['minAltitude'] as num?)?.toDouble() ?? 30.0,
   maxMoonDistance: (json['maxMoonDistance'] as num?)?.toDouble(),
   preferredObjectTypes:
       (json['preferredObjectTypes'] as List<dynamic>?)
@@ -80,7 +79,6 @@ _TargetSuggestionConfig _$TargetSuggestionConfigFromJson(
 Map<String, dynamic> _$TargetSuggestionConfigToJson(
   _TargetSuggestionConfig instance,
 ) => <String, dynamic>{
-  'minAltitude': instance.minAltitude,
   'maxMoonDistance': instance.maxMoonDistance,
   'preferredObjectTypes': instance.preferredObjectTypes,
   'prioritizeIncomplete': instance.prioritizeIncomplete,

@@ -162,36 +162,6 @@ class CaptureBeforeAimRule implements SequenceValidator {
   }
 }
 
-/// Warns when a target's minimum altitude is unusually low (<10°). Imaging
-/// that close to the horizon almost always yields bad data.
-class LowAltitudeLimitRule implements SequenceValidator {
-  @override
-  String get name => 'LowAltitudeLimit';
-
-  @override
-  List<ValidationIssue> validate(Sequence sequence) {
-    final issues = <ValidationIssue>[];
-    for (final target in sequence.targetHeaders) {
-      final minAlt = target.minAltitude;
-      if (minAlt == null) continue;
-      if (minAlt >= 10) continue;
-      issues.add(
-        ValidationIssue(
-          severity: ValidationSeverity.warning,
-          category: ValidationCategory.targets,
-          title: 'Very Low Altitude Limit',
-          description:
-              'Target "${target.targetName}" minimum altitude is $minAlt°. '
-              'Imaging near the horizon may result in poor quality.',
-          affectedNodeId: target.id,
-          resolutionHint: 'Consider setting minimum altitude to 20° or higher.',
-        ),
-      );
-    }
-    return issues;
-  }
-}
-
 /// Error when an integration budget is configured
 /// without any populated total or per-filter caps. The runtime would
 /// silently no-op (every cap is zero), so the user would see "budget

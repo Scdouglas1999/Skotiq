@@ -83,7 +83,6 @@ class PreSessionSimulator {
     required DateTime start,
     double? latitude,
     double? longitude,
-    double minAltitude = 20.0,
     DateTime? darkWindowStart,
     DateTime? darkWindowEnd,
     DateTime? runEndsBy,
@@ -102,7 +101,6 @@ class PreSessionSimulator {
             start,
             latitude: latitude,
             longitude: longitude,
-            minAltitude: minAltitude,
             runEndsBy: runEndsBy,
           );
 

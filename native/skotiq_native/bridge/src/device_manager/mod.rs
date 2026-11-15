@@ -223,6 +223,24 @@ pub struct DeviceManager {
     /// Cameras already told about a pixel size they do not report; the notice
     /// goes out once per camera per run. See `publish_unknown_pixel_size_notice`.
     pub(crate) pixel_size_notices: std::sync::Mutex<std::collections::HashSet<String>>,
+
+    /// Cameras whose last light or flat frame had almost no signal, so the
+    /// notice goes out when that starts and not again with every frame. See
+    /// `note_frame_signal`.
+    pub(crate) dim_frame_cameras: std::sync::Mutex<std::collections::HashSet<String>>,
+
+    /// Captures still on a camera because their download failed. See
+    /// `ops::camera::retained`.
+    pub(crate) retained_captures:
+        std::sync::Mutex<Vec<ops::camera::retained::RetainedCaptureRecord>>,
+
+    /// The read mode stated for each camera (its profile's default), by
+    /// name. See `camera_state_readout_mode`.
+    pub(crate) stated_readout_modes: std::sync::Mutex<HashMap<String, String>>,
+
+    /// (camera, read mode) pairs already told about as not listed.
+    pub(crate) unlisted_read_mode_notices:
+        std::sync::Mutex<std::collections::HashSet<(String, String)>>,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -349,6 +367,10 @@ impl DeviceManager {
             published_temperatures: Default::default(),
             status_reads: Default::default(),
             pixel_size_notices: Default::default(),
+            dim_frame_cameras: Default::default(),
+            retained_captures: Default::default(),
+            stated_readout_modes: Default::default(),
+            unlisted_read_mode_notices: Default::default(),
         });
 
         // Start the reconnection background task

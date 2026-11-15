@@ -43,12 +43,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/diagnostics/diagnostic_dump_screen.dart';
-import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
+import 'optics_host.dart';
 
 /// Drive several frames so the StreamProvider override (`allSessionsProvider`)
 /// emits its single value and the dropdown selector lays out. We avoid
@@ -90,7 +91,7 @@ void main() {
     // the default MockBackend.
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),
@@ -104,8 +105,8 @@ void main() {
   });
 
   testWidgets(
-      'shows_title_and_no_session_empty_state: localized title and '
-      '"select a session" empty body both render', (tester) async {
+      'shows_no_session_empty_state: the "select a session" empty body '
+      'renders', (tester) async {
     // With no session selected (provider default) and no sessions to
     // auto-select from (override), DiagnosticsScreen must render its
     // header title plus the EmptyState that prompts the user to pick a
@@ -114,19 +115,13 @@ void main() {
     // (no "select" prompt).
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),
     );
     await _drainAsyncFrames(tester);
 
-    // Default English localization fallback in SkotiqLocalizations.
-    expect(find.text('Optical train diagnostics'), findsOneWidget,
-        reason:
-            'Header title from `diagnosticsTitle` localization must render. '
-            'A missing match means either the localization key has drifted '
-            'or the header Row was removed.');
     expect(find.text('Select an imaging session to analyze'), findsOneWidget,
         reason:
             'No-session EmptyState must surface the "select a session" prompt '
@@ -142,7 +137,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),
@@ -180,7 +175,7 @@ void main() {
         );
     await pumpAppScreen(
       tester,
-      const DiagnosticsTabContent(showTitle: true),
+      const OpticsHost(),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: [
@@ -199,7 +194,12 @@ void main() {
     await _drainAsyncFrames(tester);
 
     expect(find.text('Select an imaging session to analyze'), findsNothing);
-    expect(find.textContaining('Night 2'), findsWidgets);
+    expect(
+      ProviderScope.containerOf(tester.element(find.byType(OpticsHost)))
+          .read(analyticsSessionPickProvider),
+      2,
+      reason: 'the newest session is the one opened',
+    );
   });
 
   // DiagnosticDumpScreen — bug-report attachment surface

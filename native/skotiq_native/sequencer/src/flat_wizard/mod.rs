@@ -716,28 +716,38 @@ mod tests {
         assert!(median > 23000 && median < 27000);
     }
 
-    /// Dusk flats point away from the sunset, dawn flats away from the
-    /// sunrise: the pointing the wizard took before its azimuths were read
-    /// through the one horizontal-to-equatorial conversion.
+    /// Sky flats are taken at the twilight sky's null point: 15 to 20 degrees
+    /// from the zenith, toward the azimuth opposite the Sun, so east of the
+    /// meridian at dusk and west of it at dawn.
     #[test]
-    fn sky_flats_point_away_from_the_sun() {
-        let now = chrono::Utc::now();
-        for (location, east_of_meridian) in [
-            (PanelLocation::DuskSky, true),
-            (PanelLocation::DawnSky, false),
+    fn sky_flats_point_at_the_null_point_opposite_the_sun() {
+        use chrono::TimeZone;
+        // Latitude 40, longitude -75, 2026-03-20: sunset near 23:13 UTC,
+        // sunrise near 11:05 UTC.
+        for (when, east_of_meridian) in [
+            (chrono::Utc.with_ymd_and_hms(2026, 3, 20, 23, 30, 0), true),
+            (chrono::Utc.with_ymd_and_hms(2026, 3, 20, 10, 45, 0), false),
         ] {
-            let (alt, az) = panel::sky_flat_alt_az(&location).expect("a sky location");
+            let now = when.unwrap();
+            let sun_altitude = crate::solar::sun_altitude_degrees(40.0, -75.0, &now);
+            assert!((-10.0..0.0).contains(&sun_altitude), "{now}: {sun_altitude}");
+            let sun_azimuth = crate::solar::sun_azimuth_degrees(40.0, -75.0, &now);
+
+            let (alt, az) = panel::sky_flat_alt_az(40.0, -75.0, now);
+            assert!((70.0..=75.0).contains(&alt), "{now}: altitude {alt}");
+            let from_sun = (az - sun_azimuth).rem_euclid(360.0);
+            assert!((from_sun - 180.0).abs() < 1e-9, "{now}: {from_sun}");
+
             let (ra, dec) = crate::meridian::alt_az_to_ra_dec(alt, az, 40.0, -75.0, now);
             let lst =
                 crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
-            let hour_angle = crate::meridian::hour_angle(ra, lst);
             assert_eq!(
-                hour_angle < 0.0,
+                crate::meridian::hour_angle(ra, lst) < 0.0,
                 east_of_meridian,
-                "{location:?}: HA {hour_angle}"
+                "{now}"
             );
-            let (back_alt, _) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
-            assert!((back_alt - 65.0).abs() < 0.01, "{location:?}: {back_alt}");
+            let (back_alt, back_az) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
+            assert!((back_alt - alt).abs() < 0.01 && (back_az - az).abs() < 0.01);
         }
     }
 

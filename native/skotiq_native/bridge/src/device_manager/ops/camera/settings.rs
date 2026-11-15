@@ -41,22 +41,86 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Set the camera readout mode by index.
-    pub async fn camera_set_readout_mode(
+    /// State the read mode `device_id` is to take its frames in: the
+    /// equipment profile's default, by the name the camera lists. Nothing is
+    /// written to the camera here; the next exposure puts it in the mode if
+    /// it is in another. `None` leaves the camera in whatever mode it is in.
+    pub fn camera_state_readout_mode(&self, device_id: &str, mode: Option<String>) {
+        let mut stated = self
+            .stated_readout_modes
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match mode.map(|m| m.trim().to_string()).filter(|m| !m.is_empty()) {
+            Some(mode) => {
+                tracing::info!("Read mode stated for {device_id}: {mode}");
+                stated.insert(device_id.to_string(), mode);
+            }
+            None => {
+                stated.remove(device_id);
+            }
+        }
+    }
+
+    /// The read mode stated for `device_id`, if one is.
+    pub(crate) fn stated_readout_mode(&self, device_id: &str) -> Option<String> {
+        self.stated_readout_modes
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(device_id)
+            .cloned()
+    }
+
+    /// Before a frame: put the camera in the read mode named `mode`. The
+    /// camera is written to only when it is in another mode. A mode the
+    /// camera does not list is told to the user once and the frame is taken
+    /// in the camera's own mode, which the frame records.
+    pub(crate) async fn camera_use_readout_mode(
         &self,
         device_id: &str,
-        mode_index: i32,
+        mode: &str,
     ) -> Result<(), DeviceOpError> {
-        self.camera_set_readout_mode_dispatch(device_id, mode_index)
-            .await?;
-        self.publish_property_changed(
-            DeviceType::Camera,
-            device_id,
-            property::READOUT_MODE,
-            mode_index.to_string(),
-        );
+        use crate::device_manager::rig::camera::ReadModeUse;
+        let camera = self.camera(device_id).await?;
+        match camera.use_readout_mode(mode).await? {
+            ReadModeUse::AlreadyIn | ReadModeUse::NoModes => {}
+            ReadModeUse::Switched => {
+                tracing::info!("Camera {device_id} switched to read mode {mode}");
+                self.publish_property_changed(
+                    DeviceType::Camera,
+                    device_id,
+                    property::READOUT_MODE,
+                    mode.to_string(),
+                );
+            }
+            ReadModeUse::NotListed(listed) => {
+                let first = self
+                    .unlisted_read_mode_notices
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert((device_id.to_string(), mode.to_ascii_lowercase()));
+                if first {
+                    let camera_name = self
+                        .devices
+                        .read()
+                        .await
+                        .get(device_id)
+                        .map_or_else(|| device_id.to_string(), |d| d.info.shown_name());
+                    self.publish_notice(
+                        "Read mode not available",
+                        format!(
+                            "{camera_name} has no read mode named {mode}; it lists {}. Frames \
+                             are taken in the mode the camera is in, which each frame records. \
+                             Choose one of the camera's read modes in the equipment profile \
+                             or in the exposure step.",
+                            listed.join(", ")
+                        ),
+                    );
+                }
+            }
+        }
         Ok(())
     }
+
     async fn camera_set_gain_dispatch(
         &self,
         device_id: &str,
@@ -87,28 +151,6 @@ impl DeviceManager {
         let camera = self.camera(device_id).await?;
 
         camera.set_offset(offset).await
-    }
-
-    /// Set camera readout mode by index
-    ///
-    /// ASCOM: Sets the ReadoutMode property (integer index)
-    /// Alpaca: Sets the readoutmode property (integer index)
-    /// INDI: Sets the CCD_READ_MODE switch to the element at the given index
-    /// Native: Delegates to CameraDriver::set_readout_mode with a synthetic ReadoutMode
-    async fn camera_set_readout_mode_dispatch(
-        &self,
-        device_id: &str,
-        mode_index: i32,
-    ) -> Result<(), DeviceOpError> {
-        tracing::info!(
-            "DeviceManager: camera_set_readout_mode for {} mode_index={}",
-            device_id,
-            mode_index
-        );
-
-        let camera = self.camera(device_id).await?;
-
-        camera.set_readout_mode(mode_index).await
     }
 
     /// The setpoint that may accompany a cooler command.

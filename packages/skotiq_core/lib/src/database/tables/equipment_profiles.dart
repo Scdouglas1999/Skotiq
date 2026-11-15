@@ -34,6 +34,10 @@ class EquipmentProfiles extends Table {
 
   IntColumn get defaultGain => integer().nullable()();
   IntColumn get defaultOffset => integer().nullable()();
+
+  // The camera read mode frames are taken in, by the name the camera lists;
+  // null leaves the camera in the mode it is in.
+  TextColumn get defaultReadoutMode => text().nullable()();
   IntColumn get defaultBinX => integer().withDefault(const Constant(1))();
   IntColumn get defaultBinY => integer().withDefault(const Constant(1))();
   RealColumn get defaultCoolingTemp => real().nullable()();

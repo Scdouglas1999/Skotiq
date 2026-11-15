@@ -231,12 +231,15 @@ void main() {
         ),
       );
 
-      final result = simulator.simulate(
+      final result = const PreSessionSimulator(
+          estimator: SequenceTimeEstimator(
+            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+          ),
+        ).simulate(
         sequence,
         start: DateTime(2026, 5, 21, 22),
         latitude: 40,
         longitude: -75,
-        minAltitude: 20,
       );
 
       expect(result.segments, isEmpty);
@@ -313,12 +316,15 @@ void main() {
         ),
       );
 
-      final result = simulator.simulate(
+      final result = const PreSessionSimulator(
+          estimator: SequenceTimeEstimator(
+            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+          ),
+        ).simulate(
         sequence,
         start: DateTime(2026, 5, 21, 22),
         latitude: 40,
         longitude: -75,
-        minAltitude: 20,
       );
 
       expect(result.hasBlockingIssues, isTrue);
@@ -437,12 +443,15 @@ void main() {
         ),
       );
 
-      final result = simulator.simulate(
+      final result = const PreSessionSimulator(
+          estimator: SequenceTimeEstimator(
+            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+          ),
+        ).simulate(
         sequence,
         start: DateTime(2026, 5, 21, 22),
         latitude: 40,
         longitude: -75,
-        minAltitude: 20,
       );
 
       expect(result.hasBlockingIssues, isTrue);

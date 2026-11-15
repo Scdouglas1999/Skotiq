@@ -399,17 +399,60 @@ class SchedulerHandlers implements RouteSource {
     });
   }
 
-  /// GET /api/scheduler/hours-above-horizon?ra=X&dec=Y&minAltitude=30
-  /// Get hours object is above altitude
+  /// The floor a visibility answer is measured against: the altitude the
+  /// caller names, otherwise the site's altitude floor.
+  AltitudeFloor _floorFor(double? requestedDeg) => requestedDeg == null
+      ? container.read(altitudeFloorProvider)
+      : AltitudeFloor(horizon: null, minimumDeg: requestedDeg);
+
+  /// Tonight's rise, transit and set against [floor].
+  ObjectVisibility _visibilityAgainst(
+    AltitudeFloor floor, {
+    required double raDeg,
+    required double decDeg,
+    required double latitude,
+    required double longitude,
+  }) {
+    final now = DateTime.now();
+    if (floor.isFlat) {
+      return AstronomyCalculations.calculateObjectVisibility(
+        raDeg: raDeg,
+        decDeg: decDeg,
+        date: now,
+        latitudeDeg: latitude,
+        longitudeDeg: longitude,
+        minAltitude: floor.atAzimuth(0),
+      );
+    }
+    final night = AstronomyCalculations.nightDateOf(now);
+    return floor.visibilityAround(
+      raDeg: raDeg,
+      decDeg: decDeg,
+      center: DateTime(night.year, night.month, night.day, 24),
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
+    );
+  }
+
+  /// What the answer was measured against: one altitude, or the horizon.
+  Map<String, Object?> _floorJson(AltitudeFloor floor) => {
+    'minAltitude': floor.isFlat ? floor.atAzimuth(0) : null,
+    'followsHorizon': floor.followsHorizon,
+  };
+
+  /// GET /api/scheduler/hours-above-horizon?ra=X&dec=Y[&minAltitude=N]
+  /// Hours the object is above the site's altitude floor, or above
+  /// `minAltitude` when the caller names one.
   Future<Response> handleCalculateHoursAbove(Request request) async {
     // Validate coordinates before the observer-location DB read. RA is in HOURS
     // (raDeg = raHours * 15), Dec in degrees, minAltitude finite and physical.
-    // A malformed supplied minAltitude must NOT silently become 30.
+    // A malformed supplied minAltitude is refused, never replaced.
     final query = request.url.queryParameters;
     final raHours = requireQueryDouble(query, 'ra', min: 0, max: 24);
     final decDegrees = requireQueryDouble(query, 'dec', min: -90, max: 90);
-    final minAltitude =
-        optionalQueryDouble(query, 'minAltitude', min: -90, max: 90) ?? 30.0;
+    final floor = _floorFor(
+      optionalQueryDouble(query, 'minAltitude', min: -90, max: 90),
+    );
 
     final database = container.read(databaseProvider);
 
@@ -423,14 +466,12 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = DateTime.now();
-    final visibility = AstronomyCalculations.calculateObjectVisibility(
+    final visibility = _visibilityAgainst(
+      floor,
       raDeg: raDeg,
       decDeg: decDegrees,
-      date: now,
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      minAltitude: minAltitude,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     double hoursAbove;
@@ -447,7 +488,7 @@ class SchedulerHandlers implements RouteSource {
     return jsonOk({
       'ra': raHours,
       'dec': decDegrees,
-      'minAltitude': minAltitude,
+      ..._floorJson(floor),
       'hoursAbove': hoursAbove,
       'isCircumpolar': visibility.isCircumpolar,
       'neverRises': visibility.neverRises,
@@ -496,7 +537,7 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final strategyStr = optionalString(payload, 'strategy') ?? 'transitTime';
-    final minAltitude = optionalDouble(payload, 'minAltitude') ?? 30.0;
+    final floor = _floorFor(optionalDouble(payload, 'minAltitude'));
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
@@ -526,13 +567,12 @@ class SchedulerHandlers implements RouteSource {
 
     for (final target in targets) {
       final raDeg = target.ra * 15.0;
-      final visibility = AstronomyCalculations.calculateObjectVisibility(
+      final visibility = _visibilityAgainst(
+        floor,
         raDeg: raDeg,
         decDeg: target.dec,
-        date: now,
-        latitudeDeg: latitude,
-        longitudeDeg: longitude,
-        minAltitude: minAltitude,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       final (currentAlt, currentAz) = AstronomyCalculations.objectAltAz(
@@ -681,7 +721,7 @@ class SchedulerHandlers implements RouteSource {
 
     return jsonOk({
       'strategy': strategyStr,
-      'minAltitude': minAltitude,
+      ..._floorJson(floor),
       'optimizedTargets': orderedResults,
       'location': {'latitude': latitude, 'longitude': longitude},
     });

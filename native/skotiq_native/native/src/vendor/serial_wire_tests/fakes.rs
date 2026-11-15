@@ -20,6 +20,9 @@ pub(super) struct Knobs {
     pub echo: AtomicBool,
     /// Sky-Watcher: where the axes stand, RA then Dec.
     pub positions: Mutex<[u32; 2]>,
+    /// OnStep: the tracking-rate flag in the `:GU#` reply, as the mount was
+    /// left or last commanded; empty is sidereal.
+    pub onstep_rate_flag: Mutex<&'static str>,
 }
 
 pub(super) fn silent() -> Responder {
@@ -554,12 +557,22 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
                 let slewing = slew_polls_left > 0;
                 slew_polls_left = slew_polls_left.saturating_sub(1);
                 format!(
-                    "{}{}{}{}ET250#",
+                    "{}{}{}{}{}ET250#",
                     if tracking { "" } else { "n" },
                     if slewing { "" } else { "N" },
                     if parked { "P" } else { "p" },
                     if home { "H" } else { "" },
+                    knobs.onstep_rate_flag.lock().unwrap(),
                 )
+            }
+            ":TQ#" | ":TL#" | ":TS#" | ":TK#" if onstep => {
+                *knobs.onstep_rate_flag.lock().unwrap() = match command.as_str() {
+                    ":TL#" => "(",
+                    ":TS#" => "O",
+                    ":TK#" => "k",
+                    _ => "",
+                };
+                String::new()
             }
             ":GW#" if meade => {
                 if parked {

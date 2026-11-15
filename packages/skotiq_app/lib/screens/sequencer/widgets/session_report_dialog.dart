@@ -20,6 +20,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../widgets/run_status/run_status_presentation.dart';
 import 'notes_panel.dart';
 import '../../../router/settings_sections.dart';
+import '../../../router/analytics_route.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/snackbar_helper.dart';
 part 'session_report_dialog/header_overview.dart';
@@ -105,13 +106,19 @@ class _ReportBody extends ConsumerWidget {
 
   const _ReportBody({required this.report, required this.colors, this.runId});
 
+  /// Whether the page under the dialog is already this night in History.
+  static bool _showsNight(BuildContext context, int sessionId) =>
+      GoRouter.maybeOf(context)
+          ?.routerDelegate
+          .currentConfiguration
+          .uri
+          .queryParameters['night'] ==
+      '$sessionId';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The client ROLE, not the connection: a desktop launched with
-    // `--remote-host` that has not reached its rig is `Disconnected`, so
-    // `backend.remoteHost != null` read false for the whole pre-handshake
-    // window — and this button then offered "Session review" on a machine
-    // that owns none of the host's subs and pushed it onto the host-only wall.
+    // The client role, not the connection: a client that has not reached its
+    // rig yet owns none of the host's subs either.
     final isRemote = ref.watch(isRemoteClientProvider);
     return SkotiqDialog(
       title: 'Session report',
@@ -125,22 +132,22 @@ class _ReportBody extends ConsumerWidget {
         SkotiqTokens.space2xl,
       ),
       actions: [
-        if (report.sessionId > 0)
+        if (report.sessionId > 0 && !_showsNight(context, report.sessionId))
           SkotiqButton(
-            label: isRemote ? 'Review on imaging host' : 'Session review',
-            icon: LucideIcons.sparkles,
+            label: 'Open in History',
+            icon: LucideIcons.history,
             variant: ButtonVariant.outline,
             size: ButtonSize.small,
             onPressed: () {
-              if (isRemote) {
-                context.showInfoSnackBar(
-                  'Session Review uses full-resolution files stored '
-                  'on the imaging host. Open Skotiq there to continue.',
-                );
-                return;
-              }
               Navigator.of(context).pop();
-              context.push(AppRoutes.sessionReviewOfSession(report.sessionId));
+              // The night's Report reads full-resolution files, which only
+              // the imaging host holds; a linked client opens the Summary.
+              context.push(
+                AppRoutes.night(
+                  NightRef.session(report.sessionId),
+                  view: isRemote ? null : NightView.report,
+                ),
+              );
             },
           ),
         SkotiqButton(

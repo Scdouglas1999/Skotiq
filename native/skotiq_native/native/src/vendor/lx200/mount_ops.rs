@@ -676,20 +676,30 @@ impl MountDriver for Lx200Mount {
 
         self.send_command_no_response(cmd)?;
         *self
-            .tracking_rate
+            .commanded_tracking_rate
             .lock()
-            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = rate;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(rate);
         tracing::info!("Set tracking rate to {:?}", rate);
 
         Ok(())
     }
 
+    /// OnStep firmware (the Pegasus NYX-101 included) reports its rate in
+    /// the `:GU#` status flags, so the answer is the mount's own, whoever set
+    /// it. The other LX200 dialects have no rate query: the answer is the
+    /// rate commanded on this connection, and not supported before one is.
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         if !self.is_connected() {
             return Err(DriverError::NotConnected);
         }
-
-        Ok(*self.tracking_rate.lock().unwrap_or_else(|e| e.into_inner()))
+        if self.mount_type.is_onstep() {
+            let status = self.send_command(commands::ONSTEP_GET_STATUS)?;
+            return Ok(parse_onstep_tracking_rate(&status));
+        }
+        self.commanded_tracking_rate
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .ok_or(DriverError::NotSupported)
     }
 
     async fn can_slew(&self) -> bool {

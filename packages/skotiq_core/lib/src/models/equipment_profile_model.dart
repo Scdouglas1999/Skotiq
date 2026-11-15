@@ -58,6 +58,7 @@ class EquipmentProfileModel {
   // Camera defaults
   final int? defaultGain;
   final int? defaultOffset;
+  final String? defaultReadoutMode;
   final int defaultBinX;
   final int defaultBinY;
   final double? defaultCoolingTemp;
@@ -115,6 +116,7 @@ class EquipmentProfileModel {
     this.focalRatio,
     this.defaultGain,
     this.defaultOffset,
+    this.defaultReadoutMode,
     this.defaultBinX = 1,
     this.defaultBinY = 1,
     this.defaultCoolingTemp,
@@ -301,6 +303,7 @@ class EquipmentProfileModel {
       focalRatio: db.focalRatio,
       defaultGain: db.defaultGain,
       defaultOffset: db.defaultOffset,
+      defaultReadoutMode: db.defaultReadoutMode,
       defaultBinX: db.defaultBinX,
       defaultBinY: db.defaultBinY,
       defaultCoolingTemp: db.defaultCoolingTemp,
@@ -354,6 +357,7 @@ class EquipmentProfileModel {
       focalRatio: Value(focalRatio),
       defaultGain: Value(defaultGain),
       defaultOffset: Value(defaultOffset),
+      defaultReadoutMode: Value(defaultReadoutMode),
       defaultBinX: Value(defaultBinX),
       defaultBinY: Value(defaultBinY),
       defaultCoolingTemp: Value(defaultCoolingTemp),
@@ -409,6 +413,8 @@ class EquipmentProfileModel {
     double? focalRatio,
     int? defaultGain,
     int? defaultOffset,
+    String? defaultReadoutMode,
+    bool clearDefaultReadoutMode = false,
     int? defaultBinX,
     int? defaultBinY,
     double? defaultCoolingTemp,
@@ -459,6 +465,9 @@ class EquipmentProfileModel {
       focalRatio: focalRatio ?? this.focalRatio,
       defaultGain: defaultGain ?? this.defaultGain,
       defaultOffset: defaultOffset ?? this.defaultOffset,
+      defaultReadoutMode: clearDefaultReadoutMode
+          ? null
+          : (defaultReadoutMode ?? this.defaultReadoutMode),
       defaultBinX: defaultBinX ?? this.defaultBinX,
       defaultBinY: defaultBinY ?? this.defaultBinY,
       defaultCoolingTemp: defaultCoolingTemp ?? this.defaultCoolingTemp,
@@ -526,6 +535,7 @@ class EquipmentProfileModel {
       focalRatio: focalRatio,
       defaultGain: defaultGain,
       defaultOffset: defaultOffset,
+      defaultReadoutMode: defaultReadoutMode,
       defaultBinX: defaultBinX,
       defaultBinY: defaultBinY,
       defaultCoolingTemp: defaultCoolingTemp,
@@ -595,6 +605,7 @@ class EquipmentProfileModel {
       focalRatio: focalRatio,
       defaultGain: defaultGain,
       defaultOffset: defaultOffset,
+      defaultReadoutMode: defaultReadoutMode,
       defaultBinX: defaultBinX,
       defaultBinY: defaultBinY,
       defaultCoolingTemp: defaultCoolingTemp,

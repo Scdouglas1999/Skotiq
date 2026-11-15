@@ -66,12 +66,12 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Good: 2'),
+      find.text('Good 2'),
       findsOneWidget,
       reason: 'only the two measured lights were assessed good',
     );
-    expect(find.text('Unrated: 4'), findsOneWidget);
-    expect(find.text('Total: 6'), findsOneWidget);
+    expect(find.text('Unrated 4'), findsOneWidget);
+    expect(find.text('Total 6'), findsOneWidget);
   });
 
   testWidgets('an unmeasured frame is badged Unrated, not Good',

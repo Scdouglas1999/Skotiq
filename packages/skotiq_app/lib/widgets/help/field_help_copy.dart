@@ -106,10 +106,12 @@ const Map<FieldHelpId, FieldHelpCopy> kFieldHelpCopy =
   ),
   FieldHelpId.cameraReadoutMode: FieldHelpCopy(
     title: 'Readout mode',
-    body: 'Selects how the sensor digitizes each frame, trading read noise '
-        'against dynamic range and speed. For deep-sky work choose the '
-        'low-noise / high-gain mode; reserve high-dynamic-range modes for '
-        'bright targets like the Moon and planets.',
+    body: 'How the sensor digitizes each frame, trading read noise against '
+        'dynamic range and speed. The choice is saved in the equipment '
+        'profile and used for every frame, in captures here and in a run; '
+        'an exposure step can name another mode for its own frames. Lights '
+        'and their darks must be taken in the same mode. "Not set" leaves '
+        'the camera in the mode it is in.',
   ),
   FieldHelpId.captureBinning: FieldHelpCopy(
     title: 'Binning',

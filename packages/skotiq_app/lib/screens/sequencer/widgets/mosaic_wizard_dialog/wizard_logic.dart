@@ -200,12 +200,6 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     final options = MosaicSequenceOptions(
       centerAfterSlew: true,
       autofocusPerPanel: false,
-      // W1 altitude gate: default each panel's minAltitude to the Smart Night
-      // floor so every panel TargetHeader carries a `start_when AltitudeAbove`
-      // wait (serialized as `min_altitude`) — matching the headless mosaic
-      // path. STRENGTHENS the no-daylight/altitude gate for wizard-built
-      // mosaics; never weakens the existing Dart Sun gate (W1) or W5.
-      minAltitude: const SmartNightSettings().minAltitudeDeg,
     );
 
     final nodes = mosaicService.createMosaicSequence(

@@ -5,11 +5,6 @@ part of '../planner_screen.dart';
 /// The width of the Tonight tab's detail column (05 §15: "Plan detail 380").
 const double _kPlannerDetailWidth = 380;
 
-/// Minimum altitude the "imageable" readout is measured against when the
-/// filter state does not name one. Mirrors the suggestion pipeline's own
-/// default so the label and the number describe the same threshold.
-const double _kPlannerDefaultMinAltitude = 30;
-
 /// The column widths every candidate row and the header above them share.
 ///
 /// Fixed rather than measured per row: "00:46 · 84°" is the widest transit
@@ -66,8 +61,6 @@ class _CandidateList extends ConsumerWidget {
         ref.watch(_plannerVisibleCountProvider).clamp(0, candidates.length);
     final visible = candidates.take(visibleCount).toList(growable: false);
     final filters = ref.watch(suggestionFilterProvider);
-    final minAltitude =
-        filters.minCurrentAltitude ?? _kPlannerDefaultMinAltitude;
     final night = ref.watch(_plannerNightWindowProvider);
     // A typed name that tonight's scorer never saw still has to be findable:
     // the installed catalog and SIMBAD answer for it under the list.
@@ -86,7 +79,6 @@ class _CandidateList extends ConsumerWidget {
         l10n: l10n,
         visible: visible,
         visibleCount: visibleCount,
-        minAltitude: minAltitude,
         night: night,
         query: query,
         hasLookups: hasLookups,
@@ -106,7 +98,6 @@ class _CandidateList extends ConsumerWidget {
     required SkotiqLocalizations l10n,
     required List<TargetSuggestion> visible,
     required int visibleCount,
-    required double minAltitude,
     required _PlannerNightWindow? night,
     required String query,
     required bool hasLookups,
@@ -175,7 +166,6 @@ class _CandidateList extends ConsumerWidget {
           key: ValueKey('candidate-${candidate.targetId}'),
           suggestion: candidate,
           selected: selected,
-          minAltitude: minAltitude,
           night: night,
           columns: columns,
           onSelect: () => onSelect(candidate),
@@ -313,7 +303,6 @@ class _CandidateColumnHeader extends StatelessWidget {
 class _PlannerCandidateRow extends ConsumerWidget {
   final TargetSuggestion suggestion;
   final bool selected;
-  final double minAltitude;
   final _PlannerNightWindow? night;
   final CandidateColumns? columns;
   final VoidCallback onSelect;
@@ -327,7 +316,6 @@ class _PlannerCandidateRow extends ConsumerWidget {
     super.key,
     required this.suggestion,
     required this.selected,
-    required this.minAltitude,
     required this.night,
     required this.columns,
     required this.onSelect,
@@ -344,6 +332,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     final visibility = suggestion.visibility;
+    final floor = ref.watch(altitudeFloorProvider);
 
     return Candidate(
       score: suggestion.totalScore.round().toString(),
@@ -363,10 +352,14 @@ class _PlannerCandidateRow extends ConsumerWidget {
         ),
         Readout(
           value: _hoursAndMinutes(visibility.hoursAboveMinAlt),
-          label: l10n.text(
-            'plannerAboveMin',
-            params: {'value': minAltitude.round().toString()},
-          ),
+          // Hours above the site's altitude floor, which the scoring holds
+          // the target to.
+          label: floor.followsHorizon
+              ? l10n.text('plannerAboveHorizon')
+              : l10n.text(
+                  'plannerAboveMin',
+                  params: {'value': floor.minimumDeg.round().toString()},
+                ),
           size: ReadoutSize.sm,
         ),
       ],

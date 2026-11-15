@@ -18,59 +18,6 @@ extension _ImagingServiceExposureState on ImagingService {
     return settings.copyWith(filter: name);
   }
 
-  /// Resolve the concrete readout-mode index to send to the camera for
-  /// [settings], using the camera's actual reported readout-mode count.
-  ///
-  /// Returns `null` when the camera exposes no readout modes (the driver
-  /// doesn't report any, or the capability query failed). A null result means
-  /// "don't issue a `cameraSetReadoutMode` call at all" — there's nothing to
-  /// select against, and forcing index 0 could pick a different mode than the
-  /// driver's own default. This mirrors the camera panel, which hides the
-  /// read-mode dropdown entirely when `readoutModes` is empty.
-  ///
-  /// When the mode count is known, [ExposureSettings.resolveReadoutModeIndex]
-  /// maps the user's explicit choice (or the legacy `fastReadout` flag) to a
-  /// real index. A stale persisted index is rejected: silently clamping it can
-  /// select an unrelated mode after a camera/driver/profile change.
-  Future<int?> _resolveReadoutModeIndex(
-    String deviceId,
-    ExposureSettings settings,
-  ) async {
-    final int modeCount = await _readoutModeCount(deviceId);
-    if (modeCount <= 0) {
-      return null;
-    }
-    final resolved = settings.resolveReadoutModeIndex(modeCount);
-    if (resolved < 0 || resolved >= modeCount) {
-      throw ValidationException(
-        message:
-            'Readout mode index $resolved is unavailable on camera $deviceId '
-            '(reported modes: $modeCount)',
-        userMessage:
-            'The saved readout mode is no longer available. Select a readout '
-            'mode for this camera and try again.',
-      );
-    }
-    return resolved;
-  }
-
-  /// The number of readout modes the camera [deviceId] reports, or 0 when
-  /// unknown. Reads the cached/awaited [equipmentCameraCapabilitiesProvider]
-  /// for the device.
-  ///
-  /// A null capability result yields 0 (treated as "unsupported/unknown" by the
-  /// caller). Query failures propagate so authentication, transport, and driver
-  /// faults cannot silently skip an explicitly requested capture setting.
-  Future<int> _readoutModeCount(String deviceId) async {
-    if (deviceId.isEmpty) {
-      return 0;
-    }
-    final caps = await _ref.read(
-      equipmentCameraCapabilitiesProvider(deviceId).future,
-    );
-    return caps?.readoutModes.length ?? 0;
-  }
-
   /// Take back the "an exposure is running" claim this capture made.
   ///
   /// `cameraStateProvider.isExposing` and `exposureProgressProvider` are NOT

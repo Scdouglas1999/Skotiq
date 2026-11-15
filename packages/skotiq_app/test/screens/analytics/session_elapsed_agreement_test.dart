@@ -100,48 +100,4 @@ void main() {
     // The stat strip uppercases its caption.
     expect(find.textContaining('TO LAST FRAME'), findsOneWidget);
   });
-
-  testWidgets('the History card does not accrue wall-clock time after a crash',
-      (tester) async {
-    await tester.pumpWidget(_app(AnalyticsTab.history));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // `now - startTime` for a July 2026 start is hours at best and years at
-    // worst; either way it is not the session's span.
-    final wallClock = RegExp(r'^\d+h \d+m$');
-    expect(
-      tester
-          .widgetList<Text>(find.byType(Text))
-          .map((t) => t.data)
-          .where((d) => d != null && wallClock.hasMatch(d)),
-      isEmpty,
-      reason: 'History must not print wall-clock elapsed for an unclosed row',
-    );
-    expect(find.text('20m'), findsOneWidget);
-    // The History row's figure is a Readout since the Observatory pass, and a
-    // readout renders its label uppercase.
-    expect(find.text('TO LAST FRAME'), findsOneWidget);
-  });
-
-  testWidgets('History and Session agree on the same session', (tester) async {
-    await tester.pumpWidget(_app(AnalyticsTab.session));
-    await tester.pump(const Duration(milliseconds: 300));
-    // Both figures are Readouts, whose value lives on the widget rather than
-    // in a Text's `data` -- a readout renders through Text.rich so it can
-    // attach a unit at 60% size.
-    final onSessionTab = _elapsedReadouts(tester);
-
-    await tester.pumpWidget(_app(AnalyticsTab.history));
-    await tester.pump(const Duration(milliseconds: 300));
-    final onHistoryTab = _elapsedReadouts(tester);
-
-    expect(onSessionTab, greaterThan(0));
-    expect(onHistoryTab, greaterThan(0));
-  });
 }
-
-/// How many readouts on screen report the session's 20-minute span.
-int _elapsedReadouts(WidgetTester tester) => tester
-    .widgetList<Readout>(find.byType(Readout))
-    .where((r) => r.value == '20m')
-    .length;

@@ -10,6 +10,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'link_mismatch_actions.dart';
+
 /// What the connect flow opens on.
 class LinkRigRequest {
   /// Start by looking for imaging computers on the network.
@@ -75,8 +77,8 @@ Future<void> showLinkRigDialog(
 
 /// Asks a host for `/api/info`. A provider so widget tests answer offline.
 final rigInfoFetcherProvider =
-    Provider<Future<DiscoveredServer?> Function(DiscoveredServer host)>(
-  (_) => (host) => RigDiscovery.fetchInfo(host),
+    Provider<Future<ServerRead> Function(DiscoveredServer host)>(
+  (_) => (host) => RigDiscovery.readInfo(host),
 );
 
 enum _Phase { find, pair, linking, linked }
@@ -105,6 +107,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
 
   // Pair.
   DiscoveredServer? _host;
+
+  /// The releases, when the host on the pair step answered as another one.
+  LinkVersionMismatch? _hostMismatch;
   bool _loadingHost = false;
   final _deviceName = TextEditingController(
     text: RigLinkService.defaultDeviceName(),
@@ -201,19 +206,28 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       _checkingManual = true;
       _manualError = null;
     });
-    var found = await RigDiscovery.probeAddress(host, port);
-    found ??= await RigDiscovery.probeAddress(host, port, scheme: 'https');
+    var read = await RigDiscovery.probeAddress(host, port);
+    if (!_answered(read)) {
+      // A TLS-only host answers plain HTTP with a 400.
+      final secure = await RigDiscovery.probeAddress(
+        host,
+        port,
+        scheme: 'https',
+      );
+      if (_answered(secure)) read = secure;
+    }
     if (!mounted) return;
     setState(() => _checkingManual = false);
-    if (found == null) {
-      setState(
-        () => _manualError = 'Nothing at $host:$port answered as Skotiq. '
-            'Check the address and that Remote access is on there.',
-      );
+    if (!_answered(read)) {
+      setState(() => _manualError = read.problem!.message);
       return;
     }
-    await _openHost(found);
+    await _openHost(read.server);
   }
+
+  /// Whether a Skotiq host answered, of this release or another.
+  static bool _answered(ServerRead read) =>
+      read.problem == null || read.problem!.kind == LinkProblemKind.mismatch;
 
   // ---------------------------------------------------------------- pair
 
@@ -222,6 +236,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     setState(() {
       _phase = _Phase.pair;
       _host = host;
+      // A remembered host is asked again below; what it said last time is
+      // not what it runs now.
+      _hostMismatch = refresh ? null : host.linkMismatch;
       _error = null;
       _identityChanged = false;
       _codeMade = null;
@@ -234,20 +251,21 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     setState(() => _loadingHost = true);
     final remembered = ref.read(launchLinkedRigProvider) ??
         await ref.read(linkedRigStoreProvider).load();
-    final fresh = await ref.read(rigInfoFetcherProvider)(host);
+    final read = await ref.read(rigInfoFetcherProvider)(host);
     if (!mounted) return;
     setState(() {
       _loadingHost = false;
-      if (fresh != null) {
+      if (_answered(read)) {
+        final fresh = read.server;
         _host = fresh;
+        _hostMismatch = read.problem?.mismatch;
         _fullAccess = widget.request.fullAccess || !fresh.lanPairing;
         final before = remembered?.fingerprint;
         _identityChanged = before != null &&
             fresh.fingerprint != null &&
             before.toLowerCase() != fresh.fingerprint!.toLowerCase();
       } else {
-        _error = "Can't reach ${host.displayName} at "
-            '${host.host}:${host.webPort} right now.';
+        _error = read.problem!.message;
       }
     });
     if (widget.request.preferCode) _codeFocus.requestFocus();
@@ -574,7 +592,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     final colors = SkotiqColors.of(context);
     final host = _host!;
     final name = host.displayName;
-    final mismatch = _loadingHost ? null : host.linkMismatch;
+    final mismatch = _loadingHost ? null : _hostMismatch;
     if (mismatch != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,6 +606,8 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
             title: "This computer can't link to $name.",
             message: mismatch.message,
           ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          LinkMismatchActions(host: host, mismatch: mismatch),
         ],
       );
     }
@@ -931,10 +951,12 @@ class _HostRow extends StatelessWidget {
           ),
           const SizedBox(width: SkotiqTokens.spaceSm),
           SkotiqButton(
-            label: 'Link',
-            semanticsHint: 'Link to ${host.displayName}',
+            label: mismatch == null ? 'Link' : 'Update…',
+            semanticsHint: mismatch == null
+                ? 'Link to ${host.displayName}'
+                : 'See how to update for ${host.displayName}',
             size: ButtonSize.small,
-            onPressed: mismatch == null ? onLink : null,
+            onPressed: onLink,
           ),
         ],
       ),

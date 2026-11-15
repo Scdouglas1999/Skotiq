@@ -76,12 +76,12 @@ enum DeviceApi implements ApiEndpoint {
   cameraGetWarmUp(
     ApiRoute.get('/api/camera/warm-up', resource: ApiResource.camera),
   ),
-  cameraGetReadoutModes(
-    ApiRoute.get('/api/camera/readout-modes', resource: ApiResource.camera),
+  cameraGetRetainedCaptures(
+    ApiRoute.get('/api/camera/retained-captures', resource: ApiResource.camera),
   ),
-  cameraSetReadoutMode(
+  cameraRetrieveRetainedCapture(
     ApiRoute.post(
-      '/api/camera/readoutMode',
+      '/api/camera/retained-captures/retrieve',
       resource: ApiResource.camera,
       rate: ApiRateTier.control,
       sessionOwner: true,

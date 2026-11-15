@@ -114,6 +114,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime.utc(2026, 10, 7, 22),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 30),
         );
         if (Platform.environment['SKOTIQ_SCORING_BENCHMARK'] case final path?) {
           Object? serializable(Object? value) {
@@ -174,13 +175,13 @@ void main() {
       ];
       Future<List<TargetSuggestion>> score(SiteHorizonProfile? horizon) =>
           service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+            config: const TargetSuggestionConfig(minScore: 0),
             latitude: 39.97,
             longitude: -75.36,
             targets: targets,
             sessions: [],
             observationTime: DateTime.utc(2026, 10, 7, 22),
-            horizonProfile: horizon,
+            floor: AltitudeFloor(horizon: horizon, minimumDeg: 0),
           );
       expect(await score(null), isNotEmpty);
       expect(
@@ -201,7 +202,7 @@ void main() {
       // inheriting its stellar magnitude.
       test('does not offer a sizeless star as an imaging target', () async {
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(minAltitude: 0.0, minScore: 0.0),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -105.0,
           targets: [
@@ -227,6 +228,7 @@ void main() {
           ],
           sessions: [],
           observationTime: DateTime(2024, 7, 15, 22),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         expect(
@@ -244,7 +246,6 @@ void main() {
         () async {
           final extended = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -262,12 +263,12 @@ void main() {
             ],
             sessions: [],
             observationTime: DateTime(2024, 7, 15, 22),
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
           expect(extended, hasLength(1));
 
           final requested = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
               preferredObjectTypes: ['Star'],
             ),
@@ -285,6 +286,7 @@ void main() {
             ],
             sessions: [],
             observationTime: DateTime(2024, 7, 15, 22),
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
           expect(requested, hasLength(1));
         },
@@ -297,6 +299,7 @@ void main() {
           longitude: -75.0,
           targets: [],
           sessions: [],
+          floor: AltitudeFloor(horizon: null, minimumDeg: 30),
         );
 
         expect(suggestions, isEmpty);
@@ -318,7 +321,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0, // Allow any altitude above horizon
             minScore: 0.0, // Allow any score
           ),
           latitude: 40.0,
@@ -331,7 +333,8 @@ void main() {
             15,
             22,
             0,
-          ), // Summer evening when Vega is high
+          ), // Summer evening when Vega is high,
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         // Should return at least one suggestion if target is above horizon
@@ -369,12 +372,13 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(minAltitude: 0.0, minScore: 0.0),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
           sessions: sessions,
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.isNotEmpty) {
@@ -395,12 +399,13 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(minAltitude: 0.0, minScore: 0.0),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.isNotEmpty) {
@@ -424,13 +429,13 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 30.0, // Require 30 degrees altitude
           ),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 30.0),
         );
 
         // Target should be filtered out - never rises above 30 degrees at this latitude
@@ -444,7 +449,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 100.0, // Impossibly high score requirement
           ),
           latitude: 40.0,
@@ -452,6 +456,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         // All targets should be filtered out due to score threshold
@@ -467,7 +472,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 0.0,
             sortMode: SuggestionSortMode.bestScore,
             prioritizeIncomplete: false,
@@ -477,6 +481,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 6, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.length >= 2) {
@@ -499,7 +504,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 0.0,
             sortMode: SuggestionSortMode.highestAltitude,
             prioritizeIncomplete: false,
@@ -509,6 +513,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 6, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.length >= 2) {
@@ -555,7 +560,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 0.0,
             sortMode: SuggestionSortMode.leastDataCollected,
             prioritizeIncomplete: false,
@@ -565,6 +569,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.length >= 2) {
@@ -600,7 +605,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 0.0,
             sortMode: SuggestionSortMode.bestScore,
             prioritizeIncomplete: true,
@@ -610,6 +614,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.length == 2) {
@@ -647,7 +652,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0,
             minScore: 0.0,
             preferredObjectTypes: ['Galaxy'], // Only want galaxies
           ),
@@ -656,6 +660,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         // Should only include the galaxy
@@ -678,7 +683,6 @@ void main() {
 
         final suggestions = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(
-            minAltitude: 0.0, // Even with 0 altitude requirement
             minScore: 0.0,
           ),
           latitude: 40.0,
@@ -686,6 +690,7 @@ void main() {
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         // Target should be filtered out - never above horizon
@@ -698,12 +703,13 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(minAltitude: 0.0, minScore: 0.0),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.isNotEmpty) {
@@ -728,12 +734,13 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(minAltitude: 0.0, minScore: 0.0),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
           sessions: [],
           observationTime: DateTime(2024, 3, 21, 22, 0),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
         );
 
         if (suggestions.isNotEmpty) {
@@ -775,7 +782,6 @@ void main() {
 
             final suggestions = await service.getSuggestionsForTonight(
               config: const TargetSuggestionConfig(
-                minAltitude: 0.0,
                 minScore: 0.0,
               ),
               latitude: 40.0,
@@ -783,6 +789,7 @@ void main() {
               targets: targets,
               sessions: [],
               observationTime: DateTime(2024, 3, 21, 22, 0),
+              floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
             );
 
             if (suggestions.isNotEmpty) {
@@ -811,7 +818,6 @@ void main() {
 
             final suggestions = await service.getSuggestionsForTonight(
               config: const TargetSuggestionConfig(
-                minAltitude: 0.0,
                 minScore: 0.0,
               ),
               latitude: 40.0,
@@ -820,6 +826,7 @@ void main() {
               sessions: [],
               observationTime: DateTime(2024, 3, 21, 22, 0),
               opticalConfig: opticalConfig,
+              floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
             );
 
             if (suggestions.isNotEmpty) {
@@ -852,7 +859,6 @@ void main() {
 
           final suggestions = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -861,6 +867,7 @@ void main() {
             sessions: [],
             observationTime: DateTime(2024, 3, 21, 22, 0),
             opticalConfig: opticalConfig,
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
 
           if (suggestions.isNotEmpty) {
@@ -888,7 +895,6 @@ void main() {
 
           final suggestions = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -897,6 +903,7 @@ void main() {
             sessions: [],
             observationTime: DateTime(2024, 3, 21, 22, 0),
             opticalConfig: opticalConfig,
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
 
           if (suggestions.isNotEmpty) {
@@ -924,7 +931,6 @@ void main() {
 
             final suggestions = await service.getSuggestionsForTonight(
               config: const TargetSuggestionConfig(
-                minAltitude: 0.0,
                 minScore: 0.0,
               ),
               latitude: 40.0,
@@ -933,6 +939,7 @@ void main() {
               sessions: [],
               observationTime: DateTime(2024, 3, 21, 22, 0),
               opticalConfig: opticalConfig,
+              floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
             );
 
             if (suggestions.isNotEmpty) {
@@ -961,7 +968,6 @@ void main() {
 
           final suggestions = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -970,6 +976,7 @@ void main() {
             sessions: [],
             observationTime: DateTime(2024, 3, 21, 22, 0),
             opticalConfig: opticalConfig,
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
 
           if (suggestions.isNotEmpty) {
@@ -994,7 +1001,6 @@ void main() {
 
           final suggestions = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -1003,6 +1009,7 @@ void main() {
             sessions: [],
             observationTime: DateTime(2024, 3, 21, 22, 0),
             opticalConfig: opticalConfig,
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
 
           if (suggestions.isNotEmpty) {
@@ -1024,7 +1031,6 @@ void main() {
 
           final suggestions = await service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(
-              minAltitude: 0.0,
               minScore: 0.0,
             ),
             latitude: 40.0,
@@ -1032,6 +1038,7 @@ void main() {
             targets: targets,
             sessions: [],
             observationTime: DateTime(2024, 3, 21, 22, 0),
+            floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
           );
 
           if (suggestions.isNotEmpty) {

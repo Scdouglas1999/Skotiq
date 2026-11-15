@@ -18,13 +18,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
+import 'review_host.dart';
 
 /// A seam that reports progress exactly the way the native preview integrate
 /// does: a terminal `(phase: 'preview', fraction: 1.0)` on the shared stream
@@ -143,9 +143,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(
-          home: SessionReviewScreen(
-            scope: SessionReviewScope.session(1),
-          ),
+          home: ReviewHost(sessionId: 1),
         ),
       ),
     );

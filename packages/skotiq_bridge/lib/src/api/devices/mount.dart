@@ -7,6 +7,12 @@ import '../../device.dart';
 import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'mount.freezed.dart';
+
+// These functions are ignored because they are not marked as `pub`: `clear_guider_for`, `guider_outcome`, `silent_guider`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SilentGuider`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`
 
 /// Get mount status
 Future<MountStatus> apiGetMountStatus({required String deviceId}) => RustLib
@@ -14,15 +20,19 @@ Future<MountStatus> apiGetMountStatus({required String deviceId}) => RustLib
     .api
     .crateApiDevicesMountApiGetMountStatus(deviceId: deviceId);
 
-/// Slew mount to coordinates
-Future<void> apiMountSlewToCoordinates({
+/// Slew the mount to coordinates, stopping the guider first. With the guider
+/// not answering the slew is refused, unless `guider_silent_ok` says the
+/// operator chose to move anyway.
+Future<MountMoveGuider> apiMountSlewToCoordinates({
   required String deviceId,
   required double ra,
   required double dec,
+  required bool guiderSilentOk,
 }) => RustLib.instance.api.crateApiDevicesMountApiMountSlewToCoordinates(
   deviceId: deviceId,
   ra: ra,
   dec: dec,
+  guiderSilentOk: guiderSilentOk,
 );
 
 /// Sync mount to coordinates
@@ -36,9 +46,16 @@ Future<void> apiMountSyncToCoordinates({
   dec: dec,
 );
 
-/// Park the mount
-Future<void> apiMountPark({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountApiMountPark(deviceId: deviceId);
+/// Park the mount, stopping the guider first. A guider that does not answer
+/// never keeps the mount from parking. A park `for_safety` (weather, an
+/// unsafe rig) does not ask the guider at all: it must not wait on anything.
+Future<MountMoveGuider> apiMountPark({
+  required String deviceId,
+  required bool forSafety,
+}) => RustLib.instance.api.crateApiDevicesMountApiMountPark(
+  deviceId: deviceId,
+  forSafety: forSafety,
+);
 
 /// Unpark the mount
 Future<void> apiMountUnpark({required String deviceId}) =>
@@ -95,19 +112,23 @@ Future<void> mountMoveAxis({
   rate: rate,
 );
 
-/// Slew mount to alt/az coordinates (altitude in degrees, azimuth in degrees)
-Future<void> mountSlewAltAz({
+/// Slew mount to alt/az coordinates (altitude in degrees, azimuth in
+/// degrees), under the same guider rule as [`api_mount_slew_to_coordinates`].
+Future<MountMoveGuider> mountSlewAltAz({
   required String deviceId,
   required double altitude,
   required double azimuth,
+  required bool guiderSilentOk,
 }) => RustLib.instance.api.crateApiDevicesMountMountSlewAltAz(
   deviceId: deviceId,
   altitude: altitude,
   azimuth: azimuth,
+  guiderSilentOk: guiderSilentOk,
 );
 
-/// Find mount home position
-Future<void> mountFindHome({required String deviceId}) =>
+/// Send the mount to its home position, stopping the guider first. A guider
+/// that does not answer never keeps the mount from homing.
+Future<MountMoveGuider> mountFindHome({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountFindHome(deviceId: deviceId);
 
 /// Store the mount's current position as its park position
@@ -156,3 +177,22 @@ Future<void> mountSetTime({
   utcUnixSeconds: utcUnixSeconds,
   utcOffsetHours: utcOffsetHours,
 );
+
+@freezed
+sealed class MountMoveGuider with _$MountMoveGuider {
+  const MountMoveGuider._();
+
+  /// No guider was guiding.
+  const factory MountMoveGuider.idle() = MountMoveGuider_Idle;
+
+  /// Guiding was stopped before the move. It is not started again.
+  const factory MountMoveGuider.stopped() = MountMoveGuider_Stopped;
+
+  /// The guider did not answer and the mount moved without stopping it.
+  const factory MountMoveGuider.unanswered({required String reason}) =
+      MountMoveGuider_Unanswered;
+
+  /// The guider did not answer and the mount was not moved.
+  const factory MountMoveGuider.refused({required String reason}) =
+      MountMoveGuider_Refused;
+}

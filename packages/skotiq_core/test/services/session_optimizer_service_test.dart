@@ -171,7 +171,7 @@ void main() {
 
     test('produces a primary recommendation and alternates', () async {
       final plan = await service.optimizeTonight(
-        config: const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+        config: const TargetSuggestionConfig(minScore: 0),
         latitude: 40,
         longitude: -75,
         targets: [
@@ -187,6 +187,7 @@ void main() {
         ],
         sessions: const [],
         observationTime: DateTime(2026, 8, 1, 22),
+        floor: AltitudeFloor(horizon: null, minimumDeg: 0),
       );
 
       expect(plan.hasRecommendation, isTrue);
@@ -198,12 +199,13 @@ void main() {
 
     test('returns actionable fallback when no targets fit', () async {
       final plan = await service.optimizeTonight(
-        config: const TargetSuggestionConfig(minAltitude: 80, minScore: 95),
+        config: const TargetSuggestionConfig(minScore: 95),
         latitude: 40,
         longitude: -75,
         targets: [target(id: 1, name: 'Low South', ra: 12, dec: -70)],
         sessions: const [],
         observationTime: DateTime(2026, 3, 1, 22),
+        floor: AltitudeFloor(horizon: null, minimumDeg: 80),
       );
 
       expect(plan.hasRecommendation, isFalse);
@@ -213,7 +215,7 @@ void main() {
 
     test('flags nearly complete targets as a risk factor', () async {
       final plan = await service.optimizeTonight(
-        config: const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+        config: const TargetSuggestionConfig(minScore: 0),
         latitude: 40,
         longitude: -75,
         targets: [
@@ -227,6 +229,7 @@ void main() {
         ],
         sessions: [session(id: 1, targetId: 1, totalIntegrationSecs: 27000)],
         observationTime: DateTime(2026, 8, 1, 22),
+        floor: AltitudeFloor(horizon: null, minimumDeg: 0),
       );
 
       expect(

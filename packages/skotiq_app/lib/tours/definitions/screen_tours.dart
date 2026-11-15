@@ -585,16 +585,8 @@ const List<TourStep> _analyticsTour = [
     id: 'at_history_tab',
     title: 'Session History',
     description:
-        'Browse past imaging sessions. Each session shows the date, target, total frames, and conditions. Click any session for detailed analysis.',
+        'Every night on record, grouped by observing night, under the totals for all of them. Click a night to open its summary, frames, run log and report.',
     target: TourTarget.analyticsHistoryTab,
-    side: TourCardSide.bottom,
-  ),
-  TourStep(
-    id: 'at_equipment_tab',
-    title: 'Equipment Stats',
-    description:
-        'Track performance by equipment. See which camera/telescope combinations produce the best results and identify gear that needs attention.',
-    target: TourTarget.analyticsEquipmentTab,
     side: TourCardSide.bottom,
   ),
   TourStep(

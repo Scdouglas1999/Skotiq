@@ -634,6 +634,51 @@ void main() {
       );
     }
 
+    test('a target step sends no altitude unless the step names one: the '
+        'run holds it to the floor in its configuration', () async {
+      final bare = await nodeConfig(
+        singleNodeSequence(
+          TargetHeaderNode(
+            id: 'target',
+            name: 'M31',
+            targetName: 'M31',
+            raHours: 0.7,
+            decDegrees: 41.3,
+          ),
+        ),
+        'target',
+        floor: const AltitudeFloor(horizon: null, minimumDeg: 25),
+      );
+      expect(bare['min_altitude'], isNull);
+      expect(bare['start_when'], isNull);
+
+      final own = await nodeConfig(
+        singleNodeSequence(
+          TargetHeaderNode(
+            id: 'target',
+            name: 'M31',
+            targetName: 'M31',
+            raHours: 0.7,
+            decDegrees: 41.3,
+            minAltitude: 50,
+          ),
+        ),
+        'target',
+      );
+      expect(own['min_altitude'], 50);
+    });
+
+    test('an altitude-limit recovery trigger with no altitude of its own '
+        'follows the site floor', () {
+      Object? limit(double? threshold) => (RecoveryNode(
+        id: 'recovery',
+        triggerType: TriggerType.altitudeLimit,
+        triggerThreshold: threshold,
+      ).toRustTriggerConfig() as Map)['AltitudeLimit'];
+      expect(limit(null), {'min_altitude': null});
+      expect(limit(35), {'min_altitude': 35.0});
+    });
+
     // The Rust executor compares every epoch field against
     // Utc::now().timestamp() — Unix SECONDS. Milliseconds on the wire made
     // WaitForTime hang forever, start_after unreachable, until-time loops

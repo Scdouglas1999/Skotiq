@@ -2,6 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+/// The release this tree builds. Every API request names it in
+/// `x-skotiq-version`; a host refuses a request that does not.
+final String _skotiqRelease = RegExp(
+  r'^version:\s*"([^"]+)"',
+  multiLine: true,
+).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
 const _defaultApkPath =
@@ -17,9 +24,12 @@ String _expectedAppVersion() {
   final source = File.fromUri(
     Platform.script.resolve('../../version.yaml'),
   ).readAsStringSync();
-  final match = RegExp(r'^version:\s*"([^"\n]+)"', multiLine: true)
-      .firstMatch(source);
-  if (match == null) throw const FormatException('Missing release in version.yaml');
+  final match = RegExp(
+    r'^version:\s*"([^"\n]+)"',
+    multiLine: true,
+  ).firstMatch(source);
+  if (match == null)
+    throw const FormatException('Missing release in version.yaml');
   return match.group(1)!;
 }
 
@@ -681,6 +691,7 @@ Future<_HttpResponseBody> _request(
   Map<String, Object?>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
+  request.headers.set('x-skotiq-version', _skotiqRelease);
   request.headers.contentType = ContentType.json;
   if (token != null) {
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');

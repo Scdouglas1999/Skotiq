@@ -634,6 +634,33 @@ pub(crate) fn autofocus_failure_continuation(
     )
 }
 
+/// Summary of the decision row written when a run has a target and no
+/// observing site.
+pub const NO_OBSERVING_SITE_SUMMARY: &str =
+    "No observing site — the altitude floor and the meridian flip are off";
+
+/// The notice for a run that has a target and no observing site: nothing can
+/// say how high the target stands or when it crosses the meridian, so the run
+/// does not hold it to the altitude floor and does not flip the mount.
+pub(crate) fn no_observing_site_continuation() -> ContinuedHappening {
+    let source = "No observing site";
+    let problem = "the altitude floor and the meridian flip are off for this run, because \
+                   neither can be worked out without the site. Set the site in Settings > \
+                   Location; the run takes it at once.";
+    ContinuedHappening::new(
+        crate::decision::RunNotice::ProblemNoticed {
+            source: source.to_string(),
+            problem: problem.to_string(),
+        },
+        crate::decision::DecisionEvent::new(
+            crate::decision::DecisionCategory::SystemEvent,
+            NO_OBSERVING_SITE_SUMMARY.to_string(),
+            serde_json::json!({ "source": source, "problem": problem }),
+        ),
+        format!("{source}: {problem}"),
+    )
+}
+
 /// Summary of the decision row written when the software judged something bad
 /// — guiding, pointing or settling — and the run carried on because the
 /// operator has not asked it to stop for that. The app raises its "Problem

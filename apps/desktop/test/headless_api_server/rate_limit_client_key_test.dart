@@ -250,6 +250,7 @@ Future<_Resp> _verify(
     'POST',
     baseUri.replace(path: '/api/pairing/verify'),
   );
+  request.headers.set('x-skotiq-version', '2.5.0');
   request.headers.set('Content-Type', 'application/json');
   request.headers.set('X-Forwarded-For', forwardedFor);
   request.headers.set('X-Real-IP', forwardedFor);
@@ -266,6 +267,7 @@ Future<_Resp> _badToken(
     'GET',
     baseUri.replace(path: '/api/status'),
   );
+  request.headers.set('x-skotiq-version', '2.5.0');
   request.headers.set('Authorization', 'Bearer wrong-$forwardedFor');
   request.headers.set('X-Forwarded-For', forwardedFor);
   request.headers.set('X-Real-IP', forwardedFor);

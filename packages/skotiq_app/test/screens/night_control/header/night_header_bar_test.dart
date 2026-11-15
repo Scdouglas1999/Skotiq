@@ -143,6 +143,33 @@ void main() {
       );
     });
 
+    testWidgets('running, the target waiting to start: the header says what '
+        'for', (tester) async {
+      final base = headerFor(NightRunPhase.running);
+      const waiting =
+          'Waiting for East to clear the altitude floor: 35° up, floor 40° '
+          'in that direction';
+      await _pumpHeader(
+        tester,
+        NightRunPhase.running,
+        header: NightHeaderVm(
+          phase: base.phase,
+          runStartedAt: base.runStartedAt,
+          planName: base.planName,
+          targetIndex: 1,
+          targetCount: 2,
+          stepIndex: 2,
+          stepCount: 12,
+          waitingFor: waiting,
+          pauseResume: base.pauseResume,
+          skipStep: base.skipStep,
+          stop: base.stop,
+        ),
+      );
+      expect(find.textContaining('target 1 of 2 · $waiting'), findsOneWidget);
+      expect(find.textContaining('step 2 of 12'), findsNothing);
+    });
+
     testWidgets('paused by the user: Resume', (tester) async {
       await _pumpHeader(tester, NightRunPhase.pausedByUser);
       _expectButtons(<String>[

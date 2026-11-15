@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
@@ -10,6 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../router/app_routes.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../sequence_mutator_helper.dart';
@@ -130,11 +132,6 @@ final filteredSequenceSummariesProvider =
     return filtered;
   });
 });
-
-/// Optional incoming sequence-id filter the library "history" link writes
-/// before switching to the History tab, so the History tab can pre-filter
-/// to just that sequence's runs.
-final historyFilterSequenceIdProvider = StateProvider<int?>((ref) => null);
 
 class SequenceLibraryTab extends ConsumerWidget {
   const SequenceLibraryTab({super.key});

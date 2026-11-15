@@ -39,19 +39,19 @@ void main() {
     coordinates: CelestialCoordinate(ra: 5.5880, dec: -5.39),
   );
 
-  group('scoreTargetForNight honors the horizon mask', () {
+  group('scoreTargetForNight honors the altitude floor', () {
     test('flat horizon: target has observable hours', () {
       final service = TargetScoringService(
         latitude: lat,
         longitude: lon,
         observationTime: nightStart,
+        floorAt: _flat10,
       );
       // observationTime is overridden by the night window for sampling.
       final score = service.scoreTargetForNight(
         target: m42,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: 10,
       );
       expect(score.visibility.hoursAboveMinAlt, isNotNull);
       expect(score.visibility.hoursAboveMinAlt!, greaterThan(0));
@@ -64,13 +64,12 @@ void main() {
         longitude: lon,
         observationTime: nightStart,
         // A skyline that obstructs the whole sky — nothing clears it.
-        horizonMask: _wall,
+        floorAt: _wall,
       );
       final score = service.scoreTargetForNight(
         target: m42,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: 10,
       );
       expect(score.visibility.hoursAboveMinAlt, 0.0);
       // With nothing observable the imaging-window score collapses to 0.
@@ -88,12 +87,12 @@ void main() {
         latitude: lat,
         longitude: lon,
         observationTime: nightStart,
+        floorAt: _flat10,
       );
       final flatScore = flat.scoreTargetForNight(
         target: m42,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: 10,
       );
       final flatHours = flatScore.visibility.hoursAboveMinAlt!;
       expect(flatHours, greaterThan(0));
@@ -105,13 +104,12 @@ void main() {
         latitude: lat,
         longitude: lon,
         observationTime: nightStart,
-        horizonMask: _southernHill,
+        floorAt: _southernHill,
       );
       final blocked = south.scoreTargetForNight(
         target: m42,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: 10,
       );
       expect(blocked.visibility.hoursAboveMinAlt, 0.0);
 
@@ -121,47 +119,28 @@ void main() {
         latitude: lat,
         longitude: lon,
         observationTime: nightStart,
-        horizonMask: _northernHill,
+        floorAt: _northernHill,
       );
       final unaffected = north.scoreTargetForNight(
         target: m42,
         nightStart: nightStart,
         nightEnd: nightEnd,
-        minAltitude: 10,
       );
       expect(unaffected.visibility.hoursAboveMinAlt, closeTo(flatHours, 1e-9));
     });
-
-    test('isObservable respects the mask at the current azimuth', () {
-      // At a moment M42 is up, a flat scorer says observable; a walled scorer
-      // says not.
-      final whenUp = DateTime.utc(2026, 1, 15, 6, 0, 0);
-      final flatAt = TargetScoringService(
-        latitude: lat,
-        longitude: lon,
-        observationTime: whenUp,
-      );
-      expect(flatAt.isObservable(m42, minAltitude: 10), isTrue);
-
-      final walledAt = TargetScoringService(
-        latitude: lat,
-        longitude: lon,
-        observationTime: whenUp,
-        horizonMask: _wall,
-      );
-      expect(walledAt.isObservable(m42, minAltitude: 10), isFalse);
-    });
   });
 }
+
+double _flat10(double azimuthDegrees) => 10.0;
 
 double _wall(double azimuthDegrees) => 90.0;
 
 double _southernHill(double azimuthDegrees) {
   // Block the southern half of the sky (90°..270°) with an 80° hill.
-  return (azimuthDegrees >= 90 && azimuthDegrees <= 270) ? 80.0 : 0.0;
+  return (azimuthDegrees >= 90 && azimuthDegrees <= 270) ? 80.0 : 10.0;
 }
 
 double _northernHill(double azimuthDegrees) {
   // Block the northern half (azimuth < 90 or > 270) with an 80° hill.
-  return (azimuthDegrees < 90 || azimuthDegrees > 270) ? 80.0 : 0.0;
+  return (azimuthDegrees < 90 || azimuthDegrees > 270) ? 80.0 : 10.0;
 }

@@ -189,9 +189,6 @@ abstract class TargetSuggestion with _$TargetSuggestion {
 @freezed
 abstract class TargetSuggestionConfig with _$TargetSuggestionConfig {
   const factory TargetSuggestionConfig({
-    /// Minimum altitude in degrees for targets to be considered
-    @Default(30.0) double minAltitude,
-
     /// Maximum distance from moon in degrees (null = no limit)
     double? maxMoonDistance,
 

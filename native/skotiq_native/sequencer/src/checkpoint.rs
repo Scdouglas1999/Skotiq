@@ -100,6 +100,9 @@ pub struct SessionCheckpoint {
     /// Observer location
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    /// The site's altitude floor the run was held to.
+    #[serde(default)]
+    pub altitude_floor: Option<crate::scheduling::AltitudeFloor>,
     pub completed_exposures: u32,
     pub completed_integration_secs: f64,
     /// Whether this checkpoint is from an active session
@@ -202,6 +205,7 @@ impl SessionCheckpoint {
             save_path: None,
             latitude: None,
             longitude: None,
+            altitude_floor: None,
             completed_exposures: 0,
             completed_integration_secs: 0.0,
             is_active: false,

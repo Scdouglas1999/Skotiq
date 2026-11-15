@@ -285,10 +285,59 @@ impl DeviceManager {
         self.connect_device_internal(&device_info).await
     }
 
-    /// Recovery may restore an unavailable device, but must preserve live
-    /// handles and any captures a driver has retained for manual retrieval.
+    /// Whether the device answers a probe made now. The registry's
+    /// `Connected` is what the last heartbeat found, up to three polls ago; a
+    /// device that has left the bus since still reads connected there. A
+    /// connected device that fails the probe is recorded as lost, so its
+    /// state is what the device said and a reconnect restores what it held.
+    pub(crate) async fn answers_now(&self, device_id: &str) -> bool {
+        let (device_type, driver_type) = {
+            let devices = self.devices.read().await;
+            match devices.get(device_id) {
+                Some(dev) if dev.connection_state == ConnectionState::Connected => {
+                    (dev.info.device_type, dev.info.driver_type)
+                }
+                _ => return false,
+            }
+        };
+        let reason = match self
+            .perform_health_check(device_id, &device_type, &driver_type)
+            .await
+        {
+            Ok(true) => return true,
+            Ok(false) => "Device not responding".to_string(),
+            Err(reason) => reason,
+        };
+        tracing::warn!("Device {device_id} is recorded as connected but does not answer: {reason}");
+        let last_error = format!("Stopped answering: {reason}");
+        if self.mark_lost(device_id, false, &last_error).await.is_some() {
+            let device_type = device_type.as_str().to_string();
+            self.app_state.publish_equipment_event(
+                EquipmentEvent::HeartbeatStatusChanged {
+                    device_type: device_type.clone(),
+                    device_id: device_id.to_string(),
+                    status: crate::event::equipment::HeartbeatStatus::Disconnected,
+                    consecutive_failures: 1,
+                    last_rtt_ms: None,
+                },
+                EventSeverity::Error,
+            );
+            self.app_state.publish_equipment_event(
+                EquipmentEvent::Error {
+                    device_type,
+                    device_id: device_id.to_string(),
+                    message: last_error,
+                },
+                EventSeverity::Error,
+            );
+        }
+        false
+    }
+
+    /// Recovery restores a device that does not answer and leaves one that
+    /// does alone: a connect replaces the driver's live handle.
     pub(crate) async fn connect_device_automatically(&self, device_id: &str) -> Result<(), String> {
-        if self.is_connected(device_id).await {
+        if self.answers_now(device_id).await {
             return Ok(());
         }
         self.set_auto_reconnect(device_id, true).await;
@@ -1011,33 +1060,23 @@ impl DeviceManager {
         }
     }
 
-    /// Heartbeat threshold reached: mark the device unhealthy.
-    ///
-    /// Real reconnection is handled exclusively by `reconnection_loop` when
-    /// `auto_reconnect` is enabled (FB-); the heartbeat task must not sleep
-    /// and pretend to reconnect.
-    pub(crate) async fn handle_heartbeat_lost(
+    /// Records a connected device as lost, with `last_error` as the reason
+    /// shown. Reconnecting is the reconnection loop's work when
+    /// `auto_reconnect` is set, and recovery's otherwise.
+    pub(crate) async fn mark_lost(
         &self,
         device_id: &str,
-        heartbeat_auto_reconnect: bool,
-        consecutive_failures: u32,
-        error_msg: &str,
+        auto_reconnect: bool,
+        last_error: &str,
     ) -> Option<DeviceInfo> {
-        let info = {
-            let mut devices = self.devices.write().await;
-            let dev = devices.get_mut(device_id)?;
-            dev.connection_state = ConnectionState::Error;
-            dev.last_error = Some(format!(
-                "Unresponsive after {} heartbeat failures: {}",
-                consecutive_failures, error_msg
-            ));
-            if heartbeat_auto_reconnect {
-                dev.auto_reconnect = true;
-            }
-            dev.info.clone()
-        };
-
-        Some(info)
+        let mut devices = self.devices.write().await;
+        let dev = devices.get_mut(device_id)?;
+        dev.connection_state = ConnectionState::Error;
+        dev.last_error = Some(last_error.to_string());
+        if auto_reconnect {
+            dev.auto_reconnect = true;
+        }
+        Some(dev.info.clone())
     }
 
     /// Re-apply the essential device state that a physical reconnect drops.

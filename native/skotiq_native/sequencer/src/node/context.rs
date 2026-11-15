@@ -815,6 +815,12 @@ impl ExecutionContext {
         self.active_target_end_trigger.read().clone()
     }
 
+    /// The site's altitude floor as the run's settings hold it now; `None`
+    /// outside a run or when the app sent none.
+    pub fn altitude_floor(&self) -> Option<crate::scheduling::AltitudeFloor> {
+        self.run.settings.as_ref()?.altitude_floor()
+    }
+
     /// Evaluate the active target's `end_when` trigger against the current
     /// observer/target snapshot. Returns:
     ///   * `Some(true)`  — a trigger is installed and is satisfied right now
@@ -851,6 +857,7 @@ impl ExecutionContext {
             target_ra_hours: ra,
             target_dec_degrees: dec,
             now: self.clock.now_utc(),
+            altitude_floor: self.altitude_floor(),
         };
         Some(trigger.is_satisfied(&ctx))
     }

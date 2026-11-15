@@ -11,6 +11,7 @@ import '../models/notification/notification_categories.dart'
 import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
+import '../models/site/altitude_floor.dart';
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
@@ -57,6 +58,10 @@ bool _profileHasGuider(EquipmentProfileModel profile) {
 class SmartNightService {
   final TargetSuggestionService _suggestionService;
   final LoggingService _logging;
+
+  /// The site's altitude floor: every window a target is planned into is a
+  /// stretch it stands above this.
+  final AltitudeFloor _floor;
   final SmartNightExposureCalculator _exposureCalculator;
   final HardwareSpecsService _hardwareSpecs;
   final HardwarePresetsService _cameraLibrary;
@@ -111,12 +116,14 @@ class SmartNightService {
   const SmartNightService({
     required TargetSuggestionService suggestionService,
     required LoggingService logging,
+    required AltitudeFloor floor,
     SmartNightExposureCalculator exposureCalculator =
         const SmartNightExposureCalculator(),
     HardwareSpecsService hardwareSpecs = const HardwareSpecsService(),
     HardwarePresetsService cameraLibrary = const HardwarePresetsService(),
   }) : _suggestionService = suggestionService,
        _logging = logging,
+       _floor = floor,
        _exposureCalculator = exposureCalculator,
        _hardwareSpecs = hardwareSpecs,
        _cameraLibrary = cameraLibrary;
@@ -234,15 +241,12 @@ class SmartNightService {
     required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
     DateTime? observationTime,
-    double minAltitude = 30.0,
     double minScore = 30.0,
   }) async {
     if (targets.isEmpty) return const [];
     return _suggestionService.getSuggestionsForTonight(
-      config: TargetSuggestionConfig(
-        minAltitude: minAltitude,
-        minScore: minScore,
-      ),
+      config: TargetSuggestionConfig(minScore: minScore),
+      floor: _floor,
       latitude: latitudeDeg,
       longitude: longitudeDeg,
       targets: targets,
@@ -382,12 +386,13 @@ class SmartNightService {
         suggestion: suggestion,
         intervalStart: cursor,
         intervalEnd: effectiveWindowEnd,
-        minAltitude: settings.minAltitudeDeg,
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
       );
       if (usable == null) {
         _logging.debug(
-          'Skipping ${suggestion.targetName}: no usable window inside '
-          '$cursor..$effectiveWindowEnd at min alt ${settings.minAltitudeDeg}°',
+          'Skipping ${suggestion.targetName}: not above the altitude floor '
+          'inside $cursor..$effectiveWindowEnd',
           source: _source,
         );
         continue;
@@ -480,10 +485,9 @@ class SmartNightService {
     if (planned.isEmpty) {
       throw SmartNightBuildException(
         'None of the selected targets had a usable imaging window inside '
-        'the dark window (sunset → sunrise) with current settings. Try '
-        'lowering the minimum altitude (currently '
-        '${settings.minAltitudeDeg.toStringAsFixed(0)}°) or selecting '
-        'different targets.',
+        'the dark window (sunset → sunrise): none clears '
+        '${_floor.followsHorizon ? 'your horizon (Settings → Location)' : 'the minimum altitude (${_floor.minimumDeg.toStringAsFixed(0)}°, Plan Tonight → Schedule)'} '
+        'for long enough. Select different targets.',
       );
     }
 
@@ -615,6 +619,8 @@ class SmartNightService {
     required DateTime windowStart,
     required DateTime windowEnd,
     required List<String> availableFilters,
+    required double latitudeDeg,
+    required double longitudeDeg,
     SmartNightExposureContext? exposureContext,
     SmartNightSettings settings = const SmartNightSettings(),
     List<IntegrationGoalProgress>? integrationGoalProgress,
@@ -648,7 +654,8 @@ class SmartNightService {
       suggestion: suggestion,
       intervalStart: windowStart,
       intervalEnd: windowEnd,
-      minAltitude: settings.minAltitudeDeg,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
     );
     if (usable == null) return null;
 
@@ -710,6 +717,8 @@ class SmartNightService {
     required DateTime windowStart,
     required DateTime windowEnd,
     required List<String> availableFilters,
+    required double latitudeDeg,
+    required double longitudeDeg,
     SmartNightExposureContext? exposureContext,
     SmartNightSettings settings = const SmartNightSettings(),
     SmartNightStrategy? strategy,
@@ -756,14 +765,15 @@ class SmartNightService {
       suggestion: suggestion,
       intervalStart: windowStart,
       intervalEnd: windowEnd,
-      minAltitude: settings.minAltitudeDeg,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
     );
     if (usable == null) {
       throw SmartNightBuildException(
-        'Target "${suggestion.targetName}" has no usable imaging window '
+        'Target "${suggestion.targetName}" does not clear '
+        '${_floor.followsHorizon ? 'your horizon' : 'the minimum altitude (${_floor.minimumDeg.toStringAsFixed(0)}°)'} '
         'between ${windowStart.toIso8601String()} and '
-        '${windowEnd.toIso8601String()} at min altitude '
-        '${settings.minAltitudeDeg.toStringAsFixed(0)}°.',
+        '${windowEnd.toIso8601String()}.',
       );
     }
 
@@ -1013,7 +1023,7 @@ class SmartNightService {
         '${integrationHours.toStringAsFixed(1)}h integration, '
         'filters: ${filters.join(", ")}. '
         'AF cadence: ${_afCadenceLabel(settings)}. '
-        'Min altitude: ${settings.minAltitudeDeg.toStringAsFixed(0)}°.';
+        'Altitude floor: ${_floor.followsHorizon ? 'your horizon' : '${_floor.minimumDeg.toStringAsFixed(0)}°'}.';
   }
 
   String _strategyLabel(SmartNightStrategy s) {

@@ -113,7 +113,9 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
       raHours: target.raHours,
       decDegrees: target.decDegrees,
       rotationDeg: target.rotation,
-      horizonLimitDeg: floor.lowestDeg,
+      // No site, no direction: only a floor that is the same all round
+      // can be drawn.
+      horizonLimitDeg: floor.isFlat ? floor.atAzimuth(0) : 0,
       moonIlluminationPct: night?.moonIlluminationPercent,
       moonSet: moonSetTonight,
     );

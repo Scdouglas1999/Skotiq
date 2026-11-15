@@ -14,11 +14,20 @@ extension MountDeviceHandlers on DeviceHandlers {
     );
 
     final backend = container.read(deviceBackendProvider);
-    await backend.mountSlewToCoordinates(deviceId, ra, dec);
+    final guider = await mountMoveFields(
+      'GoTo',
+      () => backend.mountSlewToCoordinates(
+        deviceId,
+        ra,
+        dec,
+        guiderSilentOk: guiderSilentOk(payload),
+      ),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'slewing',
+      ...guider,
     });
   }
 
@@ -46,11 +55,18 @@ extension MountDeviceHandlers on DeviceHandlers {
     );
 
     final backend = container.read(deviceBackendProvider);
-    await backend.mountPark(deviceId);
+    final guider = await mountMoveFields(
+      'park',
+      () => backend.mountPark(
+        deviceId,
+        forSafety: optionalBool(payload, 'forSafety') ?? false,
+      ),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'parking',
+      ...guider,
     });
   }
 
@@ -298,11 +314,20 @@ extension MountDeviceHandlers on DeviceHandlers {
     );
 
     final backend = container.read(deviceBackendProvider);
-    await backend.mountSlewAltAz(deviceId, altitude, azimuth);
+    final guider = await mountMoveFields(
+      'GoTo',
+      () => backend.mountSlewAltAz(
+        deviceId,
+        altitude,
+        azimuth,
+        guiderSilentOk: guiderSilentOk(payload),
+      ),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'slewing',
+      ...guider,
     });
   }
 
@@ -360,11 +385,15 @@ extension MountDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    await backend.mountFindHome(deviceId);
+    final guider = await mountMoveFields(
+      'home',
+      () => backend.mountFindHome(deviceId),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'homing',
+      ...guider,
     });
   }
 
