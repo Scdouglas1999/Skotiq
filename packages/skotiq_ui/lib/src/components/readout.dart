@@ -207,12 +207,15 @@ class KeyValueList extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: columnGap),
-              Text(
-                rows[i].$2,
-                textAlign: TextAlign.right,
-                style: SkotiqTypography.readoutSm.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w400,
+              // A value longer than the row wraps instead of overflowing it.
+              Flexible(
+                child: Text(
+                  rows[i].$2,
+                  textAlign: TextAlign.right,
+                  style: SkotiqTypography.readoutSm.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
             ],
