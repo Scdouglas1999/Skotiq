@@ -12,7 +12,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-NAME="$(basename "$HERE")"                      # skotiq-8.2.2-linux-x64
+NAME="$(basename "$HERE")"                      # skotiq-<version>-linux-x64
 VERSION="${NAME#skotiq-}"; VERSION="${VERSION%-linux-x64}"
 if [ -z "$VERSION" ] || [ "$VERSION" = "$NAME" ]; then
   echo "install.sh: run this from the extracted skotiq-<version>-linux-x64 folder" >&2
