@@ -1,208 +1,159 @@
 part of '../templates_tab.dart';
 
-/// "You have N reusable snippets, and they live on the Builder tab."
-///
-/// One SkotiqBanner with one action, in place of a tinted card with a
-/// 40 px accent disc, an h5 title, a two-clause sentence and a bespoke button.
-class _SnippetSummaryCard extends ConsumerWidget {
-  final SkotiqColors colors;
-  final int snippetCount;
+/// Search and the category control at the left; the snippets shortcut and the
+/// quick-start wizard at the right. On a phone the search and the wizard share
+/// a line and the categories scroll beneath.
+class _TemplatesToolbar extends ConsumerStatefulWidget {
+  const _TemplatesToolbar({required this.compact});
 
-  const _SnippetSummaryCard({
-    required this.colors,
-    required this.snippetCount,
-  });
+  final bool compact;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkotiqBanner(
-      icon: LucideIcons.bookMarked,
-      title: countLabel(snippetCount, 'reusable snippet'),
-      message: 'Add them from the Snippets panel in the Builder.',
-      action: SkotiqButton(
-        label: 'Go to Builder',
-        icon: LucideIcons.arrowRight,
-        variant: ButtonVariant.secondary,
-        size: ButtonSize.small,
-        onPressed: () {
-          // Switch to Builder tab and show snippets
-          ref.read(sequencerTabProvider.notifier).state = 0;
-          ref.read(snippetPaletteVisibleProvider.notifier).state = true;
-        },
-      ),
-    );
-  }
+  ConsumerState<_TemplatesToolbar> createState() => _TemplatesToolbarState();
 }
 
-class _TemplatesHeader extends ConsumerStatefulWidget {
-  final SkotiqColors colors;
+class _TemplatesToolbarState extends ConsumerState<_TemplatesToolbar> {
+  static const double _searchWidth = 280;
 
-  const _TemplatesHeader({required this.colors});
-
-  @override
-  ConsumerState<_TemplatesHeader> createState() => _TemplatesHeaderState();
-}
-
-class _TemplatesHeaderState extends ConsumerState<_TemplatesHeader> {
-  final _searchController = TextEditingController();
+  late final TextEditingController _search =
+      TextEditingController(text: ref.read(templateSearchProvider));
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _search.dispose();
     super.dispose();
+  }
+
+  void _openWizard() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => const QuickStartWizardDialog(),
+    );
+  }
+
+  /// The Builder's Snippets panel, where saved snippets are added from.
+  void _openSnippets() {
+    ref.read(sequencerTabProvider.notifier).state = SequencerTab.builder.index;
+    ref.read(snippetPaletteVisibleProvider.notifier).state = true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = Responsive.isMobile(context);
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    // Measured at 1000x800: the single-row desktop header packs the search
-    // box, the wizard and Save-as-Template beside the title, leaving it ~130px
-    // — below even the shrink floor's needs — so the tab stops naming itself.
-    // The stacked header is the honest layout until the row genuinely fits:
-    // title needs ~260px beside ~570px of toolbar plus the nav rail, so the
-    // fork sits at 1100.
-    final isNarrow = screenWidth < 1100;
-    final current = ref.watch(currentSequenceProvider);
-    final editingTemplate =
-        current?.isTemplate == true && current?.databaseId != null;
-
-    if (isMobile || isNarrow) {
-      return _buildMobileHeader(editingTemplate: editingTemplate);
-    }
-    return _buildDesktopHeader(editingTemplate: editingTemplate);
-  }
-
-  static const double _searchFieldWidth = 250;
-
-  Widget _buildMobileHeader({required bool editingTemplate}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // No title block: the page header names the screen and the
-            // underline tab names the tab.
-            const Spacer(),
-            SkotiqButton(
-              label: 'Wizard',
-              icon: LucideIcons.wand2,
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () {
-                showDialog<void>(
-                  context: context,
-                  builder: (context) => const QuickStartWizardDialog(),
-                );
-              },
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SkotiqButton(
-              label: editingTemplate ? 'Update' : 'Save',
-              icon: LucideIcons.save,
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () => _showSaveTemplateDialog(context),
-            ),
-          ],
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        SkotiqTextField(
-          controller: _searchController,
-          hint: 'Search templates',
-          prefixIcon: LucideIcons.search,
-          onChanged: (value) {
-            ref.read(templateSearchProvider.notifier).state = value;
-          },
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        _CategoryFilter(colors: widget.colors),
-      ],
+    final snippetCount = ref.watch(allSnippetsProvider).length;
+    final searchField = SkotiqSearchField(
+      controller: _search,
+      hint: 'Search starters and templates',
+      onChanged: (value) =>
+          ref.read(templateSearchProvider.notifier).state = value,
     );
-  }
+    const category = _CategoryFilter();
 
-  Widget _buildDesktopHeader({required bool editingTemplate}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // No title block: the page header names the screen and the
-            // underline tab names the tab. The filter row keeps the space.
-            const Spacer(),
-
-            const SizedBox(width: 16),
-
-            SizedBox(
-              width: _searchFieldWidth,
-              child: SkotiqTextField(
-                controller: _searchController,
-                hint: 'Search templates',
-                prefixIcon: LucideIcons.search,
-                onChanged: (value) {
-                  ref.read(templateSearchProvider.notifier).state = value;
-                },
+    if (widget.compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: searchField),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              SkotiqIconButton(
+                icon: LucideIcons.wand2,
+                tooltip: 'Quick start',
+                onPressed: _openWizard,
               ),
-            ),
-
-            const SizedBox(width: SkotiqTokens.spaceSm),
-
-            SkotiqButton(
-              label: 'Wizard',
-              icon: LucideIcons.wand2,
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () {
-                showDialog<void>(
-                  context: context,
-                  builder: (context) => const QuickStartWizardDialog(),
-                );
-              },
-            ),
-
-            const SizedBox(width: SkotiqTokens.spaceSm),
-
-            SkotiqButton(
-              label: editingTemplate ? 'Update template' : 'Save as template',
-              icon: LucideIcons.save,
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () => _showSaveTemplateDialog(context),
-            ),
-          ],
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        _CategoryFilter(colors: widget.colors),
-      ],
-    );
-  }
-
-  void _showSaveTemplateDialog(BuildContext context) {
-    final currentSequence = ref.read(currentSequenceProvider);
-    if (currentSequence == null) {
-      context.showErrorSnackBar('No sequence to save as template');
-      return;
+            ],
+          ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          const SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: category,
+          ),
+        ],
+      );
     }
-
-    showDialog(
-      context: context,
-      builder: (context) => _SaveTemplateDialog(
-        colors: widget.colors,
-        sequence: currentSequence,
-      ),
+    return Row(
+      children: [
+        SizedBox(width: _searchWidth, child: searchField),
+        const SizedBox(width: SkotiqTokens.spaceLg),
+        const Flexible(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: category,
+          ),
+        ),
+        const Spacer(),
+        if (snippetCount > 0) ...[
+          SkotiqButton(
+            label: countLabel(snippetCount, 'snippet'),
+            icon: LucideIcons.bookMarked,
+            variant: ButtonVariant.ghost,
+            size: ButtonSize.small,
+            semanticsHint: 'Opens the Snippets panel in the Builder.',
+            onPressed: _openSnippets,
+          ),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+        ],
+        SkotiqButton(
+          label: 'Quick start',
+          icon: LucideIcons.wand2,
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.small,
+          onPressed: _openWizard,
+        ),
+      ],
     );
   }
 }
 
-/// All / Beginner / Intermediate / Advanced / Specialized.
-///
-/// One choice out of five mutually exclusive ones is a [SegmentedControl],
-/// not five Material `FilterChip`s with tick marks (06 §Sequencer): a chip
-/// row invites multi-select and these categories cannot combine.
-class _CategoryFilter extends ConsumerWidget {
-  final SkotiqColors colors;
+/// The page-header action on the Templates tab: save the plan open in the
+/// Builder as a template, or write an opened template back.
+class SaveAsTemplateButton extends ConsumerWidget {
+  const SaveAsTemplateButton({super.key, this.iconOnly = false});
 
-  const _CategoryFilter({required this.colors});
+  /// A phone header has room for a glyph, not the words.
+  final bool iconOnly;
+
+  void _save(BuildContext context, WidgetRef ref) {
+    final current = ref.read(currentSequenceProvider);
+    if (current == null) {
+      context.showWarningSnackBar('There is no sequence in the Builder');
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => _SaveTemplateDialog(
+        colors: SkotiqColors.of(context),
+        sequence: current,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(currentSequenceProvider);
+    final editingTemplate =
+        current?.isTemplate == true && current?.databaseId != null;
+    final label = editingTemplate ? 'Update template' : 'Save as template';
+    if (iconOnly) {
+      return SkotiqIconButton(
+        icon: LucideIcons.save,
+        tooltip: label,
+        onPressed: () => _save(context, ref),
+      );
+    }
+    return SkotiqButton(
+      label: label,
+      icon: LucideIcons.save,
+      variant: ButtonVariant.secondary,
+      onPressed: () => _save(context, ref),
+    );
+  }
+}
+
+/// All / Beginner / Intermediate / Advanced / Specialized: one choice of five
+/// that cannot combine, so a [SegmentedControl].
+class _CategoryFilter extends ConsumerWidget {
+  const _CategoryFilter();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -211,17 +162,14 @@ class _CategoryFilter extends ConsumerWidget {
       (option) => option.key == selectedCategory,
     );
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SegmentedControl(
-        segments: <String>[
-          for (final option in _templateCategoryOptions) option.value,
-        ],
-        selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-        onSelected: (index) => ref
-            .read(templateCategoryProvider.notifier)
-            .state = _templateCategoryOptions[index].key,
-      ),
+    return SegmentedControl(
+      semanticLabel: 'Template category',
+      segments: <String>[
+        for (final option in _templateCategoryOptions) option.value,
+      ],
+      selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+      onSelected: (index) => ref.read(templateCategoryProvider.notifier).state =
+          _templateCategoryOptions[index].key,
     );
   }
 }

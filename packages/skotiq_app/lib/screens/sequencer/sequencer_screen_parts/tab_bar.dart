@@ -145,7 +145,9 @@ class _SequencerPageHeader extends ConsumerWidget {
           ),
         // The selected tab's own action: what it saves into its list.
         if (selectedTab == SequencerTab.sequences)
-          SaveCurrentSequenceButton(iconOnly: isPhone),
+          SaveCurrentSequenceButton(iconOnly: isPhone)
+        else if (selectedTab == SequencerTab.templates)
+          SaveAsTemplateButton(iconOnly: isPhone),
         if (!isPhone)
           ..._transportActions(
             executionState: executionState,
