@@ -240,7 +240,9 @@ void main() {
     await tester.pumpWidget(
       app(
         LinkRigDialog(
-          request: LinkRigRequest.pair(_host.copyWith(version: '0.0.1')),
+          request: LinkRigRequest.pair(
+            _host.copyWith(version: '0.0.1', authRequired: true),
+          ),
         ),
       ),
     );

@@ -67,7 +67,8 @@ class _LinkMismatchActionsState extends ConsumerState<LinkMismatchActions> {
     final token = await _tokenForHost();
     if (!mounted) return;
     setState(() => _busy = false);
-    if (token == null) {
+    // A host that asks for no credential is updated without one.
+    if (token == null && widget.host.authRequired) {
       setState(
         () => _note = 'This device is not paired with '
             '${widget.host.displayName} yet, so it cannot update it. Update '
@@ -76,7 +77,7 @@ class _LinkMismatchActionsState extends ConsumerState<LinkMismatchActions> {
       );
       return;
     }
-    await ref.read(hostUpdateOpenerProvider)(context, widget.host, token);
+    await ref.read(hostUpdateOpenerProvider)(context, widget.host, token ?? '');
   }
 
   Future<void> _updateThisApp() async {
@@ -156,7 +157,7 @@ Future<void> showHostUpdateDialog(
     serverPort: host.webPort,
     scheme: host.scheme,
     pinnedFingerprint: host.fingerprint,
-    authToken: token,
+    authToken: token.isEmpty ? null : token,
     autoConnectWebSocket: false,
   );
   try {
