@@ -21,6 +21,73 @@ import '../../utils/snackbar_helper.dart';
 ///
 /// Reached from the run/session/analytics context via the `/session-review`
 /// route with a `?session=<id>` or `?target=<id>` query.
+/// The review a scope-less `/session-review` opens (the command palette's
+/// entry): the most recent night. With no night yet it says so instead of
+/// opening a session that does not exist.
+final latestReviewSessionIdProvider = FutureProvider.autoDispose<int?>((
+  ref,
+) async {
+  final recent =
+      await ref.read(sessionsDaoProvider).getRecentSessions(limit: 1);
+  return recent.isEmpty ? null : recent.first.id;
+});
+
+class LatestSessionReviewScreen extends ConsumerWidget {
+  const LatestSessionReviewScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(isRemoteClientProvider)) return const _HostOnlyReview();
+    final colors = SkotiqColors.of(context);
+    return switch (ref.watch(latestReviewSessionIdProvider)) {
+      AsyncData(value: final int id) => SessionReviewScreen(
+          scope: SessionReviewScope.session(id),
+        ),
+      AsyncData() => Scaffold(
+          backgroundColor: colors.background,
+          body: const SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                PageHeader(title: 'Session review', icon: SkotiqIcons.image),
+                Expanded(
+                  child: EmptyState(
+                    icon: SkotiqIcons.image,
+                    title: 'No night to review yet',
+                    body: 'Session review opens the last night once Skotiq '
+                        'has imaged one.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      AsyncError(:final error) => Scaffold(
+          backgroundColor: colors.background,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                const PageHeader(
+                  title: 'Session review',
+                  icon: SkotiqIcons.image,
+                ),
+                Expanded(
+                  child: EmptyState(
+                    icon: SkotiqIcons.image,
+                    title: 'The last night could not be found',
+                    body: '$error',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      _ => Scaffold(backgroundColor: colors.background),
+    };
+  }
+}
+
 class SessionReviewScreen extends ConsumerStatefulWidget {
   final SessionReviewScope scope;
 
@@ -59,32 +126,7 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       // the pass, its Stop, the A/B runs, deconvolution, the master library's
       // accumulate/finalize/delete, and the Darkroom entry points are all
       // inside this arm, so a control added later cannot arrive ungated.
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: const SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              PageHeader(
-                title: 'Session review',
-                context: 'Host-only processing',
-                icon: SkotiqIcons.image,
-              ),
-              Expanded(
-                child: EmptyState(
-                  icon: SkotiqIcons.device,
-                  title: 'Open Session Review on the imaging host',
-                  body: 'Full-resolution subs, integrated masters, and their '
-                      'previews are stored on the imaging computer. Open '
-                      'Skotiq there to review, cull, integrate, or finish '
-                      'this session. Remote Session Review is unavailable in '
-                      'this release.',
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const _HostOnlyReview();
     }
     final state = ref.watch(sessionReviewControllerProvider(widget.scope));
 
@@ -247,5 +289,41 @@ class _ProgressStrip extends StatelessWidget {
     if (phase.isEmpty) return 'Working…';
     final pretty = phase[0].toUpperCase() + phase.substring(1);
     return '$pretty…';
+  }
+}
+
+/// What a linked client shows in place of Session Review.
+class _HostOnlyReview extends StatelessWidget {
+  const _HostOnlyReview();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: const SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            PageHeader(
+              title: 'Session review',
+              context: 'Host-only processing',
+              icon: SkotiqIcons.image,
+            ),
+            Expanded(
+              child: EmptyState(
+                icon: SkotiqIcons.device,
+                title: 'Open Session Review on the imaging host',
+                body: 'Full-resolution subs, integrated masters, and their '
+                    'previews are stored on the imaging computer. Open '
+                    'Skotiq there to review, cull, integrate, or finish '
+                    'this session. Remote Session Review is unavailable in '
+                    'this release.',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

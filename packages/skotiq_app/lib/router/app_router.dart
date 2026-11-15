@@ -131,16 +131,16 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.sessionReplayRun =>
       SessionReplayScreen(runId: _id(state.pathParameters['runId'])),
     // `?session=` takes precedence over `?target=`.
-    AppRoute.sessionReview => SessionReviewScreen(
-        scope: switch ((
-          int.tryParse(query['session'] ?? ''),
-          int.tryParse(query['target'] ?? ''),
-        )) {
-          (final int session, _) => SessionReviewScope.session(session),
-          (null, final int target) => SessionReviewScope.target(target),
-          (null, null) => const SessionReviewScope.session(_noSuchRow),
-        },
-      ),
+    AppRoute.sessionReview => switch ((
+        int.tryParse(query['session'] ?? ''),
+        int.tryParse(query['target'] ?? ''),
+      )) {
+        (final int session, _) =>
+          SessionReviewScreen(scope: SessionReviewScope.session(session)),
+        (null, final int target) =>
+          SessionReviewScreen(scope: SessionReviewScope.target(target)),
+        (null, null) => const LatestSessionReviewScreen(),
+      },
     AppRoute.mosaicProjects => const MosaicProjectsListScreen(),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
