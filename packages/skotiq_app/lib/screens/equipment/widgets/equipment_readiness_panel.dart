@@ -24,6 +24,9 @@ class EquipmentReadinessPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final report = ref.watch(readinessReportProvider);
+    // Device rows connect the active profile here, so they carry the name of
+    // the header's action; with no profile they keep their own fix.
+    final connects = ref.watch(activeEquipmentProfileProvider) != null;
 
     // The title must count what the list below actually SHOWS. Blocked rows
     // cannot be hidden at all, so only caution rows can go missing — those are
@@ -78,7 +81,7 @@ class EquipmentReadinessPanel extends ConsumerWidget {
               showDivider: i < items.length - 1,
               action: items[i].hasFix
                   ? SkotiqButton(
-                      label: _connectsHere(items[i])
+                      label: connects && _connectsHere(items[i])
                           ? 'Connect all'
                           : items[i].fixLabel!,
                       variant: ButtonVariant.secondary,

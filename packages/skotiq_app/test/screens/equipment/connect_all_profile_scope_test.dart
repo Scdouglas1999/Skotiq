@@ -101,7 +101,7 @@ void main() {
     final container = await _pumpEquipment(tester);
 
     await tester
-        .tap(find.widgetWithText(SkotiqButton, 'Connect devices').first);
+        .tap(find.widgetWithText(SkotiqButton, 'Connect all').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 

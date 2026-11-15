@@ -66,8 +66,13 @@ void main() {
     await tester.tap(find.byTooltip('Profile actions'));
     await _drainFrames(tester);
 
-    expect(find.text('Connect all'), findsOneWidget);
-    expect(find.text('Disconnect all'), findsOneWidget);
-    expect(find.text('Scan for devices'), findsOneWidget);
+    // Scoped to the menu: a readiness row offers Connect all as well.
+    Finder inMenu(String label) => find.descendant(
+          of: find.byWidgetPredicate((w) => w is PopupMenuEntry),
+          matching: find.text(label),
+        );
+    expect(inMenu('Connect all'), findsOneWidget);
+    expect(inMenu('Disconnect all'), findsOneWidget);
+    expect(inMenu('Scan for devices'), findsOneWidget);
   });
 }

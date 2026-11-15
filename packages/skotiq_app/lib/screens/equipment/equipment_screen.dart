@@ -170,6 +170,9 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
             title: 'Equipment',
             icon: LucideIcons.plug,
             tabs: AdaptiveTabBar(
+              // Inline beside the title the header supplies the gap; on a
+              // phone the tabs take their own row and need the page gutter.
+              horizontalPadding: phoneHeader ? SkotiqTokens.spaceLg : 0,
               selectedIndex: tabIndex,
               onSelected: (index) =>
                   ref.read(equipmentTabIndexProvider.notifier).state = index,

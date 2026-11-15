@@ -69,7 +69,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 50));
 
-    await tester.tap(find.text('Connect devices'));
+    await tester.tap(find.text('Connect all'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
