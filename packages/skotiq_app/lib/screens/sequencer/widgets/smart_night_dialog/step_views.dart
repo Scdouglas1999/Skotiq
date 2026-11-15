@@ -7,7 +7,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
         Icon(LucideIcons.sparkles, size: 22, color: colors.primary),
         const SizedBox(width: 10),
         Text(
-          'Smart Night — Plan Tonight',
+          'Smart Night',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize18,
             fontWeight: FontWeight.w600,

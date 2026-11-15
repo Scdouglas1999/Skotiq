@@ -70,8 +70,8 @@ class AutopilotArmedRule implements RefAwareSequenceValidator {
             'the mount — it will not stop the run you are starting here, but '
             'the two are sharing one telescope.',
         resolutionHint:
-            'Stop Unattended Autopilot in Plan Tonight ▸ Schedule if this run '
-            'should own the rig for the rest of the night.',
+            'Stop the autopilot in Plan > Targets if this run should own the '
+            'rig for the rest of the night.',
       ),
     ];
   }

@@ -46,7 +46,7 @@ const List<TourStep> _firstLaunchTour = [
     id: 'scheduler',
     title: 'Let the scheduler pick targets',
     description:
-        'Plan Tonight ranks what is worth imaging and when, using each '
+        'Plan ranks what is worth imaging and when, using each '
         "target's altitude through the night and the time you actually "
         'have before dawn.',
     target: TourTarget.navPlanner,
@@ -232,7 +232,7 @@ const List<TourStep> _calibrationFrames = [
 const List<TourStep> _advancedFeatures = [
   TourStep(
     id: 'af_analytics',
-    title: 'Session Analytics',
+    title: 'Session analytics',
     description:
         'Click the Analytics tab to review your imaging performance. View HFR trends, guiding accuracy, and sky conditions over time to identify areas for improvement.',
     target: TourTarget.navAnalytics,

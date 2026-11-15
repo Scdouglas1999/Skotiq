@@ -141,7 +141,7 @@ class ScienceSessionSummary extends ConsumerWidget {
                       color: colors.textSecondary,
                     ),
                     label: Text(
-                      'Target campaign',
+                      'Target history',
                       style: SkotiqTypography.caption.copyWith(
                           color: colors.textSecondary,
                           fontWeight: FontWeight.w600),

@@ -361,7 +361,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
             '${DurationFormat.seconds(co.previousIntegrationSecs)} from the most '
             'recent session '
             '(${co.previousAcceptedFrames} accepted frames). '
-            'Campaign total: ${DurationFormat.seconds(co.campaignIntegrationSecs)}.',
+            'Target total: ${DurationFormat.seconds(co.campaignIntegrationSecs)}.',
             style: TextStyle(
                 fontSize: SkotiqTypography.fontSize12,
                 color: colors.textSecondary),

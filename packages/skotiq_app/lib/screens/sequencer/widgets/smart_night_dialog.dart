@@ -278,7 +278,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Smart Night — Plan Tonight',
+                      'Smart Night',
                       style: SkotiqTypography.h4
                           .copyWith(color: colors.textPrimary),
                     ),

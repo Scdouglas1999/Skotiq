@@ -374,16 +374,16 @@ void main() {
       expect(shell.runner.state.step!.target, TourTarget.imagingHistogram);
       expect(shown.last, 'Tutorial: Histogram');
       for (final absent in const [
-        'Zoom Controls',
-        'Exposure Time',
-        'Gain Setting',
-        'Filter Selection',
-        'Snapshot Button',
-        'Loop Capture',
-        'Abort Button',
-        'Image Statistics',
-        'Mount Controls',
-        'Focus Controls',
+        'Zoom controls',
+        'Exposure time',
+        'Gain setting',
+        'Filter selection',
+        'Snapshot button',
+        'Loop capture',
+        'Abort button',
+        'Image statistics',
+        'Mount controls',
+        'Focus controls',
       ]) {
         expect(shown, isNot(contains('Tutorial: $absent')));
       }

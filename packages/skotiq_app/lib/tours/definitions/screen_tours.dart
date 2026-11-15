@@ -11,7 +11,7 @@ const List<TourStep> _dashboardTour = [
   ),
   TourStep(
     id: 'dt_header',
-    title: 'Run Controls',
+    title: 'Run controls',
     description:
         'The header shows the run\'s state, the night from sunset to sunrise and the run controls: Start now or Start at dark before a run, then Pause, Skip step and a hold-to-confirm Stop.',
   ),
@@ -23,19 +23,19 @@ const List<TourStep> _dashboardTour = [
   ),
   TourStep(
     id: 'dt_frame',
-    title: 'Frame and Manual Actions',
+    title: 'Frame and manual actions',
     description:
         'The center shows the latest frame with its HFR and star count, the frames taken this session and the focus, guiding and temperature charts. The buttons under the frame run a snapshot, autofocus, a solve or a dither; during a run they pause it after the current frame and resume it afterwards.',
   ),
   TourStep(
     id: 'dt_panel',
-    title: 'Equipment Panel',
+    title: 'Equipment panel',
     description:
         'The tabs on the right hold the camera, focuser, mount, guider and plate solver. A dot on a tab means something there needs a look; the panel never switches tabs on its own.',
   ),
   TourStep(
     id: 'dt_complete',
-    title: 'Tour Complete',
+    title: 'Tour complete',
     description:
         'That is Tonight. Load a plan in the Sequencer, then come back here to start it.',
   ),
@@ -45,13 +45,13 @@ const List<TourStep> _dashboardTour = [
 const List<TourStep> _equipmentTour = [
   TourStep(
     id: 'et_welcome',
-    title: 'Equipment Management',
+    title: 'Equipment management',
     description:
         'The Equipment screen is where you configure and connect all your astrophotography gear. Create profiles to quickly switch between different setups.',
   ),
   TourStep(
     id: 'et_profile_selector',
-    title: 'Equipment Profiles',
+    title: 'Equipment profiles',
     description:
         'Select from saved equipment profiles. Each profile stores your telescope, camera, and accessory configurations. Switch profiles when changing imaging rigs.',
     target: TourTarget.equipmentProfileSelector,
@@ -59,7 +59,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_create_profile',
-    title: 'Create Profile',
+    title: 'Create profile',
     description:
         'Click to create a new equipment profile. Enter your sensor dimensions, pixel size, and focal length to enable accurate field-of-view calculations throughout Skotiq.',
     target: TourTarget.equipmentCreateProfileButton,
@@ -67,7 +67,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_quick_connect',
-    title: 'Connect All',
+    title: 'Connect all',
     description:
         'Connect all brings up every device in the selected profile that is not connected yet. It is offered only while something in the profile is disconnected.',
     target: TourTarget.equipmentQuickConnectBar,
@@ -75,7 +75,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_discovery_tab',
-    title: 'Device Discovery',
+    title: 'Device discovery',
     description:
         'Scan for devices looks for Windows ASCOM COM drivers, configured or reachable INDI servers, and Alpaca devices on your network when those backends are in scope for the release. What it finds is listed at the bottom of the Devices tab.',
     target: TourTarget.equipmentScanButton,
@@ -91,7 +91,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_settings_tab',
-    title: 'Profile Actions',
+    title: 'Profile actions',
     description:
         'The menu beside the profile name edits the profile, disconnects everything, lists all profiles and opens Equipment settings.',
     target: TourTarget.equipmentProfileMenu,
@@ -99,7 +99,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_camera_card',
-    title: 'Camera Controls',
+    title: 'Camera controls',
     description:
         'The camera card shows the sensor temperature, cooler power and state. Cool the sensor to its target temperature or warm it up from here; the menu on the card has the rest.',
     target: TourTarget.equipmentCameraCard,
@@ -107,7 +107,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_mount_card',
-    title: 'Mount Controls',
+    title: 'Mount controls',
     description:
         'The mount card shows where the mount is pointing and its state, with Park or Unpark and Home. The menu on the card has the rest.',
     target: TourTarget.equipmentMountCard,
@@ -115,7 +115,7 @@ const List<TourStep> _equipmentTour = [
   ),
   TourStep(
     id: 'et_complete',
-    title: 'Equipment Ready',
+    title: 'Equipment ready',
     description:
         'You\'re now familiar with equipment management! Create profiles for each of your setups and use Quick Connect for fast session startup.',
   ),
@@ -125,13 +125,13 @@ const List<TourStep> _equipmentTour = [
 const List<TourStep> _imagingTour = [
   TourStep(
     id: 'it_welcome',
-    title: 'The Imaging Screen',
+    title: 'The Imaging screen',
     description:
         'The Imaging screen is your primary interface for capturing images. Control your camera, view live images, and monitor image quality all in one place.',
   ),
   TourStep(
     id: 'it_tab_bar',
-    title: 'View Tabs',
+    title: 'View tabs',
     description:
         'Switch between Live view, Live stack and Session frames. Live view shows each frame as it arrives, Live stack builds a running stack, and Session frames lists what this session has captured.',
     target: TourTarget.imagingTabBar,
@@ -139,7 +139,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_preview_area',
-    title: 'Image Preview',
+    title: 'Image preview',
     description:
         'Your captured images appear here with auto-stretch applied. Pinch to zoom, drag to pan, and double-tap to reset the view. The crosshair marks the image center.',
     target: TourTarget.imagingPreviewArea,
@@ -147,7 +147,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_zoom_controls',
-    title: 'Zoom Controls',
+    title: 'Zoom controls',
     description:
         'Zoom in to inspect star shapes and check focus. The 1:1 button shows actual pixels. Use zoom during focusing to see the tightest star shapes.',
     target: TourTarget.imagingZoomControls,
@@ -155,7 +155,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_exposure_slider',
-    title: 'Exposure Time',
+    title: 'Exposure time',
     description:
         'Set your exposure duration here. For focusing, use short exposures (1-3 seconds). For imaging, typical exposures range from 60-300 seconds depending on your target.',
     target: TourTarget.imagingExposureSlider,
@@ -163,7 +163,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_gain_control',
-    title: 'Gain Setting',
+    title: 'Gain setting',
     description:
         'Adjust camera gain (sensitivity). Higher gain means brighter images but more noise. Find your camera\'s unity gain or optimal gain for best results.',
     target: TourTarget.imagingGainControl,
@@ -171,7 +171,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_filter_selector',
-    title: 'Filter Selection',
+    title: 'Filter selection',
     description:
         'Choose the active filter from your filter wheel. Skotiq remembers focus offsets for each filter and applies them automatically.',
     target: TourTarget.imagingFilterSelector,
@@ -179,7 +179,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_snapshot_btn',
-    title: 'Snapshot Button',
+    title: 'Snapshot button',
     description:
         'Take a single exposure with current settings. The image appears in the preview when complete. Use snapshots for framing and focus checks.',
     target: TourTarget.imagingSnapshotButton,
@@ -187,7 +187,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_loop_btn',
-    title: 'Loop Capture',
+    title: 'Loop capture',
     description:
         'Start continuous exposures that repeat until stopped. Essential for focusing — watch the stars tighten as you adjust. HFR updates with each frame.',
     target: TourTarget.imagingLoopButton,
@@ -195,7 +195,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_abort_btn',
-    title: 'Abort Button',
+    title: 'Abort button',
     description:
         'Stop the current exposure immediately. The partial image is discarded. Use this when you need to make quick adjustments.',
     target: TourTarget.imagingAbortButton,
@@ -203,7 +203,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_stats_panel',
-    title: 'Image Statistics',
+    title: 'Image statistics',
     description:
         'View key metrics: HFR (star size), median ADU, detected stars, and more. Lower HFR means better focus. Watch these numbers during your session.',
     target: TourTarget.imagingStatsPanel,
@@ -211,7 +211,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_mount_tab',
-    title: 'Mount Controls',
+    title: 'Mount controls',
     description:
         'Open the Mount section of the side panel for mount controls without leaving the Imaging screen. Slew to coordinates, sync position, or make fine adjustments while viewing your image.',
     target: TourTarget.imagingMountTab,
@@ -219,7 +219,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_focus_tab',
-    title: 'Focus Controls',
+    title: 'Focus controls',
     description:
         'Open the Focus section of the side panel to run autofocus or move the focuser by hand. The focus graph shows your V-curve.',
     target: TourTarget.imagingFocusTab,
@@ -235,7 +235,7 @@ const List<TourStep> _imagingTour = [
   ),
   TourStep(
     id: 'it_complete',
-    title: 'Imaging Mastered',
+    title: 'Imaging mastered',
     description:
         'You know the Imaging screen! Use Loop mode for focusing, check HFR for quality, and keep an eye on your histogram for proper exposure.',
   ),
@@ -251,7 +251,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_connect_btn',
-    title: 'Connect the Guider',
+    title: 'Connect the guider',
     description:
         'Connect or disconnect the guider here. With PHD2, make sure PHD2 is running and its server is enabled. Once connected, Skotiq can start and stop guiding and receive performance data.',
     target: TourTarget.guidingConnectButton,
@@ -259,7 +259,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_status_bar',
-    title: 'Connection Status',
+    title: 'Connection status',
     description:
         "Shows the guider's connection state and guiding status. Green means actively guiding, yellow means calibrating, red indicates an issue.",
     target: TourTarget.guidingStatusBar,
@@ -267,7 +267,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_star_view',
-    title: 'Guide Star View',
+    title: 'Guide star view',
     description:
         'See your guide star in real-time. The crosshair shows the lock position. A stable, non-saturated star makes the best guide star.',
     target: TourTarget.guidingStarView,
@@ -275,7 +275,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_target_display',
-    title: 'Target Display',
+    title: 'Target display',
     description:
         'The target shows guide corrections as dots. Tight clustering near center indicates excellent guiding. Spread-out dots suggest issues to investigate.',
     target: TourTarget.guidingTargetDisplay,
@@ -283,7 +283,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_graph',
-    title: 'Guiding Graph',
+    title: 'Guiding graph',
     description:
         'The graph shows RA (blue) and Dec (red) corrections over time. Flat lines near zero mean perfect tracking. Regular patterns may indicate periodic error.',
     target: TourTarget.guidingGraph,
@@ -291,7 +291,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_rms_display',
-    title: 'RMS Statistics',
+    title: 'RMS statistics',
     description:
         'RMS values quantify guiding accuracy in arcseconds. Lower is better. Under 1" total RMS is excellent for most setups. Watch for trends over time.',
     target: TourTarget.guidingRmsDisplay,
@@ -299,7 +299,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_controls',
-    title: 'Guiding Controls',
+    title: 'Guiding controls',
     description:
         'Start, stop, and pause guiding. Dither between exposures for better stacking. These controls sync with your active sequence automatically.',
     target: TourTarget.guidingControls,
@@ -307,7 +307,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_brain_btn',
-    title: 'Guider Settings',
+    title: 'Guider settings',
     description:
         "Open the guider's advanced settings: guide algorithms, calibration and more. Most users won't need to change these.",
     target: TourTarget.guidingBrainButton,
@@ -315,7 +315,7 @@ const List<TourStep> _guidingTour = [
   ),
   TourStep(
     id: 'gt_complete',
-    title: 'Guiding Ready',
+    title: 'Guiding ready',
     description:
         'You understand the Guiding screen! For best results, select a bright but unsaturated guide star and aim for sub-arcsecond RMS values.',
   ),
@@ -331,7 +331,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_tab_builder',
-    title: 'Builder Tab',
+    title: 'Builder tab',
     description:
         'Create and edit sequences in the Builder. Add nodes from the palette to the sequence and configure each step of your workflow.',
     target: TourTarget.sequencerTabBuilder,
@@ -339,7 +339,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_tab_templates',
-    title: 'Templates Tab',
+    title: 'Templates tab',
     description:
         'Browse built-in Starters and your saved templates. Tap a Starter to load a complete, ready-to-run sequence, or save your own workflows like LRGB imaging, narrowband, or quick snapshots for reuse.',
     target: TourTarget.sequencerTabTemplates,
@@ -347,7 +347,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_node_palette',
-    title: 'Node Palette',
+    title: 'Node palette',
     description:
         'Drag nodes from here onto the canvas. Choose from Target nodes, Capture nodes, Autofocus, Filter changes, Dither, and more.',
     target: TourTarget.sequencerNodePalette,
@@ -355,7 +355,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_canvas',
-    title: 'Sequence Canvas',
+    title: 'Sequence canvas',
     description:
         'Your sequence, top to bottom. Drop nodes here from the palette, or double-click one in the palette to add it. A node runs the nodes inside it, and the sequence runs from the top.',
     target: TourTarget.sequencerCanvas,
@@ -363,7 +363,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_target_node',
-    title: 'Target Nodes',
+    title: 'Target nodes',
     description:
         'Target nodes slew to objects and center using plate solving. Add coordinates manually or import from the Planetarium or Framing screens.',
     target: TourTarget.sequencerTargetNode,
@@ -371,7 +371,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_capture_node',
-    title: 'Capture Nodes',
+    title: 'Capture nodes',
     description:
         'Capture nodes take your images. Configure filter, exposure, gain, and frame count. Add multiple Capture nodes for multi-filter imaging.',
     target: TourTarget.sequencerCaptureNode,
@@ -379,7 +379,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_properties_panel',
-    title: 'Properties Panel',
+    title: 'Properties panel',
     description:
         'Select any node to view and edit its properties here. Set exposure times, filter selections, loop counts, and advanced options.',
     target: TourTarget.sequencerPropertiesPanel,
@@ -387,7 +387,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_toolbar',
-    title: 'Sequence Toolbar',
+    title: 'Sequence toolbar',
     description:
         'The toolbar names the sequence and counts its errors and warnings, and holds undo, redo, the view options and Save. Save your sequences frequently!',
     target: TourTarget.sequencerToolbar,
@@ -395,7 +395,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_progress_bar',
-    title: 'Progress Indicator',
+    title: 'Progress indicator',
     description:
         'Track sequence progress here. See completed, current, and remaining steps. Estimated completion time updates based on actual performance.',
     target: TourTarget.sequencerProgressBar,
@@ -403,7 +403,7 @@ const List<TourStep> _sequencerTour = [
   ),
   TourStep(
     id: 'st_complete',
-    title: 'Sequencer Expert',
+    title: 'Sequencer expert',
     description:
         'You\'ve mastered the Sequencer! Build sequences for unattended imaging, save templates for quick setup, and let Skotiq do the work.',
   ),
@@ -413,20 +413,20 @@ const List<TourStep> _sequencerTour = [
 const List<TourStep> _planetariumTour = [
   TourStep(
     id: 'pt_welcome',
-    title: 'Interactive Sky Chart',
+    title: 'Interactive sky chart',
     description:
         'The Planetarium shows the sky as seen from your location. Find targets, plan observations, and slew your mount directly to objects of interest.',
   ),
   TourStep(
     id: 'pt_sky_view',
-    title: 'Sky View',
+    title: 'Sky view',
     description:
         'Drag to pan across the sky, pinch to zoom. Stars are colored by spectral type. Deep sky objects show their catalog designations and approximate sizes.',
     target: TourTarget.planetariumSkyView,
   ),
   TourStep(
     id: 'pt_search',
-    title: 'Search Bar',
+    title: 'Search bar',
     description:
         'Search for any object by name, catalog number, or coordinates. Type "M31", "NGC 7000", or "Vega" and select from matching results.',
     target: TourTarget.planetariumSearch,
@@ -442,7 +442,7 @@ const List<TourStep> _planetariumTour = [
   ),
   TourStep(
     id: 'pt_fov_toggle',
-    title: 'FOV Overlay',
+    title: 'FOV overlay',
     description:
         'Toggle your camera\'s field of view overlay. The rectangle shows exactly what your sensor will capture. Essential for framing planning.',
     target: TourTarget.planetariumFovToggle,
@@ -450,7 +450,7 @@ const List<TourStep> _planetariumTour = [
   ),
   TourStep(
     id: 'pt_slew_btn',
-    title: 'Slew Mode',
+    title: 'Slew mode',
     description:
         'Enable slew mode, then tap any location to command your mount. The mount will slew to the selected coordinates. Requires a connected mount.',
     target: TourTarget.planetariumSlewButton,
@@ -458,7 +458,7 @@ const List<TourStep> _planetariumTour = [
   ),
   TourStep(
     id: 'pt_object_popup',
-    title: 'Object Information',
+    title: 'Object information',
     description:
         'Tap any object to see details: name, coordinates, magnitude, size, and rise/set times. Links connect to online databases for more information.',
     target: TourTarget.planetariumObjectPopup,
@@ -481,7 +481,7 @@ const List<TourStep> _planetariumTour = [
   ),
   TourStep(
     id: 'pt_complete',
-    title: 'Sky Explorer',
+    title: 'Sky explorer',
     description:
         'You know the Planetarium! Use it to discover targets, check visibility windows, and plan your imaging sessions around the best observing conditions.',
   ),
@@ -491,13 +491,13 @@ const List<TourStep> _planetariumTour = [
 const List<TourStep> _framingTour = [
   TourStep(
     id: 'ft_welcome',
-    title: 'Framing Assistant',
+    title: 'Framing assistant',
     description:
         'The Framing screen helps you compose the perfect shot. Position your target, rotate the field, and plan mosaics before you start imaging.',
   ),
   TourStep(
     id: 'ft_target_search',
-    title: 'Target Search',
+    title: 'Target search',
     description:
         'Search for your target by name or enter coordinates directly. The view centers on your selection with a survey image background.',
     target: TourTarget.framingTargetSearch,
@@ -505,21 +505,21 @@ const List<TourStep> _framingTour = [
   ),
   TourStep(
     id: 'ft_canvas',
-    title: 'Framing Canvas',
+    title: 'Framing canvas',
     description:
         'The canvas shows a survey image of your target area. Drag to reposition, pinch to zoom. Your camera\'s field of view is overlaid on top.',
     target: TourTarget.framingCanvas,
   ),
   TourStep(
     id: 'ft_fov_rect',
-    title: 'FOV Rectangle',
+    title: 'FOV rectangle',
     description:
         'This rectangle represents your sensor\'s field of view. Drag to position, use the corner handles to rotate. The coordinates update as you adjust.',
     target: TourTarget.framingFovRect,
   ),
   TourStep(
     id: 'ft_rotation',
-    title: 'Rotation Control',
+    title: 'Rotation control',
     description:
         'Set the exact camera rotation angle here. Match your rotator position or find the optimal angle for your composition.',
     target: TourTarget.framingRotation,
@@ -535,7 +535,7 @@ const List<TourStep> _framingTour = [
   ),
   TourStep(
     id: 'ft_altitude_chart',
-    title: 'Altitude Chart',
+    title: 'Altitude chart',
     description:
         'See when your target is highest in the sky. The chart shows altitude over the night with the optimal imaging window highlighted.',
     target: TourTarget.framingAltitudeChart,
@@ -543,7 +543,7 @@ const List<TourStep> _framingTour = [
   ),
   TourStep(
     id: 'ft_mosaic_btn',
-    title: 'Mosaic Planning',
+    title: 'Mosaic planning',
     description:
         'Create multi-panel mosaics for large targets. Set overlap percentage, panel count, and Skotiq calculates all the pointing positions.',
     target: TourTarget.framingMosaicButton,
@@ -551,7 +551,7 @@ const List<TourStep> _framingTour = [
   ),
   TourStep(
     id: 'ft_slew_btn',
-    title: 'Slew to Frame',
+    title: 'Slew to frame',
     description:
         'Send the framed coordinates to your mount. The mount slews to position and can plate solve to verify pointing accuracy.',
     target: TourTarget.framingSlewButton,
@@ -559,7 +559,7 @@ const List<TourStep> _framingTour = [
   ),
   TourStep(
     id: 'ft_complete',
-    title: 'Perfect Framing',
+    title: 'Perfect framing',
     description:
         'You\'ve learned framing! Take time to compose your shots before imaging. Good framing makes the difference between a snapshot and a stunning image.',
   ),
@@ -569,13 +569,13 @@ const List<TourStep> _framingTour = [
 const List<TourStep> _analyticsTour = [
   TourStep(
     id: 'at_welcome',
-    title: 'Session Analytics',
+    title: 'Session analytics',
     description:
         'The Analytics screen tracks your imaging performance over time. Review sessions, identify trends, and improve your technique with data-driven insights.',
   ),
   TourStep(
     id: 'at_session_tab',
-    title: 'Current Session',
+    title: 'Current session',
     description:
         'View statistics for your active imaging session. Track frames captured, total integration time, and quality metrics in real-time.',
     target: TourTarget.analyticsSessionTab,
@@ -583,7 +583,7 @@ const List<TourStep> _analyticsTour = [
   ),
   TourStep(
     id: 'at_history_tab',
-    title: 'Session History',
+    title: 'Session history',
     description:
         'Every night on record, grouped by observing night, under the totals for all of them. Click a night to open its summary, frames, run log and report.',
     target: TourTarget.analyticsHistoryTab,
@@ -591,7 +591,7 @@ const List<TourStep> _analyticsTour = [
   ),
   TourStep(
     id: 'at_hfr_chart',
-    title: 'HFR Chart',
+    title: 'HFR chart',
     description:
         'The HFR (Half Flux Radius) chart shows focus quality over time. Sudden increases indicate focus drift. Temperature correlation helps predict when to refocus.',
     target: TourTarget.analyticsHfrChart,
@@ -599,7 +599,7 @@ const List<TourStep> _analyticsTour = [
   ),
   TourStep(
     id: 'at_guiding_chart',
-    title: 'Guiding Chart',
+    title: 'Guiding chart',
     description:
         'Review guiding performance throughout your session. Identify periods of poor seeing or mount issues. Correlate with image quality for best frames.',
     target: TourTarget.analyticsGuidingChart,
@@ -607,7 +607,7 @@ const List<TourStep> _analyticsTour = [
   ),
   TourStep(
     id: 'at_thumbnails',
-    title: 'Captured Images',
+    title: 'Captured images',
     description:
         'Browse thumbnails of all captured frames. Click any image for full-size view with metadata. Flag best frames or mark rejects for stacking.',
     target: TourTarget.analyticsThumbnails,
@@ -615,7 +615,7 @@ const List<TourStep> _analyticsTour = [
   ),
   TourStep(
     id: 'at_complete',
-    title: 'Data Insights',
+    title: 'Data insights',
     description:
         'Use Analytics to continuously improve! Track trends across sessions, identify optimal conditions, and refine your imaging technique over time.',
   ),
@@ -625,13 +625,13 @@ const List<TourStep> _analyticsTour = [
 const List<TourStep> _flatWizardTour = [
   TourStep(
     id: 'fwt_welcome',
-    title: 'Flat Frame Wizard',
+    title: 'Flat frame wizard',
     description:
-        'The Flat Wizard automates flat frame capture. It calculates optimal exposure times and captures flats for all your filters with minimal effort.',
+        'The flat wizard automates flat frame capture. It calculates optimal exposure times and captures flats for all your filters with minimal effort.',
   ),
   TourStep(
     id: 'fwt_tabs',
-    title: 'Capture Modes',
+    title: 'Capture modes',
     description:
         'Choose between Sky Flats (twilight), Panel Flats (light panel), or Manual mode. Each mode optimizes the workflow for your flat source.',
     target: TourTarget.flatModeTabs,
@@ -639,7 +639,7 @@ const List<TourStep> _flatWizardTour = [
   ),
   TourStep(
     id: 'fwt_filter_select',
-    title: 'Filter Selection',
+    title: 'Filter selection',
     description:
         'Select which filters to capture flats for. The wizard captures flats in optimal order for sky flats (brightest to dimmest at dusk).',
     target: TourTarget.flatFilterSelect,
@@ -655,7 +655,7 @@ const List<TourStep> _flatWizardTour = [
   ),
   TourStep(
     id: 'fwt_frame_count',
-    title: 'Frame Count',
+    title: 'Frame count',
     description:
         'Specify how many flats to capture per filter. 20-30 flats per filter provides good signal for master flat creation.',
     target: TourTarget.flatFrameCount,
@@ -663,7 +663,7 @@ const List<TourStep> _flatWizardTour = [
   ),
   TourStep(
     id: 'fwt_preview',
-    title: 'Preview Panel',
+    title: 'Preview panel',
     description:
         'Watch the live preview as flats are captured. The histogram shows ADU distribution. Adjust exposure if the histogram isn\'t centered on your target.',
     target: TourTarget.flatPreview,
@@ -671,7 +671,7 @@ const List<TourStep> _flatWizardTour = [
   ),
   TourStep(
     id: 'fwt_start_btn',
-    title: 'Start Capture',
+    title: 'Start capture',
     description:
         'Click Start to begin the flat capture sequence. The wizard handles exposure calculation, filter changes, and file naming automatically.',
     target: TourTarget.flatStartButton,
@@ -679,7 +679,7 @@ const List<TourStep> _flatWizardTour = [
   ),
   TourStep(
     id: 'fwt_complete',
-    title: 'Flats Made Easy',
+    title: 'Flats made easy',
     description:
         'Flat frames are essential for clean images. Use the wizard at dusk or dawn for sky flats, or anytime with a flat panel. Consistent flats = better stacks!',
   ),
@@ -689,13 +689,13 @@ const List<TourStep> _flatWizardTour = [
 const List<TourStep> _weatherTour = [
   TourStep(
     id: 'wt_welcome',
-    title: 'Weather Monitoring',
+    title: 'Weather monitoring',
     description:
         'The Weather screen provides detailed forecasting and real-time conditions. Plan sessions around clear skies and protect your equipment from incoming weather.',
   ),
   TourStep(
     id: 'wt_radar_map',
-    title: 'Radar Map',
+    title: 'Radar map',
     description:
         'Live radar shows precipitation and cloud cover in your area. The animation shows movement direction. Plan around approaching systems.',
     target: TourTarget.weatherRadarMap,
@@ -719,7 +719,7 @@ const List<TourStep> _weatherTour = [
   ),
   TourStep(
     id: 'wt_alert_radius',
-    title: 'Alert Radius',
+    title: 'Alert radius',
     description:
         'Set the distance at which approaching weather triggers alerts. Smaller radius for permanent setups, larger for time to pack up portable gear.',
     target: TourTarget.weatherAlertRadius,
@@ -727,7 +727,7 @@ const List<TourStep> _weatherTour = [
   ),
   TourStep(
     id: 'wt_cloud_motion',
-    title: 'Cloud Motion',
+    title: 'Cloud motion',
     description:
         'AI-powered cloud motion analysis predicts when clouds will reach your location. Get advance warning before conditions deteriorate.',
     target: TourTarget.weatherCloudMotion,
@@ -743,7 +743,7 @@ const List<TourStep> _weatherTour = [
   ),
   TourStep(
     id: 'wt_complete',
-    title: 'Weather Aware',
+    title: 'Weather aware',
     description:
         'Stay ahead of the weather! Configure alerts in Settings to automatically pause sequences when conditions threaten. Protect your gear and optimize imaging time.',
   ),
@@ -753,7 +753,7 @@ const List<TourStep> _weatherTour = [
 const List<TourStep> _settingsTour = [
   TourStep(
     id: 'stt_welcome',
-    title: 'Application Settings',
+    title: 'Application settings',
     description:
         'Configure Skotiq to match your setup and preferences. Location, file paths, plate solving, and appearance options are all here.',
   ),
@@ -791,7 +791,7 @@ const List<TourStep> _settingsTour = [
   ),
   TourStep(
     id: 'stt_file_paths',
-    title: 'File Paths',
+    title: 'File paths',
     description:
         'Configure where images are saved. Set up folder structures with date, target, and filter substitutions. Keep your image library organized.',
     target: TourTarget.settingsFilePaths,
@@ -799,7 +799,7 @@ const List<TourStep> _settingsTour = [
   ),
   TourStep(
     id: 'stt_plate_solving',
-    title: 'Plate Solving',
+    title: 'Plate solving',
     description:
         'Configure your plate solver. Set paths to solver binaries, index files, and search parameters. Local solving is faster than online services.',
     target: TourTarget.settingsPlateSolving,
@@ -815,7 +815,7 @@ const List<TourStep> _settingsTour = [
   ),
   TourStep(
     id: 'stt_help',
-    title: 'Help & Tutorials',
+    title: 'Help & tutorials',
     description:
         'Access all tutorials from here. Reset tutorial progress, view documentation, or contact support. Tutorials can be replayed anytime.',
     target: TourTarget.settingsHelp,
@@ -833,7 +833,7 @@ const List<TourStep> _settingsTour = [
 const List<TourStep> _polarAlignmentTour = [
   TourStep(
     id: 'pat_welcome',
-    title: 'Polar Alignment',
+    title: 'Polar alignment',
     description:
         'The Polar Alignment wizard helps you achieve accurate polar alignment using plate solving. No need for a polar scope - just follow the guided process.',
   ),
@@ -847,7 +847,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_exposure',
-    title: 'Exposure Time',
+    title: 'Exposure time',
     description:
         'Set the exposure time for measurement images. Longer exposures improve accuracy but take more time. 2-5 seconds usually works well.',
     target: TourTarget.polarExposure,
@@ -855,7 +855,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_step_size',
-    title: 'Step Size',
+    title: 'Step size',
     description:
         'The mount rotation between measurements. Larger steps are faster but less precise. 30 degrees is a good starting point.',
     target: TourTarget.polarStepSize,
@@ -879,7 +879,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_error_display',
-    title: 'Error Display',
+    title: 'Error display',
     description:
         'Your polar alignment error in arcminutes. For visual observing, under 10\' is fine. For imaging, aim for under 2\' for excellent tracking.',
     target: TourTarget.polarErrorDisplay,
@@ -887,7 +887,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_adjustment',
-    title: 'Adjustment Guide',
+    title: 'Adjustment guide',
     description:
         'Follow the arrows to adjust your mount\'s altitude and azimuth knobs. The display updates in real-time as you make adjustments.',
     target: TourTarget.polarAdjustment,
@@ -895,7 +895,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_progress',
-    title: 'Progress Steps',
+    title: 'Progress steps',
     description:
         'Track your progress through the alignment process. Each step shows completion status. Re-measure after adjustments to verify improvement.',
     target: TourTarget.polarProgress,
@@ -903,7 +903,7 @@ const List<TourStep> _polarAlignmentTour = [
   ),
   TourStep(
     id: 'pat_complete',
-    title: 'Alignment Complete',
+    title: 'Alignment complete',
     description:
         'Great polar alignment means better tracking and easier guiding. Re-run the wizard periodically if your setup isn\'t permanent.',
   ),

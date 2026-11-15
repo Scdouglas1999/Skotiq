@@ -112,7 +112,7 @@ class SessionReviewState {
 
   const SessionReviewState({
     this.subs = const [],
-    this.title = 'Session Review',
+    this.title = 'Night',
     this.targetId,
     this.targetName,
     this.settings = IntegrationSettings.defaults,

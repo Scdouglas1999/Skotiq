@@ -370,8 +370,8 @@ String darkroomDraftNoteSentence(RecipeDraftNote note) =>
 String? darkroomMasterFailureNextStep(String message, String masterPath) {
   if (masterPath.isEmpty || !message.contains("'$masterPath'")) return null;
   return 'The Darkroom only ever reads that file, so nothing here can put it '
-      'back: restore the master at that path, or re-integrate this night in '
-      'Session Review to write it again.';
+      'back: restore the master at that path, or integrate this night again '
+      'on its Workbench in Analytics > History.';
 }
 
 /// A `.skrecipe` file the operator chose, and what it holds.

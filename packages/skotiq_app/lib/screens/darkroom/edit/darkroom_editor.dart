@@ -286,7 +286,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
       // The header's own action is suppressed here — there is no recipe to
       // reload — so this empty state is the whole screen. Without a way out of
       // it the only route back is the nav rail, and the reason it names (a
-      // recipe or master that is gone) is one the session review can answer:
+      // recipe or master that is gone) is one the night's page can answer:
       // it lists the masters that DO have pixels to interpret.
       return EmptyState(
         icon: SkotiqIcons.imageOff,
@@ -644,12 +644,12 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
         size: ButtonSize.small,
         semanticsHint:
             'Opens the list of every registered image in the Darkroom\'s '
-            'Edit tab. This one has no session review to open.',
+            'Edit tab. This one has no night to open.',
         onPressed: () => context.go(darkroomTabLocation(DarkroomTab.edit)),
       );
     }
     return SkotiqButton(
-      label: 'Open this night\'s session review',
+      label: 'Open this night in History',
       icon: SkotiqIcons.history,
       variant: ButtonVariant.secondary,
       size: ButtonSize.small,

@@ -560,7 +560,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
           name: 'Flats need calibration',
           title: 'Automated flats skipped — no calibrated exposures',
           message:
-              'Smart Night will not shoot blind flats. Run the Flat Wizard '
+              'Smart Night will not shoot blind flats. Run the flat wizard '
               'once for ${uncalibrated.isEmpty ? "your filters" : uncalibrated.map(smartNightFilterLabel).join(", ")} '
               'so the ADU-targeted exposure + panel brightness are learned; '
               'after that, Smart Night will reuse them automatically.',
@@ -689,7 +689,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
               'Flats were captured for '
               '${calibrated.keys.where((f) => !uncalibrated.contains(f)).map(smartNightFilterLabel).join(", ")}. '
               'No ADU-calibrated panel exposure exists for: '
-              '${uncalibrated.toSet().map(smartNightFilterLabel).join(", ")}. Run the Flat Wizard '
+              '${uncalibrated.toSet().map(smartNightFilterLabel).join(", ")}. Run the flat wizard '
               'once for these filters so Smart Night can reuse the exposures.',
           level: NotificationLevel.warning,
           explicitTransports: const [NotificationTransportKind.inApp],

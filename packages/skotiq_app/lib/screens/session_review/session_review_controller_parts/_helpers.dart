@@ -136,7 +136,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     } catch (e) {
       _ref.read(loggingServiceProvider).warning(
         'The interruption record for this session could not be read, so '
-        'Session Review cannot state a pass a process exit cut off',
+        'the night\'s report cannot state a pass a process exit cut off',
         source: 'SessionReviewController',
         fields: {'sessionId': sessionId, 'error': '$e'},
       );
@@ -192,12 +192,12 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   Future<String> _resolveTitle(String? targetName) async {
     final target = targetName?.trim();
     if (!_scope.isSession) {
-      return (target != null && target.isNotEmpty) ? target : 'Target Review';
+      return (target != null && target.isNotEmpty) ? target : 'Target';
     }
     final session =
         await _ref.read(sessionsDaoProvider).getSessionById(_scope.sessionId!);
     if (session == null) {
-      return (target != null && target.isNotEmpty) ? target : 'Session Review';
+      return (target != null && target.isNotEmpty) ? target : 'Night';
     }
     final sessionName = session.name?.trim();
     final label = (sessionName != null && sessionName.isNotEmpty)
@@ -366,7 +366,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   /// falls back to its empty state, so the record is what says why.
   void _logSoftFailure(String what, Object error) {
     _ref.read(loggingServiceProvider).warning(
-      'Session Review: $what failed',
+      'Night review: $what failed',
       source: 'SessionReviewController',
       fields: {
         'sessionId': _scope.sessionId,

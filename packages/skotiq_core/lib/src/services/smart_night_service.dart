@@ -560,7 +560,7 @@ class SmartNightService {
         warnings.add(
           'No ADU-calibrated flat exposure exists for: '
           '${missingFlatCalibration.join(", ")}. Smart Night will NOT shoot '
-          'blind flats — run the Flat Wizard once for these filters so the '
+          'blind flats — run the flat wizard once for these filters so the '
           'target-ADU exposure + panel brightness are learned and reused.',
         );
       }

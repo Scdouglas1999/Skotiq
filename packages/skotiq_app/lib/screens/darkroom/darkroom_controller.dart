@@ -186,8 +186,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
     if (_scope.isEmpty) {
       _fail(
         'This link named neither a recipe nor a master, so there is nothing to '
-        'open. Reach the Darkroom from a master in the session review, or from '
-        'the morning notification for a finished draft.',
+        'open. Open a master from the Darkroom\'s Targets tab, or from the '
+        'morning notification for a finished draft.',
       );
       return;
     }
@@ -228,8 +228,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (path == null || path.trim().isEmpty) {
         _fail(
           '"${master.name}" is still accumulating and has not written a linear '
-          'master yet, so there are no pixels to interpret. Finalize it in the '
-          'session review first.',
+          'master yet, so there are no pixels to interpret. Finalize it on the '
+          'night\'s Workbench in Analytics > History first.',
         );
         return;
       }
@@ -431,7 +431,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
           siblingsError:
               'No frame of this master records the session it was captured in, '
               'so the other masters of the same night cannot be found from '
-              'here. Open them from the session review.',
+              'here. Open them from the night in Analytics > History.',
         );
         return;
       }
@@ -819,7 +819,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         offerError:
             'This editor is not on a library master, so an imported recipe '
             'would have no pixels to be written over. Open a master from the '
-            'session review and import there.',
+            'Darkroom\'s Targets tab and import there.',
       );
       return;
     }
