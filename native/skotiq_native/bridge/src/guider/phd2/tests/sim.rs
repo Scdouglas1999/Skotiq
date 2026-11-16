@@ -9,6 +9,7 @@
 //! frames carry the selected star's SNR and mass.
 
 use super::super::*;
+use crate::event::bus::EventPayload;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicBool;
@@ -588,4 +589,57 @@ async fn an_acknowledged_stop_that_never_finishes_is_an_error() {
         result.is_err(),
         "a still-guiding PHD2 must not report a successful stop"
     );
+}
+
+// What reaches the event bus for PHD2's own events: a lost star only while
+// PHD2 guides.
+
+/// What the bridge published while `send` fed PHD2 events to it.
+async fn published_after(send: impl FnOnce()) -> Vec<EventPayload> {
+    let mut events = get_state().event_bus.subscribe();
+    send();
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let mut published = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        published.push(event.payload);
+    }
+    published
+}
+
+fn lost_stars(published: &[EventPayload]) -> usize {
+    published
+        .iter()
+        .filter(|p| matches!(p, EventPayload::Guiding(GuidingEvent::LostStar)))
+        .count()
+}
+
+/// The rig on 2026-11-15 at 21:53 and 21:56: PHD2 was only looping and
+/// reported StarLost when a spot left its candidate box. Skotiq logged
+/// "Guide star lost — guiding suspended" and counted a lost star although
+/// nothing was guiding.
+#[tokio::test]
+async fn a_star_lost_while_phd2_only_loops_is_not_a_lost_guide_star() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig {
+        initial: Capture::Looping,
+        ..SimConfig::default()
+    })
+    .await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let published = published_after(|| sim.event("StarLost", serde_json::json!({}))).await;
+    finish(done).await;
+    assert_eq!(lost_stars(&published), 0, "{published:?}");
+}
+
+#[tokio::test]
+async fn a_star_lost_while_phd2_guides_is_a_lost_guide_star() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig::default()).await;
+    let published = published_after(|| {
+        sim.event("StartGuiding", serde_json::json!({}));
+        sim.event("StarLost", serde_json::json!({}));
+    })
+    .await;
+    finish(done).await;
+    assert_eq!(lost_stars(&published), 1, "{published:?}");
 }

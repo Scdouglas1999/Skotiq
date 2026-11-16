@@ -14,6 +14,8 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 
+mod watch;
+
 /// The event for PHD2's SettleDone. A failed settle (non-zero status) must
 /// not masquerade as a clean "Settled" event, and it is not a lost star
 /// either: PHD2 reports a settle that ran out of time while it still holds
@@ -97,7 +99,11 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
     // Set up event callback to forward PHD2 events to the main event stream.
     // This callback runs on the PHD2 reader std::thread, NOT on the tokio runtime.
     // It publishes to the broadcast channel which is picked up by api_event_stream.
+    let watch = std::sync::Mutex::new(watch::Phd2Watch::default());
     client.set_event_callback(move |event| {
+        let mut watch = watch
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let subscriber_count = get_state().event_bus.subscriber_count();
         // Per-event plumbing trace — fires on every looping frame (~1 Hz), so
         // keep it at debug to avoid flooding the log during normal guiding.
@@ -142,6 +148,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 // log "Looping" once a second. The meaningful transitions are
                 // surfaced to the UI as GuidingEvents; keep the raw log at debug.
                 tracing::debug!("PHD2 state changed: {:?}", state);
+                watch.observe_state(&state);
                 match state {
                     skotiq_phd2::Phd2State::Guiding => GuidingEvent::GuidingStarted,
                     skotiq_phd2::Phd2State::Connected => GuidingEvent::GuidingStopped,
@@ -168,7 +175,13 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                     }
                 }
             }
-            skotiq_phd2::Phd2Event::StarLost => GuidingEvent::LostStar,
+            skotiq_phd2::Phd2Event::StarLost if watch.holds_guide_star() => GuidingEvent::LostStar,
+            skotiq_phd2::Phd2Event::StarLost => {
+                tracing::debug!(
+                    "PHD2 reported a lost star while not guiding; no guide star was lost"
+                );
+                return;
+            }
             skotiq_phd2::Phd2Event::StarSelected { x, y } => GuidingEvent::StarSelected { x, y },
             skotiq_phd2::Phd2Event::SettleBegin => GuidingEvent::Settling,
             skotiq_phd2::Phd2Event::SettleDone {
@@ -192,7 +205,10 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 tracing::info!("PHD2: Calibration complete");
                 GuidingEvent::CalibrationComplete
             }
-            skotiq_phd2::Phd2Event::Disconnected => GuidingEvent::Disconnected,
+            skotiq_phd2::Phd2Event::Disconnected => {
+                watch.observe_state(&skotiq_phd2::Phd2State::Disconnected);
+                GuidingEvent::Disconnected
+            }
             skotiq_phd2::Phd2Event::Alert {
                 message,
                 alert_type,
