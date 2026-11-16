@@ -73,6 +73,8 @@ mod dome;
 pub(crate) mod exposure_wait;
 mod filter_wheel;
 mod focuser;
+#[cfg(test)]
+mod frame_defaults_tests;
 mod frame_store;
 #[cfg(test)]
 mod frame_tests;

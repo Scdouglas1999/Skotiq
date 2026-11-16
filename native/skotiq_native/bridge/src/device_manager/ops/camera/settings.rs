@@ -4,6 +4,18 @@ use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
 use crate::event::equipment::EquipmentEvent;
 
+/// What a camera takes its frames at when a frame does not name it: its
+/// equipment profile's defaults. `None` leaves that control as the camera
+/// has it, which happens only where the profile states no value or the
+/// camera has no such control.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CameraFrameDefaults {
+    pub gain: Option<i32>,
+    pub offset: Option<i32>,
+    /// By the name the camera lists.
+    pub readout_mode: Option<String>,
+}
+
 impl DeviceManager {
     // Each setter publishes the camera's settings once it accepted the value
     // (`CameraSettingsChanged`, see `state_events`), so every UI shows the new
@@ -41,33 +53,39 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// State the read mode `device_id` is to take its frames in: the
-    /// equipment profile's default, by the name the camera lists. Nothing is
-    /// written to the camera here; the next exposure puts it in the mode if
-    /// it is in another. `None` leaves the camera in whatever mode it is in.
-    pub fn camera_state_readout_mode(&self, device_id: &str, mode: Option<String>) {
-        let mut stated = self
-            .stated_readout_modes
+    /// State what `device_id` takes its frames at when the frame does not
+    /// name it: the equipment profile's default gain, offset and read mode
+    /// (by the name the camera lists), each `None` where the profile states
+    /// none or the camera has no such control. Nothing is written to the
+    /// camera here; each exposure sets them.
+    pub fn camera_state_frame_defaults(&self, device_id: &str, defaults: CameraFrameDefaults) {
+        let defaults = CameraFrameDefaults {
+            readout_mode: defaults
+                .readout_mode
+                .map(|m| m.trim().to_string())
+                .filter(|m| !m.is_empty()),
+            ..defaults
+        };
+        tracing::info!(
+            "Frame defaults stated for {device_id}: gain {:?}, offset {:?}, read mode {:?}",
+            defaults.gain,
+            defaults.offset,
+            defaults.readout_mode
+        );
+        self.stated_frame_defaults
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match mode.map(|m| m.trim().to_string()).filter(|m| !m.is_empty()) {
-            Some(mode) => {
-                tracing::info!("Read mode stated for {device_id}: {mode}");
-                stated.insert(device_id.to_string(), mode);
-            }
-            None => {
-                stated.remove(device_id);
-            }
-        }
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(device_id.to_string(), defaults);
     }
 
-    /// The read mode stated for `device_id`, if one is.
-    pub(crate) fn stated_readout_mode(&self, device_id: &str) -> Option<String> {
-        self.stated_readout_modes
+    /// What is stated for `device_id`; nothing when no profile stated any.
+    pub(crate) fn stated_frame_defaults(&self, device_id: &str) -> CameraFrameDefaults {
+        self.stated_frame_defaults
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .get(device_id)
             .cloned()
+            .unwrap_or_default()
     }
 
     /// Before a frame: put the camera in the read mode named `mode`. The

@@ -9514,32 +9514,40 @@ class RustLibWire implements BaseWire {
           >();
 
   WireSyncRust2DartDco
-  wire__crate__api__devices__camera__api_camera_state_readout_mode(
+  wire__crate__api__devices__camera__api_camera_state_frame_defaults(
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+    ffi.Pointer<ffi.Int32> gain,
+    ffi.Pointer<ffi.Int32> offset,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> readout_mode,
   ) {
-    return _wire__crate__api__devices__camera__api_camera_state_readout_mode(
+    return _wire__crate__api__devices__camera__api_camera_state_frame_defaults(
       device_id,
-      mode,
+      gain,
+      offset,
+      readout_mode,
     );
   }
 
-  late final _wire__crate__api__devices__camera__api_camera_state_readout_modePtr =
+  late final _wire__crate__api__devices__camera__api_camera_state_frame_defaultsPtr =
       _lookup<
         ffi.NativeFunction<
           WireSyncRust2DartDco Function(
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<ffi.Int32>,
+            ffi.Pointer<ffi.Int32>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_frame_defaults',
       );
-  late final _wire__crate__api__devices__camera__api_camera_state_readout_mode =
-      _wire__crate__api__devices__camera__api_camera_state_readout_modePtr
+  late final _wire__crate__api__devices__camera__api_camera_state_frame_defaults =
+      _wire__crate__api__devices__camera__api_camera_state_frame_defaultsPtr
           .asFunction<
             WireSyncRust2DartDco Function(
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<ffi.Int32>,
+              ffi.Pointer<ffi.Int32>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();

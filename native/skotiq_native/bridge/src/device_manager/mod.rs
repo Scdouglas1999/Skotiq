@@ -234,9 +234,10 @@ pub struct DeviceManager {
     pub(crate) retained_captures:
         std::sync::Mutex<Vec<ops::camera::retained::RetainedCaptureRecord>>,
 
-    /// The read mode stated for each camera (its profile's default), by
-    /// name. See `camera_state_readout_mode`.
-    pub(crate) stated_readout_modes: std::sync::Mutex<HashMap<String, String>>,
+    /// The gain, offset and read mode stated for each camera (its profile's
+    /// defaults). See `camera_state_frame_defaults`.
+    pub(crate) stated_frame_defaults:
+        std::sync::Mutex<HashMap<String, ops::camera::CameraFrameDefaults>>,
 
     /// (camera, read mode) pairs already told about as not listed.
     pub(crate) unlisted_read_mode_notices:
@@ -369,7 +370,7 @@ impl DeviceManager {
             pixel_size_notices: Default::default(),
             dim_frame_cameras: Default::default(),
             retained_captures: Default::default(),
-            stated_readout_modes: Default::default(),
+            stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
         });
 

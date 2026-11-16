@@ -111,7 +111,7 @@ class DeviceService {
   // `SwitchChannelService.resetHooks()` in `tearDown`.
   StreamSubscription? _eventSubscription;
   late final CameraTemperaturePoller _temperaturePoller;
-  CameraReadModeOwner? _readModeOwner;
+  CameraFrameDefaultsOwner? _frameDefaultsOwner;
   late final CameraWarmupController _warmupController;
 
   /// On a remote client, follows the host's warm-up until it ends.
@@ -276,12 +276,17 @@ class DeviceService {
       hostLink: hostLink,
     );
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);
-    // The host states the read mode; a linked client's host does it there.
+    // The host states the frame defaults; a linked client's host does it
+    // there.
     if (_backend.ownsDeviceBridge) {
-      _readModeOwner = CameraReadModeOwner(
+      _frameDefaultsOwner = CameraFrameDefaultsOwner(
         ref: _ref,
-        state: (deviceId, mode) =>
-            bridge.apiCameraStateReadoutMode(deviceId: deviceId, mode: mode),
+        state: (deviceId, defaults) => bridge.apiCameraStateFrameDefaults(
+          deviceId: deviceId,
+          gain: defaults.gain,
+          offset: defaults.offset,
+          readoutMode: defaults.readoutMode,
+        ),
       );
     }
     _phd2Launcher = Phd2Launcher(ref: _ref);
@@ -421,7 +426,7 @@ class DeviceService {
     _environmentPollTimer = null;
     _temperaturePoller.dispose();
     _warmupController.dispose();
-    _readModeOwner?.dispose();
+    _frameDefaultsOwner?.dispose();
     _hostWarmUpWatch?.cancel();
     _hostWarmUpWatch = null;
     _focuserMoveSettleWatch?.cancel();

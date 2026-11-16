@@ -6,7 +6,7 @@
 ///
 library;
 
-export 'equipment/camera_read_mode_owner.dart';
+export 'equipment/camera_frame_defaults_owner.dart';
 export 'equipment/camera_state_provider.dart';
 export 'equipment/cover_calibrator_state_provider.dart';
 export 'equipment/dome_state_provider.dart';

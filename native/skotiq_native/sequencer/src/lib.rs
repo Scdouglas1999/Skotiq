@@ -2152,10 +2152,12 @@ pub struct AutofocusConfig {
     /// Runtime overrides keyed by the imaging filter active when AF begins.
     #[serde(default)]
     pub filter_settings: std::collections::HashMap<String, AutofocusFilterConfig>,
-    /// Optional camera gain override. None preserves the camera's current value.
+    /// The gain autofocus frames are taken at. `None` takes the profile's
+    /// default gain.
     #[serde(default)]
     pub gain: Option<i32>,
-    /// Optional camera offset override. None preserves the camera's current value.
+    /// The offset autofocus frames are taken at. `None` takes the profile's
+    /// default offset.
     #[serde(default)]
     pub offset: Option<i32>,
     #[serde(default)]

@@ -47,13 +47,26 @@ pub async fn set_camera_offset(device_id: String, offset: i32) -> Result<(), Sko
         .map_err(SkotiqError::from)
 }
 
-/// State the read mode a camera is to take its frames in: its equipment
-/// profile's default, by the name the camera lists. Nothing is written to
-/// the camera now; the next exposure puts it in the mode if it is in
-/// another. `None` leaves the camera in the mode it is in.
+/// State what a camera takes its frames at when a frame does not name it:
+/// its equipment profile's default gain, offset and read mode (by the name
+/// the camera lists). Nothing is written to the camera now; each exposure
+/// sets them. `None` is for a value the profile does not state or a control
+/// the camera does not have; the camera then keeps its own.
 #[flutter_rust_bridge::frb(sync)]
-pub fn api_camera_state_readout_mode(device_id: String, mode: Option<String>) {
-    get_device_manager().camera_state_readout_mode(&device_id, mode);
+pub fn api_camera_state_frame_defaults(
+    device_id: String,
+    gain: Option<i32>,
+    offset: Option<i32>,
+    readout_mode: Option<String>,
+) {
+    get_device_manager().camera_state_frame_defaults(
+        &device_id,
+        crate::device_manager::ops::camera::CameraFrameDefaults {
+            gain,
+            offset,
+            readout_mode,
+        },
+    );
 }
 
 /// One capture a camera is keeping because its download failed.

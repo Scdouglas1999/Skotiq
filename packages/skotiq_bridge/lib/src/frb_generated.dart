@@ -120,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 883874832;
+  int get rustContentHash => -1780828477;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -249,9 +249,11 @@ abstract class RustLibApi extends BaseApi {
     required String frameType,
   });
 
-  void crateApiDevicesCameraApiCameraStateReadoutMode({
+  void crateApiDevicesCameraApiCameraStateFrameDefaults({
     required String deviceId,
-    String? mode,
+    int? gain,
+    int? offset,
+    String? readoutMode,
   });
 
   Future<void> crateApiImagingApiCancelAutofocus();
@@ -2146,36 +2148,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  void crateApiDevicesCameraApiCameraStateReadoutMode({
+  void crateApiDevicesCameraApiCameraStateFrameDefaults({
     required String deviceId,
-    String? mode,
+    int? gain,
+    int? offset,
+    String? readoutMode,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_opt_String(mode);
+          var arg1 = cst_encode_opt_box_autoadd_i_32(gain);
+          var arg2 = cst_encode_opt_box_autoadd_i_32(offset);
+          var arg3 = cst_encode_opt_String(readoutMode);
           return wire
-              .wire__crate__api__devices__camera__api_camera_state_readout_mode(
+              .wire__crate__api__devices__camera__api_camera_state_frame_defaults(
                 arg0,
                 arg1,
+                arg2,
+                arg3,
               );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiDevicesCameraApiCameraStateReadoutModeConstMeta,
-        argValues: [deviceId, mode],
+        constMeta: kCrateApiDevicesCameraApiCameraStateFrameDefaultsConstMeta,
+        argValues: [deviceId, gain, offset, readoutMode],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesCameraApiCameraStateReadoutModeConstMeta =>
+  TaskConstMeta
+  get kCrateApiDevicesCameraApiCameraStateFrameDefaultsConstMeta =>
       const TaskConstMeta(
-        debugName: "api_camera_state_readout_mode",
-        argNames: ["deviceId", "mode"],
+        debugName: "api_camera_state_frame_defaults",
+        argNames: ["deviceId", "gain", "offset", "readoutMode"],
       );
 
   @override

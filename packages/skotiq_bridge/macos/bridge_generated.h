@@ -2677,8 +2677,10 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure_c
                                                                                           uint32_t *height,
                                                                                           struct wire_cst_list_prim_u_8_strict *frame_type);
 
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode(struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                           struct wire_cst_list_prim_u_8_strict *mode);
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_frame_defaults(struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                                             int32_t *gain,
+                                                                                                             int32_t *offset,
+                                                                                                             struct wire_cst_list_prim_u_8_strict *readout_mode);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_autofocus(int64_t port_);
 
@@ -3890,7 +3892,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_get_recommended_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retained_captures);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_retrieve_retained_capture);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_frame_defaults);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__get_camera_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_cooler);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain);

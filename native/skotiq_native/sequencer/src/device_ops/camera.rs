@@ -53,7 +53,10 @@ pub struct CameraSubframe {
 pub struct ExposureRequest<'a> {
     pub camera_id: &'a str,
     pub duration_secs: f64,
+    /// `None` takes the gain stated for the camera (its profile's default),
+    /// never the value an earlier frame left on it.
     pub gain: Option<i32>,
+    /// `None` takes the offset stated for the camera, as for `gain`.
     pub offset: Option<i32>,
     pub bin_x: i32,
     pub bin_y: i32,
@@ -70,8 +73,8 @@ pub struct ExposureRequest<'a> {
 }
 
 impl<'a> ExposureRequest<'a> {
-    /// A full-sensor light frame, unbinned, at the camera's current gain and
-    /// offset.
+    /// A full-sensor light frame, unbinned, at the gain, offset and read mode
+    /// stated for the camera (its profile's defaults).
     pub fn new(camera_id: &'a str, duration_secs: f64) -> Self {
         Self {
             camera_id,

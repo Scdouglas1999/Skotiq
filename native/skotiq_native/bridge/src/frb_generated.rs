@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 883874832;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1780828477;
 
 // Section: executor
 
@@ -653,24 +653,30 @@ fn wire__crate__api__imaging__api_camera_start_exposure_configured_impl(
         },
     )
 }
-fn wire__crate__api__devices__camera__api_camera_state_readout_mode_impl(
+fn wire__crate__api__devices__camera__api_camera_state_frame_defaults_impl(
     device_id: impl CstDecode<String>,
-    mode: impl CstDecode<Option<String>>,
+    gain: impl CstDecode<Option<i32>>,
+    offset: impl CstDecode<Option<i32>>,
+    readout_mode: impl CstDecode<Option<String>>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_camera_state_readout_mode",
+            debug_name: "api_camera_state_frame_defaults",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let api_device_id = device_id.cst_decode();
-            let api_mode = mode.cst_decode();
+            let api_gain = gain.cst_decode();
+            let api_offset = offset.cst_decode();
+            let api_readout_mode = readout_mode.cst_decode();
             transform_result_dco::<_, _, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
-                    crate::api::devices::camera::api_camera_state_readout_mode(
+                    crate::api::devices::camera::api_camera_state_frame_defaults(
                         api_device_id,
-                        api_mode,
+                        api_gain,
+                        api_offset,
+                        api_readout_mode,
                     );
                 })?;
                 Ok(output_ok)
@@ -27933,11 +27939,18 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_readout_mode(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_state_frame_defaults(
         device_id: *mut wire_cst_list_prim_u_8_strict,
-        mode: *mut wire_cst_list_prim_u_8_strict,
+        gain: *mut i32,
+        offset: *mut i32,
+        readout_mode: *mut wire_cst_list_prim_u_8_strict,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__devices__camera__api_camera_state_readout_mode_impl(device_id, mode)
+        wire__crate__api__devices__camera__api_camera_state_frame_defaults_impl(
+            device_id,
+            gain,
+            offset,
+            readout_mode,
+        )
     }
 
     #[unsafe(no_mangle)]
