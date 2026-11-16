@@ -210,8 +210,9 @@ jobs:
     # Linux Rust runs on every PR + push for fast feedback.
     name: Rust Tests (linux)
     runs-on: ubuntu-latest
-    # The full suite includes timed autofocus and overnight-recovery scenarios.
-    timeout-minutes: 45
+    # The full suite includes timed autofocus and overnight-recovery scenarios,
+    # and real-size image calibration and stacking.
+    timeout-minutes: 90
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -252,7 +253,11 @@ jobs:
       - name: Run Rust tests
         working-directory: native/skotiq_native
         # --no-fail-fast: one failing test binary must not keep the crates
-        # after it from running.
+        # after it from running. Light optimization keeps debug assertions and
+        # overflow checks but runs the image and autofocus tests several times
+        # faster; unoptimized, the suite ran past the job's time limit.
+        env:
+          CARGO_PROFILE_TEST_OPT_LEVEL: "1"
         run: cargo test --locked --all-features --workspace --no-fail-fast
 
   test-rust-windows:
@@ -266,7 +271,7 @@ jobs:
     # has zero CI exercise. Other PRs skip it to keep their cycle time low.
     name: Rust Tests (windows)
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 90
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -299,7 +304,9 @@ jobs:
         working-directory: native/skotiq_native
         # --workspace so the ascom/ crate (Windows-only) gets exercised here
         # in addition to the bridge/imaging/sequencer crates that already
-        # build on Linux; --no-fail-fast as on Linux.
+        # build on Linux; --no-fail-fast and light optimization as on Linux.
+        env:
+          CARGO_PROFILE_TEST_OPT_LEVEL: "1"
         run: cargo test --locked --all-features --workspace --no-fail-fast
 
   cargo-duplicates:
