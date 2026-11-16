@@ -1,4 +1,16 @@
-# catalog_prep — deep-star tile builder
+# catalog_prep — catalog builders
+
+- `make_deep_star_tiles.py` (below) builds the planetarium's deep-star tiles.
+- `nebula_light/build_nebula_light.py` builds
+  `packages/skotiq_core/assets/catalogs/nebula_light.csv`, which says which
+  OpenNGC nebulae published catalogs class as emission or reflection. Its
+  data rule is stated at the top of the script; the raw source files, their
+  URLs, checksums, citations and terms of use are in `nebula_light/sources/`.
+  Rebuild with `python3 nebula_light/build_nebula_light.py`; test with
+  `python3 nebula_light/test_build_nebula_light.py` (it also fails when the
+  shipped table is out of date).
+
+## Deep-star tile builder
 
 Builds the Skotiq planetarium **deep-star tier**: a downloadable
 Tycho-2 / Gaia subset that extends the bundled HYG atlas (which floors out near

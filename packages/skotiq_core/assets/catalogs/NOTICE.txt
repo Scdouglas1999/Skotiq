@@ -10,3 +10,28 @@ International license:
 https://creativecommons.org/licenses/by-sa/4.0/
 
 That data license does not apply to Skotiq's program code.
+
+
+Nebula light table (nebula_light.csv)
+
+Says which OpenNGC nebulae glow in emission lines and which only reflect
+starlight. It is derived from OpenNGC and is shared under the same
+Creative Commons Attribution-ShareAlike 4.0 license. It is computed from
+these catalogs, retrieved from VizieR (CDS, Strasbourg, France;
+doi:10.26093/cds/vizier):
+
+- Sharpless S. 1959, A Catalogue of H II Regions, ApJS 4, 257
+  (VizieR VII/20)
+- Rodgers A.W., Campbell C.T., Whiteoak J.B. 1960, A catalogue of
+  H-alpha emission regions in the southern Milky Way, MNRAS 121, 103
+  (VizieR VII/216)
+- Anderson L.D. et al. 2014, The WISE catalog of Galactic HII regions,
+  ApJS 212, 1 (VizieR J/ApJS/212/1)
+- Cederblad S. 1946, Studies of bright diffuse galactic nebulae,
+  Medd. Lunds Astron. Obs. Ser. II, 119, 1 (VizieR VII/231)
+- Magakian T.Yu. 2003, Merged catalogue of reflection nebulae,
+  A&A 399, 141 (VizieR J/A+A/399/141)
+
+This research has made use of the VizieR catalogue access tool, CDS,
+Strasbourg, France. The original description of the VizieR service was
+published in 2000, A&AS 143, 23.
