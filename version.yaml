@@ -2,6 +2,6 @@
 # The two app pubspecs and apps/desktop/installer/installer.iss repeat it by
 # hand; tools/production/version_consistency_audit.dart fails CI when they differ.
 
-version: "9.0.0"
-build_number: 37
+version: "9.0.1"
+build_number: 38
 channel: "stable"  # stable, beta, alpha
