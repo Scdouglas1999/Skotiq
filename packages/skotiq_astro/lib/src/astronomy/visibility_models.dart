@@ -63,6 +63,14 @@ class TwilightTimes {
     }
     return null;
   }
+
+  /// Halfway between astronomical dusk and dawn; null without a full dark.
+  DateTime? get middleOfDark {
+    final dusk = astronomicalDusk;
+    final length = darknessDuration;
+    if (dusk == null || length == null || length <= Duration.zero) return null;
+    return dusk.add(Duration(seconds: length.inSeconds ~/ 2));
+  }
 }
 
 class MoonTimes {
