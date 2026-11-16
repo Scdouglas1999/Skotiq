@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
 import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -176,6 +177,46 @@ void main() {
     expect(find.textContaining('0s / 0s'), findsNothing);
     await settleProviderTeardown(tester);
   });
+
+  // F21(d): a run started with Image tonight imaged M31 while Plan > Targets
+  // listed M31 as "Ready" (only the autopilot's own target read as imaging).
+  for (final live in [true, false]) {
+    testWidgets(
+        'a run started outside the autopilot marks its target imaging: $live',
+        (tester) async {
+      await _pump(
+        tester,
+        extra: [
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(
+              ref,
+              RunRecord(
+                lifecycle: live
+                    ? SequenceExecutionState.running
+                    : SequenceExecutionState.completed,
+              ),
+            ),
+          ),
+          runDashboardActiveTargetProvider.overrideWithValue(
+            TargetHeaderNode(targetName: 'm74', raHours: 1.6, decDegrees: 15.8),
+          ),
+        ],
+      );
+      final row = find.byKey(const ValueKey('plan-target-row-2'));
+      expect(
+        find.descendant(of: row, matching: find.text('Imaging now')),
+        live ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-1')),
+          matching: find.text('Imaging now'),
+        ),
+        findsNothing,
+      );
+      await settleProviderTeardown(tester);
+    });
+  }
 
   testWidgets('choosing a group narrows the list and the autopilot to it',
       (tester) async {

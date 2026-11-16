@@ -97,6 +97,14 @@ class TargetHeaderNode extends SequenceNode {
     return targetName;
   }
 
+  /// Whether a run records this target's frames under the `targets` row [id]
+  /// called [name]: the row the node carries, or for a node without one, the
+  /// row its name finds (trimmed, any case: `TargetsDao.findOrCreateByName`).
+  bool imagesTargetRow({required int id, required String name}) =>
+      catalogTargetId != null
+          ? catalogTargetId == id
+          : targetName.trim().toLowerCase() == name.trim().toLowerCase();
+
   bool get hasTimeConstraints => startAfter != null || endBefore != null;
 
   bool get hasAltitudeConstraints => minAltitude != null || maxAltitude != null;
