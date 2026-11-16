@@ -102,8 +102,8 @@ class TargetHeaderNode extends SequenceNode {
   /// row its name finds (trimmed, any case: `TargetsDao.findOrCreateByName`).
   bool imagesTargetRow({required int id, required String name}) =>
       catalogTargetId != null
-          ? catalogTargetId == id
-          : targetName.trim().toLowerCase() == name.trim().toLowerCase();
+      ? catalogTargetId == id
+      : targetName.trim().toLowerCase() == name.trim().toLowerCase();
 
   bool get hasTimeConstraints => startAfter != null || endBefore != null;
 

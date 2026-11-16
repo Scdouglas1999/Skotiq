@@ -13,8 +13,9 @@ void main() {
       overrides: [
         skyNowProvider.overrideWithValue(() => stopped),
         observerLocationProvider.overrideWith(
-          (ref) => PlanetariumObserverNotifier()
-            ..setLocation(latitude: 38.7, longitude: -79.53),
+          (ref) =>
+              PlanetariumObserverNotifier()
+                ..setLocation(latitude: 38.7, longitude: -79.53),
         ),
       ],
     );

@@ -231,9 +231,9 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
   /// null when there is no hold.
   double? get holdMinutesBeforeFlip =>
       triggerMethod == MeridianTriggerMethod.minutesPastMeridian &&
-              pauseBeforeMeridianMinutes > 0
-          ? pauseBeforeMeridianMinutes + minutesPastMeridian
-          : null;
+          pauseBeforeMeridianMinutes > 0
+      ? pauseBeforeMeridianMinutes + minutesPastMeridian
+      : null;
 
   /// Whether any post-flip operations are enabled
   bool get hasPostFlipOperations =>
