@@ -42,6 +42,7 @@ class EonSettings {
     this.noDarkSlot = EonNoDarkSlotPolicy.askToCap,
     this.capWaitMinutes = 30,
     this.warmUp = true,
+    this.darkValidDays = defaultDarkValidDays,
   });
 
   /// Run the step automatically when the night's imaging ends. On by
@@ -62,6 +63,16 @@ class EonSettings {
   /// Warm the camera up gradually once the frames are taken.
   final bool warmUp;
 
+  /// How many days a dark or dark-flat master in the library stands in for
+  /// new darks of its setting. Bias masters never expire.
+  final int darkValidDays;
+
+  /// About four months: the dark current and hot pixels of a cooled sensor
+  /// drift slowly, and the usual advice is to refresh a dark library every
+  /// three to four months, at the latest once a year.
+  static const defaultDarkValidDays = 120;
+  static const maxDarkValidDays = 3650;
+
   static const keyPrefix = 'end_of_night_calibration';
   static const enabledKey = '$keyPrefix.enabled';
   static const mountKey = '$keyPrefix.mount';
@@ -70,6 +81,7 @@ class EonSettings {
   static const noDarkSlotKey = '$keyPrefix.no_dark_slot';
   static const capWaitKey = '$keyPrefix.cap_wait_minutes';
   static const warmUpKey = '$keyPrefix.warm_up';
+  static const darkValidDaysKey = '$keyPrefix.dark_valid_days';
   static const lastReportKey = '$keyPrefix.last_report';
 
   static const minCount = 2;
@@ -93,6 +105,10 @@ class EonSettings {
         240,
       ),
       warmUp: await read(warmUpKey) != 'false',
+      darkValidDays:
+          (int.tryParse(await read(darkValidDaysKey) ?? '') ??
+                  defaultDarkValidDays)
+              .clamp(1, maxDarkValidDays),
     );
   }
 
@@ -104,6 +120,7 @@ class EonSettings {
     noDarkSlotKey: noDarkSlot.wireValue,
     capWaitKey: '$capWaitMinutes',
     warmUpKey: '$warmUp',
+    darkValidDaysKey: '$darkValidDays',
   };
 
   Map<String, Object?> toJson() => {
@@ -114,6 +131,7 @@ class EonSettings {
     'noDarkSlot': noDarkSlot.wireValue,
     'capWaitMinutes': capWaitMinutes,
     'warmUp': warmUp,
+    'darkValidDays': darkValidDays,
   };
 
   EonSettings copyWith({
@@ -124,6 +142,7 @@ class EonSettings {
     EonNoDarkSlotPolicy? noDarkSlot,
     int? capWaitMinutes,
     bool? warmUp,
+    int? darkValidDays,
   }) => EonSettings(
     enabled: enabled ?? this.enabled,
     mountAction: mountAction ?? this.mountAction,
@@ -132,5 +151,9 @@ class EonSettings {
     noDarkSlot: noDarkSlot ?? this.noDarkSlot,
     capWaitMinutes: (capWaitMinutes ?? this.capWaitMinutes).clamp(1, 240),
     warmUp: warmUp ?? this.warmUp,
+    darkValidDays: (darkValidDays ?? this.darkValidDays).clamp(
+      1,
+      maxDarkValidDays,
+    ),
   );
 }

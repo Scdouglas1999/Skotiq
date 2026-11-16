@@ -2,6 +2,7 @@ import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,9 @@ import '../sequence/sequence_selection.dart';
 import '../sequence_stats_provider.dart';
 import '../../models/sequence/terminal_run_result.dart';
 import '../ui_notification_provider.dart';
+import '../../models/calibration/calibration_library_models.dart';
+import '../../services/calibration/calibration_frame_groups.dart';
+import '../../services/calibration_backlog_service.dart';
 import '../../services/calibration_master_builder.dart';
 import '../../services/frame_header.dart';
 import '../../services/camera_warmup_controller.dart' show CameraWarmupOutcome;
@@ -32,6 +36,7 @@ import '../../services/notification_service.dart';
 import '../../services/end_of_night_calibration/eon_plan.dart';
 import '../../services/end_of_night_calibration/eon_service.dart';
 import '../../services/end_of_night_calibration/eon_settings.dart';
+import '../calibration_library_service_providers.dart';
 import '../calibration_master_builder_provider.dart';
 import '../device_service_providers.dart';
 import '../notification_service_provider.dart';
@@ -205,6 +210,45 @@ class ProviderEonRig implements EonRig {
   @override
   Future<double> darkTemperatureToleranceC() =>
       loadedDarkTemperatureToleranceC(_ref);
+
+  @override
+  Future<EonLibrary> library() async {
+    final masters = [
+      for (final m in await _ref.read(calibrationLibraryProvider).listMasters())
+        if ((m.type == CalibrationMasterType.dark ||
+                m.type == CalibrationMasterType.bias) &&
+            m.isMaster &&
+            m.filePath != null &&
+            await File(m.filePath!).exists())
+          m,
+    ];
+    final waiting = await _ref
+        .read(calibrationBacklogServiceProvider)
+        .pending();
+    return EonLibrary(
+      masters: masters,
+      frameGroups: [
+        for (final g in waiting)
+          if (g.kind != CalibrationFrameKind.flat && g.missingFiles == 0)
+            CalibrationFrameGroup(
+              setting: CalibrationFrameSetting(
+                type: g.kind == CalibrationFrameKind.bias
+                    ? FrameType.bias
+                    : FrameType.dark,
+                exposureSecs: g.exposureSeconds,
+                gain: g.gain,
+                offset: g.offset,
+                binX: g.binX,
+                binY: g.binY,
+                readMode: g.readMode,
+                setPointC: g.setPointC,
+              ),
+              frames: g.frames,
+              offSetPoint: g.offSetPoint,
+            ),
+      ],
+    );
+  }
 
   @override
   Future<int> registerMaster(
