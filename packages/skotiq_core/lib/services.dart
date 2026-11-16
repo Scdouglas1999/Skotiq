@@ -285,6 +285,7 @@ export 'src/services/darkroom_delivery/darkroom_delivery.dart';
 export 'src/services/darkroom_autopilot/darkroom_autopilot.dart';
 export 'src/services/darkroom_pass/darkroom_pass.dart';
 export 'src/services/project_tracking_service.dart';
+export 'src/services/calibration/auto_calibration_notice.dart';
 export 'src/services/calibration/calibration_selection.dart';
 export 'src/services/calibration/defect_map_service.dart';
 export 'src/services/calibration_library_service.dart';

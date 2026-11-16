@@ -614,6 +614,8 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                 if (!_hasBackendAuthority(backend)) return null;
               }
 
+              _ref.read(autoCalibrationNoticeProvider.notifier).resolved();
+
               imageData = imageData.copyWith(filePath: effectiveFilePath);
               final currentPreview = _ref.read(currentImageProvider);
               if (currentPreview != null &&
@@ -624,20 +626,25 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             }
           } catch (e) {
             if (!_hasBackendAuthority(backend)) return null;
-            // Calibration failure should not prevent the capture from succeeding.
-            // Log and notify the user, but do not lose the uncalibrated image.
+            // The frame is kept as captured. The operator hears of a cause
+            // once; later frames failing for it are counted on the notice.
             _logger.error(
-              'Auto-calibration failed: $e',
+              'Auto-calibration failed for $savedFilePath: $e',
               source: 'ImagingService',
             );
-            final notificationService = _ref.read(notificationServiceProvider);
-            await notificationService.notifyError(
-              errorTitle: 'Frame kept uncalibrated',
-              errorMessage:
-                  '${path.basename(savedFilePath)} was saved without '
-                  'calibration. ${userFacingError(e)}',
-              source: 'Calibration',
-            );
+            final notice = _ref.read(autoCalibrationNoticeProvider.notifier);
+            if (notice.keptUncalibrated(userFacingError(e))) {
+              await _ref
+                  .read(notificationServiceProvider)
+                  .notifyError(
+                    errorTitle: 'Frames kept uncalibrated',
+                    errorMessage:
+                        '${_ref.read(autoCalibrationNoticeProvider)!.sentence} '
+                        'Captured lights are saved '
+                        'without calibration until this is fixed.',
+                    source: 'Calibration',
+                  );
+            }
             if (!_hasBackendAuthority(backend)) return null;
           }
         }
