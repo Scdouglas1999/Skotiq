@@ -79,7 +79,11 @@ class EquipmentHealthPanel extends ConsumerWidget {
       0,
       (sum, snapshot) => sum + snapshot.disconnectCountLast24h,
     );
-    final healthy = snapshots.where((s) => s.isHealthy).length;
+    final polled = [
+      for (final snapshot in snapshots)
+        if (snapshot.heartbeatPolled) snapshot,
+    ];
+    final healthy = polled.where((s) => s.isHealthy).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,9 +99,9 @@ class EquipmentHealthPanel extends ConsumerWidget {
             ),
             (
               'Heartbeats',
-              snapshots.isEmpty
+              polled.isEmpty
                   ? kReadoutUnknown
-                  : '$healthy of ${snapshots.length} healthy',
+                  : '$healthy of ${polled.length} healthy',
             ),
             (
               'Score',
@@ -115,11 +119,11 @@ class EquipmentHealthPanel extends ConsumerWidget {
         // Per-device heartbeats. The summary rows above answer "is the rig
         // healthy"; this answers "which device went quiet", which is the whole
         // point of a heartbeat.
-        if (snapshots.isNotEmpty) ...[
+        if (polled.isNotEmpty) ...[
           const SizedBox(height: SkotiqTokens.spaceMd),
           KeyValueList(
             rows: [
-              for (final snapshot in snapshots)
+              for (final snapshot in polled)
                 (snapshot.displayName, _heartbeatLabel(snapshot)),
             ],
           ),

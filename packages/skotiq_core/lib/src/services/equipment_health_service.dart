@@ -19,12 +19,17 @@ class DeviceHealthSnapshot {
   /// Falls back to [deviceId] when null.
   final String? deviceLabel;
 
+  /// Whether the device heartbeat polls this device. One it does not poll
+  /// has no heartbeat to report.
+  final bool heartbeatPolled;
+
   const DeviceHealthSnapshot({
     required this.deviceId,
     required this.lastSuccessfulTimestampMs,
     required this.isHealthy,
     this.disconnectCountLast24h = 0,
     this.deviceLabel,
+    this.heartbeatPolled = true,
   });
 
   String get displayName => deviceLabel ?? deviceId;
@@ -109,11 +114,15 @@ class DeviceConnectionDescriptor {
   final bool isHealthy;
   final DateTime? lastSuccessfulCommunication;
 
+  /// See [DeviceHealthSnapshot.heartbeatPolled].
+  final bool heartbeatPolled;
+
   const DeviceConnectionDescriptor({
     required this.deviceId,
     this.deviceLabel,
     this.isHealthy = true,
     this.lastSuccessfulCommunication,
+    this.heartbeatPolled = true,
   });
 }
 
@@ -152,6 +161,7 @@ class EquipmentHealthService {
             device.lastSuccessfulCommunication?.millisecondsSinceEpoch ?? 0,
         isHealthy: device.isHealthy,
         disconnectCountLast24h: perDeviceCounts[id] ?? 0,
+        heartbeatPolled: device.heartbeatPolled,
       );
     }
 
