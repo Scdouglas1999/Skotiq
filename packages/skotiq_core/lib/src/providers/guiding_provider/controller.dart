@@ -471,17 +471,26 @@ class Phd2Controller {
     _lastStarLossWarning = null;
   }
 
-  /// PHD2 gave up waiting for the guider to settle. That is not a lost
-  /// star: PHD2 keeps guiding, often with the star locked, and the run
-  /// judges the guiding itself. Recorded and logged in those words, never
-  /// as "Guide star lost".
+  /// PHD2 ended a settle without settling. With PHD2 still guiding the
+  /// settle ran out of time: that is not a lost star, PHD2 keeps guiding,
+  /// often with the star locked, and the run judges the guiding itself. With
+  /// guiding already stopped, the stop ended the settle and there is nothing
+  /// to record. Never logged as "Guide star lost".
   void _handleSettleTimedOut(String error) {
+    final detail = error.isEmpty ? '' : ' ($error)';
+    if (!ref.read(phd2StateProvider).inGuideSession) {
+      _logger.info(
+        'The settle ended because guiding was stopped$detail.',
+        source: 'PHD2',
+      );
+      return;
+    }
     ref.read(guiderSettleTimeoutProvider.notifier).state = (
       at: _now(),
       error: error,
     );
     _logger.warning(
-      'Guiding did not settle in time${error.isEmpty ? '' : ' ($error)'}. '
+      'Guiding did not settle in time$detail. '
       'This is not a lost star; the guider keeps guiding.',
       source: 'PHD2',
     );
