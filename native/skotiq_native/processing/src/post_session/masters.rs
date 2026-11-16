@@ -9,7 +9,8 @@ use crate::post_session::helpers::{
     aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
     exposures_per_light, extract_channel, image_to_f64, load_optional_master, write_channel,
 };
-use crate::post_session::multi_night::{calibrate_for_fold, fold_masters, OnGrid};
+use crate::post_session::light_calibration::LightCalibration;
+use crate::post_session::multi_night::{calibrate_for_fold, OnGrid};
 use crate::run_cancel::CancelToken;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::calibration_masters::{build_master_flat, MasterFlatConfig};
@@ -428,7 +429,7 @@ fn fold_into(
     let (width, height) = (geom.width as usize, geom.height as usize);
     let chan = geom.channels as usize;
     let locations = width * height;
-    let masters = fold_masters(&args.calibration)?;
+    let masters = LightCalibration::for_lights(&args.calibration)?;
     let reg_cfg = build_registration_config(&args.settings.align)?;
     let q_cfg = FrameQualityConfig::default();
     let norm_cfg = if args.settings.normalization.enabled {
@@ -448,10 +449,10 @@ fn fold_into(
             check_stage(cancel, "registering", Some(i as u32), Some(fold_total))?;
         }
         let exposure = (exposures[i] > 0.0).then_some(exposures[i]);
-        let calibrated = calibrate_for_fold(path, exposure, &args.calibration, &masters)?;
+        let calibrated = calibrate_for_fold(path, exposure, &masters)?;
         let (transform, _) = skotiq_imaging::registration::solve_registration_against(
             &reference.stars,
-            &calibrated.detection,
+            &calibrated.sixteen_bit,
             &reg_cfg,
         )
         .map_err(|e| format!("registration of '{path}' failed: {e}"))?;

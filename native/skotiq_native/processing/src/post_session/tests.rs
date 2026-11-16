@@ -666,14 +666,16 @@ fn build_master_flat_unit_mean() {
         .map(|&v| (1000.0 * v).round() as u16)
         .collect();
     let light = ImageData::from_u16(size, size, 1, &light_pixels);
-    let calibrated = skotiq_imaging::calibration::calibrate_frame(&light, None, Some(&img), None)
+    let cal = skotiq_imaging::calibration::FloatCalibration {
+        flat: Some(&img),
+        ..Default::default()
+    };
+    let calibrated = skotiq_imaging::calibration::calibrate_frame_f32(&light, &cal)
         .expect("generated float flat calibrates U16 lights");
-    assert_eq!(calibrated.pixel_type, PixelType::U16);
     assert!(calibrated
-        .as_u16()
-        .unwrap()
+        .samples_f64()
         .iter()
-        .all(|&v| v.abs_diff(1000) <= 1));
+        .all(|&v| (v - 1000.0).abs() <= 1.0));
 }
 
 /// save_fits_master re-exports a buffer with the declared geometry/type.
@@ -1186,9 +1188,9 @@ fn integrate_session_reports_a_stale_warm_dark_as_a_fallback() {
     assert_eq!(header.get("CALWARN").and_then(|v| v.as_bool()), Some(true));
 }
 
-/// The dark is subtracted as-is, with no exposure scaling, so a dark of a
-/// different duration is a real calibration error and must read as a fallback
-/// with the offending dimension named.
+/// A dark of a different duration is scaled to the lights with the bias, and
+/// the report still reads it as a fallback with the offending dimension
+/// named: the master is not of the lights' exposure.
 #[test]
 fn integrate_session_reports_an_exposure_mismatched_dark_as_a_fallback() {
     let dir = temp_dir("calibration_report_exposure_mismatch");
@@ -1196,12 +1198,17 @@ fn integrate_session_reports_an_exposure_mismatched_dark_as_a_fallback() {
     let light_paths = calibration_test_lights(&dir, size, "exp");
     let dark_path = dir.join("long_dark.fits");
     write_master_dark(&dark_path, size, "2026-08-14T19:00:00", -10.0, 120.0);
+    let bias_path = dir.join("bias.fits");
+    write_master_dark(&bias_path, size, "2026-08-14T19:00:00", -10.0, 0.0);
     let master_path = dir.join("master.fits");
 
     let result = run_integration(
         &light_paths,
         &master_path,
-        serde_json::json!({ "dark": dark_path.to_string_lossy() }),
+        serde_json::json!({
+            "dark": dark_path.to_string_lossy(),
+            "bias": bias_path.to_string_lossy(),
+        }),
     );
 
     let dark = slot(&result.calibration, "dark");
@@ -1226,6 +1233,35 @@ fn integrate_session_reports_an_exposure_mismatched_dark_as_a_fallback() {
         history.contains("EXPTIME") && history.contains("OUT OF TOLERANCE"),
         "{:?}",
         header.history
+    );
+    assert!(
+        history.contains("Dark scaled by the exposure ratio 0.5000"),
+        "{:?}",
+        header.history
+    );
+}
+
+/// Without a bias a dark of another exposure cannot be scaled, and the
+/// integration says so instead of subtracting it whole.
+#[test]
+fn integrate_session_refuses_an_exposure_mismatched_dark_without_a_bias() {
+    let dir = temp_dir("calibration_unscalable_dark");
+    let size = 128u32;
+    let light_paths = calibration_test_lights(&dir, size, "unscalable");
+    let dark_path = dir.join("long_dark.fits");
+    write_master_dark(&dark_path, size, "2026-08-14T19:00:00", -10.0, 120.0);
+    let args = serde_json::json!({
+        "lightPaths": light_paths,
+        "reference": light_paths[0],
+        "exposuresSec": [60.0, 60.0, 60.0],
+        "calibration": { "dark": dark_path.to_string_lossy() },
+        "settings": { "align": synthetic_align() },
+        "output": { "masterFitsPath": dir.join("master.fits").to_string_lossy() }
+    });
+    let err = integrate_session(args.to_string()).expect_err("refused");
+    assert!(
+        err.contains("the dark is 120 s and the light 60 s") && err.contains("master bias"),
+        "{err}"
     );
 }
 
@@ -2055,4 +2091,75 @@ fn exposures_per_light_refuses_impossible_seconds() {
         vec![300.0, 0.0]
     );
     assert_eq!(exposures_per_light(&[], 3).unwrap(), vec![0.0, 0.0, 0.0]);
+}
+
+/// A light of `sky` ADU over a 1000 ADU bias with 10 ADU of noise: the faint
+/// sky of a narrowband sub, where noise pulls many samples below the dark.
+fn faint_sky_light(size: u32, stars: &[(f64, f64, f64)], sky: f64, seed: usize) -> ImageData {
+    let stars_only = render_field(size, stars, 0.0);
+    let stars_only = stars_only.as_u16().expect("u16 field");
+    let data: Vec<u16> = stars_only
+        .iter()
+        .enumerate()
+        .map(|(i, &star)| {
+            let h = |k: usize| {
+                let x = (i * 4 + k + seed * 7919).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+                ((x >> 11) as f64 / (1u64 << 53) as f64).max(1e-12)
+            };
+            let gauss = (-2.0 * h(0).ln()).sqrt() * (std::f64::consts::TAU * h(1)).cos();
+            (1000.0 + sky + 10.0 * gauss + f64::from(star)).round() as u16
+        })
+        .collect();
+    ImageData::from_u16(size, size, 1, &data)
+}
+
+/// The one-shot integration keeps a faint sky at its level: samples below
+/// the dark are neither clipped to zero nor read as uncovered.
+#[test]
+fn integrate_session_keeps_a_faint_sky_at_its_level() {
+    let dir = temp_dir("faint_sky");
+    let size = 128u32;
+    let stars = base_stars(size as f64);
+    let mut light_paths = Vec::new();
+    for (i, (dx, dy)) in [(0.0, 0.0), (3.0, -2.0), (-2.0, 4.0)].iter().enumerate() {
+        let field = faint_sky_light(size, &shift_stars(&stars, *dx, *dy), 5.0, i);
+        let p = dir.join(format!("faint{i}.fits"));
+        write_light_with_metadata(&p, &field, "2026-08-14T21:00:00");
+        light_paths.push(p.to_string_lossy().to_string());
+    }
+    let level = |path: &Path, value: u16, exptime: f64| {
+        let image = ImageData::from_u16(size, size, 1, &vec![value; (size * size) as usize]);
+        let mut h = FitsHeader::new();
+        h.set_string("FRAMETYP", "MASTER");
+        set_frame_metadata(&mut h, "2026-08-14T19:00:00", -10.0, exptime);
+        write_fits(path, &image, &h).expect("write master");
+    };
+    let (dark, bias) = (dir.join("dark.fits"), dir.join("bias.fits"));
+    level(&dark, 1000, 60.0);
+    level(&bias, 1000, 0.0);
+    let master_path = dir.join("master.fits");
+
+    let result = run_integration(
+        &light_paths,
+        &master_path,
+        serde_json::json!({
+            "dark": dark.to_string_lossy(),
+            "bias": bias.to_string_lossy(),
+            "cosmeticCorrection": false,
+        }),
+    );
+    assert_eq!(result.frames_integrated, 3);
+
+    let (master, _) = read_frame(master_path.as_path()).expect("read master");
+    let mut samples: Vec<f64> = master.samples_f64();
+    samples.sort_by(f64::total_cmp);
+    let median = samples[samples.len() / 2];
+    let (reference, _) = read_frame(Path::new(&light_paths[0])).expect("read light");
+    let mut sky: Vec<f64> = reference.samples_f64();
+    sky.sort_by(f64::total_cmp);
+    let sky = sky[sky.len() / 2] - 1000.0;
+    assert!(
+        (median - sky).abs() < 1.0,
+        "the master's sky reads {median} ADU; the subs hold {sky} ADU over the bias"
+    );
 }
