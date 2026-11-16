@@ -33,3 +33,4 @@ export 'src/utils/aligned_ticker.dart';
 export 'src/utils/skotiq_data_directory.dart';
 export 'src/utils/legacy_install_migration.dart';
 export 'src/utils/host_paths.dart' show hostPathContext;
+export 'src/utils/logging_service.dart';

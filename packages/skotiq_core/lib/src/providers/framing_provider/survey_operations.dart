@@ -429,45 +429,24 @@ extension _FramingSurveyOperations on FramingNotifier {
     }
   }
 
+  /// The camera field (width, height) in degrees: the one [framingFOVProvider]
+  /// resolves and the reticle draws (custom equipment, else the active
+  /// profile's optics with the live, remembered or published sensor). Null
+  /// when no camera field can be resolved.
   Future<(double, double)?> _getCurrentFOV() async {
-    if (_currentState.useCustomEquipment &&
-        _currentState.customEquipment != null) {
-      return (
-        _currentState.customEquipment!.fovWidthDeg,
-        _currentState.customEquipment!.fovHeightDeg,
-      );
-    }
-
-    // Delegate profile FOV math to the canonical OpticalConfig.fieldOfView,
-    // which derives sensor dimensions from the active profile + connected
-    // camera capabilities. This replaces the hand-rolled Taylor-series atan
-    // approximation and keeps a single source of truth for FOV across the app.
     try {
-      final optical = _ref.read(opticalConfigProvider);
-      if (optical == null) {
-        return null;
-      }
-      final fov = optical.fieldOfView;
-      if (fov == null) {
-        Log.warning(
-          'Cannot compute profile FOV: optical config lacks focal length or '
-          'camera sensor specs (focalLength=${optical.focalLength}, '
-          'sensorWidth=${optical.sensorWidth}, sensorHeight=${optical.sensorHeight}, '
-          'pixelSize=${optical.pixelSize}).',
-          source: 'Framing',
-        );
-        return null;
-      }
-      return fov;
+      final result = await _ref.read(framingFOVProvider.future);
+      final equipment = result.equipment;
+      if (!result.isReady || equipment == null) return null;
+      return (equipment.fovWidthDeg, equipment.fovHeightDeg);
     } catch (error, stack) {
       Log.error(
-        'Failed to compute framing FOV from active profile.',
+        'Failed to resolve the framing camera field.',
         source: 'Framing',
         error: error,
         stackTrace: stack,
       );
+      return null;
     }
-
-    return null;
   }
 }

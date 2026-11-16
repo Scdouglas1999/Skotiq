@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
-import 'package:skotiq_core/src/models/errors/server_error.dart';
-import 'package:skotiq_core/src/services/phd2_probe.dart';
+import 'package:skotiq_core/src/errors/server_error.dart';
+import 'package:skotiq_core/src/backend/phd2_probe.dart';
 
 import '../fakes/fakes.dart';
 

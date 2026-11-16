@@ -6,12 +6,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/widgets/image_preview/image_display.dart';
 import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -219,13 +221,79 @@ void main() {
     container.read(nightStageSelectionProvider.notifier).state =
         board.frames[5].id;
     await tester.pump();
-    expect(
-        find.bySemanticsLabel(RegExp('Preview of frame #37')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Saved frame #37')), findsOneWidget);
     expect(find.textContaining('Rejected'), findsOneWidget);
     await tester.tap(find.text('Back to latest'));
     await tester.pump();
     expect(container.read(nightStageSelectionProvider), isNull);
   });
+
+  testWidgets(
+    'a frame picked in the strip is decoded from its own file at full '
+    'resolution, its thumbnail standing in meanwhile',
+    (tester) async {
+      final board = NightFixtures.running();
+      final frames = <StripFrameVm>[
+        for (final f in board.frames)
+          StripFrameVm(
+            id: f.id,
+            frameNumber: f.frameNumber,
+            capturedAt: f.capturedAt,
+            filter: f.filter,
+            exposureSecs: f.exposureSecs,
+            accepted: f.accepted,
+            hostPath: '/data/M74/M74_Ha_00${f.frameNumber}.fits',
+            filePath: '/data/M74/M74_Ha_00${f.frameNumber}.fits',
+            isNewest: f.isNewest,
+          ),
+      ];
+      final decoded = <String>[];
+      final file = Completer<bridge.FitsReadResult>();
+      final container = await pumpCenter(
+        tester,
+        centerOverrides(
+          board,
+          image: testFrame(),
+          frames: frames,
+          decoder: (path) {
+            decoded.add(path);
+            return file.future;
+          },
+        ),
+        child: const FrameStage(),
+      );
+      container.read(nightStageSelectionProvider.notifier).state = frames[5].id;
+      await tester.pump();
+
+      expect(decoded, ['/data/M74/M74_Ha_0037.fits']);
+      expect(
+        find.textContaining('Loading full resolution', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.byType(ImageDisplayWidget), findsNothing);
+
+      file.complete(testDecodedFrame(2400, 1800));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.textContaining('2400 × 1800', findRichText: true),
+        findsOneWidget,
+      );
+      final shown = tester.widget<ImageDisplayWidget>(
+        find.byType(ImageDisplayWidget),
+      );
+      expect((shown.imageData.width, shown.imageData.height), (2400, 1800));
+      expect(shown.imageData.filePath, '/data/M74/M74_Ha_0037.fits');
+      // A saved frame is drawn through the app's display stretch; Stretch
+      // switches the live frame only.
+      expect(find.text('Stretch'), findsNothing);
+      await tester.tap(find.text('Zoom 1:1'));
+      await tester.pump();
+      expect(container.read(imagingViewerStateProvider).zoomLevel, isNot(1.0));
+      expect(find.text('Fit'), findsOneWidget);
+    },
+  );
 }
 
 void exposureTests() {
@@ -319,13 +387,12 @@ void overlayTests() {
       (tester) async {
     final image = testFrame();
     final container = await pumpCenter(
-      tester,
-      <Override>[
-        ...centerOverrides(NightFixtures.running(), image: image),
-        currentFrameStarsProvider.overrideWith((ref) async => _twoStars),
-      ],
-      child: const FrameStage(),
-    );
+        tester,
+        <Override>[
+          ...centerOverrides(NightFixtures.running(), image: image),
+          currentFrameStarsProvider.overrideWith((ref) async => _twoStars),
+        ],
+        child: const FrameStage());
     container.read(currentImageProvider.notifier).state = image;
     await tester.pump();
     expect(starCircles(), findsNothing);
@@ -372,13 +439,12 @@ void overlayTests() {
     final image = testFrame();
     final pending = Completer<StarDetectionResult?>();
     final container = await pumpCenter(
-      tester,
-      <Override>[
-        ...centerOverrides(NightFixtures.running(), image: image),
-        currentFrameStarsProvider.overrideWith((ref) => pending.future),
-      ],
-      child: const FrameStage(),
-    );
+        tester,
+        <Override>[
+          ...centerOverrides(NightFixtures.running(), image: image),
+          currentFrameStarsProvider.overrideWith((ref) => pending.future),
+        ],
+        child: const FrameStage());
     container.read(imagingViewerStateProvider.notifier).toggleStarOverlay();
     await tester.pump();
     expect(find.textContaining('Finding stars'), findsOneWidget);
@@ -398,13 +464,12 @@ void overlayTests() {
       ),
     );
     final container = await pumpCenter(
-      tester,
-      <Override>[
-        ...centerOverrides(NightFixtures.running(), image: image),
-        currentFrameSolveProvider.overrideWith((ref) => ref.watch(solve)),
-      ],
-      child: const FrameStage(),
-    );
+        tester,
+        <Override>[
+          ...centerOverrides(NightFixtures.running(), image: image),
+          currentFrameSolveProvider.overrideWith((ref) => ref.watch(solve)),
+        ],
+        child: const FrameStage());
     await tester.tap(find.text('Annotate'));
     await tester.pump();
     expect(find.text('Solving this frame'), findsOneWidget);

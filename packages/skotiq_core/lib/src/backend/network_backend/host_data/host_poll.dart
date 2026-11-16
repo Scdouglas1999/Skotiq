@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../../utils/resilient_poll_stream.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// Makes host data that has no change event watchable.
 ///

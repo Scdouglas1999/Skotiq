@@ -3,7 +3,8 @@ import 'package:skotiq_design/skotiq_design.dart';
 
 void main() {
   test(
-    'text and readout styles fall back to the bundled face for the primes',
+    'text and readout styles fall back to the bundled faces for the primes '
+    'and symbols',
     () {
       // Guide RMS, FWHM and declinations end in ′ or ″, which neither text
       // face has; without a bundled fallback each platform substitutes its own.
@@ -18,7 +19,7 @@ void main() {
       ]) {
         expect(style.fontFamilyFallback, SkotiqTypography.fontFamilyFallback);
       }
-      expect(SkotiqTypography.fontFamilyFallback, ['Sora']);
+      expect(SkotiqTypography.fontFamilyFallback, ['Sora', 'SkotiqSymbols']);
     },
   );
 }

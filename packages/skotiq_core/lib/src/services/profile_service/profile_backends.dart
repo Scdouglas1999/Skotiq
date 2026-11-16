@@ -15,7 +15,7 @@ extension _ProfileServiceBackends on ProfileService {
       _requireAuthority(operation);
       for (final profile in profiles) {
         if (int.tryParse(profile.id) == profileId) {
-          return EquipmentProfileModel.fromRemoteProfile(profile);
+          return equipmentProfileFromRemote(profile);
         }
       }
       return null;
@@ -24,7 +24,7 @@ extension _ProfileServiceBackends on ProfileService {
     final dao = _ref.read(equipmentProfilesDaoProvider);
     final profile = await dao.getProfileById(profileId);
     _requireAuthority(operation);
-    return profile != null ? EquipmentProfileModel.fromDatabase(profile) : null;
+    return profile?.toModel();
   }
 
   Future<EquipmentProfileModel?> _getActiveProfileModel({
@@ -36,7 +36,7 @@ extension _ProfileServiceBackends on ProfileService {
       final active = await host.getActiveProfile();
       _requireAuthority(operation);
       return active != null
-          ? EquipmentProfileModel.fromRemoteProfile(active)
+          ? equipmentProfileFromRemote(active)
           : null;
     }
 
@@ -49,7 +49,7 @@ extension _ProfileServiceBackends on ProfileService {
     final dao = _ref.read(equipmentProfilesDaoProvider);
     final profile = await dao.getActiveProfile();
     _requireAuthority(operation);
-    return profile != null ? EquipmentProfileModel.fromDatabase(profile) : null;
+    return profile?.toModel();
   }
 
   Future<EquipmentProfileModel?> _getStartupProfileModel({
@@ -73,14 +73,14 @@ extension _ProfileServiceBackends on ProfileService {
       final chosen = defaultProfile ?? activeProfile;
       return chosen == null
           ? null
-          : EquipmentProfileModel.fromRemoteProfile(chosen);
+          : equipmentProfileFromRemote(chosen);
     }
 
     final dao = _ref.read(equipmentProfilesDaoProvider);
     final profile =
         await dao.getDefaultProfile() ?? await dao.getActiveProfile();
     _requireAuthority(operation);
-    return profile != null ? EquipmentProfileModel.fromDatabase(profile) : null;
+    return profile?.toModel();
   }
 
   /// Save [profile] through the profile store, the one writer of a profile.

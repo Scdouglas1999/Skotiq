@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../../database/daos/sequence_runs_dao.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../sequence_stats_provider.dart' show SequenceRunStats;
 
 /// The live statistics of the running run: the in-memory record the live

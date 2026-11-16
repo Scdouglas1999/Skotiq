@@ -380,8 +380,9 @@ enum ConditionsSource {
   /// An ObservingConditions device.
   device,
 
-  /// Only the Open-Meteo forecast; values are labeled "forecast".
-  forecast,
+  /// Internet weather only: a nearby station's report or a model, not a
+  /// reading at the site.
+  internet,
 
   /// Nothing; the header reads "no weather source".
   none,

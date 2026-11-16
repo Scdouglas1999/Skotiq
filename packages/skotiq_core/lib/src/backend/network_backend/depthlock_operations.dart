@@ -12,7 +12,7 @@ part of '../network_backend.dart';
 ///
 /// Stale revisions come back as a 409 and validation refusals as a 400, both
 /// carrying the native reason, which the caller shows as it is.
-mixin _NetworkBackendDepthLockOperations on _NetworkBackendTransport {
+mixin _NetworkBackendDepthLockOperations on NetworkBackendTransport {
   /// The value at [key], or a [ValidationException] naming what was missing.
   Map<String, dynamic> _depthLockObject(
     Map<String, dynamic> response,

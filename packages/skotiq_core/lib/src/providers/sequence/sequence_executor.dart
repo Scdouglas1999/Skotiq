@@ -13,7 +13,7 @@ import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../../services/safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart' show targetsDaoProvider;
 import '../disk_space_provider.dart';

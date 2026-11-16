@@ -24,7 +24,7 @@ import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'planning/project_service_provider.dart';
 import 'scheduler/integration_goal_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
 /// [ForecastPlanningService] and the [LocationCloudForecastService] forecast feed,

@@ -8,7 +8,7 @@ import 'package:skotiq_app/utils/darkroom_navigation.dart'
 import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'notification_service/contracts.dart';
 

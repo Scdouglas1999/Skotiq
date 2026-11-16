@@ -33,7 +33,7 @@ import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
 import 'mosaic_project_service_provider.dart';
 import 'target_library_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';
@@ -508,16 +508,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
   void toggleGuideStars() {
     state = state.copyWith(showGuideStars: !state.showGuideStars);
-  }
-
-  void toggleOpticalConfigPanel() {
-    state = state.copyWith(
-      showOpticalConfigPanel: !state.showOpticalConfigPanel,
-    );
-  }
-
-  void setOpticalConfigPanelVisible(bool visible) {
-    state = state.copyWith(showOpticalConfigPanel: visible);
   }
 
   void setCustomEquipment(FramingEquipment equipment) {

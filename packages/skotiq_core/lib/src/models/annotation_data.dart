@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../services/wcs/gnomonic_projection.dart';
+import 'imaging/gnomonic_projection.dart';
 import 'imaging/sip_terms.dart';
 
 part 'annotation_data.freezed.dart';

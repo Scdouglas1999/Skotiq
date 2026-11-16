@@ -11,7 +11,7 @@ import '../providers/imaging_provider.dart';
 import 'imaging_service.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Publishes JPEG-first capture previews and loads host raw data in the background.
 class CapturePreviewPublisher {
@@ -184,26 +184,7 @@ CapturedImageData capturedImageDataFromResult({
       final other => Uint8List.fromList(other),
     },
     histogram: capturedImage.histogram,
-    stats: ImageStats(
-      min: capturedImage.stats.min,
-      max: capturedImage.stats.max,
-      mean: capturedImage.stats.mean,
-      median: capturedImage.stats.median,
-      stdDev: capturedImage.stats.stdDev,
-      hfr: capturedImage.stats.hfr,
-      fwhm: capturedImage.stats.hfr != null
-          ? capturedImage.stats.hfr! * kFwhmPerHfr
-          : null,
-      eccentricity: capturedImage.stats.eccentricity,
-      starCount: capturedImage.stats.starCount > 0
-          ? capturedImage.stats.starCount
-          : null,
-      background: capturedImage.stats.mean - capturedImage.stats.stdDev,
-      noise: capturedImage.stats.stdDev,
-      snr: capturedImage.stats.stdDev > 0
-          ? capturedImage.stats.mean / capturedImage.stats.stdDev
-          : 0.0,
-    ),
+    stats: imageStatsFromResult(capturedImage.stats),
     capturedAt: capturedAt,
     settings: settings,
     targetName: targetName,
@@ -213,5 +194,23 @@ CapturedImageData capturedImageDataFromResult({
     purpose: purpose,
     purposeStep: purposeStep,
     purposeSteps: purposeSteps,
+  );
+}
+
+/// A frame's statistics as the native decoder measured them.
+ImageStats imageStatsFromResult(ImageStatsResult stats) {
+  return ImageStats(
+    min: stats.min,
+    max: stats.max,
+    mean: stats.mean,
+    median: stats.median,
+    stdDev: stats.stdDev,
+    hfr: stats.hfr,
+    fwhm: stats.hfr != null ? stats.hfr! * kFwhmPerHfr : null,
+    eccentricity: stats.eccentricity,
+    starCount: stats.starCount > 0 ? stats.starCount : null,
+    background: stats.mean - stats.stdDev,
+    noise: stats.stdDev,
+    snr: stats.stdDev > 0 ? stats.mean / stats.stdDev : 0.0,
   );
 }

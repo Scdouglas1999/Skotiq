@@ -105,6 +105,12 @@ class TargetVisibilityInfoConverter
       hoursAboveMinAlt: json['hoursAboveMinAlt'] != null
           ? (json['hoursAboveMinAlt'] as num).toDouble()
           : null,
+      aboveFloorFrom: json['aboveFloorFrom'] != null
+          ? parseWireTime(json['aboveFloorFrom'] as String)
+          : null,
+      aboveFloorUntil: json['aboveFloorUntil'] != null
+          ? parseWireTime(json['aboveFloorUntil'] as String)
+          : null,
     );
   }
 
@@ -125,6 +131,8 @@ class TargetVisibilityInfoConverter
       'peakAzimuth': object.peakAzimuth,
       'peakAltitudeTime': object.peakAltitudeTime?.toWireTime(),
       'hoursAboveMinAlt': object.hoursAboveMinAlt,
+      'aboveFloorFrom': object.aboveFloorFrom?.toWireTime(),
+      'aboveFloorUntil': object.aboveFloorUntil?.toWireTime(),
     };
   }
 }

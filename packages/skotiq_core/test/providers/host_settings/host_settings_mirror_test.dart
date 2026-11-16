@@ -8,8 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
-import 'package:skotiq_core/src/backend/roles/host_data/host_rig_settings.dart'
-    show HostSettingsRows;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';

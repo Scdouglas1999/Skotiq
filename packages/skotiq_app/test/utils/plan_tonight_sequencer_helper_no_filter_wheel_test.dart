@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_core/utils.dart';
 
 class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
   @override
@@ -154,7 +155,7 @@ void main() {
                   targetName: 'NGC7380', objectType: 'Emission Nebula'),
               rotationDegrees: 37,
             ));
-    expect(result.strategy, SmartNightStrategy.narrowbandSho);
+    expect(result.filterSet.preset, SmartNightStrategy.narrowbandSho);
     final header =
         result.sequence.nodes.values.whereType<TargetHeaderNode>().single;
     expect(header.raHours, 22.8);
@@ -173,8 +174,9 @@ void main() {
         (ref) => buildPlanTonightTargetSequenceFromSuggestion(
             ref: ref,
             target: _suggestion(),
-            options: const AutoBuildOptions(
-                strategy: SmartNightStrategy.oscOneShot,
+            options: AutoBuildOptions(
+                filterSet: FilterSet.single(smartNightUnfilteredName),
+                rotateFilters: false,
                 end: AutoBuildEnd.nautical,
                 gain: 139,
                 offset: 21,

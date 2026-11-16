@@ -71,7 +71,7 @@ void main() {
       overrides: const [],
       child: NightConditionsSection(
         conditions: const NightConditionsVm(
-          source: ConditionsSource.forecast,
+          source: ConditionsSource.internet,
           safe: false,
           notes: <NightText>[NightText('nightWeatherForecastHolds')],
           skyOverride: NightSkyOverride.offer,
@@ -96,7 +96,7 @@ void main() {
       overrides: const [],
       child: NightConditionsSection(
         conditions: const NightConditionsVm(
-          source: ConditionsSource.forecast,
+          source: ConditionsSource.internet,
           skyOverride: NightSkyOverride.active,
         ),
         onSkyClear: () {},

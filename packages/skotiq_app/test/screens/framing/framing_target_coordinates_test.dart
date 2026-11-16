@@ -18,10 +18,7 @@ void main() {
       MaterialApp(
         theme: SkotiqTheme.dark,
         home: const Scaffold(
-          body: FramingTargetInfoOverlay(
-            colors: SkotiqColors.dark,
-            target: target,
-          ),
+          body: FramingTargetInfoOverlay(target: target),
         ),
       ),
     );

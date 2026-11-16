@@ -261,19 +261,17 @@ impl AtikCamera {
 
         let temperature = sensor_temperature(sdk, handle);
         self.core.state = CameraState::Idle;
-        Ok(Frame {
-            bin_x,
-            bin_y,
-            temperature,
-            ..self.core.frame(
-                width,
-                height,
-                data,
-                self.core.sensor_info.bit_depth,
-                self.frame_bayer.map(Into::into),
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            width,
+            height,
+            data,
+            self.core.sensor_info.bit_depth,
+            self.frame_bayer.map(Into::into),
+        );
+        image.metadata.bin_x = bin_x;
+        image.metadata.bin_y = bin_y;
+        image.metadata.temperature = temperature;
+        Ok(image)
     }
 
     pub(crate) fn status(&self, sdk: &AtikSdk) -> Result<CameraStatus, DriverError> {

@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
 import 'package:skotiq_core/src/services/stacking_engine_seam.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 /// Tests for the OSC/colour additions to [StackingEngineSeam] (component C9):
 ///

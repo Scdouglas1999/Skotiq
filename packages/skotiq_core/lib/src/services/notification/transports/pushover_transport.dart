@@ -13,7 +13,7 @@ import '../../../models/backend/event_types.dart';
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// Endpoint constant — kept private so other transports cannot reach
 /// into Pushover's URL by accident (self-audit requirement).

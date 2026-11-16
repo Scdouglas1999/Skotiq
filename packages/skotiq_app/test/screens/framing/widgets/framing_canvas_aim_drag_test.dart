@@ -126,8 +126,10 @@ void main() {
         (w) => w is CustomPaint && w.painter is FramingCrosshairPainter);
     expect(crosshair, findsNothing);
     expect(container.read(imagingViewerStateProvider).showCrosshair, isFalse);
-    await tester.tap(find.byTooltip('Crosshair'));
-    await tester.pump();
+    await tester.tap(find.byTooltip('Layers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Crosshair'));
+    await tester.pumpAndSettle();
     expect(crosshair, findsOneWidget);
     expect(container.read(imagingViewerStateProvider).showCrosshair, isTrue);
   });

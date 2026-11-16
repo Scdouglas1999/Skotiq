@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
-import 'package:skotiq_core/src/models/equipment_profile_model.dart';
-import 'package:skotiq_core/src/models/equipment_profile_remote_mapping.dart';
+import 'package:skotiq_core/src/database/rows/equipment_profile_remote_mapping.dart';
+import 'package:skotiq_core/src/database/rows/equipment_profile_rows.dart';
 
 /// The canonical equipment-profile converter is lossless for every field the
 /// slave's equipment cards need, `meridianFlipOverrides`, `safetyMonitorName`
@@ -175,8 +175,8 @@ void main() {
 
     test('the client derives the same optics from the wire as the host does '
         'from the row', () {
-      final onHost = EquipmentProfileModel.fromDatabase(row);
-      final onClient = EquipmentProfileModel.fromRemoteProfile(
+      final onHost = row.toModel();
+      final onClient = equipmentProfileFromRemote(
         dbProfileToRemote(row),
       );
 
@@ -186,8 +186,8 @@ void main() {
     });
 
     test('every wire field reads the same on both sides', () {
-      final onHost = EquipmentProfileModel.fromDatabase(row);
-      final onClient = EquipmentProfileModel.fromRemoteProfile(
+      final onHost = row.toModel();
+      final onClient = equipmentProfileFromRemote(
         dbProfileToRemote(row),
       );
       expect(
@@ -197,7 +197,7 @@ void main() {
     });
 
     test('a wire profile with no id is a new profile', () {
-      final model = EquipmentProfileModel.fromRemoteProfile(
+      final model = equipmentProfileFromRemote(
         remote_profile.EquipmentProfile.fromJson({
           ...dbProfileToRemote(row).toJson(),
           'id': '',

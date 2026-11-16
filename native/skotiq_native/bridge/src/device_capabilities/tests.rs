@@ -478,3 +478,28 @@ fn recommended_settings_from_native_maps_cooling_setpoint() {
     assert_eq!(bridge.recommended_cooling_setpoint_c, Some(-10.0));
     assert_eq!(bridge.notes, "test");
 }
+
+/// A color camera names its Bayer cell by its letters, the spelling the
+/// Stack & Share pattern list and the stacker read, whatever the protocol.
+#[test]
+fn a_color_camera_names_its_bayer_cell_by_its_letters() {
+    for (cfa, letters) in [
+        (skotiq_device::BayerPattern::Rggb.into(), "RGGB"),
+        (skotiq_device::BayerPattern::Grbg.into(), "GRBG"),
+        (
+            skotiq_device::ColorFilterArray::parse("GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG").unwrap(),
+            "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG",
+        ),
+    ] {
+        let description = skotiq_device::CameraDescription {
+            sensor: skotiq_device::SensorInfo {
+                color: true,
+                bayer_pattern: Some(cfa),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let caps = crate::device_capabilities::driver::camera_capabilities(description, None);
+        assert_eq!(caps.bayer_pattern.as_deref(), Some(letters));
+    }
+}

@@ -6,12 +6,6 @@ pub mod lifecycle;
 pub mod mosaic;
 pub mod runtime_config;
 
-/// Get the global sequence executor instance
-pub(crate) fn get_sequence_executor(
-) -> &'static std::sync::Arc<tokio::sync::RwLock<skotiq_sequencer::SequenceExecutor>> {
-    skotiq_sequencer::get_executor()
-}
-
 /// Sequencer state for Flutter
 #[derive(Debug, Clone)]
 pub struct SequencerState {

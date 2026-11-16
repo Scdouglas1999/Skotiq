@@ -8,7 +8,7 @@ import '../models/sequence/template_snippet.dart';
 import '../models/sequence/sequence_models.dart';
 import '../services/sequence_file_service.dart';
 import '../utils/skotiq_data_directory.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 final builtInSnippetsProvider = Provider<List<TemplateSnippet>>((ref) {
   return BuiltInSnippets.all;

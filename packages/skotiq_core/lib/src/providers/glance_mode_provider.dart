@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../database/daos/settings_dao.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Whether glance mode (large secondary-status type) is currently active.
 ///

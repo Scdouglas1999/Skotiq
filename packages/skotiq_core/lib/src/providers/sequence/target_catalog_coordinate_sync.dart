@@ -4,7 +4,7 @@ import '../../database/daos/targets_dao.dart';
 import '../../database/database.dart' show DbTarget;
 import '../../models/sequence/sequence_models.dart';
 import '../database_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// Keeps the catalog row a Target node images pointed where the operator
 /// pointed it.

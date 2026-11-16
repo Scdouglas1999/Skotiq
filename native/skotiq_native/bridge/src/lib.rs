@@ -74,6 +74,7 @@ mod hotplug;
 mod last_frame;
 mod sequence_run;
 mod simulator;
+mod solver;
 pub(crate) mod state;
 pub(crate) mod storage;
 pub(crate) mod timeout_ops;

@@ -57,7 +57,7 @@ import '../services/hips/hips_tile_cache.dart';
 import '../services/hips/hips_tile_fetcher.dart';
 import '../services/hips/hips_tile_loader.dart';
 import '../models/framing_models.dart' show FramingTarget, SurveySource;
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Default bounds for the framing tile [HipsTileCache].
 ///
@@ -207,7 +207,7 @@ final framingHipsPropertiesProvider = FutureProvider.autoDispose
 /// User-facing feature flag for the HiPS framing tile layer, defaulting to
 /// **on** for tile-capable surveys.
 ///
-/// The raw user toggle behind the framing canvas's "HiPS Tiles" control chip,
+/// The raw user toggle behind the framing Layers menu's "Deep survey tiles",
 /// session-scoped like the Grid / Labels chips. Whether the layer is actually
 /// active is [hipsFramingActiveProvider], which also requires a verified HiPS
 /// pyramid: keeping the two separate preserves the toggle's value while a

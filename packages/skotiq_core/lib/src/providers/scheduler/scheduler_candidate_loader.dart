@@ -75,6 +75,7 @@ class SchedulerCandidateLoader {
     // catalog. Reading this later, after remote awaits, could otherwise attach
     // the replacement host's filter wheel to the previous host's targets.
     final availableFilters = _availableFilters();
+    final rotatesFilters = _rotatesFilters();
     final goalService = ref.read(integrationGoalServiceProvider);
     // Targets the operator removed from the queue. Read under the same
     // authority as the catalog: this is the difference between "removed" and
@@ -102,6 +103,7 @@ class SchedulerCandidateLoader {
         goalService: goalService,
         projectId: projectId,
         availableFilters: availableFilters,
+        rotatesFilters: rotatesFilters,
         removedTargetIds: removedTargetIds,
         requireAuthority: requireAuthority,
       );
@@ -152,6 +154,7 @@ class SchedulerCandidateLoader {
       horizonProfiles: horizonProfiles,
       goalService: goalService,
       availableFilters: availableFilters,
+      rotatesFilters: rotatesFilters,
       removedTargetIds: removedTargetIds,
       requireAuthority: requireAuthority,
     );
@@ -168,6 +171,7 @@ class SchedulerCandidateLoader {
     required IntegrationGoalService goalService,
     int? projectId,
     required List<String> availableFilters,
+    required bool rotatesFilters,
     required Set<int> removedTargetIds,
     required void Function() requireAuthority,
   }) async {
@@ -235,6 +239,7 @@ class SchedulerCandidateLoader {
       horizonProfiles: horizonProfiles,
       goalService: goalService,
       availableFilters: availableFilters,
+      rotatesFilters: rotatesFilters,
       removedTargetIds: removedTargetIds,
       requireAuthority: requireAuthority,
     );
@@ -249,6 +254,7 @@ class SchedulerCandidateLoader {
     required Map<int, HorizonProfile> horizonProfiles,
     required IntegrationGoalService goalService,
     required List<String> availableFilters,
+    required bool rotatesFilters,
     required Set<int> removedTargetIds,
     required void Function() requireAuthority,
   }) async {
@@ -298,12 +304,20 @@ class SchedulerCandidateLoader {
           constraints: cs,
           horizonProfiles: usedProfiles,
           availableFilters: availableFilters,
+          rotatesFilters: rotatesFilters,
           isMosaicTarget: target.isMosaicTarget,
         ),
       );
     }
     requireAuthority();
     return out;
+  }
+
+  /// Whether the active profile's wheel is motorized
+  /// ([smartNightRotatesFilters]).
+  bool _rotatesFilters() {
+    final profile = ref.read(activeEquipmentProfileProvider);
+    return profile != null && smartNightRotatesFilters(profile);
   }
 
   List<String> _availableFilters() {

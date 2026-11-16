@@ -11,6 +11,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'backup_restore_support.dart';
+import 'package:skotiq_core/utils.dart';
 
 const _fixtures = 'test/fixtures/backups';
 

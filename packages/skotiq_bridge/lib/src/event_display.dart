@@ -448,7 +448,8 @@ String _sequencerTitle(SequencerEvent v) {
     },
     SequencerEvent_TriggerFired() => 'Trigger fired',
     SequencerEvent_InstructionProgress() => 'Instruction progress',
-    SequencerEvent_InstructionProgressStructured() => 'Instruction progress',
+    SequencerEvent_DitherPerformed() => 'Dither',
+    SequencerEvent_FrameWatchReport() => 'Frame watch',
     // Typed grading payloads. Surfaced as their own titles so the
     // trigger feed / event log shows "Frame accepted" / "Frame rejected"
     // instead of swallowing them under the generic "Instruction progress"
@@ -551,12 +552,8 @@ String _sequencerDetail(SequencerEvent v) {
       d.isNotEmpty
           ? '$i: $d (${p.toStringAsFixed(0)}%)'
           : '$i (${p.toStringAsFixed(0)}%)',
-    SequencerEvent_InstructionProgressStructured(
-      instruction: final i,
-      progressPercent: final p,
-      detailKind: final k,
-    ) =>
-      '$i: $k (${p.toStringAsFixed(0)}%)',
+    SequencerEvent_DitherPerformed() => 'Dithered',
+    SequencerEvent_FrameWatchReport(kind: final k) => k,
     // Single source of truth for the typed grading payload
     // display strings. The dashboard panels render the same wording so
     // the trigger feed + panel always agree.

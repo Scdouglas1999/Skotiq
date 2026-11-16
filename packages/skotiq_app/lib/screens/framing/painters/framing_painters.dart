@@ -5,9 +5,45 @@ import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+/// Draws the rotation handle above the top edge of the camera frame [rect]:
+/// a filled circle [FramingFOVPainter.rotationHandleGap] above the edge on a
+/// stem from it, with a turn glyph. The rotate gesture's hit ring is built
+/// from the same constants.
+void paintRotationHandle(Canvas canvas, Rect rect, Color color, Color onColor) {
+  final handleCenter =
+      Offset(rect.center.dx, rect.top - FramingFOVPainter.rotationHandleGap);
+  final paint = Paint()
+    ..color = color
+    ..strokeWidth = 2
+    ..style = PaintingStyle.stroke;
+  canvas.drawLine(
+    Offset(rect.center.dx, rect.top),
+    handleCenter.translate(0, FramingFOVPainter.rotationHandleRadius),
+    paint,
+  );
+  canvas.drawCircle(
+    handleCenter,
+    FramingFOVPainter.rotationHandleRadius,
+    Paint()..color = color,
+  );
+  final glyph = TextPainter(
+    text: TextSpan(
+      text: '↻',
+      style: SkotiqTypography.labelSm
+          .copyWith(color: onColor, fontWeight: FontWeight.w600),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  glyph.paint(
+    canvas,
+    handleCenter - Offset(glyph.width / 2, glyph.height / 2),
+  );
+}
+
 /// Equipment FOV rectangle drawn at the canvas center when the preview FOV is
-/// at or below the equipment FOV. Includes corner markers, a rotation handle,
-/// FOV dimensions, and optional cardinal directions.
+/// at or below the equipment FOV. Includes corner markers, a rotation handle
+/// and optional cardinal directions; its size is written in the target glass,
+/// not on the sky.
 ///
 /// The rectangle is scaled by the shared [FramingPlateScale] so the FOV reticle
 /// is astrometrically co-registered with the survey background, the equipment
@@ -96,70 +132,11 @@ class FramingFOVPainter extends CustomPainter {
 
     _drawCorners(canvas, rect, borderPaint);
 
-    // Draw rotation handle. The handle geometry is published via the static
-    // constants above so the C6 gesture ring hit-tests exactly where the handle
-    // is painted.
-    final handlePaint = Paint()
-      ..color = colors.primary
-      ..style = PaintingStyle.fill;
-    final handleY = center.dy - rectHeight / 2 - rotationHandleGap;
-    canvas.drawCircle(
-        Offset(center.dx, handleY), rotationHandleRadius, handlePaint);
-    canvas.drawLine(
-      Offset(center.dx, center.dy - rectHeight / 2),
-      Offset(center.dx, handleY + rotationHandleRadius),
-      borderPaint,
-    );
-
-    final iconPainter = TextPainter(
-      text: TextSpan(
-        text: '↻',
-        style: SkotiqTypography.labelSm
-            .copyWith(color: colors.onPrimary, fontWeight: FontWeight.w600),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    iconPainter.layout();
-    iconPainter.paint(
-      canvas,
-      Offset(
-          center.dx - iconPainter.width / 2, handleY - iconPainter.height / 2),
-    );
+    paintRotationHandle(canvas, rect, colors.primary, colors.onPrimary);
 
     if (showDirections) {
       _drawCardinalDirections(canvas, center, rectWidth, rectHeight);
     }
-
-    final fovText =
-        '${fovWidth.toStringAsFixed(2)}° × ${fovHeight.toStringAsFixed(2)}°';
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: fovText,
-        style: SkotiqTypography.labelSm.copyWith(color: colors.primary),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    // Draw text background scrim using the semantic overlay surface so the label
-    // stays legible over arbitrary survey imagery across all themes.
-    final textBg = Rect.fromCenter(
-      center: Offset(center.dx, center.dy + rectHeight / 2 + 18),
-      width: textPainter.width + 12,
-      height: textPainter.height + 6,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          textBg, const Radius.circular(SkotiqTokens.radiusXs)),
-      Paint()
-        ..color = colors.surfaceOverlay
-            .withValues(alpha: SkotiqTokens.opacityHoverBorder),
-    );
-    textPainter.paint(
-      canvas,
-      Offset(
-          center.dx - textPainter.width / 2, center.dy + rectHeight / 2 + 15),
-    );
   }
 
   void _drawCorners(Canvas canvas, Rect rect, Paint paint) {
@@ -304,41 +281,9 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
 
     _drawCornerBrackets(canvas, rect, borderPaint);
 
-    final fovText =
-        'Equipment FOV: ${fovWidth.toStringAsFixed(2)}° × ${fovHeight.toStringAsFixed(2)}°';
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: fovText,
-        style: SkotiqTypography.labelSm.copyWith(color: colors.info),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    final textBg = Rect.fromCenter(
-      center: Offset(center.dx, rect.top - 16),
-      width: textPainter.width + 16,
-      height: textPainter.height + 8,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          textBg, const Radius.circular(SkotiqTokens.radiusXs)),
-      Paint()
-        ..color = colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          textBg, const Radius.circular(SkotiqTokens.radiusXs)),
-      Paint()
-        ..color = colors.info.withValues(alpha: SkotiqTokens.opacityHalf)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-    textPainter.paint(
-      canvas,
-      Offset(center.dx - textPainter.width / 2,
-          rect.top - textPainter.height / 2 - 16),
-    );
+    // The rotate gesture is live whichever reticle is drawn, so both draw
+    // the handle it grabs.
+    paintRotationHandle(canvas, rect, colors.info, colors.onPrimary);
 
     if (showDirections) {
       _drawCardinalDirections(canvas, center, rectWidth, rectHeight);

@@ -285,7 +285,7 @@ class NightEquipmentSection extends StatelessWidget {
 
 /// The sky: the safety verdict on the right, the readings below. With no
 /// weather source the header says so and only what the app knows anyway
-/// (the moon) is listed; forecast values carry "forecast" in their labels.
+/// (the moon) is listed; internet weather says where it came from.
 class NightConditionsSection extends StatelessWidget {
   const NightConditionsSection({
     super.key,
@@ -313,12 +313,12 @@ class NightConditionsSection extends StatelessWidget {
                 l10n.text('nightPanelNoWeatherSource'),
                 MetricGridTone.warning,
               ),
-            ConditionsSource.device || ConditionsSource.forecast => switch (
+            ConditionsSource.device || ConditionsSource.internet => switch (
                   conditions.safe) {
                 true => (l10n.text('nightPanelSafe'), MetricGridTone.good),
                 false => (l10n.text('nightPanelUnsafe'), MetricGridTone.bad),
-                null => conditions.source == ConditionsSource.forecast
-                    ? (l10n.text('nightPanelForecastOnly'), null)
+                null => conditions.source == ConditionsSource.internet
+                    ? (l10n.text('nightPanelInternetOnly'), null)
                     : (null, null),
               },
           };

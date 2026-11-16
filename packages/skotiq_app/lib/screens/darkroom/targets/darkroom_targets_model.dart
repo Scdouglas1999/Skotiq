@@ -14,12 +14,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// A sub further than this from the target's catalog position, by the
-/// mount's reported pointing, is drawn as off target. Guided tracking lets the
-/// reported pointing wander a few arcminutes on a good night, so the limit
-/// sits well above that.
-const double darkroomOffTargetArcmin = 15;
-
 /// A gap between subs longer than this many typical cadences, and at least
 /// [darkroomPauseMinimum], is drawn as a pause.
 const double darkroomPauseCadences = 3;
@@ -56,11 +50,6 @@ int compareDarkroomFilters(String a, String b) {
 /// The filter a light was taken through, as the build service names it.
 String darkroomFilterOf(DbCapturedImage f) =>
     f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
-
-/// Letters and digits only, upper case: `NGC 891`, `ngc0891` and `NGC_891`
-/// stay distinct only where their characters differ.
-String normalizeDarkroomTargetName(String name) =>
-    name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
 
 /// One sub on the nights strip.
 class DarkroomSub {
@@ -196,7 +185,18 @@ class DarkroomTarget {
     required this.channels,
     this.row,
     this.draftPreviews = const {},
+    this.identified = true,
+    this.rule = const ProjectRule(),
+    this.placement = TargetPlacement.auto,
   });
+
+  /// False for a group of lights that name no target: by session, or
+  /// [darkroomNoTargetKey].
+  final bool identified;
+
+  /// The project rule it was listed by, and the user's correction.
+  final ProjectRule rule;
+  final TargetPlacement placement;
 
   /// Rendered recipe drafts on disk, by master id.
   final Map<int, String> draftPreviews;
@@ -271,6 +271,34 @@ class DarkroomTarget {
       nights.fold<double>(0, (sum, n) => sum + n.keptSeconds);
   DateTime? get lastImaged => nights.isEmpty ? null : nights.first.last;
   List<String> get filters => [for (final c in channels) c.filter];
+
+  TargetCaptures get captures {
+    final kept = [
+      for (final f in frames)
+        if (f.isAccepted) f,
+    ];
+    return TargetCaptures(
+      frames: frames.length,
+      lights: frames.length,
+      keptLights: kept.length,
+      keptSeconds: kept.fold<double>(0, (s, f) => s + f.exposureDuration),
+      runLights: frames
+          .where((f) => f.producingRunId?.isNotEmpty == true)
+          .length,
+    );
+  }
+
+  /// Listed among the projects. A group of lights with no target never is:
+  /// it has nothing to build masters of.
+  bool get isProject =>
+      identified &&
+      targetStanding(captures, rule, placement: placement) ==
+          TargetStanding.project;
+
+  /// Why it is listed under Other captures.
+  String get otherReason => identified
+      ? captureReason(captures, rule, placement: placement)
+      : 'No target recorded';
 }
 
 String two(int v) => v.toString().padLeft(2, '0');
@@ -444,19 +472,19 @@ String darkroomMasterTargetName(
   return name.isEmpty ? 'Unnamed target' : name;
 }
 
-/// Whether [master] belongs to the target listed as [key] with row [row]: the
-/// target row it records, the frames it folded, else the target
-/// [darkroomMasterTargetName] reads, the same one the Edit tab's library
-/// files it under.
+/// Whether [master] belongs to the target listed as [key], whose lights carry
+/// the target rows [rowIds]: the target row it records, the frames it folded,
+/// else the target [darkroomMasterTargetName] reads, the same one the Edit
+/// tab's library files it under.
 bool darkroomMasterBelongsTo(
   IntegratedMaster master,
   String key, {
-  DbTarget? row,
+  Set<int> rowIds = const {},
   Set<int> frameIds = const {},
   Set<int> foldedIds = const {},
 }) {
-  if (master.targetId != null && row != null) {
-    return master.targetId == row.id;
+  if (master.targetId != null && rowIds.isNotEmpty) {
+    return rowIds.contains(master.targetId);
   }
   if (frameIds.isNotEmpty && foldedIds.any(frameIds.contains)) return true;
   final wanted = normalizeDarkroomTargetName(key);
@@ -464,6 +492,14 @@ bool darkroomMasterBelongsTo(
       normalizeDarkroomTargetName(darkroomMasterTargetName(master, const {})) ==
           wanted;
 }
+
+/// The target rows a group's lights record, with the row listed under its
+/// name: more than one when the group joins one object saved under two names.
+Set<int> darkroomTargetRowIds(List<DbCapturedImage> frames, DbTarget? row) => {
+      if (row != null) row.id,
+      for (final f in frames)
+        if (f.targetId != null) f.targetId!,
+    };
 
 /// The Targets tab's list: every target with lights or masters, the most
 /// recently imaged first.
@@ -474,6 +510,9 @@ List<DarkroomTarget> buildDarkroomTargets({
   required Map<int, Set<int>> foldedByMaster,
   Map<int, Set<int>>? usedByMaster,
   Map<int, String> draftPreviews = const {},
+  Set<String> unidentified = const {},
+  ProjectRule rule = const ProjectRule(),
+  TargetPlacements placements = const TargetPlacements(),
 }) {
   final rowsByName = {for (final t in targetRows) t.name: t};
   final result = <DarkroomTarget>[];
@@ -482,12 +521,13 @@ List<DarkroomTarget> buildDarkroomTargets({
     final frames = entry.value;
     final row = rowsByName[key];
     final frameIds = {for (final f in frames) f.id};
+    final rowIds = darkroomTargetRowIds(frames, row);
     final own = [
       for (final m in masters)
         if (darkroomMasterBelongsTo(
           m,
           key,
-          row: row,
+          rowIds: rowIds,
           frameIds: frameIds,
           foldedIds: foldedByMaster[m.id] ?? const {},
         ))
@@ -543,6 +583,9 @@ List<DarkroomTarget> buildDarkroomTargets({
           for (final m in own)
             if (draftPreviews[m.id] case final String path) m.id: path,
         },
+        identified: !unidentified.contains(key),
+        rule: rule,
+        placement: placements.of(key),
       ),
     );
   }

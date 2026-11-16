@@ -514,10 +514,10 @@ pub(crate) async fn resolve_burst_filter(
 /// The filter identity to stamp on the frames of this burst, as one
 /// (name, slot) pair.
 ///
-/// [`resolve_burst_filter`] flattened against the running context, for the two
-/// consumers that record a frame rather than update the context: the
-/// renderer-less filename fallback and `build_frame_context_for_save` (FITS
-/// FILTER card + the `captured_images` row). Reading `config.filter` and
+/// [`resolve_burst_filter`] flattened against the running context, for the
+/// consumers that record a frame rather than update the context: the Flat
+/// Wizard's frame names and `build_frame_context_for_save` (FITS FILTER card +
+/// the `captured_images` row). Reading `config.filter` and
 /// `config.filter_index` independently files a burst that names "Ha" but
 /// carries no index under "Ha" next to whatever slot a previous burst left in
 /// the context — one frame described by two different filters. Resolving the

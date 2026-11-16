@@ -4,7 +4,8 @@ import 'dart:async';
 import '../models/backend/device_capabilities.dart';
 import '../models/sequence/sequence_models.dart';
 import 'disk_space_service.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
+import '../models/disk_space.dart';
 
 /// Default thresholds for disk-space watchdog.
 ///

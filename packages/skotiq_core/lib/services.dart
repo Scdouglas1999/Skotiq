@@ -8,6 +8,7 @@ export 'src/services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 export 'src/services/scheduler/target_progress_service.dart';
 export 'src/services/built_in_catalogs.dart';
 export 'src/services/catalog_target_resolver.dart';
+export 'src/services/catalog_target_types.dart';
 export 'src/services/target_library_service.dart' show TargetLibraryService;
 export 'src/services/sequence_rollup.dart';
 export 'src/services/linked_rig/linked_rig_store.dart';
@@ -22,9 +23,6 @@ export 'src/services/device_service.dart';
 export 'src/services/mount_home_watcher.dart';
 export 'src/services/mount_slew_watcher.dart';
 export 'src/services/device_exceptions.dart';
-export 'src/services/phd2_status_poll.dart';
-export 'src/services/phd2_probe.dart'
-    show Phd2ProbeOutcome, Phd2ProbeResult, normalizePhd2ProbeHost, probePhd2;
 export 'src/services/device_matching_service.dart';
 export 'src/services/local_imaging_records.dart'
     show
@@ -35,8 +33,6 @@ export 'src/services/local_imaging_records.dart'
 export 'src/services/imaging_service.dart';
 export 'src/services/capture_preview_loader.dart'
     show CapturePreviewPublisher, capturedImageDataFromResult;
-export 'src/services/stretch_pipeline_service.dart';
-export 'src/services/thumbnail_sidecar_service.dart';
 export 'src/services/plate_solve_service.dart';
 export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/services/centering_service.dart';
@@ -61,7 +57,6 @@ export 'src/services/import/ics_calendar_importer.dart';
 export 'src/services/import/generic_csv_importer.dart';
 export 'src/services/import/target_library_importer.dart';
 export 'src/services/frame_header.dart';
-export 'src/services/wcs/gnomonic_projection.dart';
 export 'src/services/wcs/master_wcs.dart';
 export 'src/services/wcs/plate_solve_data_from_result.dart';
 export 'src/services/hips/healpix_nested.dart';
@@ -72,7 +67,6 @@ export 'src/services/scheduler/scheduler_engine.dart';
 export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';
 export 'src/services/scheduler/scheduler_queue_service.dart';
-export 'src/services/scheduler/horizon_profile.dart';
 export 'src/services/scheduler/horizon_profile_store.dart';
 // The single rejection-reason ladder shared by the engine's decision record
 // and the queue row's STATUS chip.
@@ -90,12 +84,10 @@ export 'src/services/planning/forecast_planning_service.dart';
 export 'src/services/focus_model_service.dart';
 // Predictive autofocus persisted per-filter learning + drift detection.
 export 'src/services/predictive_af_service.dart';
-export 'src/services/logging_service.dart';
 export 'src/services/diagnostic_dump_service.dart';
 export 'src/services/error_service.dart';
 export 'src/services/flat_wizard_service.dart';
 export 'src/services/sky_brightness_tracker.dart';
-export 'src/services/flat_exposure_calculator.dart';
 export 'src/services/flat_exposure_follower.dart';
 export 'src/services/backup_service.dart';
 export 'src/services/auto_save_service.dart';
@@ -128,15 +120,12 @@ export 'src/services/notification/transports/webhook_transport.dart';
 //   * Observatory surfaces as one HA device (sensors + binary sensors,
 //     optional pause/abort controls) over the notification transport's
 //     MQTT broker.
-export 'src/services/home_assistant/home_assistant_discovery_config.dart';
 export 'src/services/home_assistant/home_assistant_discovery_service.dart';
-export 'src/services/home_assistant/home_assistant_host_settings.dart';
 export 'src/services/home_assistant/ha_discovery_payloads.dart';
 export 'src/services/critical_alert_player.dart';
 export 'src/services/session_export_service.dart';
 export 'src/services/session_report_service.dart';
 export 'src/services/notes_service.dart';
-export 'src/services/optical_train_limits.dart';
 export 'src/services/sequence_diff_service.dart';
 export 'src/services/campaign_rollup_service.dart';
 export 'src/services/mosaic_service.dart';
@@ -190,6 +179,7 @@ export 'src/services/weather/weather_radar_service.dart';
 export 'src/services/weather/radar_provider.dart' show RadarFetchResult;
 export 'src/services/weather/cloud_motion_analyzer.dart';
 export 'src/services/weather/weather_alert_service.dart';
+export 'src/services/weather/current_sky_service.dart';
 export 'src/services/weather/location_cloud_forecast_service.dart';
 export 'src/services/smart_notification_service.dart';
 export 'src/services/target_suggestion_service.dart';
@@ -244,6 +234,10 @@ export 'src/services/stack_share_export_service.dart';
 // accumulation + master-flat library.
 export 'src/services/post_session_seam.dart';
 export 'src/services/darkroom_build_jobs.dart';
+export 'src/services/darkroom_target_edits.dart';
+export 'src/services/darkroom_target_frames.dart';
+export 'src/services/file_trash.dart';
+export 'src/services/target_standing_settings.dart';
 export 'src/services/output_locations.dart';
 export 'src/services/darkroom_state_store.dart';
 export 'src/services/night_end/night_end_coordinator.dart';
@@ -287,6 +281,8 @@ export 'src/services/darkroom_pass/darkroom_pass.dart';
 export 'src/services/project_tracking_service.dart';
 export 'src/services/calibration/auto_calibration_notice.dart';
 export 'src/services/calibration/calibration_selection.dart';
+export 'src/services/calibration/calibration_frame_groups.dart';
+export 'src/services/calibration/calibration_reuse.dart';
 export 'src/services/calibration/defect_map_service.dart';
 export 'src/services/calibration_library_service.dart';
 export 'src/services/calibration_backlog_service.dart';

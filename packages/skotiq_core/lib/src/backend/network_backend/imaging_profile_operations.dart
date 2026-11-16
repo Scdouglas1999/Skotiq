@@ -1,105 +1,6 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
-  @override
-  Future<List<EquipmentProfile>> getProfiles() async {
-    final response = await _get(ProfileApi.getProfiles);
-    return (response['profiles'] as List)
-        .map((p) => EquipmentProfile.fromJson(p as Map<String, dynamic>))
-        .toList();
-  }
-
-  @override
-  Future<void> saveProfile(EquipmentProfile profile) =>
-      saveProfileFields(profile, fields: null);
-
-  /// Save [profile]; when [fields] is given, ask the host to update only those
-  /// fields of its existing row, so edits made elsewhere to the other fields
-  /// survive.
-  Future<void> saveProfileFields(
-    EquipmentProfile profile, {
-    required Set<String>? fields,
-  }) async {
-    _lastSavedProfileId = null;
-    final response = await _post(
-      ProfileApi.saveProfile,
-      body: {
-        'profile': profile.toJson(),
-        if (fields != null) 'fields': fields.toList()..sort(),
-      },
-    );
-    final rawId = response['id'];
-    final id = rawId?.toString();
-    if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
-      throw const FormatException(
-        'Profile save response did not contain a valid positive id',
-      );
-    }
-    _lastSavedProfileId = id;
-  }
-
-  @override
-  Future<void> deleteProfile(String profileId) async {
-    await _delete(ProfileApi.deleteProfile, path: {'profileId': profileId});
-  }
-
-  @override
-  Future<void> loadProfile(String profileId) async {
-    await _post(ProfileApi.loadProfile, path: {'profileId': profileId});
-  }
-
-  /// Set [profileId] as the host's default startup profile (atomically
-  /// unsetting the previous default and making this row active). Routes to the
-  /// dedicated host endpoint because the generic saveProfile path preserves the
-  /// host row's existing `isDefault` and cannot flip the default.
-  ///
-  /// NetworkBackend-only (not on the abstract ProfileSettingsBackend role) so
-  /// FfiBackend/DisconnectedBackend need no implementation.
-  Future<void> setDefaultProfileRemote(String profileId) async {
-    await _post(ProfileApi.setDefaultProfile, path: {'profileId': profileId});
-  }
-
-  /// Clear the host's default startup profile (unset `isDefault` on every
-  /// row). Routes to the dedicated host endpoint because saveProfile preserves
-  /// the host row's existing `isDefault`. NetworkBackend-only.
-  Future<void> clearDefaultProfileRemote() async {
-    await _post(ProfileApi.clearDefaultProfile);
-  }
-
-  /// Persist [orderedIds] as the host's profile display order. Routes to the
-  /// dedicated host endpoint because saveProfile preserves the host row's
-  /// existing `sortOrder`. NetworkBackend-only.
-  Future<void> reorderProfilesRemote(List<String> orderedIds) async {
-    await _post(ProfileApi.reorderProfiles, body: {'profileIds': orderedIds});
-  }
-
-  @override
-  Future<EquipmentProfile?> getActiveProfile() async {
-    final response = await _get(ProfileApi.getActiveProfile);
-    if (response['profile'] == null) return null;
-    return EquipmentProfile.fromJson(
-      response['profile'] as Map<String, dynamic>,
-    );
-  }
-
-  /// `GET /api/system/disk-space` — the HOST's capture-directory disk
-  /// telemetry. Deliberately not part of [SkotiqBackend]: local backends
-  /// sample their own filesystem; only remote clients need the wire hop
-  /// (the host's capture path does not exist on the phone's filesystem).
-  /// Returns `null` when the host has no capture directory configured.
-  Future<DiskSpaceInfo?> getHostCaptureDiskSpace() async {
-    final json = await _get(SystemApi.diskSpace);
-    if (json['configured'] == false) return null;
-    return DiskSpaceInfo(
-      path: json['path'] as String? ?? '',
-      totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
-      freeBytes: (json['freeBytes'] as num?)?.toInt() ?? 0,
-      sampledAt:
-          DateTime.tryParse(json['sampledAt'] as String? ?? '')?.toLocal() ??
-          DateTime.now(),
-    );
-  }
-
+mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
   @override
   Future<models.AppSettings> getSettings() async {
     final json = await _get(ProfileApi.getSettings);
@@ -110,94 +11,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       );
     }
     return models.AppSettings.fromJson(settingsJson);
-  }
-
-  /// The host's `app_settings` key/value rows that are not part of the
-  /// [models.AppSettings] wire model.
-  Future<HostSettingsRows> getSettingsStore() {
-    return _retryableRequest(() async {
-      final endpoint = _endpointPath(
-        ProfileApi.getSettingsStore,
-        ApiMethod.get,
-      );
-      final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
-        send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
-      );
-      if (response.statusCode != 200) {
-        throw _errorFromResponse(
-          response.statusCode,
-          response.body,
-          'GET',
-          endpoint,
-        );
-      }
-      final json = jsonDecode(response.body);
-      final settings = json is Map<String, dynamic> ? json['settings'] : null;
-      if (settings is! Map) {
-        throw StateError(
-          'GET /api/settings/store returned no settings object (HTTP 200)',
-        );
-      }
-      final adminAccess = json['adminAccess'];
-      return HostSettingsRows(
-        settings.map(
-          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
-        ),
-        adminAccess: adminAccess is bool ? adminAccess : null,
-      );
-    });
-  }
-
-  /// Write [settings] into the host's key/value store and delete [remove].
-  Future<void> updateSettingsStore(
-    Map<String, String> settings, {
-    List<String> remove = const [],
-  }) async {
-    await _post(
-      ProfileApi.updateSettingsStore,
-      body: {'settings': settings, if (remove.isNotEmpty) 'remove': remove},
-    );
-  }
-
-  /// Merge [fields] into the JSON-object rows of the host's key/value store:
-  /// the host lays them over its own row (or over [base] when it has none).
-  /// Returns the values the host stored.
-  Future<Map<String, String>> mergeSettingsStore(
-    Map<String, Map<String, Object?>> fields, {
-    Map<String, Map<String, Object?>> base = const {},
-  }) async {
-    final response = await _post(
-      ProfileApi.updateSettingsStore,
-      body: {'merge': fields, if (base.isNotEmpty) 'mergeBase': base},
-    );
-    final merged = response['merged'];
-    if (merged is! Map || !fields.keys.every(merged.containsKey)) {
-      throw const FormatException(
-        'settings/store did not return the merged values',
-      );
-    }
-    return {
-      for (final entry in merged.entries)
-        entry.key.toString(): entry.value?.toString() ?? '',
-    };
-  }
-
-  /// POST only the [patch] keys of the typed settings document. The host
-  /// merges them onto its current settings, so fields this client did not
-  /// change keep whatever value the host holds now.
-  Future<void> updateSettingsPatchWithCommandId(
-    Map<String, dynamic> patch, {
-    required String? commandId,
-  }) async {
-    final extraHeaders = commandId == null
-        ? null
-        : <String, String>{'X-Skotiq-Command-Id': commandId};
-    await _post(
-      ProfileApi.updateSettings,
-      body: {'settings': patch},
-      headers: extraHeaders,
-    );
   }
 
   @override
@@ -229,57 +42,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Load the imaging host's global meridian-flip defaults.
-  ///
-  /// These settings drive unattended hardware behavior and therefore belong
-  /// to the host, not the phone rendering the settings screen.
-  Future<MeridianFlipSettings> getMeridianFlipSettings() async {
-    final response = await _get(ProfileApi.getMeridianFlipSettings);
-    final raw = response['settings'];
-    if (raw is! Map<String, dynamic>) {
-      throw const FormatException(
-        'GET /api/settings/meridian-flip returned no settings object',
-      );
-    }
-    return MeridianFlipSettings.fromJson(raw);
-  }
-
-  /// Replace the imaging host's global meridian-flip defaults.
-  Future<void> updateMeridianFlipSettings(MeridianFlipSettings settings) async {
-    await _post(
-      ProfileApi.updateMeridianFlipSettings,
-      body: {'settings': settings.toJson()},
-    );
-  }
-
-  /// Load the headless/desktop host's Home Assistant discovery and broker
-  /// configuration. The returned broker never contains its password.
-  Future<HomeAssistantHostSettings> getHomeAssistantHostSettings() async {
-    final response = await _get(ProfileApi.getHomeAssistantSettings);
-    return HomeAssistantHostSettings.fromJson(response);
-  }
-
-  /// Replace the host's Home Assistant discovery and broker configuration.
-  ///
-  /// Omitting [replacementPassword] preserves the write-only host secret;
-  /// passing an empty string explicitly clears it.
-  Future<HomeAssistantHostSettings> updateHomeAssistantHostSettings({
-    required HomeAssistantDiscoveryConfig config,
-    required MqttTransportConfig broker,
-    String? replacementPassword,
-    bool replacePassword = false,
-  }) async {
-    final response = await _post(
-      ProfileApi.updateHomeAssistantSettings,
-      body: {
-        'config': config.toJson(),
-        'broker': broker.copyWith(clearPassword: true).toJson(),
-        if (replacePassword) 'password': replacementPassword ?? '',
-      },
-    );
-    return HomeAssistantHostSettings.fromJson(response);
-  }
-
   @override
   Future<models.ObserverLocation?> getLocation() async {
     final json = await _get(ProfileApi.getLocation);
@@ -307,169 +69,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     return crops
         .map((crop) => StarCrop.fromJson(crop as Map<String, dynamic>))
         .toList();
-  }
-
-  /// Ask the host to find the best-matching dark in its library for the given
-  /// light-frame capture parameters and return that dark's on-host file path.
-  ///
-  /// A remote client can't run the matcher itself — the dark library and its
-  /// FITS files live on the host — so this delegates to
-  /// `POST /api/calibration/match-dark`. The returned path is a host-side path
-  /// and is meant to be handed straight to [calibrateImageFile], which reads
-  /// it host-side. Returns `null` when no library dark matches.
-  Future<String?> matchDarkFromLibrary({
-    required double exposureTime,
-    required int? gain,
-    int? offset,
-    int binX = 1,
-    int binY = 1,
-    double? temperature,
-  }) async {
-    final response = await _post(
-      CalibrationApi.matchDark,
-      body: {
-        'exposureTime': exposureTime,
-        if (gain != null) 'gain': gain,
-        if (offset != null) 'offset': offset,
-        'binX': binX,
-        'binY': binY,
-        if (temperature != null) 'temperature': temperature,
-      },
-    );
-    return response['matched'] as String?;
-  }
-
-  /// Build a defect map host-side from dark frames.
-  ///
-  /// A remote client has no local picker over the host filesystem, so it
-  /// passes either explicit on-host [darkFramePaths] or a single host
-  /// [darkFramesDirectory] for the host to enumerate. Delegates to
-  /// `POST /api/calibration/defect-maps/build`; the host runs the same
-  /// `DefectMapService.build` the local FFI path uses and returns the
-  /// resulting status.
-  Future<DefectMapStatus> buildDefectMap({
-    required String cameraId,
-    required double sensorTemperatureCelsius,
-    List<String>? darkFramePaths,
-    String? darkFramesDirectory,
-  }) async {
-    final response = await _post(
-      CalibrationApi.buildDefectMap,
-      body: {
-        'cameraId': cameraId,
-        'sensorTemperatureCelsius': sensorTemperatureCelsius,
-        if (darkFramePaths != null) 'darkFramePaths': darkFramePaths,
-        if (darkFramesDirectory != null)
-          'darkFramesDirectory': darkFramesDirectory,
-      },
-    );
-    final status = response['status'] as Map<String, dynamic>;
-    return _defectMapStatusFromJson(status);
-  }
-
-  /// Query the defect map owned by the imaging host for one exact
-  /// camera/sensor/temperature bucket. Null means no map exists.
-  Future<DefectMapStatus?> getDefectMapStatus({
-    required String cameraId,
-    required int width,
-    required int height,
-    required double sensorTemperatureCelsius,
-  }) async {
-    final response = await _get(
-      CalibrationApi.getDefectMapStatus,
-      query: {
-        'cameraId': cameraId,
-        'width': width,
-        'height': height,
-        'sensorTemperatureCelsius': sensorTemperatureCelsius,
-      },
-    );
-    final status = response['status'];
-    if (status == null) return null;
-    if (status is! Map<String, dynamic>) {
-      throw const FormatException('Malformed remote defect-map status');
-    }
-    return _defectMapStatusFromJson(status);
-  }
-
-  /// Clear one exact host defect-map bucket and disable its apply flag.
-  Future<void> clearDefectMap({
-    required String cameraId,
-    required int width,
-    required int height,
-    required double sensorTemperatureCelsius,
-  }) async {
-    await _post(
-      CalibrationApi.clearDefectMap,
-      body: {
-        'cameraId': cameraId,
-        'width': width,
-        'height': height,
-        'sensorTemperatureCelsius': sensorTemperatureCelsius,
-      },
-    );
-  }
-
-  /// Turn the host's correction of a camera's lights with the map stored for
-  /// this size and temperature on (with this strategy) or off.
-  Future<void> applyDefectMapToSequencer({
-    required String cameraId,
-    required int width,
-    required int height,
-    required double sensorTemperatureCelsius,
-    required bool enabled,
-    required DefectMapMethod method,
-    required DefectMapKernelSize kernel,
-    required bool saveOriginal,
-  }) async {
-    await _post(
-      CalibrationApi.applyDefectMapToSequencer,
-      body: {
-        'cameraId': cameraId,
-        'width': width,
-        'height': height,
-        'sensorTemperatureCelsius': sensorTemperatureCelsius,
-        'enabled': enabled,
-        'method': method.wireValue,
-        'kernelDiameter': kernel.diameter,
-        'saveOriginal': saveOriginal,
-      },
-    );
-  }
-
-  DefectMapStatus _defectMapStatusFromJson(Map<String, dynamic> status) {
-    return DefectMapStatus(
-      cameraId: status['cameraId'] as String,
-      width: (status['width'] as num).toInt(),
-      height: (status['height'] as num).toInt(),
-      temperatureBucket: DefectMapTemperatureBucket(
-        (status['temperatureBucketDecicelsius'] as num).toInt(),
-      ),
-      defectivePixelCount: (status['defectivePixelCount'] as num).toInt(),
-      lastRebuiltUnixSeconds: (status['lastRebuiltUnixSeconds'] as num).toInt(),
-      applyDuringCapture: status['applyDuringCapture'] as bool,
-      storedOnDisk: status['storedOnDisk'] as bool,
-    );
-  }
-
-  @override
-  Future<void> calibrateImageFile({
-    required String lightPath,
-    String? darkPath,
-    String? flatPath,
-    String? biasPath,
-    required String outputPath,
-  }) async {
-    await _post(
-      ImagingApi.calibrateImageFile,
-      body: {
-        'lightPath': lightPath,
-        if (darkPath != null) 'darkPath': darkPath,
-        if (flatPath != null) 'flatPath': flatPath,
-        if (biasPath != null) 'biasPath': biasPath,
-        'outputPath': outputPath,
-      },
-    );
   }
 
   @override
@@ -620,58 +219,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       );
     }
     return images;
-  }
-
-  Future<List<Map<String, dynamic>>> getSessionImageRows(int sessionId) async {
-    if (sessionId <= 0) {
-      throw ArgumentError.value(sessionId, 'sessionId', 'must be positive');
-    }
-    final response = await _get(
-      SessionApi.getSessionImages,
-      path: {'sessionId': sessionId},
-    );
-    return _rowsFromJson<Map<String, dynamic>>(
-      response['images'],
-      (row) => row,
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> getAllImageRows() async {
-    final response = await _get(SessionApi.getAllImages);
-    return _rowsFromJson<Map<String, dynamic>>(
-      response['images'],
-      (row) => row,
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> getStandaloneImageRows() async {
-    final response = await _get(SessionApi.getStandaloneImages);
-    return _rowsFromJson<Map<String, dynamic>>(
-      response['images'],
-      (row) => row,
-    );
-  }
-
-  @override
-  Future<Uint8List> getImageThumbnail(int imageId) async {
-    if (imageId <= 0) {
-      throw ArgumentError.value(imageId, 'imageId', 'must be positive');
-    }
-    final endpoint = _endpointPath(
-      SessionApi.getImageThumbnail,
-      ApiMethod.get,
-      {'imageId': imageId},
-    );
-    final response = await _openRawGetWithAuthRefresh(endpoint);
-    if (response.statusCode != HttpStatus.ok) {
-      final body = await response.transform(utf8.decoder).join();
-      throw _errorFromResponse(response.statusCode, body, 'GET', endpoint);
-    }
-    final bytes = await consolidateHttpClientResponseBytes(response);
-    if (bytes.isEmpty) {
-      throw FormatException('$endpoint returned an empty thumbnail');
-    }
-    return Uint8List.fromList(bytes);
   }
 
   @override
@@ -1238,6 +785,118 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   Future<void> clearDeviceImage(String deviceId) async {
     await _delete(ImagingApi.clearDeviceImage, path: {'deviceId': deviceId});
   }
+
+  @override
+  Future<void> calibrateImageFile({
+    required String lightPath,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+    required String outputPath,
+  }) async {
+    await _post(
+      ImagingApi.calibrateImageFile,
+      body: {
+        'lightPath': lightPath,
+        if (darkPath != null) 'darkPath': darkPath,
+        if (flatPath != null) 'flatPath': flatPath,
+        if (biasPath != null) 'biasPath': biasPath,
+        'outputPath': outputPath,
+      },
+    );
+  }
+
+  @override
+  Future<Uint8List> getImageThumbnail(int imageId) async {
+    if (imageId <= 0) {
+      throw ArgumentError.value(imageId, 'imageId', 'must be positive');
+    }
+    final endpoint = _endpointPath(
+      SessionApi.getImageThumbnail,
+      ApiMethod.get,
+      {'imageId': imageId},
+    );
+    final response = await _openRawGetWithAuthRefresh(endpoint);
+    if (response.statusCode != HttpStatus.ok) {
+      final body = await response.transform(utf8.decoder).join();
+      throw _errorFromResponse(response.statusCode, body, 'GET', endpoint);
+    }
+    final bytes = await consolidateHttpClientResponseBytes(response);
+    if (bytes.isEmpty) {
+      throw FormatException('$endpoint returned an empty thumbnail');
+    }
+    return Uint8List.fromList(bytes);
+  }
+
+  @override
+  Future<void> loadProfile(String profileId) async {
+    await _post(ProfileApi.loadProfile, path: {'profileId': profileId});
+  }
+
+  @override
+  Future<void> deleteProfile(String profileId) async {
+    await _delete(ProfileApi.deleteProfile, path: {'profileId': profileId});
+  }
+
+  @override
+  Future<void> saveProfile(EquipmentProfile profile) =>
+      saveProfileFields(profile, fields: null);
+
+  @override
+  Future<EquipmentProfile?> getActiveProfile() async {
+    final response = await _get(ProfileApi.getActiveProfile);
+    if (response['profile'] == null) return null;
+    return EquipmentProfile.fromJson(
+      response['profile'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<EquipmentProfile>> getProfiles() async {
+    final response = await _get(ProfileApi.getProfiles);
+    return (response['profiles'] as List)
+        .map((p) => EquipmentProfile.fromJson(p as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getSessionImageRows(int sessionId) async {
+    if (sessionId <= 0) {
+      throw ArgumentError.value(sessionId, 'sessionId', 'must be positive');
+    }
+    final response = await _get(
+      SessionApi.getSessionImages,
+      path: {'sessionId': sessionId},
+    );
+    return _rowsFromJson<Map<String, dynamic>>(
+      response['images'],
+      (row) => row,
+    );
+  }
+
+  /// Save [profile]; when [fields] is given, ask the host to update only those
+  /// fields of its existing row, so edits made elsewhere to the other fields
+  /// survive.
+  Future<void> saveProfileFields(
+    EquipmentProfile profile, {
+    required Set<String>? fields,
+  }) async {
+    _lastSavedProfileId = null;
+    final response = await _post(
+      ProfileApi.saveProfile,
+      body: {
+        'profile': profile.toJson(),
+        if (fields != null) 'fields': fields.toList()..sort(),
+      },
+    );
+    final rawId = response['id'];
+    final id = rawId?.toString();
+    if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
+      throw const FormatException(
+        'Profile save response did not contain a valid positive id',
+      );
+    }
+    _lastSavedProfileId = id;
+  }
 }
 
 class _ImageDownloadMetadata {
@@ -1256,4 +915,22 @@ class _ImageDownloadMetadata {
     'etag': etag,
     'totalLength': totalLength,
   };
+}
+
+extension _NetworkBackendImagingProfileOperationsHelpers
+    on NetworkBackendTransport {
+  DefectMapStatus _defectMapStatusFromJson(Map<String, dynamic> status) {
+    return DefectMapStatus(
+      cameraId: status['cameraId'] as String,
+      width: (status['width'] as num).toInt(),
+      height: (status['height'] as num).toInt(),
+      temperatureBucket: DefectMapTemperatureBucket(
+        (status['temperatureBucketDecicelsius'] as num).toInt(),
+      ),
+      defectivePixelCount: (status['defectivePixelCount'] as num).toInt(),
+      lastRebuiltUnixSeconds: (status['lastRebuiltUnixSeconds'] as num).toInt(),
+      applyDuringCapture: status['applyDuringCapture'] as bool,
+      storedOnDisk: status['storedOnDisk'] as bool,
+    );
+  }
 }

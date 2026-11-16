@@ -267,9 +267,6 @@ pub struct ExecutionContext {
     /// When the time CoolCamera gave the cooler to reach `set_temp_c` runs
     /// out.
     pub set_point_settle_by: Option<tokio::time::Instant>,
-    /// Bayer pattern string ("RGGB", "BGGR", etc.) reported by the camera.
-    /// None for monochrome sensors.
-    pub bayer_pattern: Option<String>,
     /// What the run's exposure triggers did, keyed by node id and trigger
     /// position.
     pub exposure_triggers: Arc<parking_lot::Mutex<ExposureTriggerMemory>>,
@@ -510,7 +507,6 @@ impl ExecutionContext {
             current_filter_index: None,
             set_temp_c: None,
             set_point_settle_by: None,
-            bayer_pattern: None,
             exposure_triggers: Arc::default(),
             // production path uses the real wall clock; tests
             // override via `with_clock` to pin time.
@@ -935,7 +931,7 @@ impl ExecutionContext {
         let lat = self.run.rig.latitude?;
         let lon = self.run.rig.longitude?;
 
-        let sun_alt = current_sun_altitude_degrees(lat, lon);
+        let sun_alt = crate::solar::sun_altitude_degrees(lat, lon, &self.clock.now_utc());
 
         // Astronomical twilight ends when the sun is more than 18° below the
         // horizon — the IAU-adopted definition; deep-sky imaging targets this
@@ -968,23 +964,14 @@ impl ExecutionContext {
             current_binning: self.current_binning,
             set_temp_c: self.set_temp_c,
             set_point_settle_by: self.set_point_settle_by,
-            bayer_pattern: self.bayer_pattern.clone(),
             cancellation_token: self.is_cancelled.clone(),
         }
     }
 }
 
-/// Compute the Sun's current altitude (degrees above the horizon) for an
-/// observer at `latitude` / `longitude` (degrees). Positive = Sun above the
-/// horizon.
-///
-/// `is_dark` answers the binary astronomical-twilight question, whereas the
-/// native daylight START gate (`instructions::execute_slew` /
-/// `instructions::execute_exposure`) needs the continuous altitude so it can
-/// compare against a configurable `max_sun_altitude_degrees` that mirrors the
-/// Dart scheduler's `maxSunAltitudeDegrees`. A free `pub(crate)` fn rather
-/// than a method so the instruction layer can call it without an
-/// `ExecutionContext`.
+/// The Sun's altitude now (degrees above the horizon, wall clock) for an
+/// observer at `latitude` / `longitude` (degrees), for the instruction layer's
+/// daylight gate, which has no run clock.
 pub(crate) fn current_sun_altitude_degrees(latitude: f64, longitude: f64) -> f64 {
     crate::solar::sun_altitude_degrees(latitude, longitude, &chrono::Utc::now())
 }
@@ -1033,6 +1020,21 @@ mod tests {
         let ctx = ExecutionContext::new_for_test("root".to_string());
         let ictx = ctx.to_instruction_context("exposure-node-7").await;
         assert_eq!(ictx.node_id, "exposure-node-7");
+    }
+
+    /// Whether it is dark is read at the run's clock: at a London site the
+    /// same context reads dark at local midnight and not at noon.
+    #[test]
+    fn is_dark_reads_the_run_clock() {
+        let at = |iso: &str| {
+            let mut ctx = ExecutionContext::new_for_test("root".to_string())
+                .with_clock(crate::scheduling::MockClock::at(iso));
+            ctx.run.rig.latitude = Some(51.5);
+            ctx.run.rig.longitude = Some(0.0);
+            ctx.is_dark()
+        };
+        assert_eq!(at("2026-01-15T00:00:00Z"), Some(true));
+        assert_eq!(at("2026-01-15T12:00:00Z"), Some(false));
     }
 
     #[test]

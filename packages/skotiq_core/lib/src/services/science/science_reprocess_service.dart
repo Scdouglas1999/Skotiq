@@ -1,10 +1,10 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:io';
 
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'science_processing_service.dart';
 
 /// Progress of one session's science reprocess.

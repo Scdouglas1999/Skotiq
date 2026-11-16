@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +9,9 @@ import '../../models/notification/notification_categories.dart';
 import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
-import '../end_of_night_calibration/eon_service.dart';
-import '../logging_service.dart';
+import '../catalog_target_types.dart';
+import '../darkroom_target_frames.dart';
+import '../../utils/logging_service.dart';
 import '../notification_service.dart';
 import 'night_end_run.dart';
 import 'night_end_settings.dart';
@@ -21,6 +22,7 @@ import '../../providers/darkroom_build_service_provider.dart';
 import '../../providers/darkroom_state_store_provider.dart';
 import '../../providers/logging_service_provider.dart';
 import '../../providers/notification_service_provider.dart';
+import '../../models/calibration/eon_status.dart';
 
 /// Where the night-end runs are saved.
 const String nightEndRunsStateKey = 'night_end_runs.v1';
@@ -158,9 +160,12 @@ class NightEndRunner {
         if (image.isLight && image.isAccepted) image.id,
     };
     if (lightIds.isEmpty) return null;
-    final targets = await loadDarkroomTargets(_ref.read(databaseProvider));
+    final targets = await loadDarkroomTargets(
+      _ref.read(databaseProvider),
+      await installedDsoDesignations(_log),
+    );
     final names = [
-      for (final entry in targets.entries)
+      for (final entry in targets.byTarget.entries)
         if (entry.value.any((frame) => lightIds.contains(frame.id))) entry.key,
     ]..sort();
     const buildOff = NightEndStep(
@@ -274,6 +279,7 @@ class NightEndRunner {
     final jobs = <String, DarkroomBuildJob>{};
     final framesByTarget = await loadDarkroomTargets(
       _ref.read(databaseProvider),
+      await installedDsoDesignations(_log),
     );
     for (final target in run.targets) {
       final state = target.build.state;

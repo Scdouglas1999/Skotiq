@@ -7,6 +7,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'calibration_panel.dart';
+import 'package:skotiq_core/database.dart';
 
 /// Matching-preview pane: enter a light-frame context, see the auto-pick per
 /// type with scores, reasons, and warnings.

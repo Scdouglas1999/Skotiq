@@ -50,11 +50,7 @@ async fn frame_event_carries_the_fits_writers_own_capture_context() {
 
     let mut emitted = None;
     while let Ok(event) = event_rx.try_recv() {
-        if let crate::executor::ExecutorEvent::NodeProgress {
-            structured_detail: Some(detail),
-            ..
-        } = event
-        {
+        if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
             if let crate::node::ProgressDetail::FrameAccepted { capture, .. } = *detail {
                 emitted = Some(capture);
             }
@@ -154,7 +150,7 @@ async fn frame_event_is_stamped_from_the_context_save_fits_received() {
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
     let ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
 
-    let result = execute_exposure(&one_dark(2), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_dark(2), &ctx, |_, _, _| {}).await;
     assert_eq!(
         result.status,
         NodeStatus::Success,
@@ -258,7 +254,7 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
         frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     assert_eq!(
         result.status,
         NodeStatus::Success,
@@ -314,7 +310,7 @@ async fn sequenced_frames_carry_the_sensor_pixel_pitch() {
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel(16);
     let ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
 
-    let result = execute_exposure(&one_dark(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_dark(1), &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 
     let saved = ops.saved_frame_contexts();
@@ -344,7 +340,7 @@ async fn a_camera_that_reports_no_pitch_leaves_the_keywords_absent() {
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel(16);
     let ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
 
-    let result = execute_exposure(&one_dark(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_dark(1), &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 
     let saved = ops.saved_frame_contexts();
@@ -377,7 +373,7 @@ async fn plausible_driver_exposure_report_wins_over_the_commanded_value() {
         duration_secs: 60.0,
         ..one_dark(1)
     };
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 
     let saved = ops.saved_frame_contexts();
@@ -409,7 +405,7 @@ async fn nonsense_driver_exposure_report_cannot_inflate_integration_totals() {
         duration_secs: 60.0,
         ..one_dark(1)
     };
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 
     let saved = ops.saved_frame_contexts();
@@ -452,7 +448,7 @@ async fn the_frame_callback_reports_recorded_seconds_not_planned_ones() {
 
     let reported = Arc::new(Mutex::new(Vec::<f64>::new()));
     let sink = reported.clone();
-    let result = execute_exposure(&config, &ctx, move |_frame, _total, recorded_secs| {
+    let result = expose_burst(&config, &ctx, move |_frame, _total, recorded_secs| {
         sink.lock().unwrap().push(recorded_secs);
     })
     .await;

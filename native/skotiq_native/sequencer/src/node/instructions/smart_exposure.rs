@@ -41,12 +41,18 @@
 //!
 //! # Autofocus on filter change
 //!
-//! We rely on the existing trigger system: when [`ChangeFilterInstruction`]
-//! flips `TriggerState::filter_changed`, the user-configured
-//! `TriggerType::FilterChange` with `RecoveryAction::Autofocus` (or the
-//! per-filter focus offset machinery) fires. SmartExposure does NOT launch
-//! its own autofocus run — that would duplicate the trigger pipeline and
-//! desync from the rest of the sequencer.
+//! SmartExposure never runs autofocus itself. A filter change applies the
+//! filter's focus offset. In drain mode it also flips
+//! `TriggerState::filter_changed`, so a `TriggerType::FilterChange` set to
+//! autofocus refocuses once per filter. A rotating node's moves raise no
+//! such edge: rotating one exposure per filter would refocus before every
+//! frame, so autofocus stays on its own triggers (interval, HFR, temperature).
+//!
+//! # Dither cadence
+//!
+//! A plan's "dither every N" counts the node's frames across all its
+//! filters: with rotation the node dithers after every Nth exposure,
+//! whichever filter took it.
 
 use crate::depth_goal::DepthGoalVerdict;
 use crate::executor::ExecutorEvent;
@@ -77,14 +83,17 @@ impl InstructionNode for SmartExposureInstruction {
             tracing::error!("SmartExposureInstruction received non-SmartExposure variant");
             return NodeStatus::Failure;
         };
+        let config = effective_config(node_id, config, context);
+        let config = config.as_ref();
 
         // A node whose plans set "dither every N" owns the dither cadence for
         // as long as it runs, and the run's Dither Interval trigger stands
         // down: the plan's own setting is what the operator wrote for these
         // frames, as with N.I.N.A.'s Smart Exposure and its own dither
         // trigger. Both counting the same frames dithered twice in a row. A
-        // plan left at "off" inside such a node takes no cadence dithers; a
-        // node with no cadence on any plan leaves dithering to the trigger.
+        // plan left at "off" inside such a node dithers after none of its own
+        // frames; a node with no cadence on any plan leaves dithering to the
+        // trigger.
         let owns_dither_cadence = config
             .plans
             .iter()
@@ -94,10 +103,25 @@ impl InstructionNode for SmartExposureInstruction {
             .trigger_state
             .clone()
             .filter(|_| owns_dither_cadence);
+        // A rotating node changes filter before almost every frame. Those moves
+        // apply each filter's focus offset but are not a change of plan, so
+        // they raise no filter-change edge: autofocus runs on its own
+        // triggers, not on every rotation.
+        let rotation_state = context
+            .run
+            .trigger_state
+            .clone()
+            .filter(|_| config.rotate_filters);
         if let Some(state) = &cadence_state {
             state.write().await.claim_dither_cadence();
         }
+        if let Some(state) = &rotation_state {
+            state.write().await.claim_filter_rotation();
+        }
         let status = execute_smart_exposure(node_id, config, context).await;
+        if let Some(state) = &rotation_state {
+            state.write().await.release_filter_rotation();
+        }
         if let Some(state) = &cadence_state {
             state.write().await.release_dither_cadence();
         }
@@ -105,11 +129,13 @@ impl InstructionNode for SmartExposureInstruction {
     }
 }
 
-async fn execute_smart_exposure(
+/// The config this dispatch runs: a surrounding TargetScheduler's filter
+/// cycle and loop-until-stopped mode both force rotation.
+fn effective_config<'a>(
     node_id: &str,
-    config: &SmartExposureConfig,
-    context: &mut ExecutionContext,
-) -> NodeStatus {
+    config: &'a SmartExposureConfig,
+    context: &ExecutionContext,
+) -> std::borrow::Cow<'a, SmartExposureConfig> {
     // when a surrounding TargetScheduler has installed a
     // multi-filter cycle override, apply it for this dispatch. The
     // override forces `rotate_filters=true` and clamps `batch_size` to
@@ -146,8 +172,7 @@ async fn execute_smart_exposure(
     // `batch_size=1` and `rotate_filters=true` here regardless of their
     // stored values. We only clone when a coercion is actually needed so
     // the common (loop-mode-off) path keeps the borrow.
-    let config = if config.loop_until_stopped && (!config.rotate_filters || config.batch_size != 1)
-    {
+    if config.loop_until_stopped && (!config.rotate_filters || config.batch_size != 1) {
         std::borrow::Cow::Owned(SmartExposureConfig {
             rotate_filters: true,
             batch_size: 1,
@@ -155,9 +180,14 @@ async fn execute_smart_exposure(
         })
     } else {
         config
-    };
-    let config = config.as_ref();
+    }
+}
 
+async fn execute_smart_exposure(
+    node_id: &str,
+    config: &SmartExposureConfig,
+    context: &mut ExecutionContext,
+) -> NodeStatus {
     // Errors-are-a-feature: refuse to enter an unbounded infinite loop.
     // `loop_until_stopped` deliberately ignores per-plan counts, so the
     // ONLY things that can end the node are (a) the integration budget,
@@ -378,11 +408,16 @@ async fn execute_smart_exposure(
             run_smart_dither(node_id, plan, context).await;
         }
 
-        // Exposure burst, split at this plan's dither boundaries. The
-        // cadence counts the plan's frames across visits: with rotation a
-        // visit is often a single frame, so a burst counting its own
-        // frames never reached `dither_every` and the run never dithered.
+        // Exposure burst, split at the node's dither boundaries. The cadence
+        // counts the node's frames across all its filters, so "dither every
+        // 3" dithers after every third exposure whatever the filter order:
+        // counted per filter, a rotation through four filters dithered four
+        // frames in a row and then not for eight.
         let cadence = plan.dither_every.filter(|every| *every > 0);
+        let node_frames_before = state
+            .per_filter_completed
+            .values()
+            .fold(0u32, |sum, frames| sum.saturating_add(*frames));
         let mut taken = 0;
         // With a target end condition installed the burst is taken a frame at
         // a time, so the condition is checked before every frame.
@@ -399,8 +434,9 @@ async fn execute_smart_exposure(
                 return NodeStatus::Success;
             }
             let done = completed_for_plan.saturating_add(taken);
+            let node_done = node_frames_before.saturating_add(taken);
             let mut chunk = match cadence {
-                Some(every) => (batch_size - taken).min(every - done % every),
+                Some(every) => (batch_size - taken).min(every - node_done % every),
                 None => batch_size - taken,
             };
             if bounded_by_target {
@@ -440,7 +476,7 @@ async fn execute_smart_exposure(
                 .per_filter_completed
                 .insert(plan.filter_name.clone(), done.saturating_add(chunk));
 
-            if cadence.is_some_and(|every| (done + chunk) % every == 0) {
+            if cadence.is_some_and(|every| (node_done + chunk) % every == 0) {
                 if taken < batch_size {
                     run_smart_dither(node_id, plan, context).await;
                 } else {

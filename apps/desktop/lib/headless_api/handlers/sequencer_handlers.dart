@@ -22,6 +22,7 @@ import '../sequence_wire_validation.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'sequencer/sequencer_lifecycle_handlers.dart';
 part 'sequencer/sequencer_start_preflight.dart';

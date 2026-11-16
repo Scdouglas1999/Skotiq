@@ -732,14 +732,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckSolverReady': 'ready',
     'nightSessionCheckWeather': 'Weather',
     'nightSessionCheckWeatherDevice': 'device reporting',
-    'nightSessionCheckWeatherForecast':
-        'forecast only · safety cannot see the sky',
+    'nightSessionCheckWeatherInternet':
+        'internet weather only · no sensor at the site',
     'nightSessionCheckWeatherNone': 'no source · safety cannot react',
     'nightSessionCheckWeatherOff': 'weather safety is off',
     'nightSessionCheckWeatherSafe': 'device reporting · safe',
     'nightSessionCheckWeatherUnsafe': 'device reporting · unsafe',
     'nightSessionClouds': 'Clouds',
-    'nightSessionCloudsForecast': 'Clouds (forecast)',
+    'nightSessionCloudsNow': 'Clouds now',
     'nightSessionCoolerPower': 'power',
     'nightSessionDeviceConnecting': 'connecting',
     'nightSessionDeviceFault': 'error',
@@ -897,7 +897,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelFocuser': 'Focuser',
     'nightPanelFocuserNotConnected': 'not connected',
     'nightPanelFocuserPosition': 'Focuser position',
-    'nightPanelForecastOnly': 'forecast only',
+    'nightPanelInternetOnly': 'internet only',
     'nightPanelFrame': 'Frame',
     'nightPanelFrameBias': 'Bias',
     'nightPanelFrameDark': 'Dark',
@@ -1040,6 +1040,11 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No current weather data; the safety fail mode decides.',
     'nightWeatherStarsOutweighForecast':
         'The forecast says cloudy, but recent frames are full of stars, so imaging continues.',
+    'nightSkyDisagree':
+        'The station says {station}, the model {model}. Look at the sky.',
+    'nightSkyModelOnly':
+        'Model estimate ({source}): no weather station reported nearby.',
+    'nightSkyStation': 'Observed at {station}, {distance} km away, at {time}.',
     'nightWeatherStarsClear': 'Last frame: {stars} stars (usual {usual}).',
     'nightWeatherStarsFew':
         'Last frame: {stars} stars (usual {usual}), fewer than usual.',
@@ -1467,7 +1472,19 @@ final Map<String, Map<String, String>> _localizedValues = {
     'frameOffTarget': 'Off target',
     'frameObstructed': 'Obstructed',
     'nightCtrFrameSemantics': 'Latest frame: {frame}',
-    'nightCtrPreviewSemantics': 'Preview of frame {frame}',
+    'nightCtrPreviewSemantics': 'Saved frame {frame}',
+    'savedFrameLoading': 'Loading full resolution',
+    'savedFrameDownloading': 'Downloading full resolution',
+    'savedFrameFailed': 'Full resolution did not load',
+    'savedFrameFullResolution': 'Full resolution',
+    'savedFramePosition': '{position} of {count}',
+    'savedFrameDetails': 'Details',
+    'savedFrameClose': 'Close',
+    'savedFrameCloseTip': 'Back to the frames (Esc)',
+    'savedFramePrevious': 'Previous',
+    'savedFramePreviousTip': 'The frame before this one (Left arrow)',
+    'savedFrameNext': 'Next',
+    'savedFrameNextTip': 'The frame after this one (Right arrow)',
     'nightCtrExposing': 'Exposing',
     'nightCtrExposingFrame': '#{frame} exposing',
     'nightCtrSecondsLeft': '{seconds} s left',
@@ -2348,8 +2365,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckSolverReady': 'listo',
     'nightSessionCheckWeather': 'Tiempo',
     'nightSessionCheckWeatherDevice': 'dispositivo activo',
-    'nightSessionCheckWeatherForecast':
-        'solo previsión · la seguridad no puede ver el cielo',
+    'nightSessionCheckWeatherInternet':
+        'solo tiempo de internet · sin sensor en el sitio',
     'nightSessionCheckWeatherNone':
         'sin fuente · la seguridad no puede reaccionar',
     'nightSessionCheckWeatherOff':
@@ -2357,7 +2374,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckWeatherSafe': 'dispositivo activo · seguro',
     'nightSessionCheckWeatherUnsafe': 'dispositivo activo · inseguro',
     'nightSessionClouds': 'Nubes',
-    'nightSessionCloudsForecast': 'Nubes (previsión)',
+    'nightSessionCloudsNow': 'Nubes ahora',
     'nightSessionCoolerPower': 'potencia',
     'nightSessionDeviceConnecting': 'conectando',
     'nightSessionDeviceFault': 'error',
@@ -2517,7 +2534,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelFocuser': 'Enfocador',
     'nightPanelFocuserNotConnected': 'no conectado',
     'nightPanelFocuserPosition': 'Posición del enfocador',
-    'nightPanelForecastOnly': 'solo previsión',
+    'nightPanelInternetOnly': 'solo internet',
     'nightPanelFrame': 'Toma',
     'nightPanelFrameBias': 'Bias',
     'nightPanelFrameDark': 'Dark',
@@ -2663,6 +2680,11 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No hay datos meteorológicos actuales; decide el modo de fallo de seguridad.',
     'nightWeatherStarsOutweighForecast':
         'La previsión indica nubes, pero las últimas tomas están llenas de estrellas, así que la captura continúa.',
+    'nightSkyDisagree':
+        'La estación indica {station} y el modelo {model}. Mire el cielo.',
+    'nightSkyModelOnly':
+        'Estimación del modelo ({source}): ninguna estación cercana informó.',
+    'nightSkyStation': 'Observado en {station}, a {distance} km, a las {time}.',
     'nightWeatherStarsClear':
         'Última toma: {stars} estrellas (normal {usual}).',
     'nightWeatherStarsFew':
@@ -3110,7 +3132,19 @@ final Map<String, Map<String, String>> _localizedValues = {
     'frameOffTarget': 'Fuera del objetivo',
     'frameObstructed': 'Obstruida',
     'nightCtrFrameSemantics': 'Última toma: {frame}',
-    'nightCtrPreviewSemantics': 'Vista previa de la toma {frame}',
+    'nightCtrPreviewSemantics': 'Toma guardada {frame}',
+    'savedFrameLoading': 'Cargando a resolución completa',
+    'savedFrameDownloading': 'Descargando a resolución completa',
+    'savedFrameFailed': 'La resolución completa no se cargó',
+    'savedFrameFullResolution': 'Resolución completa',
+    'savedFramePosition': '{position} de {count}',
+    'savedFrameDetails': 'Detalles',
+    'savedFrameClose': 'Cerrar',
+    'savedFrameCloseTip': 'Volver a las tomas (Esc)',
+    'savedFramePrevious': 'Anterior',
+    'savedFramePreviousTip': 'La toma anterior (flecha izquierda)',
+    'savedFrameNext': 'Siguiente',
+    'savedFrameNextTip': 'La toma siguiente (flecha derecha)',
     'nightCtrExposing': 'Exponiendo',
     'nightCtrExposingFrame': '#{frame} exponiendo',
     'nightCtrSecondsLeft': 'quedan {seconds} s',

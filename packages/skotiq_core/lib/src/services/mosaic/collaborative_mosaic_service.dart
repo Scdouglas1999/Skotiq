@@ -39,7 +39,7 @@ import '../constellation/constellation_client.dart';
 import '../constellation/constellation_models.dart';
 import '../constellation/constellation_service.dart'
     show ConstellationClientFactory, ConstellationCredentials;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../mosaic_project_service.dart';
 import '../frame_header.dart';
 import '../wcs/master_wcs.dart';

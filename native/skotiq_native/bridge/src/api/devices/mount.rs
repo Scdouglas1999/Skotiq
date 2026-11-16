@@ -154,9 +154,9 @@ pub async fn mount_abort(device_id: String) -> Result<(), SkotiqError> {
 pub async fn api_mount_set_tracking(device_id: String, enabled: u8) -> Result<(), SkotiqError> {
     if enabled == 0 {
         // Never wait on the executor lock to stop a mount.
-        if let Ok(executor) = crate::api::sequencer::get_sequence_executor().try_read() {
-            executor.note_operator_tracking_stop().await;
-        }
+        skotiq_sequencer::executor_handle()
+            .note_operator_tracking_stop()
+            .await;
     }
     let mgr = get_device_manager();
     mgr.mount_set_tracking(&device_id, enabled != 0)
@@ -321,7 +321,6 @@ pub async fn mount_set_time(
 #[cfg(test)]
 mod tests {
     use super::api_mount_set_tracking;
-    use crate::api::sequencer::get_sequence_executor;
     use crate::api::sequencer::lifecycle::{api_sequencer_start, api_sequencer_stop};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
@@ -378,7 +377,7 @@ mod tests {
         });
         sequence.root_node_id = Some("wait".to_string());
         {
-            let mut executor = get_sequence_executor().write().await;
+            let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
@@ -396,7 +395,7 @@ mod tests {
         }
         api_sequencer_start().await.expect("run starts");
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-        while get_sequence_executor().read().await.get_state().await != ExecutorState::Running {
+        while skotiq_sequencer::executor_handle().state() != ExecutorState::Running {
             assert!(
                 tokio::time::Instant::now() < deadline,
                 "the run never started"
@@ -408,7 +407,7 @@ mod tests {
             .await
             .expect("tracking stops");
         let operator_stopped = {
-            let executor = get_sequence_executor().read().await;
+            let executor = skotiq_sequencer::executor_handle();
             let state = executor.trigger_manager().read().await.state();
             let stopped = state.read().await.tracking.operator_stopped();
             stopped

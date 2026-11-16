@@ -284,9 +284,9 @@ abstract class FilterPlan with _$FilterPlan {
     /// Binning for this filter. Defaults to 1x1.
     @Default(BinningMode.one) @BinningModeJsonConverter() BinningMode binning,
 
-    /// Per-plan dither cadence (every N frames). null disables dithering for
-    /// this filter regardless of any global default. 0 is treated as "no
-    /// dither" — matches `ExposureNode.ditherEvery`.
+    /// Dither cadence: after this row's frame, dither when the Smart
+    /// Exposure step has taken a multiple of N frames, counted across all
+    /// its filters. null (or 0) never dithers after this row's frames.
     int? ditherEvery,
 
     /// Optional DepthLock binding. When set, the executor asks the goal

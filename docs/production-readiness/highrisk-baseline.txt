@@ -30,6 +30,7 @@ native/skotiq_native/ascom/src/windows/connection.rs	scan_registry_path	highrisk
 native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	highrisk	1	baseline	let config = config.unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/api/plate_solve.rs	frame	highrisk	1	baseline	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs	run_sequencer_event_loop	highrisk	1	baseline	node_id: node_id.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	api_sequencer_start	highrisk	1	baseline	let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	highrisk	1	baseline	get_sequence_executor().write().await.stop().await.ok();
@@ -38,12 +39,12 @@ native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	capabilities	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	get_sensor_info	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	highrisk	1	baseline	let readout_modes = cam.readout_modes().unwrap_or_default();
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	test_cooler_power_supported_caches_not_implemented	highrisk	1	baseline	"CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
 native/skotiq_native/bridge/src/depthlock_service/store.rs	open	highrisk	1	baseline	.unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = device_id_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = idx_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = payload.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	highrisk	1	baseline	description: switch.switch_description(index).await.unwrap_or_default(),
+native/skotiq_native/bridge/src/device_manager/handle.rs	capabilities	highrisk	1	baseline	let status = d.status().await.ok();
 native/skotiq_native/bridge/src/device_manager/motion_guard/tests.rs	the_simulated_runaway_is_caught_and_recovered_end_to_end	highrisk	2	baseline	mgr.mount_get_status(device_id).await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/backstop.rs	publish_backstop	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/backstop_tests.rs	a_wheel_moved_outside_skotiq_publishes_filter_changed_with_its_name	highrisk	1	baseline	.unwrap_or_default();
@@ -59,7 +60,6 @@ native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	focus_offsets	highri
 native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	position	highrisk	1	baseline	Err(DeviceOpError::unsupported("Position is not implemented"))
 native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	step_size	highrisk	1	baseline	Err(DeviceOpError::unsupported("StepSize is not implemented"))
 native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	temperature	highrisk	1	baseline	(false, _) => Err(DeviceOpError::unsupported("Temperature is not implemented")),
-native/skotiq_native/bridge/src/device_manager/rig/camera/driver.rs	capabilities	highrisk	1	baseline	let status = camera.get_status().await.ok();
 native/skotiq_native/bridge/src/device_manager/rig/filter_wheel.rs	capabilities	highrisk	1	baseline	filter_names: wheel.get_filter_names().await.unwrap_or_default(),
 native/skotiq_native/bridge/src/device_manager/rig/mount/driver.rs	capabilities	highrisk	1	baseline	let tracking = mount.get_tracking().await.ok();
 native/skotiq_native/bridge/src/frame_header/golden_tests.rs	card_value_text	highrisk	1	baseline	.unwrap_or_default()

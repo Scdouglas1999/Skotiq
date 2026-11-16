@@ -2191,7 +2191,7 @@ async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
-    executor.pause().await.expect("pause");
+    executor.handle().pause().await.expect("pause");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })
@@ -2226,7 +2226,7 @@ async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
 
     // The loss is still acted on once the operator resumes with the mount
     // untracked: the run must not expose without tracking.
-    executor.resume().await.expect("resume");
+    executor.handle().resume().await.expect("resume");
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     while !ops.mount_tracking.load(Ordering::SeqCst) {
         if tokio::time::Instant::now() >= deadline {
@@ -2301,7 +2301,7 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
         })
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
     // Let the monitor see the guider guiding, then lose the star.
@@ -2399,7 +2399,7 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
         })
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -2511,7 +2511,7 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
@@ -2542,7 +2542,7 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         }
     }
     let state = executor.get_state().await;
-    let recovery = executor.current_recovery();
+    let recovery = executor.handle().current_recovery();
     let guiding = trigger_state_of(&executor.trigger_manager).await.guiding;
     let calls = ops.calls();
     let _ = executor.stop().await;
@@ -2590,11 +2590,12 @@ async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
         )
         .with_cooldown(600),
     );
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
     executor
+        .handle()
         .update_trigger_state(|ts| ts.telemetry.current_transparency = Some(0.3))
         .await;
     let mut warnings = Vec::new();
@@ -2631,10 +2632,10 @@ async fn resume_during_recovery_does_not_unfreeze_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_run_in_guide_star_recovery(ops.clone(), 600.0).await;
 
-    executor.resume().await.expect("resume");
+    executor.handle().resume().await.expect("resume");
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     let state = executor.get_state().await;
-    let recovering = executor.current_recovery().is_some();
+    let recovering = executor.handle().current_recovery().is_some();
     let _ = executor.stop().await;
     assert!(recovering, "the ladder should still be running");
     assert_ne!(
@@ -2652,13 +2653,13 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_run_in_guide_star_recovery(ops.clone(), 2.0).await;
 
-    executor.pause().await.expect("pause");
+    executor.handle().pause().await.expect("pause");
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     // The guider can restart now; the next attempt re-acquires.
     ops.relock_after_starts.store(1, Ordering::SeqCst);
     ops.guider_start_fails.store(false, Ordering::SeqCst);
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
-    while executor.current_recovery().is_some() {
+    while executor.handle().current_recovery().is_some() {
         assert!(
             tokio::time::Instant::now() < deadline,
             "recovery never finished; calls={:?}",
@@ -2706,7 +2707,7 @@ async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
         })
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_get_status") < 2 {
@@ -2756,7 +2757,7 @@ async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
     ops.guiding.store(false, Ordering::SeqCst);
@@ -2861,7 +2862,7 @@ async fn unsafe_weather_parks_when_park_on_unsafe_weather_is_on() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), None).await;
     wait_for_monitor(&ops).await;
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -2880,7 +2881,7 @@ async fn unsafe_weather_parks_when_park_on_unsafe_weather_is_on() {
 async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .handle()
         .update_run_config(|config| config.park_policy = WEATHER_OFF)
@@ -2892,7 +2893,7 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     let state = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s != super::ExecutorState::Running
     })
@@ -2927,14 +2928,14 @@ async fn unsafe_weather_during_a_pause_does_not_park_when_parking_is_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), Some(WEATHER_OFF)).await;
     wait_for_monitor(&ops).await;
-    executor.pause().await.expect("pause");
+    executor.handle().pause().await.expect("pause");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })
     .await;
     assert_eq!(state, super::ExecutorState::Paused);
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     let calls = ops.calls();
     let state = executor.get_state().await;
@@ -2982,7 +2983,7 @@ async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
     .await;
     assert_eq!(state, super::ExecutorState::Recovering);
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     let calls = ops.calls();
     let _ = executor.stop().await;
@@ -3001,7 +3002,7 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
         .await
         .unwrap();
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     let _ = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s != super::ExecutorState::Running
     })
@@ -3015,6 +3016,7 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
 /// Force the Dawn Approaching trigger: a site and a dawn ten minutes away.
 pub(crate) async fn bring_dawn_near(executor: &super::SequenceExecutor) {
     executor
+        .handle()
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(45.0), Some(-75.0));
             ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
@@ -3047,7 +3049,7 @@ async fn dawn_parks_when_park_before_dawn_is_on() {
 async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .handle()
         .update_run_config(|config| config.park_policy = DAWN_OFF)
@@ -3140,7 +3142,7 @@ async fn start_capture_run(
     });
     sequence.root_node_id = Some("darks".to_string());
     executor.load_sequence(sequence).expect("sequence loads");
-    let events = executor.subscribe();
+    let events = executor.handle().subscribe();
     executor.start().await.expect("executor starts");
     (executor, dir, events)
 }
@@ -3287,7 +3289,7 @@ async fn a_star_lost_during_the_runs_own_move_is_not_a_lost_star() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
     set_mount_motion_depth(&executor, 1).await;
@@ -3323,7 +3325,7 @@ async fn recovery_leaves_tracking_on_while_the_mount_slews() {
         .update_run_config(|config| config.stop_on_quality_problems = true)
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
     ops.mount_slewing.store(true, Ordering::SeqCst);
@@ -3395,12 +3397,12 @@ async fn weather_hold_without_a_safety_monitor_resumes_when_the_verdict_clears()
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s == super::ExecutorState::Recovering
     })
     .await;
-    executor.update_weather_verdict(None).await;
+    executor.handle().update_weather_verdict(None).await;
     let after = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
         s == super::ExecutorState::Running
     })
@@ -3424,9 +3426,12 @@ async fn weather_hold_without_a_safety_monitor_resumes_when_the_verdict_clears()
 async fn a_forecast_cloud_holds_and_resumes_and_never_parks() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), None, 0).await;
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
-    executor.update_weather_verdict_from(Some(true), true).await;
+    executor
+        .handle()
+        .update_weather_verdict_from(Some(true), true)
+        .await;
     let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s != super::ExecutorState::Running
     })
@@ -3434,7 +3439,10 @@ async fn a_forecast_cloud_holds_and_resumes_and_never_parks() {
     // Long enough for the hold to have been re-judged many times.
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     let still_held = executor.get_state().await;
-    executor.update_weather_verdict_from(None, false).await;
+    executor
+        .handle()
+        .update_weather_verdict_from(None, false)
+        .await;
     let after = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
         s == super::ExecutorState::Running
     })
@@ -3465,6 +3473,7 @@ async fn a_sensor_verdict_still_parks_when_parking_is_on() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), None, 0).await;
     executor
+        .handle()
         .update_weather_verdict_from(Some(true), false)
         .await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -3506,7 +3515,10 @@ async fn a_weather_hold_never_runs_out_and_fails_the_run() {
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
-    executor.update_weather_verdict_from(Some(true), true).await;
+    executor
+        .handle()
+        .update_weather_verdict_from(Some(true), true)
+        .await;
     let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s == super::ExecutorState::Recovering
     })
@@ -3525,12 +3537,16 @@ async fn the_operator_clear_sky_override_resumes_a_held_run_now() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), None, 300).await;
 
-    executor.update_weather_verdict_from(Some(true), true).await;
+    executor
+        .handle()
+        .update_weather_verdict_from(Some(true), true)
+        .await;
     let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s == super::ExecutorState::Recovering
     })
     .await;
     executor
+        .handle()
         .set_weather_operator_clear(1800, "stars in the guide camera")
         .await;
     let after = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
@@ -3557,9 +3573,12 @@ async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let mut config = executor.handle().run_config();
     config.weather_verdict_staleness_secs = 30;
     executor.handle().apply_run_config(config).await.unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
-    executor.update_weather_verdict_from(Some(true), true).await;
+    executor
+        .handle()
+        .update_weather_verdict_from(Some(true), true)
+        .await;
     let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         s == super::ExecutorState::Recovering
     })
@@ -3604,7 +3623,7 @@ fn only_fail_closed_keeps_holding_on_a_stale_verdict() {
 async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars_return() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
     executor
@@ -3684,7 +3703,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
     let dir = std::env::temp_dir().join(format!("sk-cal-run-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.set_devices(
         Some("cam-1".to_string()),
         Some("mount-1".to_string()),
@@ -3734,8 +3753,9 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
     arm_run_guiding(&executor).await;
     wait_for_monitor(&ops).await;
     bring_dawn_near(&executor).await;
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     executor
+        .handle()
         .update_trigger_state(|ts| {
             ts.latches.completed_exposures = 50;
             ts.set_guide_star_lost(true);
@@ -3971,8 +3991,8 @@ async fn a_run_with_a_target_and_no_site_says_so_once_as_a_notice() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
-    let mut decisions = executor.subscribe_decisions();
+    let mut events = executor.handle().subscribe();
+    let mut decisions = executor.handle().subscribe_decisions();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
     assert_eq!(executor.observer_location(), (None, None));

@@ -1,392 +1,275 @@
-// Equipment hint card, canvas controls, survey selector, zoom controls and scale indicator.
+// The glass groups FramingCanvasChrome places: the toolbar (survey and layers),
+// the status group (scale bar, then the survey's notice or credit) and zoom.
 part of '../framing_canvas.dart';
 
-/// The "no equipment configured" hint card in the canvas's top chrome.
-///
-/// Lives in the single top-chrome [Column] rather than an inline `Positioned`
-/// pinned at a literal `top: 60`, where a wrapped toolbar row could end up
-/// underneath it.
-class _EquipmentHintCard extends StatelessWidget {
-  final SkotiqColors colors;
-  final double previewFovDegrees;
+/// The canvas layers the Layers menu turns on and off.
+enum FramingLayer {
+  crosshair('Crosshair'),
+  grid('Coordinate grid'),
+  targetLabel('Target label'),
+  directions('Sky directions'),
+  guideStars('Guide stars'),
+  surveyTiles('Deep survey tiles');
 
-  const _EquipmentHintCard({
-    required this.colors,
-    required this.previewFovDegrees,
-  });
+  const FramingLayer(this.label);
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: SkotiqTokens.paddingMd,
-      decoration: BoxDecoration(
-        color: colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
-        borderRadius: SkotiqTokens.borderRadiusMd,
-        border: Border.all(
-          color: colors.info.withValues(alpha: SkotiqTokens.opacityHalf),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(SkotiqIcons.visible,
-              size: SkotiqTokens.iconXs, color: colors.info),
-          const SizedBox(width: SkotiqTokens.spaceSm),
-          // Flexible so a narrow canvas ellipsizes rather than overflowing.
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Preview: ${previewFovDegrees.toStringAsFixed(1)}° FOV',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      SkotiqTypography.labelQuiet.copyWith(color: colors.info),
-                ),
-                Text(
-                  'Configure equipment for accurate framing',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.overline
-                      .copyWith(color: colors.textMuted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  final String label;
 }
 
-class _CanvasControls extends StatelessWidget {
-  final SkotiqColors colors;
+/// Top right: the survey picker and the Layers menu, in one glass group.
+class _FramingToolbar extends ConsumerWidget {
   final FramingState framingState;
+  final bool hasEquipment;
 
-  const _CanvasControls({
-    required this.colors,
+  const _FramingToolbar({
     required this.framingState,
+    required this.hasEquipment,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        // One toolbar (05 §7): the survey picker in its own group, then the
-        // layer toggles as selectable icon buttons. SkotiqToolbar only
-        // measures itself when it is given an `overflow` list; with none it is
-        // a min-width Row, so on a phone canvas the strip scrolls sideways
-        // rather than overflowing (07: reduce content or let it scroll).
-        final toggles = <Widget>[
-          SkotiqIconButton(
-            icon: SkotiqIcons.crosshair,
-            tooltip: 'Crosshair',
-            size: IconButtonSize.sm,
-            selected: ref.watch(imagingViewerStateProvider).showCrosshair,
-            onPressed: () =>
-                ref.read(imagingViewerStateProvider.notifier).toggleCrosshair(),
-          ),
-          SkotiqIconButton(
-            icon: SkotiqIcons.grid,
-            tooltip: 'Grid',
-            size: IconButtonSize.sm,
-            selected: framingState.showGrid,
-            onPressed: () => ref.read(framingProvider.notifier).toggleGrid(),
-          ),
-          SkotiqIconButton(
-            icon: SkotiqIcons.tag,
-            tooltip: 'Labels',
-            size: IconButtonSize.sm,
-            selected: framingState.showLabels,
-            onPressed: () => ref.read(framingProvider.notifier).toggleLabels(),
-          ),
-          // Guide-star finder: highlights bright (V < 10) catalog stars inside
-          // the imaging FOV as candidate autoguider guide stars.
-          SkotiqIconButton(
-            icon: SkotiqIcons.guider,
-            tooltip: 'Guide stars',
-            size: IconButtonSize.sm,
-            selected: framingState.showGuideStars,
-            onPressed: () =>
-                ref.read(framingProvider.notifier).toggleGuideStars(),
-          ),
-          // HiPS deep-survey tiles. Only offered for surveys that have a
-          // verified HiPS pyramid (the toggle would be inert otherwise — the
-          // capability gate, hipsSurveyIsTileCapable, would keep tiles off);
-          // for those it flips hipsFramingEnabledProvider, the same user
-          // preference hipsFramingActiveProvider combines with the capability
-          // gate to mount/unmount the streamed tile mosaic.
-          if (hipsSurveyIsTileCapable(framingState.surveySource))
-            SkotiqIconButton(
-              icon: SkotiqIcons.sparkle,
-              tooltip: 'HiPS tiles',
-              size: IconButtonSize.sm,
-              selected: ref.watch(hipsFramingEnabledProvider),
-              onPressed: () {
-                final notifier = ref.read(hipsFramingEnabledProvider.notifier);
-                notifier.state = !notifier.state;
-              },
-            ),
-        ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(framingProvider.notifier);
+    final source = framingState.surveySource;
+    final tilesOffered = hipsSurveyIsTileCapable(source);
+    final on = <FramingLayer, bool>{
+      FramingLayer.crosshair:
+          ref.watch(imagingViewerStateProvider).showCrosshair,
+      FramingLayer.grid: framingState.showGrid,
+      FramingLayer.targetLabel: framingState.showLabels,
+      // The directions are drawn inside the camera frame, so they need one.
+      if (hasEquipment)
+        FramingLayer.directions: framingState.showCardinalDirections,
+      FramingLayer.guideStars: framingState.showGuideStars,
+      if (tilesOffered)
+        FramingLayer.surveyTiles: ref.watch(hipsFramingEnabledProvider),
+    };
 
-        final Widget toolbar = SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SkotiqToolbar(
-            groups: [
-              [
-                _SurveySourceSelector(
-                  colors: colors,
-                  source: framingState.surveySource,
-                  onChanged: (source) => ref
-                      .read(framingProvider.notifier)
-                      .setSurveySource(source),
-                ),
+    void toggle(FramingLayer layer) {
+      switch (layer) {
+        case FramingLayer.crosshair:
+          ref.read(imagingViewerStateProvider.notifier).toggleCrosshair();
+        case FramingLayer.grid:
+          notifier.toggleGrid();
+        case FramingLayer.targetLabel:
+          notifier.toggleLabels();
+        case FramingLayer.directions:
+          notifier.toggleCardinalDirections();
+        case FramingLayer.guideStars:
+          notifier.toggleGuideStars();
+        case FramingLayer.surveyTiles:
+          final tiles = ref.read(hipsFramingEnabledProvider.notifier);
+          tiles.state = !tiles.state;
+      }
+    }
+
+    return Glass(
+      padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
+      child: SkotiqToolbar(
+        groups: [
+          [
+            SkotiqMenuChip<SurveySource>(
+              name: 'Survey',
+              label: source.displayName,
+              icon: SkotiqIcons.image,
+              entries: [
+                for (final s in SurveySource.values)
+                  SkotiqMenuChoice(s, s.displayName, checked: s == source),
               ],
-              toggles,
-            ],
-          ),
-        );
-
-        if (!framingState.isLoadingImage) return toolbar;
-
-        // The loading pill sits at the trailing edge, outside the toolbar, so
-        // it never competes with the toolbar's own overflow measurement.
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(child: toolbar),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: SkotiqTokens.spaceMd,
-                  vertical: SkotiqTokens.spaceSm),
-              decoration: BoxDecoration(
-                color: colors.surfaceOverlay
-                    .withValues(alpha: SkotiqTokens.opacityMuted),
-                borderRadius: SkotiqTokens.borderRadiusMd,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: SkotiqTokens.iconXs,
-                    height: SkotiqTokens.iconXs,
-                    child: SkotiqSpinner(
-                        size: SkotiqTokens.iconXs, color: colors.primary),
-                  ),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Text(
-                    'Loading…',
-                    style: SkotiqTypography.labelQuiet
-                        .copyWith(color: colors.textSecondary),
-                  ),
-                ],
-              ),
+              onSelected: notifier.setSurveySource,
             ),
           ],
-        );
-      },
-    );
-  }
-}
-
-/// On-canvas survey-source picker.
-///
-/// A [SkotiqDropdown] (the canonical design-system selector) fronted by the
-/// `layers` glyph so it reads as part of the chip strip, wired straight to
-/// [FramingNotifier.setSurveySource]. Selecting a source refetches the survey
-/// imagery for that band (the refetch lives in the notifier).
-/// The tight width the survey select needs for its widest option.
-///
-/// Measured with [SkotiqDropdown.labelStyle] (the style the closed control
-/// actually paints its value in) and added to
-/// [SkotiqDropdown.chromeWidth] (the padding, chevron, gap and ring the
-/// control spends on everything that is not the label), so this cannot drift
-/// out of step with the kit the way a literal did.
-double _surveySelectorWidth(BuildContext context) {
-  final scale = MediaQuery.textScalerOf(context);
-  var widest = 0.0;
-  for (final source in SurveySource.values) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: source.displayName,
-        style: SkotiqDropdown.labelStyle,
-      ),
-      textDirection: TextDirection.ltr,
-      textScaler: scale,
-    )..layout();
-    if (painter.width > widest) widest = painter.width;
-  }
-  return widest + SkotiqDropdown.chromeWidth;
-}
-
-class _SurveySourceSelector extends StatelessWidget {
-  final SkotiqColors colors;
-  final SurveySource source;
-  final ValueChanged<SurveySource> onChanged;
-
-  const _SurveySourceSelector({
-    required this.colors,
-    required this.source,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // The dropdown keys on the enum name and maps back to the enum on change so
-    // SurveySource stays the single source of truth (no string parsing of
-    // display names).
-    return Container(
-      decoration: BoxDecoration(
-        color:
-            colors.surfaceOverlay.withValues(alpha: SkotiqTokens.opacityHalf),
-        borderRadius: SkotiqTokens.borderRadiusMd,
-        border: Border.all(
-          color: colors.border.withValues(alpha: SkotiqTokens.opacitySubtle),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(width: SkotiqTokens.spaceMd),
-          Icon(
-            SkotiqIcons.layers,
-            size: SkotiqTokens.iconXs,
-            color: colors.textSecondary,
-          ),
-          const SizedBox(width: SkotiqTokens.spaceXs),
-          // A TIGHT width (not just a minimum), MEASURED rather than guessed.
-          //
-          // Two things depend on it. First: left to size itself in the
-          // toolbar, the button is squeezed against the neighbouring chrome
-          // and loses the first character of the selection ('DSS2 Red'
-          // rendered as ')SS2 Red', '2MASS J' as '?MASS J') — the control
-          // misreporting which survey is on screen. Second: `isExpanded` uses
-          // an internal Expanded, which asserts on the unbounded width the
-          // toolbar hands its children, so the box must be tight rather than a
-          // ConstrainedBox(minWidth:).
-          //
-          // It used to be a hard-coded 148, which went stale the moment the
-          // kit's select started counting the gap before its chevron: the
-          // label then wanted 112 px inside a box that offered 104.5. So the
-          // width now comes from the widest ACTUAL option, laid out in the
-          // style the control paints it in, plus the control's own published
-          // chrome allowance — both of which the kit exposes for exactly this.
-          SizedBox(
-            width: _surveySelectorWidth(context),
-            child: SkotiqDropdown(
-              value: source.name,
-              isDense: true,
-              isExpanded: true,
-              items: SurveySource.values.map((s) => s.name).toList(),
-              itemLabels:
-                  SurveySource.values.map((s) => s.displayName).toList(),
-              onChanged: (name) {
-                if (name == null) return;
-                onChanged(SurveySource.values.byName(name));
-              },
+          [
+            SkotiqMenuButton<FramingLayer>(
+              icon: SkotiqIcons.layers,
+              tooltip: 'Layers',
+              size: IconButtonSize.sm,
+              entries: [
+                for (final MapEntry(key: layer, value: shown) in on.entries)
+                  SkotiqMenuChoice(layer, layer.label, checked: shown),
+              ],
+              onSelected: toggle,
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
+/// Bottom left: the scale bar, then one line about the survey image: why it
+/// is missing, that it is loading, or the credit its publisher asks for.
+class _FramingStatus extends ConsumerWidget {
+  final FramingState framingState;
+  final FramingPlateScale plateScale;
+  final Size canvasSize;
+
+  const _FramingStatus({
+    required this.framingState,
+    required this.plateScale,
+    required this.canvasSize,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Glass(
+      child: Builder(
+        builder: (context) {
+          final colors = context.skotiqColors;
+          final Widget? surveyLine;
+          if (framingState.imageError case final error?) {
+            surveyLine = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  SkotiqIcons.warning,
+                  size: SkotiqTokens.iconXs,
+                  color: colors.warning,
+                ),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                Flexible(
+                  child: Text(
+                    error,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textSecondary),
+                  ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                SkotiqButton(
+                  label: 'Retry',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: framingState.isLoadingImage
+                      ? null
+                      : () =>
+                          ref.read(framingProvider.notifier).loadSurveyImage(),
+                ),
+              ],
+            );
+          } else if (framingState.isLoadingImage) {
+            surveyLine = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SkotiqSpinner(size: SkotiqTokens.iconXs, color: colors.primary),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                Flexible(
+                  child: Text(
+                    'Loading ${framingState.surveySource.displayName}…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textSecondary),
+                  ),
+                ),
+              ],
+            );
+          } else {
+            surveyLine = null;
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ScaleIndicator(
+                colors: colors,
+                zoom: framingState.zoom,
+                plateScale: plateScale,
+                canvasSize: canvasSize,
+              ),
+              if (surveyLine != null) ...[
+                const SizedBox(height: SkotiqTokens.spaceXs),
+                surveyLine,
+              ] else
+                const FramingSurveyCredit(
+                  padding: EdgeInsets.only(top: SkotiqTokens.spaceXs),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Bottom right: zoom in, the zoom level, zoom out, and back to the fitted
+/// view. A column, or a row on a canvas too short for the column.
 class _ZoomControls extends StatelessWidget {
-  final SkotiqColors colors;
   final double zoom;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onReset;
 
   const _ZoomControls({
-    required this.colors,
     required this.zoom,
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onReset,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: SkotiqTokens.paddingXs,
-      decoration: BoxDecoration(
-        color: colors.surfaceOverlay
-            .withValues(alpha: SkotiqTokens.opacityHoverBorder),
-        borderRadius: SkotiqTokens.borderRadiusMd,
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ZoomButton(icon: SkotiqIcons.add, colors: colors, onTap: onZoomIn),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
-            child: Text(
-              '${(zoom * 100).round()}%',
-              style: SkotiqTypography.withTabular(
-                SkotiqTypography.overline.copyWith(color: colors.textSecondary),
-              ),
-            ),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          _ZoomButton(
-              icon: SkotiqIcons.remove, colors: colors, onTap: onZoomOut),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Container(height: 1, width: 20, color: colors.border),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          _ZoomButton(icon: SkotiqIcons.expand, colors: colors, onTap: onReset),
-        ],
-      ),
-    );
-  }
-}
-
-class _ZoomButton extends StatefulWidget {
-  final IconData icon;
-  final SkotiqColors colors;
-  final VoidCallback onTap;
-
-  const _ZoomButton({
-    required this.icon,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  State<_ZoomButton> createState() => _ZoomButtonState();
-}
-
-class _ZoomButtonState extends State<_ZoomButton> {
-  bool _isHovered = false;
+  /// The column's height: three buttons, the level, and the glass padding.
+  static const double _columnHeight = 3 * SkotiqTokens.iconButtonSizeSm +
+      SkotiqTokens.spaceLg +
+      2 * SkotiqTokens.spaceXs +
+      2 * SkotiqTokens.spaceXs;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: SkotiqTokens.durationQuick,
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: _isHovered ? widget.colors.well : Colors.transparent,
-            borderRadius: SkotiqTokens.borderRadiusXs,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final column = constraints.maxHeight >= _columnHeight;
+        return Glass(
+          padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
+          child: Builder(
+            builder: (context) {
+              final level = Padding(
+                padding: column
+                    ? const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs)
+                    : const EdgeInsets.symmetric(
+                        horizontal: SkotiqTokens.spaceXs,
+                      ),
+                child: Text(
+                  '${(zoom * 100).round()}%',
+                  style: SkotiqTypography.withTabular(
+                    SkotiqTypography.caption
+                        .copyWith(color: context.skotiqColors.textSecondary),
+                  ),
+                ),
+              );
+              final tooltipPosition = column
+                  ? SkotiqTooltipPosition.left
+                  : SkotiqTooltipPosition.top;
+              final children = [
+                SkotiqIconButton(
+                  icon: SkotiqIcons.add,
+                  tooltip: 'Zoom in',
+                  size: IconButtonSize.sm,
+                  tooltipPosition: tooltipPosition,
+                  onPressed: onZoomIn,
+                ),
+                level,
+                SkotiqIconButton(
+                  icon: SkotiqIcons.remove,
+                  tooltip: 'Zoom out',
+                  size: IconButtonSize.sm,
+                  tooltipPosition: tooltipPosition,
+                  onPressed: onZoomOut,
+                ),
+                SkotiqIconButton(
+                  icon: SkotiqIcons.expand,
+                  tooltip: 'Fit the view',
+                  size: IconButtonSize.sm,
+                  tooltipPosition: tooltipPosition,
+                  onPressed: onReset,
+                ),
+              ];
+              return column
+                  ? Column(mainAxisSize: MainAxisSize.min, children: children)
+                  : Row(mainAxisSize: MainAxisSize.min, children: children);
+            },
           ),
-          child: Icon(
-            widget.icon,
-            size: SkotiqTokens.iconXs,
-            color: widget.colors.textSecondary,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -432,6 +315,9 @@ class _ScaleIndicator extends StatelessWidget {
   /// snapping to the nearest nice value.
   static const double _targetBarPx = 60;
 
+  /// Thickness of the bar.
+  static const double _barThickness = 3;
+
   @override
   Widget build(BuildContext context) {
     final pixelsPerDegree =
@@ -454,43 +340,28 @@ class _ScaleIndicator extends StatelessWidget {
 
     final barLength = (stepArcmin * pixelsPerArcmin)
         .clamp(SkotiqTokens.space3xl, _targetBarPx * 1.5);
+    final label = _formatScaleLabel(stepArcmin);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.spaceMd, vertical: SkotiqTokens.spaceSm),
-      decoration: BoxDecoration(
-        color: colors.surfaceOverlay
-            .withValues(alpha: SkotiqTokens.opacityHoverBorder),
-        borderRadius: SkotiqTokens.borderRadiusMd,
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Semantics(
+      label: 'Scale bar, $label',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Scale',
-            style: SkotiqTypography.overline.copyWith(color: colors.textMuted),
+          Container(
+            width: barLength,
+            height: _barThickness,
+            decoration: BoxDecoration(
+              color: colors.textSecondary,
+              borderRadius: SkotiqTokens.borderRadiusXs,
+            ),
           ),
-          const SizedBox(height: SkotiqTokens.spaceXs),
-          Row(
-            children: [
-              Container(
-                width: barLength,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: colors.textSecondary,
-                  borderRadius: SkotiqTokens.borderRadiusXs,
-                ),
-              ),
-              const SizedBox(width: SkotiqTokens.spaceXs),
-              Text(
-                _formatScaleLabel(stepArcmin),
-                style: SkotiqTypography.withTabular(
-                  SkotiqTypography.labelQuiet
-                      .copyWith(color: colors.textSecondary),
-                ),
-              ),
-            ],
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Text(
+            label,
+            style: SkotiqTypography.withTabular(
+              SkotiqTypography.caption.copyWith(color: colors.textSecondary),
+            ),
           ),
         ],
       ),

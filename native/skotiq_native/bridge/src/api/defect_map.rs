@@ -87,9 +87,7 @@ fn applies_to(applied: &Option<DefectMapApplyState>, camera_id: &str) -> bool {
 /// Hand `state` to the sequencer and record it; applies from the next
 /// exposure.
 async fn apply(applied: &mut Option<DefectMapApplyState>, state: Option<DefectMapApplyState>) {
-    crate::api::sequencer::get_sequence_executor()
-        .read()
-        .await
+    skotiq_sequencer::executor_handle()
         .update_defect_map(state.clone())
         .await;
     *applied = state;
