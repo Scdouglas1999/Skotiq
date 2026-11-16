@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CelestialCoordinate, DeepSkyObject, DsoType, TargetVisibilityInfo;
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
@@ -2469,6 +2470,20 @@ void main() {
       filterNames: ownerWheel,
     );
 
+    // Two HII regions inside a 20' galaxy at 10h +40, one well outside it.
+    DeepSkyObject hii(String id, double raHours, double decDegrees) =>
+        DeepSkyObject(
+          id: id,
+          name: id,
+          coordinates: CelestialCoordinate(ra: raHours, dec: decDegrees),
+          type: DsoType.hiiRegion,
+        );
+    final emissionObjects = [
+      hii('HII-1', 10.0, 40.05),
+      hii('HII-2', 10.005, 39.95),
+      hii('HII-far', 10.5, 40),
+    ];
+
     setUp(() {
       service = SmartNightService(
         suggestionService: TargetSuggestionService(
@@ -2476,30 +2491,36 @@ void main() {
         ),
         logging: _MockLoggingService(),
         floor: _openSky,
+        emissionObjects: emissionObjects,
       );
     });
 
-    TargetSuggestion target(int id, String name, String objectType) =>
-        TargetSuggestion(
-          targetId: id,
-          targetName: name,
-          raHours: 10,
-          decDegrees: 40,
-          totalScore: 90,
-          objectType: objectType,
-          visibility: TargetVisibilityInfo(
-            currentAltitude: 50,
-            currentAzimuth: 180,
-            airmass: 1.4,
-            peakAltitude: 65,
-            riseTime: siteTime(2026, 5, 17, 22),
-            setTime: siteTime(2026, 5, 18, 5),
-            peakAltitudeTime: siteTime(2026, 5, 18, 1),
-            moonDistance: 90,
-            hoursAboveMinAlt: 6,
-            transitTime: siteTime(2026, 5, 18, 1),
-          ),
-        );
+    TargetSuggestion target(
+      int id,
+      String name,
+      String objectType, {
+      double? sizeArcmin,
+    }) => TargetSuggestion(
+      targetId: id,
+      targetName: name,
+      raHours: 10,
+      decDegrees: 40,
+      totalScore: 90,
+      objectType: objectType,
+      sizeArcmin: sizeArcmin,
+      visibility: TargetVisibilityInfo(
+        currentAltitude: 50,
+        currentAzimuth: 180,
+        airmass: 1.4,
+        peakAltitude: 65,
+        riseTime: siteTime(2026, 5, 17, 22),
+        setTime: siteTime(2026, 5, 18, 5),
+        peakAltitudeTime: siteTime(2026, 5, 18, 1),
+        moonDistance: 90,
+        hoursAboveMinAlt: 6,
+        transitTime: siteTime(2026, 5, 18, 1),
+      ),
+    );
 
     SingleTargetSequenceResult imageTonight(TargetSuggestion suggestion) =>
         service.buildSingleTargetSequence(
@@ -2553,6 +2574,82 @@ void main() {
       );
       expect(result.filterPlans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
       expect(result.plannedTarget.filterReason, 'LRGB: your choice.');
+    });
+
+    test('M42 and M8 are narrowband on the owner wheel', () {
+      for (final (id, name, type) in [
+        (42, 'M42', 'Cluster + Nebula'),
+        (8, 'M8', 'Nebula'),
+      ]) {
+        final result = imageTonight(target(id, name, type));
+        expect(result.filterPlans.map((p) => p.filterName), [
+          'Ha',
+          'OIII',
+          'SII',
+        ]);
+        expect(result.plannedTarget.filterSuggestion, isNull);
+      }
+    });
+
+    test('a galaxy with catalogued HII regions inside it is LRGB with the Ha '
+        'offer', () {
+      expect(
+        emissionObjectsWithin(
+          target(33, 'M33', 'Galaxy', sizeArcmin: 20),
+          emissionObjects,
+        ),
+        2,
+      );
+      final galaxy = imageTonight(target(33, 'M33', 'Galaxy', sizeArcmin: 20));
+      expect(galaxy.filterPlans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
+      expect(
+        galaxy.plannedTarget.filterSuggestion,
+        'M33 holds 2 emission regions in the catalog, and you have an Ha '
+        'filter: add Ha to this plan or a later night.',
+      );
+      expect(galaxy.sequence.description, contains('holds 2 emission regions'));
+      // Too small to hold them, and no size at all: nothing offered.
+      expect(
+        imageTonight(
+          target(34, 'Small', 'Galaxy', sizeArcmin: 2),
+        ).plannedTarget.filterSuggestion,
+        isNull,
+      );
+      expect(
+        imageTonight(
+          target(31, 'M31', 'Galaxy'),
+        ).plannedTarget.filterSuggestion,
+        isNull,
+      );
+    });
+
+    test('Smart Night takes a set the user picked for one target', () {
+      final plan = service.build(
+        profile: ownerProfile,
+        availableFilters: ownerWheel,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+        context: SmartNightContext(
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
+          bortleClass: 4,
+        ),
+        selectedSuggestions: [target(33, 'M33', 'Galaxy', sizeArcmin: 20)],
+        strategy: null,
+        settings: const SmartNightSettings(defaultIntegrationBudgetHours: 2),
+        planTimer: const PlanTimer(),
+        targetStrategies: const {33: SmartNightStrategy.haLrgb},
+      );
+      final galaxy = plan.plannedTargets.single;
+      expect(galaxy.filterPlans.map((f) => f.filterName), [
+        'L',
+        'R',
+        'G',
+        'B',
+        'Ha',
+      ]);
+      expect(galaxy.filterReason, 'LRGB + Ha: your choice.');
+      expect(galaxy.filterSuggestion, isNull);
     });
 
     test('Smart Night per target gives each target its own set', () {

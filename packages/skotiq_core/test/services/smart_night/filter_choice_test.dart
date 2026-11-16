@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/models.dart';
@@ -5,9 +7,6 @@ import 'package:skotiq_core/services.dart';
 
 /// The owner's wheel (profile "10\" Newt", ZWO EFW, 8 slots).
 const _ownerWheel = ['L', 'R', 'G', 'B', 'Ha', 'SII', 'OIII', 'DARK'];
-
-const _darkMoon = 3.0;
-const _brightMoon = 90.0;
 
 TargetSuggestion _target(String name, String? objectType) => TargetSuggestion(
   targetId: name.hashCode,
@@ -27,13 +26,13 @@ TargetSuggestion _target(String name, String? objectType) => TargetSuggestion(
 SmartNightFilterChoice _choose(
   TargetSuggestion target, {
   List<String> wheel = _ownerWheel,
-  double moon = _darkMoon,
   bool oneShotColor = false,
+  int emissionRegions = 0,
 }) => chooseSmartNightFilters(
   target: target,
   availableFilters: wheel,
-  moonIlluminationPercent: moon,
   oneShotColor: oneShotColor,
+  catalogedEmissionRegions: emissionRegions,
 );
 
 void main() {
@@ -45,20 +44,18 @@ void main() {
       expect(choice.reason, 'Narrowband SHO: M1 is a supernova remnant.');
     });
 
-    test('NGC1952 by its catalog code is imaged SHO under any moon', () {
-      for (final moon in [_darkMoon, _brightMoon]) {
-        final choice = _choose(_target('NGC1952', 'SNR'), moon: moon);
-        expect(choice.filters, ['Ha', 'OIII', 'SII'], reason: 'moon $moon');
-      }
+    test('NGC1952 by its catalog code is imaged SHO', () {
+      final choice = _choose(_target('NGC1952', 'SNR'));
+      expect(choice.filters, ['Ha', 'OIII', 'SII']);
+      expect(choice.suggestion, isNull);
     });
 
-    test('M31, a galaxy, is imaged LRGB under any moon', () {
-      for (final moon in [_darkMoon, _brightMoon]) {
-        final choice = _choose(_target('M31', 'Galaxy'), moon: moon);
-        expect(choice.strategy, SmartNightStrategy.autoLrgb);
-        expect(choice.filters, ['L', 'R', 'G', 'B']);
-        expect(choice.reason, 'LRGB: M31 is a galaxy.');
-      }
+    test('M31, a galaxy, is imaged LRGB with nothing offered', () {
+      final choice = _choose(_target('M31', 'Galaxy'));
+      expect(choice.strategy, SmartNightStrategy.autoLrgb);
+      expect(choice.filters, ['L', 'R', 'G', 'B']);
+      expect(choice.reason, 'LRGB: M31 is a galaxy.');
+      expect(choice.suggestion, isNull);
     });
 
     test('a planetary nebula and an HII region are narrowband', () {
@@ -73,30 +70,72 @@ void main() {
       );
     });
 
-    test('M42, a cluster in its nebula, is LRGB + Ha under a dark sky and '
-        'SHO under a bright moon', () {
-      final m42 = _target('M42', DsoType.clusterWithNebulosity.displayName);
-      final dark = _choose(m42, moon: 12);
-      expect(dark.strategy, SmartNightStrategy.haLrgb);
-      expect(dark.filters, ['L', 'R', 'G', 'B', 'Ha']);
-      expect(
-        dark.reason,
-        'LRGB + Ha: M42 is a cluster and nebula, and the moon is 12% lit.',
+    test('M42 and M8, by their catalog types, are narrowband', () {
+      // OpenNGC types M42 "Cl+N" and M8 "Neb".
+      for (final target in [
+        _target('M42', DsoType.clusterWithNebulosity.displayName),
+        _target('M8', DsoType.nebula.displayName),
+      ]) {
+        final choice = _choose(target);
+        expect(choice.strategy, SmartNightStrategy.narrowbandSho);
+        expect(choice.filters, ['Ha', 'OIII', 'SII']);
+        expect(choice.suggestion, isNull);
+      }
+    });
+
+    test(
+      'a galaxy with catalogued emission regions is LRGB with Ha offered',
+      () {
+        final choice = _choose(_target('M33', 'Galaxy'), emissionRegions: 9);
+        expect(choice.strategy, SmartNightStrategy.autoLrgb);
+        expect(choice.filters, ['L', 'R', 'G', 'B']);
+        expect(choice.suggested, SmartNightStrategy.haLrgb);
+        expect(
+          choice.suggestion,
+          'M33 holds 9 emission regions in the catalog, and you have an Ha '
+          'filter: add Ha to this plan or a later night.',
+        );
+        // Taking the offer is the user's choice, and the plan no longer
+        // repeats it.
+        expect(choice.filtersFor(SmartNightStrategy.haLrgb), [
+          'L',
+          'R',
+          'G',
+          'B',
+          'Ha',
+        ]);
+        expect(
+          choice.reasonFor(SmartNightStrategy.haLrgb),
+          'LRGB + Ha: your choice.',
+        );
+        expect(choice.suggestionFor(SmartNightStrategy.haLrgb), isNull);
+      },
+    );
+
+    test('without an Ha filter nothing is said about Ha', () {
+      final choice = _choose(
+        _target('M33', 'Galaxy'),
+        wheel: const ['L', 'R', 'G', 'B', 'OIII', 'DARK'],
+        emissionRegions: 9,
       );
-      final bright = _choose(m42, moon: 80);
-      expect(bright.strategy, SmartNightStrategy.narrowbandSho);
-      expect(
-        bright.reason,
-        'Narrowband SHO: M42 is a cluster and nebula, and the moon is 80% '
-        'lit.',
-      );
+      expect(choice.strategy, SmartNightStrategy.autoLrgb);
+      expect(choice.suggested, isNull);
+      expect(choice.suggestion, isNull);
     });
 
     test('a reflection nebula and a cluster are LRGB', () {
-      expect(
-        _choose(_target('M78', 'Reflection Nebula'), moon: _brightMoon).filters,
-        ['L', 'R', 'G', 'B'],
-      );
+      expect(_choose(_target('M45', 'Reflection Nebula')).filters, [
+        'L',
+        'R',
+        'G',
+        'B',
+      ]);
+      expect(_choose(_target('M78', 'Reflection Nebula')).filters, [
+        'L',
+        'R',
+        'G',
+        'B',
+      ]);
       expect(_choose(_target('M45', 'Open Cluster')).filters, [
         'L',
         'R',
@@ -257,7 +296,7 @@ void main() {
     });
   });
 
-  test('object types read as emission, mixed or broadband', () {
+  test('object types read as emission or broadband', () {
     const cases = {
       'Supernova Remnant': TargetLight.emission,
       'SNR': TargetLight.emission,
@@ -265,11 +304,12 @@ void main() {
       'HII Region': TargetLight.emission,
       'Planetary Nebula': TargetLight.emission,
       'PN': TargetLight.emission,
-      'Cluster + Nebula': TargetLight.mixed,
-      'Cl+N': TargetLight.mixed,
-      'Nebula': TargetLight.mixed,
-      'Emission/Reflection Nebula': TargetLight.mixed,
+      'Cluster + Nebula': TargetLight.emission,
+      'Cl+N': TargetLight.emission,
+      'Nebula': TargetLight.emission,
+      'Emission/Reflection Nebula': TargetLight.emission,
       'Reflection Nebula': TargetLight.broadband,
+      'RNe': TargetLight.broadband,
       'Dark Nebula': TargetLight.broadband,
       'Galaxy': TargetLight.broadband,
       'Galaxy Pair': TargetLight.broadband,
@@ -282,4 +322,17 @@ void main() {
     }
     expect(targetLight(null), TargetLight.broadband);
   });
+
+  test(
+    'the filter rule names no object: the class comes from catalog data',
+    () {
+      final source = File(
+        'lib/src/services/smart_night_models/filter_choice.dart',
+      ).readAsStringSync();
+      final designation = RegExp(
+        r'\b(M|NGC|IC|C|Sh2-|LBN|RCW|vdB|Ced|Abell)\s?\d+',
+      );
+      expect(designation.allMatches(source).map((m) => m.group(0)), isEmpty);
+    },
+  );
 }

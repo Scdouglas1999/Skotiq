@@ -8,7 +8,6 @@ import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/site/altitude_floor.dart';
 import 'logging_service.dart';
-import 'smart_night_models.dart' show brightMoonIlluminationPercent;
 
 /// Service for generating target suggestions for tonight's imaging session.
 ///
@@ -487,7 +486,7 @@ class _TonightSuggestionScorer {
     // not rescue a broadband target under a bright moon: the sky background is
     // elevated across the whole sky. Saying nothing at all made a full-moon
     // night read exactly like a new-moon night.
-    if (illum >= brightMoonIlluminationPercent) {
+    if (illum >= 65) {
       reasoning +=
           ' Sky background is elevated by the '
           '${illum.toStringAsFixed(0)}%-illuminated moon; narrowband filters '

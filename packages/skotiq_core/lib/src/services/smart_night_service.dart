@@ -66,6 +66,10 @@ class SmartNightService {
   final HardwareSpecsService _hardwareSpecs;
   final HardwarePresetsService _cameraLibrary;
 
+  /// The catalog's emission objects ([TargetLight.emission]), whose
+  /// positions tell which broadband targets hold emission regions.
+  final List<DeepSkyObject> _emissionObjects;
+
   static const _source = 'SmartNightService';
   static const _uuid = Uuid();
 
@@ -121,7 +125,9 @@ class SmartNightService {
         const SmartNightExposureCalculator(),
     HardwareSpecsService hardwareSpecs = const HardwareSpecsService(),
     HardwarePresetsService cameraLibrary = const HardwarePresetsService(),
+    List<DeepSkyObject> emissionObjects = const [],
   }) : _suggestionService = suggestionService,
+       _emissionObjects = emissionObjects,
        _logging = logging,
        _floor = floor,
        _exposureCalculator = exposureCalculator,
@@ -269,7 +275,8 @@ class SmartNightService {
   ///
   /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
   /// [strategy] is the filter set for every target; null chooses each
-  /// target's own ([chooseFilters]).
+  /// target's own ([chooseFilters]). [targetStrategies] holds sets the user
+  /// picked for single targets, by target id; they win over both.
   /// [planTimer] (`planTimerProvider`) times the night for its warnings and
   /// run length, with the dawn park and autofocus runs the pre-flight counts.
   ///
@@ -289,6 +296,7 @@ class SmartNightService {
     SmartNightExposureContext? exposureContext,
     SmartNightFlatPlan? flatPlan,
     Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
+    Map<int, SmartNightStrategy> targetStrategies = const {},
   }) {
     _validateInputs(
       profile: profile,
@@ -426,10 +434,9 @@ class SmartNightService {
         suggestion: suggestion,
         availableFilters: planningFilters,
         exposureContext: exposureContext,
-        windowStart: context.windowStart,
-        windowEnd: context.windowEnd,
       );
-      final targetStrategy = strategy ?? choice.strategy;
+      final targetStrategy =
+          targetStrategies[suggestion.targetId] ?? strategy ?? choice.strategy;
       final filterPlans = _composeFilterPlans(
         suggestion: suggestion,
         strategy: targetStrategy,
@@ -471,6 +478,7 @@ class SmartNightService {
             windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
           ),
           filterReason: choice.reasonFor(targetStrategy),
+          filterSuggestion: choice.suggestionFor(targetStrategy),
         ),
       );
       cursor = clampedEnd;
@@ -642,8 +650,6 @@ class SmartNightService {
       suggestion: suggestion,
       availableFilters: planningFilters,
       exposureContext: exposureContext,
-      windowStart: windowStart,
-      windowEnd: windowEnd,
     );
     final resolvedStrategy = strategy ?? choice.strategy;
     final activeFilters = choice.filtersFor(resolvedStrategy);
@@ -720,6 +726,10 @@ class SmartNightService {
       subExposureSecs: filterPlans.first.durationSecs,
       filterNames: filterPlans.map((p) => p.filterName).toList(),
       filterReason: choice.reasonFor(resolvedStrategy),
+      filterSuggestion: choice.suggestionFor(resolvedStrategy),
+      suggestedStrategy: choice.suggestionFor(resolvedStrategy) == null
+          ? null
+          : choice.suggested,
     );
   }
 
@@ -748,8 +758,6 @@ class SmartNightService {
       suggestion: suggestion,
       availableFilters: planningFilters,
       exposureContext: exposureContext,
-      windowStart: windowStart,
-      windowEnd: windowEnd,
     );
     final resolvedStrategy = strategy ?? choice.strategy;
     final activeFilters = choice.filtersFor(resolvedStrategy);
@@ -851,6 +859,7 @@ class SmartNightService {
         windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
       ),
       filterReason: choice.reasonFor(resolvedStrategy),
+      filterSuggestion: choice.suggestionFor(resolvedStrategy),
     );
 
     final context = SmartNightContext(
@@ -961,24 +970,23 @@ class SmartNightService {
     return specs.pixelSizeMicrons?.value ?? 0;
   }
 
-  /// The filter set for [suggestion] imaged between [windowStart] and
-  /// [windowEnd] on a rig whose wheel holds [availableFilters]: the moon is
-  /// read at the middle of that window, and the camera's color from
-  /// [exposureContext] (a rig without one counts as mono, so its wheel
-  /// decides). See [chooseSmartNightFilters].
+  /// The filter set for [suggestion] on a rig whose wheel holds
+  /// [availableFilters], the camera's color read from [exposureContext] (a
+  /// rig without one counts as mono, so its wheel decides). See
+  /// [chooseSmartNightFilters].
   SmartNightFilterChoice chooseFilters({
     required TargetSuggestion suggestion,
     required List<String> availableFilters,
     required SmartNightExposureContext? exposureContext,
-    required DateTime windowStart,
-    required DateTime windowEnd,
   }) {
-    final middle = windowStart.add(windowEnd.difference(windowStart) ~/ 2);
     return chooseSmartNightFilters(
       target: suggestion,
       availableFilters: availableFilters,
-      moonIlluminationPercent: AstronomyCalculations.moonIllumination(middle),
       oneShotColor: exposureContext?.oneShotColor ?? false,
+      catalogedEmissionRegions: emissionObjectsWithin(
+        suggestion,
+        _emissionObjects,
+      ),
     );
   }
 
@@ -1046,7 +1054,7 @@ class SmartNightService {
         .toSet()
         .toList();
     return 'Auto-built by Smart Night. '
-        '${planned.map((p) => p.filterReason).join(' ')} '
+        '${planned.map((p) => [p.filterReason, if (p.filterSuggestion case final offer?) offer].join(' ')).join(' ')} '
         '${planned.length} target${planned.length == 1 ? '' : 's'}, '
         '${integrationHours.toStringAsFixed(1)}h integration, '
         'filters: ${filters.join(", ")}. '
@@ -1083,4 +1091,29 @@ class SmartNightService {
 bool latitudeSign(double? latitudeDeg) {
   if (latitudeDeg == null || !latitudeDeg.isFinite) return true;
   return latitudeDeg >= 0;
+}
+
+/// How many of [emissionObjects] lie inside [target]'s extent: within half
+/// its size of its center, the target itself left out. Zero for a target
+/// whose size the catalog does not give.
+int emissionObjectsWithin(
+  TargetSuggestion target,
+  Iterable<DeepSkyObject> emissionObjects,
+) {
+  final size = target.sizeArcmin;
+  if (size == null || size <= 0) return 0;
+  final radiusDeg = size / 2 / 60;
+  final raDeg = target.raHours * 15;
+  var count = 0;
+  for (final object in emissionObjects) {
+    if (object.id == target.catalogId) continue;
+    final separation = AstronomyCalculations.angularSeparation(
+      ra1Deg: raDeg,
+      dec1Deg: target.decDegrees,
+      ra2Deg: object.coordinates.ra * 15,
+      dec2Deg: object.coordinates.dec,
+    );
+    if (separation > 0 && separation <= radiusDeg) count++;
+  }
+  return count;
 }

@@ -7,31 +7,26 @@ part of '../smart_night_models.dart';
 // [resolveSmartNightFilterSet]. Wheel slots are matched by the filter-name
 // rule (`filter_names.dart`), so "Ha 7nm" is Ha and "Dark" is never R.
 
-/// The moon illumination, in percent, from which moonlight is treated as
-/// bright: the sky background is raised across the whole sky, so a target
-/// with any emission is imaged through narrowband filters. The planner's
-/// bright-moon note uses the same line.
-const double brightMoonIlluminationPercent = 65;
-
-/// What light a target gives, read from its catalog object type.
+/// What light a target gives, read from its catalog object type. Nothing
+/// here names an object: the class comes from the type the catalog gives.
 enum TargetLight {
-  /// Line emission: emission nebulae, HII regions, supernova remnants,
-  /// planetary nebulae.
+  /// Line emission, imaged through narrowband filters: emission nebulae, HII
+  /// regions, supernova remnants, planetary nebulae, a cluster in its nebula
+  /// and a nebula the catalog does not classify further (OpenNGC "Cl+N" and
+  /// "Neb": OpenNGC types reflection nebulae "RfN" on their own, so an
+  /// untyped bright nebula is counted as glowing gas).
   emission,
 
-  /// Emission beside starlight: a cluster in its nebula, a nebula the
-  /// catalog does not classify (OpenNGC "Neb": M8, M16, M20, the Iris), an
-  /// emission and reflection complex.
-  mixed,
-
-  /// Starlight: galaxies, reflection and dark nebulae, clusters, stars, and
-  /// a target whose type is not known.
+  /// Starlight, imaged through LRGB: galaxies, reflection and dark nebulae,
+  /// clusters, stars, and a target whose type is not known.
   broadband,
 }
 
 /// The light [objectType] gives. Reads the app's type names ("Supernova
 /// Remnant", "Cluster + Nebula"), OpenNGC codes ("SNR", "Cl+N") and SIMBAD
-/// codes ("HII", "PN", "RNe").
+/// codes ("HII", "PN", "RNe"). A type naming emission is emission even when
+/// it names reflection too; a reflection or dark nebula is broadband; any
+/// other nebula is emission.
 TargetLight targetLight(String? objectType) {
   final type = (objectType ?? '').toLowerCase();
   final words = type
@@ -53,14 +48,12 @@ TargetLight targetLight(String? objectType) {
       words.contains('rne');
   final dark =
       type.contains('dark') || words.contains('drkn') || words.contains('dne');
-  final cluster = type.contains('cluster') || type.contains('cl+');
   final nebula =
       type.contains('nebul') || type.contains('cl+n') || words.contains('neb');
 
-  if (emission && (reflection || cluster)) return TargetLight.mixed;
   if (emission) return TargetLight.emission;
   if (reflection || dark) return TargetLight.broadband;
-  if (nebula) return TargetLight.mixed;
+  if (nebula) return TargetLight.emission;
   return TargetLight.broadband;
 }
 
@@ -74,8 +67,17 @@ class SmartNightFilterChoice {
   final List<String> filters;
 
   /// One line for the user: the set and the reason
-  /// ("Narrowband SHO: M1 is a supernova remnant.").
+  /// ("Narrowband SHO: {target} is a supernova remnant.").
   final String reason;
+
+  /// A set that would also suit the target and that the wheel can capture,
+  /// offered beside [strategy] and never taken without the user
+  /// ([SmartNightStrategy.haLrgb] for a broadband target with catalogued
+  /// emission regions inside it); null when there is none.
+  final SmartNightStrategy? suggested;
+
+  /// One line offering [suggested]; null with it.
+  final String? suggestion;
 
   final List<String> _availableFilters;
   final bool _preferMultiBand;
@@ -84,6 +86,8 @@ class SmartNightFilterChoice {
     required this.strategy,
     required this.filters,
     required this.reason,
+    required this.suggested,
+    required this.suggestion,
     required List<String> availableFilters,
     required bool preferMultiBand,
   }) : _availableFilters = availableFilters,
@@ -110,6 +114,11 @@ class SmartNightFilterChoice {
   String reasonFor(SmartNightStrategy set) => set == strategy
       ? reason
       : '${smartNightStrategyLabel(set)}: your choice.';
+
+  /// [suggestion] for a plan built with [set]: only the chosen set carries
+  /// it, so a plan the user changed does not repeat the offer.
+  String? suggestionFor(SmartNightStrategy set) =>
+      set == strategy ? suggestion : null;
 }
 
 /// The filter set for [target] on a rig whose wheel holds
@@ -121,24 +130,21 @@ class SmartNightFilterChoice {
 ///   wheel, HOO with Ha and OIII, Ha alone with only Ha. Without Ha it falls
 ///   back to LRGB.
 /// - A broadband target is LRGB (with whichever of L, R, G and B the wheel
-///   has), narrowband only on a wheel with none of them.
-/// - A mixed target is narrowband under a bright moon
-///   ([brightMoonIlluminationPercent]), when broadband frames would carry the
-///   moonlit sky; under a darker sky it is LRGB for the starlight plus Ha
-///   for the emission. Only the moon's illumination is weighed, not where it
-///   stands, as the planner's bright-moon note does.
+///   has), narrowband only on a wheel with none of them. When the catalog
+///   holds emission objects inside the target's extent
+///   ([catalogedEmissionRegions], such as a galaxy's HII regions) and the
+///   wheel has Ha, LRGB + Ha is offered ([SmartNightFilterChoice.suggestion])
+///   but not taken: people often image a full night of LRGB and add Ha on a
+///   later night.
 /// - A wheel that names no known band takes one filter, its first slot.
 SmartNightFilterChoice chooseSmartNightFilters({
   required TargetSuggestion target,
   required List<String> availableFilters,
-  required double moonIlluminationPercent,
   bool oneShotColor = false,
+  int catalogedEmissionRegions = 0,
 }) {
   final light = targetLight(target.objectType);
-  final brightMoon = moonIlluminationPercent >= brightMoonIlluminationPercent;
-  final preferMultiBand =
-      light == TargetLight.emission ||
-      (light == TargetLight.mixed && brightMoon);
+  final preferMultiBand = light == TargetLight.emission;
   final named = [
     for (final f in availableFilters)
       if (f.trim().isNotEmpty) f,
@@ -147,12 +153,12 @@ SmartNightFilterChoice chooseSmartNightFilters({
   final what = kind == null
       ? '${target.targetName} has no object type in the catalog'
       : '${target.targetName} is $kind';
-  final moon = 'the moon is ${moonIlluminationPercent.round()}% lit';
 
   SmartNightFilterChoice choose(
     SmartNightStrategy set,
     String why, {
     String? label,
+    SmartNightStrategy? suggested,
   }) => SmartNightFilterChoice._(
     strategy: set,
     filters: resolveSmartNightFilterSet(
@@ -161,6 +167,13 @@ SmartNightFilterChoice chooseSmartNightFilters({
       preferMultiBand: preferMultiBand,
     ),
     reason: '${label ?? smartNightStrategyLabel(set)}: $why.',
+    suggested: suggested,
+    suggestion: suggested == null
+        ? null
+        : '${target.targetName} holds $catalogedEmissionRegions '
+              'emission region${catalogedEmissionRegions == 1 ? '' : 's'} in '
+              'the catalog, and you have an Ha filter: add Ha to this plan or '
+              'a later night.',
     availableFilters: named,
     preferMultiBand: preferMultiBand,
   );
@@ -209,24 +222,18 @@ SmartNightFilterChoice chooseSmartNightFilters({
           '$what, but the wheel has no Ha filter',
         );
       }
-    case TargetLight.mixed:
-      if (brightMoon && narrowband != null) {
-        return choose(narrowband, '$what, and $moon');
-      }
-      if (capturable(SmartNightStrategy.haLrgb)) {
-        return choose(SmartNightStrategy.haLrgb, '$what, and $moon');
-      }
+    case TargetLight.broadband:
       if (hasBroadband) {
         return choose(
           SmartNightStrategy.autoLrgb,
-          '$what, and the wheel has no Ha filter',
+          what,
+          suggested:
+              catalogedEmissionRegions > 0 &&
+                  capturable(SmartNightStrategy.haLrgb)
+              ? SmartNightStrategy.haLrgb
+              : null,
         );
       }
-      if (narrowband != null) {
-        return choose(narrowband, '$what, and $noBroadband');
-      }
-    case TargetLight.broadband:
-      if (hasBroadband) return choose(SmartNightStrategy.autoLrgb, what);
       if (narrowband != null) {
         return choose(narrowband, '$what, but $noBroadband');
       }

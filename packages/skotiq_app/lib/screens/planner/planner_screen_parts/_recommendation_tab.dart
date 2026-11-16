@@ -98,15 +98,17 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     setState(() {});
     if (state.phase != ImageTonightPhase.running || !mounted) return;
     final name = state.target?.targetName;
-    final filterReason = state.plan?.plannedTarget.filterReason;
+    final planned = state.plan?.plannedTarget;
     _imageTonight.reset();
     if (name != null) {
       final started = context.l10n.text('plannerImageTonightStarted', params: {
         'target': name,
       });
-      context.showSuccessSnackBar(
-        filterReason == null ? started : '$started. $filterReason',
-      );
+      context.showSuccessSnackBar([
+        '$started.',
+        if (planned != null) planned.filterReason,
+        if (planned?.filterSuggestion case final offer?) offer,
+      ].join(' '));
     }
     context.go(AppRoute.tonight.path);
   }
@@ -293,8 +295,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                     target: selected,
                     plan: plan,
                     onFrameIt: () => _sendToFraming(context, ref, selected),
-                    onBuildSequence: () =>
-                        _createSequence(context, colors, selected, plan),
+                    onBuildSequence: ({strategy}) => _createSequence(
+                        context, colors, selected, plan,
+                        strategy: strategy),
                   ),
                 ),
               ),
@@ -316,8 +319,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                   target: selected,
                   plan: plan,
                   onFrameIt: () => _sendToFraming(context, ref, selected),
-                  onBuildSequence: () =>
-                      _createSequence(context, colors, selected, plan),
+                  onBuildSequence: ({strategy}) => _createSequence(
+                      context, colors, selected, plan,
+                      strategy: strategy),
                 ),
         ),
       ],
@@ -328,8 +332,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     BuildContext context,
     SkotiqColors colors,
     TargetSuggestion target,
-    SessionOptimizationPlan plan,
-  ) async {
+    SessionOptimizationPlan plan, {
+    SmartNightStrategy? strategy,
+  }) async {
     try {
       final estimate = ref
           .read(plannerTargetIntegrationPreviewProvider(target.targetId))
@@ -339,6 +344,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
         context,
         ref,
         target,
+        strategy: strategy,
         suggestedSeconds: estimate != null &&
                 estimate.filterNames.isNotEmpty &&
                 estimate.subExposureSecs > 0
