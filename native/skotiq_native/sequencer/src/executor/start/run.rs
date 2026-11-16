@@ -95,6 +95,27 @@ pub(crate) struct RecoveryHandles {
     pub reconnect_device_ids: Vec<String>,
 }
 
+impl RecoveryHandles {
+    /// A ladder still in flight when the run ends ends with it, recorded as
+    /// neither recovered nor aborted. The run's end can come before the
+    /// driver sees the cancellation (it stops being polled once the tree has
+    /// returned), so nothing else would take the ladder down.
+    pub(crate) fn end_with_run(&self) {
+        let Some(ctx) = self.current.write().take() else {
+            return;
+        };
+        self.history.write().push(RecoveryHistoryEntry {
+            started_at: ctx.started_at,
+            ended_at: chrono::Utc::now(),
+            cause: ctx.cause,
+            attempts: ctx.attempt_count,
+            recovered: false,
+            aborted_by_user: false,
+            last_error: ctx.last_error,
+        });
+    }
+}
+
 /// What the run executes, read once from the sequence it was built from.
 #[derive(Default)]
 pub(crate) struct RunPlan {
@@ -755,6 +776,9 @@ impl Run {
             self.control.warning(note.clone());
             verdict = format!("{verdict}. {note}");
         }
+        // Before the terminal state, so no reader sees an ended run that is
+        // still recovering.
+        self.recovery.end_with_run();
         let terminal = state.store(final_state, |progress| {
             progress.message = Some(verdict);
             progress.elapsed_secs = started.elapsed().as_secs_f64();
@@ -940,5 +964,46 @@ impl Run {
             smart_exposure_states: Arc::default(),
             resume: ResumeRecord::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
+
+    /// The tree can return (a dawn park cancelled it) while the recovery
+    /// driver still sleeps in its retry wait; the driver is then never polled
+    /// again. The run's end takes the ladder down with it, and the
+    /// post-session report still lists it.
+    #[tokio::test]
+    async fn a_run_that_ends_mid_recovery_ends_the_recovery_with_it() {
+        let (event_tx, _events) = broadcast::channel(64);
+        let state = RunCell::starting_in(event_tx, ExecutorState::Recovering);
+        let run = Run::detached(Arc::new(ScriptedDeviceOps::new()), state.clone());
+        let mut ladder = RecoveryContext::new(RecoveryCause::GuideStarLost, 30.0, 5400.0);
+        ladder.attempt_count = 1;
+        ladder.last_error = Some("no star".into());
+        *run.recovery.current.write() = Some(ladder);
+
+        run.finalize(
+            NodeStatus::Cancelled,
+            Default::default(),
+            std::time::Instant::now(),
+            None,
+        )
+        .await;
+
+        assert_eq!(state.get(), ExecutorState::Cancelled);
+        assert!(
+            run.recovery.current.read().is_none(),
+            "the ended run must not still report a recovery"
+        );
+        let history = run.recovery.history.read().clone();
+        assert_eq!(history.len(), 1, "{history:?}");
+        assert_eq!(history[0].cause, RecoveryCause::GuideStarLost);
+        assert_eq!(history[0].attempts, 1);
+        assert!(!history[0].recovered && !history[0].aborted_by_user);
+        assert_eq!(history[0].last_error.as_deref(), Some("no star"));
     }
 }

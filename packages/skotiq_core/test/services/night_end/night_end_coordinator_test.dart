@@ -101,12 +101,6 @@ void main() {
     });
   });
 
-  Future<void> settleCoordinator() async {
-    for (var i = 0; i < 40; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
-  }
-
   test('host coordinator runs independently of the sequencer screen', () async {
     late _RecordingRunner recording;
     final coordinatorContainer = ProviderContainer(
@@ -122,6 +116,8 @@ void main() {
       ],
     );
     addTearDown(coordinatorContainer.dispose);
+    Future<void> handled() =>
+        coordinatorContainer.read(nightEndCoordinatorProvider).idle();
 
     coordinatorContainer.read(nightEndCoordinatorProvider);
     coordinatorContainer
@@ -135,7 +131,7 @@ void main() {
             dbSessionId: 20,
           ),
         );
-    await settleCoordinator();
+    await handled();
 
     expect(recording.calls, [20]);
     expect(recording.reasons, ['the plan completed']);
@@ -154,7 +150,7 @@ void main() {
             dbSessionId: 21,
           ),
         );
-    await settleCoordinator();
+    await handled();
     expect(recording.calls, [
       20,
     ], reason: 'a stopped run does not end the night');
@@ -181,7 +177,7 @@ void main() {
             dbSessionId: 22,
           ),
         );
-    await settleCoordinator();
+    await handled();
     expect(recording.calls, [
       20,
       22,
@@ -209,7 +205,7 @@ void main() {
             dbSessionId: 24,
           ),
         );
-    await settleCoordinator();
+    await handled();
     expect(recording.calls, [
       20,
       22,
@@ -220,13 +216,13 @@ void main() {
     // calibration: that night is handled too.
     coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
         const NightIntegrationRequest(generation: 1, sessionId: 23);
-    await settleCoordinator();
+    await handled();
     expect(recording.calls, [20, 22, 24, 23]);
 
     // The same request seen again is not a second build.
     coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
         const NightIntegrationRequest(generation: 1, sessionId: 23);
-    await settleCoordinator();
+    await handled();
     expect(recording.calls, [20, 22, 24, 23]);
   });
 

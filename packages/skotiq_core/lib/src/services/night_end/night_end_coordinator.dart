@@ -44,6 +44,31 @@ final nightEndCompletionProvider = StateProvider<NightEndCompletion?>(
 /// run before falling back to the run's own status.
 const _nightDecisionTimeout = Duration(seconds: 30);
 
+/// The nights this process has handed to the night-end automation, one at a
+/// time, in the order their runs ended.
+class NightEndCoordinator {
+  NightEndCoordinator._(this._runner);
+
+  /// A process that does not own the device bridge handles no nights.
+  NightEndCoordinator.inert() : _runner = null;
+
+  final NightEndRunner? _runner;
+  Future<void> _nights = Future<void>.value();
+
+  void _hand(Future<void> Function() night) =>
+      _nights = _nights.then((_) => night());
+
+  /// Completes once every night handed over so far has been handled and its
+  /// run saved, and the runs a restart cut short have been carried on.
+  Future<void> idle() async {
+    final runner = _runner;
+    if (runner == null) return;
+    await runner.start();
+    await _nights;
+    await runner.idle();
+  }
+}
+
 /// Always-on host lifecycle for the night-end automation.
 ///
 /// Only the process that owns the device bridge runs it: a linked client
@@ -57,16 +82,16 @@ const _nightDecisionTimeout = Duration(seconds: 30);
 /// its nights, deliver, and send the morning message, as the Darkroom's
 /// Activity settings say. At launch the runner carries on a night a restart
 /// cut short.
-final nightEndCoordinatorProvider = Provider<void>((ref) {
+final nightEndCoordinatorProvider = Provider<NightEndCoordinator>((ref) {
   final backend = ref.watch(backendProvider);
-  if (!backend.ownsDeviceBridge) return;
+  if (!backend.ownsDeviceBridge) return NightEndCoordinator.inert();
 
   // Created first so it sees every terminal run this coordinator sees.
   final night = ref.read(endOfNightCalibrationCoordinatorProvider);
   final runner = ref.read(nightEndRunnerProvider);
   unawaited(runner.start());
   final handle = _nightEndHandler(ref);
-  var queue = Future<void>.value();
+  final coordinator = NightEndCoordinator._(runner);
   ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider, (
     previous,
     next,
@@ -90,7 +115,7 @@ final nightEndCoordinatorProvider = Provider<void>((ref) {
           },
         );
 
-    queue = queue.then((_) async {
+    coordinator._hand(() async {
       final reason = await ended;
       if (reason == null) return;
       if (classified) await night.nightSettled(generation);
@@ -118,8 +143,8 @@ final nightEndCoordinatorProvider = Provider<void>((ref) {
     next,
   ) {
     if (next == null || previous?.generation == next.generation) return;
-    queue = queue.then(
-      (_) => handle(
+    coordinator._hand(
+      () => handle(
         sessionId: next.sessionId,
         generation: -next.generation,
         reason: EonEndReason.manual,
@@ -127,6 +152,7 @@ final nightEndCoordinatorProvider = Provider<void>((ref) {
       ),
     );
   });
+  return coordinator;
 });
 
 /// What the coordinator does for one night: run the night-end automation and

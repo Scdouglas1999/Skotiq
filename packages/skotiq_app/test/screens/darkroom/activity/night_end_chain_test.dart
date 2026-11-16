@@ -103,12 +103,11 @@ void main() {
         ));
   }
 
+  /// The newest of [count] night-end runs, once [container] has handled
+  /// every night handed to it.
   Future<NightEndRun> nightEndRun(
       ProviderContainer container, int count) async {
-    await settle(() {
-      final runs = container.read(nightEndRunsProvider);
-      return runs.length >= count && runs.first.finished;
-    });
+    await container.read(nightEndCoordinatorProvider).idle();
     final runs = container.read(nightEndRunsProvider);
     expect(runs, hasLength(count));
     expect(runs.first.finished, isTrue);
@@ -386,15 +385,11 @@ void main() {
     expect(review.nightRunId, held.id);
     await jobs.setMinRetainedArea(.5);
     await jobs.accept();
-    await settle(
-      () =>
-          later.read(nightEndRunsProvider).first.targets.single.deliver.state ==
-          NightEndStepState.done,
-    );
+    await later.read(nightEndCoordinatorProvider).idle();
     final after = later.read(nightEndRunsProvider).first;
     expect(after.targets.single.build.state, NightEndStepState.done);
     expect(after.targets.single.deliver.state, NightEndStepState.done);
-    await settle(() => notifications.sent.length == 2);
+    expect(notifications.sent, hasLength(2));
     expect(notifications.sent.last.title, 'Masters ready: NGC891');
     expect(notifications.sent.last.deepLink, 'darkroom_target:NGC891');
   });
