@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -20,7 +20,7 @@ import 'calibration/calibration_selection.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../models/imaging/frame_gain.dart';
+import '../database/rows/frame_gain.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
 

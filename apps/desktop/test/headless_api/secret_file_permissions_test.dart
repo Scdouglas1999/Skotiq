@@ -10,9 +10,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/update_wiring.dart';
 import 'package:skotiq_desktop/secret_file.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// The mode bits as `stat` reports them, e.g. `600`.
 Future<String> octalMode(File file) async {

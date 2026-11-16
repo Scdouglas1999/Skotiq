@@ -11,7 +11,7 @@ import 'package:skotiq_core/src/models/site/site_horizon_profile.dart';
 import 'package:skotiq_core/src/models/site/learned_obstruction.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/scheduler_provider.dart';
-import 'package:skotiq_core/src/services/scheduler/horizon_profile.dart'
+import 'package:skotiq_core/src/models/site/horizon_profile.dart'
     as sched;
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';

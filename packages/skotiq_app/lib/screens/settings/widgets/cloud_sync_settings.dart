@@ -22,6 +22,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/accessible_dropdown.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'cloud_sync_settings_parts/_remote_sync.dart';
 

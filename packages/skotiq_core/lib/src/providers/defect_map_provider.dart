@@ -19,7 +19,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();

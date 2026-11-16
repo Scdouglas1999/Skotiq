@@ -7,7 +7,7 @@ import '../models/sequence/sequence_models.dart';
 import '../models/equipment/filter_names.dart';
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'dark_library_coverage_service.dart';
-import 'scheduler/horizon_profile.dart';
+import '../models/site/horizon_profile.dart';
 import 'sequence_file_service.dart';
 import 'smart_night/exposure_calculator.dart';
 

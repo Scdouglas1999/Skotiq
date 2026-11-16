@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 

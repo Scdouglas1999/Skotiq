@@ -5,7 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/services.dart';
 
 part 'overlay_painters/basic_overlays.dart';
 part 'overlay_painters/science_quality_overlays.dart';

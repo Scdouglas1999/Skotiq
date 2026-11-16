@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 
 import '../../models/calibration/dark_library_match_tolerances.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../camera_setting_match.dart';
 import '../database.dart';
 import '../tables/dark_library.dart';

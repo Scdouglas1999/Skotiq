@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'focuser_backlash_calibration_dialog.dart';
 import 'focuser_backlash_text.dart';
+import 'package:skotiq_core/models.dart';
 
 /// What the backlash setting is ACTUALLY worth right now, and where it came
 /// from — the sub-line under a "Backlash compensation" field.

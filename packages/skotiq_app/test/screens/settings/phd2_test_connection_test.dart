@@ -13,9 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/phd2_guiding_settings.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_core/backend.dart';
 
 Future<HarnessHandle> _pump(
   WidgetTester tester, {

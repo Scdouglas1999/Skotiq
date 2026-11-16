@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
 import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// D4W-4 — the run-watch SPA must have exactly one address.
 ///

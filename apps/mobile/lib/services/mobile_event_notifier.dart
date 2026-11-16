@@ -5,6 +5,7 @@ import 'package:skotiq_core/models.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Subscribes to the backend's `SkotiqEvent` stream and converts critical
 /// events into local OS notifications via [MobileNotificationService].

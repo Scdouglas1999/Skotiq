@@ -33,7 +33,6 @@ library;
 
 import 'dart:io';
 
-import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -45,6 +44,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// How a brand-new device is allowed to pair.
 ///

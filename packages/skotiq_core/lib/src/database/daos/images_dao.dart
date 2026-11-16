@@ -1,11 +1,10 @@
 import '../../models/imaging/imaging_models.dart' show FrameType;
-import '../../models/imaging/frame_type_record.dart';
+import '../rows/frame_type_record.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 
-import '../../services/logging_service.dart';
-import '../../services/thumbnail_sidecar_service.dart';
+import '../../utils/logging_service.dart';
 import '../../models/imaging/gain_kind.dart';
 import '../database.dart';
 import '../tables/captured_images.dart';
@@ -796,7 +795,6 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     double? focuserTemp,
     double? rotatorAngle,
     LoggingService? logger,
-    ThumbnailSidecarService? sidecarService,
   }) async {
     final ms = capturedAt.toUtc().millisecondsSinceEpoch ~/ 1000;
     Variable<int> intOrNull(int? v) =>
@@ -826,12 +824,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       }
     }
 
-    // Pre-populate `thumbnail_path` with the predicted sidecar
-    // location so the GET handler doesn't need to test for the file's
-    // existence on every call. The actual JPEG bytes are written
-    // asynchronously by `ThumbnailSidecarService` (best-effort,
-    // unawaited); a missing file at this path triggers the cold-read
-    // self-heal in the GET handler.
+    // `thumbnail_path` is where the sidecar goes, so a thumbnail read does
+    // not test for the file; the caller writes the JPEG, and a missing file
+    // at this path is written on the next read.
     final String? thumbnailPath = filePath.isEmpty
         ? null
         : '$filePath.thumb.jpg';
@@ -888,18 +883,6 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       ],
       updates: {capturedImages},
     );
-
-    // Schedule fire-and-forget sidecar generation. The row is
-    // persisted regardless of sidecar outcome — a missing sidecar self-
-    // heals on the next GET. Errors land in the structured logger via
-    // the service (see ThumbnailSidecarService.writeSidecarForRow).
-    if (sidecarService != null && filePath.isNotEmpty && isAccepted) {
-      sidecarService.scheduleSidecarWrite(
-        imageId: result,
-        fitsPath: filePath,
-        imagesDao: this,
-      );
-    }
 
     return result;
   }

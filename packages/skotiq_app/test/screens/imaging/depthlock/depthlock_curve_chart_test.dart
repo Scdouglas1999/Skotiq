@@ -10,6 +10,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'depthlock_test_doubles.dart';
+import 'package:skotiq_core/errors.dart';
 
 List<DepthLockCurvePoint> _curve() => <DepthLockCurvePoint>[
       const DepthLockCurvePoint(

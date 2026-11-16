@@ -21,6 +21,8 @@ import '../validation.dart';
 import 'frame_measurement_headers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_core/errors.dart';
 
 part 'device_handlers/connection_lifecycle.dart';
 part 'device_handlers/camera_handlers.dart';

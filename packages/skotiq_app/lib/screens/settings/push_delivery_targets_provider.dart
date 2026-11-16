@@ -25,7 +25,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
-import 'package:skotiq_core/services.dart';
 
 /// The pairing database the host's headless server stores push tokens in.
 ///

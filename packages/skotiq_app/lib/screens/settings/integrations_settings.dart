@@ -1,10 +1,6 @@
-// Integrations settings page.
-//
-// Replaces the orphaned `plugins_screen.dart` with a design-system-compliant
-// page that surfaces the four bundled integrations (Discord, Pushover, Home
-// Assistant, Weather Logger) and cross-links to the notification router (the
-// honest answer to "Discord fires on observatory events" — that path lives in
-// Settings > Notification Routing).
+// Integrations settings page: the bundled plugins (Discord, Pushover, Home
+// Assistant, Weather Logger), with a link to Settings > Notification Routing,
+// which is where observatory events reach Discord.
 //
 // Wiring (built on the registration/enablement providers, never reaching into
 // plugin internals):
@@ -41,13 +37,6 @@ import 'package:http/http.dart' as http;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-// C3's registration provider is the single seam that loads the bundled
-// plugins into the host. It is intentionally not surfaced through the package
-// barrel (it is internal wiring), so — exactly like C4's enablement provider —
-// we import it by path. The implementation_imports lint is suppressed because
-// there is no barrel alternative for this app-layer wiring.
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_registration.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_core/providers.dart' show pluginEnablementProvider;

@@ -21,7 +21,7 @@ import 'dart:math' as math;
 
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// Single catalog object projected onto an image.
 class CatalogOverlayObject {

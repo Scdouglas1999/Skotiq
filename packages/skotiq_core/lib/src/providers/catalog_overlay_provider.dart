@@ -6,7 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/catalog_overlay_service.dart';
-import '../services/wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// Whether the catalog overlay is currently displayed on the live preview.
 /// Defaults to off — the overlay is opt-in, similar to the existing star /

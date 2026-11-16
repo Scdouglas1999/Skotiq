@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart';
 import '../models/polar_alignment_config.dart';
-import '../backend/roles/host_data/polar_alignment_log.dart';
+import '../database/stores/polar_alignment_log.dart';
 import 'backend_provider.dart';
 import 'host_role.dart';
 import 'capability_provider.dart';
@@ -20,7 +20,7 @@ import 'profiles_provider.dart';
 import 'settings_provider.dart';
 import '../models/backend/backend_types.dart';
 import '../database/daos/settings_dao.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'polar_alignment/polar_wire_decoding.dart';
 part 'polar_alignment/polar_config_notifier.dart';

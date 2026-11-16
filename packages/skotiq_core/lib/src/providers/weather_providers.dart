@@ -13,7 +13,7 @@ import '../backend/remote_host.dart';
 import 'host_role.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 export 'weather_safety_provider.dart';
 

@@ -18,7 +18,7 @@ import 'dart:typed_data';
 
 import '../../models/notification/transport_configs.dart';
 import '../notification/transports/mqtt_transport.dart' show MqttSocketOpener;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 Future<Socket> _defaultOpener(String host, int port, bool useTls) {
   if (useTls) return SecureSocket.connect(host, port);

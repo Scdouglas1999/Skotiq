@@ -10,7 +10,6 @@ import 'package:skotiq_app/skotiq_app.dart'
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'foreground_service.dart';
@@ -19,6 +18,7 @@ import 'mobile_event_notifier.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'power_service.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Mobile-specific hooks for sequence execution
 /// This class listens to sequence state changes and manages foreground service,

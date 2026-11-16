@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../headless/headless_auth_config.dart';
 import '../startup_timeline.dart';
 import 'host_server.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// The two processes that own the hardware.
 enum HostKind {

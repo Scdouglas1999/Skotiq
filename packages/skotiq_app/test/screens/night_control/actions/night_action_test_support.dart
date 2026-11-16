@@ -18,6 +18,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../../harness/mock_backend.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
+import 'package:skotiq_core/utils.dart';
 
 const connected = DeviceConnectionState.connected;
 

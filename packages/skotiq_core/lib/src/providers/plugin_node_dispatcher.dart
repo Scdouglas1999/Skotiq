@@ -1,31 +1,15 @@
-// Plugin sequence-node dispatcher abstraction.
-//
 // The Rust executor emits `SequencerEvent::PluginNodeRequested` when it
-// reaches a `NodeType::PluginNode`. The Dart `SequenceExecutor`
-// (`packages/skotiq_core`) routes that event to a
-// `PluginNodeDispatcher` callback, which in turn runs the plugin via
-// `PluginNodeExecutor` (`packages/skotiq_plugins`) and posts the
-// verdict back through the bridge via
+// reaches a `NodeType::PluginNode`. The sequence executor and the host's
+// event fan-out route that event to [pluginNodeDispatcherProvider], which runs
+// the plugin through `PluginNodeExecutor` and posts the verdict back through
 // `api_sequencer_plugin_node_finished`.
-//
-// Why this abstraction lives in `skotiq_core` rather than
-// `skotiq_plugins`:
-//
-//   * `skotiq_core` does NOT depend on `skotiq_plugins`.
-//   * The Rust side needs SOME entry point to dispatch into Dart, and
-//     the sequence executor (which already consumes the typed event
-//     stream) is the natural place.
-//   * The app layer (`skotiq_app`) overrides
-//     `pluginNodeDispatcherProvider` with a real implementation that
-//     calls into `PluginNodeExecutor`. The default implementation in
-//     core is a fail-loud stub that NACKs every request so a
-//     mis-wired environment surfaces immediately instead of hanging.
-//
-// This mirrors how wired the sky-brightness tracker: the
-// tracker provider lives in `skotiq_core`, but the actual data
-// source plugs in from a higher layer.
+
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
+
+import '../errors/error_text.dart';
 
 /// Request payload Dart receives when the Rust executor reaches a
 /// plugin node. All fields are stable enough for the dispatcher to look
@@ -65,10 +49,8 @@ class PluginNodeDispatchRequest {
   });
 }
 
-/// Verdict the dispatcher returns to the executor. Mirrors
-/// `PluginNodeExecutionResult` in `skotiq_plugins` but lives here
-/// so `skotiq_core` does not have to depend on the plugins
-/// package.
+/// Verdict the dispatcher returns to the executor, with the structured
+/// detail the Rust side forwards on the final plugin-node progress event.
 class PluginNodeDispatchResult {
   /// True when the plugin reported success.
   final bool success;
@@ -87,16 +69,9 @@ class PluginNodeDispatchResult {
     this.message,
     this.structuredDetailJson,
   });
-
-  /// Convenience constructor for the "no live dispatcher / not wired"
-  /// path. Surfaced loudly through the Rust executor's Error event so
-  /// users never silently get a successful no-op.
-  factory PluginNodeDispatchResult.unwired(String reason) =>
-      PluginNodeDispatchResult(success: false, message: reason);
 }
 
-/// Function signature the app layer overrides with a real
-/// implementation (see `skotiq_app/lib/plugin_node_dispatcher.dart`).
+/// Runs one plugin node.
 ///
 /// The dispatcher MUST not throw — failure paths return
 /// `PluginNodeDispatchResult(success: false, …)` so the Rust executor
@@ -133,17 +108,69 @@ final pluginNodeDispatchCoordinatorProvider =
       return PluginNodeDispatchCoordinator();
     });
 
-/// Riverpod provider for the plugin-node dispatcher.
+/// Runs a plugin node through the live plugin host and node registry.
 ///
-/// The default implementation is unwired: every plugin-node invocation
-/// returns a structured failure naming the missing wiring, rather than a
-/// success the host never performed. The desktop / mobile app entry points
-/// override this with a real dispatcher in their `ProviderScope`.
+/// The node's config is the JSON object the Rust side forwarded; an empty
+/// config is the empty object. Config that is not a JSON object fails the
+/// node without running the plugin, so a plugin never runs with defaults the
+/// operator did not choose.
 final pluginNodeDispatcherProvider = Provider<PluginNodeDispatcher>((ref) {
-  return (request) async => PluginNodeDispatchResult.unwired(
-    'Plugin node dispatcher is not wired in this environment. '
-    'Wire pluginNodeDispatcherProvider from the host application '
-    'before running PluginNode sequence nodes. '
-    '(plugin=${request.pluginId}, node_type=${request.nodeTypeId})',
+  final executor = PluginNodeExecutor(
+    host: ref.watch(pluginHostProvider),
+    registry: ref.watch(pluginNodeRegistryProvider),
   );
+
+  return (request) async {
+    var params = const <String, dynamic>{};
+    if (request.configJson.isNotEmpty) {
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(request.configJson);
+      } on FormatException catch (error) {
+        return _invalidConfig(
+          request,
+          'configuration is not valid JSON: ${userFacingError(error)}',
+        );
+      }
+      if (decoded is! Map<String, dynamic>) {
+        return _invalidConfig(request, 'configuration must be a JSON object');
+      }
+      params = decoded;
+    }
+
+    final result = await executor.run(
+      pluginId: request.pluginId,
+      nodeTypeId: request.nodeTypeId,
+      params: params,
+      timeout: Duration(seconds: request.timeoutSecs),
+    );
+
+    return PluginNodeDispatchResult(
+      success: result.success,
+      message: result.message,
+      structuredDetailJson: jsonEncode({
+        'plugin_id': request.pluginId,
+        'node_type_id': request.nodeTypeId,
+        'success': result.success,
+        if (result.message != null) 'message': result.message,
+      }),
+    );
+  };
 });
+
+PluginNodeDispatchResult _invalidConfig(
+  PluginNodeDispatchRequest request,
+  String reason,
+) {
+  final message = 'Invalid plugin node configuration: $reason';
+  return PluginNodeDispatchResult(
+    success: false,
+    message: message,
+    structuredDetailJson: jsonEncode({
+      'plugin_id': request.pluginId,
+      'node_type_id': request.nodeTypeId,
+      'success': false,
+      'message': message,
+    }),
+  );
+}

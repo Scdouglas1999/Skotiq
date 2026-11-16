@@ -33,7 +33,7 @@ import '../../database/daos/constellation_contributions_dao.dart';
 import '../../database/daos/living_sky_retention_dao.dart';
 import '../../database/tables/living_sky_retention.dart';
 import '../../models/collaboration/collaboration_models.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../sky_atlas/sky_atlas_models.dart';
 import '../sky_atlas/sky_atlas_service.dart';
 import 'constellation_client.dart';

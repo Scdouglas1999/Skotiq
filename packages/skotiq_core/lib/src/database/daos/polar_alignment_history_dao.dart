@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/polar_alignment_config.dart';
-import '../../backend/roles/host_data/polar_alignment_log.dart';
+import '../stores/polar_alignment_log.dart';
 import '../database.dart';
 import '../tables/polar_alignment_history.dart';
 

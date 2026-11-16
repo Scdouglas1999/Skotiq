@@ -11,7 +11,7 @@ import '../sequence_provider.dart' show sequenceExecutionStateProvider;
 import '../../models/sequence/sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 part 'sequence_editor/snippet_editing.dart';
 part 'sequence_editor/tree_editing.dart';
