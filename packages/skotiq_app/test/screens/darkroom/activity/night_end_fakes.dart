@@ -171,13 +171,6 @@ class FixedBackend extends BackendNotifier {
   }
 }
 
-/// Wait until [done] holds, pumping the event loop.
-Future<void> settle(bool Function() done, {int rounds = 400}) async {
-  for (var i = 0; i < rounds && !done(); i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 /// The overrides a night-end container needs over [db] and [native].
 List<Override> nightEndOverrides({
   required SkotiqDatabase db,

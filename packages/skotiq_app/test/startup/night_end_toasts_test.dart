@@ -23,7 +23,9 @@ void main() {
       ProviderScope(
         overrides: [
           appRouterProvider.overrideWithValue(router),
-          nightEndCoordinatorProvider.overrideWith((ref) {}),
+          nightEndCoordinatorProvider.overrideWith(
+            (ref) => NightEndCoordinator.inert(),
+          ),
         ],
         child: NightEndToasts(
           child: MaterialApp.router(routerConfig: router),
