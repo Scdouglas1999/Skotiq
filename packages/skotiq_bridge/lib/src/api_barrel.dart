@@ -47,3 +47,4 @@ export 'api/sky_atlas.dart';
 export 'api/sky_atlas/frames.dart';
 export 'api/sky_atlas/regions.dart';
 export 'api/storage.dart';
+export 'api/target_scoring.dart';

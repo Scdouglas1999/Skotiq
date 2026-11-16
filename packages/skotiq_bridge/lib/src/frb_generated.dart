@@ -47,6 +47,7 @@ import 'api/sky_atlas.dart';
 import 'api/sky_atlas/frames.dart';
 import 'api/sky_atlas/regions.dart';
 import 'api/storage.dart';
+import 'api/target_scoring.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'device.dart';
@@ -120,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1780828477;
+  int get rustContentHash => -2059181615;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -881,6 +882,15 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
+  List<ApiTargetScoreNow> crateApiTargetScoringApiRankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required PlatformInt64 nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  });
+
   Future<FitsReadResult> crateApiImagingApiReadFitsFile({
     required String filePath,
   });
@@ -973,6 +983,12 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> rgba,
+  });
+
+  Future<List<ApiNightScore>> crateApiTargetScoringApiScoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
   });
 
   Future<SecondaryRigStatusApi> crateApiSecondaryRigApiSecondaryRigGetStatus();
@@ -7072,6 +7088,65 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  List<ApiTargetScoreNow> crateApiTargetScoringApiRankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required PlatformInt64 nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          var arg0 = cst_encode_f_64(latitudeDeg);
+          var arg1 = cst_encode_f_64(longitudeDeg);
+          var arg2 = cst_encode_i_64(nowUnixMs);
+          var arg3 = cst_encode_list_api_scheduler_target(targets);
+          var arg4 = cst_encode_box_autoadd_api_scoring_weights(weights);
+          var arg5 = cst_encode_list_api_floor_sample(floor);
+          return wire
+              .wire__crate__api__target_scoring__api_rank_scheduler_targets(
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_api_target_score_now,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTargetScoringApiRankSchedulerTargetsConstMeta,
+        argValues: [
+          latitudeDeg,
+          longitudeDeg,
+          nowUnixMs,
+          targets,
+          weights,
+          floor,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTargetScoringApiRankSchedulerTargetsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_rank_scheduler_targets",
+        argNames: [
+          "latitudeDeg",
+          "longitudeDeg",
+          "nowUnixMs",
+          "targets",
+          "weights",
+          "floor",
+        ],
+      );
+
+  @override
   Future<FitsReadResult> crateApiImagingApiReadFitsFile({
     required String filePath,
   }) {
@@ -7701,6 +7776,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_save_rgba_png_file",
         argNames: ["filePath", "width", "height", "rgba"],
+      );
+
+  @override
+  Future<List<ApiNightScore>> crateApiTargetScoringApiScoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_api_night_sky(sky);
+          var arg1 = cst_encode_list_api_night_target(targets);
+          var arg2 = cst_encode_box_autoadd_api_scoring_weights(weights);
+          return wire
+              .wire__crate__api__target_scoring__api_score_targets_for_night(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_api_night_score,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTargetScoringApiScoreTargetsForNightConstMeta,
+        argValues: [sky, targets, weights],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTargetScoringApiScoreTargetsForNightConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_score_targets_for_night",
+        argNames: ["sky", "targets", "weights"],
       );
 
   @override
@@ -10824,6 +10936,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiFloorSample dco_decode_api_floor_sample(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ApiFloorSample(
+      azimuthDeg: dco_decode_f_64(arr[0]),
+      altitudeDeg: dco_decode_f_64(arr[1]),
+    );
+  }
+
+  @protected
   ApiLiveStackingConfig dco_decode_api_live_stacking_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10891,6 +11015,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiNightScore dco_decode_api_night_score(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    return ApiNightScore(
+      targetId: dco_decode_String(arr[0]),
+      totalScore: dco_decode_f_64(arr[1]),
+      altitudeScore: dco_decode_f_64(arr[2]),
+      moonDistanceScore: dco_decode_f_64(arr[3]),
+      transitProximityScore: dco_decode_f_64(arr[4]),
+      darknessScore: dco_decode_f_64(arr[5]),
+      airmassScore: dco_decode_f_64(arr[6]),
+      currentAltitudeDeg: dco_decode_f_64(arr[7]),
+      currentAzimuthDeg: dco_decode_f_64(arr[8]),
+      peakAltitudeDeg: dco_decode_f_64(arr[9]),
+      peakAzimuthDeg: dco_decode_f_64(arr[10]),
+      peakUnixMs: dco_decode_i_64(arr[11]),
+      hoursAboveFloor: dco_decode_f_64(arr[12]),
+      firstUsableUnixMs: dco_decode_opt_box_autoadd_i_64(arr[13]),
+      bestAirmass: dco_decode_opt_box_autoadd_f_64(arr[14]),
+      moonDistanceDeg: dco_decode_f_64(arr[15]),
+    );
+  }
+
+  @protected
+  ApiNightSky dco_decode_api_night_sky(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return ApiNightSky(
+      latitudeDeg: dco_decode_f_64(arr[0]),
+      longitudeDeg: dco_decode_f_64(arr[1]),
+      nowUnixMs: dco_decode_i_64(arr[2]),
+      nightStartUnixMs: dco_decode_i_64(arr[3]),
+      nightEndUnixMs: dco_decode_i_64(arr[4]),
+      moonRaDeg: dco_decode_opt_box_autoadd_f_64(arr[5]),
+      moonDecDeg: dco_decode_opt_box_autoadd_f_64(arr[6]),
+      moonIlluminationPercent: dco_decode_f_64(arr[7]),
+      floor: dco_decode_list_api_floor_sample(arr[8]),
+    );
+  }
+
+  @protected
+  ApiNightTarget dco_decode_api_night_target(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ApiNightTarget(
+      id: dco_decode_String(arr[0]),
+      raDeg: dco_decode_f_64(arr[1]),
+      decDeg: dco_decode_f_64(arr[2]),
+    );
+  }
+
+  @protected
   ApiReferenceGeometry dco_decode_api_reference_geometry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10911,6 +11093,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiSchedulerTarget dco_decode_api_scheduler_target(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ApiSchedulerTarget(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      raHours: dco_decode_f_64(arr[2]),
+      decDegrees: dco_decode_f_64(arr[3]),
+      minAltitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[4]),
+      startAfterUnixSecs: dco_decode_opt_box_autoadd_i_64(arr[5]),
+      endBeforeUnixSecs: dco_decode_opt_box_autoadd_i_64(arr[6]),
+      priority: dco_decode_i_32(arr[7]),
+    );
+  }
+
+  @protected
+  ApiScoringWeights dco_decode_api_scoring_weights(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return ApiScoringWeights(
+      altitude: dco_decode_f_64(arr[0]),
+      moonDistance: dco_decode_f_64(arr[1]),
+      transitProximity: dco_decode_f_64(arr[2]),
+      darkness: dco_decode_f_64(arr[3]),
+      airmass: dco_decode_f_64(arr[4]),
+      minMoonSeparationDeg: dco_decode_opt_box_autoadd_f_64(arr[5]),
+    );
+  }
+
+  @protected
   ApiSkyRectangle dco_decode_api_sky_rectangle(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10922,6 +11138,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       widthArcsec: dco_decode_f_64(arr[2]),
       heightArcsec: dco_decode_f_64(arr[3]),
       rotationDeg: dco_decode_f_64(arr[4]),
+    );
+  }
+
+  @protected
+  ApiTargetScoreNow dco_decode_api_target_score_now(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return ApiTargetScoreNow(
+      targetId: dco_decode_String(arr[0]),
+      totalScore: dco_decode_f_64(arr[1]),
+      altitudeScore: dco_decode_f_64(arr[2]),
+      moonDistanceScore: dco_decode_f_64(arr[3]),
+      transitProximityScore: dco_decode_f_64(arr[4]),
+      darknessScore: dco_decode_f_64(arr[5]),
+      airmassScore: dco_decode_f_64(arr[6]),
+      altitudeDeg: dco_decode_f_64(arr[7]),
+      azimuthDeg: dco_decode_f_64(arr[8]),
+      airmass: dco_decode_f_64(arr[9]),
+      moonDistanceDeg: dco_decode_f_64(arr[10]),
+      runnable: dco_decode_bool(arr[11]),
+      skipReason: dco_decode_opt_String(arr[12]),
     );
   }
 
@@ -11042,11 +11281,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiNightSky dco_decode_box_autoadd_api_night_sky(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_night_sky(raw);
+  }
+
+  @protected
   ApiReferenceGeometry dco_decode_box_autoadd_api_reference_geometry(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_api_reference_geometry(raw);
+  }
+
+  @protected
+  ApiScoringWeights dco_decode_box_autoadd_api_scoring_weights(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_scoring_weights(raw);
   }
 
   @protected
@@ -12604,6 +12855,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<ApiDepthGoal> dco_decode_list_api_depth_goal(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_api_depth_goal).toList();
+  }
+
+  @protected
+  List<ApiFloorSample> dco_decode_list_api_floor_sample(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_floor_sample).toList();
+  }
+
+  @protected
+  List<ApiNightScore> dco_decode_list_api_night_score(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_night_score).toList();
+  }
+
+  @protected
+  List<ApiNightTarget> dco_decode_list_api_night_target(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_night_target).toList();
+  }
+
+  @protected
+  List<ApiSchedulerTarget> dco_decode_list_api_scheduler_target(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_scheduler_target).toList();
+  }
+
+  @protected
+  List<ApiTargetScoreNow> dco_decode_list_api_target_score_now(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_target_score_now).toList();
   }
 
   @protected
@@ -14848,6 +15129,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiFloorSample sse_decode_api_floor_sample(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_azimuthDeg = sse_decode_f_64(deserializer);
+    var var_altitudeDeg = sse_decode_f_64(deserializer);
+    return ApiFloorSample(
+      azimuthDeg: var_azimuthDeg,
+      altitudeDeg: var_altitudeDeg,
+    );
+  }
+
+  @protected
   ApiLiveStackingConfig sse_decode_api_live_stacking_config(
     SseDeserializer deserializer,
   ) {
@@ -14938,6 +15230,79 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiNightScore sse_decode_api_night_score(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_targetId = sse_decode_String(deserializer);
+    var var_totalScore = sse_decode_f_64(deserializer);
+    var var_altitudeScore = sse_decode_f_64(deserializer);
+    var var_moonDistanceScore = sse_decode_f_64(deserializer);
+    var var_transitProximityScore = sse_decode_f_64(deserializer);
+    var var_darknessScore = sse_decode_f_64(deserializer);
+    var var_airmassScore = sse_decode_f_64(deserializer);
+    var var_currentAltitudeDeg = sse_decode_f_64(deserializer);
+    var var_currentAzimuthDeg = sse_decode_f_64(deserializer);
+    var var_peakAltitudeDeg = sse_decode_f_64(deserializer);
+    var var_peakAzimuthDeg = sse_decode_f_64(deserializer);
+    var var_peakUnixMs = sse_decode_i_64(deserializer);
+    var var_hoursAboveFloor = sse_decode_f_64(deserializer);
+    var var_firstUsableUnixMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_bestAirmass = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_moonDistanceDeg = sse_decode_f_64(deserializer);
+    return ApiNightScore(
+      targetId: var_targetId,
+      totalScore: var_totalScore,
+      altitudeScore: var_altitudeScore,
+      moonDistanceScore: var_moonDistanceScore,
+      transitProximityScore: var_transitProximityScore,
+      darknessScore: var_darknessScore,
+      airmassScore: var_airmassScore,
+      currentAltitudeDeg: var_currentAltitudeDeg,
+      currentAzimuthDeg: var_currentAzimuthDeg,
+      peakAltitudeDeg: var_peakAltitudeDeg,
+      peakAzimuthDeg: var_peakAzimuthDeg,
+      peakUnixMs: var_peakUnixMs,
+      hoursAboveFloor: var_hoursAboveFloor,
+      firstUsableUnixMs: var_firstUsableUnixMs,
+      bestAirmass: var_bestAirmass,
+      moonDistanceDeg: var_moonDistanceDeg,
+    );
+  }
+
+  @protected
+  ApiNightSky sse_decode_api_night_sky(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_latitudeDeg = sse_decode_f_64(deserializer);
+    var var_longitudeDeg = sse_decode_f_64(deserializer);
+    var var_nowUnixMs = sse_decode_i_64(deserializer);
+    var var_nightStartUnixMs = sse_decode_i_64(deserializer);
+    var var_nightEndUnixMs = sse_decode_i_64(deserializer);
+    var var_moonRaDeg = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_moonDecDeg = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_moonIlluminationPercent = sse_decode_f_64(deserializer);
+    var var_floor = sse_decode_list_api_floor_sample(deserializer);
+    return ApiNightSky(
+      latitudeDeg: var_latitudeDeg,
+      longitudeDeg: var_longitudeDeg,
+      nowUnixMs: var_nowUnixMs,
+      nightStartUnixMs: var_nightStartUnixMs,
+      nightEndUnixMs: var_nightEndUnixMs,
+      moonRaDeg: var_moonRaDeg,
+      moonDecDeg: var_moonDecDeg,
+      moonIlluminationPercent: var_moonIlluminationPercent,
+      floor: var_floor,
+    );
+  }
+
+  @protected
+  ApiNightTarget sse_decode_api_night_target(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_raDeg = sse_decode_f_64(deserializer);
+    var var_decDeg = sse_decode_f_64(deserializer);
+    return ApiNightTarget(id: var_id, raDeg: var_raDeg, decDeg: var_decDeg);
+  }
+
+  @protected
   ApiReferenceGeometry sse_decode_api_reference_geometry(
     SseDeserializer deserializer,
   ) {
@@ -14967,6 +15332,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiSchedulerTarget sse_decode_api_scheduler_target(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_raHours = sse_decode_f_64(deserializer);
+    var var_decDegrees = sse_decode_f_64(deserializer);
+    var var_minAltitudeDeg = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_startAfterUnixSecs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_endBeforeUnixSecs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_priority = sse_decode_i_32(deserializer);
+    return ApiSchedulerTarget(
+      id: var_id,
+      name: var_name,
+      raHours: var_raHours,
+      decDegrees: var_decDegrees,
+      minAltitudeDeg: var_minAltitudeDeg,
+      startAfterUnixSecs: var_startAfterUnixSecs,
+      endBeforeUnixSecs: var_endBeforeUnixSecs,
+      priority: var_priority,
+    );
+  }
+
+  @protected
+  ApiScoringWeights sse_decode_api_scoring_weights(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_altitude = sse_decode_f_64(deserializer);
+    var var_moonDistance = sse_decode_f_64(deserializer);
+    var var_transitProximity = sse_decode_f_64(deserializer);
+    var var_darkness = sse_decode_f_64(deserializer);
+    var var_airmass = sse_decode_f_64(deserializer);
+    var var_minMoonSeparationDeg = sse_decode_opt_box_autoadd_f_64(
+      deserializer,
+    );
+    return ApiScoringWeights(
+      altitude: var_altitude,
+      moonDistance: var_moonDistance,
+      transitProximity: var_transitProximity,
+      darkness: var_darkness,
+      airmass: var_airmass,
+      minMoonSeparationDeg: var_minMoonSeparationDeg,
+    );
+  }
+
+  @protected
   ApiSkyRectangle sse_decode_api_sky_rectangle(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_raDeg = sse_decode_f_64(deserializer);
@@ -14980,6 +15393,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       widthArcsec: var_widthArcsec,
       heightArcsec: var_heightArcsec,
       rotationDeg: var_rotationDeg,
+    );
+  }
+
+  @protected
+  ApiTargetScoreNow sse_decode_api_target_score_now(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_targetId = sse_decode_String(deserializer);
+    var var_totalScore = sse_decode_f_64(deserializer);
+    var var_altitudeScore = sse_decode_f_64(deserializer);
+    var var_moonDistanceScore = sse_decode_f_64(deserializer);
+    var var_transitProximityScore = sse_decode_f_64(deserializer);
+    var var_darknessScore = sse_decode_f_64(deserializer);
+    var var_airmassScore = sse_decode_f_64(deserializer);
+    var var_altitudeDeg = sse_decode_f_64(deserializer);
+    var var_azimuthDeg = sse_decode_f_64(deserializer);
+    var var_airmass = sse_decode_f_64(deserializer);
+    var var_moonDistanceDeg = sse_decode_f_64(deserializer);
+    var var_runnable = sse_decode_bool(deserializer);
+    var var_skipReason = sse_decode_opt_String(deserializer);
+    return ApiTargetScoreNow(
+      targetId: var_targetId,
+      totalScore: var_totalScore,
+      altitudeScore: var_altitudeScore,
+      moonDistanceScore: var_moonDistanceScore,
+      transitProximityScore: var_transitProximityScore,
+      darknessScore: var_darknessScore,
+      airmassScore: var_airmassScore,
+      altitudeDeg: var_altitudeDeg,
+      azimuthDeg: var_azimuthDeg,
+      airmass: var_airmass,
+      moonDistanceDeg: var_moonDistanceDeg,
+      runnable: var_runnable,
+      skipReason: var_skipReason,
     );
   }
 
@@ -15133,11 +15581,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiNightSky sse_decode_box_autoadd_api_night_sky(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_night_sky(deserializer));
+  }
+
+  @protected
   ApiReferenceGeometry sse_decode_box_autoadd_api_reference_geometry(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_api_reference_geometry(deserializer));
+  }
+
+  @protected
+  ApiScoringWeights sse_decode_box_autoadd_api_scoring_weights(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_scoring_weights(deserializer));
   }
 
   @protected
@@ -17182,6 +17646,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ApiDepthGoal>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_api_depth_goal(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiFloorSample> sse_decode_list_api_floor_sample(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiFloorSample>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_floor_sample(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiNightScore> sse_decode_list_api_night_score(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiNightScore>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_night_score(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiNightTarget> sse_decode_list_api_night_target(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiNightTarget>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_night_target(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiSchedulerTarget> sse_decode_list_api_scheduler_target(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiSchedulerTarget>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_scheduler_target(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiTargetScoreNow> sse_decode_list_api_target_score_now(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiTargetScoreNow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_target_score_now(deserializer));
     }
     return ans_;
   }
@@ -20356,6 +20890,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_floor_sample(
+    ApiFloorSample self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.azimuthDeg, serializer);
+    sse_encode_f_64(self.altitudeDeg, serializer);
+  }
+
+  @protected
   void sse_encode_api_live_stacking_config(
     ApiLiveStackingConfig self,
     SseSerializer serializer,
@@ -20415,6 +20959,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_night_score(
+    ApiNightScore self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.targetId, serializer);
+    sse_encode_f_64(self.totalScore, serializer);
+    sse_encode_f_64(self.altitudeScore, serializer);
+    sse_encode_f_64(self.moonDistanceScore, serializer);
+    sse_encode_f_64(self.transitProximityScore, serializer);
+    sse_encode_f_64(self.darknessScore, serializer);
+    sse_encode_f_64(self.airmassScore, serializer);
+    sse_encode_f_64(self.currentAltitudeDeg, serializer);
+    sse_encode_f_64(self.currentAzimuthDeg, serializer);
+    sse_encode_f_64(self.peakAltitudeDeg, serializer);
+    sse_encode_f_64(self.peakAzimuthDeg, serializer);
+    sse_encode_i_64(self.peakUnixMs, serializer);
+    sse_encode_f_64(self.hoursAboveFloor, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.firstUsableUnixMs, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.bestAirmass, serializer);
+    sse_encode_f_64(self.moonDistanceDeg, serializer);
+  }
+
+  @protected
+  void sse_encode_api_night_sky(ApiNightSky self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.latitudeDeg, serializer);
+    sse_encode_f_64(self.longitudeDeg, serializer);
+    sse_encode_i_64(self.nowUnixMs, serializer);
+    sse_encode_i_64(self.nightStartUnixMs, serializer);
+    sse_encode_i_64(self.nightEndUnixMs, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.moonRaDeg, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.moonDecDeg, serializer);
+    sse_encode_f_64(self.moonIlluminationPercent, serializer);
+    sse_encode_list_api_floor_sample(self.floor, serializer);
+  }
+
+  @protected
+  void sse_encode_api_night_target(
+    ApiNightTarget self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_f_64(self.raDeg, serializer);
+    sse_encode_f_64(self.decDeg, serializer);
+  }
+
+  @protected
   void sse_encode_api_reference_geometry(
     ApiReferenceGeometry self,
     SseSerializer serializer,
@@ -20433,6 +21026,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_scheduler_target(
+    ApiSchedulerTarget self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_f_64(self.raHours, serializer);
+    sse_encode_f_64(self.decDegrees, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.minAltitudeDeg, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.startAfterUnixSecs, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.endBeforeUnixSecs, serializer);
+    sse_encode_i_32(self.priority, serializer);
+  }
+
+  @protected
+  void sse_encode_api_scoring_weights(
+    ApiScoringWeights self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.altitude, serializer);
+    sse_encode_f_64(self.moonDistance, serializer);
+    sse_encode_f_64(self.transitProximity, serializer);
+    sse_encode_f_64(self.darkness, serializer);
+    sse_encode_f_64(self.airmass, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.minMoonSeparationDeg, serializer);
+  }
+
+  @protected
   void sse_encode_api_sky_rectangle(
     ApiSkyRectangle self,
     SseSerializer serializer,
@@ -20443,6 +21066,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.widthArcsec, serializer);
     sse_encode_f_64(self.heightArcsec, serializer);
     sse_encode_f_64(self.rotationDeg, serializer);
+  }
+
+  @protected
+  void sse_encode_api_target_score_now(
+    ApiTargetScoreNow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.targetId, serializer);
+    sse_encode_f_64(self.totalScore, serializer);
+    sse_encode_f_64(self.altitudeScore, serializer);
+    sse_encode_f_64(self.moonDistanceScore, serializer);
+    sse_encode_f_64(self.transitProximityScore, serializer);
+    sse_encode_f_64(self.darknessScore, serializer);
+    sse_encode_f_64(self.airmassScore, serializer);
+    sse_encode_f_64(self.altitudeDeg, serializer);
+    sse_encode_f_64(self.azimuthDeg, serializer);
+    sse_encode_f_64(self.airmass, serializer);
+    sse_encode_f_64(self.moonDistanceDeg, serializer);
+    sse_encode_bool(self.runnable, serializer);
+    sse_encode_opt_String(self.skipReason, serializer);
   }
 
   @protected
@@ -20566,12 +21210,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_api_night_sky(
+    ApiNightSky self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_night_sky(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_api_reference_geometry(
     ApiReferenceGeometry self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_api_reference_geometry(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_api_scoring_weights(
+    ApiScoringWeights self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_scoring_weights(self, serializer);
   }
 
   @protected
@@ -22290,6 +22952,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_api_depth_goal(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_floor_sample(
+    List<ApiFloorSample> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_floor_sample(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_night_score(
+    List<ApiNightScore> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_night_score(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_night_target(
+    List<ApiNightTarget> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_night_target(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_scheduler_target(
+    List<ApiSchedulerTarget> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_scheduler_target(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_target_score_now(
+    List<ApiTargetScoreNow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_target_score_now(item, serializer);
     }
   }
 

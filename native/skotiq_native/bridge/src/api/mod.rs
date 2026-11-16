@@ -32,3 +32,4 @@ pub mod secondary_rig;
 pub mod sequencer;
 pub mod sky_atlas;
 pub mod storage;
+pub mod target_scoring;
