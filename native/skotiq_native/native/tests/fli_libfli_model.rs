@@ -17,7 +17,10 @@ use std::time::{Duration, Instant};
 fn fli_drivers_against_the_libfli_model() {
     let fake = harness::FakeSdk::build("fli_model", &[harness::FLI_MODEL]);
     let log = fake.dir().join("calls.log");
-    fake.run_ignored("", &[("FLI_MODEL_LOG", log.to_str().unwrap())]);
+    // The model keeps its devices in process-wide state, so each test gets a
+    // process of its own: a move one test leaves under way cannot reach the
+    // next test's first reading.
+    fake.run_each("", &[("FLI_MODEL_LOG", log.to_str().unwrap())]);
 }
 
 fn log() -> Vec<String> {
