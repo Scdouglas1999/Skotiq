@@ -24,7 +24,7 @@ final preSessionTwilightTimesProvider =
   if (!hasLocation) return null;
 
   return planetarium.AstronomyCalculations.calculateTwilightTimes(
-    date: DateTime.now(),
+    date: ref.watch(clockProvider).instant,
     latitudeDeg: settings.latitude,
     longitudeDeg: settings.longitude,
   );
@@ -37,7 +37,7 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final twilight = ref.watch(preSessionTwilightTimesProvider);
   return ref.watch(planTimerProvider).simulate(
         sequence,
-        start: DateTime.now(),
+        start: ref.watch(clockProvider).instant,
         darkWindowStart: twilight?.astronomicalDusk,
         darkWindowEnd: twilight?.astronomicalDawn,
       );

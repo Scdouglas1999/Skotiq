@@ -25,6 +25,7 @@ Future<void> _pumpGraph(WidgetTester tester, {double width = 900}) async {
           height: 320,
           child: GuideGraphAdvanced(
             data: const [],
+            now: DateTime(2026, 11, 15, 23),
             onTimeScaleChanged: (_) {},
             onYScaleChanged: (_) {},
           ),

@@ -5,6 +5,7 @@ import '../models/equipment/equipment_models.dart'
     show DeviceConnectionState, MountState;
 import '../models/meridian_flip_settings.dart';
 import '../models/sequence/sequence_models.dart' show SequenceExecutionState;
+import 'clock_provider.dart';
 import 'equipment_provider.dart' show mountStateProvider;
 import 'meridian_flip_provider.dart'
     show effectiveMeridianFlipSettingsProvider, isMeridianFlipEnabledProvider;
@@ -316,5 +317,6 @@ final meridianCountdownProvider = Provider.autoDispose<MeridianCountdownState>((
     settings: settings,
     execState: execState,
     enabled: enabled,
+    nowUtc: ref.watch(clockProvider).nowUtc(),
   );
 });

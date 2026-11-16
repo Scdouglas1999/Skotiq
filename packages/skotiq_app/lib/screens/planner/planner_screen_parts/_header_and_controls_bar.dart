@@ -21,7 +21,7 @@ class _PlanNightChips extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final now = DateTime.now();
+    final now = ref.watch(clockProvider).instant;
     final twilight = AstronomyCalculations.nightAt(
       now: now,
       latitudeDeg: location!.latitude,

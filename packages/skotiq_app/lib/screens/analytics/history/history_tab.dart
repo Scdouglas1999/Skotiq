@@ -118,7 +118,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
       );
     }
 
-    final now = DateTime.now();
+    final now = ref.watch(clockProvider).instant;
     final shown = [
       for (final entry in entries)
         if (_filter.matches(entry, targetNameById: targetNameById, now: now))
@@ -609,6 +609,7 @@ class _NightRow extends ConsumerWidget {
         session,
         isLive: sessionState.isActive && sessionState.dbSessionId == session.id,
         lastFrameAt: ref.watch(lastFrameBySessionProvider)[session.id],
+        now: ref.watch(clockProvider).instant,
       );
       elapsed = value.duration == null ? null : value.valueLabel;
       if (value.isUnfinished) elapsedBasis = value.captionLabel;

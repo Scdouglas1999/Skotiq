@@ -425,9 +425,10 @@ Map<String, LedgerEta> ledgerEtasFor(
 /// Nothing but [ledgerEtaProvider] reads it, which is what keeps a timer
 /// running through a night from costing anything else a rebuild.
 final ledgerClockProvider = StreamProvider.autoDispose<DateTime>((ref) {
+  final clock = ref.watch(clockProvider);
   Stream<DateTime> tick() async* {
-    yield DateTime.now();
-    yield* Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now());
+    yield clock.instant;
+    yield* Stream.periodic(const Duration(minutes: 1), (_) => clock.instant);
   }
 
   return tick();
@@ -526,7 +527,8 @@ final ledgerEtaProvider = Provider.autoDispose<Map<String, LedgerEta>>((ref) {
     // pending tail when a node overruns). The stream's own first event is a
     // `DateTime.now()`, so this reads the same clock one moment earlier on the
     // build that precedes it — not a stand-in for a time nobody measured.
-    now: ref.watch(ledgerClockProvider).valueOrNull ?? DateTime.now(),
+    now: ref.watch(ledgerClockProvider).valueOrNull ??
+        ref.read(clockProvider).instant,
     runActive: runActive,
     runStart: ref.watch(sessionStateProvider).startTime,
     // The join between what has happened and what is still predicted. Watched

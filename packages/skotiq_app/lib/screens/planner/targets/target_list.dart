@@ -34,8 +34,8 @@ List<_TargetRow> _rows(
   List<PlanTarget> targets,
   _AutopilotView autopilot,
   Map<int, _TonightWindow> windows,
+  DateTime now,
 ) {
-  final now = DateTime.now();
   final decision = autopilot.decision;
   final scores = {
     for (final s in decision?.scoredCandidates ?? const <TargetScore>[])
@@ -135,7 +135,12 @@ int _byNextUp(_TargetRow a, _TargetRow b) {
 }
 
 /// What the autopilot will do next, in one line.
-String _nextLine(_AutopilotView view, List<_TargetRow> rows, Project? group) {
+String _nextLine(
+  _AutopilotView view,
+  List<_TargetRow> rows,
+  Project? group,
+  DateTime now,
+) {
   final status = view.status;
   if (status == null) {
     return view.error != null
@@ -158,7 +163,6 @@ String _nextLine(_AutopilotView view, List<_TargetRow> rows, Project? group) {
             ? 'Add a target to give it something to shoot'
             : 'No targets in this group';
       }
-      final now = DateTime.now();
       final later = [
         for (final r in rows)
           if (r.target.inAutopilot &&
@@ -296,6 +300,7 @@ class _TargetListColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
+    final now = ref.watch(clockProvider).instant;
     // A whole-area state needs a height of its own inside a scrolling tab.
     Widget area(Widget child) =>
         scrolls ? child : SizedBox(height: 360, child: child);
@@ -368,6 +373,7 @@ class _TargetListColumn extends ConsumerWidget {
       Widget tile(int i) => _TargetRowTile(
             key: ValueKey('plan-target-row-${visible[i].target.id}'),
             row: visible[i],
+            now: now,
             selected: visible[i].target.id == selectedId,
             compact: compact,
             showGroup: group == null,
@@ -599,6 +605,7 @@ class _TargetRowTile extends StatelessWidget {
   const _TargetRowTile({
     super.key,
     required this.row,
+    required this.now,
     required this.selected,
     required this.compact,
     required this.showGroup,
@@ -607,6 +614,9 @@ class _TargetRowTile extends StatelessWidget {
   });
 
   final _TargetRow row;
+
+  /// Where the window bar marks now.
+  final DateTime now;
   final bool selected;
   final bool compact;
   final bool showGroup;
@@ -626,7 +636,7 @@ class _TargetRowTile extends StatelessWidget {
         _StatusTone.active => colors.primary,
       },
     );
-    final bar = row.window?.bar(DateTime.now());
+    final bar = row.window?.bar(now);
     final windowBar = bar == null
         ? const SizedBox(height: CandidateWindowBar.trackHeight)
         : CandidateWindowBar(window: bar);

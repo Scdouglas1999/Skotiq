@@ -69,7 +69,7 @@ SessionElapsed sessionElapsed(
   ImagingSession session, {
   required bool isLive,
   DateTime? lastFrameAt,
-  DateTime? now,
+  required DateTime now,
 }) {
   final endTime = session.endTime;
   if (endTime != null) {
@@ -80,7 +80,7 @@ SessionElapsed sessionElapsed(
   }
   if (isLive) {
     return SessionElapsed(
-      _nonNegative((now ?? DateTime.now()).difference(session.startTime)),
+      _nonNegative(now.difference(session.startTime)),
       SessionElapsedBasis.running,
     );
   }

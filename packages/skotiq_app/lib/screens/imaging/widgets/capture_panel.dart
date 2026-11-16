@@ -82,11 +82,11 @@ class CapturePanel extends ConsumerWidget {
             : 0.0;
     // Imaging for: from the night's first frame, or the session's start when
     // that is earlier or the night has no frame yet.
+    final now = ref.watch(clockProvider).instant;
     final sessionDuration =
-        sessionState.isActive ? sessionState.duration : null;
-    final nightSpan = nightCounted
-        ? DateTime.now().difference(sessionImages.first.capturedAt)
-        : null;
+        sessionState.isActive ? sessionState.elapsedAt(now) : null;
+    final nightSpan =
+        nightCounted ? now.difference(sessionImages.first.capturedAt) : null;
     final Duration? imagingFor = switch ((sessionDuration, nightSpan)) {
       (final Duration s, final Duration n) => s > n ? s : n,
       (final Duration s, null) => s,
@@ -467,9 +467,12 @@ class CapturePanel extends ConsumerWidget {
                       'Duration',
                       // A session with no measured duration renders an em
                       // dash, never '--:--:--'.
-                      sessionState.duration != null
-                          ? ClockFormat.stopwatchPadded(sessionState.duration!)
-                          : '\u2014',
+                      switch (sessionState
+                          .elapsedAt(ref.read(clockProvider).instant)) {
+                        final Duration elapsed =>
+                          ClockFormat.stopwatchPadded(elapsed),
+                        null => '\u2014',
+                      },
                     ),
                   ],
                 ),

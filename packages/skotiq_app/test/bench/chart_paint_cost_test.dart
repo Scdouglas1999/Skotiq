@@ -33,6 +33,7 @@ void main() {
       _host(
         GuideGraphAdvanced(
           data: data,
+          now: DateTime.now(),
           rmsRa: 0.5,
           rmsDec: 0.4,
           rmsTotal: 0.64,

@@ -139,6 +139,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             isLive: isLive,
             lastFrameAt:
                 ref.watch(lastFrameBySessionProvider)[reviewSession.id],
+            now: ref.watch(clockProvider).instant,
           );
 
     // Every one of these is a measurement, so every one of them is a

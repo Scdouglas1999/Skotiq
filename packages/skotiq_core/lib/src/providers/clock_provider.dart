@@ -62,6 +62,14 @@ abstract class Clock {
   DateTime fromUtc(DateTime utc);
 }
 
+/// The current instant through a [Clock].
+extension ClockInstant on Clock {
+  /// What `DateTime.now()` gives (this machine's zone), read through the clock
+  /// so every "now" on screen comes from one owner a test or replay can fix.
+  /// Not the operator's display zone: that is [Clock.now].
+  DateTime get instant => nowUtc().toLocal();
+}
+
 class SystemClock implements Clock {
   const SystemClock();
 
@@ -221,12 +229,14 @@ final tickerProvider = StreamProvider.family<DateTime, TickerCadence>((
       // to wait for the first interval before it gets a value. Without
       // this the consumer would render `AsyncLoading` until the timer
       // fires, which produces a visible "—" → "12s remaining" flicker.
-      controller.add(DateTime.now());
+      controller.add(ref.read(clockProvider).instant);
       // Aligned to the cadence's wall-clock boundary, so this shared tick lands
       // in the same frame as the app's other clocks instead of costing a
       // full-window frame on a phase of its own. See [AlignedTicker].
       timer ??= AlignedTicker(interval, () {
-        if (!controller.isClosed) controller.add(DateTime.now());
+        if (!controller.isClosed) {
+          controller.add(ref.read(clockProvider).instant);
+        }
       });
     },
     onCancel: () {

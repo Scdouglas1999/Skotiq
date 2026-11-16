@@ -26,7 +26,8 @@ void main() {
     testWidgets('render an em dash when there is no measurement', (
       tester,
     ) async {
-      await tester.pumpWidget(_host(const GuideGraphAdvanced(data: [])));
+      await tester.pumpWidget(_host(
+          GuideGraphAdvanced(data: const [], now: DateTime(2026, 11, 15, 23))));
       await tester.pump();
 
       expect(find.text('—'), findsNWidgets(3));
@@ -39,8 +40,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _host(
-          const GuideGraphAdvanced(
-            data: [],
+          GuideGraphAdvanced(
+            data: const [],
+            now: DateTime(2026, 11, 15, 23),
             rmsRa: 0.53,
             rmsDec: 0.57,
             rmsTotal: 0.78,
@@ -63,8 +65,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _host(
-          const GuideGraphAdvanced(
-            data: [],
+          GuideGraphAdvanced(
+            data: const [],
+            now: DateTime(2026, 11, 15, 23),
             rmsRa: 0.41,
             rmsDec: 0.44,
             rmsTotal: 0.60,
