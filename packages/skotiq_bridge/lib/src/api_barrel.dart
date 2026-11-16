@@ -3,6 +3,7 @@
 /// surface the package exports.
 library;
 
+export 'api/centering.dart';
 export 'api/connection.dart';
 export 'api/darkroom/entrypoints.dart';
 export 'api/defect_map.dart';

@@ -3,6 +3,7 @@
 //! This module contains all the functions that can be called from Dart.
 //! Each function is marked with the appropriate flutter_rust_bridge attributes.
 
+pub mod centering;
 pub mod connection;
 pub mod darkroom;
 pub mod defect_map;

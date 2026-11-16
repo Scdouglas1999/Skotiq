@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/centering.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/defect_map.dart';
@@ -94,6 +95,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
 
   @protected
+  RustStreamSink<ApiCenteringStep> dco_decode_StreamSink_api_centering_step_Dco(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<SkotiqEvent> dco_decode_StreamSink_skotiq_event_Dco(
     dynamic raw,
   );
@@ -103,6 +109,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw);
+
+  @protected
+  ApiCenteringRequest dco_decode_api_centering_request(dynamic raw);
+
+  @protected
+  ApiCenteringStep dco_decode_api_centering_step(dynamic raw);
 
   @protected
   ApiDefectMapStatus dco_decode_api_defect_map_status(dynamic raw);
@@ -192,6 +204,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiAcquisitionSettings dco_decode_box_autoadd_api_acquisition_settings(
     dynamic raw,
   );
+
+  @protected
+  ApiCenteringRequest dco_decode_box_autoadd_api_centering_request(dynamic raw);
 
   @protected
   ApiDefectMapStatus dco_decode_box_autoadd_api_defect_map_status(dynamic raw);
@@ -1020,6 +1035,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<ApiCenteringStep> sse_decode_StreamSink_api_centering_step_Dco(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<SkotiqEvent> sse_decode_StreamSink_skotiq_event_Dco(
     SseDeserializer deserializer,
   );
@@ -1031,6 +1051,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiAcquisitionSettings sse_decode_api_acquisition_settings(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ApiCenteringRequest sse_decode_api_centering_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiCenteringStep sse_decode_api_centering_step(SseDeserializer deserializer);
 
   @protected
   ApiDefectMapStatus sse_decode_api_defect_map_status(
@@ -1154,6 +1182,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiAcquisitionSettings sse_decode_box_autoadd_api_acquisition_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiCenteringRequest sse_decode_box_autoadd_api_centering_request(
     SseDeserializer deserializer,
   );
 
@@ -2223,6 +2256,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict>
+  cst_encode_StreamSink_api_centering_step_Dco(
+    RustStreamSink<ApiCenteringStep> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_String(
+      raw.setupAndSerialize(
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_centering_step,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+      ),
+    );
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prim_u_8_strict>
   cst_encode_StreamSink_skotiq_event_Dco(RustStreamSink<SkotiqEvent> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_String(
@@ -2247,6 +2296,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_api_acquisition_settings();
     cst_api_fill_to_wire_api_acquisition_settings(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_api_centering_request>
+  cst_encode_box_autoadd_api_centering_request(ApiCenteringRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_api_centering_request();
+    cst_api_fill_to_wire_api_centering_request(raw, ptr.ref);
     return ptr;
   }
 
@@ -3496,6 +3554,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_centering_request(
+    ApiCenteringRequest apiObj,
+    wire_cst_api_centering_request wireObj,
+  ) {
+    wireObj.mount_id = cst_encode_String(apiObj.mountId);
+    wireObj.camera_id = cst_encode_String(apiObj.cameraId);
+    wireObj.filter_wheel_id = cst_encode_opt_String(apiObj.filterWheelId);
+    wireObj.ra_hours = cst_encode_f_64(apiObj.raHours);
+    wireObj.dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+    wireObj.accuracy_arcsec = cst_encode_f_64(apiObj.accuracyArcsec);
+    wireObj.max_attempts = cst_encode_u_32(apiObj.maxAttempts);
+    wireObj.exposure_secs = cst_encode_f_64(apiObj.exposureSecs);
+    wireObj.filter = cst_encode_opt_String(apiObj.filter);
+    wireObj.sync_mount = cst_encode_bool(apiObj.syncMount);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_centering_step(
+    ApiCenteringStep apiObj,
+    wire_cst_api_centering_step wireObj,
+  ) {
+    if (apiObj is ApiCenteringStep_Capturing) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      wireObj.tag = 0;
+      wireObj.kind.Capturing.attempt = pre_attempt;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Solved) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      var pre_ra_hours = cst_encode_f_64(apiObj.raHours);
+      var pre_dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+      var pre_separation_arcsec = cst_encode_f_64(apiObj.separationArcsec);
+      wireObj.tag = 1;
+      wireObj.kind.Solved.attempt = pre_attempt;
+      wireObj.kind.Solved.ra_hours = pre_ra_hours;
+      wireObj.kind.Solved.dec_degrees = pre_dec_degrees;
+      wireObj.kind.Solved.separation_arcsec = pre_separation_arcsec;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Correcting) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      wireObj.tag = 2;
+      wireObj.kind.Correcting.attempt = pre_attempt;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Finished) {
+      var pre_centered = cst_encode_bool(apiObj.centered);
+      var pre_cancelled = cst_encode_bool(apiObj.cancelled);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 3;
+      wireObj.kind.Finished.centered = pre_centered;
+      wireObj.kind.Finished.cancelled = pre_cancelled;
+      wireObj.kind.Finished.message = pre_message;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_defect_map_status(
     ApiDefectMapStatus apiObj,
     wire_cst_api_defect_map_status wireObj,
@@ -3978,6 +4094,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_api_acquisition_settings> wireObj,
   ) {
     cst_api_fill_to_wire_api_acquisition_settings(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_api_centering_request(
+    ApiCenteringRequest apiObj,
+    ffi.Pointer<wire_cst_api_centering_request> wireObj,
+  ) {
+    cst_api_fill_to_wire_api_centering_request(apiObj, wireObj.ref);
   }
 
   @protected
@@ -7719,6 +7843,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_api_centering_step_Dco(
+    RustStreamSink<ApiCenteringStep> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_skotiq_event_Dco(
     RustStreamSink<SkotiqEvent> self,
     SseSerializer serializer,
@@ -7730,6 +7860,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_acquisition_settings(
     ApiAcquisitionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_centering_request(
+    ApiCenteringRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_centering_step(
+    ApiCenteringStep self,
     SseSerializer serializer,
   );
 
@@ -7889,6 +8031,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_api_acquisition_settings(
     ApiAcquisitionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_api_centering_request(
+    ApiCenteringRequest self,
     SseSerializer serializer,
   );
 
@@ -9962,6 +10110,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__imaging__api_cancel_autofocusPtr
           .asFunction<void Function(int)>();
 
+  WireSyncRust2DartDco wire__crate__api__centering__api_cancel_centering() {
+    return _wire__crate__api__centering__api_cancel_centering();
+  }
+
+  late final _wire__crate__api__centering__api_cancel_centeringPtr =
+      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
+        'frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering',
+      );
+  late final _wire__crate__api__centering__api_cancel_centering =
+      _wire__crate__api__centering__api_cancel_centeringPtr
+          .asFunction<WireSyncRust2DartDco Function()>();
+
   void wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(
     int port_,
   ) {
@@ -9977,6 +10137,40 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__imaging__api_cancel_focuser_backlash_calibration =
       _wire__crate__api__imaging__api_cancel_focuser_backlash_calibrationPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__centering__api_center_on_target(
+    int port_,
+    ffi.Pointer<wire_cst_api_centering_request> request,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> sink,
+  ) {
+    return _wire__crate__api__centering__api_center_on_target(
+      port_,
+      request,
+      sink,
+    );
+  }
+
+  late final _wire__crate__api__centering__api_center_on_targetPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_api_centering_request>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target',
+      );
+  late final _wire__crate__api__centering__api_center_on_target =
+      _wire__crate__api__centering__api_center_on_targetPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_api_centering_request>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
 
   void wire__crate__api__imaging__api_clear_device_image(
     int port_,
@@ -16962,6 +17156,21 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_api_acquisition_settings> Function()
           >();
 
+  ffi.Pointer<wire_cst_api_centering_request>
+  cst_new_box_autoadd_api_centering_request() {
+    return _cst_new_box_autoadd_api_centering_request();
+  }
+
+  late final _cst_new_box_autoadd_api_centering_requestPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_api_centering_request> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request');
+  late final _cst_new_box_autoadd_api_centering_request =
+      _cst_new_box_autoadd_api_centering_requestPtr
+          .asFunction<ffi.Pointer<wire_cst_api_centering_request> Function()>();
+
   ffi.Pointer<wire_cst_api_defect_map_status>
   cst_new_box_autoadd_api_defect_map_status() {
     return _cst_new_box_autoadd_api_defect_map_status();
@@ -18412,6 +18621,34 @@ final class wire_cst_list_prim_u_16_loose extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
+}
+
+final class wire_cst_api_centering_request extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mount_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_wheel_id;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  @ffi.Double()
+  external double accuracy_arcsec;
+
+  @ffi.Uint32()
+  external int max_attempts;
+
+  @ffi.Double()
+  external double exposure_secs;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
+
+  @ffi.Bool()
+  external bool sync_mount;
 }
 
 final class wire_cst_list_String extends ffi.Struct {
@@ -21580,6 +21817,57 @@ final class wire_cst_list_tracked_guide_star extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
+}
+
+final class wire_cst_ApiCenteringStep_Capturing extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+}
+
+final class wire_cst_ApiCenteringStep_Solved extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  @ffi.Double()
+  external double separation_arcsec;
+}
+
+final class wire_cst_ApiCenteringStep_Correcting extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+}
+
+final class wire_cst_ApiCenteringStep_Finished extends ffi.Struct {
+  @ffi.Bool()
+  external bool centered;
+
+  @ffi.Bool()
+  external bool cancelled;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class ApiCenteringStepKind extends ffi.Union {
+  external wire_cst_ApiCenteringStep_Capturing Capturing;
+
+  external wire_cst_ApiCenteringStep_Solved Solved;
+
+  external wire_cst_ApiCenteringStep_Correcting Correcting;
+
+  external wire_cst_ApiCenteringStep_Finished Finished;
+}
+
+final class wire_cst_api_centering_step extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external ApiCenteringStepKind kind;
 }
 
 final class wire_cst_api_depth_floor_suggestion extends ffi.Struct {

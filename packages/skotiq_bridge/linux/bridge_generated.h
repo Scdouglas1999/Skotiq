@@ -104,6 +104,19 @@ typedef struct wire_cst_list_prim_u_16_loose {
   int32_t len;
 } wire_cst_list_prim_u_16_loose;
 
+typedef struct wire_cst_api_centering_request {
+  struct wire_cst_list_prim_u_8_strict *mount_id;
+  struct wire_cst_list_prim_u_8_strict *camera_id;
+  struct wire_cst_list_prim_u_8_strict *filter_wheel_id;
+  double ra_hours;
+  double dec_degrees;
+  double accuracy_arcsec;
+  uint32_t max_attempts;
+  double exposure_secs;
+  struct wire_cst_list_prim_u_8_strict *filter;
+  bool sync_mount;
+} wire_cst_api_centering_request;
+
 typedef struct wire_cst_list_String {
   struct wire_cst_list_prim_u_8_strict **ptr;
   int32_t len;
@@ -1877,6 +1890,39 @@ typedef struct wire_cst_list_tracked_guide_star {
   int32_t len;
 } wire_cst_list_tracked_guide_star;
 
+typedef struct wire_cst_ApiCenteringStep_Capturing {
+  uint32_t attempt;
+} wire_cst_ApiCenteringStep_Capturing;
+
+typedef struct wire_cst_ApiCenteringStep_Solved {
+  uint32_t attempt;
+  double ra_hours;
+  double dec_degrees;
+  double separation_arcsec;
+} wire_cst_ApiCenteringStep_Solved;
+
+typedef struct wire_cst_ApiCenteringStep_Correcting {
+  uint32_t attempt;
+} wire_cst_ApiCenteringStep_Correcting;
+
+typedef struct wire_cst_ApiCenteringStep_Finished {
+  bool centered;
+  bool cancelled;
+  struct wire_cst_list_prim_u_8_strict *message;
+} wire_cst_ApiCenteringStep_Finished;
+
+typedef union ApiCenteringStepKind {
+  struct wire_cst_ApiCenteringStep_Capturing Capturing;
+  struct wire_cst_ApiCenteringStep_Solved Solved;
+  struct wire_cst_ApiCenteringStep_Correcting Correcting;
+  struct wire_cst_ApiCenteringStep_Finished Finished;
+} ApiCenteringStepKind;
+
+typedef struct wire_cst_api_centering_step {
+  int32_t tag;
+  union ApiCenteringStepKind kind;
+} wire_cst_api_centering_step;
+
 typedef struct wire_cst_api_depth_floor_suggestion {
   double floor_adu;
   double dark_noise_adu;
@@ -2787,7 +2833,13 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_autofocus(int64_t port_);
 
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering(void);
+
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target(int64_t port_,
+                                                                            struct wire_cst_api_centering_request *request,
+                                                                            struct wire_cst_list_prim_u_8_strict *sink);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_clear_device_image(int64_t port_,
                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
@@ -3703,6 +3755,8 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_d
 
 struct wire_cst_api_acquisition_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings(void);
 
+struct wire_cst_api_centering_request *frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request(void);
+
 struct wire_cst_api_defect_map_status *frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status(void);
 
 struct wire_cst_api_depth_forecast *frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_forecast(void);
@@ -3899,6 +3953,7 @@ struct wire_cst_list_tracking_rate *frbgen_skotiq_bridge_cst_new_list_tracking_r
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_forecast);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_goal_definition);
@@ -3996,6 +4051,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracked_guide_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracking_rate);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_disconnect_device);

@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2059181615;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1964219699;
 
 // Section: executor
 
@@ -706,6 +706,24 @@ fn wire__crate__api__imaging__api_cancel_autofocus_impl(
         },
     )
 }
+fn wire__crate__api__centering__api_cancel_centering_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_cancel_centering",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::centering::api_cancel_centering();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -721,6 +739,39 @@ fn wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(
                     (move || async move {
                         let output_ok =
                             crate::api::imaging::api_cancel_focuser_backlash_calibration().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__centering__api_center_on_target_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    request: impl CstDecode<crate::api::centering::ApiCenteringRequest>,
+    sink: impl CstDecode<
+        StreamSink<
+            crate::api::centering::ApiCenteringStep,
+            flutter_rust_bridge::for_generated::DcoCodec,
+        >,
+    >,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_center_on_target",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_request = request.cst_decode();
+            let api_sink = sink.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::centering::api_center_on_target(api_request, api_sink)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -7642,6 +7693,19 @@ impl SseDecode for std::collections::HashMap<String, u32> {
 }
 
 impl SseDecode
+    for StreamSink<
+        crate::api::centering::ApiCenteringStep,
+        flutter_rust_bridge::for_generated::DcoCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -7680,6 +7744,80 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
             bin_y: var_binY,
             ccd_temp_c: var_ccdTempC,
         };
+    }
+}
+
+impl SseDecode for crate::api::centering::ApiCenteringRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_mountId = <String>::sse_decode(deserializer);
+        let mut var_cameraId = <String>::sse_decode(deserializer);
+        let mut var_filterWheelId = <Option<String>>::sse_decode(deserializer);
+        let mut var_raHours = <f64>::sse_decode(deserializer);
+        let mut var_decDegrees = <f64>::sse_decode(deserializer);
+        let mut var_accuracyArcsec = <f64>::sse_decode(deserializer);
+        let mut var_maxAttempts = <u32>::sse_decode(deserializer);
+        let mut var_exposureSecs = <f64>::sse_decode(deserializer);
+        let mut var_filter = <Option<String>>::sse_decode(deserializer);
+        let mut var_syncMount = <bool>::sse_decode(deserializer);
+        return crate::api::centering::ApiCenteringRequest {
+            mount_id: var_mountId,
+            camera_id: var_cameraId,
+            filter_wheel_id: var_filterWheelId,
+            ra_hours: var_raHours,
+            dec_degrees: var_decDegrees,
+            accuracy_arcsec: var_accuracyArcsec,
+            max_attempts: var_maxAttempts,
+            exposure_secs: var_exposureSecs,
+            filter: var_filter,
+            sync_mount: var_syncMount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::centering::ApiCenteringStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Capturing {
+                    attempt: var_attempt,
+                };
+            }
+            1 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                let mut var_raHours = <f64>::sse_decode(deserializer);
+                let mut var_decDegrees = <f64>::sse_decode(deserializer);
+                let mut var_separationArcsec = <f64>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Solved {
+                    attempt: var_attempt,
+                    ra_hours: var_raHours,
+                    dec_degrees: var_decDegrees,
+                    separation_arcsec: var_separationArcsec,
+                };
+            }
+            2 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Correcting {
+                    attempt: var_attempt,
+                };
+            }
+            3 => {
+                let mut var_centered = <bool>::sse_decode(deserializer);
+                let mut var_cancelled = <bool>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Finished {
+                    centered: var_centered,
+                    cancelled: var_cancelled,
+                    message: var_message,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -13255,6 +13393,86 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiAcquisitionSett
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::centering::ApiCenteringRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.mount_id.into_into_dart().into_dart(),
+            self.camera_id.into_into_dart().into_dart(),
+            self.filter_wheel_id.into_into_dart().into_dart(),
+            self.ra_hours.into_into_dart().into_dart(),
+            self.dec_degrees.into_into_dart().into_dart(),
+            self.accuracy_arcsec.into_into_dart().into_dart(),
+            self.max_attempts.into_into_dart().into_dart(),
+            self.exposure_secs.into_into_dart().into_dart(),
+            self.filter.into_into_dart().into_dart(),
+            self.sync_mount.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::centering::ApiCenteringRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::centering::ApiCenteringRequest>
+    for crate::api::centering::ApiCenteringRequest
+{
+    fn into_into_dart(self) -> crate::api::centering::ApiCenteringRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::centering::ApiCenteringStep {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::centering::ApiCenteringStep::Capturing { attempt } => {
+                [0.into_dart(), attempt.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::centering::ApiCenteringStep::Solved {
+                attempt,
+                ra_hours,
+                dec_degrees,
+                separation_arcsec,
+            } => [
+                1.into_dart(),
+                attempt.into_into_dart().into_dart(),
+                ra_hours.into_into_dart().into_dart(),
+                dec_degrees.into_into_dart().into_dart(),
+                separation_arcsec.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::centering::ApiCenteringStep::Correcting { attempt } => {
+                [2.into_dart(), attempt.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::centering::ApiCenteringStep::Finished {
+                centered,
+                cancelled,
+                message,
+            } => [
+                3.into_dart(),
+                centered.into_into_dart().into_dart(),
+                cancelled.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::centering::ApiCenteringStep
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::centering::ApiCenteringStep>
+    for crate::api::centering::ApiCenteringStep
+{
+    fn into_into_dart(self) -> crate::api::centering::ApiCenteringStep {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::defect_map::ApiDefectMapStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -18142,6 +18360,18 @@ impl SseEncode for std::collections::HashMap<String, u32> {
 }
 
 impl SseEncode
+    for StreamSink<
+        crate::api::centering::ApiCenteringStep,
+        flutter_rust_bridge::for_generated::DcoCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -18168,6 +18398,63 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
         <i32>::sse_encode(self.bin_x, serializer);
         <i32>::sse_encode(self.bin_y, serializer);
         <Option<f64>>::sse_encode(self.ccd_temp_c, serializer);
+    }
+}
+
+impl SseEncode for crate::api::centering::ApiCenteringRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.mount_id, serializer);
+        <String>::sse_encode(self.camera_id, serializer);
+        <Option<String>>::sse_encode(self.filter_wheel_id, serializer);
+        <f64>::sse_encode(self.ra_hours, serializer);
+        <f64>::sse_encode(self.dec_degrees, serializer);
+        <f64>::sse_encode(self.accuracy_arcsec, serializer);
+        <u32>::sse_encode(self.max_attempts, serializer);
+        <f64>::sse_encode(self.exposure_secs, serializer);
+        <Option<String>>::sse_encode(self.filter, serializer);
+        <bool>::sse_encode(self.sync_mount, serializer);
+    }
+}
+
+impl SseEncode for crate::api::centering::ApiCenteringStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::centering::ApiCenteringStep::Capturing { attempt } => {
+                <i32>::sse_encode(0, serializer);
+                <u32>::sse_encode(attempt, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Solved {
+                attempt,
+                ra_hours,
+                dec_degrees,
+                separation_arcsec,
+            } => {
+                <i32>::sse_encode(1, serializer);
+                <u32>::sse_encode(attempt, serializer);
+                <f64>::sse_encode(ra_hours, serializer);
+                <f64>::sse_encode(dec_degrees, serializer);
+                <f64>::sse_encode(separation_arcsec, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Correcting { attempt } => {
+                <i32>::sse_encode(2, serializer);
+                <u32>::sse_encode(attempt, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Finished {
+                centered,
+                cancelled,
+                message,
+            } => {
+                <i32>::sse_encode(3, serializer);
+                <bool>::sse_encode(centered, serializer);
+                <bool>::sse_encode(cancelled, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -22443,6 +22730,25 @@ mod io {
     impl
         CstDecode<
             StreamSink<
+                crate::api::centering::ApiCenteringStep,
+                flutter_rust_bridge::for_generated::DcoCodec,
+            >,
+        > for *mut wire_cst_list_prim_u_8_strict
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(
+            self,
+        ) -> StreamSink<
+            crate::api::centering::ApiCenteringStep,
+            flutter_rust_bridge::for_generated::DcoCodec,
+        > {
+            let raw: String = self.cst_decode();
+            StreamSink::deserialize(raw)
+        }
+    }
+    impl
+        CstDecode<
+            StreamSink<
                 crate::event::bus::SkotiqEvent,
                 flutter_rust_bridge::for_generated::DcoCodec,
             >,
@@ -22478,6 +22784,60 @@ mod io {
                 bin_x: self.bin_x.cst_decode(),
                 bin_y: self.bin_y.cst_decode(),
                 ccd_temp_c: self.ccd_temp_c.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::centering::ApiCenteringRequest> for wire_cst_api_centering_request {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringRequest {
+            crate::api::centering::ApiCenteringRequest {
+                mount_id: self.mount_id.cst_decode(),
+                camera_id: self.camera_id.cst_decode(),
+                filter_wheel_id: self.filter_wheel_id.cst_decode(),
+                ra_hours: self.ra_hours.cst_decode(),
+                dec_degrees: self.dec_degrees.cst_decode(),
+                accuracy_arcsec: self.accuracy_arcsec.cst_decode(),
+                max_attempts: self.max_attempts.cst_decode(),
+                exposure_secs: self.exposure_secs.cst_decode(),
+                filter: self.filter.cst_decode(),
+                sync_mount: self.sync_mount.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::centering::ApiCenteringStep> for wire_cst_api_centering_step {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringStep {
+            match self.tag {
+                0 => {
+                    let ans = unsafe { self.kind.Capturing };
+                    crate::api::centering::ApiCenteringStep::Capturing {
+                        attempt: ans.attempt.cst_decode(),
+                    }
+                }
+                1 => {
+                    let ans = unsafe { self.kind.Solved };
+                    crate::api::centering::ApiCenteringStep::Solved {
+                        attempt: ans.attempt.cst_decode(),
+                        ra_hours: ans.ra_hours.cst_decode(),
+                        dec_degrees: ans.dec_degrees.cst_decode(),
+                        separation_arcsec: ans.separation_arcsec.cst_decode(),
+                    }
+                }
+                2 => {
+                    let ans = unsafe { self.kind.Correcting };
+                    crate::api::centering::ApiCenteringStep::Correcting {
+                        attempt: ans.attempt.cst_decode(),
+                    }
+                }
+                3 => {
+                    let ans = unsafe { self.kind.Finished };
+                    crate::api::centering::ApiCenteringStep::Finished {
+                        centered: ans.centered.cst_decode(),
+                        cancelled: ans.cancelled.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -22908,6 +23268,13 @@ mod io {
         fn cst_decode(self) -> crate::api::depthlock::ApiAcquisitionSettings {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::api::depthlock::ApiAcquisitionSettings>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::centering::ApiCenteringRequest> for *mut wire_cst_api_centering_request {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringRequest {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::centering::ApiCenteringRequest>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::defect_map::ApiDefectMapStatus> for *mut wire_cst_api_defect_map_status {
@@ -26389,6 +26756,40 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_centering_request {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                mount_id: core::ptr::null_mut(),
+                camera_id: core::ptr::null_mut(),
+                filter_wheel_id: core::ptr::null_mut(),
+                ra_hours: Default::default(),
+                dec_degrees: Default::default(),
+                accuracy_arcsec: Default::default(),
+                max_attempts: Default::default(),
+                exposure_secs: Default::default(),
+                filter: core::ptr::null_mut(),
+                sync_mount: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_centering_request {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_centering_step {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: ApiCenteringStepKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_api_centering_step {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_defect_map_status {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -28926,10 +29327,25 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__centering__api_cancel_centering_impl()
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(
         port_: i64,
     ) {
         wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target(
+        port_: i64,
+        request: *mut wire_cst_api_centering_request,
+        sink: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__centering__api_center_on_target_impl(port_, request, sink)
     }
 
     #[unsafe(no_mangle)]
@@ -31450,6 +31866,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request(
+    ) -> *mut wire_cst_api_centering_request {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_api_centering_request::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status(
     ) -> *mut wire_cst_api_defect_map_status {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -32387,6 +32811,60 @@ mod io {
         bin_x: i32,
         bin_y: i32,
         ccd_temp_c: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_centering_request {
+        mount_id: *mut wire_cst_list_prim_u_8_strict,
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        filter_wheel_id: *mut wire_cst_list_prim_u_8_strict,
+        ra_hours: f64,
+        dec_degrees: f64,
+        accuracy_arcsec: f64,
+        max_attempts: u32,
+        exposure_secs: f64,
+        filter: *mut wire_cst_list_prim_u_8_strict,
+        sync_mount: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_centering_step {
+        tag: i32,
+        kind: ApiCenteringStepKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union ApiCenteringStepKind {
+        Capturing: wire_cst_ApiCenteringStep_Capturing,
+        Solved: wire_cst_ApiCenteringStep_Solved,
+        Correcting: wire_cst_ApiCenteringStep_Correcting,
+        Finished: wire_cst_ApiCenteringStep_Finished,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Capturing {
+        attempt: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Solved {
+        attempt: u32,
+        ra_hours: f64,
+        dec_degrees: f64,
+        separation_arcsec: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Correcting {
+        attempt: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Finished {
+        centered: bool,
+        cancelled: bool,
+        message: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

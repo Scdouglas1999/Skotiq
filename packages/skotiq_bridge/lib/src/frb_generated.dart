@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/centering.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/defect_map.dart';
@@ -121,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -2059181615;
+  int get rustContentHash => 1964219699;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -259,7 +260,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiImagingApiCancelAutofocus();
 
+  void crateApiCenteringApiCancelCentering();
+
   Future<void> crateApiImagingApiCancelFocuserBacklashCalibration();
+
+  Stream<ApiCenteringStep> crateApiCenteringApiCenterOnTarget({
+    required ApiCenteringRequest request,
+  });
 
   Future<void> crateApiImagingApiClearDeviceImage({required String deviceId});
 
@@ -2225,6 +2232,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_cancel_autofocus", argNames: []);
 
   @override
+  void crateApiCenteringApiCancelCentering() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          return wire.wire__crate__api__centering__api_cancel_centering();
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCenteringApiCancelCenteringConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCenteringApiCancelCenteringConstMeta =>
+      const TaskConstMeta(debugName: "api_cancel_centering", argNames: []);
+
+  @override
   Future<void> crateApiImagingApiCancelFocuserBacklashCalibration() {
     return handler.executeNormal(
       NormalTask(
@@ -2250,6 +2278,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_cancel_focuser_backlash_calibration",
         argNames: [],
+      );
+
+  @override
+  Stream<ApiCenteringStep> crateApiCenteringApiCenterOnTarget({
+    required ApiCenteringRequest request,
+  }) {
+    final sink = RustStreamSink<ApiCenteringStep>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            var arg0 = cst_encode_box_autoadd_api_centering_request(request);
+            var arg1 = cst_encode_StreamSink_api_centering_step_Dco(sink);
+            return wire.wire__crate__api__centering__api_center_on_target(
+              port_,
+              arg0,
+              arg1,
+            );
+          },
+          codec: DcoCodec(
+            decodeSuccessData: dco_decode_unit,
+            decodeErrorData: dco_decode_skotiq_error,
+          ),
+          constMeta: kCrateApiCenteringApiCenterOnTargetConstMeta,
+          argValues: [request, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiCenteringApiCenterOnTargetConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_center_on_target",
+        argNames: ["request", "sink"],
       );
 
   @override
@@ -10704,6 +10768,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<ApiCenteringStep> dco_decode_StreamSink_api_centering_step_Dco(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   RustStreamSink<SkotiqEvent> dco_decode_StreamSink_skotiq_event_Dco(
     dynamic raw,
   ) {
@@ -10733,6 +10805,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binY: dco_decode_i_32(arr[6]),
       ccdTempC: dco_decode_opt_box_autoadd_f_64(arr[7]),
     );
+  }
+
+  @protected
+  ApiCenteringRequest dco_decode_api_centering_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ApiCenteringRequest(
+      mountId: dco_decode_String(arr[0]),
+      cameraId: dco_decode_String(arr[1]),
+      filterWheelId: dco_decode_opt_String(arr[2]),
+      raHours: dco_decode_f_64(arr[3]),
+      decDegrees: dco_decode_f_64(arr[4]),
+      accuracyArcsec: dco_decode_f_64(arr[5]),
+      maxAttempts: dco_decode_u_32(arr[6]),
+      exposureSecs: dco_decode_f_64(arr[7]),
+      filter: dco_decode_opt_String(arr[8]),
+      syncMount: dco_decode_bool(arr[9]),
+    );
+  }
+
+  @protected
+  ApiCenteringStep dco_decode_api_centering_step(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return ApiCenteringStep_Capturing(attempt: dco_decode_u_32(raw[1]));
+      case 1:
+        return ApiCenteringStep_Solved(
+          attempt: dco_decode_u_32(raw[1]),
+          raHours: dco_decode_f_64(raw[2]),
+          decDegrees: dco_decode_f_64(raw[3]),
+          separationArcsec: dco_decode_f_64(raw[4]),
+        );
+      case 2:
+        return ApiCenteringStep_Correcting(attempt: dco_decode_u_32(raw[1]));
+      case 3:
+        return ApiCenteringStep_Finished(
+          centered: dco_decode_bool(raw[1]),
+          cancelled: dco_decode_bool(raw[2]),
+          message: dco_decode_String(raw[3]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -11236,6 +11354,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_api_acquisition_settings(raw);
+  }
+
+  @protected
+  ApiCenteringRequest dco_decode_box_autoadd_api_centering_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_centering_request(raw);
   }
 
   @protected
@@ -14810,6 +14936,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<ApiCenteringStep> sse_decode_StreamSink_api_centering_step_Dco(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   RustStreamSink<SkotiqEvent> sse_decode_StreamSink_skotiq_event_Dco(
     SseDeserializer deserializer,
   ) {
@@ -14847,6 +14981,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binY: var_binY,
       ccdTempC: var_ccdTempC,
     );
+  }
+
+  @protected
+  ApiCenteringRequest sse_decode_api_centering_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mountId = sse_decode_String(deserializer);
+    var var_cameraId = sse_decode_String(deserializer);
+    var var_filterWheelId = sse_decode_opt_String(deserializer);
+    var var_raHours = sse_decode_f_64(deserializer);
+    var var_decDegrees = sse_decode_f_64(deserializer);
+    var var_accuracyArcsec = sse_decode_f_64(deserializer);
+    var var_maxAttempts = sse_decode_u_32(deserializer);
+    var var_exposureSecs = sse_decode_f_64(deserializer);
+    var var_filter = sse_decode_opt_String(deserializer);
+    var var_syncMount = sse_decode_bool(deserializer);
+    return ApiCenteringRequest(
+      mountId: var_mountId,
+      cameraId: var_cameraId,
+      filterWheelId: var_filterWheelId,
+      raHours: var_raHours,
+      decDegrees: var_decDegrees,
+      accuracyArcsec: var_accuracyArcsec,
+      maxAttempts: var_maxAttempts,
+      exposureSecs: var_exposureSecs,
+      filter: var_filter,
+      syncMount: var_syncMount,
+    );
+  }
+
+  @protected
+  ApiCenteringStep sse_decode_api_centering_step(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_attempt = sse_decode_u_32(deserializer);
+        return ApiCenteringStep_Capturing(attempt: var_attempt);
+      case 1:
+        var var_attempt = sse_decode_u_32(deserializer);
+        var var_raHours = sse_decode_f_64(deserializer);
+        var var_decDegrees = sse_decode_f_64(deserializer);
+        var var_separationArcsec = sse_decode_f_64(deserializer);
+        return ApiCenteringStep_Solved(
+          attempt: var_attempt,
+          raHours: var_raHours,
+          decDegrees: var_decDegrees,
+          separationArcsec: var_separationArcsec,
+        );
+      case 2:
+        var var_attempt = sse_decode_u_32(deserializer);
+        return ApiCenteringStep_Correcting(attempt: var_attempt);
+      case 3:
+        var var_centered = sse_decode_bool(deserializer);
+        var var_cancelled = sse_decode_bool(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return ApiCenteringStep_Finished(
+          centered: var_centered,
+          cancelled: var_cancelled,
+          message: var_message,
+        );
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -15530,6 +15730,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_api_acquisition_settings(deserializer));
+  }
+
+  @protected
+  ApiCenteringRequest sse_decode_box_autoadd_api_centering_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_centering_request(deserializer));
   }
 
   @protected
@@ -20670,6 +20878,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_api_centering_step_Dco(
+    RustStreamSink<ApiCenteringStep> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_centering_step,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_StreamSink_skotiq_event_Dco(
     RustStreamSink<SkotiqEvent> self,
     SseSerializer serializer,
@@ -20706,6 +20931,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.ccdTempC, serializer);
+  }
+
+  @protected
+  void sse_encode_api_centering_request(
+    ApiCenteringRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mountId, serializer);
+    sse_encode_String(self.cameraId, serializer);
+    sse_encode_opt_String(self.filterWheelId, serializer);
+    sse_encode_f_64(self.raHours, serializer);
+    sse_encode_f_64(self.decDegrees, serializer);
+    sse_encode_f_64(self.accuracyArcsec, serializer);
+    sse_encode_u_32(self.maxAttempts, serializer);
+    sse_encode_f_64(self.exposureSecs, serializer);
+    sse_encode_opt_String(self.filter, serializer);
+    sse_encode_bool(self.syncMount, serializer);
+  }
+
+  @protected
+  void sse_encode_api_centering_step(
+    ApiCenteringStep self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case ApiCenteringStep_Capturing(attempt: final attempt):
+        sse_encode_i_32(0, serializer);
+        sse_encode_u_32(attempt, serializer);
+      case ApiCenteringStep_Solved(
+        attempt: final attempt,
+        raHours: final raHours,
+        decDegrees: final decDegrees,
+        separationArcsec: final separationArcsec,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(attempt, serializer);
+        sse_encode_f_64(raHours, serializer);
+        sse_encode_f_64(decDegrees, serializer);
+        sse_encode_f_64(separationArcsec, serializer);
+      case ApiCenteringStep_Correcting(attempt: final attempt):
+        sse_encode_i_32(2, serializer);
+        sse_encode_u_32(attempt, serializer);
+      case ApiCenteringStep_Finished(
+        centered: final centered,
+        cancelled: final cancelled,
+        message: final message,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_bool(centered, serializer);
+        sse_encode_bool(cancelled, serializer);
+        sse_encode_String(message, serializer);
+    }
   }
 
   @protected
@@ -21153,6 +21432,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_api_acquisition_settings(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_api_centering_request(
+    ApiCenteringRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_centering_request(self, serializer);
   }
 
   @protected
