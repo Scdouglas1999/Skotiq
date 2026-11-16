@@ -545,18 +545,95 @@ where
         .collect()
 }
 
-async fn scan_native_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
-    scan_native_for_type_with(device_type, skotiq_native::SerialProbe::Probe).await
+/// Who started a discovery, which decides what it may touch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Asker {
+    /// The user: a Scan or Rescan, a profile connect, the identity check of a
+    /// device being connected.
+    User,
+    /// Nobody: a device-change event from the operating system.
+    Background,
 }
 
+/// What a native discovery `asker` started may touch while `connected` are
+/// connected.
+///
+/// No discovery opens a serial port a connected device holds: a probe writes
+/// another protocol's bytes into it. A mount connected through ASCOM, Alpaca
+/// or INDI does not say which port it holds, so while one is connected no
+/// port is opened. A discovery nobody asked for opens no serial port at all,
+/// since whatever answers there gets mount commands, and does not ask the SDK
+/// of a vendor with a connected device, since an enumerate while that device
+/// exposes can fail the frame.
+pub(crate) fn native_scope(
+    asker: Asker,
+    connected: &[DeviceInfo],
+) -> skotiq_native::DiscoveryScope {
+    use skotiq_native::SerialPorts;
+    let native: Vec<&DeviceInfo> = connected
+        .iter()
+        .filter(|d| d.driver_type == DriverType::Native)
+        .collect();
+    let mount_port_unknown = connected.iter().any(|d| {
+        d.device_type == DeviceType::Mount
+            && !matches!(d.driver_type, DriverType::Native | DriverType::Simulator)
+    });
+    let serial = if asker == Asker::Background || mount_port_unknown {
+        SerialPorts::None
+    } else {
+        SerialPorts::AllBut(
+            native
+                .iter()
+                .filter_map(|d| skotiq_native::serial_port_of_id(&d.id))
+                .collect(),
+        )
+    };
+    let mut vendors_left_alone = Vec::new();
+    if asker == Asker::Background {
+        for device in native {
+            if let Some((family, _)) = skotiq_native::catalog::family_of_id(&device.id) {
+                let vendor = (family.vendor)();
+                if !vendors_left_alone.contains(&vendor) {
+                    vendors_left_alone.push(vendor);
+                }
+            }
+        }
+    }
+    skotiq_native::DiscoveryScope {
+        serial,
+        vendors_left_alone,
+    }
+}
+
+async fn scan_native_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
+    let connected = get_device_manager().get_connected_device_infos().await;
+    scan_native_for_type_with(device_type, &native_scope(Asker::User, &connected)).await
+}
+
+#[cfg(not(test))]
+async fn native_devices(
+    scope: &skotiq_native::DiscoveryScope,
+) -> Result<Vec<skotiq_native::NativeDeviceInfo>, skotiq_device::DriverError> {
+    skotiq_native::discover_native_devices(scope).await
+}
+
+/// Tests never enumerate: a vendor SDK or serial port on the machine that
+/// runs them is real hardware. Each scope asked for is recorded instead.
+#[cfg(test)]
+async fn native_devices(
+    scope: &skotiq_native::DiscoveryScope,
+) -> Result<Vec<skotiq_native::NativeDeviceInfo>, skotiq_device::DriverError> {
+    tests::NATIVE_SCOPES_ASKED.with(|asked| asked.borrow_mut().push(scope.clone()));
+    Ok(Vec::new())
+}
+
+/// The native devices of `device_type` found within `scope`.
 pub(crate) async fn scan_native_for_type_with(
     device_type: DeviceType,
-    serial: skotiq_native::SerialProbe,
+    scope: &skotiq_native::DiscoveryScope,
 ) -> Result<Vec<DeviceInfo>, String> {
-    // The native crate has its own internal cache + serializing mutex (see
-    // native/src/discovery.rs), so calling discover_all_devices() repeatedly
-    // for different device types is cheap: only the first call within the
-    // inner TTL actually probes vendor SDKs.
+    // The native crate caches one enumeration per scope behind a serializing
+    // mutex, so asking once per device type enumerates once.
 
     // Guider is reported under DriverType::Native but it's the built-in
     // software guider + PHD2, not a vendor SDK.
@@ -606,7 +683,7 @@ pub(crate) async fn scan_native_for_type_with(
         return Ok(out);
     }
 
-    let native_devices = skotiq_native::discover_native_devices(serial)
+    let native_devices = native_devices(scope)
         .await
         .map_err(|e| format!("Native SDK discovery failed: {}", e))?;
 
@@ -859,7 +936,7 @@ pub(crate) async fn discover_devices(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     //! Tests for the per-(DeviceType, DriverType) discovery cache.
     //!
     //! These tests exercise the cache machinery directly. They deliberately
@@ -875,7 +952,73 @@ mod tests {
     //! `DriverType` combinations to avoid interfering with each other.
 
     use super::*;
+    use skotiq_device::Vendor;
+    use skotiq_native::SerialPorts;
     use std::sync::atomic::{AtomicU64, Ordering};
+
+    thread_local! {
+        /// The native scopes this thread's discoveries asked for.
+        pub(crate) static NATIVE_SCOPES_ASKED: std::cell::RefCell<Vec<skotiq_native::DiscoveryScope>> =
+            const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    fn connected(id: &str, device_type: DeviceType, driver_type: DriverType) -> DeviceInfo {
+        make_device(id, id, device_type, driver_type)
+    }
+
+    /// A discovery nobody asked for, while the ZWO camera exposes: no serial
+    /// port, no ZWO SDK. Other vendors are still asked.
+    #[test]
+    fn a_background_discovery_leaves_a_connected_vendor_and_every_serial_port_alone() {
+        let scope = native_scope(
+            Asker::Background,
+            &[
+                connected("native:zwo:1", DeviceType::Camera, DriverType::Native),
+                connected(
+                    "native:zwo_efw:0",
+                    DeviceType::FilterWheel,
+                    DriverType::Native,
+                ),
+            ],
+        );
+        assert_eq!(scope.serial, SerialPorts::None);
+        assert_eq!(scope.vendors_left_alone, vec![Vendor::Zwo]);
+
+        let idle = native_scope(Asker::Background, &[]);
+        assert_eq!(idle.serial, SerialPorts::None);
+        assert!(idle.vendors_left_alone.is_empty());
+    }
+
+    #[test]
+    fn a_user_scan_opens_every_serial_port_but_a_connected_mounts() {
+        let scope = native_scope(
+            Asker::User,
+            &[
+                connected(
+                    "native:ioptron:COM5:115200",
+                    DeviceType::Mount,
+                    DriverType::Native,
+                ),
+                connected("native:zwo:1", DeviceType::Camera, DriverType::Native),
+            ],
+        );
+        assert_eq!(scope.serial, SerialPorts::AllBut(vec!["COM5".to_string()]));
+        assert!(scope.vendors_left_alone.is_empty());
+    }
+
+    /// An ASCOM mount does not say which port it holds.
+    #[test]
+    fn a_user_scan_opens_no_serial_port_while_a_mount_of_unknown_port_is_connected() {
+        let scope = native_scope(
+            Asker::User,
+            &[connected(
+                "ascom:ASCOM.PegasusAstroNYX101.Telescope",
+                DeviceType::Mount,
+                DriverType::Ascom,
+            )],
+        );
+        assert_eq!(scope.serial, SerialPorts::None);
+    }
 
     /// Convenience wrapper matching how `scan_ascom_for_type` calls the filter:
     /// it lowercases the ProgID and display name before testing them.

@@ -1107,7 +1107,7 @@ Future<HttpServer> _startServer(
       return;
     }
 
-    if (request.uri.path == '/api/devices') {
+    if (request.uri.path == '/api/devices/discover') {
       final selectedDevicesBody = devicesBodies == null
           ? devicesBody
           : devicesBodies[devicesRequestCount.clamp(

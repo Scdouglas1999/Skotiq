@@ -1,6 +1,7 @@
-// A DSLR or mirrorless body keeps the ISO it is set to when it connects: the
-// profile's gain is not written over it, and a camera without an offset
-// control is not sent one. A gain camera still takes the profile's values.
+// Connecting a camera writes no gain or offset to it: each frame sets them,
+// at what the frame names or the profile's defaults (see
+// camera_frame_defaults_owner_test.dart). A DSLR or mirrorless body keeps
+// the ISO it is set to.
 
 import 'dart:async';
 
@@ -90,8 +91,8 @@ void main() {
         .connect(DeviceType.camera, _deviceId);
   }
 
-  test('a DSLR keeps its ISO and gets no offset at connect', () async {
-    await connect(
+  test('connect writes no gain or offset to any camera', () async {
+    for (final caps in <CameraCapabilities?>[
       const CameraCapabilities(
         maxWidth: 5472,
         maxHeight: 3648,
@@ -99,13 +100,6 @@ void main() {
         canSetGain: true,
         isoSpeeds: [100, 200, 400, 800, 1600],
       ),
-    );
-    verifyNever(() => backend.cameraSetGain(any(), any()));
-    verifyNever(() => backend.cameraSetOffset(any(), any()));
-  });
-
-  test('a gain camera takes the profile gain and offset at connect', () async {
-    await connect(
       const CameraCapabilities(
         maxWidth: 4656,
         maxHeight: 3520,
@@ -113,31 +107,11 @@ void main() {
         canSetGain: true,
         canSetOffset: true,
       ),
-    );
-    verify(() => backend.cameraSetGain(_deviceId, 100)).called(1);
-    verify(() => backend.cameraSetOffset(_deviceId, 50)).called(1);
-  });
-
-  test(
-    'failed capability reads preserve the camera gain or ISO and offset',
-    () async {
-      await connect(null);
+      null,
+    ]) {
+      await connect(caps);
       verifyNever(() => backend.cameraSetGain(any(), any()));
       verifyNever(() => backend.cameraSetOffset(any(), any()));
-    },
-  );
-
-  test('a fixed-gain camera is not sent profile gain or offset', () async {
-    await connect(
-      const CameraCapabilities(
-        maxWidth: 1920,
-        maxHeight: 1080,
-        bitDepth: 16,
-        canSetGain: false,
-        canSetOffset: false,
-      ),
-    );
-    verifyNever(() => backend.cameraSetGain(any(), any()));
-    verifyNever(() => backend.cameraSetOffset(any(), any()));
+    }
   });
 }

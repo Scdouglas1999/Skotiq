@@ -135,6 +135,33 @@ void main() {
     },
   );
 
+  test(
+    'the dark library tolerance is the one darks are held to at the set-point',
+    () async {
+      await db.settingsDao.setSetting(
+        StoreSettings.darkTemperatureTolerance.key,
+        '3.0',
+      );
+      build();
+      await settle();
+      expect(
+        backend.runConfigs.last['calibration_temperature_tolerance_c'],
+        3.0,
+      );
+
+      await db.settingsDao.setSetting(
+        StoreSettings.darkTemperatureTolerance.key,
+        '1.5',
+      );
+      await settle();
+      expect(
+        backend.runConfigs.last['calibration_temperature_tolerance_c'],
+        1.5,
+        reason: 'a change during a run reaches the executor',
+      );
+    },
+  );
+
   test('a catalog entry with a run-config path reaches its field', () async {
     final settings = const AppSettingsState().copyWith(
       cameraRetries: 7,

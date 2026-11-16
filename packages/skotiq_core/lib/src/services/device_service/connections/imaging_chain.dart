@@ -5,62 +5,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     final notifier = _ref.read(cameraStateProvider.notifier);
     notifier.setConnected();
 
-    // A DSLR or mirrorless body keeps the ISO it is set to: the capture
-    // settings take it from the body (syncExposureFromProfileProvider), and a
-    // profile gain written over it would change the body behind the owner's
-    // back. A camera without an offset control is not sent one.
-    CameraCapabilities? capabilities;
-    try {
-      capabilities = await _backend.getCameraCapabilities(deviceId);
-    } catch (e) {
-      logSafely(
-        _ref,
-        (l) => l.warning(
-          'Camera capabilities unknown at connect; keeping the camera\'s '
-          'current gain or ISO and offset: $e',
-          source: 'DeviceService',
-        ),
-      );
-    }
-    final takesGain =
-        capabilities != null &&
-        capabilities.canSetGain &&
-        capabilities.isoSpeeds.isEmpty;
-    final takesOffset = capabilities?.canSetOffset ?? false;
+    // Gain, offset and read mode are not written here: each frame sets them
+    // (CameraFrameDefaultsOwner states the profile's to the device layer).
 
     // Apply active profile's cooling target temperature if available
     // and auto-start cooling if coolOnConnect is enabled
     try {
       final activeProfile = _ref.read(activeEquipmentProfileProvider);
-      if (activeProfile?.defaultGain != null && takesGain) {
-        try {
-          await _backend.cameraSetGain(deviceId, activeProfile!.defaultGain!);
-        } catch (e) {
-          logSafely(
-            _ref,
-            (l) => l.warning(
-              'Profile gain could not be applied on connect: $e',
-              source: 'DeviceService',
-            ),
-          );
-        }
-      }
-      if (activeProfile?.defaultOffset != null && takesOffset) {
-        try {
-          await _backend.cameraSetOffset(
-            deviceId,
-            activeProfile!.defaultOffset!,
-          );
-        } catch (e) {
-          logSafely(
-            _ref,
-            (l) => l.warning(
-              'Profile offset could not be applied on connect: $e',
-              source: 'DeviceService',
-            ),
-          );
-        }
-      }
       if (activeProfile?.defaultCoolingTemp != null) {
         notifier.setTargetTemp(activeProfile!.defaultCoolingTemp!);
 

@@ -132,7 +132,11 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> _fetchDevicesFromServer() async {
-    final response = await _get(DeviceDiscoveryApi.getDevices);
+    // A discovery is a scan of the host's hardware, run once per ask.
+    final response = await _post(
+      DeviceDiscoveryApi.discoverDevices,
+      maxAttempts: 1,
+    );
     final source = response.containsKey('devices')
         ? response['devices']
         : response['available'];

@@ -119,7 +119,7 @@ def main():
     print('== discovery (per type)')
     found = {}
     for t in DEVICE_TYPES:
-        e = rig.call('GET', '/api/devices?type=' + t, timeout=90)
+        e = rig.call('POST', '/api/devices/discover?deviceType=' + t, timeout=90)
         payload = e.get('json')
         devices = payload.get('devices', payload) if isinstance(payload, dict) else payload
         n = len(devices) if isinstance(devices, list) else '?'

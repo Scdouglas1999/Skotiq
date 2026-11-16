@@ -571,7 +571,7 @@ async fn test_unified_discovery() {
 /// Test that Sky-Watcher mount discovery doesn't crash
 #[tokio::test]
 async fn test_skywatcher_mount_discovery_no_crash() {
-    let result = skywatcher::discover_mounts().await;
+    let result = skywatcher::discover_mounts(Vec::new()).await;
     assert!(
         result.is_ok(),
         "Discovery should not error even without devices"
@@ -586,7 +586,7 @@ async fn test_skywatcher_mount_discovery_no_crash() {
 /// Test that iOptron mount discovery doesn't crash
 #[tokio::test]
 async fn test_ioptron_mount_discovery_no_crash() {
-    let result = ioptron::discover_mounts().await;
+    let result = ioptron::discover_mounts(Vec::new()).await;
     assert!(
         result.is_ok(),
         "Discovery should not error even without devices"
@@ -601,7 +601,7 @@ async fn test_ioptron_mount_discovery_no_crash() {
 /// Test that LX200 mount discovery doesn't crash
 #[tokio::test]
 async fn test_lx200_mount_discovery_no_crash() {
-    let result = lx200::discover_mounts().await;
+    let result = lx200::discover_mounts(Vec::new()).await;
     assert!(
         result.is_ok(),
         "Discovery should not error even without devices"
@@ -664,7 +664,7 @@ fn skywatcher_test_site() -> skotiq_device::SiteSource {
 #[tokio::test]
 #[ignore = "Requires Sky-Watcher mount connected"]
 async fn test_skywatcher_mount_connect_disconnect() {
-    let mounts = skywatcher::discover_mounts()
+    let mounts = skywatcher::discover_mounts(Vec::new())
         .await
         .expect("Discovery should work");
     if mounts.is_empty() {
@@ -719,7 +719,7 @@ async fn test_skywatcher_mount_connect_disconnect() {
 #[tokio::test]
 #[ignore = "Requires iOptron mount connected"]
 async fn test_ioptron_mount_connect_disconnect() {
-    let mounts = ioptron::discover_mounts()
+    let mounts = ioptron::discover_mounts(Vec::new())
         .await
         .expect("Discovery should work");
     if mounts.is_empty() {
@@ -765,7 +765,7 @@ async fn test_ioptron_mount_connect_disconnect() {
 #[tokio::test]
 #[ignore = "Requires LX200-compatible mount connected"]
 async fn test_lx200_mount_connect_disconnect() {
-    let mounts = lx200::discover_mounts()
+    let mounts = lx200::discover_mounts(Vec::new())
         .await
         .expect("Discovery should work");
     if mounts.is_empty() {
@@ -812,7 +812,7 @@ async fn test_lx200_mount_connect_disconnect() {
 #[tokio::test]
 #[ignore = "Requires Sky-Watcher mount connected - WILL MOVE MOUNT"]
 async fn test_skywatcher_mount_slew() {
-    let mounts = skywatcher::discover_mounts()
+    let mounts = skywatcher::discover_mounts(Vec::new())
         .await
         .expect("Discovery should work");
     if mounts.is_empty() {
@@ -2223,7 +2223,7 @@ mod fake_sdk_contract {
 #[tokio::test]
 #[ignore = "Requires Sky-Watcher mount connected"]
 async fn test_skywatcher_mount_tracking() {
-    let mounts = skywatcher::discover_mounts()
+    let mounts = skywatcher::discover_mounts(Vec::new())
         .await
         .expect("Discovery should work");
     if mounts.is_empty() {

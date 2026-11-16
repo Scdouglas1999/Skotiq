@@ -270,8 +270,7 @@ pub(crate) async fn run_polar_alignment(
             point as i32,
         );
 
-        // Capture image. gain/offset are Option — None leaves the camera's
-        // current value untouched (never forced to 0).
+        // Capture image. A gain or offset of `None` takes the profile's.
         let taken_at = skotiq_sequencer::polar_mid_exposure(chrono::Utc::now(), exposure_time);
         crate::api::imaging::camera_start_exposure_opt(
             camera_id.clone(),

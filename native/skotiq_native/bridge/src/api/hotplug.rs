@@ -1,8 +1,7 @@
 //! Hot-plug FFI surface.
 //!
 //! Exposes the manual rescan trigger used by the equipment-screen "Rescan
-//! equipment" button. See `crate::hotplug` for the underlying hybrid
-//! event-driven + slow-poll architecture.
+//! equipment" button. See `crate::hotplug`.
 //!
 //! Why a separate module: the rest of `crate::api` is large and topical
 //! (discovery, devices, sequencer, ...). Pulling the rescan entry point into
@@ -12,29 +11,13 @@
 
 use crate::{discovery, hotplug};
 
-/// Force an immediate hot-plug diff pass across every polled driver and
-/// device type, independent of the 30 s slow-poll cadence.
-///
-/// Wired to the equipment-screen "Rescan equipment" button. Behaviour:
-///   1. Invalidate the per-(type, driver) discovery cache so the next UI
-///      `discoverAll()` call cannot serve stale TTL'd results.
-///   2. Run `hotplug::trigger_rescan` which walks the native vendor SDKs
-///      and (on Windows) the ASCOM registry, diffs against the cached
-///      snapshot and emits `device_discovered` / `device_lost` events for
-///      any deltas. Existing devices do NOT re-emit (the diff is
-///      idempotent across calls — see `cache_diff_detects_arrival_and_removal`
-///      in `hotplug::tests`).
-///
-/// Returns when the diff finishes. The UI uses this as the await-target for
-/// its spinner / "Rescanning..." label.
-///
-/// Individual backend scan failures are logged by `poll_once` and do not
-/// propagate: the diff is total, so one backend erroring out must not cancel
-/// the other backends' arrival events.
+/// The equipment-screen "Rescan equipment" button: forget every discovery
+/// result, then poll the device lists as the user's scan (see
+/// `hotplug::trigger_rescan`), emitting `device_discovered` /
+/// `device_lost` for what changed. Returns when the poll is done; one
+/// failing backend does not stop the others.
 pub async fn api_rescan_devices() {
     tracing::info!("Manual hot-plug rescan triggered from UI");
-    // Invalidate first so the diff's "fresh observed set" comes from a
-    // re-enumerated SDK list, not a cached-50-seconds-ago one.
     discovery::forget().await;
     hotplug::trigger_rescan().await;
 }

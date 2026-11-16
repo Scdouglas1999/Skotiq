@@ -81,7 +81,10 @@ Future<void> main(List<String> args) async {
 
     final devices = <String, _Device>{};
     for (final type in _requiredTypes) {
-      final response = await api.get('/api/devices?deviceType=$type');
+      final response = await api.post(
+        '/api/devices/discover?deviceType=$type',
+        const {},
+      );
       response.expectOk('discover $type');
       final raw = (response.json['devices'] as List? ?? const <Object?>[])
           .whereType<Map>()

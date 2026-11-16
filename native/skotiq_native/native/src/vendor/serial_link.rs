@@ -321,13 +321,16 @@ impl ProbedPort<'_> {
     }
 }
 
-/// Scans every serial port of the machine for one protocol's mounts.
+/// Scans the machine's serial ports for one protocol's mounts, all but the
+/// ones in `ports_in_use`.
 pub(crate) fn scan_ports<T>(
     plan: &ScanPlan,
+    ports_in_use: &[String],
     identify: impl FnMut(&mut ProbedPort<'_>) -> Option<T>,
 ) -> Result<Vec<T>, DriverError> {
     let ports = serialport::available_ports()
         .map_err(|e| DriverError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
+    let ports = ports_to_probe(ports, ports_in_use);
 
     tracing::info!(
         "{} discovery: found {} serial ports to scan",
@@ -343,6 +346,29 @@ pub(crate) fn scan_ports<T>(
         mounts.len()
     );
     Ok(mounts)
+}
+
+/// The ports a scan may open: all of `ports` but the ones `ports_in_use`
+/// names. A connected device holds those, and a probe writes another
+/// protocol's bytes into it. Names are compared as device ids write them
+/// ([`sanitize_port_name`]).
+pub(crate) fn ports_to_probe(
+    ports: Vec<serialport::SerialPortInfo>,
+    ports_in_use: &[String],
+) -> Vec<serialport::SerialPortInfo> {
+    ports
+        .into_iter()
+        .filter(|port| {
+            let in_use = ports_in_use.contains(&sanitize_port_name(&port.port_name));
+            if in_use {
+                tracing::debug!(
+                    "Port {} belongs to a connected device; discovery leaves it alone",
+                    port.port_name
+                );
+            }
+            !in_use
+        })
+        .collect()
 }
 
 /// Probes `ports` in order. Each port is opened at the plan's baud rates in
@@ -448,6 +474,20 @@ mod tests {
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
+
+    #[test]
+    fn a_scan_leaves_alone_the_ports_connected_devices_hold() {
+        let port = |name: &str| serialport::SerialPortInfo {
+            port_name: name.to_string(),
+            port_type: serialport::SerialPortType::Unknown,
+        };
+        let probed = ports_to_probe(
+            vec![port("COM3"), port("COM4"), port("/dev/ttyUSB0")],
+            &["COM4".to_string(), "_dev_ttyUSB0".to_string()],
+        );
+        let names: Vec<&str> = probed.iter().map(|p| p.port_name.as_str()).collect();
+        assert_eq!(names, ["COM3"]);
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn serial_scan_leaves_the_async_runtime_free_to_make_progress() {

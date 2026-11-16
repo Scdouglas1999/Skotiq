@@ -105,6 +105,7 @@ pub(crate) mod download;
 pub(crate) mod exposure;
 pub(crate) mod retained;
 pub(crate) mod settings;
+pub use settings::CameraFrameDefaults;
 pub(crate) mod status;
 #[cfg(test)]
 mod camera_setting_tests {

@@ -102,7 +102,7 @@ void main() {
   // (matching the established pattern in device_handlers_test.dart).
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('DeviceDiscoveryHandlers.handleGetDevices', () {
+  group('DeviceDiscoveryHandlers.handleDiscoverDevices', () {
     late Directory loggerTempDir;
     late LoggingService logger;
 
@@ -146,8 +146,8 @@ void main() {
       final handlers = DeviceDiscoveryHandlers(container);
 
       final response = await translateHandlerErrors(
-        handlers.handleGetDevices(
-          Request('GET', Uri.parse('http://localhost/api/devices')),
+        handlers.handleDiscoverDevices(
+          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
         ),
       );
 
@@ -192,8 +192,8 @@ void main() {
         final handlers = DeviceDiscoveryHandlers(container);
 
         final response = await translateHandlerErrors(
-          handlers.handleGetDevices(
-            Request('GET', Uri.parse('http://localhost/api/devices')),
+          handlers.handleDiscoverDevices(
+            Request('POST', Uri.parse('http://localhost/api/devices/discover')),
           ),
         );
 
@@ -229,8 +229,8 @@ void main() {
       final handlers = DeviceDiscoveryHandlers(container);
 
       final response = await translateHandlerErrors(
-        handlers.handleGetDevices(
-          Request('GET', Uri.parse('http://localhost/api/devices')),
+        handlers.handleDiscoverDevices(
+          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
         ),
       );
 
@@ -259,8 +259,8 @@ void main() {
       final handlers = DeviceDiscoveryHandlers(container);
 
       final response = await translateHandlerErrors(
-        handlers.handleGetDevices(
-          Request('GET', Uri.parse('http://localhost/api/devices')),
+        handlers.handleDiscoverDevices(
+          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
         ),
       );
 
@@ -298,10 +298,12 @@ void main() {
         final handlers = DeviceDiscoveryHandlers(container);
 
         final response = await translateHandlerErrors(
-          handlers.handleGetDevices(
+          handlers.handleDiscoverDevices(
             Request(
-              'GET',
-              Uri.parse('http://localhost/api/devices?deviceType=camera'),
+              'POST',
+              Uri.parse(
+                'http://localhost/api/devices/discover?deviceType=camera',
+              ),
             ),
           ),
         );
@@ -349,6 +351,53 @@ void main() {
             expect(response.statusCode, HttpStatus.badRequest, reason: query);
           }
         }
+      },
+    );
+
+    test(
+      'GET /api/devices lists what the last discover found and never discovers',
+      () async {
+        final backend = _FakeDeviceBackend(
+          devicesByType: {
+            DeviceType.camera: [_device('cam-1', DeviceType.camera)],
+            DeviceType.mount: [_device('mount-1', DeviceType.mount)],
+          },
+        );
+        final container = containerWith(backend);
+        addTearDown(container.dispose);
+        final handlers = DeviceDiscoveryHandlers(container);
+
+        Future<Map> get(String query) async {
+          final response = await translateHandlerErrors(
+            handlers.handleGetDevices(
+              Request('GET', Uri.parse('http://localhost/api/devices$query')),
+            ),
+          );
+          expect(response.statusCode, HttpStatus.ok);
+          return jsonDecode(await response.readAsString()) as Map;
+        }
+
+        final before = await get('');
+        expect(before['devices'], isEmpty);
+        expect(before['discoveredAt'], isNull);
+        expect(backend.callCounts, isEmpty, reason: 'a GET discovered');
+
+        await handlers.handleDiscoverDevices(
+          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
+        );
+        final sweeps = Map.of(backend.callCounts);
+
+        final after = await get('');
+        expect(
+          (after['devices'] as List).cast<Map>().map((d) => d['id']).toSet(),
+          {'cam-1', 'mount-1'},
+        );
+        expect(after['discoveredAt'], isA<String>());
+        final cameras = await get('?deviceType=camera');
+        expect((cameras['devices'] as List).cast<Map>().map((d) => d['id']), [
+          'cam-1',
+        ]);
+        expect(backend.callCounts, sweeps, reason: 'a GET discovered');
       },
     );
   });

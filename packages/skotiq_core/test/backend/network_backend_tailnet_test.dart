@@ -53,7 +53,11 @@ void main() {
       'http scheme is the default and produces http:// request URLs',
       () async {
         final fake = FakeNetworkClient()
-          ..setResponse('/api/devices', body: '{"devices":[]}');
+          ..setResponse(
+            '/api/devices/discover',
+            method: 'POST',
+            body: '{"devices":[]}',
+          );
         final backend = _backend(fake, host: '192.168.1.50');
         addTearDown(backend.dispose);
 
@@ -68,7 +72,11 @@ void main() {
 
     test('https scheme propagates to every REST request URL', () async {
       final fake = FakeNetworkClient()
-        ..setResponse('/api/devices', body: '{"devices":[]}');
+        ..setResponse(
+          '/api/devices/discover',
+          method: 'POST',
+          body: '{"devices":[]}',
+        );
       final backend = _backend(fake, host: '100.101.102.103', scheme: 'https');
       addTearDown(backend.dispose);
 

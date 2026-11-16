@@ -42,6 +42,7 @@ impl InstructionNode for WarmCameraInstruction {
         // sticks; otherwise the cooler is being turned off entirely.
         if status == NodeStatus::Success {
             context.set_temp_c = target_temp;
+            context.set_point_settle_by = None;
             tracing::debug!(
                 "ExecutionContext.set_temp_c cleared/updated to {:?}°C after WarmCamera success",
                 target_temp

@@ -224,16 +224,12 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
 
   /// Trigger the host-side hot-plug diff pass.
   ///
-  /// This is the lightweight cousin of `_scanForDevices`. The Rust bridge
-  /// has a hybrid hot-plug architecture (`bridge/src/hotplug.rs`):
-  ///   * Kernel-event listener (WM_DEVICECHANGE / libusb hotplug) for
-  ///     sub-second USB arrival latency.
-  ///   * 30 s slow poll catching ASCOM-registry / serial-port changes.
-  /// Pressing Rescan forces an off-cadence diff cycle for users who plug
-  /// in a device the kernel didn't surface (quirky hub, ASCOM driver
-  /// install, etc.). Arrival / removal events flow over the equipment
-  /// event stream and trigger the unified discovery provider to refresh
-  /// without a full backend scan.
+  /// This is the lightweight cousin of `_scanForDevices`. The bridge polls
+  /// the device lists after each OS device-change event
+  /// (`bridge/src/hotplug.rs`) and on no timer, so Rescan is how a change
+  /// the OS does not signal (an ASCOM driver install, a serial adapter, a
+  /// quirky hub) is found. Arrival / removal events flow over the equipment
+  /// event stream and refresh the device lists without a full backend scan.
   ///
   /// Routed through [DeviceBackend.rescanDevices] rather than calling the
   /// `bridge_api` FFI directly so it reaches the backend that actually owns

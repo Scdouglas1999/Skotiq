@@ -92,6 +92,7 @@
     "guider_settle_timeout": 60.0
   },
   "decision_logging_enabled": true,
+  "calibration_temperature_tolerance_c": 2.0,
   "frame_format": {
     "format": "FITS",
     "xisf_compression": "none",

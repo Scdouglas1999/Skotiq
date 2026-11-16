@@ -28,13 +28,25 @@ impl CameraOps for UnifiedDeviceOps {
         let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
         let native_frame_type = skotiq_device::FrameType::from_str_lenient(frame_type);
-        tracing::info!(
-            "Starting {:.1}s exposure on camera {}",
-            duration_secs,
-            camera_id
-        );
-
         let mgr = get_device_manager();
+
+        // Gain, offset and read mode have one owner: what the frame names,
+        // else what is stated for the camera (its profile's defaults). The
+        // camera keeps its own value only where neither gives one, so a
+        // frame never takes what an earlier frame left on the camera.
+        let stated = mgr.stated_frame_defaults(camera_id);
+        let gain = gain.or(stated.gain);
+        let offset = offset.or(stated.offset);
+        let readout_mode = readout_mode.map(str::to_string).or(stated.readout_mode);
+        tracing::info!(
+            "Starting {:.1}s exposure on camera {}: gain {}, offset {}, bin {}x{}",
+            duration_secs,
+            camera_id,
+            gain.map_or_else(|| "as the camera has it".to_string(), |g| g.to_string()),
+            offset.map_or_else(|| "as the camera has it".to_string(), |o| o.to_string()),
+            bin_x,
+            bin_y
+        );
 
         // Mark the rig as USB-contended for the whole exposure+download window.
         // On shared-USB rigs (a ZWO EAF/EFW behind an ASI camera) the camera
@@ -64,23 +76,15 @@ impl CameraOps for UnifiedDeviceOps {
 
         let started_at = chrono::Utc::now();
 
-        // The read mode has one owner: the mode the exposure names, else the
-        // one stated for the camera (its profile's default). With neither the
-        // camera is left in the mode it is in.
-        if let Some(mode) = readout_mode
-            .map(str::to_string)
-            .or_else(|| mgr.stated_readout_mode(camera_id))
-        {
+        if let Some(mode) = readout_mode {
             mgr.camera_use_readout_mode(camera_id, &mode)
                 .await
                 .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
                 .inspect_err(|e| exposure.fail(e))?;
         }
 
-        // Start the exposure. gain/offset are Option<i32>; None means "use the
-        // camera's current value, don't change it" and is threaded through to
-        // each driver branch so the setter is genuinely skipped — an
-        // `unwrap_or(0)` here would silently command gain/offset 0.
+        // A gain or offset still `None` here is skipped by each driver, never
+        // sent as 0.
         mgr.camera_start_exposure_configured(
             camera_id,
             duration_secs,

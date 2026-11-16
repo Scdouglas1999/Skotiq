@@ -198,6 +198,12 @@ class ProviderEonRig implements EonRig {
   ) => _ref.read(calibrationMasterBuildProvider)(request);
 
   @override
+  Future<double> darkTemperatureToleranceC() async {
+    await _ref.read(allSettingsProvider.future);
+    return _ref.read(darkLibraryMatchTolerancesProvider).temperatureC;
+  }
+
+  @override
   Future<int> registerMaster(
     CalibrationMasterBuildResult built,
     String frameType,

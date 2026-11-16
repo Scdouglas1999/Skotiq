@@ -123,6 +123,7 @@ impl MeridianFlipExecutor {
             if separation > 5.0 {
                 return Err(format!("Nearby solution is {separation:.2} degrees from the requested field; refusing to sync"));
             }
+            self.stop_guider_before_move("nearby-field sync").await;
             self.run.device_ops.mount_sync(&ctx.mount_id, solved.ra_degrees / 15.0, solved.dec_degrees).await
                 .map_err(|e| format!("Nearby-field sync unavailable or failed: {e}"))
         }

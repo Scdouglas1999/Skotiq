@@ -212,18 +212,51 @@ BinningMode _binning(int bin) => switch (bin) {
   _ => BinningMode.one,
 };
 
+/// The order the set-point blocks run in, starting from a sensor reading
+/// [sensorTempC]: the set-point nearest it first, then the colder ones from
+/// warm to cold, then the warmer ones from cold to warm. No block waits for a
+/// warm-up that a later block undoes, and the run ends at its warmest
+/// set-point, closest to the warm-up that follows. With no reading the blocks
+/// run from cold to warm. An uncooled block (null) runs last.
+List<double?> calibrationBlockOrder(
+  Iterable<double?> setPoints,
+  double? sensorTempC,
+) {
+  final cooled = {
+    for (final s in setPoints)
+      if (s != null) s,
+  }.toList()..sort();
+  final ordered = <double?>[];
+  if (sensorTempC == null || cooled.isEmpty) {
+    ordered.addAll(cooled);
+  } else {
+    final nearest = cooled.reduce(
+      (a, b) => (a - sensorTempC).abs() <= (b - sensorTempC).abs() ? a : b,
+    );
+    ordered
+      ..add(nearest)
+      ..addAll(cooled.where((s) => s < nearest).toList().reversed)
+      ..addAll(cooled.where((s) => s > nearest));
+  }
+  if (setPoints.contains(null)) ordered.add(null);
+  return ordered;
+}
+
 /// The calibration-only sequence that takes [needs].
 ///
 /// It only cools and exposes: no target, slew, guiding, dither or focus, so
 /// the native sequencer runs it with the light-frame triggers standing down.
-/// Darks for each set-point follow a Cool Camera step to that set-point;
-/// bias frames come last, at the shortest exposure the camera takes.
+/// Darks for each set-point follow a Cool Camera step to that set-point, in
+/// [calibrationBlockOrder] from the sensor's [sensorTempC]; the sequencer
+/// takes them only with the sensor at the set-point. Each block's bias frames
+/// follow its darks, at the shortest exposure the camera takes.
 Sequence buildCalibrationSequence({
   required EonFrameNeeds needs,
   required int darkCount,
   required int biasCount,
   required double biasExposureSecs,
   required bool cameraCanCool,
+  required double? sensorTempC,
   EonDarkSlot? darkSlot,
   String name = 'End-of-night calibration',
 }) {
@@ -237,10 +270,10 @@ Sequence buildCalibrationSequence({
     order.add(node.id);
   }
 
-  final setPoints = <double?>{
+  final setPoints = calibrationBlockOrder([
     for (final d in needs.darks) d.setPointC,
     for (final b in needs.bias) b.setPointC,
-  };
+  ], sensorTempC);
   var index = 0;
   for (final setPoint in setPoints) {
     if (cameraCanCool && setPoint != null) {

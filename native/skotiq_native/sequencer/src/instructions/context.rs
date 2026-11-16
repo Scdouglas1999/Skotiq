@@ -523,6 +523,9 @@ pub struct InstructionContext {
     pub current_binning: Binning,
     /// Cooler set point, °C.
     pub set_temp_c: Option<f64>,
+    /// When the cooler's time to bring the sensor to `set_temp_c` runs out;
+    /// `None` when no cool step of this run gave it one.
+    pub set_point_settle_by: Option<tokio::time::Instant>,
     /// "RGGB", "BGGR", ...; `None` for a monochrome sensor.
     pub bayer_pattern: Option<String>,
     pub cancellation_token: Arc<AtomicBool>,
@@ -545,9 +548,21 @@ impl InstructionContext {
             current_filter_index: None,
             current_binning: Binning::One,
             set_temp_c: None,
+            set_point_settle_by: None,
             bayer_pattern: None,
             cancellation_token,
         }
+    }
+
+    /// How close to the cooler's set-point the sensor must be for a frame
+    /// matched to lights by temperature: the operator's dark-library
+    /// tolerance, else the set-point's read jitter.
+    pub fn calibration_temperature_tolerance_c(&self) -> f64 {
+        self.run
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.read().calibration_temperature_tolerance_c)
+            .unwrap_or(super::SETPOINT_TOLERANCE_C)
     }
 
     pub fn check_cancelled(&self) -> Option<InstructionResult> {
@@ -578,6 +593,7 @@ impl InstructionContext {
         ctx.current_filter_index = self.current_filter_index;
         ctx.current_binning = self.current_binning;
         ctx.set_temp_c = self.set_temp_c;
+        ctx.set_point_settle_by = self.set_point_settle_by;
         ctx
     }
 

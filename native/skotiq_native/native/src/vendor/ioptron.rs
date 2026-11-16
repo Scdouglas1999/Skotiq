@@ -1349,12 +1349,14 @@ pub struct IOptronMountInfo {
     pub baud_rate: u32,
 }
 
-pub async fn discover_mounts() -> Result<Vec<IOptronMountInfo>, DriverError> {
-    serial_link::run_serial_scan("iOptron", scan_serial_ports).await
-}
-
-fn scan_serial_ports() -> Result<Vec<IOptronMountInfo>, DriverError> {
-    serial_link::scan_ports(&SCAN_PLAN, identify_mount)
+/// Looks for mounts on every serial port but the ones in `ports_in_use`.
+pub async fn discover_mounts(
+    ports_in_use: Vec<String>,
+) -> Result<Vec<IOptronMountInfo>, DriverError> {
+    serial_link::run_serial_scan("iOptron", move || {
+        serial_link::scan_ports(&SCAN_PLAN, &ports_in_use, identify_mount)
+    })
+    .await
 }
 
 /// The same scan over ports a test supplies.

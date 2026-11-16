@@ -31,7 +31,8 @@ class FrameAttribution {
   final FrameType frameType;
 
   /// Sensor gain the frame was taken at, from the producing node's config.
-  /// `null` when the node leaves gain to the camera's current value.
+  /// `null` when the node names none; the frame is then taken at the
+  /// profile's default gain.
   ///
   /// Master-dark matching keys on gain, offset and binning, so a frame that
   /// does not carry them cannot be paired with its calibration frames.

@@ -9,6 +9,8 @@ import '../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../services/frame_identity.dart';
 import '../../settings/app_settings_table.dart';
 import '../backend_provider.dart';
+import '../dark_library_provider.dart' show darkLibraryMatchTolerancesProvider;
+import '../database_provider.dart' show allSettingsProvider;
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
@@ -197,6 +199,11 @@ class RunConfigSync {
       'meridian_flip': _serializer.buildGlobalMeridianFlipConfigJson(),
       'decision_logging_enabled':
           _ref.read(replayDebugEnabledProvider).valueOrNull ?? true,
+      // Darks, bias and dark flats are taken only this close to the
+      // set-point, the distance the dark library matches them to lights by.
+      'calibration_temperature_tolerance_c': _ref
+          .read(darkLibraryMatchTolerancesProvider)
+          .temperatureC,
     };
     for (final setting in kAppSettingsTable) {
       final path = setting.runConfig;
@@ -253,6 +260,8 @@ class RunConfigSync {
     await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
     // The minimum altitude the altitude floor is made from.
     await _ref.read(schedulerPersistedConfigProvider.future);
+    // The dark library's tolerances.
+    await _ref.read(allSettingsProvider.future);
   }
 
   void _listenToSources() {
@@ -267,6 +276,7 @@ class RunConfigSync {
       replayDebugEnabledProvider,
       globalMeridianFlipSettingsProvider,
       altitudeFloorProvider,
+      darkLibraryMatchTolerancesProvider,
     ]) {
       _ref.listen<Object?>(source, changed);
     }

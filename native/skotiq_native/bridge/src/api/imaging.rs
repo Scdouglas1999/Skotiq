@@ -669,11 +669,9 @@ pub async fn api_camera_start_exposure_configured(
 
 /// Start a camera exposure with *optional* gain/offset.
 ///
-/// `None` means "leave the camera's current gain/offset unchanged": it is
-/// threaded through to the device layer (which skips the setter for `None`)
-/// and is NOT collapsed to `0`, which on drivers that honor it would actively
-/// command a gain/offset of zero. Internal callers that carry the documented
-/// "camera default" semantics (e.g. polar alignment) use this directly.
+/// `None` takes the gain or offset stated for the camera (its profile's
+/// default) and is never collapsed to `0`, which on drivers that honor it
+/// would command a gain or offset of zero.
 pub(crate) async fn camera_start_exposure_opt(
     device_id: String,
     duration_secs: f64,
@@ -748,7 +746,6 @@ pub(crate) async fn camera_start_exposure_configured_opt(
     create_unified_device_ops()
         .camera_start_exposure(
             skotiq_sequencer::ExposureRequest::new(&device_id, duration_secs)
-                // None leaves the driver's current value untouched.
                 .gain(gain)
                 .offset(offset)
                 .binning(bin_x, bin_y)

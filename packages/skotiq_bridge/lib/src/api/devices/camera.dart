@@ -40,15 +40,22 @@ Future<void> setCameraOffset({required String deviceId, required int offset}) =>
       offset: offset,
     );
 
-/// State the read mode a camera is to take its frames in: its equipment
-/// profile's default, by the name the camera lists. Nothing is written to
-/// the camera now; the next exposure puts it in the mode if it is in
-/// another. `None` leaves the camera in the mode it is in.
-void apiCameraStateReadoutMode({required String deviceId, String? mode}) =>
-    RustLib.instance.api.crateApiDevicesCameraApiCameraStateReadoutMode(
-      deviceId: deviceId,
-      mode: mode,
-    );
+/// State what a camera takes its frames at when a frame does not name it:
+/// its equipment profile's default gain, offset and read mode (by the name
+/// the camera lists). Nothing is written to the camera now; each exposure
+/// sets them. `None` is for a value the profile does not state or a control
+/// the camera does not have; the camera then keeps its own.
+void apiCameraStateFrameDefaults({
+  required String deviceId,
+  int? gain,
+  int? offset,
+  String? readoutMode,
+}) => RustLib.instance.api.crateApiDevicesCameraApiCameraStateFrameDefaults(
+  deviceId: deviceId,
+  gain: gain,
+  offset: offset,
+  readoutMode: readoutMode,
+);
 
 /// The captures cameras are keeping, oldest first.
 List<RetainedCaptureInfo> apiCameraRetainedCaptures() =>

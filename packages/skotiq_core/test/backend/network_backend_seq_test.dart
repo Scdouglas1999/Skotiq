@@ -619,7 +619,7 @@ Future<HttpServer> _startServer(
       return;
     }
 
-    if (request.uri.path == '/api/devices') {
+    if (request.uri.path == '/api/devices/discover') {
       request.response
         ..statusCode = HttpStatus.ok
         ..headers.contentType = ContentType.json

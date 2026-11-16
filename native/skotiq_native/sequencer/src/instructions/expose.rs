@@ -294,6 +294,12 @@ async fn take_burst(
     let is_light_frame = config.frame_type.is_sky_frame();
 
     for frame in (control.frames_taken + 1)..=config.count {
+        if let Some(result) =
+            hold_frame_for_set_point(config, ctx, &camera_id, control, frame).await
+        {
+            return result;
+        }
+
         // A transient camera fault (a failed download, a timeout, "not
         // ready") retries THIS frame under the run's camera retry budget
         // rather than ending the run. The whole frame start is repeated --
@@ -1055,6 +1061,56 @@ enum GuidingForFrame {
     Stop(InstructionResult),
 }
 
+/// Hold a frame matched to lights by temperature (a dark, a bias, a dark
+/// flat) until the sensor is at the cooler's set-point. `None` takes the
+/// frame; a sensor that never gets there ends the burst as Skipped with a
+/// notice, so no frame is recorded against a temperature it was not taken
+/// at, and the run goes on with its next step.
+async fn hold_frame_for_set_point(
+    config: &ExposureConfig,
+    ctx: &InstructionContext,
+    camera_id: &str,
+    control: &BurstControl<'_>,
+    frame: u32,
+) -> Option<InstructionResult> {
+    if !config.frame_type.is_matched_by_sensor_temperature() {
+        return None;
+    }
+    let set_point_c = ctx.set_temp_c?;
+    // A cooler that is off holds no set-point; the frame records the sensor
+    // as it is.
+    if matches!(
+        ctx.run.device_ops.camera_get_cooler_on(camera_id).await,
+        Ok(Some(false))
+    ) {
+        return None;
+    }
+    let settle_by = ctx
+        .set_point_settle_by
+        .unwrap_or_else(|| tokio::time::Instant::now() + CoolConfig::default().settle_budget());
+    let tolerance_c = ctx.calibration_temperature_tolerance_c();
+    let report = |message: &str| control.report(message);
+    match hold_for_set_point(ctx, camera_id, set_point_c, tolerance_c, settle_by, &report).await {
+        SetPointHold::Ready => None,
+        SetPointHold::Cancelled(result) => Some(result),
+        SetPointHold::NotReached { reason } => {
+            let frames = match config.frame_type {
+                FrameType::Bias => "bias",
+                FrameType::DarkFlat => "dark flat",
+                _ => "dark",
+            };
+            let problem = format!(
+                "{} of {} {frames} frames at {set_point_c:.1}°C were taken: {reason}. The rest \
+                 are skipped rather than recorded at a temperature they were not taken at.",
+                frame - 1,
+                config.count,
+            );
+            ctx.notify_quality_problem_continuing("Calibration frames", &problem);
+            Some(InstructionResult::skipped(problem))
+        }
+    }
+}
+
 /// How long a frame waits for a stopped mount before it is taken unguided.
 /// The tracking triggers pause the run long before this on a real stop.
 const TRACKING_WAIT_BEFORE_FRAME: Duration = Duration::from_secs(120);
@@ -1062,9 +1118,10 @@ const TRACKING_WAIT_BEFORE_FRAME: Duration = Duration::from_secs(120);
 /// Restart guiding before a light frame: guiding the run's own move stopped,
 /// and, while the run images unguided, a retry each
 /// [`super::guiding::UNGUIDED_RETRY_INTERVAL`]. Never on a mount that is not
-/// tracking or while the run holds it: guiding a stopped mount only drags the
-/// star. A pending restart waits for the mount; a due unguided retry is left
-/// for a later frame.
+/// tracking, or while the run holds or moves it: guiding a stopped mount only
+/// drags the star, and guiding during a move pulls against it. A pending
+/// restart waits for the mount; a due unguided retry is left for a later
+/// frame.
 async fn prepare_guiding_for_frame(
     ctx: &InstructionContext,
     waiting_since: &mut Option<tokio::time::Instant>,
@@ -1079,7 +1136,7 @@ async fn prepare_guiding_for_frame(
             state
                 .guiding
                 .unguided_retry_due(super::guiding::UNGUIDED_RETRY_INTERVAL),
-            state.run.is_held_by_run(),
+            state.run.is_held_by_run() || state.guiding.in_motion(),
             state.telemetry.mount_is_tracking == Some(false),
         )
     };

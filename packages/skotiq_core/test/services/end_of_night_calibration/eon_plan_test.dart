@@ -154,6 +154,7 @@ void main() {
         biasCount: 50,
         biasExposureSecs: 0.001,
         cameraCanCool: true,
+        sensorTempC: null,
         darkSlot: const EonDarkSlot(name: 'DARK', index: 7),
       );
       final root = sequence.nodes[sequence.rootNodeId]!;
@@ -188,6 +189,7 @@ void main() {
         biasCount: 5,
         biasExposureSecs: 0.001,
         cameraCanCool: false,
+        sensorTempC: null,
       );
       expect(sequence.nodes.values.whereType<CoolCameraNode>(), isEmpty);
       expect(
@@ -195,6 +197,44 @@ void main() {
         everyElement(isNull),
       );
     });
+  });
+
+  group('calibrationBlockOrder', () {
+    test('a camera at -10 C takes its -10 C darks first, then warms', () {
+      expect(calibrationBlockOrder([1, 0, -10], -10), [-10, 0, 1]);
+    });
+
+    test('colder set-points come before warmer ones, the run ends warm', () {
+      expect(calibrationBlockOrder([-15, -10, 0, 5], -9.7), [-10, -15, 0, 5]);
+      expect(calibrationBlockOrder([-15, -9, 0], -10), [-9, -15, 0]);
+    });
+
+    test('with no sensor reading the blocks run from cold to warm', () {
+      expect(calibrationBlockOrder([1, null, -10, 0], null), [-10, 0, 1, null]);
+    });
+  });
+
+  test('the night\'s warm and cold blocks start from the sensor\'s -10 C', () {
+    final needs = planFrameNeeds([
+      light(1, exposure: 3, sensorTemp: 1.2),
+      light(2, exposure: 3, sensorTemp: 0.3),
+      light(3, exposure: 30),
+    ], cameraSetPointC: -10);
+    final sequence = buildCalibrationSequence(
+      needs: needs,
+      darkCount: 20,
+      biasCount: 200,
+      biasExposureSecs: 0.001,
+      cameraCanCool: true,
+      sensorTempC: -10.0,
+    );
+    final root = sequence.nodes[sequence.rootNodeId]!;
+    final steps = [for (final id in root.childIds) sequence.nodes[id]!];
+    expect(
+      [for (final s in steps.whereType<CoolCameraNode>()) s.targetTemp],
+      [-10, 0, 1],
+    );
+    expect(steps.first, isA<CoolCameraNode>());
   });
 
   group('isCalibrationOnlySequence', () {

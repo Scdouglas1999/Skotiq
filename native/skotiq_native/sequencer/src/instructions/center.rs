@@ -445,6 +445,17 @@ async fn center(
         // Sync corrects the mount's internal model to the plate-solved truth
         // before re-slewing; without it, the next slew would land at the same
         // wrong spot (the mount thinks it's already at target).
+        //
+        // The center stopped the guider when it began; a guider started since
+        // (from the guider controls, say) is stopped again before each
+        // correction, because one left guiding pulls the mount back toward
+        // its lock point after it.
+        crate::guiding_stop::stop_guider_for_move(
+            &ctx.run.device_ops,
+            "centering correction",
+            crate::GuidingStopReason::MountMove,
+        )
+        .await;
         if let Err(e) = ctx
             .run
             .device_ops

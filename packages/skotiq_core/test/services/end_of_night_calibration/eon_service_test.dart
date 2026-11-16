@@ -123,8 +123,12 @@ class FakeRig implements EonRig {
     runGate?.complete();
   }
 
+  /// The run's frames; null takes the night's default darks and bias.
+  List<db.DbCapturedImage>? runFrames;
+
   @override
   Future<List<db.DbCapturedImage>> framesOfRun(int runId) async {
+    if (runFrames != null) return runFrames!;
     var id = 100;
     return [
       for (var i = 0; i < framesPerDarkGroup; i++)
@@ -170,6 +174,11 @@ class FakeRig implements EonRig {
 
   double lightsOrFrame(String path) =>
       double.parse(RegExp(r'_([0-9.]+)s_').firstMatch(path)!.group(1)!);
+
+  double darkToleranceC = 2.0;
+
+  @override
+  Future<double> darkTemperatureToleranceC() async => darkToleranceC;
 
   @override
   Future<int> registerMaster(
@@ -248,6 +257,60 @@ void main() {
     expect(rig.saved?['phase'], 'finished');
     expect(service.state.phase, EonPhase.finished);
   });
+
+  test(
+    'masters keep each set-point\'s darks apart, by measured temperature',
+    () async {
+      rig.lights = [
+        frame(1, type: 'light', exposure: 3, sensorTemp: 1.2),
+        frame(2, type: 'light', exposure: 3, sensorTemp: 0.2),
+      ];
+      var id = 100;
+      rig.runFrames = [
+        // Taken while the sensor was still warming from the night's -10 C.
+        for (final t in [-9.7, -5.5])
+          frame(id++, type: 'dark', exposure: 3, dir: '/n/Dark', sensorTemp: t),
+        for (var i = 0; i < 5; i++)
+          frame(
+            id++,
+            type: 'dark',
+            exposure: 3,
+            dir: '/n/Dark',
+            sensorTemp: 1.1,
+          ),
+        for (var i = 0; i < 4; i++)
+          frame(
+            id++,
+            type: 'dark',
+            exposure: 3,
+            dir: '/n/Dark',
+            sensorTemp: 0.1,
+          ),
+      ];
+
+      final report = await service.run(reason: 'manual');
+
+      expect(rig.built.map((b) => (b.kind, b.framePaths.length)).toSet(), {
+        ('dark', 5),
+        ('dark', 4),
+      });
+      expect(
+        rig.built.where((b) => b.outputPath.contains('_p1C_')),
+        hasLength(1),
+      );
+      expect(
+        rig.built.where((b) => b.outputPath.contains('_p0C_')),
+        hasLength(1),
+      );
+      expect(
+        report.problems,
+        contains(
+          '2 frames read more than 2 °C from their set-point and were left out '
+          'of the masters',
+        ),
+      );
+    },
+  );
 
   test('no dark slot and "skip" takes nothing and says why', () async {
     rig.wheel = ['L', 'R', 'G', 'B'];
