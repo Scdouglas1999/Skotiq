@@ -241,22 +241,6 @@ class NightPlanTiming {
   NodeTiming? of(String nodeId) => _firstByNode[nodeId];
 }
 
-/// When the loaded plan's estimate starts, where something fixes it: the
-/// session's start while a run is live (so the steps already done keep their
-/// places), the armed time when "Start at dark" is armed. Instant (UTC). Null
-/// otherwise, when the plan starts now.
-///
-/// Tonight's plan and the Sequencer's timeline and ETA column all time the
-/// plan from here, so they give the same times.
-final planStartProvider = Provider<DateTime?>((ref) {
-  if (ref.watch(sequenceExecutionStateProvider).isBusy) {
-    return ref.watch(sessionStateProvider.select((s) => s.startTime))?.toUtc();
-  }
-  final armedAt = ref.watch(nightPlanArmedStartSeamProvider);
-  if (armedAt == null) return null;
-  return ref.watch(clockProvider).toInstant(armedAt);
-});
-
 /// The estimator run behind every planned time on Tonight, from
 /// [planStartProvider], or from now on Tonight's tick (a plan that has not
 /// started is re-timed every 30 s). Null with nothing loaded.

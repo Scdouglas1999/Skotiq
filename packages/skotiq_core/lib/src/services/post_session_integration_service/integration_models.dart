@@ -6,6 +6,9 @@ class ResolvedCalibration {
   final String? darkPath;
   final String? flatPath;
   final String? biasPath;
+
+  /// [darkPath] is of another exposure and is scaled with [biasPath].
+  final bool scaleDark;
   final bool cosmeticCorrection;
 
   /// Operator-facing warnings produced by the Calibration Library matcher
@@ -18,6 +21,7 @@ class ResolvedCalibration {
     this.darkPath,
     this.flatPath,
     this.biasPath,
+    this.scaleDark = false,
     this.cosmeticCorrection = true,
     this.warnings = const [],
   });
@@ -26,6 +30,7 @@ class ResolvedCalibration {
     if (darkPath != null) 'dark': darkPath,
     if (flatPath != null) 'flat': flatPath,
     if (biasPath != null) 'bias': biasPath,
+    if (scaleDark) 'scaleDark': true,
     'cosmeticCorrection': cosmeticCorrection,
   };
 }

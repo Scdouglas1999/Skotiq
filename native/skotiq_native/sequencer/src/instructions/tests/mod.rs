@@ -1,8 +1,5 @@
-//! Shared fixtures for the `instructions` unit tests.
-//!
-//! Release-pass C3: the tests were one 3.7k-line module. The fixtures below
-//! stayed here and each cluster of tests moved verbatim into a child module;
-//! child modules see these private helpers because they are ancestors' items.
+//! Shared fixtures for the `instructions` unit tests. The child modules see
+//! these private helpers because they are their ancestors' items.
 
 use super::*;
 

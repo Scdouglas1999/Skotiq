@@ -3,7 +3,6 @@ use crate::post_session::args::{
 };
 use crate::post_session::calibration_report::{calibration_history_lines, CalibrationReport};
 use crate::post_session::integrate::LoadedLight;
-use crate::post_session::masters::flat_pedestal_state;
 use skotiq_imaging::frame_weighting::{
     analyze_frame_quality, FrameQuality, FrameQualityConfig, WeightFormula,
 };
@@ -27,74 +26,6 @@ pub(crate) fn load_optional_master(
             Ok(Some(read.image))
         }
         _ => Ok(None),
-    }
-}
-
-/// A master flat and whether its bias pedestal is already removed.
-pub(crate) struct FlatMaster {
-    pub(crate) image: ImageData,
-    pub(crate) pedestal: skotiq_imaging::calibration::FlatPedestal,
-}
-
-/// Read an optional master flat with what its header says about its
-/// pedestal, so a bias-corrected master is not bias-subtracted again.
-pub(crate) fn load_optional_flat(path: &Option<String>) -> Result<Option<FlatMaster>, String> {
-    let Some(p) = path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
-        return Ok(None);
-    };
-    let read =
-        read_image(Path::new(p)).map_err(|e| format!("failed to read flat master '{p}': {e}"))?;
-    let pedestal = flat_pedestal_state(&read.image, Some(&read.header));
-    Ok(Some(FlatMaster {
-        image: read.image,
-        pedestal,
-    }))
-}
-
-/// The masters a single light is calibrated with, read once and applied to
-/// any number of lights.
-pub struct LightCalibration {
-    pub(crate) dark: Option<ImageData>,
-    pub(crate) flat: Option<FlatMaster>,
-    pub(crate) bias: Option<ImageData>,
-}
-
-impl LightCalibration {
-    /// Read the masters at these paths; an absent or empty path skips that
-    /// correction.
-    pub fn load(
-        dark: &Option<String>,
-        flat: &Option<String>,
-        bias: &Option<String>,
-    ) -> Result<Self, String> {
-        Ok(Self {
-            dark: load_optional_master(dark, "dark")?,
-            flat: load_optional_flat(flat)?,
-            bias: load_optional_master(bias, "bias")?,
-        })
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.dark.is_none() && self.flat.is_none() && self.bias.is_none()
-    }
-
-    /// Calibrate `light` as PixInsight's ImageCalibration does with its
-    /// defaults: the bias leaves the light and the dark, the dark leaves the
-    /// light, and the light is divided by the flat normalized to unit mean. A
-    /// master flat is used as it is, since its bias left it when it was built
-    /// ([`flat_pedestal_state`]); only a raw flat has the bias taken out first.
-    pub fn apply(
-        &self,
-        light: &ImageData,
-    ) -> Result<ImageData, skotiq_imaging::calibration::CalibrationError> {
-        use skotiq_imaging::calibration::{calibrate_frame, divide_flat, FlatPedestal};
-        let (dark, bias) = (self.dark.as_ref(), self.bias.as_ref());
-        match &self.flat {
-            Some(f) if f.pedestal == FlatPedestal::Removed => {
-                divide_flat(&calibrate_frame(light, dark, None, bias)?, &f.image)
-            }
-            flat => calibrate_frame(light, dark, flat.as_ref().map(|f| &f.image), bias),
-        }
     }
 }
 

@@ -1,8 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/sequence/sequence_models.dart'
+    show SequenceExecutionStateCapabilities;
 import '../../services/plan_timer.dart';
 import '../../services/sequence_time_estimator.dart';
+import '../armed_start_provider.dart' show nightArmedStartProvider;
+import '../clock_provider.dart' show ClockInstant, clockProvider;
 import '../sequence_provider.dart' show currentSequenceProvider;
+import '../session_provider.dart' show sessionStateProvider;
 import '../settings_provider.dart'
     show
         appObserverLocationProvider,
@@ -10,6 +15,7 @@ import '../settings_provider.dart'
         autofocusSettingsProvider;
 import '../scheduler_provider.dart' show altitudeFloorProvider;
 import 'plan_run_end.dart';
+import 'sequence_progress.dart' show sequenceExecutionStateProvider;
 import 'sequencer_defaults.dart' show sequencerOverheadConfigProvider;
 
 /// The [PlanTimer] for this rig's settings: the Sequencer's overhead model,
@@ -47,9 +53,26 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
   );
 });
 
-/// The open sequence timed from when it last changed, or null with none open.
+/// When the loaded plan's estimate starts, where something fixes it: the
+/// session's start while a run is live (so the steps already done keep their
+/// places), the armed time when "Start at dark" is armed. Instant (UTC). Null
+/// otherwise, when the plan starts now.
+///
+/// Tonight's plan and the Sequencer's timeline, durations and ETA column all
+/// time the plan from here, so they give the same times.
+final planStartProvider = Provider<DateTime?>((ref) {
+  if (ref.watch(sequenceExecutionStateProvider).isBusy) {
+    return ref.watch(sessionStateProvider.select((s) => s.startTime))?.toUtc();
+  }
+  return ref.watch(nightArmedStartProvider)?.toUtc();
+});
+
+/// The open sequence timed from [planStartProvider], or from the app clock's
+/// now when the sequence last changed; null with none open.
 final currentPlanTimingProvider = Provider<PlanTiming?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return null;
-  return ref.watch(planTimerProvider).time(sequence, DateTime.now());
+  final start =
+      ref.watch(planStartProvider) ?? ref.watch(clockProvider).instant;
+  return ref.watch(planTimerProvider).time(sequence, start);
 });

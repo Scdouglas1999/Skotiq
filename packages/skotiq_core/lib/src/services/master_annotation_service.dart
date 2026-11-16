@@ -190,7 +190,9 @@ class MasterAnnotationService {
     DsoType.association => AnnotationKind.star,
     DsoType.openCluster || DsoType.globularCluster => AnnotationKind.cluster,
     // A cluster in nebulosity is drawn as the nebula it sits in.
-    DsoType.clusterWithNebulosity => AnnotationKind.nebula,
+    DsoType.clusterWithNebulosity ||
+    DsoType.clusterWithEmissionNebula ||
+    DsoType.clusterWithReflectionNebula => AnnotationKind.nebula,
     _ when type.isGalaxy => AnnotationKind.galaxy,
     _ when type.isNebula => AnnotationKind.nebula,
     _ => AnnotationKind.other,

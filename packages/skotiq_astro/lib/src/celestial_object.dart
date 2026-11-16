@@ -102,8 +102,9 @@ class SolarSystemBody extends Star {
   String get designation => kind.displayName;
 }
 
-/// Deep sky object types
-/// Based on OpenNGC type codes
+/// Deep sky object types: the OpenNGC type codes, with the nebulae refined
+/// to emission or reflection where published catalogs classify them
+/// ([openNgcType]).
 enum DsoType {
   /// Single star (often misidentified as DSO)
   star,
@@ -118,6 +119,7 @@ enum DsoType {
 
   globularCluster,
 
+  /// A cluster in a nebula the catalog does not classify further.
   clusterWithNebulosity,
 
   galaxy,
@@ -154,6 +156,15 @@ enum DsoType {
 
   /// Other/Unknown type
   other,
+
+  // New values go last: the planetarium benchmark fixture stores a type by
+  // its index.
+
+  /// A cluster in a nebula that glows in emission lines.
+  clusterWithEmissionNebula,
+
+  /// A cluster in a nebula that only reflects starlight.
+  clusterWithReflectionNebula,
 }
 
 /// The OpenNGC `Type` column: every code that names a kind of object.
@@ -181,10 +192,39 @@ const Map<String, DsoType> kOpenNgcTypeCodes = {
   'Nova': DsoType.nova,
 };
 
+/// Whether a nebula glows in emission lines or only reflects starlight, as
+/// the published catalogs of the nebula light table classify it
+/// (`tools/catalog_prep/nebula_light`). A nebula with both counts as
+/// emission.
+enum NebulaLight { emission, reflection }
+
 /// The object type an OpenNGC `Type` code names; [DsoType.other] for a code
 /// that names none.
-DsoType dsoTypeFromOpenNgcCode(String code) =>
-    kOpenNgcTypeCodes[code] ?? DsoType.other;
+///
+/// [light] refines a nebula (`Neb`, `Cl+N`, `EmN`, `HII`, `RfN`): emission
+/// keeps an HII region or emission nebula and makes any other nebula an
+/// emission nebula, reflection makes it a reflection nebula, and a cluster
+/// with nebula keeps the cluster either way. Other codes ignore [light].
+DsoType dsoTypeFromOpenNgcCode(String code, {NebulaLight? light}) {
+  final type = kOpenNgcTypeCodes[code] ?? DsoType.other;
+  if (light == null) return type;
+  return switch (type) {
+    DsoType.clusterWithNebulosity => switch (light) {
+      NebulaLight.emission => DsoType.clusterWithEmissionNebula,
+      NebulaLight.reflection => DsoType.clusterWithReflectionNebula,
+    },
+    DsoType.hiiRegion ||
+    DsoType.emissionNebula when light == NebulaLight.emission => type,
+    DsoType.nebula ||
+    DsoType.emissionNebula ||
+    DsoType.hiiRegion ||
+    DsoType.reflectionNebula => switch (light) {
+      NebulaLight.emission => DsoType.emissionNebula,
+      NebulaLight.reflection => DsoType.reflectionNebula,
+    },
+    _ => type,
+  };
+}
 
 extension DsoTypeExtension on DsoType {
   String get displayName {
@@ -201,6 +241,10 @@ extension DsoTypeExtension on DsoType {
         return 'Globular Cluster';
       case DsoType.clusterWithNebulosity:
         return 'Cluster + Nebula';
+      case DsoType.clusterWithEmissionNebula:
+        return 'Cluster + Emission Nebula';
+      case DsoType.clusterWithReflectionNebula:
+        return 'Cluster + Reflection Nebula';
       case DsoType.galaxy:
         return 'Galaxy';
       case DsoType.galaxyPair:
@@ -248,6 +292,10 @@ extension DsoTypeExtension on DsoType {
         return 'GC';
       case DsoType.clusterWithNebulosity:
         return 'C+N';
+      case DsoType.clusterWithEmissionNebula:
+        return 'C+Em';
+      case DsoType.clusterWithReflectionNebula:
+        return 'C+Rf';
       case DsoType.galaxy:
         return 'Gx';
       case DsoType.galaxyPair:
@@ -284,7 +332,9 @@ extension DsoTypeExtension on DsoType {
   bool get isCluster =>
       this == DsoType.openCluster ||
       this == DsoType.globularCluster ||
-      this == DsoType.clusterWithNebulosity;
+      this == DsoType.clusterWithNebulosity ||
+      this == DsoType.clusterWithEmissionNebula ||
+      this == DsoType.clusterWithReflectionNebula;
 
   bool get isGalaxy =>
       this == DsoType.galaxy ||

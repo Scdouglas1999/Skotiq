@@ -4,6 +4,9 @@
 * text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+# Catalog source files stay byte for byte as fetched: the build checks each
+# against the sha256 in its provenance.json.
+tools/catalog_prep/*/sources/** -text
 
 # ---------------------------------------------------------------------------
 # Generated code: collapse from PR diffs.

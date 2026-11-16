@@ -423,17 +423,6 @@ fn pin_calibration(pins: &mut Pins) {
     let bias = synthetic_dark(512, 512, 12, 500.0);
     let flat = synthetic_flat(512, 512, 13, 30000.0);
 
-    let calibrated =
-        calibrate_frame(&light, Some(&dark), Some(&flat), Some(&bias)).expect("calibrates");
-    pins.add("calibration/u16.dark_flat_bias", image_digest(&calibrated));
-    pins.add(
-        "calibration/u16.dark_only",
-        image_digest(&calibrate_frame(&light, Some(&dark), None, None).expect("calibrates")),
-    );
-    pins.add(
-        "calibration/u16.divide_flat",
-        image_digest(&divide_flat(&light, &flat).expect("divides")),
-    );
     let float_cal = FloatCalibration {
         bias: Some(&bias),
         dark: Some(&dark),
@@ -442,10 +431,8 @@ fn pin_calibration(pins: &mut Pins) {
         flat_pedestal: FlatPedestal::Included,
         output_pedestal: 100.0,
     };
-    pins.add(
-        "calibration/f32.full",
-        image_digest(&calibrate_frame_f32(&light, &float_cal).expect("calibrates")),
-    );
+    let calibrated = calibrate_frame_f32(&light, &float_cal).expect("calibrates");
+    pins.add("calibration/f32.full", image_digest(&calibrated));
     pins.add(
         "calibration/samples_f64",
         f64_digest(&calibrated.samples_f64()),

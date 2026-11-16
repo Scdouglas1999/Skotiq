@@ -303,8 +303,8 @@ impl ParsedDeviceId {
     /// * 4-part mount with port + baud: `native:{vendor}:{port}:{baud}`
     ///   for skywatcher / ioptron / lx200 / meade / onstep / losmandy /
     ///   10micron. Treated as the default 3-part form with `{port}:{baud}`
-    ///   collapsed into `device_id` (preserves today's call-site
-    ///   behaviour in `bridge/src/devices.rs`).
+    ///   collapsed into `device_id`; the vendor's family in
+    ///   `skotiq_native::catalog` parses that address when it opens.
     /// * 5-part gphoto2: `native:gphoto2:{idx}:{port_hex}:{model}`. Same
     ///   collapsing rule.
     ///
@@ -347,8 +347,8 @@ impl ParsedDeviceId {
 
         // Touptek IDs are always 4-part: `native:touptek:{brand}:{idx}`.
         // A 3-part Touptek ID (`native:touptek:0`) is rejected because
-        // the bridge dispatch needs the brand to pick the right SDK
-        // wrapper — see `bridge/src/devices.rs` Touptek branch.
+        // opening the camera needs the brand to pick the SDK build (the
+        // Touptek family in `skotiq_native::catalog`).
         if vendor == "touptek" {
             if segments.len() != 3 {
                 return Err(SkotiqError::invalid_device_id(

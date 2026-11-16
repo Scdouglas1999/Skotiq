@@ -14,7 +14,7 @@
 //! NORMFIX_CAPTURES=/path/to/captures \
 //! NORMFIX_OUT=/path/to/workdir \
 //! NORMFIX_FILTERS=L,R,G,B \
-//!   cargo test -p skotiq_bridge --release -- --ignored --nocapture normfix
+//!   cargo test -p skotiq_processing --release -- --ignored --nocapture normfix
 //! ```
 
 use crate::post_session::entrypoints::{integrate_session, master_accumulate};
@@ -93,7 +93,7 @@ fn guided_build_request() {
 /// 120 s exposure, using subs from both sides of the meridian flip. The two
 /// masters must then share their star positions to a fraction of a pixel.
 ///
-/// Run with `cargo test -p skotiq_bridge --release -- --ignored --nocapture
+/// Run with `cargo test -p skotiq_processing --release -- --ignored --nocapture
 /// ngc891`. `SKOTIQ_NGC891_DIR` points at a folder holding `lights/n2` and
 /// `cal/masters` (default `~/.cache/eon`).
 #[test]

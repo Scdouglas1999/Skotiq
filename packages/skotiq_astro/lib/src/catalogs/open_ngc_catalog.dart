@@ -8,6 +8,7 @@ import '../coordinate_system.dart';
 import '../util/isolate_run.dart';
 import 'catalog_name_search.dart';
 import 'constellation_names.dart';
+import 'nebula_light.dart';
 
 typedef _DsoRow = ({DeepSkyObject dso, List<String> names});
 typedef _DsoLoad = ({List<DeepSkyObject> objects, CatalogNameKeys nameKeys});
@@ -22,11 +23,15 @@ class OpenNgcDsoCatalog {
   /// Path of the `NGC.csv` file.
   final String path;
 
+  /// The nebula light table ([parseNebulaLightTable]), which refines the
+  /// type of each nebula it lists ([dsoTypeFromOpenNgcCode]).
+  final Map<String, NebulaLight> nebulaLight;
+
   List<DeepSkyObject>? _objects;
   CatalogNameKeys _nameKeys = CatalogNameKeys.empty;
   Future<List<DeepSkyObject>>? _inFlight;
 
-  OpenNgcDsoCatalog(this.path);
+  OpenNgcDsoCatalog(this.path, {this.nebulaLight = const {}});
 
   /// Every object in the file, brightest first (objects with no magnitude
   /// last); empty when the file is missing. A failed parse throws and is
@@ -59,7 +64,7 @@ class OpenNgcDsoCatalog {
       // next load.
       return const [];
     }
-    final loaded = await runInIsolate(_loadDsosInIsolate, path);
+    final loaded = await runInIsolate(_loadDsosInIsolate, (path, nebulaLight));
     _nameKeys = loaded.nameKeys;
     return _objects = loaded.objects;
   }
@@ -99,7 +104,10 @@ class OpenNgcDsoCatalog {
     return found;
   }
 
-  static Future<_DsoLoad> _loadDsosInIsolate(String path) async {
+  static Future<_DsoLoad> _loadDsosInIsolate(
+    (String, Map<String, NebulaLight>) file,
+  ) async {
+    final (path, nebulaLight) = file;
     final rows = <_DsoRow>[];
     final stream = File(
       path,
@@ -112,7 +120,7 @@ class OpenNgcDsoCatalog {
         continue;
       }
       try {
-        final row = _parseOpenNgcLine(line);
+        final row = _parseOpenNgcLine(line, nebulaLight);
         if (row != null) rows.add(row);
       } catch (e) {
         // One malformed line (truncated export, missing field) must not abort
@@ -145,12 +153,16 @@ class OpenNgcDsoCatalog {
   /// Name;Type;RA;Dec;Const;MajAx;MinAx;PosAng;B-Mag;V-Mag;J-Mag;H-Mag;K-Mag;SurfBr;
   /// Hubble;Cstar U-Mag;Cstar B-Mag;Cstar V-Mag;M;NGC;IC;Cstar Names;Identifiers;
   /// Common names;NED notes;OpenNGC notes
-  static _DsoRow? _parseOpenNgcLine(String line) {
+  static _DsoRow? _parseOpenNgcLine(
+    String line,
+    Map<String, NebulaLight> nebulaLight,
+  ) {
     final parts = line.split(';');
     if (parts.length < 10) return null;
 
     var ngcName = parts[0].trim();
     final typeCode = parts[1].trim();
+    final light = nebulaLight[ngcName];
 
     // Skip non-existent and duplicate entries
     if (typeCode == 'NonEx' || typeCode == 'Dup') return null;
@@ -230,7 +242,7 @@ class OpenNgcDsoCatalog {
       id: ngcName,
       name: displayName,
       coordinates: CelestialCoordinate(ra: ra, dec: dec),
-      type: dsoTypeFromOpenNgcCode(typeCode),
+      type: dsoTypeFromOpenNgcCode(typeCode, light: light),
       magnitude: magnitude,
       sizeArcMin: size,
       constellation: constellationFullName(constellation),
