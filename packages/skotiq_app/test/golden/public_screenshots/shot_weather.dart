@@ -10,9 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-// The fetch result is the service's own type; the barrel does not export it.
-import 'package:skotiq_core/src/services/weather/radar_provider.dart'
-    show RadarFetchResult;
 
 import '../surface_golden_harness.dart';
 import 'shot_night.dart';
