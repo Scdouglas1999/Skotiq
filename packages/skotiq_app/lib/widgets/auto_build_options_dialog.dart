@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/held_future.dart';
+import '../utils/plan_tonight_sequencer_helper.dart';
 import 'filter_set_picker.dart';
 import 'sensitivity_field.dart';
 
@@ -115,9 +117,19 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       saved: saved,
       calculatedSeconds: calculatedSeconds,
       onSave: (recipe) => dao.setSetting(key, jsonEncode(recipe)),
-      onFilterSetChosen: (set) => ref
-          .read(filterSetPreferencesProvider.notifier)
-          .choose(target, set, recommended: filterChoice.recommended),
+      onFilterSetChosen: (set) async {
+        final prefs = ref.read(filterSetPreferencesProvider.notifier);
+        // A saved set keeps the shares it was last built with.
+        if (set.isCustom) {
+          await prefs.save(CustomFilterSet(
+              name: set.label, filters: set.filters, shares: set.shares));
+        }
+        await prefs.choose(target, set, recommended: filterChoice.recommended);
+      },
+      previewPlans: (options) async =>
+          (await buildPlanTonightTargetSequenceFromSuggestion(
+                  ref: ref, target: target, options: options))
+              .filterPlans,
     ),
   );
   if (!context.mounted ||
@@ -178,6 +190,11 @@ class AutoBuildOptionsDialog extends StatefulWidget {
   /// Remembers the set the sequence was built with for [target].
   final Future<void> Function(FilterSet) onFilterSetChosen;
 
+  /// The frames each filter would get with these options, from the same
+  /// builder the sequence is built by; null shows no counts.
+  final Future<List<SmartNightFilterPlan>> Function(AutoBuildOptions)?
+      previewPlans;
+
   /// The exposure calculator's sub length per filter, for a filter the saved
   /// recipe has no length for.
   final Map<String, double> calculatedSeconds;
@@ -195,7 +212,8 @@ class AutoBuildOptionsDialog extends StatefulWidget {
       required this.saved,
       this.calculatedSeconds = const {},
       required this.onSave,
-      required this.onFilterSetChosen});
+      required this.onFilterSetChosen,
+      this.previewPlans});
 
   @override
   State<AutoBuildOptionsDialog> createState() => _AutoBuildOptionsDialogState();
@@ -204,6 +222,13 @@ class AutoBuildOptionsDialog extends StatefulWidget {
 class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   final _form = GlobalKey<FormState>();
   final _durations = <String, TextEditingController>{};
+
+  /// Each filter's share of the time, in percent, for the current set.
+  final _shares = <String, TextEditingController>{};
+  Timer? _previewTimer;
+  int _previewRun = 0;
+  Map<String, SmartNightFilterPlan> _preview = const {};
+  String? _previewNote;
   late FilterSet _set;
   late bool _rotate;
   late AutoBuildEnd _end;
@@ -246,11 +271,20 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
               ? '${seconds.round()}'
               : '$seconds');
     }
+    _loadShares();
+    _schedulePreview();
   }
 
   @override
   void dispose() {
-    for (final c in [..._durations.values, _gain, _offset, _hours]) {
+    _previewTimer?.cancel();
+    for (final c in [
+      ..._durations.values,
+      ..._shares.values,
+      _gain,
+      _offset,
+      _hours
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -269,7 +303,89 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                 text: '${(widget.calculatedSeconds[filter] ?? 180).round()}'));
       }
       _loadCaptureSettings();
+      _loadShares();
     });
+    _schedulePreview();
+  }
+
+  /// The share fields for the current set, in percent of the time: equal
+  /// unless the set carries the user's shares.
+  void _loadShares() {
+    for (final c in _shares.values) {
+      c.dispose();
+    }
+    _shares.clear();
+    final shares = _set.shares;
+    final total = shares.values.fold<double>(0, (sum, s) => sum + s);
+    for (final MapEntry(key: filter, value: share) in shares.entries) {
+      final percent = total <= 0 ? 0 : share / total * 100;
+      _shares[filter] = TextEditingController(
+          text: percent == percent.roundToDouble()
+              ? '${percent.round()}'
+              : percent.toStringAsFixed(1));
+    }
+  }
+
+  /// The current set with the shares in the fields.
+  FilterSet get _weighted => _set.withShares({
+        for (final MapEntry(key: filter, value: field) in _shares.entries)
+          filter: double.tryParse(field.text.trim()) ?? 1,
+      });
+
+  AutoBuildOptions _options() => AutoBuildOptions(
+      filterSet: _weighted,
+      rotateFilters: _rotate,
+      end: _end,
+      hours: double.tryParse(_hours.text) ?? 4,
+      useCalculator: _calculator,
+      exposures: {
+        for (final f in _filters) f: double.tryParse(_durations[f]!.text) ?? 180
+      },
+      gain: int.tryParse(_gain.text.trim()),
+      offset: widget.sensitivity.hasOffset
+          ? int.tryParse(_offset.text.trim())
+          : null,
+      shutdown: _shutdown);
+
+  /// Refills each filter's frame count shortly after the recipe changes.
+  void _schedulePreview() {
+    final preview = widget.previewPlans;
+    if (preview == null) return;
+    _previewTimer?.cancel();
+    _previewTimer = Timer(const Duration(milliseconds: 250), () async {
+      final run = ++_previewRun;
+      try {
+        final plans = await preview(_options());
+        if (!mounted || run != _previewRun) return;
+        setState(() {
+          _preview = {for (final p in plans) p.filterName: p};
+          _previewNote = null;
+        });
+      } on SmartNightBuildException catch (e) {
+        if (!mounted || run != _previewRun) return;
+        setState(() {
+          _preview = const {};
+          _previewNote = e.message;
+        });
+      } catch (e) {
+        if (!mounted || run != _previewRun) return;
+        setState(() {
+          _preview = const {};
+          _previewNote = 'Could not count the frames: ${userFacingError(e)}';
+        });
+      }
+    });
+  }
+
+  /// "24 × 300 s · 2 h 0 m" for [plan].
+  static String _frames(SmartNightFilterPlan plan) {
+    final secs = plan.durationSecs;
+    final total = Duration(seconds: plan.integrationSecs.round());
+    final length = secs == secs.roundToDouble()
+        ? '${secs.round()}'
+        : secs.toStringAsFixed(1);
+    return '${plan.count} × $length s · '
+        '${total.inHours} h ${total.inMinutes.remainder(60)} m';
   }
 
   CaptureFilterGroup get _filterGroup => captureFilterGroup(_filters.first);
@@ -294,9 +410,10 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   }
 
   Widget _number(String label, TextEditingController controller,
-      {bool optional = false, bool integer = false}) {
+      {bool optional = false, bool integer = false, bool preview = false}) {
     return TextFormField(
       controller: controller,
+      onChanged: preview ? (_) => _schedulePreview() : null,
       decoration: InputDecoration(
         labelText: label,
         floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -368,18 +485,52 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                     label: 'Calculate exposure lengths',
                     subtitle: 'Off uses your per-filter recipe below.',
                     value: _calculator,
-                    onChanged: (v) => setState(() => _calculator = v)),
-                if (!_calculator) ...[
-                  const SizedBox(height: SkotiqTokens.spaceLg),
-                  for (final filter in _filters)
-                    Padding(
-                      key: ValueKey('recipe-exposure-$filter'),
-                      padding:
-                          const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
-                      child: _number(
-                          '${smartNightFilterLabel(filter)} exposure (seconds)',
-                          _durations[filter]!),
+                    onChanged: (v) {
+                      setState(() => _calculator = v);
+                      _schedulePreview();
+                    }),
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                for (final filter in _filters)
+                  Padding(
+                    key: ValueKey('recipe-exposure-$filter'),
+                    padding:
+                        const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _calculator
+                                  ? Text(smartNightFilterLabel(filter),
+                                      style: SkotiqTypography.bodyStrong
+                                          .copyWith(color: colors.textPrimary))
+                                  : _number(
+                                      '${smartNightFilterLabel(filter)} exposure (seconds)',
+                                      _durations[filter]!,
+                                      preview: true),
+                            ),
+                            if (multiFilter) ...[
+                              const SizedBox(width: SkotiqTokens.spaceMd),
+                              SizedBox(
+                                width: 104,
+                                child: _number('Share (%)', _shares[filter]!,
+                                    preview: true),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (_preview[filter] case final plan?) ...[
+                          const SizedBox(height: SkotiqTokens.spaceXs),
+                          Text(_frames(plan), style: muted),
+                        ],
+                      ],
                     ),
+                  ),
+                if (_previewNote case final note?) ...[
+                  Text(note, style: muted),
+                  const SizedBox(height: SkotiqTokens.spaceSm),
                 ],
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
@@ -426,13 +577,15 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                       final picked = AutoBuildEnd.values
                           .where((e) => e.name == name)
                           .firstOrNull;
-                      if (picked != null) setState(() => _end = picked);
+                      if (picked == null) return;
+                      setState(() => _end = picked);
+                      _schedulePreview();
                     },
                   ),
                 ),
                 if (_end == AutoBuildEnd.integration) ...[
                   const SizedBox(height: SkotiqTokens.spaceLg),
-                  _number('Integration hours', _hours),
+                  _number('Integration hours', _hours, preview: true),
                 ],
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 Text(
@@ -456,21 +609,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
 
   Future<void> _accept() async {
     if (!_form.currentState!.validate()) return;
-    final options = AutoBuildOptions(
-        filterSet: _set,
-        rotateFilters: _rotate,
-        end: _end,
-        hours: double.tryParse(_hours.text) ?? 4,
-        useCalculator: _calculator,
-        exposures: {
-          for (final f in _filters)
-            f: double.tryParse(_durations[f]!.text) ?? 180
-        },
-        gain: int.tryParse(_gain.text.trim()),
-        offset: widget.sensitivity.hasOffset
-            ? int.tryParse(_offset.text.trim())
-            : null,
-        shutdown: _shutdown);
+    final options = _options();
     _rememberCaptureSettings();
     setState(() => _saving = true);
     try {
@@ -486,7 +625,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
         'captureSettings': _captureSettings,
         'shutdown': _shutdown
       });
-      await widget.onFilterSetChosen(_set);
+      await widget.onFilterSetChosen(options.filterSet);
       if (mounted) Navigator.pop(context, options);
     } catch (e) {
       if (mounted) {

@@ -261,7 +261,6 @@ void main() {
     test('lists every set the owner wheel can image, SHO recommended', () {
       expect(m1.sets().map((set) => set.label), [
         'LRGB',
-        'LRGB, equal time',
         'RGB',
         'L',
         'LRGB + Ha',
@@ -343,9 +342,32 @@ void main() {
       final haRgb = sets.singleWhere((set) => set.isCustom);
       expect(haRgb.label, 'HaRGB');
       expect(haRgb.filters, ['Baader Ha 7nm', 'R', 'G', 'B']);
-      expect(haRgb.timeShares, isEmpty);
+      expect(haRgb.evenShares, isTrue);
       expect(wheel.reasonFor(haRgb), 'HaRGB: your choice.');
       expect(sets.map((set) => set.label), isNot(contains('Nitrogen')));
+    });
+
+    test('every set splits its time evenly until the user weights it', () {
+      final lrgb = m1.sets().firstWhere((set) => set.label == 'LRGB');
+      expect(lrgb.shares, {'L': 1.0, 'R': 1.0, 'G': 1.0, 'B': 1.0});
+      expect(lrgb.evenShares, isTrue);
+      final weighted = lrgb.withShares(const {'L': 2, 'B': -1});
+      expect(weighted.shares, {'L': 2.0, 'R': 1.0, 'G': 1.0, 'B': 1.0});
+      expect(weighted.evenShares, isFalse);
+      expect(weighted.key, lrgb.key);
+      expect(weighted == lrgb, isFalse);
+    });
+
+    test('a saved set keeps its shares on the wheel\'s slots', () {
+      const saved = CustomFilterSet(
+        name: 'HaRGB',
+        filters: ['Ha', 'R', 'G', 'B'],
+        shares: {'Ha': 3},
+      );
+      final set = saved.resolve(const ['R', 'G', 'B', 'Baader Ha 7nm'])!;
+      expect(set.shares, {'Baader Ha 7nm': 3.0, 'R': 1.0, 'G': 1.0, 'B': 1.0});
+      final back = CustomFilterSet.fromJson(saved.toJson());
+      expect(back.shares, {'Ha': 3.0});
     });
 
     test('a wheel naming no band lists its one-filter choice', () {

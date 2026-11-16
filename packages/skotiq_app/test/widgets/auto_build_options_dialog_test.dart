@@ -68,6 +68,7 @@ Future<_Recipe> _open(
   Map<String, dynamic> saved = const {},
   Map<String, double> calculatedSeconds = const {},
   ExposureSensitivity sensitivity = const GainSensitivity(),
+  Future<List<SmartNightFilterPlan>> Function(AutoBuildOptions)? previewPlans,
 }) async {
   final recipe = _Recipe();
   final choice =
@@ -96,7 +97,8 @@ Future<_Recipe> _open(
                               calculatedSeconds: calculatedSeconds,
                               onSave: (value) async => recipe.saved = value,
                               onFilterSetChosen: (set) async =>
-                                  recipe.chosen = set));
+                                  recipe.chosen = set,
+                              previewPlans: previewPlans));
                     })))),
   ));
   await tester.tap(find.text('Open'));
@@ -135,7 +137,7 @@ void main() {
     await _pick(tester, 'narrowbandSho');
     expect(find.text('139'), findsOneWidget);
     expect(find.text('21'), findsOneWidget);
-    await _pick(tester, 'monoLrgb');
+    await _pick(tester, 'rgb');
     expect(find.text('80'), findsOneWidget);
     await _build(tester);
     expect(recipe.result!.gain, 80);
@@ -297,5 +299,37 @@ void main() {
     expect(recipe.result!.gain, 800);
     expect(recipe.result!.offset, isNull);
     expect(recipe.result!.filterSet.filters, [smartNightUnfilteredName]);
+  });
+
+  testWidgets(
+      'every filter gets an equal share; a share the user changes refills '
+      'the frame counts and is built with', (tester) async {
+    final recipe = await _open(tester,
+        filters: const ['L', 'R', 'G', 'B'],
+        target: _m33,
+        previewPlans: (options) async => [
+              for (final MapEntry(key: filter, value: share)
+                  in options.filterSet.shares.entries)
+                SmartNightFilterPlan(
+                    filterName: filter, count: share.round(), durationSecs: 60),
+            ]);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'Share (%)'), findsNWidgets(4));
+    expect(find.text('25'), findsNWidgets(4));
+    expect(find.text('25 × 60 s · 0 h 25 m'), findsNWidgets(4));
+
+    final lShare = find.widgetWithText(TextFormField, 'Share (%)').first;
+    await tester.ensureVisible(lShare);
+    await tester.enterText(lShare, '40');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    expect(find.text('40 × 60 s · 0 h 40 m'), findsOneWidget);
+    expect(find.text('25 × 60 s · 0 h 25 m'), findsNWidgets(3));
+
+    await _build(tester);
+    expect(recipe.result!.filterSet.shares,
+        {'L': 40.0, 'R': 25.0, 'G': 25.0, 'B': 25.0});
+    expect(recipe.chosen!.shares['L'], 40.0);
   });
 }

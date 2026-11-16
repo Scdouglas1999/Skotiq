@@ -103,7 +103,6 @@ void main() {
     expect(picker.value, 'narrowbandSho');
     expect(picker.itemLabels, [
       'LRGB',
-      'LRGB, equal time',
       'RGB',
       'L',
       'LRGB + Ha',
@@ -152,6 +151,13 @@ void main() {
       await tester.tap(find.text(filter).last);
     }
     await tester.pumpAndSettle();
+    // Equal shares once all four are ticked; Ha takes more.
+    expect(find.text('25'), findsNWidgets(4));
+    await tester.enterText(
+      find.byKey(const ValueKey('filter-set-share-Ha')),
+      '40',
+    );
+    await tester.pumpAndSettle();
     expect(find.text('DARK'), findsOneWidget);
     await tester.tap(find.text('Save set'));
     await tester.pumpAndSettle();
@@ -161,6 +167,13 @@ void main() {
     expect(picked.single.filters, ['R', 'G', 'B', 'Ha']);
     final saved = container.read(filterSetPreferencesProvider).requireValue;
     expect(saved.custom.single.filters, ['R', 'G', 'B', 'Ha']);
+    expect(saved.custom.single.shares, {
+      'R': 25.0,
+      'G': 25.0,
+      'B': 25.0,
+      'Ha': 40.0,
+    });
+    expect(picked.single.shares['Ha'], 40.0);
     final picker = dropdown(tester);
     expect(picker.value, 'custom:HaRGB');
     expect(picker.itemLabels, contains('HaRGB'));

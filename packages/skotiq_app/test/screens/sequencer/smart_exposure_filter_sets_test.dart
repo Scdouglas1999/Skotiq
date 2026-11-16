@@ -179,7 +179,11 @@ void main() {
     expect(filled.name, 'Smart Exposure: L+R+G+B');
     final l = filled.plans.first;
     final r = filled.plans[1];
-    expect(l.count * l.durationSecs, greaterThan(r.count * r.durationSecs));
+    // The same time on every filter.
+    expect(
+      (l.count * l.durationSecs - r.count * r.durationSecs).abs(),
+      lessThanOrEqualTo(l.durationSecs),
+    );
     expect(
       container.read(filterSetPreferencesProvider).requireValue.targetChoices,
       {'M1': 'autoLrgb'},

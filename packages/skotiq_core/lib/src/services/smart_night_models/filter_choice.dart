@@ -177,7 +177,6 @@ class SmartNightFilterChoice {
 /// The order the Filters picker lists the sets Skotiq knows.
 const List<SmartNightStrategy> filterSetPresetOrder = [
   SmartNightStrategy.autoLrgb,
-  SmartNightStrategy.monoLrgb,
   SmartNightStrategy.rgb,
   SmartNightStrategy.luminance,
   SmartNightStrategy.haLrgb,
@@ -357,7 +356,6 @@ List<String> resolveSmartNightFilterSet({
 
   switch (strategy) {
     case SmartNightStrategy.autoLrgb:
-    case SmartNightStrategy.monoLrgb:
       return all(const ['L', 'R', 'G', 'B']);
     case SmartNightStrategy.haLrgb:
       return all(const ['L', 'R', 'G', 'B', 'Ha']);
@@ -393,7 +391,6 @@ List<String> resolveSmartNightFilterSet({
 String smartNightStrategyLabel(SmartNightStrategy strategy) =>
     switch (strategy) {
       SmartNightStrategy.autoLrgb => 'LRGB',
-      SmartNightStrategy.monoLrgb => 'LRGB, equal time',
       SmartNightStrategy.haLrgb => 'LRGB + Ha',
       SmartNightStrategy.rgb => 'RGB',
       SmartNightStrategy.luminance => 'Luminance',

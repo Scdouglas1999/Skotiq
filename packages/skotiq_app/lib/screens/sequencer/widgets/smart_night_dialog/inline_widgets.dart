@@ -499,13 +499,9 @@ class _StrategyTile extends StatelessWidget {
         );
       case SmartNightStrategy.autoLrgb:
         return (
-          title: 'Auto-balance LRGB',
-          subtitle: 'L weighted 2x R/G/B; default for broadband nights.',
-        );
-      case SmartNightStrategy.monoLrgb:
-        return (
-          title: 'Mono LRGB (even)',
-          subtitle: 'Equal time per L/R/G/B; classic mono workflow.',
+          title: 'LRGB',
+          subtitle: 'Equal time on L, R, G and B; default for broadband '
+              'nights.',
         );
       case SmartNightStrategy.narrowbandHoo:
         return (

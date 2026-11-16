@@ -1121,6 +1121,38 @@ void main() {
         expect(node.rotateFilters, isFalse);
       });
 
+      test('every filter gets the same time unless the set says otherwise', () {
+        List<SmartNightFilterPlan> plans(FilterSet set) => service
+            .buildSingleTargetSequence(
+              profile: monoProfile,
+              suggestion: fakeSuggestion(id: 1, name: 'M51'),
+              windowStart: siteTime(2026, 5, 17, 22),
+              windowEnd: siteTime(2026, 5, 18, 5),
+              latitudeDeg: _siteLatitude,
+              longitudeDeg: _siteLongitude,
+              availableFilters: monoProfile.filterNames,
+              settings: const SmartNightSettings(
+                subExposureFloorSecs: 1,
+                useExposurePresets: true,
+                defaultFrameDurationSecs: {'L': 60, 'R': 60, 'G': 60, 'B': 60},
+              ),
+              filterSet: set,
+            )
+            .filterPlans;
+        final lrgb = FilterSet.preset(SmartNightStrategy.autoLrgb, const [
+          'L',
+          'R',
+          'G',
+          'B',
+        ]);
+        final even = plans(lrgb);
+        expect(even.map((p) => p.count).toSet(), hasLength(1));
+        final weighted = plans(lrgb.withShares(const {'L': 2}));
+        final l = weighted.firstWhere((p) => p.filterName == 'L').count;
+        final r = weighted.firstWhere((p) => p.filterName == 'R').count;
+        expect(l, closeTo(2 * r, 1));
+      });
+
       test('every row dithers on the same cadence', () {
         final node = smartExposure(monoProfile);
         expect(node.plans.map((p) => p.ditherEvery).toSet(), {3});
@@ -1282,14 +1314,14 @@ void main() {
             latitudeDeg: _siteLatitude,
             longitudeDeg: _siteLongitude,
             availableFilters: narrowbandProfile.filterNames,
-            filterSet: FilterSet.preset(SmartNightStrategy.monoLrgb, const []),
+            filterSet: FilterSet.preset(SmartNightStrategy.autoLrgb, const []),
             settings: const SmartNightSettings(subExposureFloorSecs: 1),
           ),
           throwsA(
             isA<SmartNightBuildException>().having(
               (e) => e.message,
               'message',
-              contains('The wheel has no filters for LRGB, equal time'),
+              contains('The wheel has no filters for LRGB'),
             ),
           ),
         );

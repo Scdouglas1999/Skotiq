@@ -441,7 +441,7 @@ class SmartNightService {
               ? choice.recommended
               : FilterSet.preset(strategy, choice.filtersFor(strategy)));
       final filterPlans = _composeFilterPlans(
-        timeShares: targetSet.timeShares,
+        shares: targetSet.shares,
         activeFilters: targetSet.filters,
         windowSecs: windowSecs,
         profile: profile,
@@ -694,7 +694,7 @@ class SmartNightService {
     if (windowSecs <= 0) return null;
 
     final filterPlans = _composeFilterPlans(
-      timeShares: set.timeShares,
+      shares: set.shares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,
@@ -814,7 +814,7 @@ class SmartNightService {
     );
 
     final filterPlans = _composeFilterPlans(
-      timeShares: set.timeShares,
+      shares: set.shares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,
@@ -888,7 +888,7 @@ class SmartNightService {
   /// The Smart Exposure rows for imaging [filterSet] for [plannedSecs] in
   /// all on a rig with [profile], as the Filters picker fills a step: each
   /// filter's sub length from the exposure calculator, the time split into
-  /// frame counts by the set's shares ([FilterSet.timeShares]), and the
+  /// frame counts by the set's shares ([FilterSet.shares]), and the
   /// camera's gain and offset for each filter. The rows dither every
   /// [SmartNightSettings.ditherEveryFrames] frames.
   ///
@@ -917,7 +917,7 @@ class SmartNightService {
       );
     }
     final plans = _composeFilterPlans(
-      timeShares: filterSet.timeShares,
+      shares: filterSet.shares,
       activeFilters: filterSet.filters,
       windowSecs: plannedSecs,
       profile: profile,
@@ -1040,7 +1040,7 @@ class SmartNightService {
 
   /// Compose per-filter plans — delegates to the public helper.
   List<SmartNightFilterPlan> _composeFilterPlans({
-    required Map<String, double> timeShares,
+    required Map<String, double> shares,
     required List<String> activeFilters,
     required double windowSecs,
     required EquipmentProfileModel profile,
@@ -1056,7 +1056,7 @@ class SmartNightService {
     List<String>? availableFiltersForGoals,
   }) {
     return composeSmartNightFilterPlans(
-      timeShares: timeShares,
+      shares: shares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,
