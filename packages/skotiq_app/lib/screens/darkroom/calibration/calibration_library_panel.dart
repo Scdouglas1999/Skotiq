@@ -823,6 +823,17 @@ class CalibrationMasterRow extends StatelessWidget {
               ),
             ],
           ),
+          if (record.offSetPoint != null)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 84 + SkotiqTokens.spaceMd,
+                top: 2,
+              ),
+              child: Text(
+                'Not used to calibrate: ${record.offSetPoint}.',
+                style: SkotiqTypography.caption.copyWith(color: colors.warning),
+              ),
+            ),
           if (record.filePath != null ||
               record.tags.isNotEmpty ||
               (record.notes?.isNotEmpty ?? false))
