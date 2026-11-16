@@ -22,6 +22,16 @@ class FramingSkyCanvas extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final framingState = ref.watch(framingProvider);
     final equipmentResult = ref.watch(framingFOVProvider);
+    // The mosaic's panels are cut from the camera field, so a field that
+    // resolves or changes after the mosaic was drawn re-cuts them.
+    ref.listen(framingFOVProvider, (previous, next) {
+      final before = previous?.valueOrNull?.equipment;
+      final after = next.valueOrNull?.equipment;
+      if (before?.fovWidthDeg != after?.fovWidthDeg ||
+          before?.fovHeightDeg != after?.fovHeightDeg) {
+        ref.read(framingProvider.notifier).recalculateMosaicIfNeeded();
+      }
+    });
     return Stack(
       children: [
         Positioned.fill(
