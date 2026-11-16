@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,9 +38,13 @@ void main() {
 
   tearDown(() => database.close());
 
-  ProviderContainer containerFor(int profileId) {
+  ProviderContainer containerFor(
+    int profileId, {
+    List<TargetSuggestion> tonight = const [],
+  }) {
     final container = ProviderContainer(
       overrides: [
+        tonightSuggestionsProvider.overrideWith((ref) async => tonight),
         databaseProvider.overrideWithValue(database),
         settingsDaoProvider.overrideWithValue(dao),
         activeEquipmentProfileProvider.overrideWithValue(
@@ -97,5 +102,39 @@ void main() {
     final set = await container.read(targetFilterSetProvider(_m1).future);
     expect(set.key, 'narrowbandSho');
     expect(set.filters, ['Ha', 'OIII', 'SII']);
+  });
+
+  test('a sequence step\'s target takes tonight\'s candidate of its name, '
+      'else its library row', () async {
+    await TargetsDao(database).createTarget(
+      TargetsCompanion.insert(
+        name: 'NGC7000',
+        ra: 20.98,
+        dec: 44.3,
+        objectType: const Value('HII Region'),
+      ),
+    );
+    final scoped = containerFor(7, tonight: const [_m1]);
+
+    final m1 = await scoped.read(
+      sequenceTargetSuggestionProvider((
+        name: 'm1',
+        raHours: 5.6,
+        decDegrees: 22.0,
+        libraryId: null,
+      )).future,
+    );
+    expect(m1.objectType, 'Supernova Remnant');
+    expect(m1.raHours, 5.6);
+
+    final nebula = await scoped.read(
+      sequenceTargetSuggestionProvider((
+        name: 'NGC7000',
+        raHours: 20.98,
+        decDegrees: 44.3,
+        libraryId: null,
+      )).future,
+    );
+    expect(nebula.objectType, 'HII Region');
   });
 }

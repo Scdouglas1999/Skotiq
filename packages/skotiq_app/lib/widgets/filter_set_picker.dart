@@ -381,10 +381,14 @@ class FilterOrderControl extends StatelessWidget {
     super.key,
     required this.rotate,
     required this.onChanged,
+    this.label,
   });
 
   final bool rotate;
   final ValueChanged<bool> onChanged;
+
+  /// A form row label beside the control ("Order").
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -393,11 +397,13 @@ class FilterOrderControl extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SegmentedControl(
-          semanticLabel: 'Filter order',
-          segments: const ['Rotate', 'Blocks'],
-          selectedIndex: rotate ? 0 : 1,
-          onSelected: (index) => onChanged(index == 0),
+        _row(
+          SegmentedControl(
+            semanticLabel: 'Filter order',
+            segments: const ['Rotate', 'Blocks'],
+            selectedIndex: rotate ? 0 : 1,
+            onSelected: (index) => onChanged(index == 0),
+          ),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
@@ -410,5 +416,15 @@ class FilterOrderControl extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _row(Widget control) {
+    final text = label;
+    return text == null
+        ? control
+        : FormRow(
+            label: text,
+            child: Align(alignment: Alignment.centerLeft, child: control),
+          );
   }
 }

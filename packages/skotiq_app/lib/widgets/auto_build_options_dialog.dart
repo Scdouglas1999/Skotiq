@@ -357,12 +357,10 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                 ),
                 if (multiFilter) ...[
                   const SizedBox(height: SkotiqTokens.spaceMd),
-                  FormRow(
+                  FilterOrderControl(
                     label: 'Order',
-                    child: FilterOrderControl(
-                      rotate: _rotate,
-                      onChanged: (v) => setState(() => _rotate = v),
-                    ),
+                    rotate: _rotate,
+                    onChanged: (v) => setState(() => _rotate = v),
                   ),
                 ],
                 const SizedBox(height: SkotiqTokens.spaceLg),

@@ -110,11 +110,27 @@ typedef SequenceTargetKey = ({
   int? libraryId,
 });
 
-/// The target of a sequence's target step as the filter choice reads it.
-/// Its target-library row (by id, else by name, as a run binds the step)
-/// gives the object type and size; without a row the type is unknown.
+/// The target of a sequence's target step as the filter choice reads it:
+/// tonight's ranked candidate of that name (where the planner's plans come
+/// from), else its target-library row (by id, else by name, as a run binds
+/// the step). Without either the type is unknown.
 final sequenceTargetSuggestionProvider = FutureProvider.autoDispose
     .family<TargetSuggestion, SequenceTargetKey>((ref, key) async {
+      final name = key.name.trim().toLowerCase();
+      final tonight = await ref.watch(tonightSuggestionsProvider.future);
+      final ranked = tonight
+          .where(
+            (s) =>
+                s.targetName.trim().toLowerCase() == name ||
+                s.catalogId?.trim().toLowerCase() == name,
+          )
+          .firstOrNull;
+      if (ranked != null) {
+        return ranked.copyWith(
+          raHours: key.raHours,
+          decDegrees: key.decDegrees,
+        );
+      }
       final dao = ref.watch(targetsDaoProvider);
       final libraryId = key.libraryId;
       final row = libraryId != null
