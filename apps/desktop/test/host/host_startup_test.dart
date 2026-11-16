@@ -9,8 +9,9 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart'
-    as remote_profile;
+import 'package:skotiq_core/models.dart'
+    as remote_profile
+    show EquipmentProfile;
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';
