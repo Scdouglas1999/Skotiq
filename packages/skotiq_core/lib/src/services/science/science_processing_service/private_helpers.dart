@@ -3,7 +3,7 @@ part of '../science_processing_service.dart';
 /// How far from a frame's already solved center its full-WCS solve searches:
 /// the center is known to arcseconds, and a blind search costs a whole-sky
 /// pass for nothing.
-const double _knownCentreSearchRadiusDeg = 2.0;
+const double _knownCenterSearchRadiusDeg = 2.0;
 
 extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   Future<void> _processImmediateQualityLane({
@@ -518,7 +518,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
             : SolveOptions(
                 raHintHours: image.solvedRa,
                 decHintDegrees: image.solvedDec,
-                searchRadiusDegrees: _knownCentreSearchRadiusDeg,
+                searchRadiusDegrees: _knownCenterSearchRadiusDeg,
               ),
       );
     }
