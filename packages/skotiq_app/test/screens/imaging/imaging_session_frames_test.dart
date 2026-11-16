@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_session_frames.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/widgets/saved_frame/saved_frame_viewer.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
@@ -117,4 +120,85 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'tapping a tile shows that frame at full resolution, decoded from its '
+    'own file',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1000, 800);
+      addTearDown(tester.view.reset);
+      final decoded = <String>[];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            isRemoteModeProvider.overrideWithValue(false),
+            imagingBackendProvider.overrideWithValue(_NoThumbnails()),
+            nightSessionLightRowsProvider.overrideWithValue([
+              _light(1),
+              _light(2),
+            ]),
+            allDbTargetsProvider.overrideWith(
+              (ref) => Stream.value([_target(1, 'M34')]),
+            ),
+            frameFileDecoderProvider.overrideWithValue((path) async {
+              decoded.add(path);
+              return _decoded(64, 48);
+            }),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(body: ImagingSessionFrames()),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('#1'));
+      await _settle(tester);
+
+      expect(decoded, ['/captures/f1.fits']);
+      expect(find.byType(SavedFrameViewer), findsOneWidget);
+      expect(
+        find.textContaining('64 × 48', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.textContaining('2 of 2', findRichText: true), findsOneWidget);
+
+      // The newest frame is first in the grid; the one before it is a key away.
+      await tester.tap(find.text('Previous'));
+      await _settle(tester);
+      expect(decoded, ['/captures/f1.fits', '/captures/f2.fits']);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settle(tester);
+      expect(find.byType(SavedFrameViewer), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
+
+bridge.FitsReadResult _decoded(int width, int height) => bridge.FitsReadResult(
+      width: width,
+      height: height,
+      bitpix: 16,
+      displayData: Uint8List(width * height * 4),
+      histogram: Uint32List(256),
+      stats: const bridge.ImageStatsResult(
+        min: 0,
+        max: 1000,
+        mean: 500,
+        median: 480,
+        stdDev: 20,
+        starCount: 0,
+      ),
+    );
+
+/// Lets the viewer route open or close and its load land. The frame's texture
+/// decode spins a loading mark, so pumpAndSettle would never settle.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }

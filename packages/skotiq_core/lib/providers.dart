@@ -173,6 +173,7 @@ export 'src/providers/thumbnail_sidecar_provider.dart';
 export 'src/providers/first_light_provider.dart';
 export 'src/providers/catalog_overlay_provider.dart';
 export 'src/providers/current_frame_analysis_provider.dart';
+export 'src/providers/saved_frame_provider.dart';
 export 'src/providers/frame_record_updates.dart';
 export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/providers/scheduler_provider.dart';
