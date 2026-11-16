@@ -43,14 +43,15 @@ bool smartNightRotatesFilters(EquipmentProfileModel profile) =>
     profile.filterWheelId?.trim().isNotEmpty ?? false;
 
 /// Compose per-filter (count, durationSecs) using the exposure calculator,
-/// the filter set's [timeShares] ([FilterSet.timeShares]), and the
+/// each filter's share of the time ([shares], by wheel slot, as
+/// [FilterSet.shares] gives it; a filter not listed gets 1), and the
 /// integration window budget.
 ///
 /// When [integrationGoalProgress] contains goals with remaining frames, those
 /// rows take precedence for matching filters. Other strategy filters without
 /// goals (or with zero remaining) are filled from the leftover window budget.
 List<SmartNightFilterPlan> composeSmartNightFilterPlans({
-  required Map<String, double> timeShares,
+  required Map<String, double> shares,
   required List<String> activeFilters,
   required double windowSecs,
   required EquipmentProfileModel profile,
@@ -108,7 +109,7 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
     final budgetPlans = budgetFilters.isEmpty || remainingWindowSecs <= 0
         ? const <SmartNightFilterPlan>[]
         : _composeBudgetFilterPlans(
-            timeShares: timeShares,
+            shares: shares,
             activeFilters: budgetFilters,
             windowSecs: remainingWindowSecs,
             cameraSpec: cameraSpec,
@@ -130,7 +131,7 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
   }
 
   return _composeBudgetFilterPlans(
-    timeShares: timeShares,
+    shares: shares,
     activeFilters: activeFilters,
     windowSecs: windowSecs,
     cameraSpec: cameraSpec,
@@ -187,7 +188,7 @@ List<SmartNightFilterPlan> _mergeFilterPlansInStrategyOrder({
 }
 
 List<SmartNightFilterPlan> _composeBudgetFilterPlans({
-  required Map<String, double> timeShares,
+  required Map<String, double> shares,
   required List<String> activeFilters,
   required double windowSecs,
   required CameraExposureSpec cameraSpec,
@@ -202,16 +203,15 @@ List<SmartNightFilterPlan> _composeBudgetFilterPlans({
 }) {
   if (activeFilters.isEmpty) return const [];
 
-  final ratios = timeShares;
-  final sumRatios = activeFilters.fold<double>(
+  final sumShares = activeFilters.fold<double>(
     0,
-    (sum, f) => sum + (ratios[filterIdentity(f)] ?? 1.0),
+    (sum, f) => sum + (shares[f] ?? 1.0),
   );
-  final perFilterBudget = sumRatios <= 0
+  final perFilterBudget = sumShares <= 0
       ? <String, double>{}
       : {
           for (final f in activeFilters)
-            f: windowSecs * (ratios[filterIdentity(f)] ?? 1.0) / sumRatios,
+            f: windowSecs * (shares[f] ?? 1.0) / sumShares,
         };
 
   final out = <SmartNightFilterPlan>[];

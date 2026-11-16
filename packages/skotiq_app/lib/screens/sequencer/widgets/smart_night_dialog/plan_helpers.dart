@@ -8,7 +8,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   /// target's own filters.
   SmartNightStrategy? _strategyFromPersistedName(String name) => switch (name) {
         'auto_lrgb' => SmartNightStrategy.autoLrgb,
-        'mono_lrgb' => SmartNightStrategy.monoLrgb,
+        // LRGB with equal time, which every LRGB plan now is.
+        'mono_lrgb' => SmartNightStrategy.autoLrgb,
         'ha_lrgb' => SmartNightStrategy.haLrgb,
         'narrowband_ha' => SmartNightStrategy.narrowbandHa,
         'narrowband_hoo' => SmartNightStrategy.narrowbandHoo,
@@ -24,7 +25,6 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   String _persistedNameForStrategy(SmartNightStrategy? s) => switch (s) {
         null => 'auto',
         SmartNightStrategy.autoLrgb => 'auto_lrgb',
-        SmartNightStrategy.monoLrgb => 'mono_lrgb',
         SmartNightStrategy.haLrgb => 'ha_lrgb',
         SmartNightStrategy.narrowbandHa => 'narrowband_ha',
         SmartNightStrategy.narrowbandHoo => 'narrowband_hoo',
