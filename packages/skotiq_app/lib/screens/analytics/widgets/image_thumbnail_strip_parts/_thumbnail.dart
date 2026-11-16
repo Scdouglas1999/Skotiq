@@ -7,8 +7,12 @@ class _ImageThumbnail extends ConsumerStatefulWidget {
   final FramePhotometricCalibrationRow? calibration;
   final Function(DbCapturedImage)? onImageTap;
 
+  /// Shows the frame at full resolution among the strip's frames.
+  final VoidCallback onOpen;
+
   const _ImageThumbnail({
     required this.image,
+    required this.onOpen,
     this.assessment,
     this.calibration,
     this.onImageTap,
@@ -361,21 +365,13 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
     );
   }
 
-  Future<void> _handleTap() async {
+  void _handleTap() {
     final override = widget.onImageTap;
     if (override != null) {
       override(widget.image);
       return;
     }
-    final changed = await showFrameDetailDialog(
-      context,
-      image: widget.image,
-      assessment: widget.assessment,
-      calibration: widget.calibration,
-    );
-    // Accepting/rejecting from the inspector has to reach the rail, the stat
-    // strip and the four charts, all of which read the same polled provider.
-    if (changed && mounted) ref.invalidate(dbSessionImagesProvider);
+    widget.onOpen();
   }
 
   /// The verdict in a word, short enough to sit beside the HFR badge.

@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart' show DurationFormat, QuantityFormat;
+import 'package:skotiq_astro/format.dart'
+    show ClockFormat, DurationFormat, QuantityFormat;
 import 'package:skotiq_core/backend.dart' show ImagingBackend;
 import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
-    show imagingBackendProvider, isRemoteModeProvider;
+    show imagingBackendProvider, isRemoteModeProvider, SavedFrameRef;
 import 'package:skotiq_core/services.dart'
     show
         imagingRecordsProvider,
@@ -26,16 +27,63 @@ import 'frame_detail_dialog.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import '../../../widgets/saved_frame/saved_frame_viewer.dart';
 import 'package:skotiq_core/models.dart';
 
 part 'image_thumbnail_strip_parts/_chips.dart';
 part 'image_thumbnail_strip_parts/_thumbnail.dart';
 
-enum _QualityFilter {
-  all,
-  needsReview,
-  poor,
+/// [image] as the saved-frame viewer names it; its Details open the frame
+/// inspector, where the frame is flagged or restored.
+SavedFrameEntry _viewerEntry(
+  BuildContext context,
+  DbCapturedImage image,
+  FrameQualityAssessment? assessment,
+  FramePhotometricCalibrationRow? calibration,
+) {
+  final hfr = image.hfr;
+  final stars = image.starCount;
+  return SavedFrameEntry(
+    frame: SavedFrameRef(
+      imageId: image.id,
+      hostPath: image.filePath,
+      capturedAt: image.capturedAt,
+    ),
+    title: image.fileName,
+    time: ClockFormat.hms(image.capturedAt.toLocal()),
+    status: [
+      if (!image.isAccepted)
+        'Rejected'
+      else if (assessment != null)
+        switch (assessment.level) {
+          FrameQualityLevel.good => 'Good',
+          FrameQualityLevel.needsReview => 'Needs review',
+          FrameQualityLevel.poor => 'Poor',
+        },
+      if (hfr != null) 'HFR ${hfr.toStringAsFixed(2)}',
+      if (stars != null) '$stars stars',
+    ].join(' · '),
+    accepted: image.isAccepted,
+    onDetails: () async {
+      final changed = await showFrameDetailDialog(
+        context,
+        image: image,
+        assessment: assessment,
+        calibration: calibration,
+      );
+      // Flagging from the inspector has to reach the strip, the stat strip
+      // and the charts, which all read the same polled provider.
+      if (changed && context.mounted) {
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).invalidate(dbSessionImagesProvider);
+      }
+    },
+  );
 }
+
+enum _QualityFilter { all, needsReview, poor }
 
 /// A frame tile's height: a picture tall enough that the badges along its
 /// top edge, the glyph in its middle and the badges along its bottom edge
@@ -207,11 +255,22 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
       );
     }
 
+    SavedFrameEntry entry(DbCapturedImage image) => _viewerEntry(
+          context,
+          image,
+          assessments[image.id],
+          widget.calibrationByImageId?[image.id],
+        );
     Widget tile(DbCapturedImage image) => _ImageThumbnail(
           image: image,
           assessment: assessments[image.id],
           calibration: widget.calibrationByImageId?[image.id],
           onImageTap: widget.onImageTap,
+          onOpen: () => SavedFrameViewer.show(
+            context,
+            frames: [for (final shown in filteredImages) entry(shown)],
+            initialIndex: filteredImages.indexOf(image),
+          ),
         );
     final noMatch = Container(
       height: _kThumbnailHeight,

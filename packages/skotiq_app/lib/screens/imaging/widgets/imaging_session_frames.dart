@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import '../../../widgets/saved_frame/saved_frame_viewer.dart';
 import '../../night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_core/models.dart';
 
@@ -41,6 +42,12 @@ class ImagingSessionFrames extends ConsumerWidget {
         target.id: target.name,
     };
     final groups = sessionFrameGroups(rows);
+    final shown = <SessionFrame>[for (final group in groups) ...group.frames];
+    void open(SessionFrame frame) => SavedFrameViewer.show(
+          context,
+          frames: [for (final f in shown) _viewerEntry(context, f)],
+          initialIndex: shown.indexOf(frame),
+        );
 
     return ListView(
       padding: SkotiqTokens.paddingLg,
@@ -56,6 +63,7 @@ class ImagingSessionFrames extends ConsumerWidget {
                 _FrameTile(
                   key: ValueKey<int>(frame.row.id),
                   frame: frame,
+                  onOpen: () => open(frame),
                 ),
             ],
           ),
@@ -65,6 +73,45 @@ class ImagingSessionFrames extends ConsumerWidget {
     );
   }
 }
+
+/// [frame] as the saved-frame viewer names it.
+SavedFrameEntry _viewerEntry(BuildContext context, SessionFrame frame) {
+  final row = frame.row;
+  final exclusion = frameExclusionKindOf(row.rejectionReason);
+  final hfr = row.hfr;
+  final stars = row.starCount;
+  final filter = row.filter;
+  return SavedFrameEntry(
+    frame: SavedFrameRef(
+      imageId: row.id,
+      hostPath: row.filePath,
+      capturedAt: row.capturedAt,
+    ),
+    title: [
+      '#${frame.number}',
+      if (filter != null && filter.isNotEmpty) filter,
+      DurationFormat.seconds(row.exposureDuration),
+    ].join(' · '),
+    time: ClockFormat.hms(row.capturedAt.toLocal()),
+    status: [
+      _verdict(context, row, exclusion),
+      if (hfr != null) 'HFR ${hfr.toStringAsFixed(2)}',
+      if (stars != null) '$stars stars',
+    ].join(' · '),
+    accepted: row.isAccepted,
+  );
+}
+
+String _verdict(
+  BuildContext context,
+  DbCapturedImage row,
+  FrameExclusionKind? exclusion,
+) =>
+    exclusion != null
+        ? frameExclusionLabel(context, exclusion)
+        : row.isAccepted
+            ? 'Kept'
+            : 'Rejected';
 
 /// A light frame with its place in the night ("#43").
 @immutable
@@ -163,9 +210,12 @@ class _GroupHead extends StatelessWidget {
 }
 
 class _FrameTile extends ConsumerStatefulWidget {
-  const _FrameTile({super.key, required this.frame});
+  const _FrameTile({super.key, required this.frame, required this.onOpen});
 
   final SessionFrame frame;
+
+  /// Shows the frame at full resolution.
+  final VoidCallback onOpen;
 
   @override
   ConsumerState<_FrameTile> createState() => _FrameTileState();
@@ -196,11 +246,7 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
     final hfr = row.hfr;
     final stars = row.starCount;
     final time = ClockFormat.hms(row.capturedAt.toLocal());
-    final verdict = exclusion != null
-        ? frameExclusionLabel(context, exclusion)
-        : rejected
-            ? 'Rejected'
-            : 'Kept';
+    final verdict = _verdict(context, row, exclusion);
     final metrics = [
       if (hfr != null) 'HFR ${hfr.toStringAsFixed(2)}',
       if (stars != null) '$stars ★',
@@ -208,6 +254,8 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
 
     return Semantics(
       container: true,
+      button: true,
+      onTap: widget.onOpen,
       label: [
         'Frame ${widget.frame.number}',
         verdict,
@@ -218,77 +266,85 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
       excludeSemantics: true,
       child: SizedBox(
         width: ImagingSessionFrames.tileWidth,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: SkotiqTokens.borderRadiusSm,
-            border: Border.all(color: colors.border),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AspectRatio(
-                aspectRatio: 3 / 2,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Opacity(
-                      opacity: rejected ? SkotiqTokens.opacityMuted : 1,
-                      child: FrameThumbnail(
-                        bytesFuture: _bytes,
-                        // The path is the host's on a linked client.
-                        fallbackFilePath: remote ? '' : row.filePath,
-                        colors: colors,
+        child: InkWell(
+          onTap: widget.onOpen,
+          borderRadius: SkotiqTokens.borderRadiusSm,
+          child: Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: SkotiqTokens.borderRadiusSm,
+              border: Border.all(color: colors.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 3 / 2,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Opacity(
+                        opacity: rejected ? SkotiqTokens.opacityMuted : 1,
+                        child: FrameThumbnail(
+                          bytesFuture: _bytes,
+                          // The path is the host's on a linked client.
+                          fallbackFilePath: remote ? '' : row.filePath,
+                          colors: colors,
+                        ),
                       ),
-                    ),
-                    Positioned(
-                      top: SkotiqTokens.spaceXs,
-                      left: SkotiqTokens.spaceXs,
-                      child: _NumberChip(number: widget.frame.number),
-                    ),
-                    Positioned(
-                      top: SkotiqTokens.spaceXs,
-                      right: SkotiqTokens.spaceXs,
-                      child: exclusion != null
-                          ? FrameExclusionBadge(kind: exclusion, compact: true)
-                          : _VerdictDot(rejected: rejected),
-                    ),
-                  ],
+                      Positioned(
+                        top: SkotiqTokens.spaceXs,
+                        left: SkotiqTokens.spaceXs,
+                        child: _NumberChip(number: widget.frame.number),
+                      ),
+                      Positioned(
+                        top: SkotiqTokens.spaceXs,
+                        right: SkotiqTokens.spaceXs,
+                        child: exclusion != null
+                            ? FrameExclusionBadge(
+                                kind: exclusion,
+                                compact: true,
+                              )
+                            : _VerdictDot(rejected: rejected),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SkotiqTokens.spaceSm,
-                  vertical: SkotiqTokens.spaceXs,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        metrics,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: SkotiqTypography.withTabular(
-                          SkotiqTypography.captionSm.copyWith(
-                            color:
-                                rejected ? colors.error : colors.textSecondary,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: SkotiqTokens.spaceSm,
+                    vertical: SkotiqTokens.spaceXs,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          metrics,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: SkotiqTypography.withTabular(
+                            SkotiqTypography.captionSm.copyWith(
+                              color: rejected
+                                  ? colors.error
+                                  : colors.textSecondary,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Text(
-                      time,
-                      style: SkotiqTypography.withTabular(
-                        SkotiqTypography.captionSm.copyWith(
-                          color: colors.textMuted,
+                      Text(
+                        time,
+                        style: SkotiqTypography.withTabular(
+                          SkotiqTypography.captionSm.copyWith(
+                            color: colors.textMuted,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

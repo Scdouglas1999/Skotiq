@@ -5,9 +5,8 @@
 //   * The strip renders one tile per ProducingNodeThumbnail it receives
 //     from the provider override, with the correct border colour for
 //     each runtime grade verdict.
-//   * Tapping a tile opens the modal frame viewer dialog (the metadata
-//     `_FullFrameDialog` is private; we assert on the file-name text it
-//     uses for its title bar).
+//   * Tapping a tile opens the saved-frame viewer on that frame, decoded
+//     at full resolution from its own file.
 //   * When `thumbnailStripPrefsProvider` resolves to `enabled = false`,
 //     the strip collapses to SizedBox.shrink so the tree row stays
 //     compact even with frames in the database.
@@ -20,6 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/exposure_node_thumbnail_strip.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/thumbnail_strip_prefs.dart';
+import 'package:skotiq_app/widgets/saved_frame/saved_frame_viewer.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -59,6 +60,7 @@ Future<void> _pumpStrip(
   required List<ProducingNodeThumbnail> thumbnails,
   ThumbnailStripPrefs? prefsOverride,
   String nodeId = 'test-node',
+  FrameFileDecoder? decoder,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(800, 600);
@@ -82,8 +84,11 @@ Future<void> _pumpStrip(
         backendProvider.overrideWith(
           (ref) => TestBackendNotifier(ref, backend),
         ),
-        exposureNodeThumbnailsProvider(nodeId)
-            .overrideWith((ref) => Stream.value(thumbnails)),
+        exposureNodeThumbnailsProvider(
+          nodeId,
+        ).overrideWith((ref) => Stream.value(thumbnails)),
+        if (decoder != null)
+          frameFileDecoderProvider.overrideWithValue(decoder),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
@@ -190,23 +195,49 @@ void main() {
       expect(find.text('+2'), findsOneWidget);
     });
 
-    testWidgets('tapping a tile opens the full-frame dialog', (tester) async {
+    testWidgets('tapping a tile shows the frame at full resolution', (
+      tester,
+    ) async {
+      final decoded = <String>[];
       final thumbnails = [
+        _thumb(id: 41, filter: 'R', grade: 'pass'),
         _thumb(id: 42, filter: 'R', grade: 'pass'),
       ];
-      await _pumpStrip(tester, thumbnails: thumbnails);
+      await _pumpStrip(
+        tester,
+        thumbnails: thumbnails,
+        decoder: (path) async {
+          decoded.add(path);
+          return bridge.FitsReadResult(
+            width: 32,
+            height: 24,
+            bitpix: 16,
+            displayData: Uint8List(32 * 24 * 4),
+            histogram: Uint32List(256),
+            stats: const bridge.ImageStatsResult(
+              min: 0,
+              max: 1,
+              mean: 0,
+              median: 0,
+              stdDev: 0,
+              starCount: 0,
+            ),
+          );
+        },
+      );
 
-      // Drill into the tile (filter label is the only text rendered for
-      // a small strip; using the GestureDetector / InkWell is more
-      // robust against layout changes than rect-based positioning).
-      await tester.tap(find.byType(GestureDetector).first);
-      await tester.pumpAndSettle();
+      await tester.tap(find.byType(GestureDetector).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
 
-      // The dialog's title is the file name.
-      expect(find.text('42.fits'), findsOneWidget);
-      // Metadata table includes the filter chip.
-      expect(find.text('Filter'), findsOneWidget);
-      expect(find.text('R'), findsWidgets);
+      expect(find.byType(SavedFrameViewer), findsOneWidget);
+      expect(decoded, ['/tmp/42.fits']);
+      expect(find.textContaining('42.fits', findRichText: true), findsWidgets);
+      expect(
+        find.textContaining('32 × 24', findRichText: true),
+        findsOneWidget,
+      );
     });
   });
 }
