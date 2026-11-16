@@ -2068,6 +2068,9 @@ mod tests {
 
     /// A pid that belonged to a process which has exited and been reaped.
     fn exited_pid() -> u32 {
+        #[cfg(windows)]
+        let mut child = Command::new("cmd").args(["/c", "exit"]).spawn().unwrap();
+        #[cfg(not(windows))]
         let mut child = Command::new("true").spawn().unwrap();
         let pid = child.id();
         child.wait().unwrap();
