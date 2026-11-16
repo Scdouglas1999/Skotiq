@@ -1,6 +1,7 @@
 // What every plan data provider (night-control plan section 3, P1a) reads:
 // now, the operator's clock, the loaded plan flattened into execution order,
-// one estimator run, and what this session's events recorded per node.
+// and one estimator run. When nodes really started and finished is core's
+// `runNodeTimesProvider`.
 //
 // Every DateTime a P1a view model carries is on the operator's clock, the
 // same clock `tonightNightProvider` renders sunset and dawn on. A widget
@@ -11,9 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-// The typed bridge events, behind the prefix the run dashboard uses: their
-// names collide with the wire event model the barrel keeps canonical.
-import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
@@ -243,101 +241,34 @@ class NightPlanTiming {
   NodeTiming? of(String nodeId) => _firstByNode[nodeId];
 }
 
-/// The estimator run behind every planned time on Tonight.
+/// When the loaded plan's estimate starts, where something fixes it: the
+/// session's start while a run is live (so the steps already done keep their
+/// places), the armed time when "Start at dark" is armed. Instant (UTC). Null
+/// otherwise, when the plan starts now.
 ///
-/// Anchored at session start while a run is live (so the steps already done
-/// keep their places), at the armed start time when "Start at dark" is
-/// armed, and at now otherwise. Null with nothing loaded.
+/// Tonight's plan and the Sequencer's timeline and ETA column all time the
+/// plan from here, so they give the same times.
+final planStartProvider = Provider<DateTime?>((ref) {
+  if (ref.watch(sequenceExecutionStateProvider).isBusy) {
+    return ref.watch(sessionStateProvider.select((s) => s.startTime))?.toUtc();
+  }
+  final armedAt = ref.watch(nightPlanArmedStartSeamProvider);
+  if (armedAt == null) return null;
+  return ref.watch(clockProvider).toInstant(armedAt);
+});
+
+/// The estimator run behind every planned time on Tonight, from
+/// [planStartProvider], or from now on Tonight's tick (a plan that has not
+/// started is re-timed every 30 s). Null with nothing loaded.
 final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null || tree.entries.isEmpty) return null;
 
-  final clock = ref.watch(clockProvider);
-  final execution = ref.watch(sequenceExecutionStateProvider);
-  final armedAt = ref.watch(nightPlanArmedStartSeamProvider);
-
-  // Only the "now" anchor follows the tick; a live run's estimate stays put
-  // instead of being recomputed every 30 s.
-  final started = execution.isBusy
-      ? ref.watch(sessionStateProvider.select((s) => s.startTime))
-      : null;
-  final DateTime anchor;
-  if (started != null) {
-    anchor = started.toUtc();
-  } else if (armedAt != null && !execution.isBusy) {
-    anchor = clock.toInstant(armedAt);
-  } else {
-    anchor = ref.watch(nightNowProvider);
-  }
-
+  final DateTime anchor =
+      ref.watch(planStartProvider) ?? ref.watch<DateTime>(nightNowProvider);
   final plan = ref.watch(planTimerProvider).time(tree.sequence, anchor);
   return NightPlanTiming(
       anchor: anchor, timings: plan.timings, total: plan.total);
-});
-
-/// When this session's nodes started and finished, from the in-memory event
-/// history. Instants. Empty after an app restart, and limited to the events
-/// the history still holds.
-class NightNodeEventTimes {
-  const NightNodeEventTimes({
-    this.started = const <String, DateTime>{},
-    this.completed = const <String, DateTime>{},
-    this.completedStatus = const <String, String>{},
-  });
-
-  /// The latest NodeStarted per node.
-  final Map<String, DateTime> started;
-
-  /// The latest NodeCompleted per node, and its wire status ("success",
-  /// "failed", "cancelled", "skipped").
-  final Map<String, DateTime> completed;
-  final Map<String, String> completedStatus;
-
-  /// When [nodeId] finished successfully, if the history saw it.
-  DateTime? succeededAt(String nodeId) =>
-      completedStatus[nodeId] == 'success' ? completed[nodeId] : null;
-}
-
-final nightNodeEventTimesProvider = Provider<NightNodeEventTimes>((ref) {
-  final history = ref.watch(eventHistoryProvider);
-  if (history.isEmpty) return const NightNodeEventTimes();
-
-  // Only this run's events: the same plan run twice reuses its node ids, and
-  // the first run's finish times must not land on the second run's rows.
-  final execution = ref.watch(sequenceExecutionStateProvider);
-  final sessionStart = ref.watch(
-    sessionStateProvider.select((s) => s.startTime),
-  );
-  final since =
-      execution.isBusy || execution == SequenceExecutionState.completed
-          ? sessionStart?.toUtc()
-          : null;
-
-  final started = <String, DateTime>{};
-  final completed = <String, DateTime>{};
-  final status = <String, String>{};
-  // The history is newest first; walk it oldest first so the latest wins.
-  for (final event in history.reversed) {
-    final payload = event.payload;
-    if (payload is! sk_events.EventPayload_Sequencer) continue;
-    final at = DateTime.fromMillisecondsSinceEpoch(
-      event.timestamp.toInt(),
-      isUtc: true,
-    );
-    if (since != null && at.isBefore(since)) continue;
-    final sequencerEvent = payload.field0;
-    if (sequencerEvent is sk_events.SequencerEvent_NodeStarted) {
-      started[sequencerEvent.nodeId] = at;
-    } else if (sequencerEvent is sk_events.SequencerEvent_NodeCompleted) {
-      completed[sequencerEvent.nodeId] = at;
-      status[sequencerEvent.nodeId] = sequencerEvent.status;
-    }
-  }
-  return NightNodeEventTimes(
-    started: started,
-    completed: completed,
-    completedStatus: status,
-  );
 });
 
 /// Frames an exposure node has captured in its current pass, and planned.

@@ -62,7 +62,7 @@ final nightTargetWindowsProvider = Provider<List<NightTargetWindow>>((ref) {
       : const <String, NodeStatus>{};
   final activeTarget =
       phase.isRunLive ? ref.watch(runDashboardActiveTargetProvider) : null;
-  final recorded = ref.watch(nightNodeEventTimesProvider);
+  final recorded = ref.watch(runNodeTimesProvider);
 
   final windows = <NightTargetWindow>[];
   for (final target in tree.targets) {
