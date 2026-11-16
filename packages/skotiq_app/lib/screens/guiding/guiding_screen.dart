@@ -20,7 +20,9 @@ import '../../tours/tour_target.dart';
 import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
 import '../../widgets/guide_star_view.dart';
+import '../../localization/skotiq_localizations.dart';
 import '../../utils/guide_distance.dart';
+import '../../utils/guider_state_label.dart';
 import '../../router/app_routes.dart';
 import '../../utils/snackbar_helper.dart';
 
@@ -168,7 +170,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
 
     return [
       SkotiqChip(
-        label: _getStateLabel(phd2State),
+        label: context.l10n.text(guiderStateLabel(phd2State).$1),
         tone: _getStateTone(phd2State),
         dot: true,
       ),

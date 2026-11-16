@@ -181,6 +181,18 @@ final List<HostStartupStep> hostStartupSteps = [
     run: _followQhyDiscoverySetting,
   ),
   HostStartupStep(
+    name: 'active profile in the native store',
+    phase: _services,
+    needs: ['local backend', 'database'],
+    // Whether or not auto-connect then activates a start-up profile.
+    run: (host) async {
+      await host.backendReady;
+      await host.container
+          .read(equipmentProfilesProvider.notifier)
+          .writeActiveProfileToNativeStore();
+    },
+  ),
+  HostStartupStep(
     name: 'equipment auto-connect',
     phase: _services,
     needs: ['local backend', 'remote access server'],

@@ -52,11 +52,12 @@ class CatalogDesignation {
     r'^(?:sh2|sharpless2?)-?0*(\d+)([a-z]?)$',
   );
   static final RegExp _shape = RegExp(r'^([a-z]+)-?0*(\d+)([a-z]?)$');
+  static final RegExp _separators = RegExp(r'[\s_]+');
 
   /// Parse [text] as a single catalog designation, or return null when it is
   /// not one (common names, survey identifiers, coordinates).
   static CatalogDesignation? parse(String text) {
-    final compact = text.toLowerCase().replaceAll(RegExp(r'[\s_]+'), '');
+    final compact = text.toLowerCase().replaceAll(_separators, '');
     if (compact.isEmpty) return null;
     final sharpless = _sharpless.firstMatch(compact);
     if (sharpless != null) {

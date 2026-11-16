@@ -393,19 +393,21 @@ impl Dispatcher {
         summary: String,
         stop: Option<crate::decision::RunStop>,
     ) {
+        // The action the run takes, which for a notice is not the configured
+        // one.
         if matches!(action, RecoveryAction::Continue) {
             tracing::debug!(
                 "Trigger fired: {} ({}) - action: {:?}",
                 trigger_name,
                 trigger_id,
-                action
+                trigger_action
             );
         } else {
             tracing::warn!(
                 "Trigger fired: {} ({}) - action: {:?}",
                 trigger_name,
                 trigger_id,
-                action
+                trigger_action
             );
         }
         self.run.send(ExecutorEvent::TriggerFired {

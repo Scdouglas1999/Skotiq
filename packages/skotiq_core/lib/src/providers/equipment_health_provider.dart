@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/equipment/equipment_models.dart'
     show DeviceConnectionState, DeviceSlotState;
 import '../services/equipment_health_service.dart';
+import '../utils/device_id.dart' show isPhd2DeviceId;
 import 'database_provider.dart';
 import 'device_last_contact_provider.dart';
 import 'device_heartbeat_health_provider.dart';
@@ -77,6 +78,9 @@ final connectedDeviceDescriptorsProvider = Provider<List<DeviceConnectionDescrip
         deviceId: deviceId,
         deviceLabel: deviceLabel,
         isHealthy: !hasError,
+        // PHD2 is reached over its own socket, outside the native device
+        // manager whose heartbeat polls every other device.
+        heartbeatPolled: !isPhd2DeviceId(deviceId),
       ),
     );
   }
@@ -170,6 +174,7 @@ DeviceConnectionDescriptor _withHealth(
         heartbeat != HeartbeatHealth.degraded &&
         heartbeat != HeartbeatHealth.reconnecting,
     lastSuccessfulCommunication: lastContact,
+    heartbeatPolled: descriptor.heartbeatPolled,
   );
 }
 

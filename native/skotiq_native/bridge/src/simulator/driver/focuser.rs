@@ -3,7 +3,9 @@ use crate::device_manager::rig::focuser::Focuser;
 use crate::device_manager::rig::RigDriver;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::simulator::focuser::get_sim_focuser;
+use crate::simulator::focuser::{
+    begin_sim_focuser_travel, get_sim_focuser, halt_sim_focuser_travel, sim_focuser_status_now,
+};
 use crate::simulator::{faults, gate};
 use async_trait::async_trait;
 use skotiq_device::DriverError;
@@ -38,13 +40,15 @@ impl Focuser for SimFocuser {
         if !f.status.connected {
             return Err(sim_not_connected());
         }
+        let mut now = f.status.clone();
+        sim_focuser_status_now(&mut now);
         // Backlash: the mechanism lands short of the commanded position when
         // reversing direction. An autofocus routine that trusts the commanded
         // position instead of re-reading the reached one fits its V-curve
         // against positions the focuser was never at.
         let reached = match faults::backlash_steps("focuser.move") {
             Some(backlash) if backlash != 0 => {
-                let reversing = position < f.status.position;
+                let reversing = position < now.position;
                 if reversing {
                     position + backlash
                 } else {
@@ -58,8 +62,9 @@ impl Focuser for SimFocuser {
             return Ok(());
         }
         if let Some(replay) = crate::simulator::replay::armed() {
-            replay.note_focuser_move(f.status.position, reached);
+            replay.note_focuser_move(now.position, reached);
         }
+        begin_sim_focuser_travel(now.position, reached);
         f.status.position = reached;
         Ok(())
     }
@@ -69,7 +74,11 @@ impl Focuser for SimFocuser {
         if !f.status.connected {
             return Err(sim_not_connected());
         }
-        f.status.position += steps;
+        let mut now = f.status.clone();
+        sim_focuser_status_now(&mut now);
+        let reached = now.position + steps;
+        begin_sim_focuser_travel(now.position, reached);
+        f.status.position = reached;
         Ok(())
     }
 
@@ -77,6 +86,9 @@ impl Focuser for SimFocuser {
         let mut f = get_sim_focuser().write().await;
         if !f.status.connected {
             return Err(sim_not_connected());
+        }
+        if let Some(stopped_at) = halt_sim_focuser_travel() {
+            f.status.position = stopped_at;
         }
         f.status.moving = false;
         Ok(())
