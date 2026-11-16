@@ -108,6 +108,13 @@ class TargetVisibilityInfo {
   /// Hours the target is above minimum imaging altitude during the night
   final double? hoursAboveMinAlt;
 
+  /// When the target first stands above the site's altitude floor in the
+  /// night's dark window, and when it last does, to the night sampling's
+  /// resolution. Null when it never clears the floor or the night was not
+  /// sampled.
+  final DateTime? aboveFloorFrom;
+  final DateTime? aboveFloorUntil;
+
   const TargetVisibilityInfo({
     required this.currentAltitude,
     required this.currentAzimuth,
@@ -123,6 +130,8 @@ class TargetVisibilityInfo {
     this.peakAzimuth,
     this.peakAltitudeTime,
     this.hoursAboveMinAlt,
+    this.aboveFloorFrom,
+    this.aboveFloorUntil,
   });
 }
 

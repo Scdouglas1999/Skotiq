@@ -1,29 +1,20 @@
-/// The wire vocabulary of the run's structured reports beyond a step's own
-/// progress: a performed dither, the native frame watch's per-frame
-/// assessment (plate solve, drift from the target, guide RMS, sky background,
-/// horizon obstruction) and the confirmed-obstruction report.
-///
-/// Each travels as a sequencer `InstructionProgressStructured` event with its
-/// own `detail_kind`, so none needs a wire type of its own. The readers are in
+/// What the native frame watch reports: one frame's assessment (plate solve,
+/// drift from the target, guide RMS, sky background, horizon obstruction) and
+/// the confirmed-obstruction report. Each is a sequencer `FrameWatchReport`
+/// event of its own kind; the readers are in
 /// `backend/sequencer_run_events.dart`.
 library;
 
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show wireMap, wireOptBool, wireOptDouble, wireOptInt, wireOptString;
 
-/// `detail_kind` of one dither the run performed, whoever asked for it (a
-/// Dither node, a Smart Exposure plan's cadence, a burst's dither-every, the
-/// Dither Interval trigger). Must stay equal to the native bridge's
-/// `DITHER_PERFORMED_DETAIL_KIND`.
-const String ditherPerformedDetailKind = 'DitherPerformed';
+/// `FrameWatchReport.kind` of one frame's assessment, as the native frame
+/// watch names it.
+const String frameAssessedReportKind = 'FrameAssessed';
 
-/// `detail_kind` of one frame's assessment. Must stay equal to the native
-/// bridge's constant.
-const String frameAssessedDetailKind = 'FrameAssessed';
-
-/// `detail_kind` of a confirmed horizon obstruction. Must stay equal to the
-/// native bridge's constant.
-const String horizonObstructionDetailKind = 'HorizonObstruction';
+/// `FrameWatchReport.kind` of a confirmed horizon obstruction, as the native
+/// frame watch names it.
+const String horizonObstructionReportKind = 'HorizonObstruction';
 
 /// Start of the exclusion reason of a frame whose solved center was too far
 /// from the target. Shared with the native frame watch.

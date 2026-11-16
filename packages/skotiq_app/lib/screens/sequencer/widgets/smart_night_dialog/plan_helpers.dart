@@ -14,6 +14,10 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         'narrowband_hoo' => SmartNightStrategy.narrowbandHoo,
         'narrowband_sho' => SmartNightStrategy.narrowbandSho,
         'osc_one_shot' => SmartNightStrategy.oscOneShot,
+        'rgb' => SmartNightStrategy.rgb,
+        'luminance' => SmartNightStrategy.luminance,
+        'narrowband_oiii' => SmartNightStrategy.narrowbandOiii,
+        'narrowband_sii' => SmartNightStrategy.narrowbandSii,
         _ => null,
       };
 
@@ -26,6 +30,10 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         SmartNightStrategy.narrowbandHoo => 'narrowband_hoo',
         SmartNightStrategy.narrowbandSho => 'narrowband_sho',
         SmartNightStrategy.oscOneShot => 'osc_one_shot',
+        SmartNightStrategy.rgb => 'rgb',
+        SmartNightStrategy.luminance => 'luminance',
+        SmartNightStrategy.narrowbandOiii => 'narrowband_oiii',
+        SmartNightStrategy.narrowbandSii => 'narrowband_sii',
       };
 
   /// Best-effort writeback of the wizard's working [_settings] +
@@ -212,26 +220,23 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     return true;
   }
 
-  /// Takes the set offered beside [target]'s filters ("Add Ha") as the
-  /// user's choice for that target, and plans the night again with it.
-  Future<void> _takeTargetSuggestion(TargetSuggestion target) async {
-    final exposureContext =
-        await ref.read(smartNightExposureContextProvider.future);
-    final offered = _buildService()
-        .chooseFilters(
-          suggestion: target,
-          availableFilters:
-              smartNightPlanningFilters(ref.read(effectiveFiltersProvider)),
-          exposureContext: exposureContext,
-        )
-        .suggested;
-    if (offered == null || !mounted) return;
-    setState(() {
-      _targetStrategies[target.targetId] = offered;
-      _isBuildingPreview = true;
-    });
+  /// Takes [set] for [target] (its card's Filters picker), remembers it for
+  /// the target, and plans the night again with it.
+  Future<void> _chooseTargetSet(TargetSuggestion target, FilterSet set) async {
+    final choice = _targetChoices[target.targetId];
+    if (choice == null) return;
+    setState(() => _isBuildingPreview = true);
     try {
+      await ref
+          .read(filterSetPreferencesProvider.notifier)
+          .choose(target, set, recommended: choice.recommended);
       await _buildPreview();
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+            'Could not change the filters for ${target.targetName}: '
+            '${userFacingError(e)}');
+      }
     } finally {
       if (mounted) setState(() => _isBuildingPreview = false);
     }

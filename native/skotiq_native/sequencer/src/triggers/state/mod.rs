@@ -290,7 +290,7 @@ impl TriggerState {
 
     pub fn set_filter(&mut self, filter: String) {
         let changed = self.latches.current_filter.as_ref() != Some(&filter);
-        self.latches.filter_changed = changed;
+        self.latches.filter_changed = changed && self.latches.filter_rotation_owners == 0;
         if changed {
             // A new filter needs its own HFR baseline -- Ha and L do not share
             // one -- but a filter change is not by itself a reason to refocus.
@@ -462,6 +462,17 @@ impl TriggerState {
     /// The node that claimed the dither cadence has finished.
     pub fn release_dither_cadence(&mut self) {
         self.latches.dither_cadence_owners = self.latches.dither_cadence_owners.saturating_sub(1);
+    }
+
+    /// A node that rotates its filters has started (see
+    /// `RunLatches::filter_rotation_owners`).
+    pub fn claim_filter_rotation(&mut self) {
+        self.latches.filter_rotation_owners = self.latches.filter_rotation_owners.saturating_add(1);
+    }
+
+    /// The node that claimed the filter rotation has finished.
+    pub fn release_filter_rotation(&mut self) {
+        self.latches.filter_rotation_owners = self.latches.filter_rotation_owners.saturating_sub(1);
     }
 
     /// Whether a running node owns the dither cadence, so the Dither

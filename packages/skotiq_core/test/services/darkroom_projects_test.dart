@@ -31,9 +31,21 @@ class _Owner {
   late int ngc891, snap, calib, m1, crab, m101;
 }
 
-final _crabIdentity = CatalogIdentity<String>([
-  (object: 'NGC1952', designations: ['NGC1952', 'M1']),
-  (object: 'NGC891', designations: ['NGC891']),
+/// The Crab under its two designations; NGC 891 under one.
+final _catalog = DsoDesignations.of([
+  DeepSkyObject(
+    id: 'NGC1952',
+    name: 'Crab Nebula',
+    coordinates: const CelestialCoordinate(ra: 5.575, dec: 22.01),
+    type: DsoType.supernova,
+    catalogIds: const ['M1'],
+  ),
+  DeepSkyObject(
+    id: 'NGC891',
+    name: 'NGC 891',
+    coordinates: const CelestialCoordinate(ra: 2.376, dec: 42.35),
+    type: DsoType.galaxy,
+  ),
 ]);
 
 Future<_Owner> _seed() async {
@@ -117,8 +129,8 @@ Future<_Owner> _seed() async {
 
 Future<DarkroomTargetFrames> _group(SkotiqDatabase db) => loadDarkroomTargets(
   db,
+  _catalog,
   readHeader: (_) async => FrameHeader(const {}),
-  identity: _crabIdentity,
 );
 
 TargetCaptures _captures(List<DbCapturedImage> frames) {
@@ -292,8 +304,8 @@ void main() {
     test('names that are not one catalog object stay apart', () async {
       final grouped = await loadDarkroomTargets(
         owner.db,
+        DsoDesignations.empty,
         readHeader: (_) async => FrameHeader(const {}),
-        identity: CatalogIdentity<String>(const []),
       );
       expect(grouped['M1']!.length, 4);
       expect(grouped['NGC1952']!.length, 4);

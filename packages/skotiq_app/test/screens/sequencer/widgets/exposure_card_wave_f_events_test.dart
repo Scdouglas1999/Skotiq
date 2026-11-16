@@ -48,8 +48,8 @@ SkotiqEvent _seq(String type, Map<String, dynamic> data) => SkotiqEvent(
 SkotiqEvent _nodeStarted(String nodeId) =>
     _seq('NodeStarted', {'node_id': nodeId, 'node_type': 'Take Exposures'});
 
-/// `SequencerEvent::InstructionProgressStructured` — what the bridge publishes
-/// for every `ExecutorEvent::NodeProgress` that carries a structured detail.
+/// `SequencerEvent::InstructionProgress`, what the bridge publishes for every
+/// `ExecutorEvent::NodeProgress`.
 ///
 /// `detail_json` is **jsonEncode**d because that is the wire: the native side
 /// does `payload.to_string()` (api/sequencer/event_translation.rs) into
@@ -63,7 +63,7 @@ SkotiqEvent _structured(
   double percent,
   Map<String, dynamic> detailJson,
 ) =>
-    _seq('InstructionProgressStructured', {
+    _seq('InstructionProgress', {
       'node_id': nodeId,
       'instruction': instruction,
       'progress_percent': percent,

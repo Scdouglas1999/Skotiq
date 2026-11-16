@@ -9,6 +9,7 @@ import '../../models/notification/notification_categories.dart';
 import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
+import '../catalog_target_types.dart';
 import '../darkroom_target_frames.dart';
 import '../../utils/logging_service.dart';
 import '../notification_service.dart';
@@ -159,7 +160,10 @@ class NightEndRunner {
         if (image.isLight && image.isAccepted) image.id,
     };
     if (lightIds.isEmpty) return null;
-    final targets = await loadDarkroomTargets(_ref.read(databaseProvider));
+    final targets = await loadDarkroomTargets(
+      _ref.read(databaseProvider),
+      await installedDsoDesignations(_log),
+    );
     final names = [
       for (final entry in targets.byTarget.entries)
         if (entry.value.any((frame) => lightIds.contains(frame.id))) entry.key,
@@ -275,6 +279,7 @@ class NightEndRunner {
     final jobs = <String, DarkroomBuildJob>{};
     final framesByTarget = await loadDarkroomTargets(
       _ref.read(databaseProvider),
+      await installedDsoDesignations(_log),
     );
     for (final target in run.targets) {
       final state = target.build.state;

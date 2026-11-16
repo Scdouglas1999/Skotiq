@@ -60,30 +60,6 @@ impl Drop for CameraExposureAbortGuard {
     }
 }
 
-/// Execute an exposure instruction with no save-path renderer, so frames land
-/// under the pre-template `<target>_<filter>_<NNNN>.fits` layout.
-///
-/// Nothing in production calls this: every capture path builds a renderer so
-/// the user's naming template applies (the Flat Wizard was the last holdout —
-/// see [`crate::flat_wizard::capture_converged_flats`]). It survives as the
-/// short form for tests that are about the burst itself and not about where
-/// its files land.
-pub async fn execute_exposure(
-    config: &ExposureConfig,
-    ctx: &InstructionContext,
-    progress_callback: impl Fn(u32, u32, f64),
-) -> InstructionResult {
-    execute_exposure_with_renderer(
-        config,
-        ctx,
-        None,
-        &BurstControl::default(),
-        progress_callback,
-    )
-    .await
-    .result
-}
-
 /// Run-scoped controls a burst needs but an [`InstructionContext`] cannot
 /// carry: the operator-pause handle the per-frame loop honours, and a status
 /// sink so a legitimate hold explains itself instead of looking like a stall.
@@ -118,14 +94,12 @@ pub struct BurstEnd {
     pub frames_rejected: u32,
 }
 
-/// entry point that accepts a save-path renderer. Use this from
-/// the expose-instruction node wrapper so user templates in
-/// `ExposureConfig.save_to` (including hierarchical paths and per-frame
-/// placeholders) take effect.
-pub async fn execute_exposure_with_renderer(
+/// Take an exposure burst, naming each frame with `name_frame` (built by
+/// [`crate::frame_naming::frame_namer`] from the node's `save_to` template).
+pub async fn execute_exposure(
     config: &ExposureConfig,
     ctx: &InstructionContext,
-    path_renderer: Option<FrameSavePathRenderer>,
+    name_frame: FrameSavePathRenderer,
     control: &BurstControl<'_>,
     // `(frame, total, recorded_secs)`. The third argument is the seconds the
     // frame is RECORDED as — the camera's own report, bounded (see
@@ -137,7 +111,7 @@ pub async fn execute_exposure_with_renderer(
     let result = take_burst(
         config,
         ctx,
-        path_renderer,
+        name_frame,
         control,
         &mut frames_rejected,
         progress_callback,
@@ -152,7 +126,7 @@ pub async fn execute_exposure_with_renderer(
 async fn take_burst(
     config: &ExposureConfig,
     ctx: &InstructionContext,
-    path_renderer: Option<FrameSavePathRenderer>,
+    name_frame: FrameSavePathRenderer,
     control: &BurstControl<'_>,
     frames_rejected: &mut u32,
     progress_callback: impl Fn(u32, u32, f64),
@@ -627,374 +601,304 @@ async fn take_burst(
             trail: measured_trail,
         };
 
-        // Pick the (base_path, filename) pair. When a path_renderer
-        // is supplied (the normal in-sequence case) it owns interpolation of
-        // the `ExposureConfig.save_to` template and produces a fully resolved
-        // directory + filename; an error from the renderer is fatal because
-        // a broken template silently writing to the wrong place would be a
-        // data-integrity disaster.
-        //
-        // With no renderer (direct invocations from tests) the frame goes
-        // under `ctx.save_path` as `<target>_<filter>_<NNNN>.fits`.
-        let (base_path, filename_template) = if let Some(renderer) = path_renderer.as_ref() {
-            match renderer(&FrameToName {
-                index_in_burst: frame,
-                burst_total: config.count,
-                started_at: exposure_started_at,
-                sensor_temp_c: image_data.metadata.temperature,
-            }) {
-                Ok((dir, name)) => (Some(dir), Some(name)),
-                Err(msg) => {
-                    let error_message = format!(
-                        "Save-path template render failed for frame {}/{}: {}. \
-                         Aborting exposure — silently saving to the wrong path \
-                         would corrupt the session's data integrity.",
-                        frame, config.count, msg
-                    );
-                    tracing::error!("{}", error_message);
-                    if let Some(event_tx) = &ctx.run.event_tx {
-                        let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                            message: error_message.clone(),
-                        });
-                    }
-                    return InstructionResult::failure(error_message);
+        // A broken template aborts the burst: silently writing to the wrong
+        // place cannot be undone after the fact.
+        let (base_path, filename) = match name_frame(&FrameToName {
+            index_in_burst: frame,
+            burst_total: config.count,
+            started_at: exposure_started_at,
+            sensor_temp_c: image_data.metadata.temperature,
+        }) {
+            Ok(named) => named,
+            Err(msg) => {
+                let error_message = format!(
+                    "Save-path template render failed for frame {}/{}: {}. \
+                     Aborting exposure — silently saving to the wrong path \
+                     would corrupt the session's data integrity.",
+                    frame, config.count, msg
+                );
+                tracing::error!("{}", error_message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                        message: error_message.clone(),
+                    });
                 }
+                return InstructionResult::failure(error_message);
             }
-        } else {
-            (ctx.run.rig.save_path.clone(), None)
         };
 
-        if let Some(base_path) = base_path {
-            // never silently substitute target name or filter.
-            // A missing target name during normal imaging is a configuration
-            // bug — emitting `image_L_0001.fits` hides which session the
-            // frame belongs to and cannot be undone after the fact.
-            // A missing filter labelled `L` mis-labels narrowband captures
-            // as luminance.
-            //
-            // We log at warn! and use distinct synthetic placeholders that
-            // are obvious in directory listings so an operator can audit
-            // the run. If both fields are present this code path is silent.
-            let filename = if let Some(name) = filename_template {
-                name
-            } else {
-                let target_label = match ctx.target_name.as_deref() {
-                    Some(name) if !name.is_empty() => name.to_string(),
-                    _ => {
-                        tracing::warn!(
-                            "[CAPTURE] Saving frame with no target name — using synthetic label \"untargeted\". \
-                             This indicates the sequence was started without a TargetHeader/TargetGroup; review the configuration."
-                        );
-                        "untargeted".to_string()
-                    }
-                };
-                let filter_label = match frame_filter_name.as_deref() {
-                    Some(name) if !name.is_empty() => name.to_string(),
-                    _ => {
-                        tracing::warn!(
-                            "[CAPTURE] Saving frame with no filter set — using synthetic label \"nofilter\" (NOT \"L\"). \
-                             A missing filter for narrowband/RGB captures would mis-label the frame as luminance."
-                        );
-                        "nofilter".to_string()
-                    }
-                };
-                format!("{}_{}_{:04}.fits", target_label, filter_label, frame)
-            };
-
-            // Image Grading: decide accept/reject BEFORE picking the
-            // final path — rejects go to a sibling Reject/ folder. The
-            // grading honours the per-burst override (`config.quality_check`)
-            // first, then falls back to the global default from runtime_config
-            // (set by the executor at start time). If neither is configured
-            // the frame is accepted unconditionally and the path stays the
-            // canonical capture folder.
-            let active_check = if is_light_frame {
-                config
-                    .quality_check
-                    .as_ref()
-                    .or(quality_check_default.as_ref())
-            } else {
-                // Never grade calibration frames — star-quality gates would
-                // reject an entire dark/flat/bias burst as "0 stars".
-                None
-            };
-            let (grade, save_dir, was_graded) = if let Some(qc) = active_check {
-                // Read baselines (None until each warmup window fills).
-                let baseline_key = crate::quality::filter_baseline_key(
-                    ctx.target_name.as_deref(),
-                    frame_filter_name.as_deref(),
-                );
-                let target_altitude = target_altitude_now(ctx);
-                let (filter_hfr, star_baseline) = crate::quality::filter_baseline::baselines_for(
-                    &star_count_baselines_handle,
-                    &baseline_key,
-                    target_altitude,
-                )
-                .await;
-                let baseline = filter_hfr.or(*frame_baseline_handle.read().await);
-                let g = crate::quality::grade_frame_with_baselines(
-                    qc,
-                    &metrics,
-                    baseline,
-                    star_baseline,
-                );
-                match g {
-                    crate::quality::FrameGrade::Pass => {
-                        // Update the baselines with this accepted frame.
-                        {
-                            let mut baseline_guard = frame_baseline_handle.write().await;
-                            let mut samples_guard = frame_baseline_samples_handle.write().await;
-                            crate::quality::update_hfr_baseline(
-                                &mut baseline_guard,
-                                &mut samples_guard,
-                                measured_hfr,
-                            );
-                        }
-                        crate::quality::filter_baseline::record_accepted(
-                            &star_count_baselines_handle,
-                            baseline_key,
-                            measured_star_count,
+        // Image Grading: decide accept/reject BEFORE picking the
+        // final path — rejects go to a sibling Reject/ folder. The
+        // grading honours the per-burst override (`config.quality_check`)
+        // first, then falls back to the global default from runtime_config
+        // (set by the executor at start time). If neither is configured
+        // the frame is accepted unconditionally and the path stays the
+        // canonical capture folder.
+        let active_check = if is_light_frame {
+            config
+                .quality_check
+                .as_ref()
+                .or(quality_check_default.as_ref())
+        } else {
+            // Never grade calibration frames — star-quality gates would
+            // reject an entire dark/flat/bias burst as "0 stars".
+            None
+        };
+        let (grade, save_dir, was_graded) = if let Some(qc) = active_check {
+            // Read baselines (None until each warmup window fills).
+            let baseline_key = crate::quality::filter_baseline_key(
+                ctx.target_name.as_deref(),
+                frame_filter_name.as_deref(),
+            );
+            let target_altitude = target_altitude_now(ctx);
+            let (filter_hfr, star_baseline) = crate::quality::filter_baseline::baselines_for(
+                &star_count_baselines_handle,
+                &baseline_key,
+                target_altitude,
+            )
+            .await;
+            let baseline = filter_hfr.or(*frame_baseline_handle.read().await);
+            let g =
+                crate::quality::grade_frame_with_baselines(qc, &metrics, baseline, star_baseline);
+            match g {
+                crate::quality::FrameGrade::Pass => {
+                    // Update the baselines with this accepted frame.
+                    {
+                        let mut baseline_guard = frame_baseline_handle.write().await;
+                        let mut samples_guard = frame_baseline_samples_handle.write().await;
+                        crate::quality::update_hfr_baseline(
+                            &mut baseline_guard,
+                            &mut samples_guard,
                             measured_hfr,
-                            target_altitude,
-                        )
-                        .await;
-                        (g, base_path.clone(), true)
+                        );
                     }
-                    crate::quality::FrameGrade::Reject { .. } => {
-                        let dir = resolve_reject_dir(&base_path, reject_folder_override.as_deref());
-                        (g, dir, true)
-                    }
-                }
-            } else {
-                (crate::quality::FrameGrade::Pass, base_path.clone(), false)
-            };
-            let (grade, save_dir, was_graded) = match untracked_reason {
-                Some(reason) => (
-                    crate::quality::FrameGrade::Reject {
-                        reason,
-                        hfr: None,
-                        eccentricity: None,
-                        star_count: None,
-                    },
-                    resolve_reject_dir(&base_path, reject_folder_override.as_deref()),
-                    true,
-                ),
-                None => (grade, save_dir, was_graded),
-            };
-            // A tracked frame's star shape joins its filter's baseline on
-            // this side of the pier; a trailed frame says nothing about the
-            // optics.
-            if untracked_reason.is_none() {
-                if let Some(shape) = measured_shape {
-                    watch_star_shape(
-                        ctx,
+                    crate::quality::filter_baseline::record_accepted(
                         &star_count_baselines_handle,
-                        frame_filter_name.as_deref(),
-                        shape,
+                        baseline_key,
+                        measured_star_count,
+                        measured_hfr,
+                        target_altitude,
                     )
                     .await;
+                    (g, base_path.clone(), true)
+                }
+                crate::quality::FrameGrade::Reject { .. } => {
+                    let dir = resolve_reject_dir(&base_path, reject_folder_override.as_deref());
+                    (g, dir, true)
                 }
             }
+        } else {
+            (crate::quality::FrameGrade::Pass, base_path.clone(), false)
+        };
+        let (grade, save_dir, was_graded) = match untracked_reason {
+            Some(reason) => (
+                crate::quality::FrameGrade::Reject {
+                    reason,
+                    hfr: None,
+                    eccentricity: None,
+                    star_count: None,
+                },
+                resolve_reject_dir(&base_path, reject_folder_override.as_deref()),
+                true,
+            ),
+            None => (grade, save_dir, was_graded),
+        };
+        // A tracked frame's star shape joins its filter's baseline on
+        // this side of the pier; a trailed frame says nothing about the
+        // optics.
+        if untracked_reason.is_none() {
+            if let Some(shape) = measured_shape {
+                watch_star_shape(
+                    ctx,
+                    &star_count_baselines_handle,
+                    frame_filter_name.as_deref(),
+                    shape,
+                )
+                .await;
+            }
+        }
 
-            // Ensure reject dir exists if grading routed us there. The dir
-            // create error is fatal because writing into a non-existent path
-            // would be a data-loss event identical to the FITS save failure
-            // below.
-            if grade.is_reject() {
-                if let Err(e) = std::fs::create_dir_all(&save_dir) {
-                    let error_message = format!(
-                        "Reject folder '{}' could not be created: {}. \
+        // Ensure reject dir exists if grading routed us there. The dir
+        // create error is fatal because writing into a non-existent path
+        // would be a data-loss event identical to the FITS save failure
+        // below.
+        if grade.is_reject() {
+            if let Err(e) = std::fs::create_dir_all(&save_dir) {
+                let error_message = format!(
+                    "Reject folder '{}' could not be created: {}. \
                          Frame {}/{} not saved; sequence aborted.",
-                        save_dir.display(),
-                        e,
-                        frame,
-                        config.count
-                    );
-                    tracing::error!("{}", error_message);
-                    if let Some(event_tx) = &ctx.run.event_tx {
-                        let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                            message: error_message.clone(),
-                        });
-                    }
-                    return InstructionResult::failure(error_message);
+                    save_dir.display(),
+                    e,
+                    frame,
+                    config.count
+                );
+                tracing::error!("{}", error_message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                        message: error_message.clone(),
+                    });
                 }
+                return InstructionResult::failure(error_message);
             }
+        }
 
-            let full_path = ensure_unique_save_path(save_dir.join(&filename));
+        let full_path = ensure_unique_save_path(save_dir.join(&filename));
 
-            // archive the uncorrected frame to
-            // `<save_dir>/Raw/` BEFORE the canonical save if the user
-            // opted in. The raw is written via a minimal FITS header
-            // (no defect-map history, IMAGETYP=Light) so re-runs of
-            // the correction or independent calibration workflows can
-            // re-derive results from the original pixels.
-            if matches!(
-                defect_map_outcome,
-                DefectMapOutcome::Applied {
-                    save_original: true,
-                    ..
-                }
-            ) {
-                if let Some(original) = &original_pixels_snapshot {
-                    if let Err(e) = save_uncorrected_raw_frame(
-                        &save_dir,
-                        &filename,
-                        image_data.width,
-                        image_data.height,
-                        original,
-                    )
-                    .await
-                    {
-                        // Save-original failure is non-fatal — we still
-                        // want the corrected frame to land. Log at warn
-                        // so the operator sees the partial outcome.
-                        tracing::warn!(
-                            "[DEFECT] Raw/ archive save failed for frame {}/{}: {}. \
+        // archive the uncorrected frame to
+        // `<save_dir>/Raw/` BEFORE the canonical save if the user
+        // opted in. The raw is written via a minimal FITS header
+        // (no defect-map history, IMAGETYP=Light) so re-runs of
+        // the correction or independent calibration workflows can
+        // re-derive results from the original pixels.
+        if matches!(
+            defect_map_outcome,
+            DefectMapOutcome::Applied {
+                save_original: true,
+                ..
+            }
+        ) {
+            if let Some(original) = &original_pixels_snapshot {
+                if let Err(e) = save_uncorrected_raw_frame(
+                    &save_dir,
+                    &filename,
+                    image_data.width,
+                    image_data.height,
+                    original,
+                )
+                .await
+                {
+                    // Save-original failure is non-fatal — we still
+                    // want the corrected frame to land. Log at warn
+                    // so the operator sees the partial outcome.
+                    tracing::warn!(
+                        "[DEFECT] Raw/ archive save failed for frame {}/{}: {}. \
                              The corrected frame will still be saved.",
-                            frame,
-                            config.count,
-                            e,
-                        );
-                    }
-                } else {
-                    // Defensive: snapshot is taken only when
-                    // save_original was true at correction time, so an
-                    // Applied{save_original:true} without snapshot
-                    // means an ordering bug in this function.
-                    tracing::error!(
-                        "[DEFECT] save_original requested but no pre-correction snapshot \
-                         exists for frame {}/{}; Raw/ archive skipped.",
                         frame,
                         config.count,
+                        e,
                     );
                 }
+            } else {
+                // Defensive: snapshot is taken only when
+                // save_original was true at correction time, so an
+                // Applied{save_original:true} without snapshot
+                // means an ordering bug in this function.
+                tracing::error!(
+                    "[DEFECT] save_original requested but no pre-correction snapshot \
+                         exists for frame {}/{}; Raw/ archive skipped.",
+                    frame,
+                    config.count,
+                );
             }
+        }
 
-            // Image Grading: build the per-frame FITS-header bundle
-            // from InstructionContext (session-static + per-target fields)
-            // plus live device telemetry (sensor temp, focuser position,
-            // rotator angle, guide RMS). Each field is best-effort — a
-            // device that fails to report its position simply omits that
-            // FITS keyword (silent fallbacks would lie about the data).
-            //
-            // thread the defect-map application outcome
-            // so the FITS HISTORY card records the correction provenance.
-            let frame_ctx = build_frame_context_for_save(
-                ctx,
-                config,
-                &image_data,
-                frame,
-                defect_map_outcome.clone(),
-                exposure_started_at,
-                (frame_filter_name.clone(), frame_filter_index),
-            )
-            .await;
+        // Image Grading: build the per-frame FITS-header bundle
+        // from InstructionContext (session-static + per-target fields)
+        // plus live device telemetry (sensor temp, focuser position,
+        // rotator angle, guide RMS). Each field is best-effort — a
+        // device that fails to report its position simply omits that
+        // FITS keyword (silent fallbacks would lie about the data).
+        //
+        // thread the defect-map application outcome
+        // so the FITS HISTORY card records the correction provenance.
+        let frame_ctx = build_frame_context_for_save(
+            ctx,
+            config,
+            &image_data,
+            frame,
+            defect_map_outcome.clone(),
+            exposure_started_at,
+            (frame_filter_name.clone(), frame_filter_index),
+        )
+        .await;
 
-            let saved = crate::device_ops::save_frame(
-                ctx.run.device_ops.as_ref(),
-                &image_data,
-                // Why: `PathBuf::to_str()` returns None only when the
-                // path is not valid UTF-8 — on Windows our save paths are always
-                // platform-default (UTF-16 → UTF-8) and on Unix the user's home dir is
-                // the root, both ASCII-safe in practice. Falling back to the bare
-                // filename keeps the save call going against the platform's CWD; the
-                // FITS writer downstream will surface any path-resolution error.
-                full_path.to_str().unwrap_or(&filename),
-                &frame_ctx,
-                ctx.run.camera_file_saving,
-                // A Take Exposures frame is a kept frame.
-                true,
-            )
-            .await;
-            let full_path = match saved {
-                Ok(path) => std::path::PathBuf::from(path),
-                Err(e) => {
-                    // A FITS save failure is data loss — the
-                    // exposure is already complete and the image bytes are in
-                    // RAM, so a failed write means that frame is gone. The
-                    // previous warn-and-continue was the audit-flagged silent
-                    // fallback: the user would discover the missing frame hours
-                    // later when checking captures, with no surfaced error.
-                    //
-                    // Policy: log at ERROR, emit an ExecutorEvent::Error so the
-                    // UI sees it, and return InstructionResult::failure so the
-                    // sequence stops and the user can intervene (out-of-disk,
-                    // permission denied, drive disconnected — every cause needs
-                    // human action).
-                    let error_message = format!(
-                        "Saving frame {}/{} at '{}' failed: {}. \
+        let saved = crate::device_ops::save_frame(
+            ctx.run.device_ops.as_ref(),
+            &image_data,
+            // Why: `PathBuf::to_str()` returns None only when the
+            // path is not valid UTF-8 — on Windows our save paths are always
+            // platform-default (UTF-16 → UTF-8) and on Unix the user's home dir is
+            // the root, both ASCII-safe in practice. Falling back to the bare
+            // filename keeps the save call going against the platform's CWD; the
+            // FITS writer downstream will surface any path-resolution error.
+            full_path.to_str().unwrap_or(&filename),
+            &frame_ctx,
+            ctx.run.camera_file_saving,
+            // A Take Exposures frame is a kept frame.
+            true,
+        )
+        .await;
+        let full_path = match saved {
+            Ok(path) => std::path::PathBuf::from(path),
+            Err(e) => {
+                // A FITS save failure is data loss — the
+                // exposure is already complete and the image bytes are in
+                // RAM, so a failed write means that frame is gone. The
+                // previous warn-and-continue was the audit-flagged silent
+                // fallback: the user would discover the missing frame hours
+                // later when checking captures, with no surfaced error.
+                //
+                // Policy: log at ERROR, emit an ExecutorEvent::Error so the
+                // UI sees it, and return InstructionResult::failure so the
+                // sequence stops and the user can intervene (out-of-disk,
+                // permission denied, drive disconnected — every cause needs
+                // human action).
+                let error_message = format!(
+                    "Saving frame {}/{} at '{}' failed: {}. \
                          Image data has been lost. Sequence aborted to preserve \
                          remaining storage and surface the issue.",
-                        frame,
-                        config.count,
-                        full_path.display(),
-                        e
-                    );
-                    tracing::error!("{}", error_message);
-                    if let Some(event_tx) = &ctx.run.event_tx {
-                        // Why: a closed receiver (no UI subscribers) is benign —
-                        // headless / API runs may have no listeners. The log line
-                        // above is the durable record.
-                        let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                            message: error_message.clone(),
-                        });
-                    }
-                    return InstructionResult::failure(error_message);
+                    frame,
+                    config.count,
+                    full_path.display(),
+                    e
+                );
+                tracing::error!("{}", error_message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    // Why: a closed receiver (no UI subscribers) is benign —
+                    // headless / API runs may have no listeners. The log line
+                    // above is the durable record.
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                        message: error_message.clone(),
+                    });
                 }
-            };
-            tracing::info!("Saved: {}", full_path.display());
-
-            // Register EVERY saved frame, graded or not, and emit the
-            // Accepted / Rejected progress event so the dashboard quality panel
-            // updates and the budget tracker can skip rejected frames.
-            //
-            // This emission is also what makes the app RECORD the frame: Dart's
-            // `_registerSequenceFrame` listens for `FrameAccepted` and writes the
-            // `captured_images` row, populating `producing_node_id` /
-            // `producing_run_id`. Behind a `was_graded` check — grading is off by
-            // default — a whole automated night produces FITS files on disk and no
-            // database rows, so no Analytics stats and no gallery entries. The
-            // grader DECISION stays gated inside `emit_grade_progress`.
-            if matches!(grade, crate::quality::FrameGrade::Reject { .. }) {
-                *frames_rejected += 1;
+                return InstructionResult::failure(error_message);
             }
-            emit_grade_progress(
-                ctx,
-                grade,
-                &metrics,
-                was_graded,
-                frame,
-                config.count,
-                &full_path,
-                // Same struct the `save_fits` call above stamped the header
-                // from — not a re-read, not a reconstruction.
-                &frame_ctx,
-                &frames_accepted_handle,
-                &frames_rejected_handle,
-                &consecutive_rejects_handle,
-                active_check
-                    .map(|c| c.max_consecutive_rejects)
-                    .unwrap_or(u32::MAX),
-            )
-            .await;
-        } else {
-            // No resolvable save location: the frame was captured off the
-            // sensor and is about to be counted as a completed exposure, but
-            // nothing will be written to disk. Say so LOUDLY — this branch
-            // silently discarded science frames, so a whole session could
-            // report "completed" at 100% while leaving no files behind
-            // (observed live on a headless rig with no save path configured).
-            // Not a hard failure: transient exposures (autofocus, framing,
-            // live view) legitimately reach here with no save path.
-            tracing::warn!(
-                "Frame {}/{} captured but NOT SAVED: no save location resolved \
-                 (no per-node save_to template and no sequencer save path \
-                 configured). Set the sequencer save path (or the node's \
-                 save_to) or this frame is discarded.",
-                frame,
-                config.count
-            );
+        };
+        tracing::info!("Saved: {}", full_path.display());
+
+        // Register EVERY saved frame, graded or not, and emit the
+        // Accepted / Rejected progress event so the dashboard quality panel
+        // updates and the budget tracker can skip rejected frames.
+        //
+        // This emission is also what makes the app RECORD the frame: Dart's
+        // `_registerSequenceFrame` listens for `FrameAccepted` and writes the
+        // `captured_images` row, populating `producing_node_id` /
+        // `producing_run_id`. Behind a `was_graded` check — grading is off by
+        // default — a whole automated night produces FITS files on disk and no
+        // database rows, so no Analytics stats and no gallery entries. The
+        // grader DECISION stays gated inside `emit_grade_progress`.
+        if matches!(grade, crate::quality::FrameGrade::Reject { .. }) {
+            *frames_rejected += 1;
         }
+        emit_grade_progress(
+            ctx,
+            grade,
+            &metrics,
+            was_graded,
+            frame,
+            config.count,
+            &full_path,
+            // Same struct the `save_fits` call above stamped the header
+            // from — not a re-read, not a reconstruction.
+            &frame_ctx,
+            &frames_accepted_handle,
+            &frames_rejected_handle,
+            &consecutive_rejects_handle,
+            active_check
+                .map(|c| c.max_consecutive_rejects)
+                .unwrap_or(u32::MAX),
+        )
+        .await;
 
         completed_exposures += 1;
 
@@ -1503,7 +1407,7 @@ const BURST_FILTER_CHANGE_EXPECTED_SECS: f64 = 30.0;
 
 /// Command the wheel to this burst's filter and apply its focus offset.
 ///
-/// Extracted from `execute_exposure_with_renderer` so the whole move has one
+/// Extracted from `execute_exposure` so the whole move has one
 /// entry and one exit and can therefore be wrapped in a single imaging-train
 /// claim; the several failure exits inside it are exactly why a single
 /// release point was needed.

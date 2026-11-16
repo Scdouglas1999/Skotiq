@@ -469,14 +469,12 @@ pub(crate) async fn emit_grade_progress(
                 save_path: Some(full_path.display().to_string()),
                 capture: capture.clone(),
             };
-            let detail_text = structured.detail_text();
             if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
                     progress_percent: 100.0 * frame as f64 / total.max(1) as f64,
-                    detail: detail_text,
-                    structured_detail: Some(Box::new(structured)),
+                    detail: Box::new(structured),
                 });
             }
             // Replay Debug — record a FrameAccepted decision so
@@ -608,14 +606,12 @@ pub(crate) async fn emit_grade_progress(
                 },
             )
             .await;
-            let detail_text = structured.detail_text();
             if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
                     progress_percent: 100.0 * frame as f64 / total.max(1) as f64,
-                    detail: detail_text,
-                    structured_detail: Some(Box::new(structured)),
+                    detail: Box::new(structured),
                 });
             }
             // Replay Debug — record a FrameRejected decision so

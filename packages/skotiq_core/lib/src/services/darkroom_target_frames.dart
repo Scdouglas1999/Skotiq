@@ -79,13 +79,13 @@ List<DbTarget> darkroomTargetsAtPosition(
 ///    that target, so framing snapshots never mix into a run's masters;
 /// 5. its session, else [darkroomNoTargetKey].
 ///
-/// Targets [identity] resolves to one catalog object are one group, listed
-/// under the name whose first light is oldest.
+/// Targets [catalog] resolves to one object ([DsoDesignations.ofTarget]) are
+/// one group, listed under the name whose first light is oldest.
 DarkroomTargetFrames groupDarkroomTargets(
   Iterable<DbCapturedImage> lights,
   List<DbTarget> targets, {
   Map<int, String> objectNames = const {},
-  CatalogIdentity<String>? identity,
+  DsoDesignations catalog = DsoDesignations.empty,
 }) {
   final rowById = {for (final t in targets) t.id: t};
   final runTargets = <String, Set<int>>{};
@@ -125,7 +125,7 @@ DarkroomTargetFrames groupDarkroomTargets(
     byKey.putIfAbsent(key, () => []).add(f);
   }
 
-  if (identity != null) _joinByCatalogIdentity(byKey, targets, identity);
+  _joinByCatalogIdentity(byKey, targets, catalog);
   unidentified.removeWhere((key) => !byKey.containsKey(key));
   return DarkroomTargetFrames(byKey, unidentified: unidentified);
 }
@@ -133,12 +133,14 @@ DarkroomTargetFrames groupDarkroomTargets(
 void _joinByCatalogIdentity(
   Map<String, List<DbCapturedImage>> byKey,
   List<DbTarget> targets,
-  CatalogIdentity<String> identity,
+  DsoDesignations catalog,
 ) {
   final rowsByName = {for (final t in targets) t.name: t};
   final keysByObject = <String, List<String>>{};
   for (final key in byKey.keys) {
-    final object = identity.objectOf([rowsByName[key]?.catalogId, key]);
+    final object = catalog
+        .ofTarget(catalogId: rowsByName[key]?.catalogId, name: key)
+        ?.id;
     if (object != null) keysByObject.putIfAbsent(object, () => []).add(key);
   }
   for (final keys in keysByObject.values) {
@@ -157,25 +159,12 @@ void _joinByCatalogIdentity(
   }
 }
 
-/// The catalog identity of every OpenNGC object, built once per installed
-/// file; null while the catalog is not installed.
-Future<CatalogIdentity<String>?> darkroomCatalogIdentity() async {
-  final manager = CatalogManager.instance;
-  if (!manager.isInitialized) return null;
-  if (!(await manager.status(SkyCatalog.dso)).isInstalled) return null;
-  final reader = manager.dsos;
-  return await (_identities[reader] ??= reader.load().then(
-    CatalogIdentity.ofDsos,
-  ));
-}
-
-final Expando<Future<CatalogIdentity<String>>> _identities = Expando();
-
-/// Every captured light of the database, grouped by [groupDarkroomTargets].
+/// Every captured light of the database, grouped by [groupDarkroomTargets]
+/// with the deep-sky [catalog] (`installedDsoDesignations`).
 Future<DarkroomTargetFrames> loadDarkroomTargets(
-  SkotiqDatabase db, {
+  SkotiqDatabase db,
+  DsoDesignations catalog, {
   FrameHeaderReader readHeader = readFrameHeader,
-  CatalogIdentity<String>? identity,
 }) async {
   final lights = [
     for (final f in await db.imagesDao.getAllImages())
@@ -197,22 +186,10 @@ Future<DarkroomTargetFrames> loadDarkroomTargets(
       );
     }
   }
-  CatalogIdentity<String>? catalog = identity;
-  if (catalog == null) {
-    try {
-      catalog = await darkroomCatalogIdentity();
-    } catch (e) {
-      Log.warning(
-        'Darkroom: the catalog could not be read, so targets that are one '
-        'object under two names stay apart: $e',
-        source: 'darkroom',
-      );
-    }
-  }
   return groupDarkroomTargets(
     lights,
     targets,
     objectNames: objectNames,
-    identity: catalog,
+    catalog: catalog,
   );
 }

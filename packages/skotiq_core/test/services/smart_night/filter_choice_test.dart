@@ -89,7 +89,7 @@ void main() {
         final choice = _choose(_target('M33', 'Galaxy'), emissionRegions: 9);
         expect(choice.strategy, SmartNightStrategy.autoLrgb);
         expect(choice.filters, ['L', 'R', 'G', 'B']);
-        expect(choice.suggested, SmartNightStrategy.haLrgb);
+        expect(choice.suggested?.preset, SmartNightStrategy.haLrgb);
         expect(
           choice.suggestion,
           'M33 holds 9 emission regions in the catalog, and you have an Ha '
@@ -97,18 +97,11 @@ void main() {
         );
         // Taking the offer is the user's choice, and the plan no longer
         // repeats it.
-        expect(choice.filtersFor(SmartNightStrategy.haLrgb), [
-          'L',
-          'R',
-          'G',
-          'B',
-          'Ha',
-        ]);
-        expect(
-          choice.reasonFor(SmartNightStrategy.haLrgb),
-          'LRGB + Ha: your choice.',
-        );
-        expect(choice.suggestionFor(SmartNightStrategy.haLrgb), isNull);
+        final offered = choice.suggested!;
+        expect(offered.filters, ['L', 'R', 'G', 'B', 'Ha']);
+        expect(choice.reasonFor(offered), 'LRGB + Ha: your choice.');
+        expect(choice.suggestionFor(offered), isNull);
+        expect(choice.suggestionFor(choice.recommended), choice.suggestion);
       },
     );
 
@@ -262,37 +255,185 @@ void main() {
     });
   });
 
-  group('a set the user picks', () {
-    final choice = _choose(_target('M1', DsoType.supernova.displayName));
+  group('the Filters picker', () {
+    final m1 = _choose(_target('M1', DsoType.supernova.displayName));
 
-    test('lists only the sets the wheel can capture', () {
+    test('lists every set the owner wheel can image, SHO recommended', () {
+      expect(m1.sets().map((set) => set.label), [
+        'LRGB',
+        'LRGB, equal time',
+        'RGB',
+        'L',
+        'LRGB + Ha',
+        'SHO',
+        'HOO',
+        'Ha',
+        'OIII',
+        'SII',
+      ]);
+      expect(m1.recommended.label, 'SHO');
+      expect(
+        m1.recommendation,
+        'Recommended: narrowband SHO, M1 is a supernova remnant.',
+      );
+      expect(
+        _choose(_target('M31', 'Galaxy')).recommendation,
+        'Recommended: LRGB, M31 is a galaxy.',
+      );
+      expect(m1.recommended.filters, ['Ha', 'OIII', 'SII']);
+      expect(m1.sets().every((set) => !set.filters.contains('DARK')), isTrue);
+    });
+
+    test('lists only sets whose every filter is on the wheel', () {
       final narrowbandOnly = _choose(
         _target('M1', DsoType.supernova.displayName),
         wheel: const ['Ha', 'OIII'],
       );
-      expect(
-        narrowbandOnly.capturable,
-        isNot(contains(SmartNightStrategy.narrowbandSho)),
+      expect(narrowbandOnly.sets().map((set) => set.label), [
+        'HOO',
+        'Ha',
+        'OIII',
+      ]);
+      final colorOnly = _choose(
+        _target('M31', 'Galaxy'),
+        wheel: const ['R', 'G', 'B'],
       );
-      expect(
-        narrowbandOnly.capturable,
-        isNot(contains(SmartNightStrategy.autoLrgb)),
-      );
-      expect(choice.capturable, contains(SmartNightStrategy.autoLrgb));
+      expect(colorOnly.recommended.label, 'RGB');
+      expect(colorOnly.reason, 'RGB: M31 is a galaxy.');
+      expect(colorOnly.sets().map((set) => set.label), ['RGB']);
     });
 
-    test('maps to its slots and says it was the user who picked it', () {
-      expect(choice.filtersFor(SmartNightStrategy.autoLrgb), [
-        'L',
-        'R',
-        'G',
-        'B',
-      ]);
-      expect(
-        choice.reasonFor(SmartNightStrategy.autoLrgb),
-        'LRGB: your choice.',
+    test('a set the user picks says it was their choice', () {
+      final lrgb = m1.sets().firstWhere((set) => set.label == 'LRGB');
+      expect(lrgb.filters, ['L', 'R', 'G', 'B']);
+      expect(m1.reasonFor(lrgb), 'LRGB: your choice.');
+      expect(m1.reasonFor(m1.recommended), m1.reason);
+    });
+
+    test('a color camera picks one filter on its wheel, or none', () {
+      final color = _choose(
+        _target('M1', DsoType.supernova.displayName),
+        wheel: const ['UV/IR Cut', 'L-eXtreme'],
+        oneShotColor: true,
       );
-      expect(choice.reasonFor(choice.strategy), choice.reason);
+      expect(color.sets().map((set) => set.label), [
+        'UV/IR Cut',
+        'L-eXtreme, dual-band',
+      ]);
+      expect(color.recommended.label, 'L-eXtreme, dual-band');
+      final noWheel = _choose(
+        _target('M1', DsoType.supernova.displayName),
+        wheel: const [],
+        oneShotColor: true,
+      );
+      expect(noWheel.sets().map((set) => set.label), ['No filter']);
+      expect(noWheel.recommended.filters, [smartNightUnfilteredName]);
+    });
+
+    test('a saved set is listed when every filter is on the wheel', () {
+      const saved = [
+        CustomFilterSet(name: 'HaRGB', filters: ['Ha', 'R', 'G', 'B']),
+        CustomFilterSet(name: 'Nitrogen', filters: ['NII']),
+      ];
+      final wheel = _choose(
+        _target('M1', DsoType.supernova.displayName),
+        wheel: const ['L', 'R', 'G', 'B', 'Baader Ha 7nm'],
+      );
+      final sets = wheel.sets(saved: saved);
+      final haRgb = sets.singleWhere((set) => set.isCustom);
+      expect(haRgb.label, 'HaRGB');
+      expect(haRgb.filters, ['Baader Ha 7nm', 'R', 'G', 'B']);
+      expect(haRgb.timeShares, isEmpty);
+      expect(wheel.reasonFor(haRgb), 'HaRGB: your choice.');
+      expect(sets.map((set) => set.label), isNot(contains('Nitrogen')));
+    });
+
+    test('a wheel naming no band lists its one-filter choice', () {
+      final odd = _choose(
+        _target('M1', DsoType.supernova.displayName),
+        wheel: const ['Slot 1', 'Slot 2'],
+      );
+      expect(odd.sets().map((set) => set.label), ['Slot 1']);
+    });
+  });
+
+  group('the sets kept per profile', () {
+    final m1 = _target('M1', DsoType.supernova.displayName);
+    final choice = _choose(m1);
+    FilterSet named(String label) =>
+        choice.sets().firstWhere((set) => set.label == label);
+
+    test('a picked set is remembered for its target until the user picks '
+        'the recommendation again', () {
+      var prefs = const FilterSetPreferences();
+      prefs = prefs.choose(m1, named('LRGB'), recommended: choice.recommended);
+      expect(
+        prefs
+            .setFor(m1, sets: choice.sets(), recommended: choice.recommended)
+            .label,
+        'LRGB',
+      );
+      expect(
+        prefs
+            .setFor(
+              _target('M31', 'Galaxy'),
+              sets: choice.sets(),
+              recommended: choice.recommended,
+            )
+            .label,
+        'SHO',
+      );
+      prefs = prefs.choose(
+        m1,
+        choice.recommended,
+        recommended: choice.recommended,
+      );
+      expect(prefs.targetChoices, isEmpty);
+    });
+
+    test('a remembered set the wheel can no longer image falls back', () {
+      final prefs = const FilterSetPreferences().choose(
+        m1,
+        named('LRGB'),
+        recommended: choice.recommended,
+      );
+      final narrowband = _choose(m1, wheel: const ['Ha', 'OIII', 'SII']);
+      expect(
+        prefs
+            .setFor(
+              m1,
+              sets: narrowband.sets(),
+              recommended: narrowband.recommended,
+            )
+            .label,
+        'SHO',
+      );
+    });
+
+    test('saving replaces a set of the same name; deleting forgets the '
+        'targets that used it', () {
+      var prefs = const FilterSetPreferences()
+          .save(const CustomFilterSet(name: 'Mine', filters: ['Ha', 'R']))
+          .save(const CustomFilterSet(name: 'Mine', filters: ['Ha', 'G']));
+      expect(prefs.custom.single.filters, ['Ha', 'G']);
+      final mine = choice
+          .sets(saved: prefs.custom)
+          .singleWhere((set) => set.isCustom);
+      prefs = prefs.choose(m1, mine, recommended: choice.recommended);
+      expect(prefs.targetChoices, {'M1': 'custom:Mine'});
+      prefs = prefs.delete('Mine');
+      expect(prefs.custom, isEmpty);
+      expect(prefs.targetChoices, isEmpty);
+    });
+
+    test('round-trips through JSON', () {
+      final prefs = const FilterSetPreferences()
+          .save(const CustomFilterSet(name: 'Mine', filters: ['Ha', 'R']))
+          .choose(m1, named('HOO'), recommended: choice.recommended);
+      final back = FilterSetPreferences.fromJson(prefs.toJson());
+      expect(back.custom.single.name, 'Mine');
+      expect(back.custom.single.filters, ['Ha', 'R']);
+      expect(back.targetChoices, {'M1': 'narrowbandHoo'});
     });
   });
 

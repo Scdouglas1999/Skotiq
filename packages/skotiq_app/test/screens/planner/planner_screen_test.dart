@@ -24,6 +24,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'scheduler_test_doubles.dart';
+import '../../widgets/filter_set_picker_test_support.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
 import 'package:skotiq_core/utils.dart';
@@ -42,6 +43,17 @@ class _SwappableBackendNotifier extends BackendNotifier {
 
   void use(SkotiqBackend backend) => state = backend;
 }
+
+/// A profile the exposure calculator can work from: optics and a camera the
+/// sensor database knows.
+const _calculatorProfile = EquipmentProfileModel(
+  id: 1,
+  name: 'Sim',
+  focalLength: 800,
+  aperture: 100,
+  cameraName: 'ZWO ASI1600MM-Cool',
+  filterNames: ['L', 'R', 'G', 'B'],
+);
 
 List<Override> _commonOverrides() {
   final settingsDao = _MockSettingsDao();
@@ -744,7 +756,9 @@ void main() {
 
   // walk-2 F18: the recipe review must start from the planner's suggested sub
   // length, not a saved default that contradicts the detail column.
-  testWidgets('Build sequence pre-fills the suggested sub length',
+  // qa-surfaces S26: the plan said "Suggested exposure 55 s" for L and Build
+  // pre-filled L 120 s. Both now take the exposure calculator's figure.
+  testWidgets('Build sequence pre-fills the exposure calculator\'s sub length',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1800, 900);
@@ -776,15 +790,7 @@ void main() {
           inMemoryDatabaseOverride(),
           ..._commonOverrides(),
           tonightSuggestionsProvider.overrideWith((ref) async => [suggestion]),
-          activeEquipmentProfileProvider.overrideWithValue(
-            const EquipmentProfileModel(
-              id: 1,
-              name: 'Sim',
-              focalLength: 800,
-              aperture: 100,
-              filterNames: ['L', 'R', 'G', 'B'],
-            ),
-          ),
+          activeEquipmentProfileProvider.overrideWithValue(_calculatorProfile),
           effectiveFiltersProvider
               .overrideWithValue(const ['L', 'R', 'G', 'B']),
           plannerTargetIntegrationPreviewProvider(1023).overrideWith(
@@ -810,6 +816,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
+    final calculatedL = SmartNightService(
+      suggestionService: TargetSuggestionService(loggingService: _MockLogger()),
+      logging: _MockLogger(),
+      floor: const AltitudeFloor(horizon: null, minimumDeg: 0),
+    )
+        .smartExposureRows(
+          profile: _calculatorProfile,
+          filterSet: FilterSet.single('L'),
+          plannedSecs: 3600,
+        )
+        .single
+        .durationSecs
+        .round();
+    expect(calculatedL, isNot(120));
     expect(find.text('Build sequence · NGC1023'), findsOneWidget);
     expect(
       find.widgetWithText(TextFormField, 'L exposure (seconds)'),
@@ -822,10 +842,79 @@ void main() {
           )
           .controller!
           .text,
-      '105',
+      '$calculatedL',
     );
 
     await tester.tap(find.text('Cancel'));
+    await settleProviderTeardown(tester);
+  });
+
+  testWidgets(
+      'the detail column\'s Filters picker shows the recommendation and '
+      'remembers a switch for the target', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1800, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const suggestion = TargetSuggestion(
+      targetId: 1023,
+      targetName: 'NGC1023',
+      raHours: 2.67,
+      decDegrees: 39.06,
+      totalScore: 98,
+      objectType: 'Galaxy',
+      visibility: TargetVisibilityInfo(
+        currentAltitude: 50,
+        currentAzimuth: 170,
+        airmass: 1.3,
+        moonDistance: 100,
+        peakAltitude: 89,
+        hoursAboveMinAlt: 10,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          tonightSuggestionsProvider.overrideWith((ref) async => [suggestion]),
+          activeEquipmentProfileProvider.overrideWithValue(_calculatorProfile),
+          effectiveFiltersProvider
+              .overrideWithValue(const ['L', 'R', 'G', 'B']),
+          filterSetPreferencesProvider.overrideWith(
+            MemoryFilterSetPreferences.new,
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: PlannerScreen()),
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PlannerScreen)),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    final picker = find.byKey(const ValueKey('filter-set-picker'));
+    expect(picker, findsOneWidget);
+    expect(tester.widget<SkotiqDropdown>(picker).value, 'autoLrgb');
+    expect(
+        find.text('Recommended: LRGB, NGC1023 is a galaxy.'), findsOneWidget);
+
+    tester.widget<SkotiqDropdown>(picker).onChanged!('rgb');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      container.read(filterSetPreferencesProvider).requireValue.targetChoices,
+      {'NGC1023': 'rgb'},
+    );
+    expect(tester.widget<SkotiqDropdown>(picker).value, 'rgb');
+    expect(find.textContaining('Your choice.'), findsOneWidget);
     await settleProviderTeardown(tester);
   });
 

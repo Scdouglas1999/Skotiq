@@ -8,6 +8,7 @@ export 'src/services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 export 'src/services/scheduler/target_progress_service.dart';
 export 'src/services/built_in_catalogs.dart';
 export 'src/services/catalog_target_resolver.dart';
+export 'src/services/catalog_target_types.dart';
 export 'src/services/target_library_service.dart' show TargetLibraryService;
 export 'src/services/sequence_rollup.dart';
 export 'src/services/linked_rig/linked_rig_store.dart';

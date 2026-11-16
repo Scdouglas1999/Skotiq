@@ -173,9 +173,9 @@ class _RunCentering {
   /// The records [event] completes.
   List<NightSolveRecord> fold(SequencerEvent event, DateTime Function() now) {
     switch (event) {
-      case SequencerEvent_InstructionProgressStructured(
+      case SequencerEvent_InstructionProgress(
           :final nodeId,
-          detail: CenterInstructionProgressDetail(
+          report: CenterInstructionProgressDetail(
             :final attempt,
             lastSeparationArcsec: final separation,
             solvedRaHours: final raHours,

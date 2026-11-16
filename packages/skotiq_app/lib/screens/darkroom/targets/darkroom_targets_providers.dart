@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoDesignations;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -43,10 +44,14 @@ final darkroomTargetsProvider =
   final placements = await ref.watch(darkroomTargetPlacementsProvider.future);
   final grouped = await loadDarkroomTargets(
     db,
+    await installedDsoDesignations(ref.read(loggingServiceProvider)),
     readHeader: ref.watch(darkroomFrameHeaderReaderProvider),
   );
   final masters = await mastersDao.getAll();
-  final rows = await db.targetsDao.getAllTargets();
+  final rows = await withCatalogObjectTypes(
+    await db.targetsDao.getAllTargets(),
+    ref.read(loggingServiceProvider),
+  );
   final folded = <int, Set<int>>{};
   final used = <int, Set<int>>{};
   final drafts = <int, String>{};
@@ -85,10 +90,11 @@ final darkroomTargetsProvider =
 Future<List<IntegratedMaster>> darkroomMastersOfFrames(
   SkotiqDatabase db,
   IntegratedMastersDao mastersDao,
+  DsoDesignations catalog,
   Set<int> imageIds,
 ) async {
   if (imageIds.isEmpty) return const [];
-  final grouped = await loadDarkroomTargets(db);
+  final grouped = await loadDarkroomTargets(db, catalog);
   final rowsByName = {
     for (final t in await db.targetsDao.getAllTargets()) t.name: t,
   };

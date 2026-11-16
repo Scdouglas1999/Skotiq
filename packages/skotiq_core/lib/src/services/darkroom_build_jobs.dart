@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
+import 'catalog_target_types.dart';
 import 'darkroom_target_frames.dart';
 import 'darkroom_build_service.dart';
 import 'notification_service.dart';
@@ -849,6 +850,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     _guardIdle();
     final frames = (await loadDarkroomTargets(
       ref.read(databaseProvider),
+      await installedDsoDesignations(),
     ))[target];
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');

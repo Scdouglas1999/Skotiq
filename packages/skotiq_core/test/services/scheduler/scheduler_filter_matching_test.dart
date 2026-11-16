@@ -89,4 +89,64 @@ void main() {
     expect(exposures.single.filter, 'Ha');
     expect(exposures.single.count, 10);
   });
+
+  group('a target with several filters still needed', () {
+    SchedulerCandidate lrgb({required bool rotatesFilters}) =>
+        SchedulerCandidate(
+          targetId: 3,
+          name: 'M31',
+          raHours: 0.7,
+          decDegrees: 41.3,
+          userPriority: 5,
+          goals: [
+            for (final (filter, count) in [('L', 20), ('R', 10), ('G', 10)])
+              IntegrationGoal(
+                targetId: 3,
+                filter: filter,
+                exposureSeconds: 120,
+                frameCount: count,
+                createdAt: DateTime.utc(2026),
+              ),
+          ],
+          capturedCounts: const [5, 0, 10],
+          availableFilters: const ['L', 'R', 'G', 'B'],
+          constraints: const [],
+          horizonProfiles: const {},
+          rotatesFilters: rotatesFilters,
+        );
+
+    SchedulerEngine engine() {
+      final engine = SchedulerEngine(
+        site: _site,
+        sequenceSink: _NullSink(),
+        candidateLoader: () async => const [],
+        clock: _night,
+      );
+      addTearDown(engine.dispose);
+      return engine;
+    }
+
+    test('rotates through every one of them on a motorized wheel', () {
+      final plan = engine().buildSequenceForCandidate(
+        lrgb(rotatesFilters: true),
+      );
+      final smart = plan.nodes.values.whereType<SmartExposureNode>().single;
+      expect(smart.rotateFilters, isTrue);
+      expect(smart.batchSize, 1);
+      expect(smart.plans.map((p) => (p.filterName, p.count)), [
+        ('L', 15),
+        ('R', 10),
+      ]);
+      expect(plan.nodes.values.whereType<ExposureNode>(), isEmpty);
+    });
+
+    test('images the most-needed one alone without one', () {
+      final plan = engine().buildSequenceForCandidate(
+        lrgb(rotatesFilters: false),
+      );
+      final exposure = plan.nodes.values.whereType<ExposureNode>().single;
+      expect((exposure.filter, exposure.count), ('L', 15));
+      expect(plan.nodes.values.whereType<SmartExposureNode>(), isEmpty);
+    });
+  });
 }

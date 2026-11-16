@@ -604,6 +604,13 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     return _selectedTargetIds.where(upIds.contains).length;
   }
 
+  /// Whether this rig's automatic plans rotate filters
+  /// ([smartNightRotatesFilters]).
+  bool get _rigRotatesFilters {
+    final profile = ref.watch(activeEquipmentProfileProvider);
+    return profile != null && smartNightRotatesFilters(profile);
+  }
+
   Widget _buildStrategyStep(SkotiqColors colors) {
     final filters = ref.watch(effectiveFiltersProvider);
     return SingleChildScrollView(
@@ -633,6 +640,20 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               },
               colors: colors,
             ),
+          const SizedBox(height: 18),
+          Text(
+            'Filter order',
+            style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          FilterOrderControl(
+            rotate: _settings.rotateFilters ?? _rigRotatesFilters,
+            onChanged: (rotate) {
+              _update(
+                  () => _settings = _settings.copyWith(rotateFilters: rotate));
+              _persistSettings();
+            },
+          ),
           const SizedBox(height: 18),
           Text(
             'Autofocus cadence',
@@ -778,9 +799,11 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             _PlannedTargetCard(
               planned: p,
               colors: colors,
-              onTakeSuggestion: _isBuildingPreview
+              filterChoice: _targetChoices[p.suggestion.targetId],
+              filterSet: _targetSets[p.suggestion.targetId],
+              onFilterSetChanged: _isBuildingPreview
                   ? null
-                  : () => _takeTargetSuggestion(p.suggestion),
+                  : (set) => _chooseTargetSet(p.suggestion, set),
               onCountChanged: (filterIndex, delta) {
                 _adjustFilterCount(p, filterIndex, delta);
               },

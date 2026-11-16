@@ -1375,6 +1375,65 @@ fn scratch_dir(tag: &str) -> ScratchDir {
     ScratchDir(dir)
 }
 
+/// The production namer for a burst of `config` on `ctx`: the run's save
+/// path (a fresh temp folder when `ctx` names none), the step's `save_to`,
+/// and the target and filter `ctx` carries.
+fn frame_namer_for(
+    ctx: &InstructionContext,
+    config: &ExposureConfig,
+) -> crate::frame_naming::FrameSavePathRenderer {
+    let mut ec = ctx.to_template_context();
+    if ec.run.rig.save_path.is_none() {
+        ec.run.rig.save_path =
+            Some(std::env::temp_dir().join(format!("sk-test-frames-{}", uuid::Uuid::new_v4())));
+    }
+    crate::frame_naming::frame_namer(
+        &ec,
+        crate::frame_naming::BurstNaming::of(config, config.duration_secs),
+    )
+    .expect("a save folder names every frame")
+}
+
+/// Files in every `Reject` folder under `root`, wherever the naming template
+/// put the frame's own folder.
+fn files_in_reject_folders(root: &std::path::Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .map(|dir| {
+            if dir.file_name().is_some_and(|name| name == "Reject") {
+                std::fs::read_dir(&dir)
+                    .map(|files| files.count())
+                    .unwrap_or(0)
+            } else {
+                files_in_reject_folders(&dir)
+            }
+        })
+        .sum()
+}
+
+/// A burst of `config` on `ctx` with nothing to pause it, named by the
+/// production namer.
+async fn expose_burst(
+    config: &ExposureConfig,
+    ctx: &InstructionContext,
+    progress_callback: impl Fn(u32, u32, f64),
+) -> InstructionResult {
+    execute_exposure(
+        config,
+        ctx,
+        frame_namer_for(ctx, config),
+        &BurstControl::default(),
+        progress_callback,
+    )
+    .await
+    .result
+}
+
 /// An `InstructionContext` wired the way a real burst is: a resolvable save
 /// folder plus every device id, so `build_frame_context_for_save` actually
 /// performs its telemetry reads instead of skipping them.
@@ -1399,9 +1458,8 @@ async fn saving_expose_ctx(
 /// The same rig as [`saving_expose_ctx`] but returned as the
 /// `ExecutionContext` the node runtime actually hands an instruction, plus
 /// a connected filter wheel. Tests that need to prove the NODE (not just
-/// `execute_exposure`) does something must start here — the save-path
-/// renderer is built inside `ExposeInstruction::execute` and never exists
-/// on the `execute_exposure` path a hand-built `InstructionContext` takes.
+/// `execute_exposure`) does something start here: the node builds its own
+/// save-path renderer from the step and the run context.
 async fn expose_node_execution_ctx(
     ops: Arc<dyn DeviceOps>,
     save_path: std::path::PathBuf,
@@ -1482,11 +1540,7 @@ fn drain_frame_captures(
 ) -> Vec<crate::scheduling::FrameCaptureMetadata> {
     let mut out = Vec::new();
     while let Ok(event) = rx.try_recv() {
-        if let crate::executor::ExecutorEvent::NodeProgress {
-            structured_detail: Some(detail),
-            ..
-        } = event
-        {
+        if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
             match *detail {
                 crate::node::ProgressDetail::FrameAccepted { capture, .. }
                 | crate::node::ProgressDetail::FrameRejected { capture, .. } => out.push(capture),

@@ -56,6 +56,12 @@ state_part! {
             /// same frames on different cadences dithered twice in a row. A node with
             /// no cadence of its own leaves dithering to the trigger.
             pub dither_cadence_owners: u32,
+            /// Nodes running now that rotate their filters, one exposure per filter
+            /// in turn. Their filter changes are the rotation, not a change of
+            /// plan: they apply the filter's focus offset but raise no filter-change
+            /// edge, so a Filter Change trigger set to autofocus does not refocus
+            /// before every frame.
+            pub filter_rotation_owners: u32,
             pub guiding_rms_history: Option<Vec<(Instant, f64)>>,
             /// The guide-star recovery that is failing, until guiding settles again.
             pub guide_recovery: Option<super::super::GuideRecoveryStall>,

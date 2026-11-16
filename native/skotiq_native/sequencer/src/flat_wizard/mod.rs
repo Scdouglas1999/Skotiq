@@ -29,8 +29,8 @@ mod panel;
 use crate::device_ops::DeviceError;
 use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
-    execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
-    InstructionResult, Setback,
+    execute_exposure, resolve_frame_filter, BurstControl, InstructionContext, InstructionResult,
+    Setback,
 };
 use crate::wizard::{
     BorrowedProgressReporter, Wizard, WizardExecutor, WizardProgressReporter, WizardRunStatus,
@@ -505,11 +505,7 @@ fn final_flat_exposure_config(
 /// Capture the requested flats at the converged exposure.
 ///
 /// Flats go through the same save-path renderer as every other frame in the
-/// session, so the user's configured naming template applies to them:
-/// [`execute_exposure`]'s renderer-less branch falls back to the pre-template
-/// `<target>_<filter>_<NNNN>.fits` layout and files a flat run with no target
-/// — the normal shape, since flats are not shot at anything — under the
-/// synthetic label `untargeted` instead of `Flat`.
+/// session, so the user's configured naming template applies to them.
 ///
 /// The filter identity comes from [`resolve_frame_filter`], the same answer the
 /// FITS FILTER card and the `captured_images` row are built from, so the
@@ -543,10 +539,10 @@ pub(crate) async fn capture_converged_flats(
         }
     };
 
-    execute_exposure_with_renderer(
+    execute_exposure(
         &capture_config,
         ctx,
-        Some(renderer),
+        renderer,
         &BurstControl::default(),
         progress_callback,
     )

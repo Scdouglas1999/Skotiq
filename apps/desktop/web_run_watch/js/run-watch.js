@@ -1806,7 +1806,6 @@ const RUN_STATE_EVENT_NAMES = [
 const PROGRESS_EVENT_NAMES = [
   WIRE_EVENTS.imaging.exposureProgress, WIRE_EVENTS.sequencer.progress,
   WIRE_EVENTS.sequencer.instructionProgress,
-  WIRE_EVENTS.sequencer.instructionProgressStructured,
 ];
 
 function openSSE() {
@@ -1891,10 +1890,9 @@ const FEED_ROW_CAP = 5;
 
 /// Whether an event is a progress tick rather than something that happened.
 ///
-/// Measured against the release bundle over 60 s of one live sim sequence:
-/// 327 events on /api/run-watch/events, of which ExposureProgress 84,
-/// Progress 53, InstructionProgress 46 and InstructionProgressStructured 46 —
-/// 229 of 327, about four a second. Against a five-row feed that cadence
+/// Measured against the release bundle over 60 s of one live sim sequence,
+/// progress ticks were 229 of the 327 events on /api/run-watch/events, about
+/// four a second. Against a five-row feed that cadence
 /// evicts everything else within a second: sampled every 2 s across 50 s of a
 /// live run, 104 of 125 row slots were ticks and not one of the 25 samples
 /// held a FrameAccepted row or a node transition.
@@ -1904,8 +1902,17 @@ const FEED_ROW_CAP = 5;
 /// flooded a phone. The figure these carry is not lost — it is the progress
 /// bar above, which is the surface built to show a number moving.
 function isProgressTickEvent(type) {
-  return /Progress/.test(String(type || ''));
+  const name = String(type || '');
+  return /Progress/.test(name) || RUN_BOOKKEEPING_EVENT_NAMES.has(name);
 }
+
+/// The run's own bookkeeping, folded with the ticks: the frame watch's
+/// measurement of each saved frame (the frame already has its FrameAccepted
+/// row) and the dither count.
+const RUN_BOOKKEEPING_EVENT_NAMES = new Set([
+  WIRE_EVENTS.sequencer.frameWatchReport,
+  WIRE_EVENTS.sequencer.ditherPerformed,
+]);
 
 /// The discrete events this page is holding, newest first, capped at
 /// [FEED_ROW_CAP]. Owned here rather than read back off the DOM because the
