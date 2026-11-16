@@ -32,23 +32,27 @@ Published README screenshots live in `assets/screenshots/`.
 | `flat-wizard.png` | Flat wizard after a batch of LRGB flats |
 | `phone-tonight.png` | Tonight on a phone |
 | `phone-plan-targets.png` | Plan > Targets on a phone |
-| `framing.png` | Framing (captured from the running app, October 2026) |
-| `planetarium.png` | Planetarium (captured from the running app, October 2026) |
-| `weather.png` | Weather radar (captured from the running app, October 2026) |
-| `darkroom-draft.png` | Darkroom (captured from the running app, October 2026) |
-| `web-dashboard.png` | Browser remote dashboard (hand-captured, older build) |
+| `framing.png` | Plan > Framing on NGC 7331 over the SDSS color survey |
+| `planetarium.png` | Plan > Planetarium over Andromeda, Cassiopeia and Perseus |
+| `weather.png` | Weather on a clear night: GOES frame and forecast |
+| `darkroom.png` | Darkroom > Targets on M31 with its LRGB masters |
+| `web-dashboard.png` | Browser dashboard of a headless host running a night on simulators |
 
 ### Refreshing screenshots
 
 **Generated.** `packages/skotiq_app/test/golden/public_screenshots_test.dart`
-renders every file above except the last five. Each one is the real app (router,
+renders every file above except the last. Each one is the real app (router,
 shell, screens) over one seeded night: a site in the Eastern time zone, the
 author's rig (a 10-inch f/4 Newtonian with an ASI1600MM-Cool on a NYX-101), and
 a run on NGC 7331, M31 and M1 at 23:47 on the evening the test runs, with the
-app clock stopped there. The frame shown is a raw 30 s sub of M31 from that rig
-through the app's own stretch (`packages/skotiq_app/test/fixtures/README.md`);
-the frame statistics, guiding and history are generated, not measured.
-The test writes into this folder only when you ask it to, in two runs:
+app clock stopped there. The run's step times are the app's own plan estimate
+from the run's 18:40 start. The frame shown is a raw 30 s sub of M31 from that
+rig through the app's own stretch; the Darkroom's previews are single subs from
+the same night. The star catalog, the Weather basemap and the Framing survey
+cutout are fixtures recorded once (sources and credits in
+`packages/skotiq_app/test/fixtures/README.md`). The frame statistics, guiding
+and history are generated, not measured. The test writes into this folder only
+when you ask it to, in two runs:
 
 ```bash
 cd packages/skotiq_app
@@ -64,19 +68,10 @@ controls. Without `SKOTIQ_CAPTURE_ASSETS=1` the test writes to a temporary
 directory and leaves the tracked files alone. Commit the regenerated PNGs; do
 not hand-edit one, because the next capture run overwrites it.
 
-**Captured from the running app.** `framing`, `planetarium`, `weather` and
-`darkroom-draft` need survey tiles, the star catalog, radar imagery or built
-masters that a widget test does not have. They are driven instead:
-
-```bash
-cd apps/desktop && flutter build linux --release
-python3 tools/ui_audit/drive_linux.py start --fresh --profile shots
-python3 tools/ui_audit/drive_linux.py shot --profile shots --width 1920 out.png
-```
-
-**Hand-captured.** `web-dashboard.png`: the browser dashboard is not a Flutter
-surface, so it is captured from `http://127.0.0.1:8080/dashboard/` on a running
-headless instance.
+**Captured from a running host.** `web-dashboard.png`: the browser dashboard is
+not a Flutter surface. It is the Linux release bundle running `--headless` with
+the built-in simulators connected and a 30 s M31 LRGB run in progress, opened
+at `/dashboard/` in headless Chromium at 1600 x 900.
 
 ## License
 
