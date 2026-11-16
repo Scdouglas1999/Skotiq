@@ -201,7 +201,7 @@ class _CollimationCard extends StatelessWidget {
             child: Text(
               measured
                   ? 'Lower is better. Edge/center residual ratio: ${score.toStringAsFixed(1)}'
-                  : 'Lower is better. Edge/center residual ratio::',
+                  : 'Lower is better. Edge/center residual ratio: —',
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize12,
                   color: colors.textSecondary),

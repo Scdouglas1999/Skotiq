@@ -530,7 +530,7 @@
       {
         "id": 1,
         "name": "NAS",
-        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text — no database constraint rejected it — so the row was written by a build that knows a class this one does not, or edited by hand",
+        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text (no database constraint rejected it), so the row was written by a build that knows a class this one does not, or edited by hand",
         "label": "NAS"
       },
       {
@@ -559,7 +559,7 @@
       {
         "id": 1,
         "name": "NAS",
-        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text — no database constraint rejected it — so the row was written by a build that knows a class this one does not, or edited by hand",
+        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text (no database constraint rejected it), so the row was written by a build that knows a class this one does not, or edited by hand",
         "label": "NAS"
       },
       {

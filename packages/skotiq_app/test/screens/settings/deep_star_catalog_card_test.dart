@@ -116,7 +116,7 @@ void main() {
       find.widgetWithText(SkotiqButton, 'Download'),
     );
     expect(download.onPressed, isNull);
-    expect(find.textContaining('point this at a tileset you host'),
+    expect(find.textContaining('Point this at a tileset you host'),
         findsOneWidget);
   });
 

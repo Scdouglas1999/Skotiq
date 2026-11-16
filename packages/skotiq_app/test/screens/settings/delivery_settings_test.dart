@@ -402,7 +402,7 @@ void main() {
       expect(
         // The unit belongs to the pair, not to each half: this read
         // "1 file of 1 file failed".
-        find.textContaining('1 of 1 file failed. The drive filled up'),
+        find.textContaining('1 of 1 file failed: the drive filled up'),
         findsOneWidget,
       );
       expect(

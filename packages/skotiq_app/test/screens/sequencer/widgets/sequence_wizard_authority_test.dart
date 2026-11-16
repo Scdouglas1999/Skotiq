@@ -164,7 +164,7 @@ void main() {
     await _expectClosesOnHostSwitch(
       tester,
       dialog: const SmartNightDialog(),
-      dialogTitle: 'Smart Night: Plan Tonight',
+      dialogTitle: 'Smart Night',
       hostA: _MockNetworkBackend(),
       hostB: _MockNetworkBackend(),
     );
@@ -275,7 +275,7 @@ void main() {
     exposureContext.complete(null);
     await tester.pumpAndSettle();
 
-    expect(find.text('Smart Night: Plan Tonight'), findsNothing);
+    expect(find.text('Smart Night'), findsNothing);
     expect(sensorSpecLoads, 0);
     expect(tester.takeException(), isNull);
   });

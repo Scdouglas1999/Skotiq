@@ -259,8 +259,8 @@ class _DestinationEditorDialogState
       const SizedBox(height: SkotiqTokens.spaceXs),
       Text(
         'Files arrive here named "<rig>-<the file the rig wrote>". Two rigs '
-        'that deliver into one folder write the same file names. Job_1_'
-        'report.json on both, and the second one is refused, because '
+        'that deliver into one folder write the same file names (job_1_'
+        'report.json on both), and the second one is refused, because '
         'delivery never overwrites. Leave this empty to use this computer\'s '
         'name. Files already delivered keep the names they have.',
         style: SkotiqTypography.captionSm.copyWith(

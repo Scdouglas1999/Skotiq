@@ -1155,7 +1155,7 @@ void main() {
     // that it is disabled rather than going quiet.
     final upNode = publishedNode(
       tester,
-      'Move Background extract up. It is already first in the stack (1 of 2)',
+      'Move Background extract up: it is already first in the stack (1 of 2)',
     );
     expect(upNode, isNotNull);
     final upData = upNode!.getSemanticsData();
@@ -1419,7 +1419,7 @@ void main() {
     var state = handle.container.read(darkroomControllerProvider(scope));
     expect(state.renderError, contains('No such file or directory'));
     expect(state.renderError, contains('restore the master at that path'));
-    expect(state.renderError, contains('re-integrate this night in Session'));
+    expect(state.renderError, contains('integrate this night again on its Workbench'));
 
     // A step failure names no file, so it keeps the engine's sentence and is
     // not sent off to rebuild a master that is perfectly fine.
@@ -1438,7 +1438,7 @@ void main() {
     }
     state = handle.container.read(darkroomControllerProvider(scope));
     expect(state.renderError, contains('refused sampleSpacing=0'));
-    expect(state.renderError, isNot(contains('re-integrate this night')));
+    expect(state.renderError, isNot(contains('integrate this night again')));
     await drain(tester);
   });
 

@@ -654,7 +654,7 @@ extension _CrashRecovery on SkotiqDatabase {
         'Skotiq closed while integrating this session (started '
             '$startedAt UTC).',
       if (passIsOwed)
-        'What had not happened yet is the Darkroom pass. The drafts, the '
+        'What had not happened yet is the Darkroom pass: the drafts, the '
             'night report, the delivery and the morning message. It had not '
             'been queued when the process exited.',
       if (orphanText.isNotEmpty) orphanText,

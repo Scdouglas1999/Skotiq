@@ -610,7 +610,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       button: true,
       enabled: enabled,
       selected: selected,
-      label: '$label: $reason',
+      label: '$label. $reason',
       onTap: enabled ? onTap : null,
       child: ExcludeSemantics(
         child: _boundedTooltip(message: reason, child: chip),

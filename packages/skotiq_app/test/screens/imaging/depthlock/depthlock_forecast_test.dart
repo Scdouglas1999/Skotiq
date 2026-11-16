@@ -115,7 +115,7 @@ void main() {
 
       expect(
         line,
-        'Cannot reach 5.0 at 10″. The calibration floor caps it at 4.1. '
+        'Cannot reach 5.0 at 10″: the calibration floor caps it at 4.1. '
         'Larger squares or better flats would help.',
       );
       // More hours is exactly what will NOT help, so it must not be offered.
@@ -184,7 +184,7 @@ void main() {
 
       expect(
         line,
-        'Tonight\'s exposures are worth about 0.6× your best. Sky is noisier '
+        'Tonight\'s exposures are worth about 0.6× your best: sky is noisier '
         '(moon, haze).',
       );
     });

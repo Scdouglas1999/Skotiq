@@ -305,7 +305,7 @@ class DeliveryTargetsDao extends DatabaseAccessor<SkotiqDatabase>
               .join(', ');
           return 'the artifact classes it receives include $value, which is '
               'not one this build produces ($classes). The column holds free '
-              'text (no database constraint rejected it) so the row was '
+              'text (no database constraint rejected it), so the row was '
               'written by a build that knows a class this one does not, or '
               'edited by hand';
       }

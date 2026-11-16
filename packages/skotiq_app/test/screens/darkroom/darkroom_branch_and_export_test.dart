@@ -2070,8 +2070,8 @@ void main() {
       find.descendant(
         of: refusal,
         matching: find.textContaining(
-          'restore the master at that path, or re-integrate this night in '
-          'Session Review',
+          'restore the master at that path, or integrate this night again '
+          'on its Workbench',
         ),
       ),
       findsOneWidget,
@@ -2114,8 +2114,8 @@ void main() {
       find.text(
         "cannot read '$_masterPath': No such file or directory (os error 2)"
         '\n\nThe Darkroom only ever reads that file, so nothing here can put '
-        'it back: restore the master at that path, or re-integrate this night '
-        'in Session Review to write it again.',
+        'it back: restore the master at that path, or integrate this night '
+        'again on its Workbench in Analytics > History.',
       ),
       findsOneWidget,
     );
@@ -2441,7 +2441,7 @@ void main() {
 
     await tester.tap(find.text('Export…'));
     await settle(tester);
-    await tester.tap(find.bySemanticsLabel(RegExp('^After a step: ')));
+    await tester.tap(find.bySemanticsLabel(RegExp(r'^After a step\. ')));
     await settle(tester);
 
     // The step dropdown renders directly under the Stage segment and above

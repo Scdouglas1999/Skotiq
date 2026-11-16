@@ -12,11 +12,11 @@ import 'published_figure.dart';
 /// between Rev 1.x and Rev 2.2).
 const _zwoAsi1600Manual =
     'ZWO "ASI1600 Manual" Rev 1.5, Aug 2021, sections 2 and 4. '
-    'Https://i.zwoastro.com/zwo-website/manuals/ASI1600_Manual_EN_V1.5.pdf';
+    'https://i.zwoastro.com/zwo-website/manuals/ASI1600_Manual_EN_V1.5.pdf';
 const _zwoAsi1600GainChart =
     'ZWO ASI1600 gain chart (e⁻/ADU and read noise against driver gain, '
     '12-bit ADC) on the ASI1600MM Pro product page. '
-    'Https://www.zwoastro.com/product/asi1600mm-pro/';
+    'https://www.zwoastro.com/product/asi1600mm-pro/';
 
 /// The ASI1600 chart points, shared by the mono and colour rows (one sensor
 /// family, one readout chain). Gain 300 is the manual's "30 dB" figure.
@@ -31,34 +31,34 @@ const _zwoAsi1600GainCurve = SensorGainCurve(
 );
 const _zwoAsi2600Manual =
     'ZWO "ASI2600 Manual" Rev 1.3, Jul 2021, sections 2, 3 and 4. '
-    'Https://astronomy-imaging-camera.com/manuals/ASI2600_Manual_EN_V1.3.pdf';
+    'https://astronomy-imaging-camera.com/manuals/ASI2600_Manual_EN_V1.3.pdf';
 const _zwoAsi6200Manual =
     'ZWO "ASI6200 Manual" EN, sections 2, 3 and 4. '
-    'Https://astronomy-imaging-camera.com/manuals/ASI6200_Manual_EN.pdf';
+    'https://astronomy-imaging-camera.com/manuals/ASI6200_Manual_EN.pdf';
 const _zwoAsi533Manual =
     'ZWO "ASI533 Manual" Rev 1.2, Aug 2021, sections 1 and 3. '
-    'Https://i.zwoastro.com/zwo-website/manuals/ASI533_Manual_EN_V1.2.pdf';
+    'https://i.zwoastro.com/zwo-website/manuals/ASI533_Manual_EN_V1.2.pdf';
 const _zwoAsi533ProductPage =
     'ZWO product page "ASI533 Pro Series" specification table. '
-    'Https://www.zwoastro.com/product/asi533/';
+    'https://www.zwoastro.com/product/asi533/';
 const _zwoAsi294Manual =
     'ZWO "ASI294 Manual" Rev 2.2, Feb 2022, sections 3 and 4. '
-    'Https://i.zwoastro.com/zwo-website/manuals/ASI294_Manual_EN_V2.2.pdf';
+    'https://i.zwoastro.com/zwo-website/manuals/ASI294_Manual_EN_V2.2.pdf';
 const _zwoAsi183Manual =
     'ZWO "ASI183 Manual" EN, sections 2, 4 and 5. '
-    'Https://astronomy-imaging-camera.com/manuals/ASI183_Manual_EN.pdf';
+    'https://astronomy-imaging-camera.com/manuals/ASI183_Manual_EN.pdf';
 const _qhy600Page =
     'QHYCCD product page "QHY600M/QHY600C" specification table. '
-    'Https://www.qhyccd.com/astronomical-camera-qhy600/';
+    'https://www.qhyccd.com/astronomical-camera-qhy600/';
 const _qhy268Page =
     'QHYCCD product page "QHY268M/C PH (IMX571)" specification table: '
     'https://www.qhyccd.com/astronomical-camera-qhy268/';
 const _qhy533Page =
     'QHYCCD product page "QHY533M & QHY533C" specification table. '
-    'Https://www.qhyccd.com/astronomical-camera-qhy533/';
+    'https://www.qhyccd.com/astronomical-camera-qhy533/';
 const _qhy183Page =
     'QHYCCD product page "QHY183M & QHY183C" specification table. '
-    'Https://www.qhyccd.com/astronomical-camera-qhy183/';
+    'https://www.qhyccd.com/astronomical-camera-qhy183/';
 
 /// The curated database.
 ///
@@ -428,7 +428,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 24.0,
     source:
         'Canon EOS 6D specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
+        'https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
         'eos_6d/specifications/',
   ),
   CameraSensorEntry(
@@ -441,7 +441,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 24.0,
     source:
         'Canon EOS 6D Mark II specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/cameras/eos-6d-mark-ii/specifications/',
+        'https://www.canon.co.uk/cameras/eos-6d-mark-ii/specifications/',
   ),
   CameraSensorEntry(
     model: 'Canon EOS Ra',
@@ -453,7 +453,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 24.0,
     source:
         'Canon EOS Ra specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/cameras/eos-ra/specifications/',
+        'https://www.canon.co.uk/cameras/eos-ra/specifications/',
   ),
   CameraSensorEntry(
     model: 'Canon EOS R6',
@@ -465,7 +465,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 23.9,
     source:
         'Canon EOS R6 specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/cameras/eos-r6/specifications/',
+        'https://www.canon.co.uk/cameras/eos-r6/specifications/',
   ),
   CameraSensorEntry(
     model: 'Canon EOS 60Da',
@@ -477,7 +477,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 14.9,
     source:
         'Canon EOS 60Da specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
+        'https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
         'eos_60da/specifications/',
   ),
   CameraSensorEntry(
@@ -495,7 +495,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 14.9,
     source:
         'Canon EOS 600D specifications, Image Sensor and Image Size. '
-        'Https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
+        'https://www.canon.co.uk/for_home/product_finder/cameras/digital_slr/'
         'eos_600d/specifications/',
     note:
         'Canon sells this body as the EOS 600D outside North America and as '
@@ -511,7 +511,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 15.6,
     source:
         'Nikon D5300 specifications, 撮像素子 and 記録画素数. '
-        'Https://nij.nikon.com/products/lineup/slr/d5300/spec.html',
+        'https://nij.nikon.com/products/lineup/slr/d5300/spec.html',
   ),
   CameraSensorEntry(
     model: 'Nikon D750',

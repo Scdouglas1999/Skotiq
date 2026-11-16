@@ -100,7 +100,7 @@ void main() {
       // sending the reader to another screen to find out.
       expect(find.text('SAVED FOR LATER'), findsOneWidget);
       expect(
-        find.text('Targets you queue from the Planetarium or Plan Tonight '
+        find.text('Targets you queue from the Planetarium or Plan '
             'appear here, ready to drag into the sequence.'),
         findsOneWidget,
       );
@@ -116,7 +116,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Targets you queue from the Planetarium or Plan Tonight '
+        find.text('Targets you queue from the Planetarium or Plan '
             'appear here, ready to drag into the sequence.'),
         findsNothing,
       );

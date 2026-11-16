@@ -326,7 +326,7 @@ void main() {
       );
       await _do(tester, () => shell.runner.start(Tour.imaging));
       await _do(tester, shell.runner.next);
-      expect(find.text('View Tabs'), findsOneWidget);
+      expect(find.text('View tabs'), findsOneWidget);
 
       await tester.tapAt(const Offset(60, 60));
       await tester.tapAt(const Offset(460, 320));
@@ -459,7 +459,7 @@ void main() {
       final rect = tester.getRect(target);
       expect(rect.top, greaterThanOrEqualTo(0));
       expect(rect.bottom, lessThanOrEqualTo(900));
-      expect(find.text('Captured Images'), findsOneWidget);
+      expect(find.text('Captured images'), findsOneWidget);
     });
 
     testWidgets('on a phone a rail destination behind More points at More',

@@ -786,7 +786,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     // Before: `button: FITS`, and the sentence lived only in a tooltip — which
     // is nothing at all from a keyboard, a screen reader or a touch screen.
-    final fits = find.bySemanticsLabel(RegExp('^FITS: '));
+    final fits = find.bySemanticsLabel(RegExp(r'^FITS\. '));
     expect(fits, findsOneWidget);
     expect(
       tester.getSemantics(fits).label,
