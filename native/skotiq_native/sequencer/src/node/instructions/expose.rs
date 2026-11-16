@@ -6,8 +6,8 @@
 
 use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
-    execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
-    resolve_burst_filter, AutofocusProgress, BurstFilter, InstructionResult, Setback,
+    execute_autofocus, execute_exposure, notify_autofocus_failed_continuing, resolve_burst_filter,
+    AutofocusProgress, BurstFilter, InstructionResult, Setback,
 };
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::autofocus_detail;
@@ -140,7 +140,7 @@ impl InstructionNode for ExposeInstruction {
         let duration_secs = decision.adapted_secs;
         emit_adaptive_exposure_event(node_id, context, &decision, config.filter.as_deref());
 
-        // Build the effective config for execute_exposure_with_renderer
+        // Build the effective config for execute_exposure
         // with the adapted duration. Cloning is cheap (`ExposureConfig`
         // is mostly primitive fields + small Vec<Trigger>).
         let mut effective_config = config.clone();
@@ -209,10 +209,10 @@ impl InstructionNode for ExposeInstruction {
                 None => None,
             };
 
-            execute_exposure_with_renderer(
+            execute_exposure(
                 &effective_config,
                 &ctx,
-                Some(path_renderer),
+                path_renderer,
                 &control,
                 |current, total, recorded_secs| {
                     resume.frame_taken(node_id, current);

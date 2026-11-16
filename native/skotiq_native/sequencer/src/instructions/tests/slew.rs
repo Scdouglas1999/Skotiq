@@ -443,7 +443,7 @@ mod guiding_through_a_move {
             count: 1,
             ..ExposureConfig::default()
         };
-        let _ = execute_exposure(&light, &ctx, |_, _, _| {}).await;
+        let _ = expose_burst(&light, &ctx, |_, _, _| {}).await;
 
         assert_eq!(
             *ops.fresh_star_selections.lock().unwrap(),

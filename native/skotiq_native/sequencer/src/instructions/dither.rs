@@ -1,6 +1,6 @@
 //! One dither of the mount, whoever asks for it: the Dither node, a Smart
 //! Exposure plan's cadence, the Dither Interval trigger ([`execute_dither`])
-//! and a burst's dither-every (`execute_exposure_with_renderer`) all go through
+//! and a burst's dither-every (`execute_exposure`) all go through
 //! [`dither_once`].
 
 use super::*;

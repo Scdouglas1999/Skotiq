@@ -136,13 +136,10 @@ async fn burst_filename_uses_the_filter_the_node_configured() {
     );
 }
 
-/// The Flat Wizard's final flat burst: `execute_exposure` called directly,
-/// with no node and no save-path renderer, and a config whose `filter` is
-/// whatever the wizard was configured with — commonly nothing, because the
-/// operator shot flats through the filter already on the wheel. The wheel
-/// report is what supplies the identity here: flats with no FILTER card
-/// cannot be matched to the lights they were shot for by any calibration
-/// tool, which is the whole point of taking them.
+/// The Flat Wizard's final flat burst, through a config whose `filter` is
+/// commonly nothing because the operator shot flats through the filter
+/// already on the wheel. The wheel report supplies the identity: flats with
+/// no FILTER card cannot be matched to the lights they were shot for.
 #[tokio::test]
 async fn flat_wizard_burst_records_the_filter_the_wheel_is_parked_on() {
     let scratch = scratch_dir("direct-wheel-filter");
@@ -157,7 +154,7 @@ async fn flat_wizard_burst_records_the_filter_the_wheel_is_parked_on() {
         filter_index: None,
         ..ExposureConfig::default()
     };
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "burst should complete");
 
     let saved = ops.saved_frame_contexts();
@@ -172,26 +169,11 @@ async fn flat_wizard_burst_records_the_filter_the_wheel_is_parked_on() {
         Some(1),
         "FILTPOS must record the slot the frame was taken through"
     );
-
-    let paths = ops.saved_frame_paths();
-    assert!(
-        !paths[0].contains("nofilter"),
-        "a known filter must never render as the synthetic nofilter label, got {}",
-        paths[0]
-    );
-    assert!(
-        paths[0].contains("_R_"),
-        "the filename must agree with the header, got {}",
-        paths[0]
-    );
 }
 
-/// D7/R7: the Flat Wizard's final burst went through `execute_exposure`,
-/// whose renderer-less branch is the pre-template
-/// `<target>_<filter>_<NNNN>.fits` layout. Flats therefore ignored the
-/// user's save-path template, and — because flats are not shot at
-/// anything, so the run has no target — every file was filed under the
-/// synthetic label `untargeted`, next to lights named after their target.
+/// The Flat Wizard's flats are named by the save-path renderer like every
+/// other frame: a flat run has no target, so a flat is named for its frame
+/// type and the filter the wheel is on.
 #[tokio::test]
 async fn flat_wizard_flats_are_named_by_the_save_path_renderer() {
     let scratch = scratch_dir("flat-wizard-naming");
@@ -255,7 +237,7 @@ async fn direct_burst_never_pairs_its_filter_name_with_a_stale_slot() {
         filter_index: None,
         ..ExposureConfig::default()
     };
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     assert_eq!(result.status, NodeStatus::Success, "burst should complete");
 
     let saved = ops.saved_frame_contexts();

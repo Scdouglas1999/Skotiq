@@ -98,8 +98,8 @@ impl SequenceExecutor {
         })?;
 
         // Save-path preflight. A capture sequence with nowhere to write is not a
-        // run, it is a night thrown away — refuse it here rather than letting
-        // every frame reach the "captured but NOT SAVED" branch.
+        // run, it is a night thrown away — refuse it here rather than at its
+        // first exposure step.
         if self
             .root_node
             .as_ref()

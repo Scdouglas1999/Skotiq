@@ -154,7 +154,7 @@ async fn light_exposure_on_target_rejected_when_sun_up() {
     // The limit is one the Sun never reaches, so the frame is refused rather
     // than waiting for dark.
     let ctx = expose_ctx(Arc::new(NullDeviceOps), Some((5.5, 22.0)), -95.0).await;
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
     assert!(
         is_daylight_block(&result),
         "on-sky LIGHT exposure must be daylight-blocked when Sun is up; got {:?}",
@@ -173,7 +173,7 @@ async fn target_header_calibration_frames_are_exempt_from_daylight_gate() {
             frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..ExposureConfig::default()
         };
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
         assert!(
             !is_daylight_block(&result),
             "{frame_type} below a TargetHeader must remain legal in daylight: {:?}",
@@ -195,7 +195,7 @@ async fn calibration_exposure_without_target_not_gated_in_daylight() {
             frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..ExposureConfig::default()
         };
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
         assert!(
             !is_daylight_block(&result),
             "a no-target {frame_type} exposure must never be daylight-gated; got {:?}",
@@ -212,7 +212,7 @@ async fn calibration_exposure_without_target_not_gated_in_daylight() {
 async fn untargeted_light_exposure_rejected_when_sun_up() {
     // Mount NOT parked + no target group + Sun up → still an on-sky light.
     let ctx = expose_ctx(Arc::new(NullDeviceOps), None, -95.0).await;
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
     assert!(
         is_daylight_block(&result),
         "a targetless LIGHT exposure must be daylight-blocked when Sun is up; got {:?}",
@@ -227,7 +227,7 @@ async fn parked_rig_target_exposure_not_gated_in_daylight() {
     // target subtree while parked) → not on-sky → allow.
     let ops: Arc<dyn DeviceOps> = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
     let ctx = expose_ctx(ops, Some((5.5, 22.0)), sun_alt - 30.0).await;
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
     assert!(
         !is_daylight_block(&result),
         "a parked-rig exposure must never be daylight-gated; got {:?}",
@@ -240,7 +240,7 @@ async fn light_exposure_on_target_allowed_when_sun_down() {
     let sun_alt = live_sun_alt();
     // Mount not parked + target set + Sun below max → allowed past the gate.
     let ctx = expose_ctx(Arc::new(NullDeviceOps), Some((5.5, 22.0)), sun_alt + 5.0).await;
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
     assert!(
         !is_daylight_block(&result),
         "on-sky LIGHT exposure must clear the daylight gate at night; got {:?}",
