@@ -19,6 +19,7 @@ import 'package:skotiq_app/screens/night_control/data/session/session_series_pro
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -89,6 +90,24 @@ CapturedImageData testFrame({
       filePath: filePath,
     );
 
+/// A frame file as the native decoder hands it back.
+bridge.FitsReadResult testDecodedFrame(int width, int height) =>
+    bridge.FitsReadResult(
+      width: width,
+      height: height,
+      bitpix: 16,
+      displayData: Uint8List(width * height * 4),
+      histogram: Uint32List(256),
+      stats: const bridge.ImageStatsResult(
+        min: 0,
+        max: 1000,
+        mean: 500,
+        median: 480,
+        stdDev: 20,
+        starCount: 0,
+      ),
+    );
+
 /// The board's strip with file paths, so a frame on the stage can be
 /// matched to its row.
 List<StripFrameVm> stripWithPaths(List<StripFrameVm> frames) => <StripFrameVm>[
@@ -123,6 +142,7 @@ List<Override> centerOverrides(
   NightLiveAutofocusVm? liveAutofocus,
   NightGuiderIdleVm? guider,
   NightSeriesVm? coolerHistory,
+  FrameFileDecoder? decoder,
 }) {
   final backend = MockBackend();
   when(() => backend.getImageThumbnail(any()))
@@ -163,6 +183,9 @@ List<Override> centerOverrides(
     clockProvider.overrideWithValue(const SystemClock()),
     imagingBackendProvider.overrideWithValue(backend),
     isRemoteModeProvider.overrideWithValue(false),
+    frameFileDecoderProvider.overrideWithValue(
+      decoder ?? (path) async => testDecodedFrame(6, 4),
+    ),
   ];
 }
 

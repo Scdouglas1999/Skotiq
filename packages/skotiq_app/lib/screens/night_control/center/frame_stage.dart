@@ -1,16 +1,15 @@
 // The frame stage: the latest frame, front and center, with what the rig is
 // doing written over it.
 //
-// The frame is Imaging's own current frame drawn by [ImageDisplayWidget], and
-// the view buttons drive the same shared state Imaging's toolbar does
+// The frame is Imaging's own current frame, or a frame picked in the strip at
+// full resolution from its own file; both are drawn by [FrameCanvas]. The view
+// buttons drive the same shared state Imaging's toolbar does
 // (`imagingViewerStateProvider`, the auto-stretch setting, the star overlay
 // and the catalog overlay), so a stretch chosen here holds on Imaging too.
 // Pills: the frame on screen (top left), what is happening now (top right),
 // a thin exposure bar along the top edge.
 import 'dart:async';
-import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -23,14 +22,12 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../utils/preview_transform.dart';
-import '../../../widgets/catalog_overlay_widget.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_purpose_label.dart';
-import '../../../widgets/frame_thumbnail_loader.dart';
-import '../../../widgets/image_preview/image_display.dart';
-import '../../../widgets/image_preview/overlay_painters.dart';
+import '../../../widgets/image_preview/frame_canvas.dart';
+import '../../../widgets/image_preview/frame_overlay_controls.dart';
 import '../../../widgets/image_preview/preview_display_scale.dart';
+import '../../../widgets/saved_frame/saved_frame_view.dart';
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_run_phase_provider.dart';
@@ -244,8 +241,16 @@ class NightStageSolveVm {
       other.sip == sip;
 
   @override
-  int get hashCode => Object.hash(frameCapturedAt, raDegrees, decDegrees,
-      rotationDeg, pixelScaleArcsec, offTargetArcmin, cd, sip);
+  int get hashCode => Object.hash(
+        frameCapturedAt,
+        raDegrees,
+        decDegrees,
+        rotationDeg,
+        pixelScaleArcsec,
+        offTargetArcmin,
+        cd,
+        sip,
+      );
 }
 
 /// Pairs each successful solve with the frame that was on screen when it
@@ -381,7 +386,7 @@ class FrameStage extends ConsumerWidget {
                 children: <Widget>[
                   Positioned.fill(
                     child: selected != null
-                        ? _SelectedFramePreview(frame: selected)
+                        ? _SavedStageFrame(frame: selected, viewport: viewport)
                         : image != null
                             ? _LiveFrame(image: image, viewport: viewport)
                             : const _EmptyStage(),
@@ -410,57 +415,17 @@ class FrameStage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (selected != null)
-                    const Positioned(
-                      left: _inset,
-                      bottom: _inset,
-                      child: _BackToLatest(),
-                    )
-                  else if (image != null)
+                  if (selected != null || image != null)
                     Positioned(
                       right: _inset,
                       bottom: _inset,
                       left: _inset,
-                      // On a narrow stage the star count takes its own
-                      // line above the view buttons rather than a third of
-                      // one, which cut its HFR.
-                      child: viewport.width < _stackStatusBelow
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                const Align(
-                                  alignment: Alignment.bottomLeft,
-                                  child: _OverlayStatus(),
-                                ),
-                                const SizedBox(height: SkotiqTokens.spaceXs),
-                                Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: _ViewButtons(
-                                    image: image,
-                                    viewport: viewport,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: <Widget>[
-                                const Flexible(child: _OverlayStatus()),
-                                const SizedBox(width: SkotiqTokens.spaceSm),
-                                Flexible(
-                                  flex: 2,
-                                  child: Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: _ViewButtons(
-                                      image: image,
-                                      viewport: viewport,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      child: _StageControls(
+                        live: image,
+                        selected: selected,
+                        viewport: viewport,
+                        stacked: viewport.width < _stackStatusBelow,
+                      ),
                     ),
                 ],
               );
@@ -481,70 +446,26 @@ class _LiveFrame extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.skotiqColors;
     final viewer = ref.watch(imagingViewerStateProvider);
-    final showStars = viewer.showStarOverlay;
-    // Never the previous frame's stars while this frame is being detected.
-    final stars = showStars
-        ? ref.watch(currentFrameStarsProvider).unwrapPrevious().valueOrNull
-        : null;
-    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    final fitScale =
-        previewFitScale(viewportSize: viewport, imageSize: imageSize);
-    final displayScale = fitScale * viewer.zoomLevel;
-    final imageOffset = computeImageOffset(
-      viewportSize: viewport,
-      imageSize: imageSize,
-      zoomLevel: displayScale,
+    final showCatalog = ref.watch(catalogOverlayEnabledProvider);
+    return FrameCanvas(
+      image: image,
+      viewport: viewport,
+      zoomLevel: viewer.zoomLevel,
       panOffset: viewer.panOffset,
-    );
-    final zoomed = viewer.zoomLevel != 1.0;
-    // Decode only what the stage can show while fitted; 1:1 needs every pixel.
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final targetWidth =
-        zoomed ? null : math.max(1, (viewport.width * dpr).round());
-
-    return Semantics(
-      image: true,
-      label: _frameSemantics(context, ref, image),
-      child: GestureDetector(
-        onPanUpdate: zoomed
-            ? (details) =>
-                ref.read(imagingViewerStateProvider.notifier).pan(details.delta)
-            : null,
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            ExcludeSemantics(
-              child: ImageDisplayWidget(
-                imageData: image,
-                zoomLevel: viewer.zoomLevel,
-                panOffset: viewer.panOffset,
-                targetWidth: targetWidth,
-              ),
-            ),
-            if (stars != null && stars.stars.isNotEmpty)
-              IgnorePointer(
-                child: CustomPaint(
-                  painter: StarOverlayPainter(
-                    stars: stars.stars,
-                    color: colors.accent.withValues(alpha: 0.8),
-                    zoomLevel: displayScale,
-                    imageOffset: imageOffset,
-                  ),
-                ),
-              ),
-            if (ref.watch(catalogOverlayEnabledProvider))
-              CatalogOverlayWidget(
-                wcs: _wcsFor(ref, image),
-                zoomLevel: displayScale,
-                imageOffset: imageOffset,
-                imageSize: imageSize,
-                frameSolve: ref.watch(currentFrameSolveProvider),
-              ),
-          ],
-        ),
-      ),
+      onPan: ref.read(imagingViewerStateProvider.notifier).pan,
+      semanticsLabel: _frameSemantics(context, ref, image),
+      // Never the previous frame's stars while this frame is being detected.
+      stars: viewer.showStarOverlay
+          ? ref
+              .watch(currentFrameStarsProvider)
+              .unwrapPrevious()
+              .valueOrNull
+              ?.stars
+          : null,
+      showCatalog: showCatalog,
+      wcs: showCatalog ? _wcsFor(ref, image) : null,
+      frameSolve: ref.watch(currentFrameSolveProvider),
     );
   }
 
@@ -607,56 +528,37 @@ String _frameSemantics(
   );
 }
 
-/// A strip frame shown on the stage: its thumbnail, scaled to fit.
-class _SelectedFramePreview extends ConsumerStatefulWidget {
-  const _SelectedFramePreview({required this.frame});
+/// The saved frame of [frame], for the full-resolution load.
+SavedFrameRef _savedFrameRef(StripFrameVm frame) => SavedFrameRef(
+      imageId: frame.id,
+      hostPath: frame.hostPath ?? '',
+      capturedAt: frame.capturedAt,
+    );
+
+/// A strip frame on the stage at full resolution, following the stage's zoom,
+/// pan and overlays.
+class _SavedStageFrame extends ConsumerWidget {
+  const _SavedStageFrame({required this.frame, required this.viewport});
 
   final StripFrameVm frame;
+  final Size viewport;
 
   @override
-  ConsumerState<_SelectedFramePreview> createState() =>
-      _SelectedFramePreviewState();
-}
-
-class _SelectedFramePreviewState extends ConsumerState<_SelectedFramePreview> {
-  Future<Uint8List?>? _bytes;
-
-  @override
-  void initState() {
-    super.initState();
-    _bytes = _load();
-  }
-
-  @override
-  void didUpdateWidget(covariant _SelectedFramePreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.frame.id != widget.frame.id) _bytes = _load();
-  }
-
-  // The sidecar thumbnail (about 512 px), never a full-resolution decode.
-  Future<Uint8List?> _load() =>
-      fetchFrameThumbnailBytes(ref, widget.frame.id, source: 'NightStage');
-
-  @override
-  Widget build(BuildContext context) {
-    final frame = widget.frame;
-    final l10n = context.l10n;
-    return Semantics(
-      image: true,
-      label: l10n.text(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewer = ref.watch(imagingViewerStateProvider);
+    return SavedFrameView(
+      frame: _savedFrameRef(frame),
+      viewport: viewport,
+      zoomLevel: viewer.zoomLevel,
+      panOffset: viewer.panOffset,
+      onPan: ref.read(imagingViewerStateProvider.notifier).pan,
+      showStars: viewer.showStarOverlay,
+      showCatalog: ref.watch(catalogOverlayEnabledProvider),
+      semanticsLabel: context.l10n.text(
         'nightCtrPreviewSemantics',
         params: <String, String>{
-          'frame': _stripTitle(frame) ?? l10n.text('nightCtrFrame'),
+          'frame': _stripTitle(frame) ?? context.l10n.text('nightCtrFrame'),
         },
-      ),
-      child: ExcludeSemantics(
-        child: FrameThumbnail(
-          bytesFuture: _bytes,
-          fallbackFilePath: frame.filePath ?? nightNoLocalFile,
-          colors: context.skotiqColors,
-          iconSize: 28,
-          fit: BoxFit.contain,
-        ),
       ),
     );
   }

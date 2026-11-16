@@ -1,7 +1,8 @@
 // The frame strip under the action bar: this session's frames as thumbnails,
 // newest at the right and ringed, each with its HFR. A rejected frame is
 // dimmed and its HFR is in the error tone. Tapping a frame shows it on the
-// stage; tapping it again, or the newest, goes back to the live frame.
+// stage at full resolution; tapping it again, or the newest, goes back to the
+// live frame.
 //
 // Thumbnails come from the backend's sidecar cache by row id, decoded at the
 // tile's size; nothing here opens a FITS file.
@@ -301,6 +302,7 @@ class _StripTileState extends ConsumerState<_StripTile> {
 
     return Semantics(
       button: true,
+      enabled: true,
       selected: widget.selected,
       label: description,
       excludeSemantics: true,
