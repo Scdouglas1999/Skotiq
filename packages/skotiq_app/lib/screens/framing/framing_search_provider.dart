@@ -208,6 +208,8 @@ FramingTarget framingTargetFromDso(DeepSkyObject dso) {
     case DsoType.openCluster:
     case DsoType.globularCluster:
     case DsoType.clusterWithNebulosity:
+    case DsoType.clusterWithEmissionNebula:
+    case DsoType.clusterWithReflectionNebula:
     case DsoType.association:
     case DsoType.starCloud:
       targetType = TargetType.cluster;

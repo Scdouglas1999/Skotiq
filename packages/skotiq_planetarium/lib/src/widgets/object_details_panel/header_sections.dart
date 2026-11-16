@@ -293,7 +293,9 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
       DsoType.darkNebula ||
       DsoType.hiiRegion => LucideIcons.cloud,
       DsoType.openCluster ||
-      DsoType.clusterWithNebulosity => LucideIcons.asterisk,
+      DsoType.clusterWithNebulosity ||
+      DsoType.clusterWithEmissionNebula ||
+      DsoType.clusterWithReflectionNebula => LucideIcons.asterisk,
       DsoType.globularCluster => LucideIcons.circle,
       DsoType.planetaryNebula => LucideIcons.circleSlash,
       DsoType.supernova => LucideIcons.zap,
@@ -316,7 +318,9 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
       DsoType.reflectionNebula => SkyPlotColors.openCluster,
       DsoType.darkNebula => SkyPlotColors.unknown,
       DsoType.openCluster ||
-      DsoType.clusterWithNebulosity => SkyPlotColors.openCluster,
+      DsoType.clusterWithNebulosity ||
+      DsoType.clusterWithEmissionNebula ||
+      DsoType.clusterWithReflectionNebula => SkyPlotColors.openCluster,
       DsoType.globularCluster => SkyPlotColors.horizon,
       DsoType.planetaryNebula => SkyPlotColors.planetaryNebula,
       DsoType.supernova => SkyPlotColors.caution,
