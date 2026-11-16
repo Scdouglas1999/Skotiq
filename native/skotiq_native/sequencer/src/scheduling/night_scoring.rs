@@ -175,8 +175,7 @@ fn score_with(
         }
     }
     let (peak_alt, peak_az, peak_time) = usable_peak.unwrap_or(overall_peak);
-    let hours_above_floor =
-        f64::from(usable_samples) * SAMPLE_STEP.num_minutes() as f64 / 60.0;
+    let hours_above_floor = f64::from(usable_samples) * SAMPLE_STEP.num_minutes() as f64 / 60.0;
 
     let pass = horizon_pass(ra_hours, dec, lat, observer.longitude_deg, night.middle);
 
@@ -227,7 +226,8 @@ fn alt_az_from_hour_angle(ha_hours: f64, dec_deg: f64, lat_deg: f64) -> (f64, f6
     let dec = dec_deg.to_radians();
     let lat = lat_deg.to_radians();
     let sin_alt = lat.sin() * dec.sin() + lat.cos() * dec.cos() * ha.cos();
-    let azimuth = (-ha.sin() * dec.cos()).atan2(dec.sin() * lat.cos() - dec.cos() * lat.sin() * ha.cos());
+    let azimuth =
+        (-ha.sin() * dec.cos()).atan2(dec.sin() * lat.cos() - dec.cos() * lat.sin() * ha.cos());
     (
         sin_alt.clamp(-1.0, 1.0).asin().to_degrees(),
         azimuth.to_degrees().rem_euclid(360.0),
@@ -247,9 +247,8 @@ pub fn horizon_pass(
     let lowest_altitude_deg = ((lat_deg + dec_deg).abs() - 90.0).clamp(-90.0, 90.0);
     let never_rises = transit_altitude_deg < 0.0;
     let is_circumpolar = !never_rises && lowest_altitude_deg >= 0.0;
-    let hours_to_transit = -wrap_hours(
-        local_sidereal_time(julian_day(&center), lon_deg) - ra_hours,
-    ) / SIDEREAL_RATE;
+    let hours_to_transit =
+        -wrap_hours(local_sidereal_time(julian_day(&center), lon_deg) - ra_hours) / SIDEREAL_RATE;
     let transit = center + seconds(hours_to_transit);
     let (rise_time, set_time) = if never_rises || is_circumpolar {
         (None, None)
@@ -389,8 +388,11 @@ mod tests {
     #[test]
     fn a_wall_everywhere_leaves_no_usable_hours_but_reports_the_true_peak() {
         let wall = AltitudeFloor::flat(90.0);
-        let score =
-            score_target_for_night(&m42(), &january_night(Some(wall)), &ScoringWeights::default());
+        let score = score_target_for_night(
+            &m42(),
+            &january_night(Some(wall)),
+            &ScoringWeights::default(),
+        );
         assert_eq!(score.hours_above_floor, 0.0);
         assert_eq!(score.darkness_score, 0.0);
         assert_eq!(score.airmass_score, 0.0);
@@ -431,8 +433,14 @@ mod tests {
     fn a_target_that_rises_late_is_first_usable_after_dusk() {
         // RA 13h rises around local midnight in mid-January at 40N.
         let night = january_night(Some(AltitudeFloor::flat(30.0)));
-        let score = score_target_for_night(&target("late", 195.0, 10.0), &night, &ScoringWeights::default());
-        let first = score.first_usable_time.expect("clears 30 degrees before dawn");
+        let score = score_target_for_night(
+            &target("late", 195.0, 10.0),
+            &night,
+            &ScoringWeights::default(),
+        );
+        let first = score
+            .first_usable_time
+            .expect("clears 30 degrees before dawn");
         assert!(first > night.night_start + Duration::hours(3), "{first}");
         assert!(score.hours_above_floor > 0.0 && score.hours_above_floor < 8.0);
     }
@@ -442,18 +450,26 @@ mod tests {
     #[test]
     fn a_target_culminating_in_daylight_scores_below_one_culminating_at_night() {
         let night = january_night(Some(AltitudeFloor::flat(30.0)));
-        let ra_transiting_at = |at: DateTime<Utc>| {
-            local_sidereal_time(julian_day(&at), night.longitude_deg) * 15.0
-        };
+        let ra_transiting_at =
+            |at: DateTime<Utc>| local_sidereal_time(julian_day(&at), night.longitude_deg) * 15.0;
         let middle = night.night_start + (night.night_end - night.night_start) / 2;
         let noon = Utc.with_ymd_and_hms(2026, 1, 16, 17, 0, 0).unwrap();
         let weights = ScoringWeights::default();
-        let daylight =
-            score_target_for_night(&target("noon", ra_transiting_at(noon), 40.0), &night, &weights);
-        let dark =
-            score_target_for_night(&target("night", ra_transiting_at(middle), 20.0), &night, &weights);
+        let daylight = score_target_for_night(
+            &target("noon", ra_transiting_at(noon), 40.0),
+            &night,
+            &weights,
+        );
+        let dark = score_target_for_night(
+            &target("night", ra_transiting_at(middle), 20.0),
+            &night,
+            &weights,
+        );
         assert!(daylight.pass.transit_altitude_deg > dark.pass.transit_altitude_deg);
-        assert!(dark.total_score > daylight.total_score, "{dark:?} vs {daylight:?}");
+        assert!(
+            dark.total_score > daylight.total_score,
+            "{dark:?} vs {daylight:?}"
+        );
         assert!(dark.hours_above_floor > daylight.hours_above_floor);
     }
 
@@ -465,19 +481,29 @@ mod tests {
             night.moon = Some((263.82, -5.39));
             night.moon_illumination = illumination;
             let score = score_target_for_night(&m42(), &night, &ScoringWeights::default());
-            assert!(score.moon_distance_score < previous, "{illumination}: {score:?}");
+            assert!(
+                score.moon_distance_score < previous,
+                "{illumination}: {score:?}"
+            );
             previous = score.moon_distance_score;
         }
     }
 
     #[test]
     fn a_ranking_keeps_each_score_with_its_target() {
-        let targets = [target("south", 100.0, -70.0), m42(), target("late", 195.0, 10.0)];
+        let targets = [
+            target("south", 100.0, -70.0),
+            m42(),
+            target("late", 195.0, 10.0),
+        ];
         let night = january_night(None);
         let batch = score_targets_for_night(&targets, &night, &ScoringWeights::default());
         for (t, s) in targets.iter().zip(&batch) {
             assert_eq!(s.target_id, t.id);
-            assert_eq!(s, &score_target_for_night(t, &night, &ScoringWeights::default()));
+            assert_eq!(
+                s,
+                &score_target_for_night(t, &night, &ScoringWeights::default())
+            );
         }
     }
 

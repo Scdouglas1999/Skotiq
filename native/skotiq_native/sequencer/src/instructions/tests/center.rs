@@ -84,7 +84,10 @@ async fn a_center_without_a_plate_solver_fails_at_once_saying_so() {
     assert_eq!(result.status, NodeStatus::Failure);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
     assert!(
-        result.message.as_deref().is_some_and(|m| m.contains("No plate solver")),
+        result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("No plate solver")),
         "{:?}",
         result.message
     );
@@ -119,7 +122,10 @@ async fn a_center_corrects_by_sync_or_by_offset_as_configured() {
         let (ra, dec) = ops.mount_slew_targets.lock().unwrap()[0];
         assert!((ra - 0.712).abs() < 1e-9);
         let expected_dec = if sync_mount { 41.27 } else { 41.26 };
-        assert!((dec - expected_dec).abs() < 1e-9, "sync {sync_mount}: dec {dec}");
+        assert!(
+            (dec - expected_dec).abs() < 1e-9,
+            "sync {sync_mount}: dec {dec}"
+        );
         assert_eq!(
             ops.mount_sync_calls.load(Ordering::SeqCst),
             usize::from(sync_mount)

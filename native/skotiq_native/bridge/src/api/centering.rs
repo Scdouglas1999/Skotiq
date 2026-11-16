@@ -101,9 +101,8 @@ pub async fn api_center_on_target(
     run.rig.mount_id = Some(request.mount_id);
     run.rig.camera_id = Some(request.camera_id);
     run.rig.filterwheel_id = request.filter_wheel_id;
-    run.event_tx = Some(
-        crate::util::executor_event_bridge::spawn_executor_event_bridge(get_state().clone()),
-    );
+    run.event_tx =
+        Some(crate::util::executor_event_bridge::spawn_executor_event_bridge(get_state().clone()));
     let ctx = InstructionContext::new(run, cancel.clone());
 
     let report = |_: f64, step: &CenterProgress| {
@@ -208,7 +207,10 @@ mod tests {
     fn a_request_centers_on_its_own_coordinates() {
         let config = validated_config(&request()).unwrap();
         assert!(!config.use_target_coords);
-        assert_eq!((config.custom_ra, config.custom_dec), (Some(5.5), Some(-5.4)));
+        assert_eq!(
+            (config.custom_ra, config.custom_dec),
+            (Some(5.5), Some(-5.4))
+        );
         assert_eq!(config.max_attempts, 3);
     }
 

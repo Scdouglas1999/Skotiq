@@ -282,13 +282,15 @@ mod tests {
 
     #[test]
     fn the_preview_holds_targets_to_the_floor_it_is_given() {
-        let open = api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), vec![]);
+        let open =
+            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), vec![]);
         assert!(open[0].runnable, "{:?}", open[0]);
         let wall = vec![ApiFloorSample {
             azimuth_deg: 0.0,
             altitude_deg: 80.0,
         }];
-        let blocked = api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), wall);
+        let blocked =
+            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), wall);
         assert!(!blocked[0].runnable);
         assert!(blocked[0]
             .skip_reason
