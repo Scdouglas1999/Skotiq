@@ -89,12 +89,6 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  Future<List<DbTarget>> getTargetsByType(String objectType) {
-    return (select(
-      targets,
-    )..where((t) => t.objectType.equals(objectType))).get();
-  }
-
   Future<int> createTarget(TargetsCompanion target) {
     return into(targets).insert(target);
   }

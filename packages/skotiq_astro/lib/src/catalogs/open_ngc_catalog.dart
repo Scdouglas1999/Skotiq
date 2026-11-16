@@ -8,6 +8,7 @@ import '../coordinate_system.dart';
 import '../util/isolate_run.dart';
 import 'catalog_name_search.dart';
 import 'constellation_names.dart';
+import 'dso_designations.dart';
 import 'nebula_light.dart';
 
 typedef _DsoRow = ({DeepSkyObject dso, List<String> names});
@@ -29,6 +30,7 @@ class OpenNgcDsoCatalog {
 
   List<DeepSkyObject>? _objects;
   CatalogNameKeys _nameKeys = CatalogNameKeys.empty;
+  DsoDesignations? _designations;
   Future<List<DeepSkyObject>>? _inFlight;
 
   OpenNgcDsoCatalog(this.path, {this.nebulaLight = const {}});
@@ -46,6 +48,13 @@ class OpenNgcDsoCatalog {
   Future<CatalogNameKeys> nameKeys() async {
     await load();
     return _nameKeys;
+  }
+
+  /// Every object in the file by its designations.
+  Future<DsoDesignations> designations() async {
+    final objects = await load();
+    if (objects.isEmpty) return DsoDesignations.empty;
+    return _designations ??= DsoDesignations.of(objects);
   }
 
   Future<List<DeepSkyObject>> _load() async {

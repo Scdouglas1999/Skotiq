@@ -17,6 +17,7 @@ export 'src/catalogs/catalog_install_models.dart';
 export 'src/catalogs/catalog_installer.dart';
 export 'src/catalogs/catalog_name_search.dart';
 export 'src/catalogs/open_ngc_catalog.dart';
+export 'src/catalogs/dso_designations.dart';
 export 'src/catalogs/nebula_light.dart';
 export 'src/catalogs/hyg_depth.dart';
 export 'src/catalogs/star_catalog.dart';
