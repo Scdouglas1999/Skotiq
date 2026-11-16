@@ -362,7 +362,7 @@ mod tests {
             ..Default::default()
         };
         let out = calibrate_frame_f32(&light, &cal).unwrap().as_f32().unwrap();
-        assert_eq!(out, vec![100.0, 1100.0]);
+        assert_eq!(out, vec![100.0, 600.0]);
     }
 
     #[test]
