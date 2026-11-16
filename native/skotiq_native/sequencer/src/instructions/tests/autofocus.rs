@@ -224,16 +224,11 @@ fn synthetic_star_field(width: u32, height: u32, count: usize, sigma: f64) -> Im
         height,
         data,
         bits_per_pixel: 16,
-        exposure_secs: 1.0,
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: None,
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 1.0,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 
@@ -287,16 +282,11 @@ fn star_detect_fixture(name: &str) -> ImageData {
         height: image.height,
         data: image.as_u16().expect("16-bit frame"),
         bits_per_pixel: 16,
-        exposure_secs: 90.0,
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: Some("L".to_string()),
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 90.0,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 
@@ -377,16 +367,11 @@ fn donut_field(radius: f64) -> ImageData {
         height: SIZE,
         data: px.iter().map(|v| v.clamp(0.0, 65535.0) as u16).collect(),
         bits_per_pixel: 16,
-        exposure_secs: 3.0,
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: Some("L".to_string()),
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 3.0,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 

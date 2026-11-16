@@ -19,9 +19,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/models.dart';
 // ignore: implementation_imports
-import 'package:skotiq_core/src/services/ip_geolocation.dart';
+import 'package:skotiq_core/src/backend/ip_geolocation.dart';
+import 'package:skotiq_core/errors.dart';
 
 /// Records every request the service makes so the test can assert on the
 /// transport rather than on a URL string in the source.

@@ -25,7 +25,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import '../utils/skotiq_data_directory.dart';
 
 /// An installed plugin's full manifest as exposed by the headless API.

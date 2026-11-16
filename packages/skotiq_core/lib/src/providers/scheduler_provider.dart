@@ -19,13 +19,14 @@ import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
 import '../services/safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
-import '../services/scheduler/horizon_profile.dart';
+import '../models/site/horizon_profile.dart';
 import '../services/scheduler/horizon_profile_store.dart';
 import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/scheduler_engine.dart';
 import '../services/scheduler/scheduler_log.dart' show schedulerLogSinkFor;
 import '../services/scheduler/target_constraint_service.dart';
-import '../services/smart_night_models.dart' show smartNightPlanningFilters;
+import '../services/smart_night_models.dart'
+    show smartNightPlanningFilters, smartNightRotatesFilters;
 import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
 import 'backend_provider.dart';

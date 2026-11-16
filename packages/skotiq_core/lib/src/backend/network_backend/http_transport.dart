@@ -1,6 +1,6 @@
 part of '../network_backend.dart';
 
-extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
+extension _NetworkBackendHttpTransport on NetworkBackendTransport {
   String _nextRequestId(String endpoint) {
     _requestCounter = (_requestCounter + 1) % 0xFFFFF;
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
@@ -18,7 +18,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     required String endpoint,
   }) {
     headers[LinkVersion.header] = skotiqRelease;
-    headers[_NetworkBackendTransport._requestIdHeader] = _nextRequestId(
+    headers[NetworkBackendTransport._requestIdHeader] = _nextRequestId(
       endpoint,
     );
     if (authToken != null && authToken!.isNotEmpty) {

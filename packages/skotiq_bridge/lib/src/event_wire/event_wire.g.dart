@@ -875,17 +875,17 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
       'instruction': event.instruction,
       'progress_percent': event.progressPercent,
       'detail': event.detail,
-    },
-  ),
-  SequencerEvent_InstructionProgressStructured() => (
-    'InstructionProgressStructured',
-    <String, Object?>{
-      'node_id': event.nodeId,
-      'instruction': event.instruction,
-      'progress_percent': event.progressPercent,
       'detail_kind': event.detailKind,
       'detail_json': event.detailJson,
     },
+  ),
+  SequencerEvent_DitherPerformed() => (
+    'DitherPerformed',
+    <String, Object?>{'node_id': event.nodeId},
+  ),
+  SequencerEvent_FrameWatchReport() => (
+    'FrameWatchReport',
+    <String, Object?>{'kind': event.kind, 'payload_json': event.payloadJson},
   ),
   SequencerEvent_DepthGoalCompleted() => (
     'DepthGoalCompleted',
@@ -1189,14 +1189,17 @@ SequencerEvent? _decodeSequencerEvent(
         instruction: wireString(d, 'instruction'),
         progressPercent: wireDouble(d, 'progress_percent'),
         detail: wireString(d, 'detail'),
-      );
-    case 'InstructionProgressStructured':
-      return SequencerEvent.instructionProgressStructured(
-        nodeId: wireString(d, 'node_id'),
-        instruction: wireString(d, 'instruction'),
-        progressPercent: wireDouble(d, 'progress_percent'),
         detailKind: wireString(d, 'detail_kind'),
         detailJson: wireString(d, 'detail_json'),
+      );
+    case 'DitherPerformed':
+      return SequencerEvent.ditherPerformed(
+        nodeId: wireOptString(d, 'node_id'),
+      );
+    case 'FrameWatchReport':
+      return SequencerEvent.frameWatchReport(
+        kind: wireString(d, 'kind'),
+        payloadJson: wireString(d, 'payload_json'),
       );
     case 'DepthGoalCompleted':
       return SequencerEvent.depthGoalCompleted(
@@ -1939,7 +1942,8 @@ const Map<EventCategory, List<String>> eventWireTypes = {
     'MeridianFlipOutcome',
     'TriggerFired',
     'InstructionProgress',
-    'InstructionProgressStructured',
+    'DitherPerformed',
+    'FrameWatchReport',
     'DepthGoalCompleted',
     'FrameAccepted',
     'FrameRejected',

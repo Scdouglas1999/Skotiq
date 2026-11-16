@@ -45,6 +45,7 @@ import 'headless_api/body_limits.dart';
 import 'headless_api/rate_limiting.dart';
 import 'headless_api/session_ownership.dart';
 import 'headless_api/validation.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'headless_api_server/http_middleware.dart';
 part 'headless_api_server/auth_middleware.dart';
@@ -206,6 +207,11 @@ class HeadlessApiServer {
   /// events with credential values hidden ([eventWithCredentialsHidden]).
   final Set<WebSocketChannel> _adminSockets = {};
   final Map<WebSocketChannel, DateTime> _socketLastSeenAt = {};
+
+  /// The listener of each socket, cancelled when the server stops so no
+  /// socket callback runs after the server and its container are gone.
+  final Map<WebSocketChannel, StreamSubscription<dynamic>>
+  _socketSubscriptions = {};
 
   /// Broadcasts [_sockets].length on every attach/drop. Broadcast (not single
   /// subscription) because both the GUI status bar and tests observe it, and it

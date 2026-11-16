@@ -1,7 +1,7 @@
 import '../backend/roles/profile_settings_backend.dart';
 import '../database/daos/equipment_profiles_dao.dart';
-import '../models/equipment_profile_remote_mapping.dart';
-import '../services/logging_service.dart';
+import '../database/rows/equipment_profile_remote_mapping.dart';
+import '../utils/logging_service.dart';
 
 /// Push the saved row of the active profile into the native executor store,
 /// which resolves the active profile from its own copy. Best effort: the save

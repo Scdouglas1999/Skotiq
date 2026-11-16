@@ -333,37 +333,23 @@ pub(super) fn build_progress_callback(
             prog.estimated_remaining_secs = None;
         }
 
-        // Structured NodeProgress emission. The structured payload
-        // (instruction, progress_percent, detail) is read directly
-        // from the ProgressUpdate — NO STRING PARSING. Pre-refactor
-        // this used `split_once(':')` + `rfind('(')` to recover the
-        // fields; that pipeline is gone. The on-wire detail string
-        // is rendered from the ProgressDetail via `detail_text()`
-        // so the existing FRB / Dart consumers see the same shape.
         if let (Some(instruction), Some(percent), Some(detail)) = (
             update.instruction.as_ref(),
             update.progress_percent,
             update.detail.as_ref(),
         ) {
-            let detail_text = detail.detail_text();
             tracing::debug!(
-                "[PROGRESS_CB] Emitting structured NodeProgress: node_id={}, instruction={}, progress={}%, detail={}",
+                "[PROGRESS_CB] NodeProgress: node_id={}, instruction={}, progress={}%, detail={}",
                 update.node_id,
                 instruction,
                 percent,
-                detail_text
+                detail.detail_text()
             );
-            // the `detail` field stays a string for legacy
-            // back-compat (older subscribers parse it). The new
-            // `structured_detail` carries the typed payload so the
-            // bridge can dispatch typed `SequencerEvent` variants
-            // without regex parsing.
             let _ = event_tx_clone.send(ExecutorEvent::NodeProgress {
                 node_id: update.node_id.clone(),
                 instruction: instruction.clone(),
                 progress_percent: percent,
-                detail: detail_text,
-                structured_detail: Some(Box::new(detail.clone())),
+                detail: Box::new(detail.clone()),
             });
         }
 

@@ -47,7 +47,7 @@ import '../../models/darkroom/recipe.dart';
 import '../darkroom_delivery/delivery_artifact.dart';
 import '../darkroom_delivery/delivery_failure.dart';
 import '../darkroom_delivery/delivery_service.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../wcs/master_wcs.dart';
 import 'darkroom_seam.dart';
 import 'dawn_draft_builder.dart';

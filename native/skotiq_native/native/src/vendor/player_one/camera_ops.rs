@@ -1,7 +1,7 @@
 //! `DeviceDriver` / `CameraDriver` implementations for `PlayerOneCamera`.
 
 use super::*;
-use crate::camera_core::{roi_dimension, unpack_samples, Frame, SampleLayout};
+use crate::camera_core::{roi_dimension, unpack_samples, SampleLayout};
 
 #[async_trait]
 impl DeviceDriver for PlayerOneCamera {
@@ -435,20 +435,18 @@ impl CameraDriver for PlayerOneCamera {
             .and_then(|info| u32::try_from(info.bit_depth).ok())
             .filter(|bits| (1..=32).contains(bits))
             .unwrap_or(if bytes_per_pixel == 2 { 16 } else { 8 });
-        Ok(Frame {
-            gain,
-            offset,
-            temperature,
-            vendor_data: vendor_features,
-            ..self.core.frame(
-                roi_dimension("Player One", "width", width)?,
-                roi_dimension("Player One", "height", height)?,
-                data,
-                bits_per_pixel,
-                bayer_pattern,
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            roi_dimension("Player One", "width", width)?,
+            roi_dimension("Player One", "height", height)?,
+            data,
+            bits_per_pixel,
+            bayer_pattern,
+        );
+        image.metadata.gain = Some(gain);
+        image.metadata.offset = Some(offset);
+        image.metadata.temperature = temperature;
+        image.metadata.vendor_data = vendor_features;
+        Ok(image)
     }
 
     async fn set_cooler(

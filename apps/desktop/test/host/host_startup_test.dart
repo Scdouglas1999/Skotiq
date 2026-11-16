@@ -8,13 +8,13 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/models.dart'
     as remote_profile
     show EquipmentProfile;
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 

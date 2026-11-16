@@ -35,7 +35,7 @@ import '../../settings/store_settings.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
     show migrateLegacySecretsNamespace;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// Stable key prefix inside the secure store. Versioned so a future
 /// breaking change (e.g. encrypting per-field) can migrate again.

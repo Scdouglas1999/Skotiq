@@ -43,16 +43,14 @@ fn tiny_frame() -> ImageData {
         height: 4,
         data: vec![0u16; 16],
         bits_per_pixel: 16,
-        exposure_secs: 3.0,
-        gain: Some(100),
-        offset: Some(10),
-        temperature: Some(20.0),
-        filter: None,
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 3.0,
+            gain: Some(100),
+            offset: Some(10),
+            temperature: Some(20.0),
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 

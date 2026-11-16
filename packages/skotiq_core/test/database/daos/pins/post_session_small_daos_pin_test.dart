@@ -12,9 +12,9 @@ import 'package:skotiq_core/src/models/campaign.dart';
 import 'package:skotiq_core/src/models/imaging/narrowband_composite.dart';
 import 'package:skotiq_core/src/models/imaging/night_report.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
 
 import 'pin_harness.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 Object? _encode(Object value) => switch (value) {
   NightReport r => {

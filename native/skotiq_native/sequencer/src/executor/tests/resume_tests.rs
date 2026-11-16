@@ -101,7 +101,7 @@ fn executor_for(dir: &std::path::Path) -> SequenceExecutor {
 }
 
 async fn start(mut executor: SequenceExecutor) -> Leg {
-    let events = executor.subscribe();
+    let events = executor.handle().subscribe();
     executor.start().await.expect("run starts");
     Leg { executor, events }
 }

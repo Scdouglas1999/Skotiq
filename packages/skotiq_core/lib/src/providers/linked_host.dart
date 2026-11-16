@@ -46,8 +46,6 @@ final linkedHostNotificationsProvider = linkedOnlyProvider(
   (host) => host.notifications,
 );
 
-final linkedHostJobsProvider = linkedOnlyProvider((host) => host.jobs);
-
 final linkedHostUpdatesProvider = linkedOnlyProvider((host) => host.updates);
 
 final linkedHostTransientsProvider = linkedOnlyProvider(

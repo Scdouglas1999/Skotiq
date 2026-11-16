@@ -36,10 +36,6 @@ struct Protocol {
     in_sentence: &'static str,
     no_alt_az_slew: Option<&'static str>,
     no_axis_move: Option<&'static str>,
-    no_site_read: Option<&'static str>,
-    no_site_write: Option<&'static str>,
-    no_clock_read: Option<&'static str>,
-    no_clock_write: Option<&'static str>,
 }
 
 const VENDOR: Protocol = Protocol {
@@ -47,10 +43,6 @@ const VENDOR: Protocol = Protocol {
     in_sentence: "native",
     no_alt_az_slew: Some("Alt/Az slew is not supported for native serial mounts"),
     no_axis_move: Some("Native SDK does not support mount axis movement"),
-    no_site_read: None,
-    no_site_write: None,
-    no_clock_read: None,
-    no_clock_write: None,
 };
 
 const ALPACA: Protocol = Protocol {
@@ -58,10 +50,6 @@ const ALPACA: Protocol = Protocol {
     in_sentence: "Alpaca",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_site_read: None,
-    no_site_write: None,
-    no_clock_read: None,
-    no_clock_write: None,
 };
 
 const INDI: Protocol = Protocol {
@@ -69,10 +57,6 @@ const INDI: Protocol = Protocol {
     in_sentence: "INDI",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_site_read: Some("Reading the site from an INDI mount is not wired up yet"),
-    no_site_write: Some("Writing the site to an INDI mount is not wired up yet"),
-    no_clock_read: Some("Reading the clock from an INDI mount is not wired up yet"),
-    no_clock_write: Some("Writing the clock to an INDI mount is not wired up yet"),
 };
 
 pub(crate) struct DriverMount {
@@ -418,7 +402,7 @@ impl Mount for DriverMount {
         let site = mount
             .get_site()
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_site_read))?;
+            .map_err(DeviceOpError::from)?;
         Ok(MountSite {
             latitude_deg: site.latitude_deg,
             longitude_deg: site.longitude_deg,
@@ -435,7 +419,7 @@ impl Mount for DriverMount {
                 elevation_m: site.elevation_m,
             })
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_site_write))
+            .map_err(DeviceOpError::from)
     }
 
     async fn time(&self) -> Result<MountTimeInfo, DeviceOpError> {
@@ -443,7 +427,7 @@ impl Mount for DriverMount {
         let clock = mount
             .get_clock()
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_clock_read))?;
+            .map_err(DeviceOpError::from)?;
         Ok(MountTimeInfo {
             utc_unix_seconds: clock.utc_unix_seconds,
             utc_offset_hours: clock.utc_offset_hours,
@@ -458,7 +442,7 @@ impl Mount for DriverMount {
                 utc_offset_hours: time.utc_offset_hours,
             })
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_clock_write))
+            .map_err(DeviceOpError::from)
     }
 
     async fn site_capabilities(&self) -> Result<MountSiteCapabilities, DeviceOpError> {

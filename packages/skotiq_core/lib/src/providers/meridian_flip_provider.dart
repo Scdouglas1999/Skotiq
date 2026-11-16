@@ -28,7 +28,7 @@ import 'ui_notification_provider.dart' show uiNotificationProvider;
 import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
 import 'notification_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].

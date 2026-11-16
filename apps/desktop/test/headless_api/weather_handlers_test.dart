@@ -11,14 +11,14 @@ import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 
-class _CurrentCloudService implements LocationCloudForecastService {
+class _CurrentCloudService implements CurrentSkyService {
   _CurrentCloudService(this.result);
 
-  final Future<CloudCoverForecast?> Function() result;
+  final Future<CurrentSky?> Function() result;
   final requests = <(double, double)>[];
 
   @override
-  Future<CloudCoverForecast?> fetchCurrentCloudForecast({
+  Future<CurrentSky?> fetch({
     required double latitude,
     required double longitude,
   }) {
@@ -214,12 +214,12 @@ void main() {
     var weekReads = 0;
 
     Future<(Response, Map<String, dynamic>, _CurrentCloudService)> fetch(
-      Future<CloudCoverForecast?> Function() result,
+      Future<CurrentSky?> Function() result,
     ) async {
       final service = _CurrentCloudService(result);
       final container = ProviderContainer(
         overrides: [
-          locationCloudForecastServiceProvider.overrideWithValue(service),
+          currentSkyServiceProvider.overrideWithValue(service),
           weekForecastCloudProvider(
             const ForecastSite(latitude, longitude),
           ).overrideWith((ref) async {
@@ -249,33 +249,40 @@ void main() {
 
     setUp(() => weekReads = 0);
 
-    test(
-      'uses the current site forecast and preserves source and valid time',
-      () async {
-        final before = DateTime.now().millisecondsSinceEpoch;
-        final (response, body, service) = await fetch(
-          () async => CloudCoverForecast(
+    test('a model-only sky keeps its source and valid time', () async {
+      final before = DateTime.now().millisecondsSinceEpoch;
+      final (response, body, service) = await fetch(
+        () async => CurrentSky(
+          model: CloudCoverForecast(
             percent: 87,
-            source: 'NOAA/NWS',
+            source: 'Open-Meteo',
             validAt: sampleTime,
           ),
-        );
-        final after = DateTime.now().millisecondsSinceEpoch;
+        ),
+      );
+      final after = DateTime.now().millisecondsSinceEpoch;
 
-        expect(response.statusCode, HttpStatus.ok);
-        expect(body, {
-          'hasData': true,
-          'latitude': latitude,
-          'longitude': longitude,
-          'source': 'NOAA/NWS',
+      expect(response.statusCode, HttpStatus.ok);
+      expect(body, {
+        'hasData': true,
+        'latitude': latitude,
+        'longitude': longitude,
+        'source': 'Open-Meteo',
+        'cloudCoverPercent': 87.0,
+        'timestamp': sampleTime.millisecondsSinceEpoch,
+        'fetchedAt': inInclusiveRange(before, after),
+        'sourcesDisagree': false,
+        'station': null,
+        'model': {
+          'source': 'Open-Meteo',
           'cloudCoverPercent': 87.0,
-          'timestamp': sampleTime.millisecondsSinceEpoch,
-          'fetchedAt': inInclusiveRange(before, after),
-        });
-        expect(service.requests, [(latitude, longitude)]);
-        expect(weekReads, 0);
-      },
-    );
+          'highCloudPercent': null,
+          'validAt': sampleTime.millisecondsSinceEpoch,
+        },
+      });
+      expect(service.requests, [(latitude, longitude)]);
+      expect(weekReads, 0);
+    });
 
     test(
       'no current interval cannot become a stale nearest-week value',
@@ -292,13 +299,49 @@ void main() {
     );
 
     test(
+      'a station report is the figure and the model stands beside it',
+      () async {
+        final observedAt = DateTime.utc(2026, 11, 16, 17, 15);
+        final (response, body, _) = await fetch(
+          () async => CurrentSky(
+            station: StationSky(
+              stationId: 'KOQN',
+              stationName: 'West Chester',
+              distanceKm: 15,
+              observedAt: observedAt,
+              amount: CloudAmount.clear,
+              seesUpToFeet: 12000,
+            ),
+            model: CloudCoverForecast(
+              percent: 62,
+              source: 'Open-Meteo',
+              validAt: observedAt,
+            ),
+            modelHighCloudPercent: 0,
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body['cloudCoverPercent'], 0);
+        expect(body['source'], 'KOQN station');
+        expect(body['timestamp'], observedAt.millisecondsSinceEpoch);
+        expect(body['sourcesDisagree'], isTrue);
+        expect(body['station'], containsPair('cloudAmount', 'clear'));
+        expect(body['station'], containsPair('seesUpToFeet', 12000));
+        expect(body['model'], containsPair('cloudCoverPercent', 62));
+      },
+    );
+
+    test(
       'an undated estimate is unavailable rather than stamped as current',
       () async {
         final (response, body, _) = await fetch(
-          () async => const CloudCoverForecast(
-            percent: 8,
-            source: 'Open-Meteo',
-            validAt: null,
+          () async => const CurrentSky(
+            model: CloudCoverForecast(
+              percent: 8,
+              source: 'Open-Meteo',
+              validAt: null,
+            ),
           ),
         );
 

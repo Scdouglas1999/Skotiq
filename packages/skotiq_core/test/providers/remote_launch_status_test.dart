@@ -7,12 +7,12 @@ import 'dart:io';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show LinkVersionMismatch;
 
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/errors.dart';
 
 class _FailingBackendNotifier extends BackendNotifier {
   _FailingBackendNotifier(super.ref, this.error, {this.tokenRejected = false});

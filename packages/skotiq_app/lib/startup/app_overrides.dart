@@ -4,8 +4,6 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart' show skyNowProvider;
 
 import '../screens/onboarding/steps/capture_dir_step.dart';
 import 'plugin_enablement_wiring.dart';
-import 'plugin_node_dispatcher_wiring.dart';
-import 'plugin_node_palette_wiring.dart';
 import 'silent_guider_ask_wiring.dart';
 
 /// The provider overrides every Skotiq process starts with, whatever its
@@ -15,11 +13,6 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
       // against a made-up one.
       appVersionProvider.overrideWithValue(appVersion),
       pluginHostAppVersionOverride(appVersion.version),
-      // Without the dispatcher every plugin sequence node fails as "not wired".
-      pluginNodeDispatcherOverride(),
-      // Plugin nodes in the Builder's palette, and in the palette a daemon lists
-      // for its clients.
-      pluginNodePaletteBlueprintsOverride(),
       // A plugin the user disabled stays disabled across launches.
       pluginEnablementStoreOverride(),
       // A GoTo with the guider silent asks the operator on the app's window.

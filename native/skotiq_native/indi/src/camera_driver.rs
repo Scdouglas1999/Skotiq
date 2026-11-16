@@ -11,7 +11,6 @@ use skotiq_device::{
     CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState, CameraStatus,
     ColorFilterArray, DeviceDriver, DriverError, ExposureParams, FrameType, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures,
-    UNKNOWN_CAMERA_SETTING,
 };
 
 impl std::fmt::Debug for IndiCamera {
@@ -434,13 +433,13 @@ impl CameraDriver for IndiCamera {
         // taken for the camera's setting and written into the frame's header
         // in place of the one the exposure was configured with.
         let setting = |read: Result<i32, IndiError>, what: &str| match read {
-            Ok(value) => value,
+            Ok(value) => Some(value),
             Err(e) => {
                 tracing::warn!(
                     "Failed to read INDI {what} for {device}: {e}. Recording it as unknown so \
                      the configured {what} is used instead."
                 );
-                UNKNOWN_CAMERA_SETTING
+                None
             }
         };
         let gain = setting(self.get_gain().await, "gain");
@@ -454,17 +453,13 @@ impl CameraDriver for IndiCamera {
             bits_per_pixel: 16,
             bayer_pattern: None,
             metadata: ImageMetadata {
-                exposure_time: 0.0,
                 gain,
                 offset,
                 bin_x,
                 bin_y,
                 temperature: self.get_temperature().await.ok(),
-                timestamp: chrono::Utc::now(),
-                subframe: None,
                 readout_mode,
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }

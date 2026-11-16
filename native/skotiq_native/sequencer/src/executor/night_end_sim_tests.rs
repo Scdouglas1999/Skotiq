@@ -310,7 +310,7 @@ async fn the_dawn_park_records_the_trigger_that_stopped_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let plan = night_plan(node("park", "Park mount", NodeType::Park));
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
-    let mut decisions = executor.subscribe_decisions();
+    let mut decisions = executor.handle().subscribe_decisions();
     wait_for_monitor(&ops).await;
 
     bring_dawn_near(&executor).await;
@@ -343,8 +343,8 @@ async fn a_system_stop_records_who_stopped_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let plan = night_plan(node("park", "Park mount", NodeType::Park));
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
-    let mut decisions = executor.subscribe_decisions();
-    let mut events = executor.subscribe();
+    let mut decisions = executor.handle().subscribe_decisions();
+    let mut events = executor.handle().subscribe();
     wait_for_step(&executor, "imaging").await;
 
     executor
@@ -425,7 +425,7 @@ async fn a_stopped_run_stops_the_guiding_it_started() {
 async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let mut executor = start_night(executor, ops.clone(), guided_plan(false)).await;
     wait_for_step(&executor, "imaging").await;
 
@@ -459,7 +459,7 @@ async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
 async fn dawn_without_parking_runs_the_plans_own_park_and_warm() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .handle()
         .update_run_config(|config| config.park_policy = DAWN_OFF)
@@ -502,7 +502,7 @@ async fn a_weather_park_does_not_run_the_end_of_night_steps() {
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
     wait_for_monitor(&ops).await;
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -580,7 +580,7 @@ async fn dawn_ends_a_paused_plan_that_owns_its_end_time() {
     let plan = target_plan(TargetTrigger::TimeAfter(in_two_hours));
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
     wait_for_monitor(&ops).await;
-    executor.pause().await.expect("pause");
+    executor.handle().pause().await.expect("pause");
     let paused = wait_for_state(&executor, Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })
@@ -634,7 +634,7 @@ async fn last_nights_stop_time_is_rolled_to_tonight_and_the_target_images() {
     use crate::scheduling::TargetTrigger;
     let ops = Arc::new(ScriptedDeviceOps::new());
     let executor = super::SequenceExecutor::new();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     let yesterday_morning = chrono::Utc::now().timestamp() - 15 * 3600;
     let plan = target_plan(TargetTrigger::TimeAfter(yesterday_morning));
     let mut executor = start_night(executor, ops.clone(), plan).await;
@@ -706,11 +706,11 @@ async fn a_plan_with_nothing_left_to_image_refuses_to_start() {
 async fn dawn_during_a_recovery_ends_the_recovery_with_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_run_in_guide_star_recovery(ops.clone(), 30.0).await;
-    assert!(executor.current_recovery().is_some());
+    assert!(executor.handle().current_recovery().is_some());
 
     bring_dawn_near(&executor).await;
     let state = wait_until_finished(&executor).await;
-    let recovery = executor.current_recovery();
+    let recovery = executor.handle().current_recovery();
     let calls = ops.calls();
     let _ = executor.stop().await;
 
@@ -1112,7 +1112,7 @@ async fn skip_step_skips_only_the_running_step() {
     .await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    executor.skip().await.expect("skip");
+    executor.handle().skip().await.expect("skip");
     let state = wait_until_finished(&executor).await;
     let progress = executor.get_progress();
     let calls = ops.calls();

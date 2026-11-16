@@ -10,7 +10,7 @@ import '../darkroom_build_service.dart' show describeIntegration;
 import '../darkroom_delivery/delivery_artifact.dart';
 import '../darkroom_delivery/delivery_failure.dart';
 import '../darkroom_delivery/delivery_service.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../notification_service.dart';
 
 /// What delivering one finished guided build did.

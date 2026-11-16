@@ -43,6 +43,7 @@ pub async fn save_frame<T: FrameStoreOps + ?Sized>(
         crate::CameraFileSaving::Converted
     };
     let camera_file = image_data
+        .metadata
         .camera_file
         .as_ref()
         .filter(|_| saving.writes_camera_file());
@@ -171,16 +172,12 @@ mod save_frame_tests {
             height: 2,
             data: vec![1, 2, 3, 4],
             bits_per_pixel: 14,
-            exposure_secs: 1.0,
-            gain: None,
-            offset: None,
-            temperature: None,
-            filter: None,
-            timestamp: 0,
-            sensor_type: Some("Color".to_string()),
-            color_filter: Some(skotiq_device::BayerPattern::Rggb.into()),
-            camera_file,
-            readout_mode: None,
+            bayer_pattern: Some(skotiq_device::BayerPattern::Rggb.into()),
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: 1.0,
+                camera_file,
+                ..Default::default()
+            },
         }
     }
 

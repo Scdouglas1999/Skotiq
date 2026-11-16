@@ -11,7 +11,7 @@ import '../providers/imaging_provider.dart';
 import 'imaging_service.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Publishes JPEG-first capture previews and loads host raw data in the background.
 class CapturePreviewPublisher {

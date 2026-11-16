@@ -133,13 +133,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     required String successMessage,
     String? catalogName,
     String? Function()? successMessageOverride,
-    required Future<void> Function(HostCatalogs catalogs, HostJobs jobs) action,
+    required Future<void> Function(HostCatalogs catalogs, HostLink link) action,
   }) async {
     if (_busy || _confirmationOpen) return;
     final host = _hostScopes.begin();
     final catalogs = _catalogs;
-    final jobs = ref.read(linkedHostJobsProvider);
-    if (catalogs == null || jobs == null) return;
+    final link = ref.read(linkedHostLinkProvider);
+    if (catalogs == null || link == null) return;
     final token = Object();
     setState(() {
       _actionToken = token;
@@ -147,7 +147,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       _busyCatalog = catalogName;
     });
     try {
-      await action(catalogs, jobs);
+      await action(catalogs, link);
       if (mounted && _isCurrentAction(host, token)) {
         final override = successMessageOverride?.call();
         if (override != null) {
@@ -188,11 +188,11 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Download',
       successMessage: '${catalog.displayName} installed',
       catalogName: catalog.name,
-      action: (catalogs, jobs) async {
+      action: (catalogs, link) async {
         final accepted = await catalogs.downloadCatalog(catalog.name);
         final completed = accepted.isTerminal
             ? accepted
-            : await jobs.awaitJobCompletion(
+            : await link.awaitJobCompletion(
                 accepted.jobId,
                 timeout: const Duration(minutes: 30),
               );

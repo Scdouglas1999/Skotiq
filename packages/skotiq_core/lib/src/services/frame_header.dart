@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// What a frame file's header says: its cards and the astrometry they state.
 ///

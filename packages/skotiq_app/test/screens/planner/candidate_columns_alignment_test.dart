@@ -12,7 +12,6 @@ import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -20,6 +19,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
 import 'scheduler_test_doubles.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockSettingsDao extends Mock implements SettingsDao {}
 
@@ -48,13 +48,13 @@ TargetSuggestion _s(int id, String name, String type, double size, double mag,
       moonDistance: 104,
       transitAltitude: alt,
       transitTime: t,
-      // Up through any night that contains or follows the test's clock, so
-      // every row has a window bar whatever hour the suite runs at. With
-      // now-4h..now+8h a run between dawn and noon had the target set before
-      // dusk, and the window column was empty.
-      riseTime: now.subtract(const Duration(hours: 20)),
-      setTime: now.add(const Duration(hours: 20)),
       hoursAboveMinAlt: hours,
+      // Above the floor through any night that contains or follows the
+      // test's clock, so every row has a window bar whatever hour the suite
+      // runs at. With now-4h..now+8h a run between dawn and noon had the
+      // target leave the floor before dusk, and the window column was empty.
+      aboveFloorFrom: now.subtract(const Duration(hours: 20)),
+      aboveFloorUntil: now.add(const Duration(hours: 20)),
     ),
     objectType: type,
     sizeArcmin: size,

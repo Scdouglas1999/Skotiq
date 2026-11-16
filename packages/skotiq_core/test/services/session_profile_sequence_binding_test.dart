@@ -5,6 +5,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// The Continue Session handoff dialog said "Unknown Profile" and "No Sequence"
 /// while naming the sequence in its own header and with a real profile active.

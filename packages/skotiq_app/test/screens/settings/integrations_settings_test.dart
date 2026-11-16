@@ -21,10 +21,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/settings/integrations_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-// Path imports mirror the page's own (C3 registration + C4 enablement are not
-// surfaced through their package barrels).
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_registration.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

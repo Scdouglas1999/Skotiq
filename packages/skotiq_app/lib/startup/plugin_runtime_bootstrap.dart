@@ -5,8 +5,7 @@
 // restart otherwise. Hardware-owning entry points call this before accepting
 // sequence work.
 
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_registration.dart'
+import 'package:skotiq_plugins/skotiq_plugins.dart'
     show pluginRegistrationProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

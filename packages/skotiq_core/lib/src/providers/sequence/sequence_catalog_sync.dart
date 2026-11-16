@@ -13,7 +13,7 @@ import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
 import '../../models/backend/backend_types.dart';
 import '../sequence_repository_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';

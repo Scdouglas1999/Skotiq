@@ -1,4 +1,3 @@
-use super::get_sequence_executor;
 use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
 use crate::unified_device_ops::create_unified_device_ops;
@@ -6,7 +5,7 @@ use crate::unified_device_ops::create_unified_device_ops;
 /// Set simulation mode (use mock devices instead of real hardware)
 pub async fn api_sequencer_set_simulation_mode(enabled: bool) -> Result<(), SkotiqError> {
     tracing::info!("Setting sequencer simulation mode: {}", enabled);
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
 
     // Production/release artifacts must not execute simulated hardware paths.
     if enabled && !cfg!(debug_assertions) {
@@ -42,7 +41,7 @@ pub async fn api_sequencer_set_devices(
         camera_id, mount_id, focuser_id, filterwheel_id, rotator_id, filter_names
     );
     let filterwheel_for_names = filterwheel_id.clone();
-    get_sequence_executor().write().await.set_devices(
+    skotiq_sequencer::get_executor().write().await.set_devices(
         camera_id,
         mount_id,
         focuser_id,
@@ -86,7 +85,7 @@ pub async fn api_sequencer_set_save_path(path: Option<String>) -> Result<(), Sko
     let path_display = path.as_deref().unwrap_or("<none>");
     tracing::info!("Setting sequencer save path: {}", path_display);
 
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     executor.set_save_path(path.map(std::path::PathBuf::from));
 
     Ok(())
@@ -126,7 +125,7 @@ pub async fn api_sequencer_update_pending_integration_carry_over(
         "Updating sequencer integration carry-over: {} target entries",
         carry_over.len()
     );
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     executor.update_pending_integration_carry_over(carry_over);
     Ok(())
 }
@@ -172,7 +171,7 @@ pub async fn api_sequencer_update_cloud_motion(
         predicted_clear_sky_alt,
         predicted_clear_sky_az,
     );
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .update_cloud_motion(
             current_cover_percent,
@@ -210,7 +209,7 @@ pub async fn api_sequencer_update_weather_verdict(
         unsafe_override,
         advisory
     );
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .update_weather_verdict_from(unsafe_override, advisory)
         .await;
@@ -230,7 +229,7 @@ pub async fn api_sequencer_set_weather_operator_clear(
         duration_secs,
         reason
     );
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .set_weather_operator_clear(u64::from(duration_secs), &reason)
         .await;
@@ -240,8 +239,7 @@ pub async fn api_sequencer_set_weather_operator_clear(
 /// JSON-serialised cloud-motion snapshot for the run
 /// dashboard. Returns `Ok(None)` when no data has been pushed yet.
 pub async fn api_sequencer_get_cloud_motion_json() -> Result<Option<String>, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
-    Ok(executor.current_cloud_motion_json())
+    Ok(skotiq_sequencer::executor_handle().current_cloud_motion_json())
 }
 
 // Sky-brightness adaptive exposures
@@ -269,7 +267,7 @@ pub async fn api_sequencer_update_sky_brightness(mag: Option<f64>) -> Result<(),
         }
     }
     tracing::debug!("[API] update_sky_brightness: {:?} mag/arcsec²", mag);
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor.update_sky_brightness(mag).await;
     Ok(())
 }
@@ -287,7 +285,7 @@ pub async fn api_sequencer_update_sky_brightness(mag: Option<f64>) -> Result<(),
 /// when the executor is not currently in `Recovering`.
 pub async fn api_sequencer_recovery_try_now() -> Result<(), SkotiqError> {
     tracing::info!("[API] Recovery: Try Now requested");
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .recovery_try_now()
         .await
@@ -299,7 +297,7 @@ pub async fn api_sequencer_recovery_try_now() -> Result<(), SkotiqError> {
 /// `Recovering`.
 pub async fn api_sequencer_recovery_abort() -> Result<(), SkotiqError> {
     tracing::info!("[API] Recovery: Abort requested");
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .recovery_abort()
         .await
@@ -315,7 +313,7 @@ pub async fn api_sequencer_recovery_abort() -> Result<(), SkotiqError> {
 /// piping serde JSON across is cheaper than asking FRB to bridge the
 /// chrono-dependent `RecoveryContext` Rust struct.
 pub async fn api_sequencer_get_current_recovery_json() -> Result<Option<String>, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     let ctx = executor.current_recovery();
     match ctx {
         None => Ok(None),
@@ -332,7 +330,7 @@ pub async fn api_sequencer_get_current_recovery_json() -> Result<Option<String>,
 /// was constructed. Surfaced for the post-session report dialog. Returns an
 /// empty JSON array `"[]"` when no recoveries have completed yet.
 pub async fn api_sequencer_get_recovery_history_json() -> Result<String, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     let history = executor.recovery_history();
     serde_json::to_string(&history)
         .map_err(|e| SkotiqError::SerializationError(format!("Recovery history serialise: {}", e)))
@@ -348,7 +346,7 @@ pub async fn api_sequencer_get_recovery_history_json() -> Result<String, SkotiqE
 pub async fn api_sequencer_set_active_sequence_run_id(
     sequence_run_id: Option<i64>,
 ) -> Result<(), SkotiqError> {
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor.set_active_sequence_run_id(sequence_run_id);
     Ok(())
 }
@@ -402,7 +400,7 @@ pub async fn api_sequencer_update_conditions_score(
         "[API] update_conditions_score: {:?}",
         payload.as_ref().map(|p| p.score)
     );
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor.update_conditions_score(payload).await;
     Ok(())
 }
@@ -412,8 +410,9 @@ pub async fn api_sequencer_update_conditions_score(
 /// countdown info) for the Run Dashboard "Adaptive Conditions" panel.
 /// Returns `Ok(None)` when no telemetry has been pushed since startup.
 pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
-    Ok(executor.current_adaptive_swap_json().await)
+    Ok(skotiq_sequencer::executor_handle()
+        .current_adaptive_swap_json()
+        .await)
 }
 
 #[cfg(test)]
@@ -427,7 +426,7 @@ mod tests {
     #[tokio::test]
     async fn status_and_settings_never_wait_on_the_executor() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
-        let held = get_sequence_executor().write().await;
+        let held = skotiq_sequencer::get_executor().write().await;
         let answer = std::time::Duration::from_secs(2);
 
         tokio::time::timeout(answer, api_sequencer_get_state())

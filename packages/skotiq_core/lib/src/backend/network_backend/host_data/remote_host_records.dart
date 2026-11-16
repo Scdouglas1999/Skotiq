@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart' show listEquals;
 
 import '../../../database/database.dart' as db;
-import '../../../models/equipment_profile_remote_mapping.dart';
+import '../../../database/rows/equipment_profile_remote_mapping.dart';
 import '../../network_backend.dart';
-import '../../roles/host_data/host_imaging_records.dart';
-import '../../roles/host_data/host_records.dart';
+import '../../../database/stores/host_records.dart';
 import 'host_poll.dart';
 import 'wire_rows.dart';
 

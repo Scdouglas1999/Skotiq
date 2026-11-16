@@ -1,7 +1,7 @@
 //! `DeviceDriver` / `CameraDriver` implementations for `ZwoCamera`.
 
 use super::*;
-use crate::camera_core::{roi_dimension, unpack_samples, Frame, SampleLayout};
+use crate::camera_core::{roi_dimension, unpack_samples, SampleLayout};
 
 #[async_trait]
 impl DeviceDriver for ZwoCamera {
@@ -493,18 +493,16 @@ impl CameraDriver for ZwoCamera {
 
         let width = roi_dimension("ZWO", "width", width)?;
         let height = roi_dimension("ZWO", "height", height)?;
-        Ok(Frame {
-            temperature,
-            vendor_data,
-            ..self.core.frame(
-                width,
-                height,
-                data,
-                self.core.sensor_info.bit_depth,
-                bayer_pattern.map(Into::into),
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            width,
+            height,
+            data,
+            self.core.sensor_info.bit_depth,
+            bayer_pattern.map(Into::into),
+        );
+        image.metadata.temperature = temperature;
+        image.metadata.vendor_data = vendor_data;
+        Ok(image)
     }
 
     async fn set_cooler(

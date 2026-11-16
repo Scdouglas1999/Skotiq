@@ -11,7 +11,7 @@ import 'async_scope.dart';
 import 'host_role.dart';
 import 'database_provider.dart';
 import '../database/daos/settings_dao.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Replay Debug — Riverpod surface for the structured decision
 /// log feeding the retrospective Replay screen.

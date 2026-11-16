@@ -21,12 +21,12 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show LinkVersion;
 import 'package:image/image.dart' as img;
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart';
+import 'package:skotiq_core/src/errors/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/backend/image_result.dart';
-import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
-import 'package:skotiq_core/src/models/errors/server_error.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
+import 'package:skotiq_core/src/errors/server_error.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/models/plate_solver.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';

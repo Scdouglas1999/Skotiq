@@ -56,17 +56,11 @@
 //! Connection-level errors are not silenced here; this layer composes
 //! values *after* `with_camera!` has already established the device path.
 
-/// Sentinel meaning "this camera setting could not be read".
-///
-/// `ImageMetadata.gain`/`offset` are plain `i32` (unlike `temperature`, which is
-/// already `Option`) and are constructed by every vendor driver, so widening
-/// them to `Option` would be a large refactor of code that is not at fault.
-/// Real gain/offset values are never negative, so a negative marker is
-/// unambiguous, and [`camera_setting_or_unknown`] converts it back to `None` at
-/// the one boundary that feeds FITS metadata.
+/// A gain or offset a camera status reports as [`UNKNOWN_CAMERA_SETTING`]
+/// reads as `None`.
 pub(crate) use skotiq_device::UNKNOWN_CAMERA_SETTING;
 
-/// `None` when a camera setting was recorded as unreadable, else `Some(value)`.
+/// `None` when a status setting was recorded as unreadable, else `Some(value)`.
 pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
     if value <= UNKNOWN_CAMERA_SETTING {
         None
@@ -83,13 +77,13 @@ pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
 /// not be read, and the report then stands.
 pub(crate) fn frame_setting(
     has_control: Option<bool>,
-    reported: i32,
+    reported: Option<i32>,
     commanded: Option<i32>,
 ) -> Option<i32> {
     if has_control == Some(false) {
         return None;
     }
-    camera_setting_or_unknown(reported).or(commanded)
+    reported.or(commanded)
 }
 
 // The simulated sky and the plate scale it hangs off now live in
@@ -129,26 +123,17 @@ mod camera_setting_tests {
 
     #[test]
     fn a_camera_without_the_control_records_no_value() {
-        use super::{frame_setting, UNKNOWN_CAMERA_SETTING};
+        use super::frame_setting;
 
         // FLI and Atik CCD drivers report 0 and a sequence may still command
         // a gain; neither is a fact about the frame.
-        assert_eq!(frame_setting(Some(false), 0, Some(120)), None);
-        assert_eq!(
-            frame_setting(Some(false), UNKNOWN_CAMERA_SETTING, None),
-            None
-        );
-        assert_eq!(frame_setting(Some(true), 0, Some(120)), Some(0));
-        assert_eq!(
-            frame_setting(Some(true), UNKNOWN_CAMERA_SETTING, Some(120)),
-            Some(120)
-        );
+        assert_eq!(frame_setting(Some(false), Some(0), Some(120)), None);
+        assert_eq!(frame_setting(Some(false), None, None), None);
+        assert_eq!(frame_setting(Some(true), Some(0), Some(120)), Some(0));
+        assert_eq!(frame_setting(Some(true), None, Some(120)), Some(120));
         // Status unreadable: the camera's own report stands.
-        assert_eq!(frame_setting(None, 139, Some(120)), Some(139));
-        assert_eq!(
-            frame_setting(None, UNKNOWN_CAMERA_SETTING, Some(120)),
-            Some(120)
-        );
+        assert_eq!(frame_setting(None, Some(139), Some(120)), Some(139));
+        assert_eq!(frame_setting(None, None, Some(120)), Some(120));
     }
 }
 

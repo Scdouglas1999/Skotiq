@@ -634,7 +634,7 @@ fn gain_is_settable_when_the_camera_has_a_gain_range() {
     cmos.begin(&sdk, &params).unwrap();
     assert!(calls().contains(&"set_gain(42)".to_string()));
     let frame = cmos.read_frame(&sdk).unwrap();
-    assert_eq!(frame.metadata.gain, 42);
+    assert_eq!(frame.metadata.gain, Some(42));
     params.gain = Some(101);
     assert!(matches!(
         cmos.begin(&sdk, &params),
@@ -647,7 +647,7 @@ fn gain_is_settable_when_the_camera_has_a_gain_range() {
     params.gain = Some(42);
     ccd.begin(&sdk, &params).unwrap();
     assert!(!calls().iter().any(|c| c.starts_with("set_gain")));
-    assert_eq!(ccd.read_frame(&sdk).unwrap().metadata.gain, 0);
+    assert_eq!(ccd.read_frame(&sdk).unwrap().metadata.gain, Some(0));
 }
 
 #[test]

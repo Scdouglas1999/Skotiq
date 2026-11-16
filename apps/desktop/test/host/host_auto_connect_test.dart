@@ -8,6 +8,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/host/host_auto_connect.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Contract coverage for the headless startup auto-connect seam.
 ///

@@ -1551,8 +1551,8 @@ pub async fn api_save_fits_from_last_capture(
             device_id
         ))
     })?;
-    let exposure_started_at = frame.exposure.started_at;
-    let image = frame.into_image_data();
+    let exposure_started_at = frame.metadata.timestamp;
+    let image = frame;
 
     let trimmed =
         |text: Option<String>| text.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
@@ -1599,7 +1599,6 @@ pub async fn api_save_fits_from_last_capture(
             filter: (filter_name.as_deref(), filter_index),
             target_name: object_name.as_deref(),
             set_temp_c: None,
-            bayer_pattern: None,
         },
         &image,
     )

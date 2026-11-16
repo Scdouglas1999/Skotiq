@@ -23,7 +23,7 @@ import 'package:path/path.dart' as p;
 import '../../database/daos/delivery_journal_dao.dart';
 import '../../database/daos/delivery_targets_dao.dart';
 import '../../models/darkroom/delivery.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'artifact_transport.dart';
 import 'delivery_artifact.dart';
 import 'delivery_failure.dart';

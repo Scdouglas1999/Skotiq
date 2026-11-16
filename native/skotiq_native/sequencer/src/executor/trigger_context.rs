@@ -163,12 +163,11 @@ pub(super) fn skip_to_node_accepted_event(node_id: NodeId) -> ExecutorEvent {
         node_id: node_id.clone(),
         instruction: "SkipToNode".to_string(),
         progress_percent: 100.0,
-        detail: format!(
+        detail: Box::new(crate::node::ProgressDetail::Generic(format!(
             "SkipToNode request accepted: jumping to node '{}'. \
              Current instruction (if any) will finish first.",
             node_id
-        ),
-        structured_detail: None,
+        ))),
     }
 }
 

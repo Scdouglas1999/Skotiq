@@ -7,7 +7,7 @@ import '../models/sequence/sequence_models.dart';
 import '../models/equipment/filter_names.dart';
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'dark_library_coverage_service.dart';
-import 'scheduler/horizon_profile.dart';
+import '../models/site/horizon_profile.dart';
 import 'sequence_file_service.dart';
 import 'smart_night/exposure_calculator.dart';
 
@@ -16,4 +16,5 @@ part 'smart_night_models/context_and_plan.dart';
 part 'smart_night_models/planned_target_results.dart';
 part 'smart_night_models/strategy_helpers.dart';
 part 'smart_night_models/filter_choice.dart';
+part 'smart_night_models/filter_sets.dart';
 part 'smart_night_models/json_helpers.dart';

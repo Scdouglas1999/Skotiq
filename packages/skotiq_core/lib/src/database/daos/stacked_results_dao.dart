@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
 
 import '../../models/imaging/stack_and_share_models.dart';
-import '../../services/live_stacking_service.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
+import '../../models/imaging/live_stacking_models.dart';
 
 part 'stacked_results_dao.g.dart';
 

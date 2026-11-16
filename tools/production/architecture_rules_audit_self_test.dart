@@ -391,7 +391,7 @@ Future<void> main() async {
     stderrHas: [
       '[core-layers]',
       'survey.dart:1: imports src/providers/framing_provider.dart',
-      'Plain values (data classes, enums, result types',
+      'A value type, enum or pure function that a lower layer needs',
     ],
   );
 
@@ -417,6 +417,67 @@ Future<void> main() async {
       'host_notes.dart:1: imports the providers.dart barrel',
       'notes_dao.dart:2: imports src/providers/database_provider.dart',
     ],
+  );
+
+  await check(
+    'a lower core layer importing a higher one fails, by file, package URI '
+    'or barrel',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/models/site/horizon.dart',
+        "import '../../services/scheduler/horizon_profile.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/database/daos/targets_dao.dart',
+        "import 'package:skotiq_core/src/backend/roles/target_library.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/utils/install_migration.dart',
+        "import 'package:skotiq_core/services.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/errors/error_text.dart',
+        "import '../models/errors/server_error.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[core-layers]',
+      'horizon.dart:1: imports src/services/scheduler/horizon_profile.dart '
+          '(models/ is below services/)',
+      'targets_dao.dart:1: imports src/backend/roles/target_library.dart '
+          '(database/ is below backend/)',
+      'install_migration.dart:1: imports services.dart (utils/ is below '
+          'services/)',
+      'error_text.dart:1: imports src/models/errors/server_error.dart '
+          '(errors/ is below models/)',
+      'skotiq_core is layered utils, errors, models, settings, database',
+    ],
+  );
+
+  await check(
+    'a core file importing its own layer or the layers below passes',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/backend/roles/target_library.dart',
+        "import '../../database/database.dart';\n"
+            "import '../../models/target.dart';\n"
+            "import '../../errors/error_text.dart';\n"
+            "import '../../utils/logging_service.dart';\n"
+            "import 'device_backend.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/settings/store_settings.dart',
+        "import '../models/sync/sync_models.dart';\n",
+      );
+    },
+    exitCode: 0,
   );
 
   await check(

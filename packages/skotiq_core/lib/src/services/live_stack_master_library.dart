@@ -13,8 +13,8 @@ import 'package:path/path.dart' as p;
 import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import 'frame_header.dart';
-import 'live_stacking_service.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
+import '../models/imaging/live_stacking_models.dart';
 
 /// Writes a stretched PNG of [result] to [path].
 typedef LiveStackPreviewWriter =

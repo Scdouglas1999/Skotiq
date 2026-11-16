@@ -2,8 +2,9 @@
 // screens agree with each other: the site, the rig, the three targets, the
 // nights already in the database and tonight's run in progress.
 //
-// Tonight is the evening of the day the capture runs (before noon, the
-// evening before), and "now" on the screens is 23:47 on it. NGC 7331, M31
+// Tonight is the evening of November 15, 2026, and "now" on the screens is
+// 23:47 on it, whatever day the capture runs, so a re-render reproduces the
+// published set. NGC 7331, M31
 // and M1 cross the meridian at about 19:20, 21:25 and 02:15 local time in
 // mid-November at this site, so they are imaged in that order.
 //
@@ -356,11 +357,7 @@ abstract final class ShotNight {
   static const library = [ngc7331, m31, m1, ngc891, ic1805, m33];
 
   /// The evening of tonight, at midnight local time.
-  static DateTime get evening {
-    final now = DateTime.now();
-    final day = now.hour < 12 ? now.subtract(const Duration(days: 1)) : now;
-    return DateTime(day.year, day.month, day.day);
-  }
+  static final DateTime evening = DateTime(2026, 11, 15);
 
   /// A local time on the night that starts [dayOffset] evenings from tonight's;
   /// hours before noon fall on the following morning.

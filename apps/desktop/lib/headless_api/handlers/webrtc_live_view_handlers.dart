@@ -79,7 +79,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -87,6 +86,7 @@ import 'live_view_stream_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Default ICE servers used when the client does not supply any.
 /// Google's public STUN is fine for LAN + symmetric-NAT-free links;

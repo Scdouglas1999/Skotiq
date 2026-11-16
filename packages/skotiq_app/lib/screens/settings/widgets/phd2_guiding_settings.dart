@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
@@ -14,6 +13,7 @@ import '../../../widgets/remote_host_path_dialog.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/backend.dart';
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
   const Phd2GuidingSettings({super.key});

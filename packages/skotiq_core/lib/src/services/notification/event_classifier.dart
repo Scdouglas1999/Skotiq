@@ -18,7 +18,7 @@ import '../../errors/error_text.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'notification_template.dart';
 
 /// The devices the native side has said it is connecting and has not yet
@@ -409,7 +409,8 @@ class NotificationEventClassifier {
           typed.SequencerEvent_ExposureStarted() ||
           typed.SequencerEvent_ExposureCompleted() ||
           typed.SequencerEvent_InstructionProgress() ||
-          typed.SequencerEvent_InstructionProgressStructured() ||
+          typed.SequencerEvent_DitherPerformed() ||
+          typed.SequencerEvent_FrameWatchReport() ||
           typed.SequencerEvent_DepthGoalCompleted() ||
           typed.SequencerEvent_FrameAccepted() ||
           typed.SequencerEvent_SchedulerDecision() ||

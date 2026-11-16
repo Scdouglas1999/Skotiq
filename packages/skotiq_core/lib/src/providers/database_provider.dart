@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
-import '../backend/roles/host_data/host_records.dart';
+import '../database/stores/host_records.dart';
 import '../database/database.dart' as db;
-import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
+import '../models/imaging/gnomonic_projection.dart' show SolvedWcs;
 import '../services/wcs/plate_solve_data_from_result.dart'
     show solvedWcsFromStored;
 import '../database/daos/equipment_profiles_dao.dart';
@@ -33,7 +33,9 @@ import '../database/daos/sky_atlas_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/daos/tutorial_progress_dao.dart';
+import '../services/catalog_target_types.dart';
 import '../services/local_imaging_records.dart';
+import 'logging_service_provider.dart';
 import 'host_settings/host_settings_providers.dart';
 import 'captured_image_rows.dart';
 
@@ -208,8 +210,14 @@ final activeProfileProvider = StreamProvider<db.DbEquipmentProfile?>((ref) {
   return ref.watch(equipmentProfileLibraryProvider).watchActiveProfile();
 });
 
+/// The saved targets, each with the object type the catalog gives it
+/// ([withCatalogObjectType]).
 final allDbTargetsProvider = StreamProvider<List<db.DbTarget>>((ref) {
-  return ref.watch(targetLibraryProvider).watchAllTargets();
+  final logging = ref.watch(loggingServiceProvider);
+  return ref
+      .watch(targetLibraryProvider)
+      .watchAllTargets()
+      .asyncMap((rows) => withCatalogObjectTypes(rows, logging));
 });
 
 final favoriteDbTargetsProvider = StreamProvider<List<db.DbTarget>>((ref) {

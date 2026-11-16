@@ -67,16 +67,18 @@ class _ClearSkyRadar extends WeatherRadarService {
   void clearCache() {}
 }
 
-class _ClearForecast extends LocationCloudForecastService {
+class _ClearSky extends CurrentSkyService {
   @override
-  Future<CloudCoverForecast?> fetchCurrentCloudForecast({
+  Future<CurrentSky?> fetch({
     required double latitude,
     required double longitude,
   }) async =>
-      CloudCoverForecast(
-        percent: 0,
-        source: 'National Weather Service',
-        validAt: ShotNight.at(0, 23, 0).toUtc(),
+      CurrentSky(
+        model: CloudCoverForecast(
+          percent: 0,
+          source: 'Open-Meteo',
+          validAt: ShotNight.at(0, 23, 0).toUtc(),
+        ),
       );
 }
 
@@ -99,8 +101,8 @@ List<Override> clearSkyOverrides() => [
         ref.onDispose(service.dispose);
         return service;
       }),
-      locationCloudForecastServiceProvider.overrideWith((ref) {
-        final service = _ClearForecast();
+      currentSkyServiceProvider.overrideWith((ref) {
+        final service = _ClearSky();
         ref.onDispose(service.dispose);
         return service;
       }),

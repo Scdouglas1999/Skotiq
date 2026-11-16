@@ -120,9 +120,7 @@ void main() {
         db.equipmentProfiles.updatedAt.name,
       };
       final written = _full.toCompanion().toColumns(false);
-      final readBack = EquipmentProfileModel.fromDatabase(
-        row,
-      ).toCompanion().toColumns(false);
+      final readBack = row.toModel().toCompanion().toColumns(false);
       for (final column in db.equipmentProfiles.$columns) {
         if (storeOwned.contains(column.name)) continue;
         expect(

@@ -54,16 +54,13 @@ bridge_event.SkotiqEvent _graded({
 );
 
 bridge_event.SkotiqEvent _assessed(Map<String, Object?> detail) =>
-    _event('InstructionProgressStructured', {
-      'node_id': _nodeId,
-      'instruction': 'Frame watch',
-      'progress_percent': 100.0,
-      'detail_kind': frameAssessedDetailKind,
-      'detail_json': jsonEncode(detail),
+    _event('FrameWatchReport', {
+      'kind': frameAssessedReportKind,
+      'payload_json': jsonEncode(detail),
     });
 
 bridge_event.SkotiqEvent _autofocus(String nodeId) =>
-    _event('InstructionProgressStructured', {
+    _event('InstructionProgress', {
       'node_id': nodeId,
       'instruction': 'Autofocus',
       'progress_percent': 100.0,
@@ -339,12 +336,9 @@ void main() {
     final (container, executor) = build();
     await container.read(frameWatchSettingsProvider.future);
     executor.handleSequencerEventForTest(
-      _event('InstructionProgressStructured', {
-        'node_id': _nodeId,
-        'instruction': 'Frame watch',
-        'progress_percent': 100.0,
-        'detail_kind': horizonObstructionDetailKind,
-        'detail_json': jsonEncode({
+      _event('FrameWatchReport', {
+        'kind': horizonObstructionReportKind,
+        'payload_json': jsonEncode({
           'altitude_deg': 64.0,
           'azimuth_deg': 286.2,
           'target_name': 'NGC 891',

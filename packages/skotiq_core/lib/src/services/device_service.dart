@@ -26,8 +26,8 @@ import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/device_connect_exception.dart';
-import '../backend/skotiq_exception.dart' show ConnectionException;
+import '../errors/device_connect_exception.dart';
+import '../errors/skotiq_exception.dart' show ConnectionException;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;
@@ -42,7 +42,7 @@ import 'mount_home_watcher.dart';
 import 'mount_slew_watcher.dart';
 import 'error_service.dart';
 import 'phd2_launcher.dart';
-import 'phd2_status_poll.dart';
+import '../backend/phd2_status_poll.dart';
 import 'predictive_af_service.dart';
 import 'switch_channel_service.dart';
 import 'device_service_lifecycle.dart';
@@ -50,7 +50,7 @@ import 'device_service/profile_device_resolution.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
-import '../backend/roles/host_data/host_device_control.dart';
+import '../backend/network_backend.dart';
 import '../backend/roles/host_data/host_link.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/error_service_provider.dart';
@@ -77,23 +77,6 @@ part 'device_service/autofocus_controls.dart';
 part 'device_service/focuser_backlash_calibration.dart';
 part 'device_service/filter_wheel_controls.dart';
 part 'device_service/guiding_sequencer_controls.dart';
-
-extension DriverTypeDisplayExtension on DriverType {
-  String get displayName {
-    switch (this) {
-      case DriverType.ascom:
-        return 'ASCOM';
-      case DriverType.alpaca:
-        return 'Alpaca';
-      case DriverType.indi:
-        return 'INDI';
-      case DriverType.native:
-        return 'Native';
-      case DriverType.simulator:
-        return 'Simulator';
-    }
-  }
-}
 
 /// Service for managing device discovery and connections
 ///

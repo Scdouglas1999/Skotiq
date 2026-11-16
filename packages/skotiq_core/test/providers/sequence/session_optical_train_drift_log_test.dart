@@ -21,11 +21,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart'
     as bridge_event;
+import 'package:skotiq_core/utils.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {

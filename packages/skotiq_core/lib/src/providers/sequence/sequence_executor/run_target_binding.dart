@@ -1,6 +1,6 @@
 import '../../../database/daos/targets_dao.dart' show TargetsDao;
 import '../../../models/sequence/sequence_models.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import 'frame_attribution.dart' show enclosingTargetHeader;
 
 /// Binds each Target node of the running sequence to its `targets` row, so

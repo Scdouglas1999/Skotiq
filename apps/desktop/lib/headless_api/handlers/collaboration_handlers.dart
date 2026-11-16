@@ -15,7 +15,6 @@
 /// disabled" path the operator opted into.
 library;
 
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
@@ -24,6 +23,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// HTTP handlers for the `/api/collaboration/*` and `/api/session-handoff`
 /// endpoints. Constructed once per server with the shared

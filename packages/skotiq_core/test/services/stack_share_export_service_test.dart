@@ -28,9 +28,9 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
 import 'package:skotiq_core/src/services/stack_share_export_service.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 /// A tightly-packed opaque RGBA buffer with a horizontal red ramp — enough
 /// structure that the encoders have real pixels to write.

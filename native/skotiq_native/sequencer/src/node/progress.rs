@@ -8,10 +8,8 @@
 //!
 //! The contract here: every instruction populates a `ProgressUpdate` with a
 //! typed `ProgressDetail`. The executor's progress callback consumes the
-//! structured payload directly — no parsing. The legacy `message: String`
-//! field is still populated (auto-derived from the detail via `legacy_message`)
-//! so the bridge layer can emit the existing `SequencerEvent::InstructionProgress`
-//! payload without an FRB schema change.
+//! structured payload directly — no parsing — and the step's words are
+//! [`ProgressDetail::detail_text`].
 
 use crate::NodeId;
 use crate::NodeStatus;
@@ -243,7 +241,7 @@ pub enum ProgressDetail {
     ///
     /// Emitted from `plugin_node.rs`: one synthetic "started" tick while the node
     /// waits for the Dart-side reply, and one on the final reply when Dart
-    /// attaches `structured_detail`.
+    /// attaches its own detail.
     PluginNode {
         plugin_id: String,
         node_type_id: String,
@@ -438,10 +436,7 @@ impl ProgressDetail {
                 likely_cause,
                 ..
             } => {
-                // forensics: when a likely cause has been
-                // classified, surface its label in the legacy detail
-                // text so non-typed subscribers (logs, telemetry
-                // exporters) still see it.
+                // A classified likely cause is part of the step's words.
                 let cause_suffix = likely_cause
                     .map(|c| format!(" [cause: {}]", c.label()))
                     .unwrap_or_default();
@@ -473,11 +468,7 @@ impl ProgressDetail {
                     adapted_secs, nominal_secs, reason
                 ),
             },
-            // plugin nodes carry an opaque JSON detail.
-            // We surface a compact identifier so the legacy
-            // `InstructionProgress` text channel still has something to
-            // show; the typed `SequencerEvent::PluginNodeProgress` event
-            // carries the full structured payload for the dashboard.
+            // A plugin node's words are its id and its payload, compact.
             ProgressDetail::PluginNode {
                 plugin_id,
                 node_type_id,
@@ -488,16 +479,11 @@ impl ProgressDetail {
                 {
                     format!("{}/{}", plugin_id, node_type_id)
                 } else {
-                    // Compact (no whitespace) so the legacy line stays
-                    // dashboard-friendly even when the plugin author
-                    // ships a richly-nested payload.
                     let compact = serde_json::to_string(detail)
                         .unwrap_or_else(|_| "<unserialisable>".to_string());
                     format!("{}/{}: {}", plugin_id, node_type_id, compact)
                 }
             }
-            // Science — render the photometry payloads as compact
-            // status text for the legacy InstructionProgress channel.
             ProgressDetail::PhotometryFrame {
                 target_designation,
                 frame,

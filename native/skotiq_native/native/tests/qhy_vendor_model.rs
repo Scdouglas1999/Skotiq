@@ -434,7 +434,7 @@ mod vendor_model {
             frame.metadata.readout_mode.as_deref(),
             Some("High Gain Mode")
         );
-        assert_eq!(frame.metadata.gain, 70);
+        assert_eq!(frame.metadata.gain, Some(70));
         camera.disconnect().await.unwrap();
         model().assert_no_faults();
     }
@@ -469,7 +469,7 @@ mod vendor_model {
         let frame = take(&mut camera, light(0.05, 1, None)).await;
         assert_eq!(
             (frame.metadata.gain, frame.metadata.offset),
-            (56, 20),
+            (Some(56), Some(20)),
             "frame header"
         );
         camera.disconnect().await.unwrap();

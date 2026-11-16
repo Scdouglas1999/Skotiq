@@ -12,7 +12,7 @@ import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import '../notification_presentation.dart';
 import 'notification_transport.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 class DiscordTransport extends NotificationTransport {
   final http.Client _client;

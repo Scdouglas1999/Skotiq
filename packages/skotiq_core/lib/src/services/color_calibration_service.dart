@@ -5,7 +5,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/star_photometry.dart';
 import 'post_session_seam.dart';
-import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// A cone search over a photometric star catalog: returns the catalog [Star]s
 /// within [radiusDegrees] of [center], optionally magnitude-limited.

@@ -11,7 +11,7 @@
 import 'dart:math' as math;
 
 import '../../models/imaging/sip_terms.dart';
-import '../wcs/gnomonic_projection.dart';
+import '../../models/imaging/gnomonic_projection.dart';
 
 /// Interpolator selection for atlas reprojection. The wire token is the
 /// camelCase enum name (`bilinear` / `catmullRom` / `lanczos3`), matching the

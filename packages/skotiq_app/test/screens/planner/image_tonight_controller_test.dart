@@ -46,7 +46,12 @@ void main() {
     );
     return SingleTargetSequenceResult(
       sequence: sequence,
-      strategy: SmartNightStrategy.autoLrgb,
+      filterSet: FilterSet.preset(SmartNightStrategy.autoLrgb, const [
+        'L',
+        'R',
+        'G',
+        'B',
+      ]),
       filterPlans: const [],
       plannedTarget: SmartNightPlannedTarget(
         suggestion: target,

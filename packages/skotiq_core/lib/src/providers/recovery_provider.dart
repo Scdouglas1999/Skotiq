@@ -37,7 +37,7 @@ import 'notification_router_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// State of the current in-flight recovery loop. `null` whenever the
 /// executor is not in `Recovering`.

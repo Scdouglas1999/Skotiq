@@ -1,5 +1,5 @@
 import '../../database/database.dart' show DbCapturedImage;
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 
 /// The newest H-alpha, OIII and SII light frames of one session: the frames a
 /// session's narrowband line ratios are made from.

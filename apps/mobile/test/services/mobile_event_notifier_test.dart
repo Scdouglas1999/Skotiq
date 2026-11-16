@@ -562,6 +562,8 @@ void main() {
               instruction: 'Meridian flip',
               progressPercent: 50,
               detail: detail,
+              detailKind: 'Generic',
+              detailJson: '""',
             ),
           ),
           severity: sk.EventSeverity.info,

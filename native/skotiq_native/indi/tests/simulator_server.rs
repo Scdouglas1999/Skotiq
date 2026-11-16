@@ -226,3 +226,62 @@ async fn simulator_devices_are_listed_by_kind() {
         );
     }
 }
+
+#[tokio::test]
+#[ignore = "needs an INDI simulator server; see the module header"]
+async fn simulator_mount_site_and_clock_round_trip() {
+    use skotiq_device::{MountClock, MountDriver, MountSiteInfo};
+
+    let client = server().await;
+    connect(&client, MOUNT).await;
+    for property in ["GEOGRAPHIC_COORD", "TIME_UTC"] {
+        wait_for(&format!("the mount's {property}"), || {
+            let client = client.clone();
+            async move { client.read().await.has_property(MOUNT, property).await }
+        })
+        .await;
+    }
+    let mut mount = IndiMount::new(client.clone(), MOUNT);
+
+    let abilities = mount.site_abilities().await.expect("site abilities");
+    assert!(abilities.can_read_site && abilities.can_write_site);
+    assert!(abilities.can_read_time && abilities.can_write_time);
+
+    let site = MountSiteInfo {
+        latitude_deg: 41.25,
+        longitude_deg: -73.5,
+        elevation_m: Some(120.0),
+    };
+    mount.set_site(site).await.expect("set site");
+    wait_for("the mount to hold the new site", || {
+        let mount = &mount;
+        async move {
+            mount.get_site().await.is_ok_and(|read| {
+                (read.latitude_deg - 41.25).abs() < 1e-6
+                    && (read.longitude_deg + 73.5).abs() < 1e-6
+                    && read.elevation_m == Some(120.0)
+            })
+        }
+    })
+    .await;
+
+    let clock = MountClock {
+        utc_unix_seconds: 1_794_884_645,
+        utc_offset_hours: -5.0,
+    };
+    mount.set_clock(clock).await.expect("set clock");
+    wait_for("the mount to hold the new clock", || {
+        let mount = &mount;
+        async move {
+            mount.get_clock().await.is_ok_and(|read| {
+                (read.utc_unix_seconds - clock.utc_unix_seconds).abs() <= 2
+                    && read.utc_offset_hours == -5.0
+            })
+        }
+    })
+    .await;
+    let read = mount.get_clock().await.expect("clock");
+    println!("mount clock {} offset {}", read.utc_unix_seconds, read.utc_offset_hours);
+
+    disconnect(&client, MOUNT).await;
+}

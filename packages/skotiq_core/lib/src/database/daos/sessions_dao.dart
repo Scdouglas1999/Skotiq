@@ -1,7 +1,7 @@
 import '../../models/imaging/session_status.dart';
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/host_records.dart';
+import '../stores/host_records.dart';
 import '../database.dart';
 import '../session_orphan_sweep.dart';
 import '../tables/imaging_sessions.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/phd2_status_poll.dart';
+import 'package:skotiq_core/src/backend/phd2_status_poll.dart';
 
 void main() {
   group('isPhd2GuidingHeartbeatEvent', () {

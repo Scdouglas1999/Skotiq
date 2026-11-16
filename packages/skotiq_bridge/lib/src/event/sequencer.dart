@@ -315,7 +315,10 @@ sealed class SequencerEvent with _$SequencerEvent {
     required SequencerTriggerAction action,
   }) = SequencerEvent_TriggerFired;
 
-  /// Progress update for long-running instructions (cooling, autofocus, slewing)
+  /// A step's progress (cooling, autofocus, slewing, a frame of a burst).
+  /// A frame verdict, scheduler decision, integration budget, adapted
+  /// exposure, plugin payload or photometry result is also its own typed
+  /// event below, which is what readers of that fact subscribe to.
   const factory SequencerEvent.instructionProgress({
     /// Node ID for mapping progress to the correct tree node
     required String nodeId,
@@ -326,29 +329,28 @@ sealed class SequencerEvent with _$SequencerEvent {
     /// Progress percentage (0.0 to 100.0)
     required double progressPercent,
 
-    /// Detailed status message
+    /// The step's words, as the run's line and the node row show them.
     required String detail,
-  }) = SequencerEvent_InstructionProgress;
-
-  /// Structured progress update for long-running instructions. This is
-  /// emitted alongside `InstructionProgress` so legacy consumers keep their
-  /// string detail while newer UI panels can bind to explicit fields.
-  const factory SequencerEvent.instructionProgressStructured({
-    /// Node ID for mapping progress to the correct tree node
-    required String nodeId,
-
-    /// Name of the instruction (e.g., "Cool Camera", "Autofocus")
-    required String instruction,
-
-    /// Progress percentage (0.0 to 100.0)
-    required double progressPercent,
 
     /// `ProgressDetail` variant name (e.g. `Exposure`, `Autofocus`)
     required String detailKind,
 
     /// JSON-stringified inner payload for the variant.
     required String detailJson,
-  }) = SequencerEvent_InstructionProgressStructured;
+  }) = SequencerEvent_InstructionProgress;
+
+  /// One dither the run performed: by a node, or by the Dither Interval
+  /// trigger when `node_id` is `None`.
+  const factory SequencerEvent.ditherPerformed({String? nodeId}) =
+      SequencerEvent_DitherPerformed;
+
+  /// What the frame watch measured of a saved light frame, or a confirmed
+  /// obstruction it met: `kind` is `FrameAssessed` or `HorizonObstruction`,
+  /// and `payload_json` is that report's fields.
+  const factory SequencerEvent.frameWatchReport({
+    required String kind,
+    required String payloadJson,
+  }) = SequencerEvent_FrameWatchReport;
 
   /// A Smart Exposure plan finished early because its bound DepthLock
   /// goal was achieved. Mirrors `ExecutorEvent::DepthGoalCompleted`; the
