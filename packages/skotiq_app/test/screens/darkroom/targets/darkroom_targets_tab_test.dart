@@ -234,6 +234,10 @@ class _Harness {
   String get location => router.routeInformationProvider.value.uri.toString();
 }
 
+/// The capture folder of these tests; the Darkroom keeps its pass records in it.
+final String _captureFolder =
+    Directory.systemTemp.createTempSync('skotiq-darkroom-capture-').path;
+
 Future<_Harness> _pump(
   WidgetTester tester, {
   String initial = '/darkroom',
@@ -275,7 +279,7 @@ Future<_Harness> _pump(
           .overrideWith((ref, key) async => _library()),
       outputLocationsProvider.overrideWith(
         (ref) async => OutputLocations(
-            captureFolder: '/data', documents: Directory('/home')),
+            captureFolder: _captureFolder, documents: Directory('/home')),
       ),
       darkroomFileExistsProvider.overrideWithValue((_) => true),
       subThumbnailProvider.overrideWith(
@@ -516,7 +520,10 @@ void main() {
     await _settle(tester);
 
     expect(h.jobs.accepted, hasLength(1));
-    expect(h.jobs.accepted.single!.path, p.join('/data', 'Masters', 'NGC_891'));
+    expect(
+      h.jobs.accepted.single!.path,
+      p.join(_captureFolder, 'Masters', 'NGC_891'),
+    );
     expect(h.location, '/darkroom?tab=targets&target=NGC+891');
   });
 
