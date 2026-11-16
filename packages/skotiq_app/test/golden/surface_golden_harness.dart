@@ -48,8 +48,9 @@ abstract final class SurfaceGoldenHarness {
   /// invalidate every one of those baselines. Only the public-screenshot
   /// capture, which asserts nothing about pixels, opts in.
   ///
-  /// Also Sora, the typography's fallback face for the arcminute and
-  /// arcsecond primes; without it they capture as boxes.
+  /// Also the typography's fallback faces, Sora for the arcminute and
+  /// arcsecond primes and Skotiq Symbols for signs, arrows and symbols;
+  /// without them those capture as boxes.
   static Future<void> ensureCaptureFonts() async {
     await ensureFonts();
     if (_captureFontsLoaded) return;
@@ -60,6 +61,11 @@ abstract final class SurfaceGoldenHarness {
     await _loadFont(
       'Sora',
       '${repoRoot().path}/packages/skotiq_ui/assets/fonts/Sora-VF.ttf',
+    );
+    await _loadFont(
+      'SkotiqSymbols',
+      '${repoRoot().path}/packages/skotiq_ui/assets/fonts/'
+          'SkotiqSymbols-Regular.ttf',
     );
     _captureFontsLoaded = true;
   }
