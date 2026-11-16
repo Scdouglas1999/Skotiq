@@ -72,7 +72,9 @@ class _RetainedCapturesSectionState
             Text(
               'These captures could not be downloaded. Imaging goes on; '
               'retrieve each one when the camera is idle.',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              style: SkotiqTypography.caption.copyWith(
+                color: colors.textSecondary,
+              ),
             ),
             for (final capture in captures) ...[
               const SizedBox(height: 12),
@@ -85,10 +87,8 @@ class _RetainedCapturesSectionState
                       children: [
                         Text(
                           capture.location.split('/').last,
-                          style: TextStyle(
+                          style: SkotiqTypography.labelStrong.copyWith(
                             color: colors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -97,11 +97,10 @@ class _RetainedCapturesSectionState
                               ? "In the camera's memory until it is switched "
                                   'off or a later exposure replaces it'
                               : "On the camera's card: ${capture.location}",
-                          style: TextStyle(
+                          style: SkotiqTypography.caption.copyWith(
                             color: capture.inCameraMemory
                                 ? colors.warning
                                 : colors.textSecondary,
-                            fontSize: 12,
                           ),
                         ),
                       ],
