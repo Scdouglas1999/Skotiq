@@ -2754,8 +2754,8 @@ void main() {
     // The rig's own copy keeps the job's name and is the CURRENT account of
     // it — the resumed pass's, complete with its delivery outcome.
     expect(
-      resumed.single.reportPath,
-      '${output.path}/darkroom/job_${first.jobId}_report.json',
+      p.normalize(resumed.single.reportPath!),
+      p.normalize('${output.path}/darkroom/job_${first.jobId}_report.json'),
     );
     final onRig =
         jsonDecode(File(resumed.single.reportPath!).readAsStringSync())
