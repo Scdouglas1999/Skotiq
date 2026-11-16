@@ -16,6 +16,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -115,6 +116,7 @@ class _RecordingSeam implements SkyAtlasSeam {
 
 void main() {
   late SkotiqDatabase db;
+  late Directory atlasRoot;
   late SkyAtlasDao atlasDao;
   late ConstellationContributionsDao contributionsDao;
 
@@ -137,7 +139,7 @@ void main() {
       dao: atlasDao,
       seam: seam,
       logger: LoggingService(),
-      atlasRootResolver: () async => '/tmp/constellation_highwater_test',
+      atlasRootResolver: () async => atlasRoot.path,
       order: ConstellationService.defaultHealpixOrder,
     );
     return ConstellationService(
@@ -188,6 +190,9 @@ void main() {
   }
 
   setUp(() {
+    atlasRoot = Directory.systemTemp.createTempSync(
+      'constellation_highwater_test_',
+    );
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     atlasDao = SkyAtlasDao(db);
     contributionsDao = ConstellationContributionsDao(db);
@@ -195,7 +200,10 @@ void main() {
     pushCount = 0;
   });
 
-  tearDown(() => db.close());
+  tearDown(() async {
+    await db.close();
+    await atlasRoot.delete(recursive: true);
+  });
 
   test(
     'contribute-after-new-night ships the TRUE delta, not the whole tile total',
@@ -273,7 +281,7 @@ void main() {
       expect(seam.merged, hasLength(1));
       expect(
         seam.merged.single['basePath'],
-        contains('swarm_overlay/tiles/9/1234.skt'),
+        contains(p.join('swarm_overlay', 'tiles', '9', '1234.skt')),
       );
 
       final outcome = await service.contributeTarget(target.targetId);
@@ -310,7 +318,7 @@ void main() {
         coverageMean: 0.8,
         totalFrames: 6,
         integrationSeconds: 1800,
-        sidecarPath: '/tmp/constellation_highwater_test/tiles/9/1234.skt',
+        sidecarPath: p.join(atlasRoot.path, 'tiles', '9', '1234.skt'),
       );
 
       await service.pullTarget(target.targetId, finalized: false);

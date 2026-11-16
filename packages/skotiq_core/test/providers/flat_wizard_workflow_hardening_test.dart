@@ -702,7 +702,7 @@ void main() {
           .read(flatWizardProvider)
           .globalSettings
           .copyWith(
-            savePath: r'C:\Users\scdou\Documents\Flats',
+            savePath: r'C:\Users\observer\Documents\Flats',
             createDateSubfolder: true,
             createFilterSubfolders: true,
           ),
@@ -712,7 +712,7 @@ void main() {
 
     expect(backend.savedPaths, isNotEmpty);
     for (final saved in backend.savedPaths) {
-      expect(saved, startsWith(r'C:\Users\scdou\Documents\Flats\'));
+      expect(saved, startsWith(r'C:\Users\observer\Documents\Flats\'));
       expect(saved, contains(r'\L\'));
       expect(saved, isNot(contains('/')));
     }

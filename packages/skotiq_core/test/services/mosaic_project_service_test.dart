@@ -871,7 +871,8 @@ void main() {
       await service.integratePanels(
         projectId,
         settings: IntegrationSettings.defaults,
-        outputFitsPathBuilder: (panel) => '/out/panel_${panel.panelIndex}.fits',
+        outputFitsPathBuilder: (panel) =>
+            '$outRoot/panel_${panel.panelIndex}.fits',
       );
 
       await expectLater(
