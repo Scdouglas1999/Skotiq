@@ -1,25 +1,10 @@
-// Plugin registration + last-fired activity tracking.
+// The bundled plugins, their registration into the [PluginHost], and when
+// each last fired, built on the host's public surface (`registerPlugin`,
+// `contextFor`, `pluginInfo`) and `PluginEventBus.on(...)`. Which plugins ship
+// and which event means each one fired is decided here and nowhere else.
 //
-// This file glues the user-facing example plugins into the running
-// [PluginHost] and surfaces "when did this integration last do something"
-// to the Settings > Plugins / Integrations UI.
-//
-// It deliberately does NOT touch `plugin_host.dart` or `plugin_context.dart`:
-// everything here is built on the public host surface
-// (`registerPlugin`, `contextFor`, `pluginInfo`) and the public
-// `PluginEventBus.on(...)` subscription API. That keeps the host an
-// integration-agnostic engine and confines the "which four plugins ship by
-// default + which event means each one fired" policy to one file.
-//
-// Two pieces live here:
-//
-//   1. [PluginActivityTracker] / [pluginLastFiredProvider] — watches each
-//      registered plugin's success event and records the last time it fired.
-//
-//   2. [PluginEnablementStore] + [pluginEnablementStoreProvider] and
-//      [pluginRegistrationProvider] — registers the four example plugins
-//      into the host, honouring a persisted enabled-set supplied by an
-//      injected store (the app layer / C4 provides the real implementation).
+// The persisted enabled-set is a contract, [PluginEnablementStore], that the
+// application implements and installs over [pluginEnablementStoreProvider].
 
 import 'dart:async';
 
@@ -96,11 +81,9 @@ final List<ExamplePluginDescriptor> kUserFacingExamplePlugins =
 
 /// Resolves which plugins should start enabled.
 ///
-/// C3 does not depend on app settings directly. Instead the app layer
-/// (C4 / C8) supplies a concrete implementation via
-/// [pluginEnablementStoreProvider]. C3 ships only the abstract contract and a
-/// safe default ([AllEnabledPluginEnablementStore]) so the package is usable
-/// standalone (and in tests) without a settings database.
+/// The application supplies the persisted implementation through
+/// [pluginEnablementStoreProvider]; [AllEnabledPluginEnablementStore] is the
+/// default when nothing is installed (tests, the package alone).
 abstract class PluginEnablementStore {
   /// Whether [pluginId] should be registered in the enabled state.
   ///
@@ -122,9 +105,8 @@ class AllEnabledPluginEnablementStore implements PluginEnablementStore {
   Future<bool> isEnabled(String pluginId) async => true;
 }
 
-/// Injection point for the enabled-set policy. Overridden in the app layer
-/// (C4/C8) with a settings-backed implementation; defaults to
-/// "everything enabled" so the package and its tests work standalone.
+/// The enabled-set policy. Each application overrides it with its
+/// settings-backed store; the default enables everything.
 final pluginEnablementStoreProvider = Provider<PluginEnablementStore>(
   (ref) => const AllEnabledPluginEnablementStore(),
 );
