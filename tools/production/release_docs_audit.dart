@@ -6,8 +6,8 @@ const _markdownOutputPath = 'docs/production-readiness/release-docs-audit.md';
 
 const _requiredDocs = <_RequiredDoc>[
   _RequiredDoc(
-    path: 'docs/release-notes-template.md',
-    label: 'Release notes template',
+    path: 'docs/release-validation-template.md',
+    label: 'Release validation template',
     requiredText: [
       '## Release',
       '## Supported Platforms',
@@ -62,7 +62,7 @@ const _requiredDocs = <_RequiredDoc>[
     path: 'docs/getting-started/installation.md',
     label: 'Installation guide',
     requiredText: [
-      'docs/release-notes-template.md',
+      'docs/release-validation-template.md',
       'docs/supported-hardware-by-platform.md',
       'docs/known-limitations.md',
       'docs/production-readiness/linux-release-ci-recipe.md',

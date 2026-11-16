@@ -72,8 +72,8 @@ Future<ProcessResult> _run(
 }
 
 Future<void> _writeCompleteFixture(Directory root) async {
-  await _writeDoc(root, 'docs/release-notes-template.md', '''
-# Skotiq Release Notes Template
+  await _writeDoc(root, 'docs/release-validation-template.md', '''
+# Skotiq Release Validation Template
 ## Release
 ## Supported Platforms
 docs/supported-hardware-by-platform.md
@@ -121,7 +121,7 @@ INDI | Available | Available | Available
 Windows
 Linux
 macOS
-docs/release-notes-template.md
+docs/release-validation-template.md
 docs/supported-hardware-by-platform.md
 docs/known-limitations.md
 docs/production-readiness/linux-release-ci-recipe.md
