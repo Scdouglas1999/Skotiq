@@ -119,6 +119,15 @@ class _FixedSession extends SessionStateNotifier {
   }
 }
 
+/// "Start at dark" armed for [_at] (a UTC instant), or not armed.
+class _FixedArmedStart extends ArmedStartController {
+  _FixedArmedStart(this._at);
+  final DateTime? _at;
+
+  @override
+  DateTime? build() => _at;
+}
+
 class _FixedHistory extends StateNotifier<List<sk.SkotiqEvent>>
     implements EventHistoryNotifier {
   _FixedHistory(super.state);
@@ -209,7 +218,11 @@ ProviderContainer planContainer({
       nightCameraConnectedProvider.overrideWithValue(cameraConnected),
       backendCanCommandProvider.overrideWithValue(canCommand),
       nightPlanActionStateSeamProvider.overrideWithValue(action),
-      nightPlanArmedStartSeamProvider.overrideWithValue(armedStartAt),
+      nightArmedStartProvider.overrideWith(
+        () => _FixedArmedStart(
+          armedStartAt == null ? null : clock.toInstant(armedStartAt),
+        ),
+      ),
       ...extra,
     ],
   );
