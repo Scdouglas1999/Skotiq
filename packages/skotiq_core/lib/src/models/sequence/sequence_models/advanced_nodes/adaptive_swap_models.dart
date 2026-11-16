@@ -206,8 +206,6 @@ abstract class AdaptiveSwapSnapshot with _$AdaptiveSwapSnapshot {
 /// Container node that picks the highest-scoring runnable [TargetHeaderNode]
 /// child at runtime instead of executing them in author order.
 ///
-/// Mirrors `TargetSchedulerConfig` in the Rust sequencer (see
-/// `native/skotiq_native/sequencer/src/lib.rs`). All scoring weights and
-/// thresholds are sent verbatim to the Rust scheduler which uses the same
-/// scoring math as the planetarium-side `TargetScoringService` — see the
-/// parity test in `target_scheduler/scoring.rs`.
+/// Serialized as the Rust sequencer's `TargetSchedulerConfig`
+/// (`native/skotiq_native/sequencer/src/lib.rs`); the run ranks the children
+/// with the app's target scorer (`scheduling/scoring.rs`) and these weights.

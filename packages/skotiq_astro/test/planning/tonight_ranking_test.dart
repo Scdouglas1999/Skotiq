@@ -243,12 +243,9 @@ void main() {
     });
   });
 
-  // A tooltip saying the panel ranks on "the same score the planner uses" is
-  // false while 30% of the key is a catalog-fit term TargetScoringService has
-  // never heard of: the list then puts a row with FEWER usable dark hours and a
-  // LOWER planner score above the row under it, on a card whose own headline
-  // number is those hours. The blend stays; the words shown to the operator
-  // match it.
+  // 30% of the key is a catalog-fit term the night score does not have: the
+  // list can put a row with FEWER usable dark hours and a LOWER night score
+  // above the row under it, so the words shown to the operator say so.
   group('the ranking key and the words shown for it agree', () {
     test('catalog fit can outrank a clearly better night score', () async {
       // A (index 0): the better night, but faint. B (index 1): a poorer night
