@@ -367,3 +367,215 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
         "a loss after the hold is still a loss"
     );
 }
+
+const M1_RA_HOURS: f64 = 5.5755;
+const M1_DEC: f64 = 22.0145;
+
+/// The rig of 2026-11-16 02:16 on the scenario simulator: a guider that stops
+/// and guides as it is told, a simulated mount on pier West that turns over
+/// when slewed, and the flip settings the owner ran (stop tracking 20 min
+/// before the meridian, flip 20 min past it, recenter and resume guiding on).
+struct FlipNight {
+    ops: Arc<crate::executor::scenario_sim_tests::ScriptedDeviceOps>,
+    /// The light frame's context.
+    ctx: InstructionContext,
+    manager: crate::triggers::TriggerManager,
+    flip_config: crate::MeridianFlipConfig,
+}
+
+async fn flip_night(start_ha_min: f64) -> FlipNight {
+    use crate::executor::scenario_sim_tests::{ScriptedDeviceOps, SimMount};
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.flip_on_slew.store(true, Ordering::SeqCst);
+    ops.guider_follows_commands.store(true, Ordering::SeqCst);
+    ops.guiding.store(true, Ordering::SeqCst);
+    let mut mount = SimMount::tracking_at(M1_RA_HOURS, M1_DEC);
+    mount.settle_secs = 3.0;
+    ops.attach_sim_mount(mount);
+
+    let flip_config = crate::MeridianFlipConfig {
+        minutes_past_meridian: THRESHOLD_MIN,
+        pause_before_meridian_minutes: PAUSE_BEFORE_MIN,
+        auto_center: true,
+        resume_guiding: true,
+        max_retries: 0,
+        ..crate::MeridianFlipConfig::default()
+    };
+    let mut manager = crate::triggers::TriggerManager::new();
+    manager.create_standard_triggers();
+    assert!(manager.set_meridian_flip_config(flip_config.clone()));
+    manager.sync_state_from_config().await;
+    {
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.set_meridian_target("M1".to_string());
+        state.target.target_ra = Some(M1_RA_HOURS * 15.0);
+        state.target.target_dec = Some(M1_DEC);
+        state.target.current_hour_angle = Some(start_ha_min / 60.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_parked = Some(false);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.set_mount_tracking_expected(true);
+        state.set_guiding_enabled(true);
+    }
+
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("m1-lights".to_string());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera".to_string());
+    ec.run.rig.mount_id = Some("mount".to_string());
+    ec.run.trigger_state = Some(manager.state());
+    let mut ctx = ec.to_instruction_context("m1-lights").await;
+    ctx.target_name = Some("M1".to_string());
+    ctx.target_ra = Some(M1_RA_HOURS);
+    ctx.target_dec = Some(M1_DEC);
+    FlipNight {
+        ops,
+        ctx,
+        manager,
+        flip_config,
+    }
+}
+
+/// Stand in for the trigger monitor, as [`spawn_monitor`] does, but a flip it
+/// fires is the real one: the flip executor on the simulated mount, run in
+/// the monitor's task as the trigger action runs it.
+async fn spawn_monitor_running_flips(
+    night: &mut FlipNight,
+    hour_angle: HourAngle,
+    stop: Arc<AtomicBool>,
+) -> tokio::task::JoinHandle<Vec<crate::meridian_flip_executor::FlipResult>> {
+    let ops = night.ops.clone();
+    let run = night.ctx.run.clone();
+    let flip_config = night.flip_config.clone();
+    let mut manager = std::mem::take(&mut night.manager);
+    let flip_ctx = crate::meridian_flip_executor::FlipContext::for_instruction(&night.ctx, None)
+        .await
+        .expect("the run has a mount and a target");
+    tokio::spawn(async move {
+        let state = manager.state();
+        let mut flips = Vec::new();
+        while !stop.load(Ordering::SeqCst) {
+            let tracking = ops.sim_mount().is_some_and(|mount| mount.axes_tracking());
+            let guiding = ops.guiding.load(Ordering::SeqCst);
+            let held = {
+                let mut s = state.write().await;
+                s.target.current_hour_angle = hour_angle();
+                if crate::executor::apply_mount_tracking_poll(&mut s, tracking) {
+                    s.tracking.mark_lost();
+                }
+                s.telemetry.mount_is_tracking = Some(tracking);
+                if s.guiding.motion_depth() > 0 || guiding {
+                    s.set_guide_star_lost(false);
+                } else if s.guiding.is_enabled() {
+                    s.set_guide_star_lost(true);
+                }
+                s.run.is_held_by_run()
+            };
+            for firing in manager.check_all().await {
+                if firing.trigger_id() == "meridian_flip" && !held {
+                    let mut executor = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
+                        flip_config.clone(),
+                        run.clone(),
+                    );
+                    flips.push(executor.execute(&flip_ctx).await);
+                }
+            }
+            sleep(Duration::from_secs(1)).await;
+        }
+        flips
+    })
+}
+
+/// The calls the simulator saw from `from` on, and where the first that
+/// `wanted` matches is.
+fn first_call(calls: &[String], from: usize, wanted: impl Fn(&str) -> bool) -> Option<usize> {
+    calls
+        .iter()
+        .enumerate()
+        .skip(from)
+        .find(|(_, call)| wanted(call))
+        .map(|(index, _)| index)
+}
+
+fn starts_guiding(call: &str) -> bool {
+    call == "guider_start" || call == "guider_select_fresh_star"
+}
+
+/// D4 on the rig (2026-11-16 02:16): the frame held for the flip was let go
+/// the moment the flip had turned the mount over and, picking guiding up
+/// after the hold, started it on a fresh star while the flip was still
+/// confirming tracking. The recenter's sync and correction slews then ran
+/// under a guiding PHD2, which pulled the mount back toward its lock point
+/// after each one, and the recenter did not converge.
+///
+/// Guiding stops before the flip slew, stays stopped through every centering
+/// solve, sync and correction slew, and is started again only once the
+/// centering has converged.
+#[tokio::test(start_paused = true)]
+async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
+    let mut night = flip_night(-21.0).await;
+    // The first solve after the flip is 0.6° off, the next 0.04°, then on
+    // target: two corrections, as on the rig.
+    night
+        .ops
+        .solve_dec_offsets_deg
+        .lock()
+        .unwrap()
+        .extend([0.6, 0.04, 0.0]);
+    let ops = night.ops.clone();
+    let trigger_state = night.manager.state();
+    let hour_angle = hour_angle_from(-21.0);
+    let stop = Arc::new(AtomicBool::new(false));
+    let monitor = spawn_monitor_running_flips(&mut night, hour_angle.clone(), stop.clone()).await;
+    let ctx = night.ctx;
+
+    let control = BurstControl::default();
+    let ha = hour_angle.clone();
+    let gate = wait_for_meridian_flip_window_at(&ctx, 90.0, &control, &move || ha()).await;
+    assert!(gate.is_none(), "the frame proceeds after the flip: {gate:?}");
+    stop.store(true, Ordering::SeqCst);
+    let flips = monitor.await.expect("monitor");
+
+    assert!(
+        matches!(
+            flips.as_slice(),
+            [crate::meridian_flip_executor::FlipResult::Success { .. }]
+        ),
+        "{flips:?}"
+    );
+    let calls = ops.calls();
+    let flip_slew = first_call(&calls, 0, |c| c.starts_with("mount_slew:")).expect("the flip slewed");
+    assert!(
+        first_call(&calls, 0, |c| c == "guider_stop").is_some_and(|stop| stop < flip_slew),
+        "guiding stops before the flip slew: {calls:?}"
+    );
+    let last_solve = calls
+        .iter()
+        .rposition(|c| c == "plate_solve")
+        .expect("the flip recentered");
+    let last_move = calls
+        .iter()
+        .rposition(|c| c.starts_with("mount_slew:") || c.starts_with("mount_sync:"))
+        .unwrap();
+    assert_eq!(
+        calls.iter().filter(|c| c.starts_with("mount_sync:")).count(),
+        2,
+        "two corrections: {calls:?}"
+    );
+    let restart = first_call(&calls, flip_slew, starts_guiding).expect("guiding was started again");
+    assert!(
+        restart > last_solve && restart > last_move,
+        "guiding restarted at call {restart}, before the recenter converged (last solve \
+         {last_solve}, last move {last_move}): {calls:?}"
+    );
+    assert_eq!(
+        ops.moves_while_guiding.load(Ordering::SeqCst),
+        0,
+        "a sync or slew ran while the guider guided: {calls:?}"
+    );
+    assert!(ops.guiding.load(Ordering::SeqCst));
+    let state = trigger_state.read().await;
+    assert!(state.guiding.is_enabled(), "the run's guiding is armed again");
+    assert!(!state.guiding.resume_pending());
+    assert_eq!(state.guiding.motion_depth(), 0);
+}

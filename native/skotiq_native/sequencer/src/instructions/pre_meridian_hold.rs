@@ -211,10 +211,12 @@ pub(crate) async fn hold_before_meridian(
 
 /// Pick up guiding after the hold and its flip.
 ///
-/// The hold's move stopped the guiding the run had started. A flip set to
-/// resume guiding has already started it again by now, outside the run's
-/// guiding bookkeeping, so it is only armed again; otherwise it is started on
-/// a fresh star, as after any other move.
+/// The hold's move stopped the guiding the run had started. The frame is let
+/// go once the flip has turned the mount over, while the flip may still be
+/// confirming tracking and recentering; guiding is then left to the flip and,
+/// failing that, to the next frame. A flip that resumed guiding outside the
+/// run's guiding bookkeeping has it only armed again; otherwise it is started
+/// on a fresh star, as after any other move.
 pub(crate) async fn pick_up_guiding_after_hold(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {

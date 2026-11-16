@@ -221,6 +221,14 @@ pub(crate) struct ScriptedDeviceOps {
     pub(crate) stuck_at_limit: Arc<AtomicBool>,
     /// The RA axis does not move even when driven directly.
     pub(crate) axis_frozen: Arc<AtomicBool>,
+    /// A guider that does what it is told, as PHD2 does: a stop ends guiding
+    /// and a start guides.
+    pub(crate) guider_follows_commands: Arc<AtomicBool>,
+    /// Slews and syncs sent while the guider was guiding.
+    pub(crate) moves_while_guiding: Arc<AtomicU32>,
+    /// Degrees of Dec the next solves find the mount off where it was sent,
+    /// one per solve.
+    pub(crate) solve_dec_offsets_deg: Arc<Mutex<VecDeque<f64>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -260,6 +268,9 @@ impl ScriptedDeviceOps {
             observer_location: Arc::new(Mutex::new(None)),
             stuck_at_limit: Arc::new(AtomicBool::new(false)),
             axis_frozen: Arc::new(AtomicBool::new(false)),
+            guider_follows_commands: Arc::new(AtomicBool::new(false)),
+            moves_while_guiding: Arc::new(AtomicU32::new(0)),
+            solve_dec_offsets_deg: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
 
@@ -302,6 +313,12 @@ impl ScriptedDeviceOps {
 
     fn index_of(&self, call: &str) -> Option<usize> {
         self.calls.lock().unwrap().iter().position(|c| c == call)
+    }
+
+    fn count_move_while_guiding(&self) {
+        if self.guiding.load(Ordering::SeqCst) {
+            self.moves_while_guiding.fetch_add(1, Ordering::SeqCst);
+        }
     }
 
     fn set_connected(&self, id: &str, connected: bool) {
@@ -366,6 +383,7 @@ impl MountOps for ScriptedDeviceOps {
 
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.record(format!("mount_slew:{id}"));
+        self.count_move_while_guiding();
         if self.stuck_at_limit.load(Ordering::SeqCst) {
             return Ok(());
         }
@@ -399,6 +417,8 @@ impl MountOps for ScriptedDeviceOps {
         Ok(*self.mount_position.lock().unwrap())
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.record(format!("mount_sync:{id}"));
+        self.count_move_while_guiding();
         self.inner.mount_sync(id, ra, dec).await
     }
     async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
@@ -429,6 +449,7 @@ impl MountOps for ScriptedDeviceOps {
 impl CameraOps for ScriptedDeviceOps {
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
         self.exposure_calls.fetch_add(1, Ordering::SeqCst);
+        self.record("camera_exposure");
         if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
             mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
         }
@@ -488,6 +509,9 @@ impl GuiderOps for ScriptedDeviceOps {
         if self.guider_start_fails.load(Ordering::SeqCst) {
             return Err("simulated guider start failure: no star".into());
         }
+        if self.guider_follows_commands.load(Ordering::SeqCst) {
+            self.guiding.store(true, Ordering::SeqCst);
+        }
         let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
         let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
         if relock_after > 0 && n >= relock_after {
@@ -531,6 +555,9 @@ impl GuiderOps for ScriptedDeviceOps {
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.record("guider_stop");
         self.guider_start_count.store(0, Ordering::SeqCst);
+        if self.guider_follows_commands.load(Ordering::SeqCst) {
+            self.guiding.store(false, Ordering::SeqCst);
+        }
         Ok(())
     }
     async fn guider_dither(
@@ -642,7 +669,11 @@ impl PlateSolveOps for ScriptedDeviceOps {
             // A frame taken while the mount swings in trails every star.
             return Err("Only 1 stars found, minimum is 6".into());
         }
-        self.inner.plate_solve(d, ra, dec, s).await
+        let mut solved = self.inner.plate_solve(d, ra, dec, s).await?;
+        if let Some(offset) = self.solve_dec_offsets_deg.lock().unwrap().pop_front() {
+            solved.dec_degrees += offset;
+        }
+        Ok(solved)
     }
 }
 

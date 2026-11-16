@@ -1118,9 +1118,10 @@ const TRACKING_WAIT_BEFORE_FRAME: Duration = Duration::from_secs(120);
 /// Restart guiding before a light frame: guiding the run's own move stopped,
 /// and, while the run images unguided, a retry each
 /// [`super::guiding::UNGUIDED_RETRY_INTERVAL`]. Never on a mount that is not
-/// tracking or while the run holds it: guiding a stopped mount only drags the
-/// star. A pending restart waits for the mount; a due unguided retry is left
-/// for a later frame.
+/// tracking, or while the run holds or moves it: guiding a stopped mount only
+/// drags the star, and guiding during a move pulls against it. A pending
+/// restart waits for the mount; a due unguided retry is left for a later
+/// frame.
 async fn prepare_guiding_for_frame(
     ctx: &InstructionContext,
     waiting_since: &mut Option<tokio::time::Instant>,
@@ -1135,7 +1136,7 @@ async fn prepare_guiding_for_frame(
             state
                 .guiding
                 .unguided_retry_due(super::guiding::UNGUIDED_RETRY_INTERVAL),
-            state.run.is_held_by_run(),
+            state.run.is_held_by_run() || state.guiding.in_motion(),
             state.telemetry.mount_is_tracking == Some(false),
         )
     };

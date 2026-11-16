@@ -355,8 +355,11 @@ enum GuidingRestart {
 /// [`UNGUIDED_RETRY_INTERVAL`] while the run images unguided, so a night
 /// whose guiding was lost does not stay unguided.
 ///
-/// Nothing is started on a mount that is not tracking: the guider would
-/// chase a star the sky carries away. The restart waits for the mount.
+/// Nothing is started while the run is still moving the mount (a flip that
+/// has turned the mount over is still confirming tracking and recentering),
+/// nor on a mount that is not tracking: the guider would pull the mount
+/// against the move, or chase a star the sky carries away. The restart stays
+/// pending for a later frame.
 ///
 /// A guider that does not come back is a notice and the run images unguided,
 /// unless the operator asked quality problems to stop the run; then the frame
@@ -367,6 +370,9 @@ pub(crate) async fn resume_guiding_after_motion(
     let trigger_state = ctx.run.trigger_state.as_ref()?;
     let restart = {
         let mut state = trigger_state.write().await;
+        if state.guiding.in_motion() {
+            return None;
+        }
         if state.guiding.take_resume_pending() {
             GuidingRestart::AfterMotion
         } else if state.guiding.take_unguided_retry(UNGUIDED_RETRY_INTERVAL) {
