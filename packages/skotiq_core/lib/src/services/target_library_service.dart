@@ -7,7 +7,7 @@ import '../providers/async_scope.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
 import 'catalog_target_types.dart';
-import '../backend/roles/host_data/host_imaging_records.dart';
+import '../backend/network_backend.dart';
 import '../providers/logging_service_provider.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.

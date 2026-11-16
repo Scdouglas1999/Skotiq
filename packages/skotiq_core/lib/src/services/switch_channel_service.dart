@@ -9,7 +9,7 @@ import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
 import 'error_service.dart';
 import '../backend/remote_host.dart';
-import '../backend/roles/host_data/host_device_control.dart';
+import '../backend/network_backend.dart';
 import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
 

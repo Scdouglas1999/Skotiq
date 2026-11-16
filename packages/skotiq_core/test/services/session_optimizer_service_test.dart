@@ -6,6 +6,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart'
     show ImagingSession, DbTarget;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}
 

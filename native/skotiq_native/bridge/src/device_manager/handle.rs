@@ -122,7 +122,14 @@ impl DeviceHandle {
             DeviceHandle::Focuser(d) => {
                 DeviceCapabilities::Focuser(d.capabilities(device_id).await?)
             }
-            DeviceHandle::Camera(d) => d.capabilities(device_id).await?,
+            DeviceHandle::Camera(d) => {
+                let description = d.describe(device_id).await?;
+                let status = d.status().await.ok();
+                DeviceCapabilities::Camera(crate::device_capabilities::driver::camera_capabilities(
+                    description,
+                    status.as_ref(),
+                ))
+            }
             DeviceHandle::Mount(d) => d.capabilities(device_id).await?,
         })
     }

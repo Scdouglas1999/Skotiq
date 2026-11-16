@@ -35,7 +35,6 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/services.dart';
 
 void main() {
   group('TargetHeaderNode', () {

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart'
+import 'package:skotiq_core/src/errors/skotiq_exception.dart'
     show ValidationException;
 import 'package:skotiq_core/src/services/imaging_service.dart';
 

@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../database/database.dart' show TransientDetectionRow;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'transient_report_service.dart';
 
 /// Outcome of a TNS bulk-report submission.

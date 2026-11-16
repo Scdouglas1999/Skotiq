@@ -14,6 +14,7 @@ import 'centering_request.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 class FramingHandlers implements RouteSource {
   @override

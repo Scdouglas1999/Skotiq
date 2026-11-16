@@ -2,7 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../database/database.dart' as db;
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// [target] with the object type it reads: the deep-sky catalog's type for
 /// the object its catalog id, else its name, designates, so a catalog

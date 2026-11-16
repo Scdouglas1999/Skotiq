@@ -57,7 +57,7 @@ import '../services/hips/hips_tile_cache.dart';
 import '../services/hips/hips_tile_fetcher.dart';
 import '../services/hips/hips_tile_loader.dart';
 import '../models/framing_models.dart' show FramingTarget, SurveySource;
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Default bounds for the framing tile [HipsTileCache].
 ///

@@ -526,8 +526,6 @@ pub struct InstructionContext {
     /// When the cooler's time to bring the sensor to `set_temp_c` runs out;
     /// `None` when no cool step of this run gave it one.
     pub set_point_settle_by: Option<tokio::time::Instant>,
-    /// "RGGB", "BGGR", ...; `None` for a monochrome sensor.
-    pub bayer_pattern: Option<String>,
     pub cancellation_token: Arc<AtomicBool>,
 }
 
@@ -549,7 +547,6 @@ impl InstructionContext {
             current_binning: Binning::One,
             set_temp_c: None,
             set_point_settle_by: None,
-            bayer_pattern: None,
             cancellation_token,
         }
     }

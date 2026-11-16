@@ -15,7 +15,7 @@ import '../services/sensor_specs/camera_sensor_specs.dart';
 import 'auto_stretch_provider.dart' show connectedCameraIdProvider;
 import 'camera_sensor_specs_provider.dart';
 import 'capability_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import 'database_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'profiles_provider.dart';

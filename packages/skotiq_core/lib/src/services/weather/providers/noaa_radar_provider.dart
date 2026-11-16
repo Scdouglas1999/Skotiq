@@ -6,7 +6,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// NOAA NEXRAD radar provider for US and southern Canada coverage.
 ///

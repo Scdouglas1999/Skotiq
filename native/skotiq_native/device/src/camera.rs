@@ -3,9 +3,7 @@
 use serde::{Deserialize, Serialize};
 use skotiq_cfa::ColorFilterArray;
 
-/// A gain or offset in [`ImageMetadata`] that the camera could not report
-/// when the frame was read. Whoever writes the frame's header uses the value
-/// the exposure was configured with instead.
+/// A gain or offset in [`CameraStatus`] that the camera could not report.
 pub const UNKNOWN_CAMERA_SETTING: i32 = -1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -387,26 +385,50 @@ pub struct VendorFeatures {
     pub custom_data: std::collections::HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Clone)]
+/// A frame as a camera delivered it: the one frame type from the driver to
+/// the sequencer and the bridge.
+///
+/// A driver fills what its camera reports and leaves the rest at
+/// [`Default`]; whoever takes the frame from the driver fills in what the
+/// exposure was configured with where the camera could not say.
+#[derive(Debug, Clone, Default)]
 pub struct ImageData {
     pub width: u32,
     pub height: u32,
-    pub data: Vec<u16>, // 16-bit raw data
+    pub data: Vec<u16>,
     pub bits_per_pixel: u32,
+    /// The color filter at the frame's pixel (0, 0); `None` for a mono frame.
     pub bayer_pattern: Option<ColorFilterArray>,
     pub metadata: ImageMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl ImageData {
+    /// The 2x2 Bayer cell for the previews that demosaic a frame; `None` for
+    /// a mono frame and for X-Trans, which they show as luminance.
+    pub fn bayer_cell(&self) -> Option<skotiq_cfa::BayerPattern> {
+        self.bayer_pattern?.bayer()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ImageMetadata {
+    /// Seconds. 0 when the camera did not say.
     pub exposure_time: f64,
-    pub gain: i32,
-    pub offset: i32,
+    /// The gain the frame was taken at; `None` when it is not known, and for
+    /// a camera without the control.
+    pub gain: Option<i32>,
+    /// As [`Self::gain`], for the offset.
+    pub offset: Option<i32>,
     pub bin_x: i32,
     pub bin_y: i32,
+    /// Sensor temperature at read-out, in degrees Celsius.
     pub temperature: Option<f64>,
+    /// When the exposure started. The camera layer that started it sets it;
+    /// a driver leaves it.
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub subframe: Option<SubFrame>,
+    /// The read mode the camera read the frame out in, by its own name;
+    /// `None` for a camera with one mode or one that does not say.
     pub readout_mode: Option<String>,
     pub vendor_data: VendorFeatures,
     /// The camera's own file for this frame, when it delivers one.

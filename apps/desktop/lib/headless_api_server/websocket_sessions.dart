@@ -90,7 +90,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
       }),
     );
 
-    socket.stream.listen(
+    _socketSubscriptions[socket] = socket.stream.listen(
       (message) {
         // Handle incoming messages (e.g. pings)
         try {
@@ -136,6 +136,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     _socketAuthIdentities.remove(socket);
     _adminSockets.remove(socket);
     _socketLastSeenAt.remove(socket);
+    _socketSubscriptions.remove(socket);
     _sockets.remove(socket);
     _publishConnectedClientCount();
     if (_sockets.isEmpty) {

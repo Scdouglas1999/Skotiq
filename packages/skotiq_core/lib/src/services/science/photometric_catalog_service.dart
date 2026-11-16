@@ -11,7 +11,7 @@ import 'package:path/path.dart' as p;
 
 import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'photometric_bands.dart';
 import '../../providers/logging_service_provider.dart';

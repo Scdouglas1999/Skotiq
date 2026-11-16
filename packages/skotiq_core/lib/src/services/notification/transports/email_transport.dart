@@ -27,7 +27,7 @@ import 'dart:io';
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// Strategy hook so tests can swap the socket layer for an in-memory
 /// fake. Defaults to real TCP / TLS sockets from `dart:io`.

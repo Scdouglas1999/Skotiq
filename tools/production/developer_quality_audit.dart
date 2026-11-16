@@ -16,7 +16,7 @@ const _responseHelperPath =
 const _oversizedAuditPath =
     'docs/production-readiness/oversized-file-audit.json';
 const _loggingServicePath =
-    'packages/skotiq_core/lib/src/services/logging_service.dart';
+    'packages/skotiq_core/lib/src/utils/logging_service.dart';
 const _loggingServiceTestPath =
     'packages/skotiq_core/test/services/logging_service_test.dart';
 const _headlessServerPath = 'apps/desktop/lib/headless_api_server.dart';

@@ -18,14 +18,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'linked_host.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/notification/transport_configs.dart';
-import '../services/home_assistant/home_assistant_discovery_config.dart';
+import '../models/notification/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_discovery_service.dart';
-import '../services/home_assistant/home_assistant_host_settings.dart';
+import '../models/notification/home_assistant_host_settings.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
 import '../database/daos/settings_dao.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 class HomeAssistantConfigNotifier
     extends AsyncNotifier<HomeAssistantDiscoveryConfig> {

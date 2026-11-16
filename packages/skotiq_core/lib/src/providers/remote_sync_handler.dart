@@ -45,7 +45,7 @@ import 'target_progress_provider.dart' show targetProgressProvider;
 import '../models/backend/backend_types.dart';
 import 'capture_preview_loader_provider.dart';
 import 'device_service_providers.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'remote_sync/equipment_mirror.dart';
 part 'remote_sync/imaging_mirror.dart';

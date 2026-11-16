@@ -1,5 +1,5 @@
 import '../models/imaging/session_status.dart';
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +30,8 @@ import '../settings/app_settings_state.g.dart';
 import '../settings/capture_format.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
+import '../database/rows/imaging_session_status.dart';
 
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
   return const ExposureSettings(

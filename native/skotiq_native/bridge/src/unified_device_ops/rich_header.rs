@@ -20,12 +20,12 @@ pub(crate) fn build_rich_header(
     // keyword outright. Gain and offset have no fallback: the context holds
     // the frame's own, and `None` there means the camera has no such control.
     if header.ccd_temp.is_none() {
-        header.ccd_temp = image_data.temperature;
+        header.ccd_temp = image_data.metadata.temperature;
     }
     if frame_ctx.duration_secs <= 0.0 {
-        header.exposure_time = image_data.exposure_secs;
+        header.exposure_time = image_data.metadata.exposure_time;
     }
-    header.readout_mode = image_data.readout_mode.clone();
+    header.readout_mode = image_data.metadata.readout_mode.clone();
 
     // The mount's own report wins over the target's nominal coordinates: RA
     // and DEC mean "where the telescope was", not "where the sequence meant to

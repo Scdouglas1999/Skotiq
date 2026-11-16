@@ -21,7 +21,7 @@ import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/post_session_integration_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 /// Records the args of every call and returns scriptable results, so the
 /// orchestration services run end-to-end without native code.

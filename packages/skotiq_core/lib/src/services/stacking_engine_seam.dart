@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import 'live_stacking_service.dart';
+import '../models/imaging/live_stacking_models.dart';
 
 /// A linear, unstretched FITS read: the raw sensor pixels plus dimensions.
 ///

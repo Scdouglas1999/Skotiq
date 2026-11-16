@@ -1,10 +1,10 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:convert';
 
 import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/science_dao.dart';
-import '../backend/roles/host_data/host_records.dart';
+import '../database/stores/host_records.dart';
 import '../backend/roles/host_data/imaging_records.dart';
 import '../database/database.dart';
 import '../models/session_report.dart';

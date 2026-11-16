@@ -480,9 +480,9 @@ class _CameraSensorSpecsDialogState
   static const int _profileGainFallback = 100;
 
   Future<List<CameraHardwareSpec>> _loadExisting() async {
-    final hostPlanning = ref.read(linkedHostPlanningProvider);
-    final raw = hostPlanning != null
-        ? (await hostPlanning.getSmartNightSettings())[
+    final hostSettings = ref.read(linkedHostRigSettingsProvider);
+    final raw = hostSettings != null
+        ? (await hostSettings.getSmartNightSettings())[
             HardwareSpecsService.cameraOverridesSettingKey]
         : await ref
             .read(settingsDaoProvider)
@@ -495,8 +495,8 @@ class _CameraSensorSpecsDialogState
 
   Future<void> _persist(List<CameraHardwareSpec> specs) async {
     final encoded = jsonEncode(specs.map((spec) => spec.toJson()).toList());
-    if (ref.read(linkedHostPlanningProvider) case final hostPlanning?) {
-      await hostPlanning.updateSmartNightSettings({
+    if (ref.read(linkedHostRigSettingsProvider) case final hostSettings?) {
+      await hostSettings.updateSmartNightSettings({
         HardwareSpecsService.cameraOverridesSettingKey: encoded,
       });
       return;

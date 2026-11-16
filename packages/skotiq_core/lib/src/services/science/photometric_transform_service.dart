@@ -9,7 +9,7 @@ import '../../database/daos/science_dao.dart';
 import '../../database/database.dart' as db;
 import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'photometric_bands.dart';
 import '../../providers/logging_service_provider.dart';
 

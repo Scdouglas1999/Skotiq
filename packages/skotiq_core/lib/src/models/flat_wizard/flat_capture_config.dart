@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../services/flat_exposure_calculator.dart';
+import 'flat_exposure_calculator.dart';
 import '../backend/device_capabilities.dart';
 import 'flat_wizard_settings.dart';
 

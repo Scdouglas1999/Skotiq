@@ -3,41 +3,7 @@
 use super::DeviceResult;
 use async_trait::async_trait;
 
-/// Image data returned from camera
-#[derive(Debug, Clone)]
-pub struct ImageData {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u16>,
-    pub bits_per_pixel: u32,
-    pub exposure_secs: f64,
-    pub gain: Option<i32>,
-    pub offset: Option<i32>,
-    pub temperature: Option<f64>,
-    pub filter: Option<String>,
-    pub timestamp: i64,
-    /// Sensor type: "Monochrome" or "Color"
-    pub sensor_type: Option<String>,
-    /// The color filter at the frame's pixel (0, 0); `None` for a mono frame.
-    pub color_filter: Option<skotiq_cfa::ColorFilterArray>,
-    /// The camera's own file for this frame (a DSLR's raw file), when it
-    /// delivered one.
-    pub camera_file: Option<skotiq_device::CameraFile>,
-    /// The read mode the camera read the frame out in, by its own name;
-    /// `None` for a camera with one mode or one that does not say.
-    pub readout_mode: Option<String>,
-}
-
-impl ImageData {
-    /// The 2x2 Bayer cell for the previews that demosaic a frame; `None` for
-    /// a mono frame and for X-Trans, which they show as luminance.
-    pub fn bayer_cell(&self) -> Option<skotiq_imaging::BayerPattern> {
-        match self.color_filter? {
-            skotiq_cfa::ColorFilterArray::Bayer(pattern) => Some(pattern),
-            skotiq_cfa::ColorFilterArray::XTrans(_) => None,
-        }
-    }
-}
+pub use skotiq_device::ImageData;
 
 /// Binned-pixel camera ROI used for one exposure.
 #[derive(Debug, Clone, PartialEq, Eq)]

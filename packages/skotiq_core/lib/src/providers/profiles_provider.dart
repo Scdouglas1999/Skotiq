@@ -22,11 +22,12 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'host_mutation_event_provider.dart';
 import '../services/host_mutation_event_hub.dart' show HostMutationEventHub;
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import 'profile_activation_writethrough.dart';
 import 'logging_service_provider.dart';
 import 'profile_service_provider.dart';
 
+import '../database/rows/equipment_profile_rows.dart';
 part 'profiles/equipment_profiles_notifier.dart';
 part 'profiles/profile_derived_providers.dart';
 

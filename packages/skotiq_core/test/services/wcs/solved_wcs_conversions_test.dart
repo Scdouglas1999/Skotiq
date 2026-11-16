@@ -11,7 +11,7 @@ import 'package:skotiq_core/src/providers/catalog_overlay_provider.dart';
 import 'package:skotiq_core/src/services/post_session_integration_service.dart'
     show MasterWcsSolution;
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_models.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 import 'package:skotiq_core/src/services/wcs/plate_solve_data_from_result.dart';
 
 /// A master's solve referenced off its centre, with distortion: the form a

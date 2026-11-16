@@ -14,7 +14,7 @@ import 'preview_viewport.dart';
 import 'session_stack_plan.dart';
 import 'stacking_panel.dart'
     show StackedPreviewStretch, stackedPreviewStretchProvider;
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Where the live stack canvas is zoomed and panned to.
 ///

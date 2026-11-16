@@ -233,7 +233,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   @override
   Future<AdaptiveSwapSnapshot?> sequencerGetAdaptiveSwapSnapshot() async {
     final raw = await bridge.apiSequencerGetAdaptiveSwapJson();
-    return AdaptiveSwapDriver.decodeSnapshotJson(raw);
+    return AdaptiveSwapSnapshot.decodeSnapshotJson(raw);
   }
 
   @override

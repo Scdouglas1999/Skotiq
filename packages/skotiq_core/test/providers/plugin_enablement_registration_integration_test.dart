@@ -24,7 +24,6 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-import 'package:skotiq_plugins/src/plugin_registration.dart';
 
 const _discordId = 'com.skotiq.examples.discord_webhook';
 const _pushoverId = 'com.skotiq.examples.pushover';

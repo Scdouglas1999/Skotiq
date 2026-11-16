@@ -6,7 +6,7 @@ import 'linked_host.dart';
 import '../database/database.dart' as db;
 import '../models/planning/target_suggestion.dart';
 import '../services/catalog_target_types.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
 import 'clock_provider.dart';

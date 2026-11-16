@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
 
-import '../backend/roles/host_data/observation_log.dart';
+import '../database/stores/observation_log.dart';
 import '../database/daos/observation_logs_dao.dart';
 import '../database/database.dart';
 import 'async_scope.dart';
