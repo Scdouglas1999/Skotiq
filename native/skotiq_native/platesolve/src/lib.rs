@@ -2071,10 +2071,22 @@ mod tests {
 
     #[test]
     fn wait_gives_up_on_a_solver_that_outlives_the_timeout() {
-        let mut child = std::process::Command::new("sleep")
-            .arg("5")
-            .spawn()
-            .expect("spawn");
+        // Windows has no `sleep`; `ping` waits a second between echoes.
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = std::process::Command::new("ping");
+            command
+                .args(["-n", "6", "127.0.0.1"])
+                .stdout(std::process::Stdio::null());
+            command
+        };
+        #[cfg(not(windows))]
+        let mut command = {
+            let mut command = std::process::Command::new("sleep");
+            command.arg("5");
+            command
+        };
+        let mut child = command.spawn().expect("spawn");
         let started = std::time::Instant::now();
 
         let result =
