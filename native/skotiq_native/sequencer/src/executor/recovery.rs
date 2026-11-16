@@ -3,9 +3,9 @@
 //! the operator's "Try now" and "Abort" are in `lifecycle.rs`, and the
 //! ladder's cadence is an operator setting in `runtime_config.rs`.
 
-use super::SequenceExecutor;
+use super::ExecutorHandle;
 
-impl SequenceExecutor {
+impl ExecutorHandle {
     /// Snapshot of the current in-flight recovery context. `None` when the
     /// executor is not in `Recovering`. Returned by-value so callers can
     /// inspect without holding the lock — useful for the Run Dashboard

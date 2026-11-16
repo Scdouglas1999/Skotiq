@@ -63,10 +63,7 @@ fn sequencer_told(events: &mut tokio::sync::broadcast::Receiver<ExecutorEvent>) 
 }
 
 async fn executor_events() -> tokio::sync::broadcast::Receiver<ExecutorEvent> {
-    crate::api::sequencer::get_sequence_executor()
-        .read()
-        .await
-        .subscribe()
+    skotiq_sequencer::executor_handle().subscribe()
 }
 
 #[tokio::test(flavor = "multi_thread")]

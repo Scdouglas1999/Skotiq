@@ -77,27 +77,54 @@ class SmartNightFilterChoice {
   final String reason;
 
   /// A set that would also suit the target and that the wheel can capture,
-  /// offered beside [strategy] and never taken without the user
-  /// ([SmartNightStrategy.haLrgb] for a broadband target with catalogued
-  /// emission regions inside it); null when there is none.
-  final SmartNightStrategy? suggested;
+  /// offered beside [recommended] and never taken without the user (LRGB +
+  /// Ha for a broadband target with catalogued emission regions inside it);
+  /// null when there is none.
+  final FilterSet? suggested;
 
   /// One line offering [suggested]; null with it.
   final String? suggestion;
 
   final List<String> _availableFilters;
   final bool _preferMultiBand;
+  final bool _oneShotColor;
+  final String _label;
+  final String _why;
 
   const SmartNightFilterChoice._({
     required this.strategy,
     required this.filters,
     required this.reason,
+    required String label,
+    required String why,
     required this.suggested,
     required this.suggestion,
     required List<String> availableFilters,
     required bool preferMultiBand,
-  }) : _availableFilters = availableFilters,
-       _preferMultiBand = preferMultiBand;
+    required bool oneShotColor,
+  }) : _label = label,
+       _why = why,
+       _availableFilters = availableFilters,
+       _preferMultiBand = preferMultiBand,
+       _oneShotColor = oneShotColor;
+
+  /// The named filters on the rig's wheel or profile, in slot order; empty
+  /// for no wheel.
+  List<String> get wheelFilters => _availableFilters;
+
+  /// The Filters picker's line for [recommended]
+  /// ("Recommended: narrowband SHO, {target} is a supernova remnant.").
+  String get recommendation {
+    final lowered = _label.length > 1 && _label[1] == _label[1].toLowerCase()
+        ? '${_label[0].toLowerCase()}${_label.substring(1)}'
+        : _label;
+    return 'Recommended: $lowered, $_why.';
+  }
+
+  /// The chosen set as the Filters picker lists it.
+  FilterSet get recommended => strategy == SmartNightStrategy.oscOneShot
+      ? FilterSet.single(filters.single)
+      : FilterSet.preset(strategy, filters);
 
   /// The wheel slots [set] means for this target on this rig; empty when
   /// the wheel lacks what [set] needs.
@@ -109,23 +136,57 @@ class SmartNightFilterChoice {
           preferMultiBand: _preferMultiBand,
         );
 
-  /// The sets this rig can capture, the chosen one among them.
-  List<SmartNightStrategy> get capturable => [
-    for (final set in SmartNightStrategy.values)
-      if (filtersFor(set).isNotEmpty) set,
-  ];
+  /// The combinations this rig can image, for the Filters picker, in the
+  /// order it lists them: [recommended] among them, then the user's
+  /// [saved] sets whose every filter is on the wheel.
+  ///
+  /// A color camera images through one filter at a time: each filter on its
+  /// wheel or profile alone, or no filter without one. A mono camera gets
+  /// every set Skotiq knows whose filters are all on the wheel.
+  List<FilterSet> sets({List<CustomFilterSet> saved = const []}) {
+    final named = smartNightPlanningFilters(_availableFilters);
+    final known = _oneShotColor || _availableFilters.isEmpty
+        ? [for (final filter in named) FilterSet.single(filter)]
+        : [
+            for (final preset in filterSetPresetOrder)
+              if (filtersFor(preset) case final slots when slots.isNotEmpty)
+                FilterSet.preset(preset, slots),
+          ];
+    final custom = [
+      for (final set in saved)
+        if (set.resolve(_availableFilters) case final resolved?) resolved,
+    ];
+    final all = [...known, ...custom];
+    return [
+      if (!all.any((set) => set.key == recommended.key)) recommended,
+      ...all,
+    ];
+  }
 
   /// The line for a plan built with [set]: [reason] when [set] is the
   /// chosen one, else that the user picked it.
-  String reasonFor(SmartNightStrategy set) => set == strategy
-      ? reason
-      : '${smartNightStrategyLabel(set)}: your choice.';
+  String reasonFor(FilterSet set) =>
+      set.key == recommended.key ? reason : '${set.label}: your choice.';
 
   /// [suggestion] for a plan built with [set]: only the chosen set carries
   /// it, so a plan the user changed does not repeat the offer.
-  String? suggestionFor(SmartNightStrategy set) =>
-      set == strategy ? suggestion : null;
+  String? suggestionFor(FilterSet set) =>
+      set.key == recommended.key ? suggestion : null;
 }
+
+/// The order the Filters picker lists the sets Skotiq knows.
+const List<SmartNightStrategy> filterSetPresetOrder = [
+  SmartNightStrategy.autoLrgb,
+  SmartNightStrategy.monoLrgb,
+  SmartNightStrategy.rgb,
+  SmartNightStrategy.luminance,
+  SmartNightStrategy.haLrgb,
+  SmartNightStrategy.narrowbandSho,
+  SmartNightStrategy.narrowbandHoo,
+  SmartNightStrategy.narrowbandHa,
+  SmartNightStrategy.narrowbandOiii,
+  SmartNightStrategy.narrowbandSii,
+];
 
 /// The filter set for [target] on a rig whose wheel holds
 /// [availableFilters] (empty for no wheel).
@@ -134,14 +195,13 @@ class SmartNightFilterChoice {
 ///   for a target with emission, else a broadband light filter, else none.
 /// - An emission target is narrowband: SHO with Ha, OIII and SII on the
 ///   wheel, HOO with Ha and OIII, Ha alone with only Ha. Without Ha it falls
-///   back to LRGB.
-/// - A broadband target is LRGB (with whichever of L, R, G and B the wheel
-///   has), narrowband only on a wheel with none of them. When the catalog
-///   holds emission objects inside the target's extent
-///   ([catalogedEmissionRegions], such as a galaxy's HII regions) and the
-///   wheel has Ha, LRGB + Ha is offered ([SmartNightFilterChoice.suggestion])
-///   but not taken: people often image a full night of LRGB and add Ha on a
-///   later night.
+///   back to broadband.
+/// - A broadband target is LRGB, else RGB, else L, narrowband only on a
+///   wheel with none of those. When the catalog holds emission objects
+///   inside the target's extent ([catalogedEmissionRegions], such as a
+///   galaxy's HII regions) and the wheel has Ha, LRGB + Ha is offered
+///   ([SmartNightFilterChoice.suggestion]) but not taken: people often image
+///   a full night of LRGB and add Ha on a later night.
 /// - A wheel that names no known band takes one filter, its first slot.
 SmartNightFilterChoice chooseSmartNightFilters({
   required TargetSuggestion target,
@@ -165,24 +225,39 @@ SmartNightFilterChoice chooseSmartNightFilters({
     String why, {
     String? label,
     SmartNightStrategy? suggested,
-  }) => SmartNightFilterChoice._(
-    strategy: set,
-    filters: resolveSmartNightFilterSet(
+  }) {
+    final offered = suggested == null
+        ? null
+        : FilterSet.preset(
+            suggested,
+            resolveSmartNightFilterSet(
+              strategy: suggested,
+              availableFilters: named,
+            ),
+          );
+    final shown = label ?? smartNightStrategyLabel(set);
+    return SmartNightFilterChoice._(
       strategy: set,
+      filters: resolveSmartNightFilterSet(
+        strategy: set,
+        availableFilters: named,
+        preferMultiBand: preferMultiBand,
+      ),
+      reason: '$shown: $why.',
+      label: shown,
+      why: why,
+      suggested: offered,
+      suggestion: offered == null
+          ? null
+          : '${target.targetName} holds $catalogedEmissionRegions '
+                'emission region${catalogedEmissionRegions == 1 ? '' : 's'} in '
+                'the catalog, and you have an Ha filter: add Ha to this plan '
+                'or a later night.',
       availableFilters: named,
       preferMultiBand: preferMultiBand,
-    ),
-    reason: '${label ?? smartNightStrategyLabel(set)}: $why.',
-    suggested: suggested,
-    suggestion: suggested == null
-        ? null
-        : '${target.targetName} holds $catalogedEmissionRegions '
-              'emission region${catalogedEmissionRegions == 1 ? '' : 's'} in '
-              'the catalog, and you have an Ha filter: add Ha to this plan or '
-              'a later night.',
-    availableFilters: named,
-    preferMultiBand: preferMultiBand,
-  );
+      oneShotColor: oneShotColor,
+    );
+  }
 
   if (named.isEmpty) {
     return choose(
@@ -201,7 +276,7 @@ SmartNightFilterChoice chooseSmartNightFilters({
     return choose(
       SmartNightStrategy.oscOneShot,
       '$what, and the camera is a color camera',
-      label: _isMultiBand(filter)
+      label: isMultiBandFilter(filter)
           ? 'One-shot color through $filter'
           : 'One-shot color',
     );
@@ -216,25 +291,27 @@ SmartNightFilterChoice chooseSmartNightFilters({
     SmartNightStrategy.narrowbandHoo,
     SmartNightStrategy.narrowbandHa,
   ].where(capturable).firstOrNull;
-  final hasBroadband = capturable(SmartNightStrategy.autoLrgb);
+  final broadband = const [
+    SmartNightStrategy.autoLrgb,
+    SmartNightStrategy.rgb,
+    SmartNightStrategy.luminance,
+  ].where(capturable).firstOrNull;
   const noBroadband = 'the wheel has no L, R, G or B filter';
 
   switch (light) {
     case TargetLight.emission:
       if (narrowband != null) return choose(narrowband, what);
-      if (hasBroadband) {
-        return choose(
-          SmartNightStrategy.autoLrgb,
-          '$what, but the wheel has no Ha filter',
-        );
+      if (broadband != null) {
+        return choose(broadband, '$what, but the wheel has no Ha filter');
       }
     case TargetLight.broadband:
-      if (hasBroadband) {
+      if (broadband != null) {
         return choose(
-          SmartNightStrategy.autoLrgb,
+          broadband,
           what,
           suggested:
-              catalogedEmissionRegions > 0 &&
+              broadband == SmartNightStrategy.autoLrgb &&
+                  catalogedEmissionRegions > 0 &&
                   capturable(SmartNightStrategy.haLrgb)
               ? SmartNightStrategy.haLrgb
               : null,
@@ -257,14 +334,13 @@ SmartNightFilterChoice chooseSmartNightFilters({
 }
 
 /// The wheel slots [strategy] means on a wheel holding [availableFilters],
-/// in capture order. A narrowband set needs each of its filters; LRGB takes
-/// whichever of L, R, G and B are there; LRGB + Ha needs Ha and one of them.
-/// [SmartNightStrategy.oscOneShot] is one slot: a broadband light filter
-/// (L, UV/IR cut, L-Pro, CLS) or, with [preferMultiBand] or when there is no
-/// light filter, a dual- or multi-band filter; else the first slot; else
-/// [smartNightUnfilteredName] for no wheel. A slot two names could mean
-/// ("Ha 3nm" and "Ha 7nm" for Ha) is not guessed: that band counts as
-/// missing.
+/// in capture order; empty unless the wheel has every filter the set
+/// names. [SmartNightStrategy.oscOneShot] is one slot: a broadband light
+/// filter (L, UV/IR cut, L-Pro, CLS) or, with [preferMultiBand] or when
+/// there is no light filter, a dual- or multi-band filter; else the first
+/// slot; else [smartNightUnfilteredName] for no wheel. A slot two names
+/// could mean ("Ha 3nm" and "Ha 7nm" for Ha) is not guessed: that band
+/// counts as missing.
 List<String> resolveSmartNightFilterSet({
   required SmartNightStrategy strategy,
   required List<String> availableFilters,
@@ -274,32 +350,33 @@ List<String> resolveSmartNightFilterSet({
     for (final f in availableFilters)
       if (f.trim().isNotEmpty) f,
   ];
-  String? slot(String band) => matchingFilterName(band, named);
   List<String> all(List<String> bands) {
-    final slots = bands.map(slot).toList();
+    final slots = [for (final band in bands) matchingFilterName(band, named)];
     return slots.contains(null) ? const [] : slots.cast<String>();
   }
-
-  final lrgb = [
-    for (final band in const ['L', 'R', 'G', 'B'])
-      if (slot(band) case final name?) name,
-  ];
 
   switch (strategy) {
     case SmartNightStrategy.autoLrgb:
     case SmartNightStrategy.monoLrgb:
-      return lrgb;
+      return all(const ['L', 'R', 'G', 'B']);
     case SmartNightStrategy.haLrgb:
-      final ha = slot('Ha');
-      return ha == null || lrgb.isEmpty ? const [] : [...lrgb, ha];
+      return all(const ['L', 'R', 'G', 'B', 'Ha']);
+    case SmartNightStrategy.rgb:
+      return all(const ['R', 'G', 'B']);
+    case SmartNightStrategy.luminance:
+      return all(const ['L']);
     case SmartNightStrategy.narrowbandHa:
       return all(const ['Ha']);
     case SmartNightStrategy.narrowbandHoo:
       return all(const ['Ha', 'OIII']);
     case SmartNightStrategy.narrowbandSho:
       return all(const ['Ha', 'OIII', 'SII']);
+    case SmartNightStrategy.narrowbandOiii:
+      return all(const ['OIII']);
+    case SmartNightStrategy.narrowbandSii:
+      return all(const ['SII']);
     case SmartNightStrategy.oscOneShot:
-      final multiBand = named.where(_isMultiBand);
+      final multiBand = named.where(isMultiBandFilter);
       final light = named.where(
         (f) => _lightFilterIdentities.contains(filterIdentity(f)),
       );
@@ -318,9 +395,13 @@ String smartNightStrategyLabel(SmartNightStrategy strategy) =>
       SmartNightStrategy.autoLrgb => 'LRGB',
       SmartNightStrategy.monoLrgb => 'LRGB, equal time',
       SmartNightStrategy.haLrgb => 'LRGB + Ha',
+      SmartNightStrategy.rgb => 'RGB',
+      SmartNightStrategy.luminance => 'Luminance',
       SmartNightStrategy.narrowbandHa => 'Narrowband Ha',
       SmartNightStrategy.narrowbandHoo => 'Narrowband HOO',
       SmartNightStrategy.narrowbandSho => 'Narrowband SHO',
+      SmartNightStrategy.narrowbandOiii => 'Narrowband OIII',
+      SmartNightStrategy.narrowbandSii => 'Narrowband SII',
       SmartNightStrategy.oscOneShot => 'One filter',
     };
 
@@ -328,7 +409,7 @@ String smartNightStrategyLabel(SmartNightStrategy strategy) =>
 const Set<String> _lightFilterIdentities = {'L', 'UVIRCUT', 'LPRO', 'CLS'};
 
 /// Whether [filter] passes Ha and OIII in one frame (L-eXtreme, ALP-T).
-bool _isMultiBand(String filter) =>
+bool isMultiBandFilter(String filter) =>
     filterBands(filter).containsAll(const {'HA', 'OIII'});
 
 /// "a supernova remnant", "an HII region" for an object type; null when

@@ -21,7 +21,7 @@
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
-use super::{ExecutorCommand, SequenceExecutor};
+use super::{ExecutorCommand, ExecutorHandle, SequenceExecutor};
 use crate::decision::{DecisionCategory, DecisionEvent, RunStop};
 
 /// Who asked a run to stop.
@@ -109,29 +109,6 @@ impl RunStopping {
 }
 
 impl SequenceExecutor {
-    /// Pause the sequence. The currently-running instruction (e.g. an in-
-    /// flight exposure) continues to completion; the next container's
-    /// tree-walk step honours the pause by blocking on `resume_notify`.
-    ///
-    /// Invariant: idempotent — calling `pause()` on an already-paused
-    /// sequence is a no-op (the channel send is dropped silently by the
-    /// command loop's `Pause` arm).
-    pub async fn pause(&self) -> Result<(), String> {
-        if let Some(tx) = self.commands.sender() {
-            tx.send(ExecutorCommand::Pause)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-        self.emit_manual_intervention("pause", serde_json::json!({}));
-        Ok(())
-    }
-
-    /// Resume from a `Paused` state. The executor task wakes via the shared
-    /// `resume_notify` and the node tree picks up at the next walk step.
-    pub async fn resume(&self) -> Result<(), String> {
-        self.handle().resume().await
-    }
-
     /// Whether a run is under way: started and not yet at its end. Such a run
     /// announces its own end.
     pub fn has_run_in_flight(&self) -> bool {
@@ -205,21 +182,6 @@ impl SequenceExecutor {
         }
     }
 
-    /// Replay Debug — emit a [`crate::decision::DecisionCategory::ManualIntervention`]
-    /// event with the supplied action tag (`pause`, `resume`, `stop`,
-    /// `skip`, `skip_to_node`, `recovery_try_now`, `recovery_abort`).
-    /// Direct broadcast — does not go through the command channel so even
-    /// idle / pre-start invocations are logged (mostly a no-op then, but
-    /// the audit trail is honest).
-    ///
-    /// `pub(super)` because the lifecycle methods in this file are the
-    /// only legitimate callers — runtime-config mutators in
-    /// `runtime_config.rs` emit their own `RuntimeConfigUpdated` event
-    /// instead.
-    pub(super) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        self.handle().emit_manual_intervention(action, details);
-    }
-
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::SystemEvent`]
     /// decision from a lifecycle method. Unlike the operator's stop
     /// decision this respects the decision-logging gate: it records what
@@ -239,11 +201,32 @@ impl SequenceExecutor {
             summary: summary.to_string(),
             details,
             node_id: None,
-            sequence_run_id: self.active_sequence_run_id(),
+            sequence_run_id: *self.active_sequence_run_id.read(),
             notice: None,
             stop: Some(stop),
         };
         let _ = self.decision_tx.send(ev);
+    }
+
+    // Recovery Mode — operator-driven loop controls
+}
+
+impl ExecutorHandle {
+    /// Pause the sequence. The currently-running instruction (e.g. an in-
+    /// flight exposure) continues to completion; the next container's
+    /// tree-walk step honours the pause by blocking on `resume_notify`.
+    ///
+    /// Invariant: idempotent — calling `pause()` on an already-paused
+    /// sequence is a no-op (the channel send is dropped silently by the
+    /// command loop's `Pause` arm).
+    pub async fn pause(&self) -> Result<(), String> {
+        if let Some(tx) = self.commands.sender() {
+            tx.send(ExecutorCommand::Pause)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        self.emit_manual_intervention("pause", serde_json::json!({}));
+        Ok(())
     }
 
     /// Dart side reports the verdict of a plugin node
@@ -294,8 +277,6 @@ impl SequenceExecutor {
         self.emit_manual_intervention("skip", serde_json::json!({}));
         Ok(())
     }
-
-    // Recovery Mode — operator-driven loop controls
 
     /// Operator pressed "Try Now" on the dashboard banner — punch through
     /// the wait timer and fire the next recovery attempt immediately. No-op

@@ -283,6 +283,12 @@ impl SequenceExecutor {
             decision_tx: self.decision_tx.clone(),
             active_sequence_run_id: self.active_sequence_run_id.clone(),
             devices: self.devices.clone(),
+            sky: self.sky.clone(),
+            defect_map_apply: self.defect_map_apply.clone(),
+            recovery_signals: self.recovery_signals.clone(),
+            current_recovery: self.current_recovery.clone(),
+            recovery_history: self.recovery_history.clone(),
+            shared_adaptive_swap_state: self.shared_adaptive_swap_state.clone(),
         }
     }
 
@@ -327,9 +333,12 @@ impl Default for SequenceExecutor {
 }
 
 /// The parts of an executor that callers outside a run read and change
-/// without holding the executor: the run's state and progress, and the
-/// operator's settings. Each has its own lock, so a status read or a settings
-/// change never waits behind a start, a stop or each other.
+/// without holding the executor: the run's state, progress and events, the
+/// operator's settings and commands to the run (pause, skip, recovery), the
+/// sky feed, the defect map and the recovery record. Each has its own lock, so
+/// none of them waits behind a start, a stop or each other. The executor itself
+/// is taken for what it owns: the loaded sequence, the run, its wiring and its
+/// checkpoint.
 #[derive(Clone)]
 pub struct ExecutorHandle {
     run_state: RunCell,
@@ -339,6 +348,12 @@ pub struct ExecutorHandle {
     decision_tx: crate::decision::DecisionSender,
     active_sequence_run_id: Arc<StdRwLock<Option<i64>>>,
     devices: Arc<StdRwLock<AssignedDevices>>,
+    sky: SkyFeed,
+    defect_map_apply: Arc<RwLock<Option<DefectMapApplyState>>>,
+    recovery_signals: Arc<crate::recovery::RecoverySignals>,
+    current_recovery: Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
+    recovery_history: Arc<StdRwLock<Vec<crate::recovery::RecoveryHistoryEntry>>>,
+    shared_adaptive_swap_state: Arc<RwLock<crate::node::context::AdaptiveSwapRuntimeState>>,
 }
 
 /// The devices the host assigned to the executor's runs, by role: the

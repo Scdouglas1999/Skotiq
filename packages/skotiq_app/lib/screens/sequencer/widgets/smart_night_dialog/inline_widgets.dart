@@ -494,7 +494,8 @@ class _StrategyTile extends StatelessWidget {
         return (
           title: 'Per target',
           subtitle: 'Narrowband for emission nebulae, LRGB for galaxies and '
-              'clusters, from what your wheel holds and the moon.',
+              'clusters, from what your wheel holds. Change any target on the '
+              'preview.',
         );
       case SmartNightStrategy.autoLrgb:
         return (
@@ -530,6 +531,26 @@ class _StrategyTile extends StatelessWidget {
         return (
           title: 'OSC one-shot',
           subtitle: 'Single light filter: Bayer cameras and L-eXtreme.',
+        );
+      case SmartNightStrategy.rgb:
+        return (
+          title: 'RGB',
+          subtitle: 'Equal time per R/G/B, no luminance.',
+        );
+      case SmartNightStrategy.luminance:
+        return (
+          title: 'Luminance',
+          subtitle: 'L alone, for detail to add to color from another night.',
+        );
+      case SmartNightStrategy.narrowbandOiii:
+        return (
+          title: 'Narrowband OIII',
+          subtitle: 'OIII alone, to add to Ha from another night.',
+        );
+      case SmartNightStrategy.narrowbandSii:
+        return (
+          title: 'Narrowband SII',
+          subtitle: 'SII alone, to complete an SHO set.',
         );
     }
   }
@@ -708,14 +729,21 @@ class _PlannedTargetCard extends StatelessWidget {
   final SkotiqColors colors;
   final void Function(int filterIndex, int delta) onCountChanged;
 
-  /// Takes the set [SmartNightPlannedTarget.filterSuggestion] offers.
-  final VoidCallback? onTakeSuggestion;
+  /// Skotiq's filter choice for the target and the set it images through,
+  /// for the card's Filters picker; the plan's reason line without them.
+  final SmartNightFilterChoice? filterChoice;
+  final FilterSet? filterSet;
+
+  /// Plans the target with another set; null while the night is replanned.
+  final ValueChanged<FilterSet>? onFilterSetChanged;
 
   const _PlannedTargetCard({
     required this.planned,
     required this.colors,
     required this.onCountChanged,
-    required this.onTakeSuggestion,
+    required this.filterChoice,
+    required this.filterSet,
+    required this.onFilterSetChanged,
   });
 
   @override
@@ -752,35 +780,26 @@ class _PlannedTargetCard extends StatelessWidget {
                   color: colors.textSecondary,
                   fontSize: SkotiqTypography.fontSize11),
             ),
-            if (planned.filterReason.isNotEmpty) ...[
+            if ((filterChoice, filterSet) case (final choice?, final set?))
+              Padding(
+                padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+                child: IgnorePointer(
+                  ignoring: onFilterSetChanged == null,
+                  child: FilterSetPicker(
+                    choice: choice,
+                    value: set,
+                    dense: true,
+                    onChanged: (picked) => onFilterSetChanged?.call(picked),
+                  ),
+                ),
+              )
+            else if (planned.filterReason.isNotEmpty) ...[
               const SizedBox(height: 2),
               Text(
                 planned.filterReason,
                 style: TextStyle(
                     color: colors.textSecondary,
                     fontSize: SkotiqTypography.fontSize11),
-              ),
-            ],
-            if (planned.filterSuggestion case final offer?) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      offer,
-                      style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: SkotiqTypography.fontSize11),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SkotiqButton(
-                    label: 'Add Ha',
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.small,
-                    onPressed: onTakeSuggestion,
-                  ),
-                ],
               ),
             ],
             const SizedBox(height: 8),

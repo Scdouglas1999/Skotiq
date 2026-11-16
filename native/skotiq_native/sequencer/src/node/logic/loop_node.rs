@@ -92,7 +92,7 @@ pub async fn execute_loop(
                     // condition_value is f64 carrying a Unix timestamp; year
                     // 2038 is ~2.1e9 (< 2^31), still 1000x below f64 precision
                     // limit. f64 -> i64 saturates per Rust 1.45 spec.
-                    chrono::Utc::now().timestamp() < (until as i64)
+                    context.clock.now_utc().timestamp() < (until as i64)
                 } else {
                     false
                 }
@@ -470,6 +470,91 @@ mod tests {
 
         assert_eq!(status, NodeStatus::Skipped);
         assert_eq!(node.current_iteration, 0, "the body never ran");
+    }
+
+    /// An until-time loop reads the run's clock: on a clock pinned in 2001 it
+    /// runs passes until that clock reaches the end time, whatever the
+    /// computer's own clock says.
+    #[tokio::test]
+    async fn until_time_loop_ends_when_the_run_clock_reaches_the_end_time() {
+        let config = LoopConfig {
+            iterations: None,
+            condition: LoopCondition::UntilTime,
+            // 2001-09-09T01:46:40Z plus 150 s.
+            condition_value: Some(1_000_000_150.0),
+            horizon_profile: None,
+        };
+        let mut node = RuntimeNode::from_definition(crate::NodeDefinition {
+            id: "loop".to_string(),
+            name: "Until dawn".to_string(),
+            node_type: crate::NodeType::Loop(config.clone()),
+            enabled: true,
+            children: vec![],
+        });
+        let clock = crate::scheduling::MockClock::at("2001-09-09T01:46:40Z");
+        node.add_child(Box::new(ClockAdvancingChild {
+            id: "wait".to_string(),
+            node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 0.0 }),
+            clock: clock.clone(),
+            step: std::time::Duration::from_secs(60),
+            children: Vec::new(),
+        }));
+        let mut ctx = ExecutionContext::new_for_test("root".to_string()).with_clock(clock);
+
+        let status = execute_loop(&mut node, config, &mut ctx).await;
+
+        assert_eq!(status, NodeStatus::Success);
+        assert_eq!(
+            node.current_iteration, 3,
+            "passes start at +0 s, +60 s and +120 s; at +180 s the end time has passed"
+        );
+    }
+
+    /// A child that moves the run's clock on by `step` each time it runs.
+    struct ClockAdvancingChild {
+        id: crate::NodeId,
+        node_type: crate::NodeType,
+        clock: std::sync::Arc<crate::scheduling::MockClock>,
+        step: std::time::Duration,
+        children: Vec<Box<dyn Node>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Node for ClockAdvancingChild {
+        fn id(&self) -> &crate::NodeId {
+            &self.id
+        }
+
+        fn name(&self) -> &str {
+            &self.id
+        }
+
+        fn node_type(&self) -> &crate::NodeType {
+            &self.node_type
+        }
+
+        fn is_enabled(&self) -> bool {
+            true
+        }
+
+        async fn execute(&mut self, _context: &mut ExecutionContext) -> NodeStatus {
+            self.clock.advance(self.step);
+            NodeStatus::Success
+        }
+
+        fn reset(&mut self) {}
+
+        async fn abort(&mut self) {}
+
+        fn children(&self) -> &[Box<dyn Node>] {
+            &self.children
+        }
+
+        fn children_mut(&mut self) -> &mut Vec<Box<dyn Node>> {
+            &mut self.children
+        }
+
+        fn mark_completed(&mut self, _node_id: &crate::NodeId) {}
     }
 
     /// A child that asks to move on to the next target while it runs, and then

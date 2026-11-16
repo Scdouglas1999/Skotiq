@@ -4,6 +4,7 @@ import 'package:skotiq_core/database.dart' show DbTarget, TargetsCompanion;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show withCatalogObjectTypes;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -57,7 +58,7 @@ class TargetHandlers implements RouteSource {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getAllTargets();
 
-    return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
+    return jsonOk({'targets': await _targetsToJson(targets)});
   }
 
   Future<Response> handleGetTargetById(Request request, String id) async {
@@ -69,7 +70,9 @@ class TargetHandlers implements RouteSource {
       return jsonNotFound({'error': 'Target not found: $id'});
     }
 
-    return jsonOk({'target': _targetToJson(target)});
+    return jsonOk({
+      'target': (await _targetsToJson([target])).single,
+    });
   }
 
   Future<Response> handleSearchTargets(Request request) async {
@@ -77,14 +80,14 @@ class TargetHandlers implements RouteSource {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.searchTargets(query);
 
-    return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
+    return jsonOk({'targets': await _targetsToJson(targets)});
   }
 
   Future<Response> handleGetFavoriteTargets(Request request) async {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getFavoriteTargets();
 
-    return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
+    return jsonOk({'targets': await _targetsToJson(targets)});
   }
 
   Future<Response> handleCreateTarget(Request request) async {
@@ -259,17 +262,34 @@ class TargetHandlers implements RouteSource {
   Future<Response> handleGetTargetsByType(Request request) async {
     final objectType = request.url.queryParameters['type'] ?? '';
     final database = container.read(databaseProvider);
-    final targets = await database.targetsDao.getTargetsByType(objectType);
+    final targets = await withCatalogObjectTypes(
+      await database.targetsDao.getAllTargets(),
+      _logger,
+    );
 
-    return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
+    return jsonOk({
+      'targets': [
+        for (final t in targets)
+          if (t.objectType == objectType) _targetToJson(t),
+      ],
+    });
   }
 
   Future<Response> handleGetTargetsByPriority(Request request) async {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getTargetsByPriority();
 
-    return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
+    return jsonOk({'targets': await _targetsToJson(targets)});
   }
+
+  /// [targets] as JSON, each with the object type it reads
+  /// ([withCatalogObjectType]).
+  Future<List<Map<String, dynamic>>> _targetsToJson(
+    List<DbTarget> targets,
+  ) async => [
+    for (final t in await withCatalogObjectTypes(targets, _logger))
+      _targetToJson(t),
+  ];
 
   Map<String, dynamic> _targetToJson(DbTarget target) {
     return {

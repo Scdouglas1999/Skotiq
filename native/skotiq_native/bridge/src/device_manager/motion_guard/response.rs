@@ -679,7 +679,6 @@ mod hold_tests {
 
     use super::hold_run_or_stop_guiding;
     use crate::api::sequencer::event_bridge::run_sequencer_event_loop;
-    use crate::api::sequencer::get_sequence_executor;
     use crate::api::sequencer::lifecycle::api_sequencer_start;
     use crate::event::bus::EventPayload;
     use crate::event::sequencer::SequencerEvent;
@@ -704,12 +703,12 @@ mod hold_tests {
         sequence.root_node_id = Some("wait".to_string());
         crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         let mut run_events = {
-            let mut executor = get_sequence_executor().write().await;
+            let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
             executor.load_sequence(sequence).expect("sequence loads");
-            executor.subscribe()
+            executor.handle().subscribe()
         };
         let bridge = tokio::spawn(async move {
             run_sequencer_event_loop(&mut run_events, get_state()).await;
@@ -731,7 +730,7 @@ mod hold_tests {
                 paused += 1;
             }
         }
-        get_sequence_executor()
+        skotiq_sequencer::get_executor()
             .write()
             .await
             .stop()

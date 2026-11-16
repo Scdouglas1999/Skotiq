@@ -59,7 +59,7 @@ async fn a_failed_download_retries_the_frame_and_the_burst_completes() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[DOWNLOAD_ERROR]));
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
-    let result = execute_exposure(&darks(3), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(3), &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
@@ -97,7 +97,7 @@ async fn camera_retries_exhausted_fail_the_burst_as_before() {
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
     let started = tokio::time::Instant::now();
-    let result = execute_exposure(&darks(2), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(2), &ctx, |_, _, _| {}).await;
     let waited = started.elapsed();
     let _ = std::fs::remove_dir_all(&dir);
 
@@ -128,7 +128,7 @@ async fn zero_camera_retries_is_a_single_attempt() {
     )
     .await;
 
-    let result = execute_exposure(&darks(2), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(2), &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Failure);
@@ -152,7 +152,7 @@ async fn a_context_outside_a_run_does_not_retry() {
         DeviceRetryPolicy::SINGLE_ATTEMPT
     );
 
-    let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Failure);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
@@ -171,7 +171,7 @@ async fn a_disconnected_camera_is_left_to_disconnect_recovery() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[error]));
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
-    let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Failure);
@@ -198,7 +198,7 @@ async fn words_alone_do_not_make_a_disconnect() {
         Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&["Camera is not connected"]));
     let (ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
-    let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Success);
@@ -211,7 +211,7 @@ async fn a_frame_that_fails_image_validation_is_not_retried() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[error]));
     let (ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
-    let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Failure);
@@ -226,7 +226,7 @@ async fn stop_during_the_retry_wait_returns_promptly() {
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
     let cancel = ctx.cancellation_token.clone();
 
-    let task = tokio::spawn(async move { execute_exposure(&darks(2), &ctx, |_, _, _| {}).await });
+    let task = tokio::spawn(async move { expose_burst(&darks(2), &ctx, |_, _, _| {}).await });
     loop {
         match events.recv().await {
             Ok(
@@ -383,7 +383,7 @@ async fn the_burst_filter_set_is_retried() {
         ..darks(1)
     };
 
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);

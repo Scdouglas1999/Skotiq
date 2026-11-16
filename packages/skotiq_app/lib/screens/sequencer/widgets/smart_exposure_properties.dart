@@ -21,6 +21,7 @@ import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../imaging/widgets/depthlock/depthlock_presentation.dart';
 import 'node_property_widgets.dart';
+import 'smart_exposure_filter_sets.dart';
 
 class SmartExposureProperties extends ConsumerWidget {
   final SkotiqColors colors;
@@ -38,6 +39,7 @@ class SmartExposureProperties extends ConsumerWidget {
     final canEdit = ref.watch(canEditSequenceProvider);
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
+    final target = _parentTarget(ref);
 
     return IgnorePointer(
       ignoring: !canEdit,
@@ -61,6 +63,8 @@ class SmartExposureProperties extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (target != null)
+            SmartExposureFilterSets(colors: colors, node: node, target: target),
 
           _PlanList(
             colors: colors,
@@ -291,6 +295,19 @@ class SmartExposureProperties extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// The target step this node sits under, directly or transitively.
+  TargetHeaderNode? _parentTarget(WidgetRef ref) {
+    final nodes = ref.watch(currentSequenceProvider)?.nodes ?? const {};
+    var currentId = node.parentId;
+    final seen = <String>{};
+    while (currentId != null && seen.add(currentId)) {
+      final parent = nodes[currentId];
+      if (parent is TargetHeaderNode) return parent;
+      currentId = parent?.parentId;
+    }
+    return null;
   }
 
   /// True when this node sits (directly or transitively) under a

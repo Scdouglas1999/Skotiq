@@ -278,11 +278,11 @@ pub fn resolve_variable(
         ),
         "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
-            let dt = frame.session_start.unwrap_or_else(now_utc);
+            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
             Ok(VariableValue::Str(dt.format("%Y-%m-%d").to_string()))
         }
         "session.start" => {
-            let dt = frame.session_start.unwrap_or_else(now_utc);
+            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
             Ok(VariableValue::Str(
                 dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             ))
@@ -290,7 +290,7 @@ pub fn resolve_variable(
         "time.now" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(now_utc)
+                .unwrap_or_else(|| ctx.clock.now_utc())
                 .format("%Y-%m-%dT%H:%M:%SZ")
                 .to_string(),
         )),
@@ -298,30 +298,30 @@ pub fn resolve_variable(
             // chrono::Local applies the system local offset.
             frame
                 .now_override
-                .map(|u| u.with_timezone(&chrono::Local))
-                .unwrap_or_else(chrono::Local::now)
+                .unwrap_or_else(|| ctx.clock.now_utc())
+                .with_timezone(&chrono::Local)
                 .format("%Y-%m-%d %H:%M:%S %:z")
                 .to_string(),
         )),
         "time.date" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(now_utc)
+                .unwrap_or_else(|| ctx.clock.now_utc())
                 .format("%Y-%m-%d")
                 .to_string(),
         )),
         "time.clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(now_utc)
+                .unwrap_or_else(|| ctx.clock.now_utc())
                 .format("%H-%M-%S")
                 .to_string(),
         )),
         "time.local_clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .map(|u| u.with_timezone(&chrono::Local))
-                .unwrap_or_else(chrono::Local::now)
+                .unwrap_or_else(|| ctx.clock.now_utc())
+                .with_timezone(&chrono::Local)
                 .format("%H:%M")
                 .to_string(),
         )),
@@ -499,10 +499,6 @@ fn int_or_unresolvable(
             reason: reason.to_string(),
         }),
     }
-}
-
-fn now_utc() -> DateTime<Utc> {
-    chrono::Utc::now()
 }
 
 /// Apply a Python-style format spec to a resolved value.
@@ -753,6 +749,23 @@ mod tests {
         let frame = frame_with_burst();
         let out = interpolate("${time.now}", &ctx, &frame).expect("must resolve");
         assert_eq!(out, "2026-01-15T22:47:12Z");
+    }
+
+    /// With no session start or override, the time variables read the run's
+    /// clock.
+    #[test]
+    fn time_variables_without_an_override_read_the_run_clock() {
+        let ctx = ctx_with_target().with_clock(crate::scheduling::MockClock::at(
+            "2001-09-09T01:46:40Z",
+        ));
+        let frame = EvaluationFrame::default();
+        let out = interpolate(
+            "${session.date} ${time.now} ${time.date} ${time.clock}",
+            &ctx,
+            &frame,
+        )
+        .expect("must resolve");
+        assert_eq!(out, "2001-09-09 2001-09-09T01:46:40Z 2001-09-09 01-46-40");
     }
 
     #[test]

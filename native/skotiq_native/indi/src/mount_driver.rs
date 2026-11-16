@@ -7,8 +7,8 @@ use crate::protocol::names::*;
 use crate::{IndiClient, IndiError, IndiMount, IndiPermission};
 use async_trait::async_trait;
 use skotiq_device::{
-    DeviceDriver, DriverError, GuideDirection, MountDescription, MountDriver, MountReadings,
-    PierSide, TrackingRate, Vendor,
+    DeviceDriver, DriverError, GuideDirection, MountClock, MountDescription, MountDriver,
+    MountReadings, MountSiteInfo, PierSide, TrackingRate, Vendor,
 };
 
 impl std::fmt::Debug for IndiMount {
@@ -57,6 +57,39 @@ fn stopped(
 /// kind from the INDI error inside.
 fn own(error: IndiError) -> DriverError {
     DriverError::Backend(Box::new(error))
+}
+
+/// `GEOGRAPHIC_COORD.LONG` runs 0 to 360 degrees east; a site's longitude is
+/// east positive, west negative.
+fn site_longitude(indi_long: f64) -> f64 {
+    if indi_long > 180.0 {
+        indi_long - 360.0
+    } else {
+        indi_long
+    }
+}
+
+fn indi_longitude(site_long: f64) -> f64 {
+    site_long.rem_euclid(360.0)
+}
+
+/// `TIME_UTC.UTC` as the driver writes it: ISO 8601 without a zone,
+/// optionally with fractional seconds.
+fn parse_indi_utc(text: &str) -> Result<i64, DriverError> {
+    let text = text.trim().trim_end_matches('Z');
+    chrono::NaiveDateTime::parse_from_str(text, "%Y-%m-%dT%H:%M:%S%.f")
+        .map(|t| t.and_utc().timestamp())
+        .map_err(|e| DriverError::Backend(format!("the mount's UTC time {text:?}: {e}").into()))
+}
+
+fn indi_utc(unix_seconds: i64) -> Result<String, DriverError> {
+    chrono::DateTime::from_timestamp(unix_seconds, 0)
+        .map(|t| t.format("%Y-%m-%dT%H:%M:%S").to_string())
+        .ok_or_else(|| DriverError::InvalidParameter(format!("{unix_seconds} is not a time")))
+}
+
+fn missing(property: &str, element: &str) -> DriverError {
+    DriverError::Backend(format!("the mount defines {property} without {element}").into())
 }
 
 /// The pier side an element of `TELESCOPE_PIER_SIDE` names.
@@ -449,6 +482,95 @@ impl MountDriver for IndiMount {
         }
     }
 
+    /// `GEOGRAPHIC_COORD`; a driver that does not define it keeps no site.
+    async fn get_site(&self) -> Result<MountSiteInfo, DriverError> {
+        let client = self.client().read().await;
+        let device = self.device_name();
+        if !client.has_property(device, GEOGRAPHIC_COORD).await {
+            return Err(DriverError::NotSupported);
+        }
+        let latitude_deg = client
+            .get_number(device, GEOGRAPHIC_COORD, LAT)
+            .await
+            .ok_or_else(|| missing(GEOGRAPHIC_COORD, LAT))?;
+        let longitude_deg = client
+            .get_number(device, GEOGRAPHIC_COORD, LONG)
+            .await
+            .ok_or_else(|| missing(GEOGRAPHIC_COORD, LONG))?;
+        Ok(MountSiteInfo {
+            latitude_deg,
+            longitude_deg: site_longitude(longitude_deg),
+            elevation_m: client.get_number(device, GEOGRAPHIC_COORD, ELEV).await,
+        })
+    }
+
+    /// The three elements go in one message; a site without an elevation
+    /// keeps the mount's own.
+    async fn set_site(&mut self, site: MountSiteInfo) -> Result<(), DriverError> {
+        let device = self.device_name().to_string();
+        let mut client = self.client().write().await;
+        if !client.has_property(&device, GEOGRAPHIC_COORD).await {
+            return Err(DriverError::NotSupported);
+        }
+        let elevation_m = match site.elevation_m {
+            Some(elevation) => elevation,
+            None => client
+                .get_number(&device, GEOGRAPHIC_COORD, ELEV)
+                .await
+                .ok_or_else(|| missing(GEOGRAPHIC_COORD, ELEV))?,
+        };
+        client
+            .set_numbers(
+                &device,
+                GEOGRAPHIC_COORD,
+                &[
+                    (LAT, site.latitude_deg),
+                    (LONG, indi_longitude(site.longitude_deg)),
+                    (ELEV, elevation_m),
+                ],
+            )
+            .await
+            .map_err(own)
+    }
+
+    /// `TIME_UTC`: the time in UTC and the site's offset in hours.
+    async fn get_clock(&self) -> Result<MountClock, DriverError> {
+        let client = self.client().read().await;
+        let device = self.device_name();
+        if !client.has_property(device, TIME_UTC).await {
+            return Err(DriverError::NotSupported);
+        }
+        let utc = client
+            .get_property_value(device, TIME_UTC, UTC)
+            .await
+            .ok_or_else(|| missing(TIME_UTC, UTC))?;
+        let offset = client
+            .get_property_value(device, TIME_UTC, OFFSET)
+            .await
+            .ok_or_else(|| missing(TIME_UTC, OFFSET))?;
+        let utc_offset_hours = offset.trim().parse::<f64>().map_err(|e| {
+            DriverError::Backend(format!("the mount's UTC offset {offset:?}: {e}").into())
+        })?;
+        Ok(MountClock {
+            utc_unix_seconds: parse_indi_utc(&utc)?,
+            utc_offset_hours,
+        })
+    }
+
+    async fn set_clock(&mut self, clock: MountClock) -> Result<(), DriverError> {
+        let device = self.device_name().to_string();
+        let utc = indi_utc(clock.utc_unix_seconds)?;
+        let offset = format!("{:.2}", clock.utc_offset_hours);
+        let mut client = self.client().write().await;
+        if !client.has_property(&device, TIME_UTC).await {
+            return Err(DriverError::NotSupported);
+        }
+        client
+            .set_texts(&device, TIME_UTC, &[(UTC, &utc), (OFFSET, &offset)])
+            .await
+            .map_err(own)
+    }
+
     /// `find_home` drives `TELESCOPE_HOME.GO`, so that element is the
     /// capability.
     async fn can_find_home(&self) -> Result<bool, DriverError> {
@@ -471,6 +593,26 @@ impl MountDriver for IndiMount {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indi_longitude_runs_east_from_0_to_360() {
+        assert_eq!(site_longitude(357.7), 357.7 - 360.0);
+        assert_eq!(site_longitude(12.5), 12.5);
+        assert_eq!(indi_longitude(-2.3), 360.0 - 2.3);
+        assert_eq!(indi_longitude(12.5), 12.5);
+    }
+
+    #[test]
+    fn indi_utc_round_trips_and_reads_fractional_seconds() {
+        let text = indi_utc(1_794_884_645).expect("a time");
+        assert_eq!(text, "2026-11-17T03:04:05");
+        assert_eq!(parse_indi_utc(&text).expect("parses"), 1_794_884_645);
+        assert_eq!(
+            parse_indi_utc("2026-11-17T03:04:05.250").expect("parses"),
+            1_794_884_645
+        );
+        assert!(parse_indi_utc("yesterday").is_err());
+    }
 
     #[test]
     fn a_failed_half_of_an_axis_stop_is_named() {

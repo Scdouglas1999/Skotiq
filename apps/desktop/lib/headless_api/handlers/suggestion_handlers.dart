@@ -79,11 +79,13 @@ class SuggestionHandlers implements RouteSource {
       });
     }
 
-    final targets = await database.targetsDao.getAllTargets();
-    if (targets.isEmpty) {
+    final rows = await database.targetsDao.getAllTargets();
+    if (rows.isEmpty) {
       return jsonOk({"suggestions": []});
     }
 
+    final loggingService = container.read(loggingServiceProvider);
+    final targets = await withCatalogObjectTypes(rows, loggingService);
     final sessions = await database.sessionsDao.getAllSessions();
 
     final config = TargetSuggestionConfig(
@@ -93,7 +95,6 @@ class SuggestionHandlers implements RouteSource {
       preferredObjectTypes: preferredObjectTypes,
     );
 
-    final loggingService = container.read(loggingServiceProvider);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
     );
@@ -216,6 +217,7 @@ class SuggestionHandlers implements RouteSource {
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);
 
     final loggingService = container.read(loggingServiceProvider);
+    final typed = await withCatalogObjectTypes([target], loggingService);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
     );
@@ -228,7 +230,7 @@ class SuggestionHandlers implements RouteSource {
       config: config,
       latitude: latitude,
       longitude: longitude,
-      targets: [target],
+      targets: typed,
       sessions: sessions,
       // Scored wherever it stands: this answers for one target, not for
       // what is worth imaging tonight.

@@ -920,7 +920,7 @@ void stubRigBackend(MockBackend backend) {
 }
 
 /// Installs the catalogs as an install has them: the OpenNGC copy that ships
-/// in the app, and the HYG star catalog as its download leaves it (the
+/// in the app with its nebula light table, and the HYG star catalog as its download leaves it (the
 /// decompressed CSV and its metadata), here cut to the stars to V 7.0 (see
 /// `test/fixtures/README.md`).
 Future<void> installBuiltInCatalog(String directory) async {
@@ -945,6 +945,9 @@ Future<void> installBuiltInCatalog(String directory) async {
   await CatalogManager.instance.initialize(
     directory,
     builtIn: {SkyCatalog.dso: csv.readAsBytes},
+    nebulaLight: File(
+      '$root/packages/skotiq_core/assets/catalogs/nebula_light.csv',
+    ).readAsString,
   );
   await CatalogManager.instance.dsos.load();
 }

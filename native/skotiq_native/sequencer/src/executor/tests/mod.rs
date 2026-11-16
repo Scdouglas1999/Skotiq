@@ -258,7 +258,7 @@ async fn entering_a_target_announces_the_target_by_name() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
 
@@ -321,7 +321,7 @@ async fn an_unnamed_target_is_not_announced() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
     for _ in 0..200 {
@@ -480,7 +480,7 @@ async fn a_run_that_never_reaches_part_of_its_tree_does_not_report_completed() {
     executor
         .load_sequence(nested_leaf_chain_sequence())
         .expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
 
@@ -545,7 +545,7 @@ async fn a_failed_run_reports_the_reason_the_instruction_gave() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
 
@@ -621,7 +621,7 @@ async fn the_shutdown_steps_succeeding_after_a_failure_keep_its_reason() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
     for _ in 0..200 {
@@ -696,7 +696,7 @@ async fn an_unevaluable_target_trigger_states_its_reason_on_the_run() {
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     // No observer location is set on the executor — the condition under test.
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
 
@@ -1754,7 +1754,7 @@ async fn a_fault_the_run_recovered_from_is_not_the_reason_it_failed() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
 
@@ -1844,9 +1844,10 @@ async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
     // No mount: the flip trigger fires and reports it cannot flip.
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.start().await.expect("run starts");
     executor
+        .handle()
         .update_trigger_state(move |ts| ts.set_observer_location(Some(latitude), Some(longitude)))
         .await;
 
@@ -1891,6 +1892,7 @@ async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
 async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     let executor = SequenceExecutor::new();
     executor
+        .handle()
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(37.97), Some(23.72));
             ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
