@@ -1,5 +1,9 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Text files are LF in every checkout, Windows included: tests compare
+# generated files, goldens and source scans byte for byte, and the generators
+# and formatters write LF. Batch files keep CRLF, which cmd.exe needs.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
 
 # ---------------------------------------------------------------------------
 # Generated code: collapse from PR diffs.
