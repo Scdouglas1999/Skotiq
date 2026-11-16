@@ -147,7 +147,7 @@ class FocuserBacklashOfferDialog extends ConsumerWidget {
             title: 'A perfect-looking curve can still land on donuts.',
             message:
                 'Autofocus samples the curve moving one way, then makes its '
-                'final move — often the other way. If your focuser has '
+                'final move. Often the other way. If your focuser has '
                 'backlash and Skotiq does not know it, that last move '
                 'lands short of focus even though every sampled point was '
                 'good. Measuring it takes a few minutes, once.',
@@ -164,7 +164,7 @@ class FocuserBacklashOfferDialog extends ConsumerWidget {
           Text(
             'Measuring first runs the focus operation you asked for straight '
             'afterwards. Skipping focuses now and leaves the offer for next '
-            "time; \"Don't ask again\" stops it for good — you can still "
+            "time; \"Don't ask again\" stops it for good. You can still "
             'measure from the Equipment screen whenever you want.',
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),

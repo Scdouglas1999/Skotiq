@@ -47,7 +47,7 @@ void main() {
     expect(assessment.reasons, contains('Low star count (39)'));
     expect(
       assessment.summaryLine,
-      isNot('Good — Low star count (39)'),
+      isNot('Good: Low star count (39)'),
       reason: 'the dash-clause reads as the reason for the verdict',
     );
     expect(assessment.summaryLine, startsWith('Good'));
@@ -65,7 +65,7 @@ void main() {
     );
 
     expect(assessment.level, FrameQualityLevel.poor);
-    expect(assessment.summaryLine, startsWith('Poor — '));
+    expect(assessment.summaryLine, startsWith('Poor: '));
     expect(assessment.summaryLine, isNot(contains('not disqualifying')));
   });
 

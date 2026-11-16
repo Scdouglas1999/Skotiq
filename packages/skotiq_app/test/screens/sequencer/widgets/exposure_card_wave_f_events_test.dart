@@ -189,8 +189,8 @@ void main() {
       expect(
         find.text('0 / 4 frames'),
         findsNothing,
-        reason: 'the node that captured four frames must not report zero — '
-            'this is the assertion four previous fixes could not make hold',
+        reason: 'the node that captured four frames must not report zero. '
+            'This is the assertion four previous fixes could not make hold',
       );
       expect(find.text('4 / 4 frames'), findsOneWidget);
     },

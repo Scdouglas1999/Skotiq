@@ -153,7 +153,7 @@ void main() {
     await _expectClosesOnHostSwitch(
       tester,
       dialog: const QuickStartWizardDialog(),
-      dialogTitle: 'Quick-Start Sequence Wizard',
+      dialogTitle: 'Quick-start sequence wizard',
       hostA: _MockNetworkBackend(),
       hostB: _MockNetworkBackend(),
     );
@@ -164,7 +164,7 @@ void main() {
     await _expectClosesOnHostSwitch(
       tester,
       dialog: const SmartNightDialog(),
-      dialogTitle: 'Smart Night — Plan Tonight',
+      dialogTitle: 'Smart Night',
       hostA: _MockNetworkBackend(),
       hostB: _MockNetworkBackend(),
     );
@@ -222,13 +222,13 @@ void main() {
       ],
     );
     await tester.pump();
-    expect(find.text('Quick-Start Sequence Wizard'), findsOneWidget);
+    expect(find.text('Quick-start sequence wizard'), findsOneWidget);
 
     notifier.switchTo(_MockNetworkBackend());
     settings.complete(const AppSettingsState());
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick-Start Sequence Wizard'), findsNothing);
+    expect(find.text('Quick-start sequence wizard'), findsNothing);
     expect(exposureContextLoads, 0);
     expect(tester.takeException(), isNull);
   });
@@ -275,7 +275,7 @@ void main() {
     exposureContext.complete(null);
     await tester.pumpAndSettle();
 
-    expect(find.text('Smart Night — Plan Tonight'), findsNothing);
+    expect(find.text('Smart Night'), findsNothing);
     expect(sensorSpecLoads, 0);
     expect(tester.takeException(), isNull);
   });

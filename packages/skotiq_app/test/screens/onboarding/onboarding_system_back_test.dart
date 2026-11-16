@@ -171,7 +171,7 @@ void main() {
     expect(
       container.read(onboardingDraftProvider).currentStep,
       OnboardingStep.welcome,
-      reason: 'Dismissing nothing yet — the wizard stays put until answered.',
+      reason: 'Dismissing nothing yet: the wizard stays put until answered.',
     );
 
     await tester.tap(find.text('Leave setup'));

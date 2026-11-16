@@ -35,7 +35,7 @@ class _HostBackendNotifier extends BackendNotifier {
 void main() {
   group('push delivery subtitle', () {
     test(
-        'no registered device and no channel — says so, does not imply it '
+        'no registered device and no channel. Says so, does not imply it '
         'works', () {
       final subtitle = pushDeliverySubtitleFor(
         const AsyncData(PushDeliveryTargets.none),

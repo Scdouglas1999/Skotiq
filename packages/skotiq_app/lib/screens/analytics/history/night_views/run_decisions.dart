@@ -11,7 +11,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../utils/snackbar_helper.dart';
 import '../../../sequencer/widgets/run_dashboard/frame_detail_dialog.dart';
-import '../filter_menu_chip.dart';
 
 /// The first and last instant the decisions of a run span, widened to the
 /// run's own start and end when they are known.
@@ -245,15 +244,17 @@ class _RunDecisionsSliverState extends ConsumerState<RunDecisionsSliver> {
                 ),
               ),
             ),
-            FilterMenuChip<DecisionCategory?>(
+            SkotiqMenuChip<DecisionCategory?>(
               label: _filter.category?.displayLabel ?? 'Kind: any',
               name: 'Kind filter',
               entries: [
-                (null, 'Any kind'),
+                SkotiqMenuChoice(null, 'Any kind',
+                    checked: _filter.category == null),
                 for (final c in DecisionCategory.values)
-                  if (c != DecisionCategory.unknown) (c, c.displayLabel),
+                  if (c != DecisionCategory.unknown)
+                    SkotiqMenuChoice(c, c.displayLabel,
+                        checked: c == _filter.category),
               ],
-              selected: _filter.category,
               onSelected: (value) => setState(
                 () => _filter = RunDecisionFilter(
                   category: value,

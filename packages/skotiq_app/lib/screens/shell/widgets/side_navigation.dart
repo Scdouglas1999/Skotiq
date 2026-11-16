@@ -37,7 +37,7 @@ class SideNavTab extends SideNavEntry {
   });
 }
 
-/// The rail's rows, in order, with a heading before each group (04 §3.2).
+/// The rail's rows, in order, with a heading before each group that has one.
 List<SideNavEntry> sideNavigationEntries(BuildContext context) {
   final l10n = context.l10n;
   final entries = <SideNavEntry>[];
@@ -46,7 +46,8 @@ List<SideNavEntry> sideNavigationEntries(BuildContext context) {
     final dest = ShellNavigation.rail[i];
     if (dest.group != currentGroup) {
       currentGroup = dest.group!;
-      entries.add(SideNavGroupHeading(currentGroup.label(l10n)));
+      final heading = currentGroup.label(l10n);
+      if (heading != null) entries.add(SideNavGroupHeading(heading));
     }
     entries.add(
       SideNavTab(icon: dest.icon!, label: dest.label!.of(l10n), index: i),

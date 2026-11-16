@@ -565,7 +565,7 @@ class _FoldOverflowMenu extends ConsumerWidget {
       colors,
       child: PopupMenuButton<String>(
         icon: Icon(LucideIcons.moreVertical, size: 14, color: colors.textMuted),
-        tooltip: 'More Actions',
+        tooltip: 'More actions',
         padding: EdgeInsets.zero,
         itemBuilder: (context) => [
           if (SkotiqTouchTarget.isTouch(context)) ...[
@@ -592,7 +592,7 @@ class _FoldOverflowMenu extends ConsumerWidget {
           ],
           _entry(
             value: 'move_up',
-            label: 'Move Up',
+            label: 'Move up',
             enabled: canEdit && onMoveUp != null,
             tooltip: onMoveUp == null
                 ? 'Already the first steps in their container.'
@@ -600,7 +600,7 @@ class _FoldOverflowMenu extends ConsumerWidget {
           ),
           _entry(
             value: 'move_down',
-            label: 'Move Down',
+            label: 'Move down',
             enabled: canEdit && onMoveDown != null,
             tooltip: onMoveDown == null
                 ? 'Already the last steps in their container.'

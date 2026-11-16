@@ -100,7 +100,7 @@ void main() {
 
     expect(find.text('Assembling'), findsOneWidget);
     expect(
-      find.text('All panels in — the owner is stitching the mosaic'),
+      find.text('All panels in: the owner is stitching the mosaic'),
       findsOneWidget,
     );
   });

@@ -81,7 +81,7 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
     if (!FrameFiles.isArchive(imagePath)) {
       _status.skipStage(
         ScienceStage.fitsWriteback,
-        note: 'Not a FITS or XISF frame — writeback skipped',
+        note: 'Not a FITS or XISF frame. Writeback skipped',
       );
       return;
     }

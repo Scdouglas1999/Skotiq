@@ -58,7 +58,7 @@ void main() {
     ('overlay at the window origin', Offset.zero),
     ('overlay inset by a nav rail and a header', Offset(176, 79)),
   ]) {
-    testWidgets('tooltip is drawn on its trigger — $name', (tester) async {
+    testWidgets('tooltip is drawn on its trigger. $name', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 

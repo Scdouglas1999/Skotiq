@@ -198,7 +198,7 @@ String geolocationConsentBody({
               'used for this one request and never saved.',
     if (includeIpFallback)
       'Your public IP address, sent to ipinfo.io over HTTPS (falling back to '
-          'ipwho.is). That only locates your internet provider — city level, '
+          'ipwho.is). That only locates your internet provider. City level, '
           'tens of kilometers.',
   ];
 
@@ -222,5 +222,5 @@ const String kGeolocationWritesSiteOutcome =
 
 /// Closing paragraph for a lookup that only *offers* a starting point.
 const String kGeolocationOffersEstimateOutcome =
-    'The result is only shown as a suggested starting point — nothing is '
+    'The result is only shown as a suggested starting point. Nothing is '
     'saved to your observing site until you accept it.';

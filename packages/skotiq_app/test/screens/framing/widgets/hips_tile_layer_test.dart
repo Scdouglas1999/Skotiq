@@ -148,7 +148,7 @@ void main() {
 
     expect(_hipsPainters(tester), isEmpty,
         reason: 'A properties failure must leave the layer transparent so the '
-            'single snapshot shows through — never a silent blank.');
+            'single snapshot shows through. Never a silent blank.');
     expect(tester.takeException(), isNull,
         reason: 'A surfaced fetch failure must not crash the widget tree.');
   });

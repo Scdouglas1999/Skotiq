@@ -44,8 +44,8 @@ void main() {
     expect(
       tester.binding.transientCallbackCount,
       greaterThan(0),
-      reason: 'The overlay must still pulse during a live autofocus run — '
-          'gating the animation on real state must not remove the animation.',
+      reason: 'The overlay must still pulse during a live autofocus run. '
+          'Gating the animation on real state must not remove the animation.',
     );
 
     overlay.dismiss();
@@ -62,7 +62,7 @@ Future<void> _expectIdlesAtRest(WidgetTester tester, String what) async {
   const explanation =
       'This means a widget is animating at rest. A running Ticker schedules a '
       'frame on every vsync, so the app never idles and EVERY screen renders '
-      'at a degraded framerate — find the running Ticker and gate it on real '
+      'at a degraded framerate. Find the running Ticker and gate it on real '
       'state (see OnScreenAnimationGate in skotiq_ui).';
 
   try {

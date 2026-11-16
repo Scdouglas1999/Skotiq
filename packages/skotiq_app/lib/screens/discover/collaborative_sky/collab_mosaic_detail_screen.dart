@@ -209,7 +209,7 @@ class _Body extends ConsumerWidget {
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
                   mosaic.isAssembling
-                      ? 'All panels in — the owner is stitching the mosaic'
+                      ? 'All panels in: the owner is stitching the mosaic'
                       : '${formatPanelProgress(uploaded: uploaded, total: total)} '
                           '· ${formatMosaicStatus(mosaic.status)}',
                   style: SkotiqTypography.captionSm.copyWith(

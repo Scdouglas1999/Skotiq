@@ -515,7 +515,7 @@ void main() {
     await tester.pump();
 
     final check = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Check for Updates'),
+      find.widgetWithText(SkotiqButton, 'Check for updates'),
     );
     expect(check.onPressed, isNull);
     expect(find.widgetWithText(SkotiqButton, 'Abort'), findsNothing);
@@ -834,7 +834,7 @@ void main() {
     await tester.pump();
 
     for (final label in [
-      'Check for Updates',
+      'Check for updates',
       'Download',
       'Apply staged',
       'Discard staged',

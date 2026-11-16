@@ -389,7 +389,7 @@ class FlatWizardService {
             error: quiescent
                 ? 'Exposure timed out (camera aborted and idle)'
                 : 'Exposure timed out and the camera could not be confirmed '
-                      'idle — check the camera',
+                      'idle. Check the camera',
           );
         }
 
@@ -705,7 +705,7 @@ class FlatWizardService {
   /// Why a calibration gave up, naming the setting that raises the limit.
   static String notConvergedMessage(int attempts) =>
       'Did not reach the target ADU within $attempts test exposures. '
-      'Raise "$attemptsSettingName" in the Flat Wizard settings, or widen '
+      'Raise "$attemptsSettingName" in the flat wizard settings, or widen '
       'the tolerance.';
 
   /// Calibrate filter with rate tracking for sky flats

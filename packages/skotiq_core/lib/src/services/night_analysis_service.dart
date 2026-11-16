@@ -155,17 +155,17 @@ class NightAnalysisService {
   static String? ungradableReason(NightData data) {
     final total = data.subs.length;
     if (total == 0) {
-      return 'Not graded — this session captured no light frames, so there is '
+      return 'Not graded: this session captured no light frames, so there is '
           'nothing to analyze.';
     }
     if (total < minGradableSubs) {
-      return 'Not graded — only $total light '
+      return 'Not graded: only $total light '
           '${total == 1 ? 'frame was' : 'frames were'} captured; the night needs '
           'at least $minGradableSubs to be judged.';
     }
     final measured = data.subs.where(_hasAnyMetric).length;
     if (measured < minGradableSubs) {
-      return 'Not graded — the captured frames carry no quality measurements '
+      return 'Not graded: the captured frames carry no quality measurements '
           '(HFR, star count, background or guiding), so the night could not be '
           'analyzed.';
     }
@@ -363,7 +363,7 @@ class NightAnalysisService {
   String _headline(int score, List<NightFinding> findings) {
     if (findings.isEmpty) {
       return score >= 100
-          ? 'A clean night — no problems detected.'
+          ? 'A clean night: no problems detected.'
           : 'A solid night with nothing significant to flag.';
     }
     final worst = findings.first; // sorted severity-desc
@@ -377,7 +377,7 @@ class NightAnalysisService {
       case NightFindingSeverity.warn:
         return 'Decent night, but ${worst.title.toLowerCase()}$tail.';
       case NightFindingSeverity.info:
-        return 'Good night — ${worst.title.toLowerCase()}$tail.';
+        return 'Good night: ${worst.title.toLowerCase()}$tail.';
     }
   }
 

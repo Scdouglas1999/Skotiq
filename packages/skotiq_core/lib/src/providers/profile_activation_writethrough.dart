@@ -73,7 +73,7 @@ class ProfileActivationDivergenceError implements Exception {
       '($commitError) and restoring the native store to the previous active '
       'profile ${previousActiveProfileId ?? '(none)'} also failed '
       '($restoreError). The native executor may now be running a different '
-      'profile than SQLite records as active — resolve manually.';
+      'profile than SQLite records as active. Resolve manually.';
 }
 
 /// STRICT, transactional active-profile activation for every local caller.

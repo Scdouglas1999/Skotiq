@@ -55,7 +55,7 @@ void main() {
     await tester.tap(find.text('Configure').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Alpaca Server Configuration'), findsOneWidget);
+    expect(find.text('Alpaca server configuration'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey('alpaca-host-field')),

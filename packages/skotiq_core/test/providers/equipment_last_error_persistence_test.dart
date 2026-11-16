@@ -28,7 +28,7 @@ void main() {
     container.dispose();
   });
 
-  group('CameraStateNotifier — lastError persistence', () {
+  group('CameraStateNotifier: lastError persistence', () {
     test(
       'setError → setConnecting preserves lastError; setConnected clears it',
       () {
@@ -77,7 +77,7 @@ void main() {
     });
   });
 
-  group('MountStateNotifier — lastError persistence', () {
+  group('MountStateNotifier: lastError persistence', () {
     test(
       'setError → setConnecting preserves lastError; setConnected clears it',
       () {
@@ -102,7 +102,7 @@ void main() {
     );
   });
 
-  group('FocuserStateNotifier — lastError persistence', () {
+  group('FocuserStateNotifier: lastError persistence', () {
     test(
       'setError → setConnecting preserves lastError; setConnected clears it',
       () {

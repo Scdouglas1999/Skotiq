@@ -173,10 +173,8 @@ void main() {
     },
   );
 
-  // The hint must name a destination that exists. The primary navigation is
-  // Dashboard / Equipment / Imaging / Sequencer / Guiding / Weather /
-  // Plan Tonight / Analytics — there is no "Calibration" entry, and the dark
-  // library lives at Settings > Equipment > Dark Library.
+  // The hint must name a destination that exists: darks are taken and built
+  // in Darkroom > Calibration.
   test('the missing-dark hint names a destination that exists', () async {
     final container = await _container(canSetCcdTemperature: false);
     final issues = await _withRef(
@@ -186,13 +184,10 @@ void main() {
     expect(issues, isNotEmpty);
     for (final issue in issues) {
       final hint = issue.resolutionHint ?? '';
-      expect(
-        hint,
-        isNot(contains('Calibration →')),
-        reason: 'there is no Calibration screen to open',
-      );
-      if (hint.contains('Dark Library')) {
-        expect(hint, contains('Settings →'));
+      expect(hint, isNot(contains('Dark Library')),
+          reason: 'there is no Dark Library page to open');
+      if (hint.contains('darks')) {
+        expect(hint, contains('Darkroom > Calibration'));
       }
     }
   });

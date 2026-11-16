@@ -97,7 +97,7 @@ void main() {
         ),
       );
 
-      expect(line, 'Confirming — 7 more exposures.');
+      expect(line, 'Confirming: 7 more exposures.');
     });
 
     test('an unreachable goal names the cap and the two remedies', () {
@@ -115,7 +115,7 @@ void main() {
 
       expect(
         line,
-        'Cannot reach 5.0 at 10″ — the calibration floor caps it at 4.1. '
+        'Cannot reach 5.0 at 10″: the calibration floor caps it at 4.1. '
         'Larger squares or better flats would help.',
       );
       // More hours is exactly what will NOT help, so it must not be offered.
@@ -149,7 +149,7 @@ void main() {
       );
     });
 
-    test('no forecast, no line — never an invented one', () {
+    test('no forecast, no line. Never an invented one', () {
       expect(
         depthLockForecastLine(_goal(state: DepthLockState.collecting)),
         isNull,
@@ -184,7 +184,7 @@ void main() {
 
       expect(
         line,
-        'Tonight\'s exposures are worth about 0.6× your best — sky is noisier '
+        'Tonight\'s exposures are worth about 0.6× your best: sky is noisier '
         '(moon, haze).',
       );
     });

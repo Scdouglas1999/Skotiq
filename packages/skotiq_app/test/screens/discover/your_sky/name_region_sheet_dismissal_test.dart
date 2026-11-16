@@ -133,7 +133,7 @@ void main() {
     expect(
       result,
       isNull,
-      reason: 'dismissing is not creating — the caller must not be told a '
+      reason: 'dismissing is not creating. The caller must not be told a '
           'region came back',
     );
 

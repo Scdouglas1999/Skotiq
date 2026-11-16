@@ -49,7 +49,7 @@ String depthLockStateCaption(DepthLockState state) => switch (state) {
       DepthLockState.achieved => 'Reached and confirmed on this revision.',
       DepthLockState.unreliable =>
         'The measurement is not trustworthy right now. This describes the '
-            'evidence, not the goal — cleaner data can move it back.',
+            'evidence, not the goal. Cleaner data can move it back.',
     };
 
 /// The chip tone for [state].
@@ -116,7 +116,7 @@ String depthLockIngestSummary(String fileName, DepthLockIngestOutcome outcome) {
   final String verdict = switch (outcome.outcome) {
     'added' => 'added as evidence',
     'duplicate' => 'already counted',
-    'alreadyAchieved' => 'not needed — this revision is already achieved',
+    'alreadyAchieved' => 'not needed: this revision is already achieved',
     'preSelection' => 'acquired before the goal was created, so not counted',
     'rejected' => 'refused',
     _ => outcome.outcome,
@@ -124,7 +124,7 @@ String depthLockIngestSummary(String fileName, DepthLockIngestOutcome outcome) {
   final String reason = outcome.reason == null || outcome.reason!.isEmpty
       ? ''
       : ': ${outcome.reason}';
-  return '$fileName — $verdict$reason';
+  return '$fileName: $verdict$reason';
 }
 
 /// A calibration master described the way an operator recognises it, rather
@@ -198,15 +198,15 @@ String? depthLockForecastLine(DepthLockGoal goal) {
     // the floor is what caps the score, so only a coarser aperture or a
     // smaller calibration error moves it. More hours will not.
     return 'Cannot reach ${measurement.threshold.toStringAsFixed(1)} at '
-        '${measurement.scaleArcsec.toStringAsFixed(0)}″ — the calibration '
+        '${measurement.scaleArcsec.toStringAsFixed(0)}″: the calibration '
         'floor caps it at ${forecast.ceilingScore.toStringAsFixed(1)}. '
         'Larger squares or better flats would help.';
   }
 
   if (goal.state == DepthLockState.confirmationPending) {
     final int remaining = forecast.framesToConfirm;
-    if (remaining <= 0) return 'Confirming — waiting on the next exposure.';
-    return 'Confirming — $remaining more exposure${remaining == 1 ? '' : 's'}.';
+    if (remaining <= 0) return 'Confirming: waiting on the next exposure.';
+    return 'Confirming: $remaining more exposure${remaining == 1 ? '' : 's'}.';
   }
 
   if (goal.state == DepthLockState.achieved) return null;
@@ -238,7 +238,7 @@ String? depthLockYieldLine(DepthLockGoal goal) {
   final double yield = forecast.recentYield;
   if (yield >= kDepthLockYieldNoticeBelow) return null;
   return 'Tonight\'s exposures are worth about '
-      '${yield.toStringAsFixed(1)}× your best — sky is noisier (moon, haze).';
+      '${yield.toStringAsFixed(1)}× your best: sky is noisier (moon, haze).';
 }
 
 /// What each filter still owes, for the panel's header.

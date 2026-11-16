@@ -143,7 +143,7 @@ void main() {
       expect(step, isNull);
     });
 
-    test('walks in kNextUseSteps order — surfaces the last remaining step '
+    test('walks in kNextUseSteps order. Surfaces the last remaining step '
         'when all earlier ones are done', () {
       final allButLast = kNextUseSteps
           .take(kNextUseSteps.length - 1)

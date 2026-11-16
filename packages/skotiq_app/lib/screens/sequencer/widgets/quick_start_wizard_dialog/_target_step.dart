@@ -17,7 +17,7 @@ extension _TargetStep on _QuickStartWizardDialogState {
           controller: _targetNameController,
           style: TextStyle(color: colors.textPrimary),
           decoration: InputDecoration(
-            labelText: 'Target Name',
+            labelText: 'Target name',
             hintText: 'e.g., M42, NGC 7000, Orion Nebula',
             prefixIcon: Icon(LucideIcons.search, color: colors.textMuted),
             suffixIcon: _isSearching
@@ -130,7 +130,7 @@ extension _TargetStep on _QuickStartWizardDialogState {
                 controller: _raController,
                 style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
-                  labelText: 'Right Ascension',
+                  labelText: 'Right ascension',
                   hintText: '12h 30m 0s or 12.5',
                   border: OutlineInputBorder(
                     borderRadius:

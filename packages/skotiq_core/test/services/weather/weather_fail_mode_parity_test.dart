@@ -26,7 +26,7 @@ void main() {
         noDataFailModeResolution(SafetyFailMode.failClosed),
         NoDataResolution.unsafe,
         reason:
-            'failClosed must treat missing safety data as unsafe — this is '
+            'failClosed must treat missing safety data as unsafe. This is '
             'the unattended-run default that pauses/parks the rig.',
       );
     });

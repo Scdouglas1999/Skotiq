@@ -173,7 +173,7 @@ void main() {
     expect(
       _gotoStatus('Parked'),
       findsNothing,
-      reason: 'isParked defaults to true on an unknown mount — do not report a '
+      reason: 'isParked defaults to true on an unknown mount. Do not report a '
           'park state we have never been told',
     );
     expect(_slewEnabled(tester), isFalse);

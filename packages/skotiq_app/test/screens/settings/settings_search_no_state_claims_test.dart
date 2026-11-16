@@ -19,7 +19,7 @@ import 'package:skotiq_app/screens/settings/settings_search_index.g.dart';
 /// a time and which one depends on what is installed, so none of them names a
 /// row anybody can navigate to.
 const _detectionHeadlines = <String>[
-  'ASTAP detected — catalog missing',
+  'ASTAP detected: catalog missing',
   'Selected Astrometry.net solver is not installed',
 ];
 

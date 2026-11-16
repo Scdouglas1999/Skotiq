@@ -345,7 +345,7 @@ class _IntroPanelState extends ConsumerState<_IntroPanel> {
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
-          'A few seconds is plenty for a first light — long enough to capture '
+          'A few seconds is plenty for a first light. Long enough to capture '
           'stars, short enough to finish quickly. '
           '${_maxExposureSeconds.toStringAsFixed(0)} seconds is the most this '
           'flow will run; longer subs belong on the Imaging screen.',

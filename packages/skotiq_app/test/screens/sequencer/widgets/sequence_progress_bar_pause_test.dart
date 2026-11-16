@@ -137,7 +137,7 @@ void main() {
 
         expect(find.text('Starting...'), findsNothing,
             reason: 'must not say "Starting..." while paused');
-        expect(find.text('Paused — no active node'), findsOneWidget);
+        expect(find.text('Paused: no active node'), findsOneWidget);
       },
     );
 

@@ -85,7 +85,7 @@ void main() {
     // showing the higher number.
     test('a Min rule parks at the bottom but can still reach the top', () {
       expect(minRuleThumbValue(null, 700, 700), 700,
-          reason: 'off "Min stars" accepts any star count — permissive end');
+          reason: 'off "Min stars" accepts any star count. Permissive end');
       expect(
         minRuleThumbValue(701, 700, 700),
         701,
@@ -197,7 +197,7 @@ void main() {
     expect(
       minStars.value,
       701,
-      reason: 'the readout says 701, so the thumb must be at 701 — clamping '
+      reason: 'the readout says 701, so the thumb must be at 701. Clamping '
           'it to rangeMax sprang it back to the bottom of the track',
     );
   });

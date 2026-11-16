@@ -36,7 +36,7 @@ TransientAlert transientAlertFromDetection(TransientDetectionRow detection) {
       : null;
 
   final baseClassification = detection.catalogMatch == null
-      ? 'Unconfirmed — possible new transient'
+      ? 'Unconfirmed: possible new transient'
       : 'Brightening of ${detection.catalogMatch}';
 
   return TransientAlert(
@@ -58,7 +58,7 @@ TransientAlert transientAlertFromDetection(TransientDetectionRow detection) {
         'Skotiq First Light difference-image detection. '
         'Tile ${detection.tileId}, SNR ${detection.snr.toStringAsFixed(1)}, '
         'kind ${detection.kind}.'
-        '${deltaLabel == null ? '' : ' $deltaLabel — this is a brightness '
+        '${deltaLabel == null ? '' : ' $deltaLabel: this is a brightness '
                   'change, not an apparent magnitude; no photometric zero point '
                   'is available for this detection.'}',
     state: detection.dismissed

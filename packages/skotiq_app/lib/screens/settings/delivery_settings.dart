@@ -114,7 +114,7 @@ class _DeliveryPageBody extends ConsumerWidget {
       title: 'Delivery',
       description:
           'Where the night\'s masters, renders and reports are copied once the '
-          'dawn run finishes. Delivery copies — it never moves or deletes.',
+          'dawn run finishes. Delivery copies: it never moves or deletes.',
       children: [
         SettingsSection(
           title: 'Delivery destinations',

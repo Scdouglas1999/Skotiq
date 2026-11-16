@@ -883,7 +883,7 @@ void main() {
   });
 
   test(
-    'joinMosaicAsParticipant is idempotent — no duplicate local project',
+    'joinMosaicAsParticipant is idempotent: no duplicate local project',
     () async {
       const mosaic = CollabMosaic(
         mosaicId: 'mos-8',

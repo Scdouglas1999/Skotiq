@@ -549,7 +549,7 @@ void main() {
     expect(
       publishes(
         tester,
-        'Zoom is unavailable — $kDarkroomCompareNeitherPaneRendered',
+        'Zoom is unavailable: $kDarkroomCompareNeitherPaneRendered',
       ),
       isTrue,
       reason: 'the readout agrees with the controls rather than calling the '
@@ -572,7 +572,7 @@ void main() {
       expect(publishes(tester, label), isFalse);
       expect(enabledOf(tester, unavailableControlName(label, why)), isFalse);
     }
-    expect(publishes(tester, 'Zoom is unavailable — $why'), isTrue);
+    expect(publishes(tester, 'Zoom is unavailable: $why'), isTrue);
     await drain(tester);
     handle.dispose();
   });

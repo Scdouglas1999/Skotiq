@@ -51,8 +51,8 @@ class HelpTutorialsSettings extends ConsumerWidget {
               icon: LucideIcons.sparkles,
               iconColor: colors.primary,
               title: 'First night walkthrough',
-              subtitle: '7-step guided wizard for your first imaging session — '
-                  'connect, polar align, focus, frame, guide, sequence.',
+              subtitle: '7-step guided wizard for your first imaging session. '
+                  'Connect, polar align, focus, frame, guide, sequence.',
               trailing: _AsyncActionButton(
                 label: startOrResume(Tour.firstNight),
                 variant: ButtonVariant.secondary,
@@ -68,7 +68,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               iconColor: colors.primary,
               title: 'Capture your first light',
               subtitle:
-                  'Run the one-click first-light flow again — short exposure, '
+                  'Run the one-click first-light flow again. Short exposure, '
                   'auto-stretch, plate-solve, and label the field. Make sure a '
                   'camera is connected first.',
               trailing: SkotiqButton(
@@ -117,7 +117,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               title: 'Re-run onboarding tour',
               subtitle:
                   'Replay the first-launch spotlight tour that highlights '
-                  'where Equipment, Sequencer, Scheduler, and Plate Solving '
+                  'where Equipment, the Sequencer, Plan and plate solving '
                   'live in the app.',
               trailing: _AsyncActionButton(
                 label: startOrResume(Tour.firstLaunch),
@@ -206,7 +206,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Reset Tutorial Progress?',
+                'Reset tutorial progress?',
                 style: SkotiqTypography.sectionTitle
                     .copyWith(color: colors.textPrimary),
               ),

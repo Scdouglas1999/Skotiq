@@ -439,7 +439,7 @@ void main() {
 
   group('AstroBinExportMetadata', () {
     AstroBinExportMetadata build() => const AstroBinExportMetadata(
-      title: 'NGC 7000 — North America Nebula',
+      title: 'NGC 7000: North America Nebula',
       integrationSecs: 6960, // 1h 56m 00s
       frames: 58,
       telescope: 'Askar FRA400',

@@ -80,7 +80,7 @@ class UpdateAvailableDialog extends StatelessWidget {
       showCloseButton: false,
       actions: [
         SkotiqButton(
-          label: 'Skip This Version',
+          label: 'Skip this version',
           onPressed: onSkip,
           variant: ButtonVariant.ghost,
           size: ButtonSize.medium,
@@ -93,7 +93,7 @@ class UpdateAvailableDialog extends StatelessWidget {
         ),
         if (!requiresManualUpgrade)
           SkotiqButton(
-            label: 'Update Now',
+            label: 'Update now',
             icon: LucideIcons.download,
             onPressed: onUpdate,
             variant: ButtonVariant.primary,
@@ -119,7 +119,7 @@ class UpdateAvailableDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Current Version',
+                        'Current version',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),
@@ -145,7 +145,7 @@ class UpdateAvailableDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'New Version',
+                        'New version',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),
@@ -278,7 +278,7 @@ class UpdateDownloadDialog extends StatelessWidget {
     final percent = (progress * 100).toStringAsFixed(0);
 
     return SkotiqDialog(
-      title: 'Downloading Update',
+      title: 'Downloading update',
       icon: LucideIcons.downloadCloud,
       width: 440,
       showCloseButton: false,
@@ -396,7 +396,7 @@ class UpdateReadyDialog extends StatelessWidget {
     final colors = context.skotiqColors;
 
     return SkotiqDialog(
-      title: 'Update Ready',
+      title: 'Update ready',
       icon: LucideIcons.checkCircle,
       width: 460,
       showCloseButton: false,

@@ -68,7 +68,7 @@ void main() {
     await _drain(tester);
 
     expect(find.text('Hide brain settings'), findsOneWidget,
-        reason: 'The section must still expand — the defect was the content, '
+        reason: 'The section must still expand. The defect was the content, '
             'not the toggle.');
 
     // Even after generously more time than a real fetch would take, the
@@ -123,7 +123,7 @@ void main() {
         reason: 'With PHD2 connected and a request in flight the skeleton is '
             'the honest rendering and must survive the fix.');
     expect(find.text('Brain settings need PHD2'), findsNothing,
-        reason: 'PHD2 IS connected here — claiming otherwise would just move '
+        reason: 'PHD2 IS connected here. Claiming otherwise would just move '
             'the false statement.');
   });
 

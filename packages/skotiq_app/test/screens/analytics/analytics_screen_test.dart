@@ -289,7 +289,7 @@ void main() {
     }
 
     testWidgets(
-        'tabs are reachable on a 360px phone — selecting a non-default tab '
+        'tabs are reachable on a 360px phone. Selecting a non-default tab '
         'switches the active body without overflowing the bar', (tester) async {
       await pumpAt(tester, const Size(360, 640));
 

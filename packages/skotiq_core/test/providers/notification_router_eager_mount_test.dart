@@ -110,7 +110,7 @@ void main() {
     );
   });
 
-  test('a later read returns the identical cached router — one subscription, '
+  test('a later read returns the identical cached router. One subscription, '
       'an event dispatches exactly once (no double-subscribe)', () async {
     // Eager read at app start...
     final eager = container.read(notificationRouterProvider);

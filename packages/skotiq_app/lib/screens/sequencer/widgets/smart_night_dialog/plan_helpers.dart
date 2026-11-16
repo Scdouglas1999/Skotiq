@@ -124,7 +124,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     if (start == null || end == null) {
       context.showErrorSnackBar(
         _windowError ??
-            'Cannot determine tonight\'s window — set your latitude / '
+            'Cannot determine tonight\'s window. Set your latitude / '
                 'longitude in Settings first.',
       );
       return false;
@@ -159,21 +159,21 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     final profile = ref.read(activeEquipmentProfileProvider);
     if (profile == null) {
       context.showErrorSnackBar(
-        'No active equipment profile — select one on the Equipment '
+        'No active equipment profile. Select one on the Equipment '
         'screen first.',
       );
       return false;
     }
     if (profile.focalLength <= 0 && profile.telescopeFocalLength == null) {
       context.showErrorSnackBar(
-        'Equipment profile is missing focal length — exposure '
+        'Equipment profile is missing focal length. Exposure '
         'recommendations need it.',
       );
       return false;
     }
     if (profile.aperture <= 0 && profile.telescopeAperture == null) {
       context.showErrorSnackBar(
-        'Equipment profile is missing aperture — exposure '
+        'Equipment profile is missing aperture. Exposure '
         'recommendations need it.',
       );
       return false;
@@ -444,7 +444,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     Navigator.of(context).pop();
     GoRouter.maybeOf(context)?.go(AppRoute.imaging.path);
     context.showSuccessSnackBar(
-      'Smart Night plan loaded — '
+      'Smart Night plan loaded. '
       '${plan.plannedTargets.length} '
       'target${plan.plannedTargets.length == 1 ? '' : 's'}, '
       '${(plan.totalIntegrationSecs / 3600).toStringAsFixed(1)}h integration.',

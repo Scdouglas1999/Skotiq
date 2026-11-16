@@ -30,7 +30,7 @@ const List<ScienceRungSpec> kScienceLadder = <ScienceRungSpec>[
   ScienceRungSpec(
     rung: ScienceRung.measure,
     title: 'Measure your sky',
-    blurb: "Calibrate against real stars and your rig stops guessing — every "
+    blurb: "Calibrate against real stars and your rig stops guessing. Every "
         "brightness it reports from here is a number you can stand behind.",
     ctaLabel: 'Run calibration',
   ),
@@ -54,7 +54,7 @@ const List<ScienceRungSpec> kScienceLadder = <ScienceRungSpec>[
   ScienceRungSpec(
     rung: ScienceRung.period,
     title: 'Find the period',
-    blurb: "If that curve repeats, there's a clock hiding in it — an orbit, a "
+    blurb: "If that curve repeats, there's a clock hiding in it. An orbit, a "
         "rotation, a pulsation. Let the analysis fold your points and tell you "
         "how long the cycle runs.",
     ctaLabel: 'Analyze the period',

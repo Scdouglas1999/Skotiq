@@ -332,7 +332,7 @@ class ConversationalBuilderService {
             title: 'LLM did not produce valid sequence JSON',
             description: e.message,
             resolutionHint:
-                'Re-emit the entire sequence object — only JSON, no prose.',
+                'Re-emit the entire sequence object. Only JSON, no prose.',
           ),
         ];
         candidateSequence = null;

@@ -143,7 +143,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
             title: 'Transparency dropped (likely clouds)',
             explanation:
                 '$runLen consecutive subs show $metric falling up to '
-                '${dropPct.round()}% below the night baseline — a transparency '
+                '${dropPct.round()}% below the night baseline. A transparency '
                 'loss consistent with passing cloud.',
             advice:
                 'Cull these subs from the integration. If clouds recur, add a '
@@ -204,7 +204,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
             '${culprits.length} subs show guiding RMS up to '
             '${worstRms.toStringAsFixed(2)}" (vs a '
             '${baseRms.toStringAsFixed(2)}" baseline) together with elongated '
-            'stars — the guiding error directly cost frame sharpness.',
+            'stars. The guiding error directly cost frame sharpness.',
         advice:
             'Cull the affected subs. Investigate the cause (wind, cable snag, '
             'differential flexure, or aggressive guide settings) and consider '
@@ -266,7 +266,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
                 '${after.toStringAsFixed(2)} px) and never recovered'
                 '${starsBefore != null && starsAfter != null ? ', with star '
                           'count collapsing from ${starsBefore.round()} to '
-                          '${starsAfter.round()}' : ''} — the classic signature of '
+                          '${starsAfter.round()}' : ''}: the classic signature of '
                 'dew or frost on the optics.',
             advice:
                 'Fit and power a dew heater on the corrector/objective, and '
@@ -329,7 +329,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
         explanation: moonDriven
             ? 'Sky background climbed '
                   '${(relRise * 100).round()}% as the moon '
-                  '(${(moonStart.illumination * 100).round()}% lit) rose — '
+                  '(${(moonStart.illumination * 100).round()}% lit) rose: '
                   'moonlight gradient reducing contrast on faint signal.'
             : 'Sky background climbed ${(relRise * 100).round()}% through the '
                   'session, eroding contrast (light-pollution gradient or the '
@@ -397,7 +397,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
               '(score ${diag.collimationScore.toStringAsFixed(0)}/100)',
           explanation:
               'Astrometric residuals grow toward the field edges relative to '
-              'the center — the signature of optical misalignment or wrong '
+              'the center. The signature of optical misalignment or wrong '
               'corrector/flattener back-spacing, not atmosphere.',
           advice:
               'Verify collimation and the flattener back-focus distance '
@@ -462,7 +462,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
             ? 'Every sub was graded POOR'
             : '$poor of $total subs were graded POOR',
         explanation:
-            'The frame grader — the same one behind the Workbench badges — '
+            'The frame grader (the same one behind the Workbench badges)'
             'rates ${all ? 'all $total' : '$poor of $total'} of this '
             'session\'s subs POOR.$hfrClause No single trend explains it, so '
             'the night was already this way when it started rather than '

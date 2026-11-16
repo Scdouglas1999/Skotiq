@@ -124,7 +124,7 @@ void main() {
         1,
         reason:
             'the Session Report read "Autofocus runs 0" for a sweep that ran '
-            '9 points and moved the focuser — this is the defect being '
+            '9 points and moved the focuser. This is the defect being '
             'regressed',
       );
     });
@@ -335,7 +335,7 @@ void main() {
           breakdown.keys,
           ['Unknown'],
           reason:
-              'no wheel and no Change Filter instruction — "Unknown" is the '
+              'no wheel and no Change Filter instruction. "Unknown" is the '
               'truthful bucket, not a fabricated filter name',
         );
       },

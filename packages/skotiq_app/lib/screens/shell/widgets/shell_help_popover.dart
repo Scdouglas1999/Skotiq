@@ -219,8 +219,8 @@ void showShellShortcuts(BuildContext context) {
             ),
             const SizedBox(height: SkotiqTokens.spaceLg),
             Text(
-              'Screens with their own shortcuts list them where they work — '
-              'the Sequencer keeps its editing keys behind the keyboard icon '
+              'Screens with their own shortcuts list them where they work. '
+              'The Sequencer keeps its editing keys behind the keyboard icon '
               'in its tab strip.',
               style: SkotiqTypography.bodySm.copyWith(
                 color: colors.textSecondary,

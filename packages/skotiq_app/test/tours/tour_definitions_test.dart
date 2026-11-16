@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 import 'package:skotiq_app/router/analytics_route.dart';
 import 'package:skotiq_app/router/equipment_route.dart';
 import 'package:skotiq_app/router/planner_route.dart';
@@ -78,7 +79,7 @@ void main() {
       });
     });
 
-    test('can be reached: from Settings > Help or from its screen', () {
+    test('can be reached: from Settings > Help & tutorials or from its screen', () {
       for (final tour in Tour.values) {
         final listed = Tour.workflows.contains(tour) ||
             tour == Tour.firstNight ||
@@ -134,6 +135,7 @@ void main() {
               AppRoute.equipment => EquipmentTab.fromQuery(tab),
               AppRoute.sequencer => SequencerTab.fromQuery(tab),
               AppRoute.analytics => AnalyticsTab.fromQuery(tab),
+              AppRoute.darkroom => DarkroomTab.parse(tab),
               _ => null,
             };
             expect(known, isNotNull, reason: '${step.id}: $location');

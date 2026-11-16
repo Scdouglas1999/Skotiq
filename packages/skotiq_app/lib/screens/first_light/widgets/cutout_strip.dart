@@ -135,7 +135,7 @@ class CutoutStrip extends ConsumerWidget {
         // screen reader is told these are measured-shape schematics, not pixels.
         if (allReal) return strip;
         return Semantics(
-          label: 'Cutout schematic — drawn from the measured shape, '
+          label: 'Cutout schematic: drawn from the measured shape, '
               'not raw pixels',
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -143,7 +143,7 @@ class CutoutStrip extends ConsumerWidget {
               strip,
               const SizedBox(height: SkotiqTokens.spaceXs),
               Text(
-                'Schematic — from measured shape, not raw pixels',
+                'Schematic: from measured shape, not raw pixels',
                 textAlign: TextAlign.center,
                 style: SkotiqTypography.labelQuiet.copyWith(
                   color: colors.textMuted,

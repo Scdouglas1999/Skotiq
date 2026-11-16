@@ -344,8 +344,8 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
           .map((entry) => '${_transientSourceLabel(entry.key)}: ${entry.value}')
           .join('; ');
       return check.contactedAnySource
-          ? 'Not polled — $reasons.'
-          : 'Nothing was polled — $reasons.';
+          ? 'Not polled: $reasons.'
+          : 'Nothing was polled: $reasons.';
     }
     return check.contactedAnySource
         ? 'Adjust the magnitude threshold or monitored types to widen the net.'

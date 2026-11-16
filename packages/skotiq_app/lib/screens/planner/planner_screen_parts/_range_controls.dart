@@ -39,14 +39,22 @@ class _MagnitudeRangeControl extends ConsumerWidget {
             double hi = max ?? actualBounds.$2;
             return StatefulBuilder(
               builder: (dCtx, setDState) {
-                return AlertDialog(
-                  backgroundColor: colors.surface,
-                  title: Text(
-                    'Magnitude range',
-                    style: SkotiqTypography.body
-                        .copyWith(color: colors.textPrimary),
-                  ),
-                  content: Column(
+                return SkotiqDialog(
+                  title: 'Magnitude range',
+                  width: SkotiqDialog.widthConfirm,
+                  actions: [
+                    SkotiqButton(
+                      label: 'Clear',
+                      variant: ButtonVariant.ghost,
+                      onPressed: () => Navigator.of(dCtx).pop((null, null)),
+                    ),
+                    SkotiqButton(
+                      label: 'Apply',
+                      variant: ButtonVariant.primary,
+                      onPressed: () => Navigator.of(dCtx).pop((lo, hi)),
+                    ),
+                  ],
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -73,20 +81,6 @@ class _MagnitudeRangeControl extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  actions: [
-                    SkotiqButton(
-                      label: 'Clear',
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(dCtx).pop((null, null)),
-                    ),
-                    SkotiqButton(
-                      label: 'Apply',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(dCtx).pop((lo, hi)),
-                    ),
-                  ],
                 );
               },
             );
@@ -160,14 +154,22 @@ class _SizeRangeControl extends ConsumerWidget {
                 .clamp(actualBounds.$1, actualBounds.$2);
             return StatefulBuilder(
               builder: (dCtx, setDState) {
-                return AlertDialog(
-                  backgroundColor: colors.surface,
-                  title: Text(
-                    'Angular size range',
-                    style: SkotiqTypography.body
-                        .copyWith(color: colors.textPrimary),
-                  ),
-                  content: Column(
+                return SkotiqDialog(
+                  title: 'Angular size range',
+                  width: SkotiqDialog.widthConfirm,
+                  actions: [
+                    SkotiqButton(
+                      label: 'Clear',
+                      variant: ButtonVariant.ghost,
+                      onPressed: () => Navigator.of(dCtx).pop((null, null)),
+                    ),
+                    SkotiqButton(
+                      label: 'Apply',
+                      variant: ButtonVariant.primary,
+                      onPressed: () => Navigator.of(dCtx).pop((lo, hi)),
+                    ),
+                  ],
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -203,20 +205,6 @@ class _SizeRangeControl extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  actions: [
-                    SkotiqButton(
-                      label: 'Clear',
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(dCtx).pop((null, null)),
-                    ),
-                    SkotiqButton(
-                      label: 'Apply',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(dCtx).pop((lo, hi)),
-                    ),
-                  ],
                 );
               },
             );
@@ -368,10 +356,9 @@ class _SortChip extends ConsumerWidget {
     return SkotiqMenuChip<PlannerSortMode>(
       key: const ValueKey('planner-sort-chip'),
       label: '${context.l10n.text('plannerSortPrefix')} ${_labels[value]}',
-      value: value,
-      choices: [
+      entries: [
         for (final mode in PlannerSortMode.values)
-          SkotiqMenuChoice(mode, _labels[mode]!),
+          SkotiqMenuChoice(mode, _labels[mode]!, checked: mode == value),
       ],
       onSelected: (mode) {
         final notifier = ref.read(suggestionFilterProvider.notifier);
@@ -468,12 +455,24 @@ Future<double?> _showAngleSlider({
       bool touched = isSet;
       return StatefulBuilder(
         builder: (dCtx, setDState) {
-          return AlertDialog(
-            backgroundColor: colors.surface,
-            title: Text(title,
-                style:
-                    SkotiqTypography.body.copyWith(color: colors.textPrimary)),
-            content: Column(
+          return SkotiqDialog(
+            title: title,
+            width: SkotiqDialog.widthConfirm,
+            actions: [
+              SkotiqButton(
+                label: 'Clear',
+                variant: ButtonVariant.ghost,
+                onPressed: () => Navigator.of(dCtx).pop(-1.0),
+              ),
+              SkotiqButton(
+                label: 'Apply',
+                variant: ButtonVariant.primary,
+                // Disabled until there is a real choice to apply, so Apply can
+                // never commit a value the sheet invented.
+                onPressed: touched ? () => Navigator.of(dCtx).pop(val) : null,
+              ),
+            ],
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -503,22 +502,6 @@ Future<double?> _showAngleSlider({
                   ),
               ],
             ),
-            actions: [
-              SkotiqButton(
-                label: 'Clear',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                onPressed: () => Navigator.of(dCtx).pop(-1.0),
-              ),
-              SkotiqButton(
-                label: 'Apply',
-                variant: ButtonVariant.primary,
-                size: ButtonSize.small,
-                // Disabled until there is a real choice to apply, so Apply can
-                // never commit a value the sheet invented.
-                onPressed: touched ? () => Navigator.of(dCtx).pop(val) : null,
-              ),
-            ],
           );
         },
       );

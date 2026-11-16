@@ -59,7 +59,7 @@ void main() {
       body(),
       contains(
         'Your public IP address, sent to ipinfo.io over HTTPS (falling back '
-        'to ipwho.is). That only locates your internet provider — city '
+        'to ipwho.is). That only locates your internet provider. City '
         'level, tens of kilometers.',
       ),
     );

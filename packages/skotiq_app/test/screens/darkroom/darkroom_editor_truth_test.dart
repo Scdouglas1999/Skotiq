@@ -488,11 +488,11 @@ void main() {
       expect(find.text('Nothing to open in the Darkroom'), findsOneWidget);
       expect(find.text('Choose another image'), findsNothing);
       expect(
-        find.text('Open this night\'s session review'),
+        find.text('Open this night in History'),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Open this night\'s session review'));
+      await tester.tap(find.text('Open this night in History'));
       await settle(tester);
       // The night this master's pixels came from — not the list of every night.
       expect(visited, contains('/session-review?session=$sessionId'));

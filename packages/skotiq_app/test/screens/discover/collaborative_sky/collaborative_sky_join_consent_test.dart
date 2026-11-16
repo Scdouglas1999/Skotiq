@@ -140,7 +140,7 @@ void main() {
       // yet.
       expect(find.textContaining('Sharing is off'), findsOneWidget);
       expect(
-        find.textContaining('your subs co-add into the combined stack'),
+        find.textContaining('Your subs co-add into the combined stack'),
         findsNothing,
       );
     },
@@ -169,7 +169,7 @@ void main() {
       // No consent sheet — sharing is already enabled.
       expect(find.text('Share your co-imaging subs'), findsNothing);
       expect(
-        find.textContaining('your subs co-add into the combined stack'),
+        find.textContaining('Your subs co-add into the combined stack'),
         findsOneWidget,
       );
     },

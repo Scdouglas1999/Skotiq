@@ -171,7 +171,7 @@ class _ExecutorSequenceSink
     // sunrise with nothing said.
     final safeRig = _ref.read(safeRigServiceProvider);
     await safeRig.safeTheRig(
-      reason: 'End of observing night — parking the mount',
+      reason: 'End of observing night. Parking the mount',
       park: true,
       // The operator engaged the autopilot for the night, which is asking for
       // the mount to be parked at its end even between runs.

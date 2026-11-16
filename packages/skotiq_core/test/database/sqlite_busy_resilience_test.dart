@@ -151,7 +151,7 @@ void main() {
       (await dao.getById(jobId))!.state,
       DarkroomJobState.done,
       reason:
-          'a job stranded in running is invisible until the next launch — the '
+          'a job stranded in running is invisible until the next launch. The '
           'open-time recovery is the only thing that rescues it',
     );
   });
@@ -175,7 +175,7 @@ void main() {
       running.attempts,
       1,
       reason:
-          'a retried write must not burn attempts — three retries would trip '
+          'a retried write must not burn attempts. Three retries would trip '
           'the kDarkroomJobMaxAttempts ceiling on the first real start',
     );
   });
@@ -207,7 +207,7 @@ void main() {
       expect(
         calls,
         kSqliteBusyMaxAttempts,
-        reason: 'bounded — a wedged queue must not retry forever',
+        reason: 'bounded: a wedged queue must not retry forever',
       );
     });
 

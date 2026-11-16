@@ -163,7 +163,7 @@ class _CompletedPass extends ConsumerWidget {
         title: 'The Darkroom pass finished',
         key: const ValueKey('session_review_darkroom_pass_done'),
         tone: BannerTone.success,
-        message: 'The Darkroom pass for this night ran to the end$when — the '
+        message: 'The Darkroom pass for this night ran to the end$when. The '
             'drafting, the night report, the delivery and the morning message '
             'are all behind it. Open the Darkroom to see what it made of this '
             'night\'s masters.',

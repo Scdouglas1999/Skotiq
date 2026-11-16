@@ -60,7 +60,7 @@ void main() {
     expect(calls, 3);
   });
 
-  test('does not retry a 4xx — client errors are not transient', () async {
+  test('does not retry a 4xx. Client errors are not transient', () async {
     var calls = 0;
     final client = MockClient((_) async {
       calls++;

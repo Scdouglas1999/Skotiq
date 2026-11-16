@@ -244,7 +244,7 @@ void main() {
     },
   );
 
-  test('Loop still exposes after a cancel — the latch is not sticky', () async {
+  test('Loop still exposes after a cancel. The latch is not sticky', () async {
     final container = buildContainer();
     await settleSettings(container);
     final service = container.read(imagingServiceProvider);

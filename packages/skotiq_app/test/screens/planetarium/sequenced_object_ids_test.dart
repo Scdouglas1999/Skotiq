@@ -30,7 +30,7 @@ void main() {
         'M31 (Panel 1/9)',
         'M31',
       });
-      expect(sequenceTargetMatchKeys('NGC 7000 — East'), contains('NGC'));
+      expect(sequenceTargetMatchKeys('NGC 7000: East'), contains('NGC'));
     });
 
     test('an empty or blank name contributes nothing', () {

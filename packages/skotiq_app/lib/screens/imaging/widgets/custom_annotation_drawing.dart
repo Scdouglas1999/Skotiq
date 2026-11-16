@@ -691,7 +691,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
         children: [
           _ToolButton(
             icon: SkotiqIcons.circle,
-            tooltip: 'Draw Circle',
+            tooltip: 'Draw circle',
             isActive: activeTool == CustomAnnotationType.circle,
             colors: colors,
             onTap: () {
@@ -701,7 +701,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
           ),
           _ToolButton(
             icon: LucideIcons.arrowUpRight,
-            tooltip: 'Draw Arrow',
+            tooltip: 'Draw arrow',
             isActive: activeTool == CustomAnnotationType.arrow,
             colors: colors,
             onTap: () {
@@ -711,7 +711,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
           ),
           _ToolButton(
             icon: LucideIcons.type,
-            tooltip: 'Add Text Note',
+            tooltip: 'Add text note',
             isActive: activeTool == CustomAnnotationType.text,
             colors: colors,
             onTap: () {
@@ -728,7 +728,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
           ),
           _ToolButton(
             icon: SkotiqIcons.delete,
-            tooltip: 'Delete Annotation',
+            tooltip: 'Delete annotation',
             isActive: deleteTool,
             colors: colors,
             onTap: () {

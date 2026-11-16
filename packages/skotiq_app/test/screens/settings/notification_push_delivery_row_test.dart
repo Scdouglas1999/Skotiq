@@ -61,7 +61,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'STATE A — no registered device: the row says so and never claims '
+    'STATE A: no registered device: the row says so and never claims '
     'delivery',
     (tester) async {
       await _pumpWithTargets(tester, PushDeliveryTargets.none);
@@ -90,7 +90,7 @@ void main() {
   );
 
   testWidgets(
-    'STATE B — a registered device on a configured host: the row reports '
+    'STATE B: a registered device on a configured host: the row reports '
     'real delivery',
     (tester) async {
       await _pumpWithTargets(

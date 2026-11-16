@@ -162,7 +162,7 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
                 label: 'Download the sky catalogs when I save',
                 subtitle: 'The planner and planetarium need them. '
                     '${skyCatalogDownloadContents()} Leave off to download '
-                    'them later from Plan or Settings → Catalogs.',
+                    'them later from Plan or Settings > Catalogs.',
                 value: draft.downloadSkyCatalogs,
                 onChanged: (value) => ref
                     .read(onboardingDraftProvider.notifier)

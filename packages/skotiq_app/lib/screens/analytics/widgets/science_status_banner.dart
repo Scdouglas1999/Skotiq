@@ -274,8 +274,8 @@ class _StageTicker extends StatelessWidget {
     };
     final note = r.note;
     return note == null || note.isEmpty
-        ? '${r.stage.displayName} — $outcome'
-        : '${r.stage.displayName} — $outcome\n$note';
+        ? '${r.stage.displayName}: $outcome'
+        : '${r.stage.displayName}: $outcome\n$note';
   }
 
   Color _colorFor(ScienceStageResult r, SkotiqColors c) {

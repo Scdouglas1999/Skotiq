@@ -80,7 +80,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
             // bodies — not the 1.4-million-object MPCORB master, so an observer
             // who cannot find their asteroid is out of range, not broken.
             'Downloads the Minor Planet Center\'s current bright-asteroid '
-            'elements (Soft00Bright — the few hundred asteroids bright enough '
+            'elements (Soft00Bright: the few hundred asteroids bright enough '
             'to observe, not the full MPCORB) and its comet elements '
             '(CometEls). Refreshed bodies appear in the planetarium overlay '
             'and search. Satellite TLEs (CelesTrak) refresh on their own '
@@ -105,7 +105,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
                       ? 'Oldest source updated ${ClockFormat.date(status.lastUpdated!.toLocal())} • '
                           '${status.asteroidCount} bright asteroids, '
                           '${status.cometCount} comets'
-                      : 'Using bundled elements — never refreshed',
+                      : 'Using bundled elements: never refreshed',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -148,7 +148,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
                         );
                       } else {
                         context.showSuccessSnackBar(
-                          'Elements refreshed — ${result.asteroidCount} bright '
+                          'Elements refreshed: ${result.asteroidCount} bright '
                           'asteroids, ${result.cometCount} comets',
                         );
                       }

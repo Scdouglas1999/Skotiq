@@ -229,7 +229,7 @@ void main() {
       final stored = (await targets.readAll()).destinations;
       expect(stored.single.enabled, isFalse);
       expect(
-          find.textContaining('Off — nothing is sent here.'), findsOneWidget);
+          find.textContaining('Off: nothing is sent here.'), findsOneWidget);
     },
   );
 
@@ -396,20 +396,20 @@ void main() {
       // unit it actually computes.
       expect(find.textContaining('2 files, 1.9 GiB'), findsOneWidget);
       expect(
-        find.textContaining('attic-nas is unreachable — will retry'),
+        find.textContaining('attic-nas is unreachable: will retry'),
         findsOneWidget,
       );
       expect(
         // The unit belongs to the pair, not to each half: this read
         // "1 file of 1 file failed".
-        find.textContaining('1 of 1 file failed — the drive filled up'),
+        find.textContaining('1 of 1 file failed: the drive filled up'),
         findsOneWidget,
       );
       expect(
         find.textContaining('waiting for office-pc to pull'),
         findsOneWidget,
         reason:
-            'A published peer row is owed a PULL, not a retry — the journal '
+            'A published peer row is owed a PULL, not a retry. The journal '
             'state is the same and the sentence must not be.',
       );
       expect(find.textContaining('Pairing: Office PC'), findsOneWidget);

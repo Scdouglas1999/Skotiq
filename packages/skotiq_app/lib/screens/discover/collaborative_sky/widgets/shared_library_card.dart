@@ -61,7 +61,7 @@ class SharedLibraryCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         summary.isEmpty
-                            ? 'Never shoot the same dark twice — pull a '
+                            ? 'Never shoot the same dark twice. Pull a '
                                 'sensor-matched master a member already shot.'
                             : 'Sensor-matched masters, shared with provenance and '
                                 'consent so you trust what you pull.',

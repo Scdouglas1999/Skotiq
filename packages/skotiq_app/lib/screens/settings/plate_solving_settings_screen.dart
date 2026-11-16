@@ -102,7 +102,7 @@ class PlateSolvingSettingsScreen extends ConsumerWidget {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: const Text('Plate Solving'),
+        title: const Text('Plate solving'),
         iconTheme: IconThemeData(color: colors.textPrimary),
         titleTextStyle: SkotiqTypography.pageTitle.copyWith(
           color: colors.textPrimary,
@@ -389,7 +389,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               icon: LucideIcons.fileCode,
               title: 'ASTAP executable',
               subtitle: preference.astapPath.isEmpty
-                  ? (detection.astapPath ?? 'Auto-detect — not found')
+                  ? (detection.astapPath ?? 'Auto-detect: not found')
                   : preference.astapPath,
               trailing: AdminOnlyControl(
                 child: SettingsPathInput(
@@ -404,7 +404,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               icon: LucideIcons.folder,
               title: 'ASTAP catalog directory',
               subtitle: preference.catalogPath.isEmpty
-                  ? (detection.catalogPath ?? 'Auto-detect — not found')
+                  ? (detection.catalogPath ?? 'Auto-detect: not found')
                   : preference.catalogPath,
               trailing: SettingsPathInput(
                 key: const ValueKey('plate_solver_catalog_path'),
@@ -443,7 +443,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               icon: LucideIcons.fileCode,
               title: 'solve-field executable',
               subtitle: preference.astrometryPath.isEmpty
-                  ? (detection.astrometryPath ?? 'Auto-detect — not found')
+                  ? (detection.astrometryPath ?? 'Auto-detect: not found')
                   : preference.astrometryPath,
               trailing: AdminOnlyControl(
                 child: SettingsPathInput(
@@ -484,7 +484,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
             _ChoiceRow(
               label: 'ASTAP',
               subtitle:
-                  'Fast offline solver — recommended for almost all setups.',
+                  'Fast offline solver: recommended for almost all setups.',
               icon: LucideIcons.zap,
               value: PlateSolverChoice.astap,
               groupValue: preference.choice,
@@ -561,7 +561,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     }
     final info = uiState.astapVerifyInfo;
     if (info != null) {
-      return 'OK — ${info.flavour}: ${info.versionLine}';
+      return 'OK: ${info.flavour}: ${info.versionLine}';
     }
     return 'Run --help against $target to confirm the binary is healthy.';
   }
@@ -584,7 +584,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     }
     final info = uiState.astrometryVerifyInfo;
     if (info != null) {
-      return 'OK — ${info.flavour}: ${info.versionLine}';
+      return 'OK: ${info.flavour}: ${info.versionLine}';
     }
     return 'Run --help against $target to confirm the binary is healthy.';
   }
@@ -661,7 +661,7 @@ class _NoSolverQuickStart extends StatelessWidget {
             stepNumber: 2,
             title: 'Download a star catalog',
             body: 'Grab a catalog from the same page. V17 is recommended '
-                'for almost all setups — it covers stars down to mag 17 '
+                'for almost all setups. It covers stars down to mag 17 '
                 'and works across the full sky. Drop the catalog next to '
                 'the ASTAP program, or into the folder you will point Skotiq '
                 'at below.',

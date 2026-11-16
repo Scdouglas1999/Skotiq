@@ -105,7 +105,7 @@ class DeliveryStatusLine {
     ];
     return DeliveryStatusLine(
       DeliveryStatusKind.off,
-      ['Off — nothing is sent here.', ...sentences].join(' '),
+      ['Off: nothing is sent here.', ...sentences].join(' '),
     );
   }
 
@@ -160,16 +160,16 @@ class DeliveryStatusLine {
         // No row is owed and none will be created, so no transport is ever
         // asked for anything here and a structural gap cannot bite.
         return view.journal.isEmpty
-            ? 'Nothing selected — this destination receives no files.'
-            : 'Nothing selected — this destination receives no new files.';
+            ? 'Nothing selected: this destination receives no files.'
+            : 'Nothing selected: this destination receives no new files.';
       }
       final blocker = _configurationBlocker(view);
       if (blocker != null) {
-        return '$blocker Nothing selected — this destination receives no new '
+        return '$blocker Nothing selected: this destination receives no new '
             'files, and the ${_files(owed)} owed from before cannot go while '
             'that stands.';
       }
-      return 'Nothing selected — this destination receives no new files. '
+      return 'Nothing selected: this destination receives no new files. '
           '${_files(owed)} owed from before ${owed == 1 ? 'is' : 'are'} '
           'still delivered.';
     }
@@ -185,7 +185,7 @@ class DeliveryStatusLine {
       case ArtifactDestinationKind.watchedFolder:
         final path = configString(config, 'path').trim();
         if (path.isEmpty) {
-          return 'No folder set — nothing can be written.';
+          return 'No folder set: nothing can be written.';
         }
         switch (view.folder) {
           case WatchedFolderState.absent:
@@ -193,7 +193,7 @@ class DeliveryStatusLine {
             // the row after the dialog closed. An operator who saved past that
             // refusal used to get a row that said nothing at all about the
             // folder, and an unmounted share looks exactly like this.
-            return 'There is no directory at $path — delivery never creates '
+            return 'There is no directory at $path. Delivery never creates '
                 'one, so nothing can be written there.';
           case WatchedFolderState.unreadable:
             final error = view.folderError;
@@ -208,14 +208,14 @@ class DeliveryStatusLine {
         }
       case ArtifactDestinationKind.sftp:
         if (configString(config, 'host').trim().isEmpty) {
-          return 'No host set — nothing can be sent.';
+          return 'No host set: nothing can be sent.';
         }
         if (configString(config, 'remoteDir').trim().isEmpty) {
-          return 'No remote directory set — nothing can be sent.';
+          return 'No remote directory set. Nothing can be sent.';
         }
         switch (view.secret) {
           case StoredSecretState.absent:
-            return 'No key in the keyring — SSH cannot authenticate, so '
+            return 'No key in the keyring. SSH cannot authenticate, so '
                 'nothing is sent.';
           case StoredSecretState.unreadable:
             final error = view.secretError;
@@ -229,7 +229,7 @@ class DeliveryStatusLine {
         }
       case ArtifactDestinationKind.peer:
         if (configString(config, 'peerId').trim().isEmpty) {
-          return 'No peer id — no paired desktop can claim these files.';
+          return 'No peer id: no paired desktop can claim these files.';
         }
         return null;
     }
@@ -281,7 +281,7 @@ class DeliveryStatusLine {
           DeliveryStatusKind.failed,
           // The unit belongs to the pair, not to each half: counting both
           // sides separately printed "1 file of 3 files failed".
-          '${failed.length} of ${_files(lastRun.length)} failed — $reason',
+          '${failed.length} of ${_files(lastRun.length)} failed: $reason',
         );
       }
       // Failures the newest run does not account for. Naming them as a share
@@ -289,14 +289,14 @@ class DeliveryStatusLine {
       // nights this destination has already been told were done with.
       return DeliveryStatusLine(
         DeliveryStatusKind.failed,
-        '${_files(failed.length)} never arrived — $reason',
+        '${_files(failed.length)} never arrived: $reason',
       );
     }
     if (retrying.isNotEmpty) {
       final reason = _newestError(retrying);
       return DeliveryStatusLine(
         DeliveryStatusKind.retrying,
-        '$reason — will retry (${_files(retrying.length)} owed).',
+        '$reason: will retry (${_files(retrying.length)} owed).',
       );
     }
     if (awaitingPull.isNotEmpty) {
@@ -306,7 +306,7 @@ class DeliveryStatusLine {
       return DeliveryStatusLine(
         DeliveryStatusKind.awaitingPull,
         'Published ${_files(awaitingPull.length)}, '
-        '${ByteFormat.size(_totalBytes(awaitingPull))} — waiting for $who to pull.',
+        '${ByteFormat.size(_totalBytes(awaitingPull))}: waiting for $who to pull.',
       );
     }
     if (delivered.isEmpty) {

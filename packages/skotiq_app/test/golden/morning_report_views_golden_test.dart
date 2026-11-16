@@ -47,7 +47,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('morning report — narrative view (dark)', (tester) async {
+  testWidgets('morning report: narrative view (dark)', (tester) async {
     tester.view.physicalSize = const Size(1100, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -97,7 +97,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('morning report — workbench view (dark)', (tester) async {
+  testWidgets('morning report: workbench view (dark)', (tester) async {
     tester.view.physicalSize = const Size(1680, 1700);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -147,7 +147,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('morning report — improvement curve panel (dark)',
+  testWidgets('morning report: improvement curve panel (dark)',
       (tester) async {
     tester.view.physicalSize = const Size(820, 560);
     tester.view.devicePixelRatio = 1.0;

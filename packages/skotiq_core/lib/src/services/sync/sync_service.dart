@@ -595,7 +595,7 @@ class SyncService {
     if (!config.isConfigured) {
       throw const SyncTargetException(
         'Cloud sync is not configured (set a server URL in '
-        'Settings → Backup & Sync)',
+        'Settings > Backup & restore)',
         kind: SyncTargetErrorKind.unknown,
       );
     }
@@ -849,7 +849,7 @@ class SyncService {
           return RestoreResult(
             success: false,
             errorMessage:
-                'Hash mismatch for "$bundleFile" — the remote bundle is '
+                'Hash mismatch for "$bundleFile". The remote bundle is '
                 'corrupt or was tampered with. Restore aborted; local data '
                 'was not touched.',
             timestamp: _clock(),

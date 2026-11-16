@@ -158,7 +158,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
             'fingerprint but the saved connection is pinned to '
             '"$pinned". Refusing to connect.',
         userMessage:
-            'This server could not prove its identity. Refusing to connect — '
+            'This server could not prove its identity. Refusing to connect: '
             're-pair if you intentionally changed servers.',
       );
     }
@@ -171,11 +171,11 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         actualFingerprint: serverFp,
         message:
             'Server identity mismatch: expected fingerprint "$pinned" but the '
-            'host at $serverHost advertised "$serverFp". Refusing to connect — '
+            'host at $serverHost advertised "$serverFp". Refusing to connect: '
             're-pair if you intentionally changed servers.',
         userMessage:
             'This server\'s identity does not match the one you paired with. '
-            'Refusing to connect — re-pair if you intentionally changed '
+            'Refusing to connect: re-pair if you intentionally changed '
             'servers.',
       );
     }

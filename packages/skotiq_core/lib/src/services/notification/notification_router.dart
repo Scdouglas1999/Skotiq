@@ -455,8 +455,8 @@ class NotificationRouter {
     );
     if (configured.isEmpty) {
       return NotificationRouteOutcome.dropped(
-        'No transport on the ${category.name} routing row is configured — '
-        'nothing is paired or set up to receive it',
+        'No transport on the ${category.name} routing row is configured. '
+        'Nothing is paired or set up to receive it',
       );
     }
     final message = NotificationMessage(

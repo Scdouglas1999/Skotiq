@@ -146,7 +146,7 @@ void main() {
       expect(payload['max_pixels'], 40.0);
     });
 
-    test('null triggerType means "any error" — encodes to null', () {
+    test('null triggerType means "any error". Encodes to null', () {
       // RecoveryConfig::trigger is Option<TriggerType> on the Rust side;
       // null is the user-facing "Any Error" recovery (matches every error).
       final node = RecoveryNode();

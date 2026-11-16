@@ -11,7 +11,7 @@ NarratorEvent _event({
   String eventType = 'milestone.best_seeing',
   NarratorCategory category = NarratorCategory.milestone,
   NarratorSeverity severity = NarratorSeverity.success,
-  String headline = 'Best seeing of the night — FWHM 1.8"',
+  String headline = 'Best seeing of the night. FWHM 1.8"',
   String? body,
   NarratorEvidence? evidence,
   bool pinned = false,

@@ -456,7 +456,7 @@ void main() {
     });
 
     test(
-      'is idempotent — re-running with the same target does not double-count',
+      'is idempotent: re-running with the same target does not double-count',
       () async {
         final targetId = await insertTarget('M51');
         final masterId = await insertMaster(targetId: targetId);

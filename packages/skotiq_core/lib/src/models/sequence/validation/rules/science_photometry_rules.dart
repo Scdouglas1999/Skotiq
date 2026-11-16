@@ -57,8 +57,8 @@ class SciencePhotometryFilterRule implements SequenceValidator {
             description:
                 'Science Photometry "${node.name}" is configured with '
                 '${node.binning.name}x binning. Photometric centroid '
-                'extraction prefers 1x1 to preserve PSF sampling — '
-                'binning > 1 elevates the per-frame uncertainty.',
+                'extraction prefers 1x1 to preserve PSF sampling. '
+                'Binning > 1 elevates the per-frame uncertainty.',
             affectedNodeId: node.id,
             resolutionHint: 'Set binning to 1x1 for best photometric SNR.',
           ),

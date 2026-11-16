@@ -68,7 +68,7 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Design System Gallery',
+                    'Design system gallery',
                     style: SkotiqTypography.h2.copyWith(
                       color: colors.textPrimary,
                     ),
@@ -82,7 +82,7 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                   ),
                   const SizedBox(height: SkotiqTokens.spaceLg),
                   ShowcaseSection.plain(
-                    title: 'Color Palette',
+                    title: 'Color palette',
                     child: Wrap(
                       spacing: SkotiqTokens.spaceMd,
                       runSpacing: SkotiqTokens.spaceMd,
@@ -124,15 +124,15 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                           color: colors.info,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Primary',
+                          label: 'Text primary',
                           color: colors.textPrimary,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Secondary',
+                          label: 'Text secondary',
                           color: colors.textSecondary,
                         ),
                         ShowcaseSwatch.gallery(
-                          label: 'Text Muted',
+                          label: 'Text muted',
                           color: colors.textMuted,
                         ),
                         ShowcaseSwatch.gallery(
@@ -148,89 +148,89 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _TypographySpecimen(
-                          label: 'display — the Tonight hero line',
+                          label: 'display: the Tonight hero line',
                           sample: 'M51 Whirlpool Galaxy',
                           style: SkotiqTypography.display,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'pageTitle — the screen title',
+                          label: 'pageTitle: the screen title',
                           sample: 'Sequencer',
                           style: SkotiqTypography.pageTitle,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'sectionTitle — panels, dialogs, empty states',
+                          label: 'sectionTitle: panels, dialogs, empty states',
                           sample: 'Sequence run',
                           style: SkotiqTypography.sectionTitle,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'eyebrow — panel and column labels',
+                          label: 'eyebrow: panel and column labels',
                           sample: 'EQUIPMENT',
                           style: SkotiqTypography.eyebrow,
                           colors: colors,
                           muted: true,
                         ),
                         _TypographySpecimen(
-                          label: 'body — default text',
+                          label: 'body: default text',
                           sample: 'Connect your camera and mount.',
                           style: SkotiqTypography.body,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'bodyStrong — names in lists',
+                          label: 'bodyStrong: names in lists',
                           sample: 'Simulated camera',
                           style: SkotiqTypography.bodyStrong,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'bodySm — dense lists and table cells',
+                          label: 'bodySm: dense lists and table cells',
                           sample: 'Per-frame countdown and sequence totals',
                           style: SkotiqTypography.bodySm,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'caption — hints and timestamps',
+                          label: 'caption: hints and timestamps',
                           sample: 'Last frame 22:41:08',
                           style: SkotiqTypography.caption,
                           colors: colors,
                           muted: true,
                         ),
                         _TypographySpecimen(
-                          label: 'readoutLg — hero numbers',
+                          label: 'readoutLg: hero numbers',
                           sample: '02:45',
                           style: SkotiqTypography.readoutLg,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'readoutMd — the standard readout',
+                          label: 'readoutMd: the standard readout',
                           sample: '-10.0',
                           style: SkotiqTypography.readoutMd,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'readoutSm — dense rows and key/value lists',
+                          label: 'readoutSm: dense rows and key/value lists',
                           sample: '18 min',
                           style: SkotiqTypography.readoutSm,
                           colors: colors,
                         ),
                         _TypographySpecimen(
-                          label: 'readoutLabel — the label under a readout',
+                          label: 'readoutLabel: the label under a readout',
                           sample: 'SENSOR',
                           style: SkotiqTypography.readoutLabel,
                           colors: colors,
                           muted: true,
                         ),
                         _TypographySpecimen(
-                          label: 'monoCaption — legends, kbd hints, tags',
+                          label: 'monoCaption: legends, kbd hints, tags',
                           sample: 'RA 05h 35m 17s',
                           style: SkotiqTypography.monoCaption,
                           colors: colors,
                           muted: true,
                         ),
                         _TypographySpecimen(
-                          label: 'button — buttons, tabs, rail labels',
+                          label: 'button: buttons, tabs, rail labels',
                           sample: 'Start sequence',
                           style: SkotiqTypography.button,
                           colors: colors,
@@ -504,7 +504,7 @@ class _ObservatorySectionsState extends State<_ObservatorySections> {
                       ),
                       const SizedBox(height: SkotiqTokens.spaceSm),
                       Text(
-                        'Empty slot — add a device',
+                        'Empty slot: add a device',
                         style: SkotiqTypography.bodySm.copyWith(
                           color: colors.textMuted,
                         ),

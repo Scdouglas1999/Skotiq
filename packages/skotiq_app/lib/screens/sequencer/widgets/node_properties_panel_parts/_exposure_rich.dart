@@ -276,7 +276,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             _LongValueWarning(
               colors: colors,
               message:
-                  'This is an unusually long sub-exposure — confirm this is '
+                  'This is an unusually long sub-exposure. Confirm this is '
                   'intentional.',
             ),
 

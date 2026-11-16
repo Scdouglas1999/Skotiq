@@ -315,7 +315,7 @@ class _ActionsRow extends StatelessWidget {
       }
       messenger?.showInfoSnackBar(
         dismiss
-            ? 'Dismissed as an artifact — it will not resurface.'
+            ? 'Dismissed as an artifact. It will not resurface.'
             : 'Marked as confirmed.',
       );
     } catch (e) {
@@ -355,7 +355,7 @@ class _ActionsRow extends StatelessWidget {
     final mount = ref.read(mountCommandServiceProvider);
     if (!mount.isConnected) {
       context.showWarningSnackBar(
-        'No mount connected — connect a mount to chase.',
+        'No mount connected: connect a mount to chase.',
       );
       return;
     }
@@ -425,7 +425,7 @@ class _ActionsRow extends StatelessWidget {
                 : () {
                     context.showInfoSnackBar(
                       kindBlocker ??
-                          'Not yet confirmed — mark this detection as '
+                          'Not yet confirmed: mark this detection as '
                               'confirmed before submitting.',
                     );
                   },

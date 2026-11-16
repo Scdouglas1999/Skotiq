@@ -444,7 +444,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
         _parkedForEndOfNight = true;
         _dispatchedRunId = null;
         await _sequenceSink.parkForEndOfNight();
-        return 'The observing night is over — parked the mount and ended '
+        return 'The observing night is over. Parked the mount and ended '
             'unattended imaging.';
       }
       return null;
@@ -457,7 +457,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     if (!ownsRun) return null;
     _dispatchedRunId = null;
     await _sequenceSink.stopSequence();
-    return 'Stopped ${ownedTarget ?? 'imaging'} — no target passes the '
+    return 'Stopped ${ownedTarget ?? 'imaging'}: no target passes the '
         'scheduler right now; the next evaluation will re-check.';
   }
 

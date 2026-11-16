@@ -43,7 +43,7 @@ class NoLightsToStackException implements Exception {
       buf.write(
         '; $lightsExcluded light frame${lightsExcluded == 1 ? '' : 's'} '
         '${lightsExcluded == 1 ? 'was' : 'were'} excluded by the accepted / '
-        'quality gates — relax the quality threshold or re-accept frames.',
+        'quality gates. Relax the quality threshold or re-accept frames.',
       );
     } else {
       buf.write(' but none were light frames.');

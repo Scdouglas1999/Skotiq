@@ -55,12 +55,12 @@ void main() {
 
     await tester.tap(find.text('Open centering'));
     await tester.pumpAndSettle();
-    expect(find.text('Target Centering'), findsOneWidget);
+    expect(find.text('Target centering'), findsOneWidget);
 
     backendNotifier.replaceBackend(mockBackend());
     await tester.pumpAndSettle();
 
-    expect(find.text('Target Centering'), findsNothing);
+    expect(find.text('Target centering'), findsNothing);
     expect(find.text('Open centering'), findsOneWidget);
   });
 }

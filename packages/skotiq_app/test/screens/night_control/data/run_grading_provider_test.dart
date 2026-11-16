@@ -225,7 +225,7 @@ void main() {
 
     test(
       "an InstructionProgress legacy event with the old 'frame N/M REJECTED' "
-      'detail string is IGNORED — the regex pipeline is deleted',
+      'detail string is IGNORED. The regex pipeline is deleted',
       () async {
         final backend = mockBackend();
         final container = ProviderContainer(overrides: [
@@ -257,7 +257,7 @@ void main() {
         final after = container.read(runGradingProvider);
         expect(after.total, 0,
             reason:
-                'legacy detail strings no longer drive the counts — typed events only');
+                'legacy detail strings no longer drive the counts. Typed events only');
         expect(after.lastReject, isNull);
       },
     );

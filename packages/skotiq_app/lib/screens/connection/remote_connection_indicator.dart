@@ -537,7 +537,7 @@ class _RemoteConnectionSheetState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Connection Status',
+                      'Connection status',
                       style: theme.textTheme.titleLarge?.copyWith(
                         color: colors.textPrimary,
                       ),

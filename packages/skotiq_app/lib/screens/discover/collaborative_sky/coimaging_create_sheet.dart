@@ -464,7 +464,7 @@ class _LookupResults extends ConsumerWidget {
         if (matches.isEmpty) {
           return message(
             'No match for "$query" in your target library or installed '
-            'catalogs. Install a catalog from Settings → Catalogs, or enter '
+            'catalogs. Install a catalog from Settings > Catalogs, or enter '
             'RA/Dec below.',
             isProblem: true,
           );

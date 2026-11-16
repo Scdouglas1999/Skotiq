@@ -194,7 +194,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
       // remote set here must never read as "the hub had nothing to offer".
       if (!await _remoteLibrary.isConfigured()) {
         remoteWarning =
-            'Not signed in to a shared calibration hub — shared masters were '
+            'Not signed in to a shared calibration hub. Shared masters were '
             'not consulted; showing local masters only.';
       } else {
         try {
@@ -212,7 +212,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
             source: 'CalibrationLibraryService',
           );
           remoteWarning =
-              'Shared calibration hub unreachable — shared masters were not '
+              'Shared calibration hub unreachable. Shared masters were not '
               'consulted; showing local masters only.';
         }
       }
@@ -230,7 +230,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
         'No matching master dark (${context.gain == null ? 'no gain' : 'gain ${context.gain}'}, '
         '${context.offset == null ? 'no offset' : 'offset ${context.offset}'}, '
         'bin ${context.binX}x${context.binY}'
-        ', ${_fmtSecs(context.exposureSeconds)}) — dark subtraction will be '
+        ', ${_fmtSecs(context.exposureSeconds)}): dark subtraction will be '
         'skipped.',
       );
     }

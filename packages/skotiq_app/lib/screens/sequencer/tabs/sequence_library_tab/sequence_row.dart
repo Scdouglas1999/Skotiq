@@ -138,17 +138,17 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
   }
 
   Widget _moreMenu() {
-    return MoreMenuButton<_RowAction>(
+    return SkotiqMenuButton<_RowAction>(
       tooltip: 'More actions for ${_summary.name}',
       entries: [
-        MoreMenuEntry(
+        SkotiqMenuChoice(
             _RowAction.preview, _expanded ? 'Hide preview' : 'Preview'),
-        const MoreMenuEntry(_RowAction.runHistory, 'View run history'),
-        const MoreMenuEntry(_RowAction.versionHistory, 'Version history'),
-        const MoreMenuEntry(_RowAction.editTags, 'Edit tags'),
-        const MoreMenuEntry(_RowAction.duplicate, 'Duplicate'),
-        const MoreMenuEntry(_RowAction.export, 'Export'),
-        const MoreMenuEntry(_RowAction.delete, 'Delete', destructive: true),
+        const SkotiqMenuChoice(_RowAction.runHistory, 'View run history'),
+        const SkotiqMenuChoice(_RowAction.versionHistory, 'Version history'),
+        const SkotiqMenuChoice(_RowAction.editTags, 'Edit tags'),
+        const SkotiqMenuChoice(_RowAction.duplicate, 'Duplicate'),
+        const SkotiqMenuChoice(_RowAction.export, 'Export'),
+        const SkotiqMenuChoice(_RowAction.delete, 'Delete', destructive: true),
       ],
       onSelected: (action) => switch (action) {
         _RowAction.preview => _togglePreview(),
@@ -422,30 +422,26 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
       if (!context.mounted) return;
       final discard = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              ctx,
-              designMaxWidth: 440,
-            ),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Opening "${_summary.name}" will discard them.'),
-          ),
+        builder: (ctx) => SkotiqDialog(
+          title: 'Discard unsaved changes?',
+          width: SkotiqDialog.widthConfirm,
           actions: [
             SkotiqButton(
               label: 'Cancel',
               variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
               onPressed: () => Navigator.of(ctx).pop(false),
             ),
             SkotiqButton(
               label: 'Discard and open',
               variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
               onPressed: () => Navigator.of(ctx).pop(true),
             ),
           ],
+          child: Text(
+            '"${e.currentSequenceName}" has unsaved changes. '
+            'Opening "${_summary.name}" will discard them.',
+            style: SkotiqTypography.body.copyWith(color: _colors.textSecondary),
+          ),
         ),
       );
       if (discard != true || host.isStale) return;

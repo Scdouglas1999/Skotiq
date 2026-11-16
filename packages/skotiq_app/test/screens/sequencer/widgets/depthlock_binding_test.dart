@@ -179,7 +179,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Advisory only — enable automatic completion on the goal',
+        'Advisory only: enable automatic completion on the goal',
       ),
       findsOneWidget,
     );

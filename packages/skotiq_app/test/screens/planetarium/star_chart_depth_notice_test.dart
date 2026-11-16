@@ -74,7 +74,7 @@ void main() {
     expect(
       find.textContaining('magnitude 9.0'),
       findsOneWidget,
-      reason: 'the number is the whole point — a user has to be able to tell '
+      reason: 'the number is the whole point. A user has to be able to tell '
           'a missing star from an absent one',
     );
     // Nothing can be INSTALLED from here: the action opens the Catalog Settings

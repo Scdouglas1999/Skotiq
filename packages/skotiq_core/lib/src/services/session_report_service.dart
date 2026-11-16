@@ -691,7 +691,7 @@ class SessionReportService {
         buf.writeln();
         if (anyProxySnr) {
           buf.writeln(
-            '\\* background/noise proxy — the science pipeline did not '
+            '\\* background/noise proxy: the science pipeline did not '
             'compute real SNR for these frames; not comparable to '
             'photometric SNR values.',
           );

@@ -268,7 +268,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
                   size: 14, color: widget.colors.textMuted),
               const SizedBox(width: 8),
               Text(
-                'Sequence Timeline',
+                'Sequence timeline',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   fontWeight: FontWeight.w600,

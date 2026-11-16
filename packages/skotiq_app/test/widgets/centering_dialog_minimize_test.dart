@@ -135,7 +135,7 @@ void main() {
       // A second launch restores the existing operation instead of starting another.
       await tester.tap(find.text('Open centering'));
       await tester.pump();
-      expect(find.text('Target Centering'), findsOneWidget);
+      expect(find.text('Target centering'), findsOneWidget);
       expect(service.starts, 1);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
@@ -146,7 +146,7 @@ void main() {
       expect(find.text('Abort'), findsNothing);
       await tester.tap(find.byTooltip('Restore centering'));
       await tester.pumpAndSettle();
-      expect(find.text('Target Centering'), findsOneWidget);
+      expect(find.text('Target centering'), findsOneWidget);
       expect(service.starts, 1);
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
@@ -170,7 +170,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open centering'));
     await tester.pumpAndSettle();
-    expect(find.text('Target Centering'), findsOneWidget);
+    expect(find.text('Target centering'), findsOneWidget);
     expect(find.text('No plate solution'), findsNothing);
     expect(service.starts, 1);
     await tester.tap(find.text('Close'));

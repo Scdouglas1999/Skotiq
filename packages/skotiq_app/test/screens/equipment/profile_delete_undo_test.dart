@@ -144,7 +144,7 @@ void main() {
     expect(
       find.textContaining('cannot be undone'),
       findsNothing,
-      reason: 'the delete raises a working Undo — saying otherwise is a lie',
+      reason: 'the delete raises a working Undo. Saying otherwise is a lie',
     );
     expect(find.textContaining('undo this'), findsOneWidget);
     expect(

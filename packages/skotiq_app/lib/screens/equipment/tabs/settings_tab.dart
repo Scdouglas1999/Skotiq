@@ -139,7 +139,7 @@ class _CameraSettingsCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Camera Settings',
+              'Camera settings',
               style: SkotiqTypography.sectionTitle
                   .copyWith(color: colors.textPrimary),
             ),
@@ -247,7 +247,7 @@ class _FocuserSettingsCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Focuser Settings',
+              'Focuser settings',
               style: SkotiqTypography.sectionTitle
                   .copyWith(color: colors.textPrimary),
             ),
@@ -327,7 +327,7 @@ class _BuiltinGuiderSettingsCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Built-in Guider',
+                    'Built-in guider',
                     style: SkotiqTypography.sectionTitle
                         .copyWith(color: colors.textPrimary),
                   ),

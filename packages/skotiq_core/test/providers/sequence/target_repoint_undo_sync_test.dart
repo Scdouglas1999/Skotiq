@@ -94,7 +94,7 @@ void main() {
       reason:
           'Ctrl+Z is a re-point too: the scheduler scores the catalog row, so '
           'leaving it at the undone coordinates recreates the builder/catalog '
-          'divergence — with the stale copy now the one the operator never '
+          'divergence. With the stale copy now the one the operator never '
           'confirmed',
     );
     expect((await row()).dec, closeTo(-5.39, 1e-9));

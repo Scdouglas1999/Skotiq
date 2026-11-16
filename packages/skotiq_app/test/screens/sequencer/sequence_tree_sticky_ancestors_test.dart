@@ -229,7 +229,7 @@ void main() {
       tester.getRect(_pinnedStack()).bottom,
       closeTo(tester.getTopLeft(find.byType(SingleChildScrollView)).dy, 0.01),
       reason: 'the entrance slide has to end flush with the scroll viewport, '
-          'which gives up exactly the stack\'s height while it is up — 6 px '
+          'which gives up exactly the stack\'s height while it is up. 6 px '
           'either way means the slide is still running or the reservation is '
           'the wrong size',
     );

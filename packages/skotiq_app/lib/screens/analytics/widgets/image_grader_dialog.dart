@@ -320,7 +320,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog>
                 children: [
                   Text(
                     'Mark frames as rejected when they exceed any threshold below. '
-                    'Nothing is deleted — rejection can be undone per frame.',
+                    'Nothing is deleted: rejection can be undone per frame.',
                     style: SkotiqTypography.caption
                         .copyWith(color: colors.textSecondary),
                   ),

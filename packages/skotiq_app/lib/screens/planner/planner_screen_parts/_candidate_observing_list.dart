@@ -174,126 +174,116 @@ class _CandidateObservingListDialogState
     final listsAsync = ref.watch(observingListsProvider);
     return PopScope(
       canPop: !_saving,
-      child: AlertDialog(
-        backgroundColor: widget.colors.surface,
-        title: Text(
-          'Add to observing list',
-          style:
-              SkotiqTypography.body.copyWith(color: widget.colors.textPrimary),
-        ),
-        content: SizedBox(
-          width: dialogMaxWidth(context, 340),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              listsAsync.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(SkotiqTokens.spaceMd),
-                    child:
-                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-                  ),
-                ),
-                error: (error, _) => Text(
-                  'Could not load observing lists: ${userFacingError(error)}',
-                  style: SkotiqTypography.body
-                      .copyWith(color: widget.colors.error),
-                ),
-                data: (lists) => lists.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'No observing lists yet. Create one to add this target.',
-                          style: SkotiqTypography.caption
-                              .copyWith(color: widget.colors.textSecondary),
-                        ),
-                      )
-                    : ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: panelWidthFromFraction(
-                            MediaQuery.sizeOf(context).height,
-                            fraction: 0.35,
-                            min: 120,
-                            max: 280,
-                          ),
-                        ),
-                        child: ListView(
-                          shrinkWrap: true,
-                          children: [
-                            for (final list in lists)
-                              _ObservingListRow(
-                                name: list.name,
-                                colors: widget.colors,
-                                alreadyContainsTarget:
-                                    _listsContaining.contains(list.id),
-                                onTap:
-                                    _saving ? null : () => _addToList(list.id),
-                              ),
-                          ],
-                        ),
-                      ),
-              ),
-              const SizedBox(height: SkotiqTokens.spaceSm),
-              if (_creating) ...[
-                TextField(
-                  controller: _nameController,
-                  autofocus: true,
-                  enabled: !_saving,
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: 'New list name',
-                    errorText: _error == 'Enter a list name' ? _error : null,
-                  ),
-                  onChanged: (_) {
-                    if (_error == 'Enter a list name') {
-                      setState(() => _error = null);
-                    }
-                  },
-                  onSubmitted: (_) {
-                    if (!_saving) _createAndAdd();
-                  },
-                ),
-                const SizedBox(height: SkotiqTokens.spaceSm),
-                SkotiqButton(
-                  label: _saving ? 'Creating…' : 'Create and add',
-                  icon: LucideIcons.plus,
-                  variant: ButtonVariant.primary,
-                  size: ButtonSize.small,
-                  onPressed: _saving ? null : _createAndAdd,
-                ),
-              ] else
-                SkotiqButton(
-                  label: 'Create new list…',
-                  icon: LucideIcons.plus,
-                  variant: ButtonVariant.secondary,
-                  size: ButtonSize.small,
-                  onPressed: _saving
-                      ? null
-                      : () => setState(() {
-                            _creating = true;
-                            _error = null;
-                          }),
-                ),
-              if (_error != null && _error != 'Enter a list name') ...[
-                const SizedBox(height: SkotiqTokens.spaceSm),
-                Text(
-                  _error!,
-                  style: SkotiqTypography.caption
-                      .copyWith(color: widget.colors.error),
-                ),
-              ],
-            ],
-          ),
-        ),
+      child: SkotiqDialog(
+        title: 'Add to observing list',
+        width: SkotiqDialog.widthConfirm,
         actions: [
           SkotiqButton(
             label: 'Cancel',
             variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
             onPressed: _saving ? null : () => Navigator.of(context).pop(),
           ),
         ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            listsAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(SkotiqTokens.spaceMd),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+                ),
+              ),
+              error: (error, _) => Text(
+                'Could not load observing lists: ${userFacingError(error)}',
+                style:
+                    SkotiqTypography.body.copyWith(color: widget.colors.error),
+              ),
+              data: (lists) => lists.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No observing lists yet. Create one to add this target.',
+                        style: SkotiqTypography.caption
+                            .copyWith(color: widget.colors.textSecondary),
+                      ),
+                    )
+                  : ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: panelWidthFromFraction(
+                          MediaQuery.sizeOf(context).height,
+                          fraction: 0.35,
+                          min: 120,
+                          max: 280,
+                        ),
+                      ),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final list in lists)
+                            _ObservingListRow(
+                              name: list.name,
+                              colors: widget.colors,
+                              alreadyContainsTarget:
+                                  _listsContaining.contains(list.id),
+                              onTap: _saving ? null : () => _addToList(list.id),
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            if (_creating) ...[
+              TextField(
+                controller: _nameController,
+                autofocus: true,
+                enabled: !_saving,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: 'New list name',
+                  errorText: _error == 'Enter a list name' ? _error : null,
+                ),
+                onChanged: (_) {
+                  if (_error == 'Enter a list name') {
+                    setState(() => _error = null);
+                  }
+                },
+                onSubmitted: (_) {
+                  if (!_saving) _createAndAdd();
+                },
+              ),
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              SkotiqButton(
+                label: _saving ? 'Creating…' : 'Create and add',
+                icon: LucideIcons.plus,
+                variant: ButtonVariant.primary,
+                size: ButtonSize.small,
+                onPressed: _saving ? null : _createAndAdd,
+              ),
+            ] else
+              SkotiqButton(
+                label: 'Create new list…',
+                icon: LucideIcons.plus,
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                onPressed: _saving
+                    ? null
+                    : () => setState(() {
+                          _creating = true;
+                          _error = null;
+                        }),
+              ),
+            if (_error != null && _error != 'Enter a list name') ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              Text(
+                _error!,
+                style: SkotiqTypography.caption
+                    .copyWith(color: widget.colors.error),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

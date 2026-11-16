@@ -46,7 +46,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
   /// safety is off, so a row showing "on" cannot read as active protection.
   static String _withPrerequisite(String description, bool masterEnabled) {
     if (masterEnabled) return description;
-    return '$description — inactive until "Enable weather safety" is on';
+    return '$description: inactive until "Enable weather safety" is on';
   }
 
   @override
@@ -310,7 +310,7 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
   /// Append the master-switch prerequisite when weather safety is off.
   static String _withPrerequisite(String description, bool masterEnabled) {
     if (masterEnabled) return description;
-    return '$description — inactive until "Enable weather safety" is on';
+    return '$description: inactive until "Enable weather safety" is on';
   }
 
   @override

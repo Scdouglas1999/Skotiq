@@ -121,7 +121,7 @@ SchedulerCandidate _candidate({
 }
 
 void main() {
-  group('SchedulerEngine — autopilot run ownership', () {
+  group('SchedulerEngine: autopilot run ownership', () {
     test(
       'stop() during an in-flight dispatch does not leave an orphan run',
       () async {

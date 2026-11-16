@@ -225,7 +225,7 @@ void main() {
 
   group('tile mesh vertices land where the sky painter draws them', () {
     poses.forEach((name, viewState) {
-      test('$name — every mesh vertex matches the painter to 1e-9 px', () {
+      test('$name: every mesh vertex matches the painter to 1e-9 px', () {
         final projection = projectionFor(viewState);
         final tile = centreTile(projection);
 

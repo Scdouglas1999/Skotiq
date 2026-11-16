@@ -26,7 +26,7 @@ class ObservingListsSettings extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Observing Lists',
+                'Observing lists',
                 style: SkotiqTypography.sectionTitle.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -34,7 +34,7 @@ class ObservingListsSettings extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: () => _showCreateDialog(context),
                 icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('New List'),
+                label: const Text('New list'),
               ),
             ],
           ),
@@ -110,7 +110,7 @@ class ObservingListsSettings extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () => _showCreateDialog(context),
               icon: const Icon(LucideIcons.plus, size: 16),
-              label: const Text('Create Your First List'),
+              label: const Text('Create your first list'),
             ),
           ],
         ),
@@ -329,7 +329,7 @@ class _ObservingListEditorDialogState
       canPop: !_saving,
       child: AlertDialog(
         title:
-            Text(_isEditing ? 'Edit Observing List' : 'Create Observing List'),
+            Text(_isEditing ? 'Edit observing list' : 'Create observing list'),
         content: ConstrainedBox(
           constraints: AdaptiveDialogConstraints.hybrid(
             context,
@@ -341,7 +341,7 @@ class _ObservingListEditorDialogState
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'List Name',
+                  labelText: 'List name',
                   hintText: 'e.g., Winter Galaxies',
                   errorText: _nameError,
                 ),
@@ -424,7 +424,7 @@ class _DeleteObservingListDialogState
     return PopScope(
       canPop: !_deleting,
       child: AlertDialog(
-        title: const Text('Delete List?'),
+        title: const Text('Delete list?'),
         content: ConstrainedBox(
           constraints: AdaptiveDialogConstraints.hybrid(
             context,

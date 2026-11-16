@@ -109,7 +109,7 @@ void main() {
     expect(
       _spinners,
       findsNothing,
-      reason: 'a paused run is executing nothing — nothing may spin',
+      reason: 'a paused run is executing nothing. Nothing may spin',
     );
 
     _setExecutionState(container, SequenceExecutionState.running);

@@ -126,7 +126,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                   'firing, frame accept or reject, and recovery step is '
                   'recorded so the Replay screen can rebuild the night '
                   'afterwards. Turning this off leaves past runs with almost '
-                  'no timeline — only a stop you command yourself is always '
+                  'no timeline. Only a stop you command yourself is always '
                   'recorded.',
               trailing: SettingsSwitch(
                 value: enabled,
@@ -191,7 +191,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                   Text(
                     'Removes every recorded decision, from every past run. '
                     'Your captured images, sessions and session notes are '
-                    'untouched — only the replay record is cleared.',
+                    'untouched. Only the replay record is cleared.',
                     style: SkotiqTypography.caption.copyWith(
                       color: colors.textSecondary,
                     ),

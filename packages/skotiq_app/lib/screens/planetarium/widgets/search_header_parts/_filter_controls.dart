@@ -17,7 +17,7 @@ class _SearchFilterControls extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Object Type',
+          'Object type',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,

@@ -246,7 +246,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
           (code) => switch (code) {
             'hash_mismatch' =>
               'the file on the appliance does not match its recorded '
-                  'checksum — re-download it',
+                  'checksum. Re-download it',
             'not_installed' => 'the catalog is not installed on the appliance',
             'no_expected_hash' =>
               'no checksum was recorded when this catalog was installed',
@@ -380,7 +380,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
             _Info(
                 colors: colors,
                 icon: LucideIcons.alertTriangle,
-                text: 'No catalogs installed on the appliance — plate-solving '
+                text: 'No catalogs installed on the appliance. Plate-solving '
                     'needs at least one.'
                     '${_adminOnlyRefused ? '' : ' Install from the list below.'}')
           else

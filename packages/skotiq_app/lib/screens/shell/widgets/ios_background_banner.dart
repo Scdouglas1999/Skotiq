@@ -43,7 +43,7 @@ class IosBackgroundBanner extends ConsumerWidget {
             'but critical safety alerts (weather unsafe, guide loss, mount '
             'parked, equipment disconnect) will still wake your device.'
         : 'iOS may pause monitoring while this app is in the background, '
-            'and Critical Alerts are not granted — safety alerts may be '
+            'and Critical Alerts are not granted. Safety alerts may be '
             'silenced by Focus or the ringer switch. Keep the app in the '
             'foreground or grant Critical Alerts in Settings.';
 

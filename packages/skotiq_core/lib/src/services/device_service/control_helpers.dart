@@ -552,7 +552,7 @@ extension _DeviceServiceControlHelpers on DeviceService {
         _ref
             .read(uiNotificationProvider.notifier)
             .showWarning(
-              'Focus offset for filter "$filterName" failed: $e — frames may '
+              'Focus offset for filter "$filterName" failed: $e. Frames may '
               'be out of focus until the focuser is checked.',
               title: 'Filter Focus Offset Failed',
             );

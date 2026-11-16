@@ -52,7 +52,7 @@ class FramingAssistantDialog extends ConsumerWidget {
     final framing = ref.read(framingProvider.notifier);
 
     return SkotiqDialog(
-      title: 'Frame target — ${target.targetName}',
+      title: 'Frame target: ${target.targetName}',
       icon: LucideIcons.scanLine,
       width: 900,
       height: 720,

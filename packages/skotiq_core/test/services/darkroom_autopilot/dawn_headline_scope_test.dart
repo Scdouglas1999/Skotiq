@@ -83,7 +83,7 @@ void main() {
 
     expect(
       report.headline,
-      'Your 3 drafts are ready — 18s integrated; 1 master has no draft '
+      'Your 3 drafts are ready. 18s integrated; 1 master has no draft '
       '(6s more integrated)',
     );
     expect(report.draftsRendered, 3);
@@ -118,20 +118,20 @@ void main() {
       ],
     );
 
-    expect(unreadable.headline, startsWith('Your 3 drafts are ready — 18s'));
-    expect(withoutFile.headline, startsWith('Your 3 drafts are ready — 18s'));
+    expect(unreadable.headline, startsWith('Your 3 drafts are ready. 18s'));
+    expect(withoutFile.headline, startsWith('Your 3 drafts are ready. 18s'));
     // A master with no file recorded no seconds anywhere, so the clause states
     // the master without inventing an integration total for it.
     expect(
       withoutFile.headline,
-      'Your 3 drafts are ready — 18s integrated; 1 master has no draft',
+      'Your 3 drafts are ready. 18s integrated; 1 master has no draft',
     );
   });
 
   test('a night whose masters all drafted says nothing extra', () {
     final report = _report(masters: [_drafted(1, 'B'), _drafted(2, 'G')]);
 
-    expect(report.headline, 'Your 2 drafts are ready — 12s integrated');
+    expect(report.headline, 'Your 2 drafts are ready. 12s integrated');
     expect(report.draftedIntegrationSeconds, report.integrationSeconds);
   });
 
@@ -140,7 +140,7 @@ void main() {
 
     expect(
       report.headline,
-      'Your night — no draft was rendered; 6s integrated',
+      'Your night: no draft was rendered; 6s integrated',
     );
     expect(report.draftedIntegrationSeconds, 0.0);
   });
@@ -175,7 +175,7 @@ void main() {
 
     expect(
       report.headline,
-      'NGC 7000 — 6s integrated; 1 master has no draft (6s more integrated)',
+      'NGC 7000: 6s integrated; 1 master has no draft (6s more integrated)',
     );
   });
 }

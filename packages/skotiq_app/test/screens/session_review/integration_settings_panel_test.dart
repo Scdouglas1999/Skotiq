@@ -180,8 +180,8 @@ void main() {
       expect(
         clash,
         isNull,
-        reason: '${preset.label} stacks identically to ${clash?.label} — '
-            'a profile that changes nothing must not be offered.',
+        reason: '${preset.label} stacks identically to ${clash?.label}. '
+            'A profile that changes nothing must not be offered.',
       );
       byPayload[payload] = preset;
     }

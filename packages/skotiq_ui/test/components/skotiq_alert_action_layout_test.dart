@@ -149,7 +149,7 @@ void main() {
       action.bottom,
       lessThanOrEqualTo(message.top),
       reason:
-          'and the controls stay where the reader already is — a panel '
+          'and the controls stay where the reader already is. A panel '
           'that scrolls must not put them past its own fold',
     );
     expect(
@@ -332,7 +332,7 @@ void _intrinsicHostCases() {
       closeTo(natural, 1.0),
       reason:
           'the banner measured ${hosted}px inside an IntrinsicHeight against a '
-          '${natural}px natural height — a shortfall is the zero-height collapse',
+          '${natural}px natural height. A shortfall is the zero-height collapse',
     );
   });
 }

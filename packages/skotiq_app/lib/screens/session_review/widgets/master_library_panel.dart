@@ -158,7 +158,7 @@ class _MasterCard extends StatelessWidget {
     // BEFORE the press, which is why both are on the button.
     final refineRefusal = master.masterFitsPath == null
         ? 'This master has no linear FITS yet. Finalize the accumulation '
-            'first — the Darkroom renders from linear pixels, not from the '
+            'first. The Darkroom renders from linear pixels, not from the '
             'preview.'
         : darkroomRefusal;
     final canRefine = refineRefusal == null;

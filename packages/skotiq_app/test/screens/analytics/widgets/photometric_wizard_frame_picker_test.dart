@@ -105,7 +105,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('no recorded altitude — cannot fit'),
+      find.textContaining('no recorded altitude: cannot fit'),
       findsOneWidget,
       reason: 'star matching refuses it; the picker must not hide that until '
           'the user has already pressed Match Stars',
@@ -186,7 +186,7 @@ void main() {
 
     expect(find.text('0 of 3 selected'), findsOneWidget,
         reason: 'with no filter chosen yet nothing is unusable on filter '
-            'grounds — every frame has an altitude');
+            'grounds. Every frame has an altitude');
 
     await tester.tap(find.text('Select all usable'));
     await tester.pumpAndSettle();

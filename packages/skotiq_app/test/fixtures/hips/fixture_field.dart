@@ -461,7 +461,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group(
-      'HiPS fixtures (C-FIX) — committed real DSS2-colour data for $fieldName',
+      'HiPS fixtures (C-FIX): committed real DSS2-colour data for $fieldName',
       () {
     test('fixture root + manifest resolve and the descriptor is consistent',
         () {
@@ -516,7 +516,7 @@ void main() {
         expect(bytes.length, entry['bytes'],
             reason: 'byte length mismatch for $rel');
         expect(_sha256Hex(bytes), entry['sha256'],
-            reason: 'sha256 mismatch for $rel — re-run the fetch tool');
+            reason: 'sha256 mismatch for $rel. Re-run the fetch tool');
       }
 
       verify(manifest['properties'] as Map<String, dynamic>);

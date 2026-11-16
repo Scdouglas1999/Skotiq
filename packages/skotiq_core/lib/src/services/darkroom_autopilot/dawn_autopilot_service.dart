@@ -2021,7 +2021,7 @@ class DawnAutopilotService {
     final tail = withheld == 0
         ? ''
         : '; $withheld master${withheld == 1 ? '' : 's'} '
-              '${withheld == 1 ? 'was' : 'were'} not delivered — see the '
+              '${withheld == 1 ? 'was' : 'were'} not delivered: see the '
               'night report';
     final first = report.masters.firstWhere(
       (master) => master.hasDraft,

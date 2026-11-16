@@ -217,14 +217,14 @@ void main() {
       recorded.isBefore(before.subtract(const Duration(minutes: 1))),
       isFalse,
       reason:
-          'the frame is recorded as taken long before the capture ran — the '
+          'the frame is recorded as taken long before the capture ran. The '
           'chosen zone leaked into an instant',
     );
     expect(
       recorded.isAfter(after.add(const Duration(minutes: 1))),
       isFalse,
       reason:
-          'the frame is recorded as taken in the future — the chosen zone '
+          'the frame is recorded as taken in the future. The chosen zone '
           'leaked into an instant',
     );
   });

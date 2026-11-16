@@ -81,7 +81,7 @@ void main() {
     expect(
       container.read(onboardingDraftProvider).coolOnConnect,
       isFalse,
-      reason: 'auto-cooling is opt-in — a noon setup must not run the TEC',
+      reason: 'auto-cooling is opt-in: a noon setup must not run the TEC',
     );
 
     await tester.tap(find.byType(SkotiqSwitch).last);

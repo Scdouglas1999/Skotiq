@@ -48,7 +48,7 @@ class _ObservationLogSettingsState
               Icon(LucideIcons.bookOpen, color: colors.primary, size: 24),
               const SizedBox(width: 12),
               Text(
-                'Observation Log',
+                'Observation log',
                 style: SkotiqTypography.sectionTitle.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -104,11 +104,11 @@ class _ObservationLogSettingsState
               const SizedBox(width: 8),
               AccessibleDropdown<int?>(
                 value: _filterRating,
-                hint: const Text('Min Rating'),
+                hint: const Text('Min rating'),
                 items: [
                   const DropdownMenuItem<int?>(
                     value: null,
-                    child: Text('All Ratings'),
+                    child: Text('All ratings'),
                   ),
                   ...List.generate(5, (i) {
                     final r = i + 1;
@@ -402,7 +402,7 @@ class _ObservationLogSettingsState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Observation'),
+        title: const Text('Delete observation'),
         content: Text('Delete observation of ${log.objectName}?'),
         actions: [
           SkotiqButton(

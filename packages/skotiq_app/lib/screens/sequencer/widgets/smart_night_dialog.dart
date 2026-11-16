@@ -278,7 +278,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Smart Night — Plan Tonight',
+                      'Smart Night',
                       style: SkotiqTypography.h4
                           .copyWith(color: colors.textPrimary),
                     ),
@@ -428,7 +428,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       }
       if (profile == null) {
         setState(() => _previewError =
-            'No active equipment profile — pick one on Equipment first.');
+            'No active equipment profile. Pick one on Equipment first.');
         return true;
       }
       final activeProfile = profile;
@@ -436,7 +436,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       if (location == null ||
           (location.latitude == 0.0 && location.longitude == 0.0)) {
         setState(() => _previewError =
-            'No observer location set — configure latitude / longitude in '
+            'No observer location set. Configure latitude / longitude in '
                 'Settings first.');
         return true;
       }
@@ -461,7 +461,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       }
       if (selected.isEmpty) {
         setState(() => _previewError =
-            'No targets to plan with — saved targets list is empty or '
+            'No targets to plan with. Saved targets list is empty or '
                 'everything is below the altitude cut-off tonight.');
         return true;
       }

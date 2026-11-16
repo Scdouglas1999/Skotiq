@@ -67,7 +67,7 @@ class _ShareTargetSheetState extends ConsumerState<_ShareTargetSheet> {
           Text(
             'Seed a community field from one of your own targets. Other imagers '
             'can then join and deepen it with you. Sharing the field publishes '
-            'only its name and sky position — no imaging leaves your device '
+            'only its name and sky position. No imaging leaves your device '
             'until you contribute.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,

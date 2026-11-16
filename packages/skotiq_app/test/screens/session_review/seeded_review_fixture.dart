@@ -41,7 +41,7 @@ class FakeReviewSeam implements PostSessionSeam {
 NightReport seededNightReport() {
   return NightReport(
     score: 72,
-    headline: 'Solid night — focus drifted late, but most subs are keepers.',
+    headline: 'Solid night: focus drifted late, but most subs are keepers.',
     createdAt: DateTime.utc(2026, 6, 7, 5, 30),
     findings: const [
       NightFinding(
@@ -49,7 +49,7 @@ NightReport seededNightReport() {
         severity: NightFindingSeverity.critical,
         title: 'Clouds cost 6 subs',
         explanation:
-            'Background flux spiked between 03:10 and 03:40 — six subs show '
+            'Background flux spiked between 03:10 and 03:40. Six subs show '
             'washed-out backgrounds and dropped star counts consistent with '
             'thin high cloud passing through.',
         advice:
@@ -87,8 +87,8 @@ NightReport seededNightReport() {
         severity: NightFindingSeverity.info,
         title: 'Guiding was excellent',
         explanation:
-            'Total RMS held at 0.42" for the whole session with no spikes — '
-            'mount and seeing cooperated.',
+            'Total RMS held at 0.42" for the whole session with no spikes. '
+            'Mount and seeing cooperated.',
         evidenceSubIds: [],
         metricSeries: [0.45, 0.41, 0.43, 0.40, 0.42, 0.41, 0.42],
       ),

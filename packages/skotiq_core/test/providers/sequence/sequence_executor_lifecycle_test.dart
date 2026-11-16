@@ -235,7 +235,7 @@ void main() {
       executor.captureSessionStartHooksForTest('seq-warning-dupe');
 
       final stats = SequenceRunStats()
-        ..recordWarning('No focuser connected — autofocus was skipped.')
+        ..recordWarning('No focuser connected: autofocus was skipped.')
         ..recordWarning('Filter "Ha" could not be matched.');
       container.read(runRecordProvider.notifier).setStats(stats);
 

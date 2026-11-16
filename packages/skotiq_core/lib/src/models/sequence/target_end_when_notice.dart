@@ -69,7 +69,7 @@ bool isTargetBelowFloorSkip(String triggerId) =>
 String targetBelowFloorSkipWarning(String triggerName) =>
     '$triggerName, so the target was skipped without imaging and no frames '
     'were captured for it. The floor is your horizon when one is set in '
-    'Settings → Location, otherwise the minimum altitude.';
+    'Settings > Location, otherwise the minimum altitude.';
 
 /// How a target step's reading begins while the target waits to start (for
 /// its start time, or to clear the site's altitude floor). Must stay

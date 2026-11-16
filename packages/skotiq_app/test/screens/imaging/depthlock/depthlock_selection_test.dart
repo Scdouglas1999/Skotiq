@@ -79,7 +79,7 @@ void main() {
     expect(selection.blocker, contains('A live stack is running on L_0001'));
     expect(
       selection.blocker,
-      contains('the stack itself is not a calibrated light'),
+      contains('The stack itself is not a calibrated light'),
     );
   });
 

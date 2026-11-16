@@ -137,7 +137,7 @@ class _CullToolbar extends StatelessWidget {
             // what the optimizer actually recommended.
             message: keepN >= offer.populationSize
                 ? 'The optimizer would keep all $acceptedCount accepted '
-                    '${acceptedCount == 1 ? 'sub' : 'subs'} — there is '
+                    '${acceptedCount == 1 ? 'sub' : 'subs'}: there is '
                     'nothing to cull.'
                 : 'The optimizer would keep $keepN of $acceptedCount, but '
                     'predicts no SNR gain from dropping the rest '

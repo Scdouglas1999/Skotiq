@@ -127,7 +127,7 @@ class TransientReportService {
     return [
       if (needsZeroPoint)
         'AAVSO needs a calibrated magnitude (a photometric zeropoint for '
-            'this frame) — not available for this detection.',
+            'this frame). Not available for this detection.',
       if (needsObserverCode)
         needsZeroPoint
             // Not "first": it is not the only thing in the way, and saying so
@@ -291,7 +291,7 @@ class TransientReportService {
     }
     if (astCat == 'UNK') {
       header.writeln(
-        '# comment astCat UNK — solver reference catalog not threaded; '
+        '# comment astCat UNK. Solver reference catalog not threaded; '
         'replace before submitting to the MPC',
       );
     }

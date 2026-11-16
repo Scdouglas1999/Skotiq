@@ -286,7 +286,7 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Delete Template'), findsOneWidget);
+    expect(find.text('Delete template'), findsOneWidget);
     await tester.tap(find.widgetWithText(SkotiqButton, 'Delete'));
     await tester.pump();
     verify(() => repository.deleteSequence(7)).called(1);
@@ -299,7 +299,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Delete Template'), findsNothing);
+    expect(find.text('Delete template'), findsNothing);
     expect(
       find.text('The connected host changed. Template deletion canceled.'),
       findsOneWidget,

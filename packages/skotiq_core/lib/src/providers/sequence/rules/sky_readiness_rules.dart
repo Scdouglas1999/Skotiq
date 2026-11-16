@@ -176,7 +176,7 @@ class ObserverLocationUnsetRule implements RefAwareSequenceValidator {
             'meridian flip is due. This run proceeds with the daylight gate '
             'and the altitude limits switched off.',
         resolutionHint:
-            'Set your latitude and longitude in Settings → Location.',
+            'Set your latitude and longitude in Settings > Location.',
       ),
     ];
   }

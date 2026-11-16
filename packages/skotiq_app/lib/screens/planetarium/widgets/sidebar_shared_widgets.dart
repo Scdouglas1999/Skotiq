@@ -180,7 +180,7 @@ class DarknessCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Total Darkness',
+                      'Total darkness',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize11,
                         color: colors.textMuted,

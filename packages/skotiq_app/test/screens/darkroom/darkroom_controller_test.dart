@@ -782,7 +782,7 @@ void main() {
       stored.single.name,
       'M31 L draft',
       reason: 'the recipe is named after the master it is drafted over, the '
-          'way the dawn autopilot names its own — a bare "Draft" read back as '
+          'way the dawn autopilot names its own. A bare "Draft" read back as '
           '"Rendered draft of Draft" in the viewport semantics',
     );
   });

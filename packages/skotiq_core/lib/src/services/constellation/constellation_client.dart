@@ -505,7 +505,7 @@ class ConstellationClient {
       final body = response.body.trim();
       throw ConstellationException(
         'Claim panel $panelIndex of mosaic $mosaicId failed: panel is held by '
-        'another rig${body.isEmpty ? '' : ' — $body'}',
+        'another rig${body.isEmpty ? '' : ': $body'}',
         kind: ConstellationErrorKind.conflict,
         statusCode: 409,
       );
@@ -733,7 +733,7 @@ class ConstellationClient {
       final body = response.body.trim();
       throw ConstellationException(
         'Join co-imaging session $sessionId failed: session is closed'
-        '${body.isEmpty ? '' : ' — $body'}',
+        '${body.isEmpty ? '' : ': $body'}',
         kind: ConstellationErrorKind.conflict,
         statusCode: 409,
       );

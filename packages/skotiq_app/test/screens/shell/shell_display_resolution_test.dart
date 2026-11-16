@@ -132,7 +132,7 @@ void main() {
         withinMinute,
         isNot(contains('ShellClock')),
         reason: 'sidereal time advanced within the same displayed minute and '
-            'the readout rebuilt anyway — on the Linux embedder that is a '
+            'the readout rebuilt anyway. On the Linux embedder that is a '
             'full-window repaint for a string that did not change',
       );
 
@@ -186,7 +186,7 @@ void main() {
         tickOnly,
         isNot(contains('_RunStateRow')),
         reason: 'the executor\'s one-second elapsed/ETA tick rebuilt the run '
-            'pill, which shows neither — a full-window repaint per second for '
+            'pill, which shows neither. A full-window repaint per second for '
             'the length of a run',
       );
 

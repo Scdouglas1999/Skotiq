@@ -29,4 +29,21 @@ void main() {
     expect(entries[bestCommandIndex(entries, 'polar alignment')].id, 'screen');
     expect(entries[bestCommandIndex(entries, 'polaris')].id, 'target');
   });
+
+  test('a screen named by the start of the query beats targets and settings',
+      () {
+    final ranked = [
+      _entry('pleiades', CommandGroup.targets, 'Pleiades'),
+      _entry('plan-setting', CommandGroup.settings, 'Plan'),
+      _entry('plan', CommandGroup.screens, 'Plan'),
+    ];
+    expect(ranked[bestCommandIndex(ranked, 'pl')].id, 'plan');
+    expect(ranked[bestCommandIndex(ranked, 'plan')].id, 'plan');
+    // A screen that only contains the query does not jump the queue.
+    final inner = [
+      _entry('m31', CommandGroup.targets, 'M31'),
+      _entry('imaging', CommandGroup.screens, 'Imaging'),
+    ];
+    expect(inner[bestCommandIndex(inner, 'm31')].id, 'm31');
+  });
 }

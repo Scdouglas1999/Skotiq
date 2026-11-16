@@ -255,7 +255,7 @@ void main() {
     expect(line.kind, DeliveryStatusKind.off);
     expect(
       line.sentence,
-      'Off — nothing is sent here. 12 files are suspended here until it is '
+      'Off: nothing is sent here. 12 files are suspended here until it is '
       'switched back on.',
     );
   });
@@ -279,7 +279,7 @@ void main() {
       ),
     );
 
-    expect(line.sentence, 'Off — nothing is sent here.');
+    expect(line.sentence, 'Off: nothing is sent here.');
   });
 
   test('a partial failure counts once and names the unit once', () {

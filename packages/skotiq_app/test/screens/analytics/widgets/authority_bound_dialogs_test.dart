@@ -134,7 +134,7 @@ void main() {
 
     await tester.tap(find.text('Open export'));
     await tester.pumpAndSettle();
-    expect(find.text('Science Data Export'), findsOneWidget);
+    expect(find.text('Science data export'), findsOneWidget);
 
     await tester.tap(find.text('Start Date'));
     await tester.pumpAndSettle();
@@ -143,7 +143,7 @@ void main() {
     notifier.switchTo(hostB);
     await tester.pumpAndSettle();
 
-    expect(find.text('Science Data Export'), findsNothing);
+    expect(find.text('Science data export'), findsNothing);
     expect(find.byType(DatePickerDialog), findsNothing);
     expect(find.text('Open export'), findsOneWidget);
   });
@@ -254,7 +254,7 @@ void main() {
     notifier.switchTo(hostB);
     report.complete(Uint8List.fromList([1, 2, 3]));
     await tester.pumpAndSettle();
-    expect(find.text('Science Data Export'), findsNothing);
+    expect(find.text('Science data export'), findsNothing);
 
     expect(exportDirectoryReads, 0);
     expect(find.textContaining('Report generated'), findsNothing);

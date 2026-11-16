@@ -96,7 +96,7 @@ void main() {
       isTrue,
       reason:
           'six hours of subs on a target that sets partway through must not '
-          'pass pre-flight in silence — conflicts were ${analysis.conflicts}',
+          'pass pre-flight in silence. Conflicts were ${analysis.conflicts}',
     );
   });
 }

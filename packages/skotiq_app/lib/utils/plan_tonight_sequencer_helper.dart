@@ -90,7 +90,7 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final profile = ref.read(activeEquipmentProfileProvider);
   if (profile == null) {
     throw const SmartNightBuildException(
-      'No equipment profile selected — configure a profile before building '
+      'No equipment profile selected. Configure a profile before building '
       'a sequence.',
     );
   }
@@ -231,7 +231,7 @@ Future<TargetSuggestion> catalogTargetSuggestion({
   final settings = await ref.read(appSettingsProvider.future);
   if (!settings.hasObserverLocation) {
     throw const SmartNightBuildException(
-      'No observer location set — configure latitude and longitude in Settings '
+      'No observer location set. Configure latitude and longitude in Settings '
       'before building a sequence from the sky chart.',
     );
   }

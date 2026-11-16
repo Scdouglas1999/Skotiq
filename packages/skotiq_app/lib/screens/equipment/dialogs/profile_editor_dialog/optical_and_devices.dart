@@ -103,7 +103,7 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             trailing: helpAffordance(
               context,
               title: 'Reducer or barlow factor',
-              body: 'The multiplier printed on the reducer or barlow — 0.8 '
+              body: 'The multiplier printed on the reducer or barlow. 0.8 '
                   'for a 0.8x reducer, 2 for a 2x barlow. Leave blank (or 1) '
                   'when the camera is at prime focus. Focal length x this factor '
                   'is what the rig actually images at.',

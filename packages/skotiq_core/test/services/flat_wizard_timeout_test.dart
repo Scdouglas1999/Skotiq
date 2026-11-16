@@ -121,7 +121,7 @@ class _StallBackend extends Mock implements SkotiqBackend {
 void main() {
   const cam = 'native:cam:0';
 
-  group('exposeAndAwait — timeout is fail-safe', () {
+  group('exposeAndAwait: timeout is fail-safe', () {
     test(
       'timeout aborts exactly once, settles, and reads NO stale image',
       () async {
@@ -240,8 +240,8 @@ void main() {
       expect(result.cameraStateUnknown, isTrue);
     });
 
-    test('calibrateMultipleFilters stops after the timed-out filter — '
-        'no next exposure', () async {
+    test('calibrateMultipleFilters stops after the timed-out filter. '
+        'No next exposure', () async {
       final backend = _StallBackend(abortMode: _AbortMode.settle);
       addTearDown(backend.dispose);
       final service = FlatWizardService(backend);

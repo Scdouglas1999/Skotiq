@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_app/screens/settings/pairing_screen.dart';
+import 'package:skotiq_app/screens/settings/paired_devices.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../harness/harness.dart';

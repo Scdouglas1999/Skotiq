@@ -284,7 +284,7 @@ void main() {
     expect(recent.where((e) => e.title == 'Sequence stopped'), hasLength(1));
   });
 
-  test('D4 a real error INSIDE the stop family (interleaved) — one stop row?',
+  test('D4 a real error INSIDE the stop family (interleaved): one stop row?',
       () {
     // Producers 3 and 4 are separated by the whole safing/park teardown, so a
     // device/park event landing between them is the normal live case.

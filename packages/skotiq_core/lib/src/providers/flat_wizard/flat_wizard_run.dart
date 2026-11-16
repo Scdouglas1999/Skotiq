@@ -239,7 +239,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         final liveCamera = ref.read(cameraStateProvider);
         if (liveCamera.connectionState != DeviceConnectionState.connected ||
             liveCamera.deviceId == null) {
-          haltError = 'Camera disconnected — run stopped.';
+          haltError = 'Camera disconnected: run stopped.';
           break;
         }
 
@@ -267,7 +267,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           // Fail-safe: an uncertain filter position taints every remaining
           // filter, so stop the whole run rather than capture the wrong flat.
           updateFilterStatus(idx, FilterCalibrationStatus.failed);
-          haltError = '${filterSetting.label}: $moveError — run stopped.';
+          haltError = '${filterSetting.label}: $moveError: run stopped.';
           break;
         }
 
@@ -349,10 +349,10 @@ extension FlatWizardRun on FlatWizardNotifier {
           updateFilterStatus(idx, FilterCalibrationStatus.failed);
           haltError = calibration.cameraStateUnknown
               ? '${filterSetting.label}: '
-                    '${calibration.errorMessage ?? "camera state unknown"} — '
+                    '${calibration.errorMessage ?? "camera state unknown"}: '
                     'run stopped; check the camera.'
               : '${filterSetting.label}: '
-                    '${calibration.errorMessage ?? "exposure timed out"} — '
+                    '${calibration.errorMessage ?? "exposure timed out"}: '
                     'run stopped.';
           break;
         }
@@ -422,12 +422,12 @@ extension FlatWizardRun on FlatWizardNotifier {
             case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
               lightStop = tooDark
                   ? '${filterSetting.label}: the sky is now too dark '
-                        'for flats — the target needs '
+                        'for flats. The target needs '
                         '${neededExposure.toStringAsFixed(1)} s, over the '
                         '${maxExp.toStringAsFixed(1)} s maximum exposure. '
                         'Stopped with $savedCount of $frameCount frames.'
                   : '${filterSetting.label}: the sky is now too bright '
-                        'for flats — the target needs '
+                        'for flats. The target needs '
                         '${neededExposure.toStringAsFixed(3)} s, under the '
                         '${minExp.toStringAsFixed(3)} s minimum exposure. '
                         'Stopped with $savedCount of $frameCount frames.';
@@ -440,7 +440,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           if (frameCamera.connectionState != DeviceConnectionState.connected ||
               frameCamera.deviceId == null) {
             frameHalted = true;
-            haltError = 'Camera disconnected — run stopped.';
+            haltError = 'Camera disconnected: run stopped.';
             break;
           }
 
@@ -478,10 +478,10 @@ extension FlatWizardRun on FlatWizardNotifier {
             // operator must check the hardware.
             frameHalted = true;
             haltError = capture.cameraQuiescent
-                ? '${filterSetting.label} frame $frameNum timed out — '
-                      'run stopped.'
+                ? '${filterSetting.label} frame $frameNum timed out. '
+                      'Run stopped.'
                 : '${filterSetting.label} frame $frameNum timed out and '
-                      'the camera could not be confirmed idle — run stopped; '
+                      'the camera could not be confirmed idle. Run stopped; '
                       'check the camera.';
             break;
           }
@@ -518,7 +518,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               if (discardedInARow >= calibrationAttempts) {
                 lightStop =
                     '${filterSetting.label}: $discardedInARow frames in a '
-                    'row landed outside the band — stopped with $savedCount '
+                    'row landed outside the band. Stopped with $savedCount '
                     'of $frameCount frames. Raise "Exposure calibration '
                     'attempts" or widen the tolerance.';
                 break;

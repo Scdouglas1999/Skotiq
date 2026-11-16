@@ -33,7 +33,7 @@ DbCapturedImage _sub(int id,
 NightReport _clean() => NightReport(
       sessionId: 1,
       score: 100,
-      headline: 'A clean night — no problems detected.',
+      headline: 'A clean night: no problems detected.',
       findings: const [],
       createdAt: DateTime.utc(2026, 8, 13, 19),
     );

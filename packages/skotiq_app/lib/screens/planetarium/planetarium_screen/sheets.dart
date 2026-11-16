@@ -22,7 +22,7 @@ extension _PlanetariumScreenSheets on _PlanetariumScreenState {
             children: [
               Icon(SkotiqIcons.home, size: 16),
               SizedBox(width: 8),
-              Text('Reset View'),
+              Text('Reset view'),
             ],
           ),
         ),
@@ -32,7 +32,7 @@ extension _PlanetariumScreenSheets on _PlanetariumScreenState {
             children: [
               Icon(SkotiqIcons.grid, size: 16),
               SizedBox(width: 8),
-              Text('Toggle Grid'),
+              Text('Toggle grid'),
             ],
           ),
         ),
@@ -42,7 +42,7 @@ extension _PlanetariumScreenSheets on _PlanetariumScreenState {
             children: [
               Icon(SkotiqIcons.activity, size: 16),
               SizedBox(width: 8),
-              Text('Toggle Constellations'),
+              Text('Toggle constellations'),
             ],
           ),
         ),
@@ -52,7 +52,7 @@ extension _PlanetariumScreenSheets on _PlanetariumScreenState {
             children: [
               Icon(SkotiqIcons.frame, size: 16),
               SizedBox(width: 8),
-              Text('Toggle FOV Overlay'),
+              Text('Toggle FOV overlay'),
             ],
           ),
         ),

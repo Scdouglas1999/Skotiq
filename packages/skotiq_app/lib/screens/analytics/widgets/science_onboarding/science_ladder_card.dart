@@ -179,7 +179,7 @@ class ScienceLadderCard extends ConsumerWidget {
       ScienceRung.measure => null,
       ScienceRung.track => null,
       ScienceRung.curve =>
-        'Track a star — live, or open a session that recorded photometry — to '
+        'Track a star (live, or open a session that recorded photometry) to '
             'start collecting points.',
       ScienceRung.period => 'Gather at least ten light-curve points first.',
       ScienceRung.contribute =>

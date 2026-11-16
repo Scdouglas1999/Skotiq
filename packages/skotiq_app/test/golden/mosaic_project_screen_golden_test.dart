@@ -47,7 +47,7 @@ void main() {
     if (artifactsDir.existsSync()) artifactsDir.deleteSync(recursive: true);
   });
 
-  testWidgets('mosaic project — mid-capture (dark)', (tester) async {
+  testWidgets('mosaic project: mid-capture (dark)', (tester) async {
     tester.view.physicalSize = const Size(1100, 1500);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -90,7 +90,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('mosaic project — complete with stitched master (dark)',
+  testWidgets('mosaic project: complete with stitched master (dark)',
       (tester) async {
     tester.view.physicalSize = const Size(1100, 2000);
     tester.view.devicePixelRatio = 1.0;

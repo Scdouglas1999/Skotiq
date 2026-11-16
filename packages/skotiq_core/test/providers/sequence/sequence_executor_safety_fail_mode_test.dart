@@ -216,7 +216,7 @@ void main() {
         contains('FailClosed'),
         reason:
             'the guard must only relax the mode while the operator has opted '
-            'out of weather safety — it is not a blanket downgrade',
+            'out of weather safety. It is not a blanket downgrade',
       );
 
       await executor.stop();

@@ -355,7 +355,7 @@ class _BuiltinGuiderConfigFormState
         if (pending)
           Text(
             key: const ValueKey('builtin-guider-pending'),
-            'Not applied yet — press Apply to send these to the guider.',
+            'Not applied yet: press Apply to send these to the guider.',
             style: SkotiqTypography.caption
                 .copyWith(fontWeight: FontWeight.w600, color: colors.warning),
           ),

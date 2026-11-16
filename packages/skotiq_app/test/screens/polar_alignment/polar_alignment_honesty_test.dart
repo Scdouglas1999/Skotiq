@@ -148,7 +148,7 @@ void main() {
     await tester.tap(find.text('All-sky'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Within acceptance — hold steady'), findsNothing);
+    expect(find.text('Within acceptance: hold steady'), findsNothing);
     expect(find.text('Not measured'), findsOneWidget);
     // formatPolarError renders sub-arcminute values as `0.0"`.
     expect(find.text('0.0"'), findsNothing);

@@ -161,7 +161,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     children: [
                       Expanded(
                         child: Text(
-                          'Temperature Compensation',
+                          'Temperature compensation',
                           style: SkotiqTypography.body
                               .copyWith(color: colors.textPrimary),
                         ),
@@ -332,7 +332,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Reverse Direction',
+                      Text('Reverse direction',
                           style: SkotiqTypography.body
                               .copyWith(color: colors.textPrimary)),
                       Switch(

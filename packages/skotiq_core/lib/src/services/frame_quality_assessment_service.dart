@@ -87,9 +87,9 @@ class FrameQualityAssessment {
   String get summaryLine {
     if (reasons.isEmpty) return label;
     if (level == FrameQualityLevel.good) {
-      return '$label — noted but not disqualifying: ${reasons.join('; ')}';
+      return '$label: noted but not disqualifying: ${reasons.join('; ')}';
     }
-    return '$label — ${reasons.join('; ')}';
+    return '$label: ${reasons.join('; ')}';
   }
 
   /// Where [advisoryScore] came from, so the tile's number and the database's
@@ -98,16 +98,16 @@ class FrameQualityAssessment {
     final advisory = advisoryScore.toStringAsFixed(0);
     final recorded = recordedQualityScore;
     if (recorded == null) {
-      return 'Advisory $advisory/100 — this frame has no recorded quality '
+      return 'Advisory $advisory/100: this frame has no recorded quality '
           'score, so review started from the 75 default'
           '${reasons.isEmpty ? '' : ' and subtracted the notes above'}.';
     }
     final base = recorded.toStringAsFixed(0);
     if (advisory == base) {
-      return 'Advisory $advisory/100 — the recorded quality score ($base) with '
+      return 'Advisory $advisory/100: the recorded quality score ($base) with '
           'nothing subtracted.';
     }
-    return 'Advisory $advisory/100 — the recorded quality score ($base) minus '
+    return 'Advisory $advisory/100: the recorded quality score ($base) minus '
         'the review penalties listed above.';
   }
 }

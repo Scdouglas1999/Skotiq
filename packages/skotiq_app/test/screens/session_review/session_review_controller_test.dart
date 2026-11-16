@@ -318,4 +318,103 @@ void main() {
     expect(state().reviewedMaster!.deconvolvedPath, written);
     expect(state().error, isNull);
   });
+
+  // The Workbench's Masters list is the night's target's: an M74 night listed
+  // the NGC 7331 and NGC 891 masters with Re-finalize and Delete beside them.
+  test('the masters list holds this night\'s target only', () async {
+    final masters = container.read(integratedMastersDaoProvider);
+    final ours = await masters.insertMaster(
+      name: 'M74 L',
+      masterFitsPath: '/masters/M74/L.fits',
+      status: IntegratedMasterStatus.finalized,
+      accumulationMode: AccumulationMode.batch,
+      frameCount: 3,
+      filter: 'L',
+    );
+    for (final sub in await container
+        .read(imagesDaoProvider)
+        .getImagesForSession(sessionId)) {
+      await masters.recordFoldedFrame(masterId: ours, imageId: sub.id);
+    }
+    await masters.insertMaster(
+      name: 'NGC 7331 L',
+      masterFitsPath: '/masters/NGC_7331/L.fits',
+      status: IntegratedMasterStatus.accumulating,
+      accumulationMode: AccumulationMode.runningWeightedMean,
+      frameCount: 40,
+      filter: 'L',
+    );
+
+    controller();
+    await waitUntilLoaded();
+    expect(state().masters.map((m) => m.name), ['M74 L']);
+  });
+
+  test('a night with no master of its target lists none', () async {
+    await container.read(integratedMastersDaoProvider).insertMaster(
+          name: 'NGC 891 L',
+          masterFitsPath: '/masters/NGC_891/L.fits',
+          status: IntegratedMasterStatus.finalized,
+          accumulationMode: AccumulationMode.batch,
+          frameCount: 12,
+          filter: 'L',
+        );
+    controller();
+    await waitUntilLoaded();
+    expect(state().masters, isEmpty);
+  });
+
+  // A master grown on an earlier night of the same target is offered too, so
+  // "Add tonight" can fold this night into it.
+  test('the masters list offers the target\'s masters from other nights',
+      () async {
+    final targets = container.read(targetsDaoProvider);
+    final m74 = await targets.createTarget(
+      TargetsCompanion.insert(name: 'M74', ra: 1.611, dec: 15.78),
+    );
+    final images = container.read(imagesDaoProvider);
+    for (final sub in await images.getImagesForSession(sessionId)) {
+      await images.updateImage(sub.copyWith(targetId: Value(m74)));
+    }
+    final earlier = await container.read(sessionsDaoProvider).createSession(
+          ImagingSessionsCompanion.insert(
+            startTime: DateTime.now().subtract(const Duration(days: 3)),
+          ),
+        );
+    final earlierSub = await images.createImage(
+      CapturedImagesCompanion.insert(
+        filePath: 'C:/subs/earlier.fits',
+        fileName: 'earlier.fits',
+        sessionId: Value(earlier),
+        targetId: Value(m74),
+        exposureDuration: 60,
+        frameType: const Value('light'),
+        filter: const Value('L'),
+        isAccepted: const Value(true),
+        capturedAt: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    );
+    final masters = container.read(integratedMastersDaoProvider);
+    final grown = await masters.insertMaster(
+      name: 'M74 · L',
+      sidecarPath: '/masters/M74/L.skmaster',
+      status: IntegratedMasterStatus.accumulating,
+      accumulationMode: AccumulationMode.runningWeightedMean,
+      frameCount: 1,
+      filter: 'L',
+    );
+    await masters.recordFoldedFrame(masterId: grown, imageId: earlierSub);
+    await masters.insertMaster(
+      name: 'NGC 891 L',
+      masterFitsPath: '/masters/NGC_891/L.fits',
+      status: IntegratedMasterStatus.finalized,
+      accumulationMode: AccumulationMode.batch,
+      frameCount: 12,
+      filter: 'L',
+    );
+
+    controller();
+    await waitUntilLoaded();
+    expect(state().masters.map((m) => m.name), ['M74 · L']);
+  });
 }

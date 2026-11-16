@@ -52,8 +52,8 @@ String formatFollowHint({
     return '$targetName is already being deepened by another imager.';
   }
   if (swarmSeconds <= 0) {
-    return '$targetName is dark for you now and the swarm has no light yet — '
-        'start its first photons.';
+    return '$targetName is dark for you now and the swarm has no light yet. '
+        'Start its first photons.';
   }
   return '$targetName is dark for you now and the swarm needs more depth '
       '(${DurationFormat.decimalHours(swarmSeconds)} so far).';

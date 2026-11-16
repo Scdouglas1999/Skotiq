@@ -14,7 +14,7 @@ void main() {
   final fixedNow = DateTime.utc(2026, 1, 1, 12, 0, 0);
   DateTime clock() => fixedNow;
 
-  group('DeviceHeartbeatHealthNotifier — happy path', () {
+  group('DeviceHeartbeatHealthNotifier: happy path', () {
     test('forDevice returns unknown for absent ids', () {
       final notifier = DeviceHeartbeatHealthNotifier(now: clock);
 
@@ -56,7 +56,7 @@ void main() {
     });
   });
 
-  group('DeviceHeartbeatHealthNotifier — degraded', () {
+  group('DeviceHeartbeatHealthNotifier: degraded', () {
     test(
       'HeartbeatDegraded event populates degraded state with actual reason',
       () {
@@ -126,7 +126,7 @@ void main() {
     });
   });
 
-  group('DeviceHeartbeatHealthNotifier — reconnecting / reconnected', () {
+  group('DeviceHeartbeatHealthNotifier: reconnecting / reconnected', () {
     test('applyReconnecting records attempt counter in tooltip', () {
       final notifier = DeviceHeartbeatHealthNotifier(now: clock);
       notifier.applyReconnecting(
@@ -158,7 +158,7 @@ void main() {
     });
   });
 
-  group('DeviceHeartbeatHealthNotifier — clearing', () {
+  group('DeviceHeartbeatHealthNotifier: clearing', () {
     test('clearDevice resets entry so forDevice returns unknown again', () {
       final notifier = DeviceHeartbeatHealthNotifier(now: clock);
       notifier.applyStatusEvent(
@@ -193,7 +193,7 @@ void main() {
     });
   });
 
-  group('DeviceHeartbeatHealthNotifier — state transitions', () {
+  group('DeviceHeartbeatHealthNotifier: state transitions', () {
     test('redundant healthy events do not bump lastChange', () {
       var ticks = 0;
       DateTime tick() {

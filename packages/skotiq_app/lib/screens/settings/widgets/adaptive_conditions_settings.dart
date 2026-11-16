@@ -320,7 +320,7 @@ class _WeightTotalCallout extends StatelessWidget {
             child: Text(
               noAxes
                   ? 'Weights sum to 0.00. No conditions score can be computed, '
-                      'so adaptive swapping will not run — every scheduler '
+                      'so adaptive swapping will not run. Every scheduler '
                       'decision falls back to "conditions unknown". Set at '
                       'least one weight above zero.'
                   : nearOne

@@ -111,7 +111,7 @@ void main() {
 
     expect(find.byType(AdaptiveExposureSettings), findsOneWidget,
         reason: 'Tapping Adaptive Exposure must swap the content pane to '
-            'AdaptiveExposureSettings — otherwise the case-index dispatch '
+            'AdaptiveExposureSettings. Otherwise the case-index dispatch '
             'in _buildContent has drifted.');
   });
 

@@ -16,7 +16,6 @@ import '../screens/stack_result/stack_result_screen.dart';
 import '../screens/flat_wizard/flat_wizard_screen.dart';
 import '../screens/discover/mosaic/mosaic_project_screen.dart';
 import '../screens/weather/weather_screen.dart';
-import '../screens/settings/pairing_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/settings/plate_solving_settings_screen.dart';
 import '../screens/polar_alignment/polar_alignment_screen.dart';
@@ -128,7 +127,6 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.polarAlignment => const PolarAlignmentScreen(),
     AppRoute.mosaicProject =>
       MosaicProjectScreen(projectId: _id(state.pathParameters['id'])),
-    AppRoute.pairing => const PairingScreen(),
     AppRoute.diagnosticsDump => const DiagnosticDumpScreen(),
     AppRoute.stackResult => StackResultScreen(resultId: _id(query['id'])),
     // Renders Tonight with the wizard open over it; closing the wizard
@@ -149,7 +147,8 @@ Widget _screen(AppRoute route, GoRouterState state) {
     AppRoute.sessionReplay ||
     AppRoute.sessionReplayRun ||
     AppRoute.sessionReview ||
-    AppRoute.replay =>
+    AppRoute.replay ||
+    AppRoute.pairing =>
       throw StateError('$route only redirects and has no page'),
   };
 }

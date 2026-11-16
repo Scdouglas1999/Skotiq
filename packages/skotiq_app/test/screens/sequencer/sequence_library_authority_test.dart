@@ -104,12 +104,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-    expect(find.text('Delete Sequence'), findsOneWidget);
+    expect(find.text('Delete sequence'), findsOneWidget);
 
     notifier.switchTo(hostB);
     await tester.pumpAndSettle();
 
-    expect(find.text('Delete Sequence'), findsNothing);
+    expect(find.text('Delete sequence'), findsNothing);
     verifyNever(() => repositoryA.deleteSequence(any()));
     verifyNever(() => repositoryB.deleteSequence(any()));
   });

@@ -196,7 +196,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
         _isComputing = false;
         _statusMessage = 'Matched ${topMatches.length} stars across '
             '${imageIds.length} frame${imageIds.length == 1 ? '' : 's'}. '
-            'Airmass span ${airmassSpan.toStringAsFixed(2)} — '
+            'Airmass span ${airmassSpan.toStringAsFixed(2)}: '
             '${airmassSpan >= 0.05 ? 'extinction is fittable.' : 'add frames at different altitudes to fit extinction (k will be reported as 0).'}';
       });
     } catch (error, stack) {

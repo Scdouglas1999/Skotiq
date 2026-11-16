@@ -61,7 +61,7 @@ void main() {
       labels.where((label) => label.trim().isEmpty).length,
       0,
       reason: 'a bare `button: ` cannot be identified by anyone using the '
-          'keyboard or a screen reader — found ${labels.length} buttons: '
+          'keyboard or a screen reader. Found ${labels.length} buttons: '
           '$labels',
     );
     expect(

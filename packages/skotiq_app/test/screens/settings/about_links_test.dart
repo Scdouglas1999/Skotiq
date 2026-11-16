@@ -89,7 +89,7 @@ void main() {
           'https://github.com/Scdouglas1999/Skotiq/blob/main/docs/index.md'),
     );
 
-    await tester.tap(find.text('Report an Issue'));
+    await tester.tap(find.text('Report an issue'));
     await tester.pumpAndSettle();
     expect(launched.last,
         Uri.parse('https://github.com/Scdouglas1999/Skotiq/issues'));

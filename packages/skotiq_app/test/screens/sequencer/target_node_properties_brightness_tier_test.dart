@@ -65,7 +65,7 @@ void main() {
 
     await _pump(tester, container, target);
 
-    expect(find.text('Adaptive Brightness Tier'), findsOneWidget);
+    expect(find.text('Adaptive brightness tier'), findsOneWidget);
     expect(find.text('Auto (infer from target)'), findsOneWidget);
 
     await tester.tap(find.text('Auto (infer from target)'));

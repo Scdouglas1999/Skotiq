@@ -228,7 +228,7 @@ class IntegrationBudgetRatioZeroSumRule implements SequenceValidator {
             title: 'Integration Budget Ratios Sum To Zero',
             description:
                 'Target "${target.targetName}" has only ratio entries and '
-                'their sum is zero — the budget can never fire.',
+                'their sum is zero. The budget can never fire.',
             affectedNodeId: target.id,
             resolutionHint:
                 'Set at least one ratio entry to a positive value or use absolute caps.',

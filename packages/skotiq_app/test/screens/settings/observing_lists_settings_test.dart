@@ -94,7 +94,7 @@ void main() {
         setDescription: true,
       ),
     ).called(1);
-    expect(find.text('Edit Observing List'), findsNothing);
+    expect(find.text('Edit observing list'), findsNothing);
   });
 
   testWidgets('failed deletion remains open and reports the host error',
@@ -109,7 +109,7 @@ void main() {
     await tester.tap(find.widgetWithText(SkotiqButton, 'Delete'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Delete List?'), findsOneWidget);
+    expect(find.text('Delete list?'), findsOneWidget);
     expect(find.textContaining('host refused delete'), findsOneWidget);
   });
 
@@ -120,12 +120,12 @@ void main() {
     final notifier = await _pumpSettings(tester, backend: hostA);
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
-    expect(find.text('Edit Observing List'), findsOneWidget);
+    expect(find.text('Edit observing list'), findsOneWidget);
 
     notifier.switchTo(hostB);
     await tester.pumpAndSettle();
 
-    expect(find.text('Edit Observing List'), findsNothing);
+    expect(find.text('Edit observing list'), findsNothing);
     verifyNever(
       () => hostA.updateObservingList(
         id: any(named: 'id'),

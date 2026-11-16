@@ -847,9 +847,9 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           (
             'Is Safe',
             lastChecked == null
-                ? 'Unknown — not read yet'
+                ? 'Unknown: not read yet'
                 : isStale
-                    ? 'Unknown — reading is stale'
+                    ? 'Unknown: reading is stale'
                     : state.isSafe
                         ? 'Yes'
                         : 'No'

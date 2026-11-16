@@ -58,23 +58,24 @@ class _LibraryToolbarState extends ConsumerState<_LibraryToolbar> {
       onChanged: _onSearchChanged,
     );
     final chips = <Widget>[
-      FilterMenuChip<SequenceSortOrder>(
+      SkotiqMenuChip<SequenceSortOrder>(
         label: 'Sort: ${sortOrder.label.toLowerCase()}',
-        name: 'Sort order',
         roomy: compact,
         entries: [
-          for (final order in SequenceSortOrder.values) (order, order.label),
+          for (final order in SequenceSortOrder.values)
+            SkotiqMenuChoice(order, order.label, checked: order == sortOrder),
         ],
-        selected: sortOrder,
         onSelected: (value) =>
             ref.read(sequenceSortOrderProvider.notifier).state = value,
       ),
-      FilterMenuChip<bool>(
+      SkotiqMenuChip<bool>(
         label: favoritesOnly ? 'Favorites' : 'All sequences',
         name: 'Show',
         roomy: compact,
-        entries: const [(false, 'All sequences'), (true, 'Favorites')],
-        selected: favoritesOnly,
+        entries: [
+          SkotiqMenuChoice(false, 'All sequences', checked: !favoritesOnly),
+          SkotiqMenuChoice(true, 'Favorites', checked: favoritesOnly),
+        ],
         onSelected: (value) =>
             ref.read(sequenceFavoritesOnlyProvider.notifier).state = value,
       ),
@@ -141,50 +142,13 @@ class _TagFilterChip extends StatelessWidget {
   final bool roomy;
   final ValueChanged<Set<String>> onChanged;
 
-  static const double _touchTarget = 48;
-
   String get _label => switch (selected.length) {
         0 => 'Tags: any',
         1 => 'Tag: ${selected.single}',
         _ => 'Tags: ${selected.join(', ')}',
       };
 
-  Future<void> _open(BuildContext context) async {
-    final colors = SkotiqColors.of(context);
-    final box = context.findRenderObject()! as RenderBox;
-    // A record so "Any tag" (null) and a dismissed menu stay apart.
-    final picked = await showMenu<(String?,)>(
-      context: context,
-      position: menuPositionFromRect(
-        context,
-        box.localToGlobal(Offset.zero) & box.size,
-      ),
-      color: colors.surfaceElevated,
-      items: [
-        PopupMenuItem<(String?,)>(
-          value: (null,),
-          child: Text(
-            'Any tag',
-            style: SkotiqTypography.bodySm.copyWith(
-              color: selected.isEmpty ? colors.primary : colors.textPrimary,
-            ),
-          ),
-        ),
-        for (final tag in {...tags, ...selected})
-          CheckedPopupMenuItem<(String?,)>(
-            value: (tag,),
-            checked: selected.contains(tag),
-            child: Text(
-              tag,
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textPrimary,
-              ),
-            ),
-          ),
-      ],
-    );
-    if (picked == null) return;
-    final tag = picked.$1;
+  void _pick(String? tag) {
     if (tag == null) {
       onChanged(<String>{});
       return;
@@ -196,33 +160,16 @@ class _TagFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void open() => _open(context);
-    final chip = SkotiqFilterChip(
+    return SkotiqMenuChip<String?>(
       label: _label,
-      trailingIcon: LucideIcons.chevronDown,
-      onTap: open,
-    );
-    return Semantics(
-      container: true,
-      button: true,
-      enabled: true,
-      label: 'Tag filter: $_label',
-      onTap: open,
-      child: ExcludeSemantics(
-        child: roomy
-            ? GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: open,
-                child: SizedBox(
-                  height: _touchTarget,
-                  child: Center(
-                    widthFactor: 1,
-                    child: IgnorePointer(child: chip),
-                  ),
-                ),
-              )
-            : chip,
-      ),
+      name: 'Tag filter',
+      roomy: roomy,
+      entries: [
+        SkotiqMenuChoice(null, 'Any tag', checked: selected.isEmpty),
+        for (final tag in {...tags, ...selected})
+          SkotiqMenuChoice(tag, tag, checked: selected.contains(tag)),
+      ],
+      onSelected: _pick,
     );
   }
 }

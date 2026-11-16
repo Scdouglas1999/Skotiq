@@ -200,7 +200,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Template Name',
+                  'Template name',
                   style: SkotiqTypography.h6
                       .copyWith(color: widget.colors.textSecondary),
                 ),

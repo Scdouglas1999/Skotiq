@@ -411,7 +411,7 @@ class _DetailSidePanel extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceSm),
         if (record.evidence.isEmpty)
           Text(
-            'No structured evidence — classifier could not muster a verdict.',
+            'No structured evidence: classifier could not muster a verdict.',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               fontStyle: FontStyle.italic,

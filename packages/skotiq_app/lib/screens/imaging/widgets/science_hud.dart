@@ -317,7 +317,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
             children: [
               _OverlayChip(
                 colors: colors,
-                label: 'PSF Heatmap',
+                label: 'PSF heatmap',
                 active: overlayState.showPsfHeatmap,
                 onTap: () {
                   ref.read(scienceOverlayStateProvider.notifier).state =
@@ -384,7 +384,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
               ),
               _OverlayChip(
                 colors: colors,
-                label: 'FWHM Surface',
+                label: 'FWHM surface',
                 active: overlayState.showFwhmSurface,
                 onTap: () {
                   ref.read(scienceOverlayStateProvider.notifier).state =

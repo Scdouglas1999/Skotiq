@@ -86,7 +86,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         return StatefulBuilder(builder: (context, setState) {
           final colors = SkotiqColors.of(context);
           return SkotiqDialog(
-            title: 'Set Cooling Target',
+            title: 'Set cooling target',
             icon: LucideIcons.thermometer,
             width: 400,
             actions: [
@@ -263,7 +263,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         context: context,
         ref: ref,
         builder: (ctx, _) => SkotiqDialog(
-          title: 'Meridian Flip Now?',
+          title: 'Meridian flip now?',
           icon: LucideIcons.flipHorizontal,
           width: 400,
           actions: [
@@ -399,7 +399,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         final verb = closing ? 'Close' : 'Open';
         context.showSuccessSnackBar(
           observed == ShutterStatus.unknown
-              ? '$verb shutter command sent — dome is not reporting '
+              ? '$verb shutter command sent. Dome is not reporting '
                   'shutter state'
               : closing
                   ? 'Closing dome shutter'

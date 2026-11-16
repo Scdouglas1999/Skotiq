@@ -536,14 +536,14 @@ class FocusModelService {
       batchBand = FilterOffsetConfidence.low;
       if (temperatureModel == null) {
         batchReason =
-            'No temperature model yet — offsets are raw averages and may be '
+            'No temperature model yet. Offsets are raw averages and may be '
             'contaminated by temperature drift. Collect autofocus samples '
             'across a wider temperature range.';
       } else {
         batchReason =
             'Temperature model R²=${temperatureModel.rSquared.toStringAsFixed(2)} '
             'is below the reliability threshold of '
-            '${config.minRSquared.toStringAsFixed(2)} — offsets are raw '
+            '${config.minRSquared.toStringAsFixed(2)}: offsets are raw '
             'averages and may include temperature drift.';
       }
       Log.warning(

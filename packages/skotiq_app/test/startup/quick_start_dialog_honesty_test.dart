@@ -91,7 +91,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Load Previous Setup'),
+      find.widgetWithText(SkotiqButton, 'Load previous setup'),
     );
     expect(
       button.onPressed,
@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Load Previous Setup'),
+      find.widgetWithText(SkotiqButton, 'Load previous setup'),
     );
     expect(button.onPressed, isNotNull);
     expect(find.textContaining('Nothing to load'), findsNothing);
@@ -128,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Load Previous Setup'),
+      find.widgetWithText(SkotiqButton, 'Load previous setup'),
     );
     expect(button.onPressed, isNotNull);
   });

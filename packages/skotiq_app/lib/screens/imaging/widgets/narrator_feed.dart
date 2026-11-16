@@ -233,7 +233,7 @@ class _NarratorEmptyState extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceMd),
           Expanded(
             child: Text(
-              'The Narrator is watching — insights appear as your '
+              'The Narrator is watching. Insights appear as your '
               'frames come in.',
               style: TextStyle(
                 color: colors.textSecondary,

@@ -270,7 +270,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               // state, but the overflow menu and any future caller must not
               // be able to open a dialog whose Save is a no-op.
               context.showErrorSnackBar(
-                'Add an exposure node first — triggers are stored on the '
+                'Add an exposure node first. Triggers are stored on the '
                 'exposure that runs them.',
               );
               return;

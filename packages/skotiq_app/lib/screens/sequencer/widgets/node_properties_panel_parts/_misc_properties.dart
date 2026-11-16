@@ -243,7 +243,7 @@ class _OpenCoverProperties extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _CoverCalibratorScaffold(
       colors: colors,
-      title: 'Open Cover Settings',
+      title: 'Open cover settings',
       icon: LucideIcons.doorOpen,
       description:
           'Opens the motorized dust cover or flat panel lid. Requires a cover calibrator device.',
@@ -274,7 +274,7 @@ class _CloseCoverProperties extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _CoverCalibratorScaffold(
       colors: colors,
-      title: 'Close Cover Settings',
+      title: 'Close cover settings',
       icon: LucideIcons.doorClosed,
       description:
           'Closes the motorized dust cover or flat panel lid. Use to protect optics or transition out of flats.',
@@ -305,7 +305,7 @@ class _CalibratorOnProperties extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _CoverCalibratorScaffold(
       colors: colors,
-      title: 'Calibrator On Settings',
+      title: 'Calibrator on settings',
       icon: LucideIcons.lightbulb,
       description:
           'Turns on the flat panel light at the specified brightness. Use with flat frame sequences.',
@@ -377,7 +377,7 @@ class _CalibratorOffProperties extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _CoverCalibratorScaffold(
       colors: colors,
-      title: 'Calibrator Off Settings',
+      title: 'Calibrator off settings',
       icon: LucideIcons.lightbulbOff,
       description:
           'Turns off the flat panel light. Use after flat frame capture is complete.',

@@ -97,7 +97,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'Skotiq Design Language',
+              'Skotiq design language',
               style: SkotiqTypography.h1.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(width: SkotiqTokens.spaceMd),
@@ -125,7 +125,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
-          'Precision-instrument visual baseline — semantic palette, domain '
+          'Precision-instrument visual baseline: semantic palette, domain '
           'colors, full type scale, and the component library on one canvas.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),

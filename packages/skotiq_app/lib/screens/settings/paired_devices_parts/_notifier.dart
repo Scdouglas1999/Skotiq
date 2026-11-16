@@ -1,5 +1,5 @@
 // Pairing state, notifier and its provider.
-part of '../pairing_screen.dart';
+part of '../paired_devices.dart';
 
 /// Provider for pairing state management
 final pairingProvider =

@@ -254,7 +254,7 @@ void main() {
   );
 
   test(
-    'pull writes the overlay only — contribute never ships community frames',
+    'pull writes the overlay only. Contribute never ships community frames',
     () async {
       // The user has NOT imaged this tile (own-light total 0). A pull blends the
       // community depth into the overlay; a subsequent contribute exports the

@@ -683,7 +683,7 @@ class SessionOptimizerService {
                 'absorb most of the drift between explicit runs.',
             recommendation:
                 'Enable focuser temperature compensation in '
-                'Settings → Autofocus, or relax the trigger threshold.',
+                'Settings > Autofocus, or relax the trigger threshold.',
             confidence: confidence,
             applyHint: {'autofocusInterval': (60 / perHour).round()},
           ),
@@ -755,7 +755,7 @@ class SessionOptimizerService {
             recommendation:
                 'Review the rejection reasons in the Targets '
                 'block above, then either relax the grading threshold in '
-                'Settings → Image Grading or address the upstream cause.',
+                'Settings > Image grading or address the upstream cause.',
             confidence: confidence,
           ),
         );

@@ -718,7 +718,7 @@ void main() {
       expect(
         transport.opens,
         1,
-        reason: 'the check opens no transport — nothing is re-published',
+        reason: 'the check opens no transport. Nothing is re-published',
       );
     });
 
@@ -941,7 +941,7 @@ void main() {
       expect(
         (await DeliveryJournalDao(db).listPendingRetry()).single.state,
         DeliveryAttemptState.retrying,
-        reason: 'the row is still owed — it is just owed to a switch',
+        reason: 'the row is still owed. It is just owed to a switch',
       );
       expect(await service.earliestRetryDueAt(), isNull);
       expect(await service.hasDueRetries(), isFalse);
@@ -986,7 +986,7 @@ void main() {
       expect(
         (await DeliveryJournalDao(db).listPendingRetry()).single.state,
         DeliveryAttemptState.retrying,
-        reason: 'the row is still pending — it is pending on the peer',
+        reason: 'the row is still pending. It is pending on the peer',
       );
       now = now.add(const Duration(hours: 6));
       expect(await service.earliestRetryDueAt(), isNull);
@@ -1053,7 +1053,7 @@ void main() {
         isFalse,
         reason:
             'a failed row is not pending, so this question can be answered '
-            'yes at most once per file — which is what keeps it from being '
+            'yes at most once per file. Which is what keeps it from being '
             'the permanent sweep loop counting awaiting-pull rows was',
       );
     });

@@ -99,7 +99,7 @@ SchedulerCandidate _candidate() {
 }
 
 void main() {
-  group('SchedulerEngine — an operator Stop pauses the autopilot', () {
+  group('SchedulerEngine: an operator Stop pauses the autopilot', () {
     test('the engine pauses instead of re-dispatching', () async {
       final sink = _ExecutorSink();
       final engine = SchedulerEngine(
@@ -119,7 +119,7 @@ void main() {
         engine.status.state,
         SchedulerState.paused,
         reason:
-            'the operator stopped the run the autopilot started — the autopilot '
+            'the operator stopped the run the autopilot started. The autopilot '
             'must stand down, not overrule them. calls=${sink.calls}',
       );
       expect(
@@ -189,7 +189,7 @@ void main() {
         sink.calls,
         isNot(contains('resume')),
         reason:
-            'there is no paused run to resume — the operator stopped it — and '
+            'there is no paused run to resume (the operator stopped it) and '
             'resumeSequence would throw against a settled executor',
       );
       await engine.dispose();
@@ -213,7 +213,7 @@ void main() {
         sink.dispatched.length,
         2,
         reason:
-            'one failed run must not end the unattended night — nobody stopped '
+            'one failed run must not end the unattended night. Nobody stopped '
             'anything, so there is no operator decision to respect',
       );
       expect(engine.status.state, SchedulerState.running);

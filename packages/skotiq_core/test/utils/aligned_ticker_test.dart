@@ -23,7 +23,7 @@ void main() {
       );
     });
 
-    test('a full period on an exact boundary — never a zero-delay spin', () {
+    test('a full period on an exact boundary. Never a zero-delay spin', () {
       expect(
         delayToNextBoundary(
           const Duration(seconds: 1),
@@ -45,7 +45,7 @@ void main() {
 
     test(
       'the property that matters: clocks armed at ANY two moments in the same '
-      'period aim at the SAME instant — that is what lets Flutter coalesce '
+      'period aim at the SAME instant. That is what lets Flutter coalesce '
       'them into one frame instead of one frame each',
       () {
         const period = Duration(seconds: 1);
@@ -107,7 +107,7 @@ void main() {
               contains(tick),
               reason:
                   'the second clock ticked at $tick, which the first did '
-                  'not share — two phases means two frames a second. '
+                  'not share. Two phases means two frames a second. '
                   'first=$first second=$second',
             );
           }

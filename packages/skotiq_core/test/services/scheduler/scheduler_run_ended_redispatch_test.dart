@@ -127,7 +127,7 @@ SchedulerCandidate _candidate({
 }
 
 void main() {
-  group('SchedulerEngine — a dispatched run that ended', () {
+  group('SchedulerEngine: a dispatched run that ended', () {
     test('the next eligible tick dispatches again after a run FAILS', () async {
       final sink = _ExecutorSink();
       final engine = SchedulerEngine(
@@ -152,7 +152,7 @@ void main() {
         sink.dispatched.length,
         2,
         reason:
-            'one failed run must not end the unattended night — the target is '
+            'one failed run must not end the unattended night. The target is '
             'still eligible and the rig is free, so this tick has to dispatch. '
             'calls=${sink.calls}',
       );
@@ -230,7 +230,7 @@ void main() {
     );
   });
 
-  group('SchedulerEngine — generated plan starts from a parked mount', () {
+  group('SchedulerEngine: generated plan starts from a parked mount', () {
     test('the plan unparks before it slews', () {
       final engine = SchedulerEngine(
         site: _site,
@@ -250,7 +250,7 @@ void main() {
         reason:
             'after a safing park (dawn, weather, a manual park) every autopilot '
             'dispatch failed in 0 s on "Mount is parked. Please unpark the '
-            'mount before slewing." — the generated plan has to unpark first, '
+            'mount before slewing.". The generated plan has to unpark first, '
             'exactly as the manual pre-start dialog offers to. '
             'got=${children.map((n) => n.nodeType).toList()}',
       );
@@ -259,7 +259,7 @@ void main() {
     });
   });
 
-  group('SchedulerEngine — the dawn park asks who owns the rig', () {
+  group('SchedulerEngine: the dawn park asks who owns the rig', () {
     test('parks at dawn when the autopilot owns the run', () async {
       final sink = _ExecutorSink();
       var clock = _night();
@@ -304,7 +304,7 @@ void main() {
           reason:
               'safeTheRig(park: true) PAUSES the running sequence first, so an '
               'unowned dawn park ends the operator\'s exposure with no '
-              'ownership check and no warning — the same reasoning that gates '
+              'ownership check and no warning. The same reasoning that gates '
               'the other two engine-initiated teardowns. '
               'calls=${sink.calls}',
         );

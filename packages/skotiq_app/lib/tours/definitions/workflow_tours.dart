@@ -18,7 +18,7 @@ const List<TourStep> _firstLaunchTour = [
         '(Windows), INDI, and Alpaca work against drivers you already '
         'have. Native vendor paths (ZWO, QHY, Player One, SVBony, Atik, '
         'FLI, Moravian, Touptek) need that vendor\'s own library '
-        'installed — Skotiq does not ship it.',
+        'installed. Skotiq does not ship it.',
     target: TourTarget.navEquipment,
     side: TourCardSide.right,
   ),
@@ -38,7 +38,7 @@ const List<TourStep> _firstLaunchTour = [
     description:
         'Build automated imaging sequences here. The Templates tab has '
         'ready-made starting points for narrowband, LRGB, mosaics, and '
-        'lunar work — load one and customize.',
+        'lunar work. Load one and customize.',
     target: TourTarget.navSequencer,
     side: TourCardSide.right,
   ),
@@ -46,7 +46,7 @@ const List<TourStep> _firstLaunchTour = [
     id: 'scheduler',
     title: 'Let the scheduler pick targets',
     description:
-        'Plan Tonight ranks what is worth imaging and when, using each '
+        'Plan ranks what is worth imaging and when, using each '
         "target's altitude through the night and the time you actually "
         'have before dawn.',
     target: TourTarget.navPlanner,
@@ -57,7 +57,7 @@ const List<TourStep> _firstLaunchTour = [
     title: 'Set up plate solving',
     description:
         'Plate solving needs ASTAP or Astrometry.net installed. Set it '
-        'up under Settings → Plate Solving — Skotiq auto-detects '
+        'up under Settings > Plate solving. Skotiq auto-detects '
         'standard install paths.',
     target: TourTarget.navSettings,
   ),
@@ -75,7 +75,7 @@ const List<TourStep> _firstLaunchTour = [
     id: 'completion',
     title: "You're set",
     description:
-        'Run the tour again any time from Settings → Help & Tutorials.',
+        'Run the tour again any time from Settings > Help & tutorials.',
   ),
 ];
 
@@ -94,7 +94,7 @@ const List<TourStep> _equipmentSetup = [
     id: 'eq_create_profile',
     title: 'Create a profile',
     description:
-        'The + button at the top of the Profiles panel opens a new configuration. Enter focal length, aperture and your camera details — those are what the field-of-view and pixel-scale figures are computed from.',
+        'The + button at the top of the Profiles panel opens a new configuration. Enter focal length, aperture and your camera details. Those are what the field-of-view and pixel-scale figures are computed from.',
     target: TourTarget.equipmentCreateProfileButton,
     side: TourCardSide.bottom,
   ),
@@ -205,9 +205,9 @@ const List<TourStep> _calibrationFrames = [
     id: 'cf_what_are_flats',
     title: 'What are flat frames?',
     description:
-        'Flat frames correct for vignetting and dust spots in your optical system. Navigate to the Flat Wizard tab to capture them easily.',
-    target: TourTarget.navFlatWizard,
-    side: TourCardSide.right,
+        'Flat frames correct for vignetting and dust spots in your optical system. Take flats, in the Darkroom\'s Calibration tab, opens the flat wizard that captures them.',
+    target: TourTarget.darkroomTakeFlats,
+    side: TourCardSide.bottom,
   ),
   TourStep(
     id: 'cf_wizard_setup',
@@ -232,7 +232,7 @@ const List<TourStep> _calibrationFrames = [
 const List<TourStep> _advancedFeatures = [
   TourStep(
     id: 'af_analytics',
-    title: 'Session Analytics',
+    title: 'Session analytics',
     description:
         'Click the Analytics tab to review your imaging performance. View HFR trends, guiding accuracy, and sky conditions over time to identify areas for improvement.',
     target: TourTarget.navAnalytics,

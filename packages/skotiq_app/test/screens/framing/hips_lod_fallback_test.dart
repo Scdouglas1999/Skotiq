@@ -152,7 +152,7 @@ void main() {
             'flight, so none may be resident as primary yet.');
     expect(streaming.hasAnyImagery, isTrue,
         reason: 'Even with the sharp layer streaming, the coarse fallback / '
-            'Allsky base must provide imagery — never a blank flash.');
+            'Allsky base must provide imagery. Never a blank flash.');
 
     // The C8 painter must therefore draw at least one GPU mesh (coarse coverage),
     // and never a solid fill.
@@ -355,7 +355,7 @@ void main() {
       _bytesDiffer(correctBytes!, wholeBytes!),
       isTrue,
       reason: 'Sampling the child sub-quadrant of the parent must NOT equal '
-          'stretching the whole parent across the child footprint — if they '
+          'stretching the whole parent across the child footprint. If they '
           'matched, the painter would be squashing the entire parent into the '
           'child cell (the misregistration bug). The quadrant must be sampled.',
     );
@@ -413,7 +413,7 @@ void main() {
     expect(recorder.meshes, greaterThan(0),
         reason:
             'The Allsky base must paint one warped cell per visible tile, so '
-            'a freshly-targeted view is covered immediately — never blank.');
+            'a freshly-targeted view is covered immediately. Never blank.');
 
     // Release the held fetches and let them drain so no work outlives the test.
     await settleLoaderUntil(

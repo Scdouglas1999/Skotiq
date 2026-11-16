@@ -294,7 +294,7 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               child: Row(
                 children: [
                   SkotiqButton(
-                    label: 'Back Up Now',
+                    label: 'Back up now',
                     icon: LucideIcons.save,
                     size: settingsActionButtonSize(context),
                     isLoading: _isSavingNow,

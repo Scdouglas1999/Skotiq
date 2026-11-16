@@ -12,7 +12,6 @@ import '../sequencer_screen.dart';
 import 'package:skotiq_app/utils/authority_bound_dialog.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import '../widgets/quick_start_wizard_dialog.dart';
-import '../widgets/more_menu_button.dart';
 import '../../../utils/count_label.dart';
 import '../sequence_counts.dart';
 

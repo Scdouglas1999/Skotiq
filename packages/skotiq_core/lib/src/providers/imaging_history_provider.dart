@@ -43,8 +43,9 @@ class ImagingHistory {
   /// Per-filter integration time in seconds: filter name -> total seconds.
   final Map<String, double> filterIntegrationSecs;
 
-  /// Number of imaging sessions for this target.
-  final int sessionCount;
+  /// Observing nights (noon to noon) with a light frame of this target, as
+  /// Plan, Analytics and the Darkroom count them.
+  final int nightCount;
 
   /// When the target's newest light frame was taken.
   final DateTime? lastImaged;
@@ -57,7 +58,7 @@ class ImagingHistory {
     required this.totalIntegrationSecs,
     required this.filterCounts,
     required this.filterIntegrationSecs,
-    required this.sessionCount,
+    required this.nightCount,
     required this.lastImaged,
     required this.goalIntegrationSecs,
   });
@@ -69,7 +70,7 @@ class ImagingHistory {
   }
 
   /// Whether any imaging data exists.
-  bool get hasData => totalIntegrationSecs > 0 || sessionCount > 0;
+  bool get hasData => totalIntegrationSecs > 0 || nightCount > 0;
 
   bool get hasGoal => goalIntegrationSecs > 0;
 
@@ -78,7 +79,7 @@ class ImagingHistory {
     totalIntegrationSecs: 0,
     filterCounts: {},
     filterIntegrationSecs: {},
-    sessionCount: 0,
+    nightCount: 0,
     lastImaged: null,
     goalIntegrationSecs: 0,
   );
@@ -160,7 +161,7 @@ final imagingHistoryProvider =
         filterIntegrationSecs: {
           for (final f in progress.filters) f.filter: f.seconds,
         },
-        sessionCount: progress.sessionCount,
+        nightCount: progress.nightCount,
         lastImaged: progress.lastImagedAt,
         goalIntegrationSecs: progress.goalIntegrationSecs,
       );

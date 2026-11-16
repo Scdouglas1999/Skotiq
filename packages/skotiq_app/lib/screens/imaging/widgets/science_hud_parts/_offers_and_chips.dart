@@ -145,7 +145,7 @@ class _ContextualOffers extends ConsumerWidget {
         icon: LucideIcons.rocket,
         title: 'Enable moving-object detection?',
         body:
-            'You have ${lights.length} light frames — enough for the detector to spot drifting candidates.',
+            'You have ${lights.length} light frames. Enough for the detector to spot drifting candidates.',
         onAccept: actionsEnabled ? onEnableMovingObjects : null,
       ));
     }
@@ -156,7 +156,7 @@ class _ContextualOffers extends ConsumerWidget {
         icon: LucideIcons.slidersHorizontal,
         title: 'Enable narrowband ratios?',
         body:
-            'Ha, OIII, and SII frames are all present — Skotiq can produce line ratios from this session.',
+            'Ha, OIII, and SII frames are all present. Skotiq can produce line ratios from this session.',
         onAccept: actionsEnabled ? onEnableNarrowband : null,
       ));
     }

@@ -241,7 +241,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
                 (_loading || _clearToken != null || _clearConfirmationOpen)
                     ? null
                     : _clear,
-            label: 'Clear Model Data',
+            label: 'Clear model data',
             icon: LucideIcons.trash2,
             variant: ButtonVariant.ghost,
             size: ButtonSize.small,

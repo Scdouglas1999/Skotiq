@@ -826,7 +826,7 @@ String _claimHoldCaption(BuildContext context, MosaicProjectState state) {
     return 'A claimed panel is held for your rig until you release it or the '
         'hub claim expires.';
   }
-  return 'Your claim is held until ${_formatClaimExpiry(context, expiresAt)} — '
+  return 'Your claim is held until ${_formatClaimExpiry(context, expiresAt)}: '
       'release any panel you are not going to shoot.';
 }
 

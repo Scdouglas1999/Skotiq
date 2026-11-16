@@ -269,7 +269,7 @@ void main() {
     );
 
     testWidgets(
-        'drag at the old canvas center pans — hit-testing follows the '
+        'drag at the old canvas center pans. Hit-testing follows the '
         'box', (tester) async {
       final calls = _Calls();
       await _pumpCanvas(tester, framingState: movedState, calls: calls);

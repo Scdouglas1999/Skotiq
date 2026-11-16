@@ -53,7 +53,7 @@ void main() {
     );
   });
 
-  test('an empty rigId delivers under the rig\'s own names — the opt-out a '
+  test('an empty rigId delivers under the rig\'s own names. The opt-out a '
       'single-rig folder keeps working with', () {
     final naming = DeliveryNaming.of(const <String, Object?>{'rigId': ''});
 

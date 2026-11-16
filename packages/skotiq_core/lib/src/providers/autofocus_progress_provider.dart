@@ -315,7 +315,7 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
 
   void onAutofocusCancelFailed() {
     if (!state.isRunning) return;
-    state = state.copyWith(status: 'Cancellation failed — autofocus continues');
+    state = state.copyWith(status: 'Cancellation failed: autofocus continues');
   }
 
   void onAutofocusCancelled() {

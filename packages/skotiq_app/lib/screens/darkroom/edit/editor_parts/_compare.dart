@@ -223,7 +223,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
       leading: [
         _DarkroomTag(
           label: blinkMode ? (_showA ? 'Showing A' : 'Showing B') : 'A | B',
-          tooltip: 'A is "${widget.aLabel}" — this editor\'s current stack, '
+          tooltip: 'A is "${widget.aLabel}": this editor\'s current stack, '
               'unsaved edits included. B is "${widget.bLabel}".',
         ),
         if (blinkMode)

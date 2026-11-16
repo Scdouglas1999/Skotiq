@@ -261,7 +261,7 @@ void main() {
       SmartExposureProperties(colors: SkotiqColors.dark, node: smart),
     );
 
-    await tester.tap(find.text('Add Filter Plan'));
+    await tester.tap(find.text('Add filter plan'));
     await tester.pump();
 
     final updated = container.read(currentSequenceProvider)!.nodes[smart.id]

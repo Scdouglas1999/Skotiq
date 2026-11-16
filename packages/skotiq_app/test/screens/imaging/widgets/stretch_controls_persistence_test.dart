@@ -125,7 +125,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(notifier.updateCalls, 1);
-    expect(find.text('Auto-Stretch Settings'), findsOneWidget);
+    expect(find.text('Auto-stretch settings'), findsOneWidget);
     expect(
       find.text('Could not save the auto-stretch settings.'),
       findsOneWidget,

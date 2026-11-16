@@ -170,13 +170,13 @@ void main() {
     await tester.tap(find.byTooltip('Create new list'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'List Name'),
+      find.widgetWithText(TextField, 'List name'),
       'Launch targets',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Create'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Create Observing List'), findsOneWidget);
+    expect(find.text('Create observing list'), findsOneWidget);
     expect(find.textContaining('host rejected list'), findsOneWidget);
   });
 }

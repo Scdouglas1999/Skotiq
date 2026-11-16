@@ -56,7 +56,7 @@ void main() {
       expect(budget.resolvedFilterCap('OIII'), isNull);
     });
 
-    test('Ratios normalize against total — 4:1:1:1 LRGB / 8h example', () {
+    test('Ratios normalize against total. 4:1:1:1 LRGB / 8h example', () {
       const budget = IntegrationBudget(
         totalSecs: 28800.0,
         perFilter: {

@@ -97,8 +97,8 @@ void main() {
     expect(
       find.text('Connected'),
       findsNothing,
-      reason: 'a chip that outlives its sweep must not claim a live state — '
-          'this one sat next to "No devices connected" after a Disconnect All',
+      reason: 'a chip that outlives its sweep must not claim a live state. '
+          'This one sat next to "No devices connected" after a Disconnect All',
     );
     expect(find.textContaining('Succeeded'), findsOneWidget);
     expect(find.textContaining('Failed'), findsOneWidget);

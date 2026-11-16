@@ -292,7 +292,7 @@ void main() {
     await tester.tap(find.text('Rotate'));
     await _pumpFrames(tester);
 
-    expect(find.text('Rotate To Angle'), findsOneWidget);
+    expect(find.text('Rotate to angle'), findsOneWidget);
     expect(find.textContaining('gear slip'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
@@ -300,8 +300,8 @@ void main() {
     );
 
     await tester.tap(find.text('Rotate'));
-    await _waitForDialogToClose(tester, 'Rotate To Angle');
-    expect(find.text('Rotate To Angle'), findsNothing);
+    await _waitForDialogToClose(tester, 'Rotate to angle');
+    expect(find.text('Rotate to angle'), findsNothing);
     verify(() => service.moveRotatorTo(90)).called(2);
   });
 
@@ -338,12 +338,12 @@ void main() {
     await tester.enterText(find.byType(TextField), '42.5');
     await tester.tap(find.text('Slew'));
     await _pumpFrames(tester);
-    expect(find.text('Slew Dome To Azimuth'), findsOneWidget);
+    expect(find.text('Slew dome to azimuth'), findsOneWidget);
     expect(find.textContaining('shutter interlock'), findsOneWidget);
 
     await tester.tap(find.text('Slew'));
-    await _waitForDialogToClose(tester, 'Slew Dome To Azimuth');
-    expect(find.text('Slew Dome To Azimuth'), findsNothing);
+    await _waitForDialogToClose(tester, 'Slew dome to azimuth');
+    expect(find.text('Slew dome to azimuth'), findsNothing);
     verify(() => backend.domeSlewToAzimuth('dome-1', 42.5)).called(2);
   });
 }

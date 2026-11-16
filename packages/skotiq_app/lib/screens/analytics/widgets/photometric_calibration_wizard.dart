@@ -121,7 +121,7 @@ class _PhotometricCalibrationWizardState
     final colors = SkotiqColors.of(context);
 
     return SkotiqDialog(
-      title: 'Photometric Calibration Wizard',
+      title: 'Photometric calibration wizard',
       icon: LucideIcons.sparkles,
       width: 680,
       height: 600,

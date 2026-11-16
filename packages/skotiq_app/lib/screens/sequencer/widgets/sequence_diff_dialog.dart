@@ -254,7 +254,7 @@ class SequenceDiffDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sequence Diff',
+                  'Sequence diff',
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize18,
                     fontWeight: FontWeight.w700,

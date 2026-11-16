@@ -15,7 +15,7 @@ class ScienceOverlayLegend {
       icon: LucideIcons.layoutGrid,
       summary:
           'Median FWHM per tile. Green tiles = tight stars; red = bloated or elongated.',
-      readMoreId: 'PSF Field Map',
+      readMoreId: 'PSF field map',
       gradientStops: ['Tight', 'Average', 'Bloated'],
       gradientColors: SkotiqChartColors.psfGradient,
     ),
@@ -31,7 +31,7 @@ class ScienceOverlayLegend {
       label: 'Clip high',
       icon: LucideIcons.arrowUpRightSquare,
       summary:
-          'Tiles where pixels saturate. Red regions are losing highlight detail — drop exposure or gain.',
+          'Tiles where pixels saturate. Red regions are losing highlight detail. Drop exposure or gain.',
       gradientStops: ['Safe', 'Some clip', 'Saturated'],
       gradientColors: SkotiqChartColors.clipHighGradient,
     ),
@@ -39,7 +39,7 @@ class ScienceOverlayLegend {
       label: 'Clip low',
       icon: LucideIcons.arrowDownLeftSquare,
       summary:
-          'Tiles where pixels hit the noise floor. Blue regions show lost shadow signal — increase exposure.',
+          'Tiles where pixels hit the noise floor. Blue regions show lost shadow signal. Increase exposure.',
       gradientStops: ['Safe', 'Some clip', 'Floor'],
       gradientColors: SkotiqChartColors.clipLowGradient,
     ),
@@ -48,21 +48,21 @@ class ScienceOverlayLegend {
       icon: LucideIcons.move,
       summary:
           'Each arrow points from a star to where the catalog and the solve place it. A pattern that grows toward the edges is optical distortion.',
-      readMoreId: 'Astrometric Residuals',
+      readMoreId: 'Astrometric residuals',
     ),
     'moving': _LegendEntry(
       label: 'Moving object tracks',
       icon: LucideIcons.rocket,
       summary:
           'Multi-frame trails of detected moving candidates. Confidence is encoded in opacity.',
-      readMoreId: 'Moving Object Candidates',
+      readMoreId: 'Moving object candidates',
     ),
     'fwhm': _LegendEntry(
       label: 'FWHM surface',
       icon: LucideIcons.layoutTemplate,
       summary:
           '3D surface of FWHM across the field. A flat plane = even focus. A tilted plane = tilt.',
-      readMoreId: 'PSF Field Map',
+      readMoreId: 'PSF field map',
     ),
   };
 

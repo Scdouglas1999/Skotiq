@@ -80,7 +80,7 @@ const _seededStars = <GuideStar>[
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('surface — guiding panel (built-in multi-star guider active)',
+  testWidgets('surface: guiding panel (built-in multi-star guider active)',
       (tester) async {
     await SurfaceGoldenHarness.ensureFonts();
 

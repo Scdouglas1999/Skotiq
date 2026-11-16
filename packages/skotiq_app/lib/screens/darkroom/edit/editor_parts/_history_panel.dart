@@ -526,7 +526,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     }
     final enabled = reason == null;
     final label =
-        enabled ? 'Move $title $direction' : 'Move $title $direction — $reason';
+        enabled ? 'Move $title $direction' : 'Move $title $direction: $reason';
     void move() {
       unawaited(widget.onReorder(index, up ? index - 1 : index + 1));
     }
@@ -602,7 +602,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
             'linear-stage operation running after step ${stretchedAt + 1} '
             '(${darkroomOpTitle(steps[stretchedAt].opId)}), which has already '
             'left the linear stage. Those positions count the order the move '
-            'would produce, from 1 — not the stack on screen';
+            'would produce, from 1. Not the stack on screen';
       }
     }
     return null;
@@ -718,7 +718,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       case DarkroomStepOutcome.disabled:
         icon = SkotiqIcons.hidden;
         tint = colors.textMuted;
-        label = 'Off — the render skipped it';
+        label = 'Off: the render skipped it';
       case DarkroomStepOutcome.skipped:
         icon = SkotiqIcons.info;
         tint = colors.warning;
@@ -731,7 +731,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
         if (omitted) {
           icon = SkotiqIcons.hidden;
           tint = colors.textMuted;
-          label = 'Off, and left out of the render — this build cannot run it';
+          label = 'Off, and left out of the render. This build cannot run it';
         } else if (state.failureReasonFor(index) case final reason?) {
           // The card of the step the failure NAMED. It used to carry the same
           // "nothing is reported for this step" sentence as every step that
@@ -749,13 +749,13 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
         } else if (state.rendering) {
           icon = SkotiqIcons.help;
           tint = colors.textMuted;
-          label = 'Rendering — no outcome for this step yet';
+          label = 'Rendering: no outcome for this step yet';
         } else {
           icon = SkotiqIcons.help;
           tint = colors.textMuted;
           label = step.enabled
               ? 'Not rendered yet'
-              : 'Off — nothing has rendered it';
+              : 'Off: nothing has rendered it';
         }
     }
     // Icon AND words, never colour alone: under the red-night palette success,
@@ -796,7 +796,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     return 'Applied, adjusted to fit: the crop asks for '
         '${rect['width']}×${rect['height']} at '
         '(${rect['x']}, ${rect['y']}), which reaches past this '
-        "master's edge — the render applied only the part inside the "
+        "master's edge. The render applied only the part inside the "
         'frame';
   }
 
@@ -926,7 +926,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
               child: Tooltip(
                 message: spec.displayName == spec.name
                     ? spec.name
-                    : '${spec.displayName} — stored in this recipe as '
+                    : '${spec.displayName}: stored in this recipe as '
                         '"${spec.name}"',
                 child: Text(
                   spec.displayName,
@@ -1060,7 +1060,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       final reading = _darkroomNumberReading(value, isInteger: isInteger);
       final outOfRange = value < min || value > max;
       final announced = outOfRange
-          ? '$reading — outside the accepted range, so the render refuses this '
+          ? '$reading: outside the accepted range, so the render refuses this '
               'step'
           : reading;
       return Row(
@@ -1088,7 +1088,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
             // carry them.
             child: MergeSemantics(
               child: Semantics(
-                label: '${_rangeLabel(spec)} — $announced',
+                label: '${_rangeLabel(spec)}: $announced',
                 value: announced,
                 // Where a nudge LANDS, which is measured from the thumb: an
                 // increase from an out-of-range value moves to the end of the

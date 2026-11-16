@@ -74,7 +74,7 @@ List<SequenceNode> _oneOfEverySubtype() => <SequenceNode>[
     ];
 
 void main() {
-  group('nodeSummary — per-type fragment shape', () {
+  group('nodeSummary: per-type fragment shape', () {
     test(
         'ExposureNode emits editable count / duration / filter / gain / binning '
         'fragments', () {
@@ -197,7 +197,7 @@ void main() {
       );
     });
 
-    test('LoopNode (forever) is all static — no editable fragments', () {
+    test('LoopNode (forever) is all static. No editable fragments', () {
       final node = LoopNode(conditionType: LoopConditionType.forever);
       expect(nodeSummary(node).whereType<EditableFragment>(), isEmpty);
       expect(nodeSummary(node), isNotEmpty);
@@ -247,7 +247,7 @@ void main() {
     });
   });
 
-  group('nodeSummary — exhaustiveness guard', () {
+  group('nodeSummary: exhaustiveness guard', () {
     test('every concrete subtype produces a non-empty summary, never throws',
         () {
       for (final node in _oneOfEverySubtype()) {
@@ -274,7 +274,7 @@ void main() {
     });
   });
 
-  group('summaryHasInlineEdits — classification', () {
+  group('summaryHasInlineEdits: classification', () {
     final editable = <SequenceNode>[
       ExposureNode(),
       LoopNode(conditionType: LoopConditionType.count),

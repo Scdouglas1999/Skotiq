@@ -74,7 +74,7 @@ void main() {
       findsNothing,
       reason: 'a green tick beside a model name reads as "validated"',
     );
-    expect(find.text('${preset.displayName} — edited'), findsOneWidget);
+    expect(find.text('${preset.displayName}: edited'), findsOneWidget);
   });
 
   testWidgets('a camera preset says when it replaced a typed pixel size',
@@ -106,7 +106,7 @@ void main() {
       (tester) async {
     await _pump(tester, const OnboardingOpticalTrainStep());
     expect(
-      find.text("Not in the camera library — check your camera's datasheet"),
+      find.text("Not in the camera library. Check your camera's datasheet"),
       findsNothing,
     );
   });

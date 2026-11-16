@@ -202,8 +202,8 @@ void main() {
             hasLength(1),
             reason:
                 'The seeded v29 row must survive the v30 recreate. '
-                'If this fails, the migration is destroying user data — '
-                'stop and investigate the recreate transaction in '
+                'If this fails, the migration is destroying user data. '
+                'Stop and investigate the recreate transaction in '
                 'database.dart before continuing.',
           );
 

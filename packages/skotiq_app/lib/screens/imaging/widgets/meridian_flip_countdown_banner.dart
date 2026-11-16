@@ -333,7 +333,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
       severity: SkotiqAlertSeverity.info,
       icon: LucideIcons.flipHorizontal2,
       title: _BannerTitle(text: 'Meridian flip armed'),
-      subtitle: 'Monitored by the sequencer — no action needed.',
+      subtitle: 'Monitored by the sequencer. No action needed.',
       showPierChip: true,
     );
   }
@@ -347,7 +347,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
       title: const _BannerTitle(text: 'Meridian flip imminent'),
       subtitle: state.isSequencerOwned
           ? 'Handled automatically by the running sequence.'
-          : 'Automatic — the meridian-flip watchdog is running it now. '
+          : 'Automatic: the meridian-flip watchdog is running it now. '
               'No action needed.',
       showPierChip: true,
     );
@@ -366,7 +366,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
     ),
     subtitle: state.isSequencerOwned
         ? 'Handled automatically by the running sequence.'
-        : 'Automatic — the meridian-flip watchdog will run this for you. No action needed.',
+        : 'Automatic: the meridian-flip watchdog will run this for you. No action needed.',
     showPierChip: true,
   );
 }

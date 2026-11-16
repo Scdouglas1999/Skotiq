@@ -20,13 +20,15 @@ import 'query_word.dart';
 import 'sequencer_route.dart';
 import 'settings_sections.dart';
 
-/// The three things an operator does with this app, in the order a night runs.
+/// The rail's groups, top to bottom in the order a night runs: Tonight alone,
+/// then the three things an operator does with this app.
 ///
-/// The rail is grouped by them rather than being one flat list, because a flat
-/// list makes "Weather" and "Guiding" look like peers of equal weight when one
-/// is a thing you check before you start and the other is a thing you watch
-/// while running.
-enum ShellNavGroup { observe, prepare, review }
+/// The rail is grouped rather than one flat list, because a flat list makes
+/// "Weather" and "Guiding" look like peers of equal weight when one is a
+/// thing you check before you start and the other is a thing you watch while
+/// running. [home] has no heading: Tonight answers "what is happening" at any
+/// hour and belongs to no one stage.
+enum ShellNavGroup { home, prepare, observe, review }
 
 /// Floating shell surfaces a screen can carry itself, so the shell leaves its
 /// own copy off that screen.
@@ -71,42 +73,17 @@ final class EnglishLabel extends RouteLabel {
 /// Every route, one declaration each.
 ///
 /// The rail destinations come first, in rail order; the palette lists the
-/// rail and then every route marked [palette], in declaration order. The last
-/// group only redirects: each path once was a screen of its own and stays so
-/// old links, notifications and docs still land.
+/// rail and then every route marked [palette], in declaration order. Many of
+/// the rest only redirect (see [redirect]): each path once was a screen of
+/// its own and stays so old links, notifications and docs still land.
 enum AppRoute {
   tonight(
     '/dashboard',
     label: TranslatedLabel('navTonight'),
     icon: LucideIcons.moonStar,
-    group: ShellNavGroup.observe,
+    group: ShellNavGroup.home,
     screen: AppScreen.dashboard,
     showsItself: {ShellOverlay.runControls, ShellOverlay.autofocus},
-  ),
-  imaging(
-    '/imaging',
-    label: TranslatedLabel('navImaging'),
-    shortLabel: TranslatedLabel('navImagingShort'),
-    icon: LucideIcons.camera,
-    group: ShellNavGroup.observe,
-    screen: AppScreen.imaging,
-  ),
-  sequencer(
-    '/sequencer',
-    label: TranslatedLabel('navSequencer'),
-    shortLabel: TranslatedLabel('navSequencerShort'),
-    icon: LucideIcons.listOrdered,
-    group: ShellNavGroup.observe,
-    screen: AppScreen.sequencer,
-    showsItself: {ShellOverlay.runControls},
-  ),
-  guiding(
-    '/guiding',
-    label: TranslatedLabel('navGuiding'),
-    shortLabel: TranslatedLabel('navGuidingShort'),
-    icon: LucideIcons.crosshair,
-    group: ShellNavGroup.observe,
-    screen: AppScreen.guiding,
   ),
   planner(
     '/planner',
@@ -122,14 +99,6 @@ enum AppRoute {
     group: ShellNavGroup.prepare,
     screen: AppScreen.equipment,
   ),
-  flatWizard(
-    '/flat-wizard',
-    label: TranslatedLabel('navFlatWizard'),
-    icon: LucideIcons.sun,
-    group: ShellNavGroup.prepare,
-    keywords: ['flat', 'calibration', 'wizard'],
-    screen: AppScreen.flatWizard,
-  ),
   weather(
     '/weather',
     label: TranslatedLabel('navWeather'),
@@ -137,12 +106,30 @@ enum AppRoute {
     group: ShellNavGroup.prepare,
     screen: AppScreen.weather,
   ),
-  darkroom(
-    '/darkroom',
-    label: TranslatedLabel('navDarkroom'),
-    icon: LucideIcons.aperture,
-    group: ShellNavGroup.review,
-    screen: AppScreen.darkroom,
+  sequencer(
+    '/sequencer',
+    label: TranslatedLabel('navSequencer'),
+    shortLabel: TranslatedLabel('navSequencerShort'),
+    icon: LucideIcons.listOrdered,
+    group: ShellNavGroup.observe,
+    screen: AppScreen.sequencer,
+    showsItself: {ShellOverlay.runControls},
+  ),
+  imaging(
+    '/imaging',
+    label: TranslatedLabel('navImaging'),
+    shortLabel: TranslatedLabel('navImagingShort'),
+    icon: LucideIcons.camera,
+    group: ShellNavGroup.observe,
+    screen: AppScreen.imaging,
+  ),
+  guiding(
+    '/guiding',
+    label: TranslatedLabel('navGuiding'),
+    shortLabel: TranslatedLabel('navGuidingShort'),
+    icon: LucideIcons.crosshair,
+    group: ShellNavGroup.observe,
+    screen: AppScreen.guiding,
   ),
   analytics(
     '/analytics',
@@ -150,6 +137,13 @@ enum AppRoute {
     icon: LucideIcons.barChart3,
     group: ShellNavGroup.review,
     screen: AppScreen.analytics,
+  ),
+  darkroom(
+    '/darkroom',
+    label: TranslatedLabel('navDarkroom'),
+    icon: LucideIcons.aperture,
+    group: ShellNavGroup.review,
+    screen: AppScreen.darkroom,
   ),
 
   settings(
@@ -167,6 +161,16 @@ enum AppRoute {
     palette: true,
     keywords: ['polar', 'align', 'drift', 'tppa'],
     showsItself: {ShellOverlay.polarAlignmentRun},
+  ),
+  /// A tool, not a place: reached from Darkroom > Calibration, Imaging's
+  /// calibration section and the palette.
+  flatWizard(
+    '/flat-wizard',
+    label: TranslatedLabel('navFlatWizard'),
+    icon: LucideIcons.sun,
+    palette: true,
+    keywords: ['flat', 'calibration', 'wizard'],
+    screen: AppScreen.flatWizard,
   ),
 
   /// Forwards to Plan > Best tonight, and is how the palette finds it.
@@ -207,16 +211,8 @@ enum AppRoute {
   ),
   mosaicProject('/mosaic/:id'),
 
-  /// A route, not a `Navigator.push`, so a rail click replaces it like every
-  /// other page instead of leaving it on screen above a location that changed
-  /// underneath it.
-  pairing(
-    '/pairing',
-    label: TranslatedLabel('pairingTitle'),
-    icon: LucideIcons.smartphone,
-    palette: true,
-    keywords: ['pair', 'phone', 'remote', 'device'],
-  ),
+  /// Paired phones and tablets live in Settings > Remote access.
+  pairing('/pairing'),
 
   /// Analytics > Diagnostics. Listed in the palette under its own name.
   diagnostics(
@@ -238,8 +234,7 @@ enum AppRoute {
   /// One Stack-and-Share result (`?id=`).
   stackResult('/stack-result'),
 
-  /// The decision scrubber for one run. A route for the same reason as
-  /// [pairing].
+  /// The decision scrubber for one run, now the night's Log.
   replay('/replay/:runId'),
 
   /// Opens the first-night walkthrough over Tonight.
@@ -342,7 +337,7 @@ enum AppRoute {
         _ when group != null => this,
         imagingPreview => imaging,
         polarAlignment => equipment,
-        stackResult => darkroom,
+        flatWizard || stackResult => darkroom,
         mosaicProjects || mosaicProject => planner,
         _ => null,
       };
@@ -363,7 +358,8 @@ enum AppRoute {
         sessionReplay ||
         sessionReplayRun ||
         sessionReview ||
-        replay =>
+        replay ||
+        pairing =>
           true,
         _ => false,
       };
@@ -427,6 +423,7 @@ enum AppRoute {
               ? AppRoutes.darkroom(const DarkroomRoute())
               : AppRoutes.history(),
         },
+      pairing => AppRoutes.settings(SettingsSectionId.remoteAccess),
       // The calibration pages moved to the Darkroom's Calibration tab.
       settings =>
         SettingsSectionId.resolve(q['section']) == SettingsSectionId.calibration
@@ -464,6 +461,9 @@ enum AppRoute {
             'tab': (word) =>
                 SequencerTab.fromQuery(word) != null ||
                 SequencerTab.namesHistory(word),
+          },
+        equipment => {
+            'tab': (word) => EquipmentTab.fromQuery(word) != null,
           },
         settings => {
             'section': (word) => SettingsSectionId.resolve(word) != null,

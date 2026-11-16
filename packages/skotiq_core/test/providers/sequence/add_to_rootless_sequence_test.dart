@@ -172,7 +172,7 @@ void main() {
         rootId,
         reason:
             'the node used to land in `nodes` with no parent and no entry '
-            'in anyone\'s childIds — present to containsKey, invisible to '
+            'in anyone\'s childIds. Present to containsKey, invisible to '
             'every renderer',
       );
       expect(sequence.descendantsOf(rootId!), contains('park-1'));

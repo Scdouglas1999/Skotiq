@@ -264,7 +264,7 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               Text(
                                 progress.currentNodeName ??
                                     (isPaused
-                                        ? 'Paused — no active node'
+                                        ? 'Paused: no active node'
                                         : 'Starting...'),
                                 style: SkotiqTypography.labelStrong
                                     .copyWith(color: widget.colors.textPrimary),
@@ -523,7 +523,7 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                           // The estimate is planned integration only — it does
                           // not include pending autofocus / dither / meridian-flip
                           // overhead, so the finish time is a floor, not a promise.
-                          message: 'Integration time only — excludes pending '
+                          message: 'Integration time only: excludes pending '
                               'autofocus, dither, and meridian-flip overhead.',
                           child: Row(
                             mainAxisSize: MainAxisSize.min,

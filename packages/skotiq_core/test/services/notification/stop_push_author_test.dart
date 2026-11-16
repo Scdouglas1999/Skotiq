@@ -412,7 +412,7 @@ void main() {
           'DecisionLogged',
           data: const {
             'category': 'system_event',
-            'summary': 'Autofocus failed — continuing with last-good focus',
+            'summary': 'Autofocus failed: continuing with last-good focus',
             'details_json': '{"trigger":"interval"}',
             'sequence_run_id': _runId,
             'notice': 'autofocus_continued',

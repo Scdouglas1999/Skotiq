@@ -34,7 +34,7 @@ WeatherSafetyState _critical({
     WeatherSafetyState(
       status: status,
       actions: const WeatherSafetyActions(
-        reason: 'Weather safety is off — conditions are not being checked',
+        reason: 'Weather safety is off. Conditions are not being checked',
       ),
       currentAlertLevel: AlertLevel.critical,
       monitoringEnabled: monitoringEnabled,

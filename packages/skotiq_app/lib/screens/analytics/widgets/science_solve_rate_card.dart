@@ -231,7 +231,7 @@ enum _Tier {
         return 'No frames have solved this session, and a solver '
             '${detection.astapReady ? '(ASTAP' : '(astrometry.net'}'
             '${detection.catalogName == null ? '' : ', catalog ${detection.catalogName}'}) '
-            'is installed — so it is running and failing, not missing. Check '
+            'is installed, so it is running and failing, not missing. Check '
             'focal length and pixel scale first, then whether the catalog '
             'covers this field.';
     }

@@ -107,7 +107,7 @@ void main() {
     expect(
       await dao.getAllTargets(),
       hasLength(1),
-      reason: 'the same target, re-pointed — not a second library entry',
+      reason: 'the same target, re-pointed. Not a second library entry',
     );
   });
 

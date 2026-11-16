@@ -74,7 +74,7 @@ List<int> _le16(List<int> samples) {
 }
 
 void main() {
-  group('NetworkBackend stacking — valid decode', () {
+  group('NetworkBackend stacking: valid decode', () {
     test(
       'valid mono result decodes dimensions, channels, stats, pixels',
       () async {
@@ -147,7 +147,7 @@ void main() {
     });
   });
 
-  group('NetworkBackend stacking — start/stats accept complete objects', () {
+  group('NetworkBackend stacking: start/stats accept complete objects', () {
     test(
       'start accepts a complete zero-valued stats object (armed host)',
       () async {
@@ -235,7 +235,7 @@ void main() {
     );
   });
 
-  group('NetworkBackend stacking — malformed stats fail loudly', () {
+  group('NetworkBackend stacking: malformed stats fail loudly', () {
     test('start with no stats field throws (not a silent zero)', () async {
       final fake = FakeNetworkClient()
         ..setResponse(
@@ -328,7 +328,7 @@ void main() {
     });
   });
 
-  group('NetworkBackend stacking — status requires real fields', () {
+  group('NetworkBackend stacking: status requires real fields', () {
     test(
       'complete status decodes (including a legitimate idle host)',
       () async {
@@ -409,7 +409,7 @@ void main() {
     });
   });
 
-  group('NetworkBackend stacking — result meta is validated', () {
+  group('NetworkBackend stacking: result meta is validated', () {
     test('non-positive width throws', () async {
       final backend = _resultBackend(
         meta: _meta(width: 0),
@@ -451,7 +451,7 @@ void main() {
     });
   });
 
-  group('NetworkBackend stacking — preview body is size-checked', () {
+  group('NetworkBackend stacking: preview body is size-checked', () {
     test('truncated preview throws', () async {
       // 2x2 mono needs 4 samples (8 bytes); supply only 2 samples.
       final backend = _resultBackend(meta: _meta(), preview: _le16([1, 2]));

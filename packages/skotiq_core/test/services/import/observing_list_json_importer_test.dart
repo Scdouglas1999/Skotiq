@@ -128,7 +128,7 @@ void main() {
         decDegrees: 41.269,
         rotation: 12.0,
         priority: 1,
-        comment: 'Andromeda — wide-field',
+        comment: 'Andromeda: wide-field',
       );
       final m31Exposure = ExposureNode(
         id: 'e1',

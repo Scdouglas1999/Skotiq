@@ -75,7 +75,7 @@ void main() {
     expect(
       root.existsSync(),
       isTrue,
-      reason: '$_screensRoot is missing — run from the skotiq_app '
+      reason: '$_screensRoot is missing: run from the skotiq_app '
           'package root',
     );
 
@@ -107,7 +107,7 @@ void main() {
     expect(
       _allowed.keys.toSet().difference(excused),
       isEmpty,
-      reason: 'these paths are excused from a rule they no longer break — an '
+      reason: 'these paths are excused from a rule they no longer break. An '
           'allowance nobody needs is an allowance nobody rereads, so it comes '
           'out with the code that earned it',
     );
@@ -115,7 +115,7 @@ void main() {
       covered,
       greaterThan(0),
       reason: 'the scan matched no host-only surface at all, so it is not '
-          'testing the rule it claims to — check _hostOnlyEntryPoints against '
+          'testing the rule it claims to. Check _hostOnlyEntryPoints against '
           'the current entry points',
     );
     expect(

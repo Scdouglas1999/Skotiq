@@ -178,7 +178,7 @@ extension _ConstellationClientTransport on ConstellationClient {
     };
     final detail = switch (kind) {
       ConstellationErrorKind.auth =>
-        'authentication failed — token missing the required scope',
+        'authentication failed: token missing the required scope',
       ConstellationErrorKind.notFound => 'not found on hub',
       ConstellationErrorKind.geometryMismatch =>
         'tile geometry/order mismatch (hub uses a different HEALPix tiling)',
@@ -190,7 +190,7 @@ extension _ConstellationClientTransport on ConstellationClient {
     final body = response.body.trim();
     throw ConstellationException(
       '$operation failed: $detail (HTTP $status)'
-      '${body.isEmpty ? '' : ' — $body'}',
+      '${body.isEmpty ? '' : ': $body'}',
       kind: kind,
       statusCode: status,
     );

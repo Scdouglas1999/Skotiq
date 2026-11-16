@@ -179,7 +179,7 @@ void main() {
     });
   });
 
-  group('Targets panel — In this sequence', () {
+  group('Targets panel: In this sequence', () {
     testWidgets('lists target headers in order, with chips and summaries',
         (tester) async {
       final container = _container();

@@ -37,7 +37,7 @@ void main() {
     });
   });
 
-  group('deriveDitherSettleValues — sane values for a sample rig', () {
+  group('deriveDitherSettleValues: sane values for a sample rig', () {
     // Sample rig: 3.76 µm sensor at 530 mm focal length -> ~1.463"/px.
     const pixelScale = 206.265 * 3.76 / 530;
 
@@ -96,7 +96,7 @@ void main() {
     });
   });
 
-  group('deriveDitherSettleValues — clamping and fallbacks', () {
+  group('deriveDitherSettleValues: clamping and fallbacks', () {
     test('extreme long focal length is clamped to the minimum pixels', () {
       // 2.4 µm at 4000 mm -> ~0.124"/px. Good-seeing 1.0" tolerance would be
       // ~8px raw, but it is clamped down so it stays usable.

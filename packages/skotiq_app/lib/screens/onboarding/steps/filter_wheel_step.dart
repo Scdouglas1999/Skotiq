@@ -246,7 +246,7 @@ class _OnboardingFilterWheelStepState
     final wheel = draft.filterWheelName ?? 'This wheel';
     if (!atSlotCap) return '$wheel reports $reportedSlots positions.';
     if (reportedSlots != null) {
-      return 'All $reportedSlots positions on this wheel are listed — '
+      return 'All $reportedSlots positions on this wheel are listed. '
           '$wheel has no slot ${reportedSlots + 1} to hold another filter.';
     }
     return 'A profile can hold at most $_hardSlotCap filters.';

@@ -47,7 +47,7 @@ List<ValidationIssue> postSessionOpticalTrainDrift({
         title: 'Optical Train Held Steady',
         description:
             'Tilt/collimation diagnostics moved ${drift.toStringAsFixed(1)} '
-            'units during the session — below the '
+            'units during the session. Below the '
             '${threshold.toStringAsFixed(1)} drift threshold.',
       ),
     ];
@@ -94,7 +94,7 @@ List<ValidationIssue> postSessionEquipmentHealthSummary(
             'reconnect${summary.disconnectsDuringSession == 1 ? "" : "s"} '
             'occurred during the run.',
         resolutionHint: summary.disconnectsDuringSession > 10
-            ? 'High count — investigate the USB cable / hub for the devices '
+            ? 'High count: investigate the USB cable / hub for the devices '
                   'involved before the next session.'
             : null,
       ),

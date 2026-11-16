@@ -112,7 +112,7 @@ class _AdaptiveExposureSectionState
             Padding(
               padding: const EdgeInsets.only(top: 6, left: 22),
               child: Text(
-                'Inheriting global default from Settings → Adaptive Exposure.',
+                'Inheriting global default from Settings > Adaptive exposure.',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textMuted),
@@ -222,7 +222,7 @@ class _AdaptiveExposureSectionState
       return Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
-          'No filters on the wheel or in the profile — adaptive applies to '
+          'No filters on the wheel or in the profile. Adaptive applies to '
           'every capture (mono camera assumption).',
           style: TextStyle(
               fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
@@ -270,7 +270,7 @@ class _AdaptiveExposureSectionState
           'Exposure stays at ${widget.node.durationSecs.toStringAsFixed(1)}s.';
       color = colors.textMuted;
     } else if (liveMag == null) {
-      preview = 'Sky brightness not yet available — exposure stays at '
+      preview = 'Sky brightness not yet available. Exposure stays at '
           '${widget.node.durationSecs.toStringAsFixed(1)}s until the tracker converges.';
       color = colors.textMuted;
     } else {
@@ -327,7 +327,7 @@ class _AdaptiveExposureSectionState
                   child: Text(
                     'Nominal duration (${widget.node.durationSecs.toStringAsFixed(0)}s) '
                     'is outside the adaptive [${min.toStringAsFixed(0)}, ${max.toStringAsFixed(0)}]s '
-                    'bounds — every frame will be clamped.',
+                    'bounds: every frame will be clamped.',
                     style: TextStyle(
                         fontSize: SkotiqTypography.fontSize11,
                         color: colors.warning),

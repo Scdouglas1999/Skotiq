@@ -137,7 +137,7 @@ void main() {
           result.isSafe,
           isFalse,
           reason:
-              'with a 70% ceiling, 80% humidity is unsafe — the old hardcoded '
+              'with a 70% ceiling, 80% humidity is unsafe. The old hardcoded '
               'Rust 85% gate would have wrongly judged this safe.',
         );
         expect(result.breach, WeatherThresholdBreach.humidity);
@@ -157,7 +157,7 @@ void main() {
           result.isSafe,
           isTrue,
           reason:
-              'with a 95% ceiling, 90% humidity is safe — the old hardcoded '
+              'with a 95% ceiling, 90% humidity is safe. The old hardcoded '
               'Rust 85% gate would have wrongly aborted here.',
         );
       });

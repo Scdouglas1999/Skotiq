@@ -195,7 +195,7 @@ void main() {
     expect(
       _railScrollable(tester).position.pixels,
       100,
-      reason: 'one notch, one scroll — not one from the Scrollable and one '
+      reason: 'one notch, one scroll. Not one from the Scrollable and one '
           'from the wheel translator',
     );
   });

@@ -587,7 +587,7 @@ class _FieldQualityCardState extends ConsumerState<_FieldQualityCard> {
                     padding: const EdgeInsets.symmetric(
                         vertical: SkotiqTokens.spaceMd),
                     child: Text(
-                      'No PSF field tiles for this sub yet — capture '
+                      'No PSF field tiles for this sub yet. Capture '
                       'plate-solved frames to populate the per-sub map.',
                       style: SkotiqTypography.bodySm
                           .copyWith(color: colors.textSecondary),

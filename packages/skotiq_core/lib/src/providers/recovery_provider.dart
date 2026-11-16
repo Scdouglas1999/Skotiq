@@ -550,7 +550,7 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
     if (previous != null) return; // only on entry
     if (next == null) return;
     enqueue(
-      title: 'Recovering — ${next.cause.displayLabel}',
+      title: 'Recovering: ${next.cause.displayLabel}',
       body: 'Sequence entered recovery mode. Attempt 1 of ${next.maxAttempts}.',
       eventType: 'recovery_started_${next.cause.wireKey}',
     );
