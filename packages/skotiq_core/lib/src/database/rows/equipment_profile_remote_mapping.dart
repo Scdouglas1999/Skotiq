@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
-import '../database/database.dart' as db;
-import 'equipment_profile.dart' as remote_profile;
+import '../database.dart' as db;
+import '../../models/equipment_profile.dart' as remote_profile;
 
 /// Canonical, lossless converters between the SQLite Drift row
 /// (`db.DbEquipmentProfile`) and the REST wire model

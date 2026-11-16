@@ -27,6 +27,7 @@ import 'host/host_steps.dart';
 import 'launch_arguments.dart';
 import 'main_headless.dart' as headless;
 import 'startup_timeline.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
 /// connecting local hardware. Populated from `--remote-host=` / `--remote-port=`

@@ -25,7 +25,7 @@
 /// throws on a missing stream or device.
 library;
 
-import '../../../models/imaging/frame_type_record.dart';
+import '../../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -58,11 +58,10 @@ import '../../../providers/science_status_provider.dart';
 import '../../../providers/weather_providers.dart'
     show cloudCoverPercentageProvider;
 import '../../../providers/weather_safety_provider.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../optical_train_diagnostics_service.dart'
     show OpticalTrainDiagnostics;
 import '../../transients/transient_candidate.dart' show TransientCandidate;
-import '../period_analysis_service.dart' show PeriodAnalysisResult;
 import '../science_status.dart'
     show
         ScienceProcessingEvent,
@@ -74,6 +73,7 @@ import 'narrator_detectors.dart';
 import 'narrator_engine.dart';
 import 'narrator_event.dart';
 import '../../../providers/logging_service_provider.dart';
+import '../../../models/science/period_analysis_models.dart';
 
 /// Caps on the rolling per-input history the service keeps in memory between
 /// context builds. Generous enough for every detector's window; bounded so a

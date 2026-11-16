@@ -30,19 +30,13 @@ import '../models/science/science_models.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/sequencer/host_scheduled_start.dart';
 import '../models/site/location_settings.dart';
-import '../services/adaptive_swap_service.dart';
-import '../services/backup_service.dart' show RestoreMode;
-import '../services/disk_space_service.dart';
-import '../services/science/period_analysis_service.dart' show PeriodFinding;
-import '../services/end_of_night_calibration/eon_service.dart';
-import '../services/home_assistant/home_assistant_discovery_config.dart';
-import '../services/home_assistant/home_assistant_host_settings.dart';
-import '../services/live_stacking_service.dart';
-import '../services/logging_service.dart';
-import '../services/phd2_probe.dart';
-import '../services/scheduler/horizon_profile.dart';
+import '../models/backup/restore_mode.dart';
+import '../models/notification/home_assistant_discovery_config.dart';
+import '../models/notification/home_assistant_host_settings.dart';
+import '../utils/logging_service.dart';
+import 'phd2_probe.dart';
+import '../models/site/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
-import '../services/sync/sync_service.dart';
 import 'roles/host_data/host_backups.dart';
 import 'roles/host_data/host_calibration_frames.dart';
 import 'roles/host_data/host_calibration_tools.dart';
@@ -92,9 +86,9 @@ import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
-import '../models/errors/skotiq_error.dart' as dart_error;
+import '../errors/skotiq_error.dart' as dart_error;
 import 'remote_display_jpeg.dart';
-import 'skotiq_exception.dart'
+import '../errors/skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
@@ -105,10 +99,16 @@ import '../models/imaging/session_status.dart';
 import '../models/backend/remote_stacked_result.dart';
 import '../models/backend/remote_update_models.dart';
 import '../models/backend/backend_connection_state.dart';
+import '../models/science/period_analysis_models.dart';
+import '../models/imaging/live_stacking_models.dart';
+import '../models/calibration/eon_status.dart';
+import '../models/sync/sync_models.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';
 
+import '../models/disk_space.dart';
+import '../errors/server_error.dart';
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';

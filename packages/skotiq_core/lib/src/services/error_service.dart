@@ -1,7 +1,7 @@
 import 'dart:collection';
 import '../errors/error_text.dart';
 import '../providers/ui_notification_provider.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Error severity levels matching Rust EventSeverity
 enum ErrorSeverity { info, warning, error, critical }

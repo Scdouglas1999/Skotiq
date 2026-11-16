@@ -1,4 +1,4 @@
-import '../../../database/database.dart' show ObservingList, ObservingListItem;
+import '../database.dart' show ObservingList, ObservingListItem;
 
 /// The observing lists kept in the imaging host's database.
 ///

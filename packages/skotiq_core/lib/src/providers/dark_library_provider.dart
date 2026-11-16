@@ -19,7 +19,7 @@ import '../backend/remote_host.dart';
 import 'database_provider.dart';
 import 'calibration_master_builder_provider.dart';
 import 'calibration_service_providers.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
   return DarkLibraryDao(ref.watch(databaseProvider));

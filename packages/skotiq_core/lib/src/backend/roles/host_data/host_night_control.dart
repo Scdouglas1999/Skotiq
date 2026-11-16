@@ -1,4 +1,4 @@
-import '../../../services/end_of_night_calibration/eon_service.dart';
+import '../../../models/calibration/eon_status.dart';
 
 /// The night a linked imaging host is running: its scheduled start, its
 /// end-of-night steps, its manual loop and its history.

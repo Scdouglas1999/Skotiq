@@ -22,7 +22,6 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../request_context.dart';
@@ -31,6 +30,7 @@ import '../utils/device_type_parser.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Handlers for the device-discovery endpoints.
 class DeviceDiscoveryHandlers implements RouteSource {

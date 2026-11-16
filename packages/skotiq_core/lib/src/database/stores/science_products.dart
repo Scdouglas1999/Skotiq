@@ -1,4 +1,4 @@
-import '../../../database/database.dart'
+import '../database.dart'
     show
         AstrometryResidualVectorRow,
         FramePhotometricCalibrationRow,
@@ -10,7 +10,7 @@ import '../../../database/database.dart'
         ScienceFrameQualityMetricsRow,
         ScienceTileMetricRow,
         TransparencySampleRow;
-import '../../../models/science/science_models.dart' show ScienceSessionConfig;
+import '../../models/science/science_models.dart' show ScienceSessionConfig;
 
 /// The per-frame science measurements kept in the imaging host's database:
 /// photometry, photometric calibrations, transparency, PSF tiles, frame and

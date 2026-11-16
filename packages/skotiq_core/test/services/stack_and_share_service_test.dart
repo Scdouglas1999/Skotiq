@@ -52,6 +52,7 @@ import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/stack_light_selector_provider.dart';
 import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 /// A record of every call the orchestrator makes through the stacking seam, in
 /// order, so tests can assert the path taken (file vs data) and that stop was

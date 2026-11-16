@@ -1,4 +1,4 @@
-import '../../database/database.dart' show ScienceFrameQualityMetricsRow;
+import '../database.dart' show ScienceFrameQualityMetricsRow;
 
 extension FrameQualityReadings on ScienceFrameQualityMetricsRow {
   /// The field-uniformity CV, or null when it was not measured: the native

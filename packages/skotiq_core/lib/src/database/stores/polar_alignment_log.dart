@@ -1,4 +1,4 @@
-import '../../../database/database.dart' show PolarAlignmentHistoryEntry;
+import '../database.dart' show PolarAlignmentHistoryEntry;
 
 /// The polar alignments recorded in the imaging host's database, newest
 /// first. A null profile id means every profile.

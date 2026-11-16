@@ -6,7 +6,7 @@ library;
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show LinkVersion, LinkVersionMismatch;
-import '../../errors/error_text_kind.dart';
+import 'error_text_kind.dart';
 
 /// Backend error category classifications.
 ///

@@ -8,7 +8,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../utils/startup_surface_queue.dart';
 import 'startup_ui_context.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// The background full check's request for a repair at the next start, set by
 /// the host once; [DatabaseRecoveryLauncher] shows it as a dialog and clears

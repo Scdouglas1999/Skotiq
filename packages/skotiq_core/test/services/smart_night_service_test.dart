@@ -4,6 +4,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show CelestialCoordinate, DeepSkyObject, DsoType, TargetVisibilityInfo;
+import 'package:skotiq_core/utils.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}
 

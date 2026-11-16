@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth/auth_cookie.dart';
 import 'package:skotiq_desktop/headless_api/auth/ws_ticket_manager.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/auth_handlers.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   late AuthHandlers handlers;

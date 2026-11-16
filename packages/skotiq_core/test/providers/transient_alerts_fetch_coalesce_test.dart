@@ -21,7 +21,7 @@ import 'package:skotiq_core/src/providers/notification_router_provider.dart';
 import 'package:skotiq_core/src/providers/science_provider.dart';
 import 'package:skotiq_core/src/providers/transient_alert_provider.dart';
 import 'package:skotiq_core/src/providers/transient_detections_provider.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 import 'package:skotiq_core/src/services/notification/secrets_store.dart';
 import 'package:skotiq_core/src/services/transient_alert_service.dart';
 

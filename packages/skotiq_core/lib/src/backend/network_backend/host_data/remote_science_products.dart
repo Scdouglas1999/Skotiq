@@ -15,7 +15,7 @@ import '../../../database/database.dart'
 import '../../../models/science/frame_science_rows.dart';
 import '../../../models/science/science_models.dart' show ScienceSessionConfig;
 import '../../network_backend.dart';
-import '../../roles/host_data/science_products.dart';
+import '../../../database/stores/science_products.dart';
 import 'host_poll.dart';
 import '../../roles/host_data/host_science.dart';
 

@@ -6,7 +6,7 @@ import '../backend/skotiq_backend.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/depthlock/depthlock_models.dart';
 import 'backend_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// The DepthLock slice of the active backend.
 ///

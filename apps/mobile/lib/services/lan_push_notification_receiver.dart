@@ -37,7 +37,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// UDP push notification receiver. Verifies HMAC + fingerprint match,
 /// surfaces decoded frames on [incoming], and deduplicates against any

@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A recording fake [SkyAtlasSeam] that returns canned bridge results so the
 /// service body (fold persistence, region bookkeeping) runs without native code.

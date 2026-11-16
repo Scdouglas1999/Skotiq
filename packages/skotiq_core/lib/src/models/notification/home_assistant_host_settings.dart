@@ -1,4 +1,4 @@
-import '../../models/notification/transport_configs.dart';
+import 'transport_configs.dart';
 import 'home_assistant_discovery_config.dart';
 
 /// Sanitized host-owned Home Assistant configuration shown to a remote

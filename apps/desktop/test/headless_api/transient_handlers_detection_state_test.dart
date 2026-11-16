@@ -22,6 +22,7 @@ import 'package:skotiq_desktop/headless_api/handlers/transient_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Serves a fixed alert list instead of reaching for the upstream sources.
 class _FixedAlertService extends TransientAlertService {

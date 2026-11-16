@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 
-import '../../database/database.dart'
+import '../database.dart'
     show $CapturedImagesTable, DbCapturedImage;
-import 'imaging_models.dart' show FrameType;
+import '../../models/imaging/imaging_models.dart' show FrameType;
 
 /// A recorded frame's type ([FrameType.record]).
 extension RecordedFrameType on DbCapturedImage {

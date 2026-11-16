@@ -23,7 +23,7 @@ import '../backend/sequencer_error_kind.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../services/notification/event_classifier.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';

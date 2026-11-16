@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   late SkotiqDatabase database;

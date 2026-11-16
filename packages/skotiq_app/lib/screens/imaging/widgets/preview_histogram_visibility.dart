@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// SharedPreferences key holding whether the live-view histogram is drawn
 /// over the frame.

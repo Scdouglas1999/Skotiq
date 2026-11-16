@@ -23,7 +23,6 @@
 /// server's private state (mirrors `PairingHandlers`).
 library;
 
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
@@ -37,6 +36,7 @@ import '../validation.dart';
 import 'pairing_handlers.dart' show EnsurePairingService;
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Recognised cellular-push platforms. Mirrors the `platform` column domain.
 const Set<String> _kPushPlatforms = {'fcm', 'apns'};

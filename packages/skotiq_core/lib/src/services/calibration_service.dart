@@ -13,7 +13,7 @@ import '../providers/async_scope.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/calibration/calibration_selection.dart';
 import '../services/dark_library_service.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import '../utils/host_paths.dart';

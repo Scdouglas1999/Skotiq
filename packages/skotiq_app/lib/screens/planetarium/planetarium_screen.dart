@@ -11,7 +11,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'finder_chart_service.dart';
 import 'fov_presets_sync_service.dart';

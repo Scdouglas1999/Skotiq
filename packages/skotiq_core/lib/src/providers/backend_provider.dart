@@ -18,9 +18,9 @@ import 'sequence/sequence_progress.dart';
 import '../services/device_service_lifecycle.dart';
 import '../services/remote_sequence_editor_sync_lifecycle.dart';
 import 'thumbnail_sidecar_provider.dart';
-import '../models/backend/backend_types.dart';
 import '../models/backend/backend_connection_state.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
+import '../errors/skotiq_error.dart';
 
 /// Factory seam for remote backends. Production uses [NetworkBackend.new];
 /// tests can provide controllable candidates without opening sockets.

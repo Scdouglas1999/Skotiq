@@ -1,5 +1,5 @@
-import '../../database/database.dart' show DbCapturedImage;
-import 'gain_kind.dart';
+import '../database.dart' show DbCapturedImage;
+import '../../models/imaging/gain_kind.dart';
 
 /// A recorded frame's gain, read the way the frame recorded it.
 extension FrameGain on DbCapturedImage {

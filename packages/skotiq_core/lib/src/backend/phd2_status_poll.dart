@@ -1,4 +1,4 @@
-import '../backend/roles/guiding_backend.dart';
+import 'roles/guiding_backend.dart';
 import '../models/backend/phd2_status.dart';
 import '../utils/device_id.dart';
 

@@ -21,12 +21,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/session_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// Canned JPEG-ish bytes our stubbed FFI returns. We don't decode them so
 /// the exact magic numbers don't matter; the bytes are unique-enough to

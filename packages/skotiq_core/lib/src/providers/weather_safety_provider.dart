@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +36,7 @@ import 'sequence_provider.dart';
 import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';

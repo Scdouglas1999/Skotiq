@@ -23,7 +23,7 @@ import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/skotiq_exception.dart'
+import '../errors/skotiq_exception.dart'
     show
         ConnectionException,
         DeviceBusyException,
@@ -35,7 +35,7 @@ import '../database/database.dart' show CapturedImagesCompanion;
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
 import 'frame_identity.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'frame_quality_score.dart';
 import '../backend/roles/host_data/host_files.dart';
 import '../backend/roles/host_data/host_imaging_records.dart';

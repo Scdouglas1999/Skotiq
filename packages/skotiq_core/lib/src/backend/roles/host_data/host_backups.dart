@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../../services/backup_service.dart' show RestoreMode;
+import '../../../models/backup/restore_mode.dart';
 
 /// The database backups a linked imaging host keeps and restores.
 ///

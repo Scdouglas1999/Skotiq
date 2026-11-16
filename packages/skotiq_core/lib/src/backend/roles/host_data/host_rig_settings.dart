@@ -1,5 +1,5 @@
 import '../../../models/meridian_flip_settings.dart';
-import '../../../services/home_assistant/home_assistant_host_settings.dart';
+import '../../../models/notification/home_assistant_host_settings.dart';
 
 /// Settings a linked imaging host serves through their own endpoints.
 ///

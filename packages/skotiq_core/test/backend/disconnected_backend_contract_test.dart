@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart'
+import 'package:skotiq_core/src/errors/skotiq_exception.dart'
     show ConnectionException;
 
 /// `DisconnectedBackend.noSuchMethod` answers with a failed future, which is

@@ -24,7 +24,7 @@ import 'dart:typed_data';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../database/daos/images_dao.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Function signature for converting a FITS path to JPEG bytes. The
 /// default production binding calls `bridge_api.apiGenerateFitsThumbnail`;

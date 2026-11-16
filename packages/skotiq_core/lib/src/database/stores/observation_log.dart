@@ -1,6 +1,6 @@
-import '../../../database/daos/observation_logs_dao.dart'
+import '../daos/observation_logs_dao.dart'
     show ObservationLogStats;
-import '../../../database/database.dart' show ObservationLogEntry;
+import '../database.dart' show ObservationLogEntry;
 
 /// The log of visual observations kept in the imaging host's database.
 abstract interface class ObservationLog {

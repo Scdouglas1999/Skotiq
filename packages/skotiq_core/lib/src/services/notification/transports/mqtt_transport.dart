@@ -23,7 +23,7 @@ import 'dart:typed_data';
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// Strategy hook so tests can substitute a fake socket.
 typedef MqttSocketOpener =

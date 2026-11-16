@@ -7,7 +7,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 void main() {
   group('StackAndShareConfig', () {

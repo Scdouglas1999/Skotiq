@@ -1,4 +1,4 @@
-import '../../../services/sync/sync_service.dart';
+import '../../../models/sync/sync_models.dart';
 
 /// Cloud sync as run by a linked imaging host.
 ///

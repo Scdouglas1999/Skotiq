@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
-import '../utils/skotiq_data_directory.dart';
+import 'skotiq_data_directory.dart';
 
 enum LogLevel {
   debug,

@@ -1,4 +1,4 @@
-import '../../../database/database.dart'
+import '../database.dart'
     show DbEquipmentProfile, ImagingSession, DbSequence, SequenceRun, DbTarget;
 
 /// The equipment profiles saved in the imaging host's database.

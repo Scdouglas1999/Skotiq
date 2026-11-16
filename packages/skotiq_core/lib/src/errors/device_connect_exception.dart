@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../models/errors/server_error.dart';
+import 'server_error.dart';
 import 'bridge_error_message.dart';
 
 /// A driver refused or failed a connect.

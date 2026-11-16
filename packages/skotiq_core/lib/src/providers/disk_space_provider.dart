@@ -10,6 +10,7 @@ import 'equipment_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
+import '../models/disk_space.dart';
 
 /// Host-OS disk-space query backend.
 ///

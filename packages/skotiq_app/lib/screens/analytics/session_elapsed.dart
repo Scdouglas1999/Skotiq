@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart' show DbCapturedImage, ImagingSession;
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart' show allDbImagesProvider;
 // kReadoutUnknown: the one em dash the design system spells, so a screen
 // never invents its own way of saying "not known".
 import 'package:skotiq_ui/skotiq_ui.dart' show kReadoutUnknown;
+import 'package:skotiq_core/database.dart';
 
 /// Where a session's elapsed figure comes from.
 ///

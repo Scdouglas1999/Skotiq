@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/annotation.dart';
-import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// A DSO cone search over the deep-sky catalog: the OpenNGC rows within
 /// [radiusDegrees] of ([ra], [dec]) in degrees, optionally magnitude-limited.

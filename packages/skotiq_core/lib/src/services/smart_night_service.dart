@@ -13,7 +13,7 @@ import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/site/altitude_floor.dart';
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
 import 'smart_night/camera_capture_defaults.dart';
 import 'plan_timer.dart';

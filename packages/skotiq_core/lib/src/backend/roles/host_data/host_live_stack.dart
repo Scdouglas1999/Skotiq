@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import '../../../services/live_stacking_service.dart';
 import '../../../models/backend/remote_stacked_result.dart';
+import '../../../models/imaging/live_stacking_models.dart';
 
 /// The live stack a linked imaging host builds from the frames it captures.
 ///

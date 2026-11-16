@@ -9,6 +9,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Modal that renders a [SequenceDiffResult] in a unified-diff layout
 /// with green/red/yellow color coding.

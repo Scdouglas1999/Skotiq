@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/backend/device_connect_exception.dart';
+import 'package:skotiq_core/src/errors/device_connect_exception.dart';
 import 'package:skotiq_core/src/errors/error_text.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
-import 'package:skotiq_core/src/models/errors/server_error.dart';
+import 'package:skotiq_core/src/errors/server_error.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
 void main() {

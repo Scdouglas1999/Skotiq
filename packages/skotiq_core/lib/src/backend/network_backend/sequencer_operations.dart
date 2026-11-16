@@ -488,7 +488,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     final response = await _get(SequencerApi.getAdaptiveSwap);
     final value = response['adaptive_swap'];
     if (value == null) return null;
-    if (value is String) return AdaptiveSwapDriver.decodeSnapshotJson(value);
+    if (value is String) return AdaptiveSwapSnapshot.decodeSnapshotJson(value);
     if (value is Map<String, dynamic>) {
       return AdaptiveSwapSnapshot.fromJson(value);
     }

@@ -4,7 +4,7 @@ import '../../../models/planning/target_suggestion.dart';
 import '../../../models/scheduler/integration_goal.dart';
 import '../../../models/scheduler/scheduler_decision.dart';
 import '../../../models/scheduler/target_constraint.dart';
-import '../../../services/scheduler/horizon_profile.dart';
+import '../../../models/site/horizon_profile.dart';
 
 /// Projects, integration goals, target constraints and the scheduler queue
 /// kept in a linked imaging host's database.

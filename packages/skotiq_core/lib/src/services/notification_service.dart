@@ -7,7 +7,7 @@ import '../models/notification/notification_categories.dart'
     show NotificationCategory;
 import 'notification/notification_router.dart';
 import '../settings/app_settings_state.g.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Plays a short audible alert via the platform's built-in beep channel.
 ///

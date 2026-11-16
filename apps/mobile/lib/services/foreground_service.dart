@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'notification_service.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 class ImagingForegroundService {
   static final ImagingForegroundService _instance =

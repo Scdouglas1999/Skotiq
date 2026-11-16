@@ -4,8 +4,8 @@
 
 import 'dart:math' as math;
 
-import '../../models/science/science_models.dart' show WcsSolution;
-import '../../models/imaging/sip_terms.dart';
+import '../science/science_models.dart' show WcsSolution;
+import 'sip_terms.dart';
 
 /// Solved World Coordinate System for a captured frame, expressed in the
 /// units the existing `PlateSolveResult` carries:

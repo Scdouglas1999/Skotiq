@@ -21,6 +21,7 @@ import 'fixtures.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/services/focuser_backlash/effective_focuser_backlash.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 
 class CalibrationBackend extends DisconnectedBackend {
   CalibrationBackend({

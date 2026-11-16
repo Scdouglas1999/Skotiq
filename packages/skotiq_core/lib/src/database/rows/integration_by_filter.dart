@@ -1,4 +1,4 @@
-import '../../database/database.dart' show DbCapturedImage;
+import '../database.dart' show DbCapturedImage;
 import 'frame_type_record.dart';
 
 /// Light-frame integration per filter: what the grader kept and what was

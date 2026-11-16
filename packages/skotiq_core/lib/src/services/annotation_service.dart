@@ -15,7 +15,7 @@ import 'catalog_lookup/exoplanet_provider.dart';
 import 'catalog_lookup/gaia_provider.dart';
 import 'catalog_lookup/simbad_provider.dart';
 import 'imaging_service.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'plate_solve_service.dart';
 import 'wcs/plate_solve_data_from_result.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';

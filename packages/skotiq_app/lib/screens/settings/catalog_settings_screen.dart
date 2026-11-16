@@ -8,7 +8,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show SkyCatalogInstallPhase, skyCatalogInstallProvider;
@@ -25,6 +24,7 @@ import 'widgets/settings_widgets.dart'
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'catalog_settings_screen/card_builders.dart';
 

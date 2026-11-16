@@ -2,8 +2,7 @@ import 'dart:typed_data';
 
 import '../../../database/database.dart';
 import '../../../models/science/science_models.dart';
-import '../../../services/science/period_analysis_service.dart'
-    show PeriodFinding;
+import '../../../models/science/period_analysis_models.dart';
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.

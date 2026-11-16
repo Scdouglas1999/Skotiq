@@ -11,7 +11,7 @@
 // copies produced before the merge, including the cases where they disagree —
 // so a later "cleanup" that collapses them fails here instead of in the field.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/phd2_status_poll.dart';
+import 'package:skotiq_core/src/backend/phd2_status_poll.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
 
 void main() {

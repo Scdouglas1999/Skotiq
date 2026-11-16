@@ -1,6 +1,6 @@
 import '../../../models/notification/transport_configs.dart';
-import '../../../services/home_assistant/home_assistant_discovery_config.dart';
-import '../../../services/home_assistant/home_assistant_host_settings.dart';
+import '../../../models/notification/home_assistant_discovery_config.dart';
+import '../../../models/notification/home_assistant_host_settings.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PushDeliveryTargets;
 

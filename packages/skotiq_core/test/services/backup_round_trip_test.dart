@@ -15,6 +15,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'backup_restore_support.dart';
+import 'package:skotiq_core/models.dart';
 
 /// [t]'s rows, with every link to a profile written as the profile's name: a
 /// restore matches profiles by name, so their ids may differ.

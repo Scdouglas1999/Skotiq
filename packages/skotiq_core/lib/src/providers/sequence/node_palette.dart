@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 import '../../models/sequence/sequence_models.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../profiles_provider.dart';
 import '../session_optimizer_provider.dart';
 import '../settings_provider.dart';
@@ -58,9 +58,7 @@ class PluginNodeBlueprint {
 
 /// The sequence nodes of the registered, enabled plugins, updated as plugins
 /// load, unload or are switched on and off.
-final pluginNodeBlueprintsProvider = Provider<List<PluginNodeBlueprint>>((
-  ref,
-) {
+final pluginNodeBlueprintsProvider = Provider<List<PluginNodeBlueprint>>((ref) {
   final registrations = ref
       .watch(pluginNodeRegistrationsStreamProvider)
       .maybeWhen(

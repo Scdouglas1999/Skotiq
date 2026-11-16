@@ -100,27 +100,6 @@ class HardwareException extends SkotiqException {
   }) : super(category: 'hardware', shouldReconnect: false, isTimeout: false);
 }
 
-class TimeoutException extends SkotiqException {
-  const TimeoutException({
-    required super.message,
-    required super.userMessage,
-    super.deviceId,
-  }) : super(
-         category: 'timeout',
-         isRecoverable: true,
-         shouldReconnect: false,
-         isTimeout: true,
-       );
-
-  factory TimeoutException.device(String deviceId, String operation) {
-    return TimeoutException(
-      message: 'Device timeout: $deviceId operation "$operation"',
-      userMessage: 'Operation "$operation" timed out',
-      deviceId: deviceId,
-    );
-  }
-}
-
 class ValidationException extends SkotiqException {
   const ValidationException({
     required super.message,

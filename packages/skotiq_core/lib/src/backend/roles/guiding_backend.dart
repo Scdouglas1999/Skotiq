@@ -2,7 +2,7 @@ import 'dart:async';
 
 import '../../models/backend/backend_types.dart';
 import '../../models/phd2_models.dart';
-import '../../services/phd2_probe.dart';
+import '../phd2_probe.dart';
 
 /// Role interface covering guiding operations.
 ///

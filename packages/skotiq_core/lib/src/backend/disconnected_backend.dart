@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'skotiq_backend.dart';
-import 'skotiq_exception.dart' show ConnectionException;
+import '../errors/skotiq_exception.dart' show ConnectionException;
 import '../models/backend/backend_types.dart';
 
 const _notConnected = ConnectionException(

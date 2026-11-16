@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import '../../services/scheduler/horizon_profile.dart' as scheduler;
+import 'horizon_profile.dart' as scheduler;
 import 'learned_obstruction.dart';
 
 /// 8 compass directions for horizon profile definition

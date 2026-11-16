@@ -11,7 +11,7 @@ import '../../providers/capability_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/equipment/camera_state_provider.dart';
 import '../../providers/profiles_provider.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../sensor_specs/camera_sensor_spec_resolver.dart';
 import '../sensor_specs/camera_sensor_entry.dart';
 import '../sensor_specs/camera_sensor_specs.dart';
