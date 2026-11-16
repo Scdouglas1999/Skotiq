@@ -1360,8 +1360,7 @@ mod tests {
     }
 
     /// when `end_when` is already satisfied at TargetHeader entry,
-    /// the runtime returns Skipped without executing children. Replaces the
-    /// pre-Wave-4 `end_before` early-Skip path with the new trigger model.
+    /// the runtime returns Skipped without executing children.
     #[tokio::test]
     async fn end_when_satisfied_at_entry_skips_target() {
         // Pin the clock to a known instant; set end_when = TimeAfter(now - 1)

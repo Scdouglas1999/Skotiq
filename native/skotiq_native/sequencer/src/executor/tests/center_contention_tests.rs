@@ -117,16 +117,13 @@ impl CameraOps for CenterContentionOps {
             height: 64,
             data: vec![0u16; 64 * 64],
             bits_per_pixel: 16,
-            exposure_secs: duration,
-            gain,
-            offset,
-            temperature: None,
-            filter: None,
-            timestamp: chrono::Utc::now().timestamp(),
-            sensor_type: Some("Monochrome".to_string()),
-            color_filter: None,
-            camera_file: None,
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: duration,
+                gain,
+                offset,
+                ..Default::default()
+            },
+            ..Default::default()
         })
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {

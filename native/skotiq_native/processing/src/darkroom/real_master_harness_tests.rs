@@ -12,7 +12,7 @@
 //!
 //! ```text
 //! DARKROOM_MASTERS=/path/to/masters DARKROOM_OUT=/path/to/out \
-//!   cargo test -p skotiq_bridge --release -- --ignored --nocapture darkroom_real
+//!   cargo test -p skotiq_processing --release -- --ignored --nocapture darkroom_real
 //! ```
 
 use crate::darkroom::entrypoints::{

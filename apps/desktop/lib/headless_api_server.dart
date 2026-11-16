@@ -207,6 +207,11 @@ class HeadlessApiServer {
   final Set<WebSocketChannel> _adminSockets = {};
   final Map<WebSocketChannel, DateTime> _socketLastSeenAt = {};
 
+  /// The listener of each socket, cancelled when the server stops so no
+  /// socket callback runs after the server and its container are gone.
+  final Map<WebSocketChannel, StreamSubscription<dynamic>>
+  _socketSubscriptions = {};
+
   /// Broadcasts [_sockets].length on every attach/drop. Broadcast (not single
   /// subscription) because both the GUI status bar and tests observe it, and it
   /// outlives individual `start()`/`stop()` cycles of the same server object.

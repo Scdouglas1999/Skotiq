@@ -1,7 +1,5 @@
-//! `cover_calibrator.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! Opening and closing a cover and switching its flat panel, each waited on
+//! until the device reports the new state.
 
 use super::*;
 use skotiq_device::ascom::cover_calibrator::Settle;

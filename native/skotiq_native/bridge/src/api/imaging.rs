@@ -1533,8 +1533,8 @@ pub async fn api_save_fits_from_last_capture(
             device_id
         ))
     })?;
-    let exposure_started_at = frame.exposure.started_at;
-    let image = frame.into_image_data();
+    let exposure_started_at = frame.metadata.timestamp;
+    let image = frame;
 
     let trimmed =
         |text: Option<String>| text.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
@@ -1581,7 +1581,6 @@ pub async fn api_save_fits_from_last_capture(
             filter: (filter_name.as_deref(), filter_index),
             target_name: object_name.as_deref(),
             set_temp_c: None,
-            bayer_pattern: None,
         },
         &image,
     )
@@ -1808,6 +1807,10 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
 /// ([`LightCalibration`](skotiq_processing::post_session::LightCalibration))
 /// and write the result to `output_path`. An absent or empty master path
 /// skips that correction.
+///
+/// A frame keeps the light's sample format: a float light gives a float
+/// frame, any other a 16-bit one. Either carries the calibration pedestal,
+/// stated in its `PEDESTAL` card.
 pub fn api_calibrate_image_file(
     light_path: String,
     dark_path: Option<String>,
@@ -1823,7 +1826,21 @@ pub fn api_calibrate_image_file(
             light_path, e
         ))
     })?;
-    let calibrated = calibrate_light(&light_result.image, &dark_path, &flat_path, &bias_path)?;
+    let calibrated = calibrate_light(
+        &light_result.image,
+        light_result.header.get_float("EXPTIME"),
+        &dark_path,
+        &flat_path,
+        &bias_path,
+    )?;
+    let calibrated = if matches!(
+        light_result.image.pixel_type,
+        skotiq_imaging::PixelType::F32 | skotiq_imaging::PixelType::F64
+    ) {
+        calibrated.image
+    } else {
+        calibrated.sixteen_bit
+    };
 
     // A raster name gets a raster; any other name the frame format it names,
     // carrying the light's header with its card order and comments.
@@ -1837,6 +1854,10 @@ pub fn api_calibrate_image_file(
         None => {
             let mut header = light_result.header;
             header.set_string("CALSTAT", "calibrated by Skotiq");
+            header.set_float(
+                "PEDESTAL",
+                f64::from(skotiq_processing::post_session::CALIBRATION_PEDESTAL),
+            );
             for (card, path) in [
                 ("DARKFILE", &dark_path),
                 ("FLATFILE", &flat_path),
@@ -1870,7 +1891,8 @@ pub fn api_calibrate_image_file(
 }
 
 /// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`].
+/// given paths, by the same rule as [`api_calibrate_image_file`]. Every
+/// returned sample carries the calibration pedestal.
 pub fn api_calibrate_image_data(
     width: u32,
     height: u32,
@@ -1880,7 +1902,8 @@ pub fn api_calibrate_image_data(
     bias_path: Option<String>,
 ) -> Result<Vec<u16>, SkotiqError> {
     let light = ImageData::from_u16(width, height, 1, &light_data);
-    calibrate_light(&light, &dark_path, &flat_path, &bias_path)?
+    calibrate_light(&light, None, &dark_path, &flat_path, &bias_path)?
+        .sixteen_bit
         .as_u16()
         .ok_or_else(|| {
             SkotiqError::ImageError(
@@ -1891,16 +1914,14 @@ pub fn api_calibrate_image_data(
 
 fn calibrate_light(
     light: &ImageData,
+    exposure: Option<f64>,
     dark_path: &Option<String>,
     flat_path: &Option<String>,
     bias_path: &Option<String>,
-) -> Result<ImageData, SkotiqError> {
-    let masters =
-        skotiq_processing::post_session::LightCalibration::load(dark_path, flat_path, bias_path)
-            .map_err(SkotiqError::ImageError)?;
-    masters
-        .apply(light)
-        .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))
+) -> Result<skotiq_processing::post_session::CalibratedLight, SkotiqError> {
+    skotiq_processing::post_session::LightCalibration::load(dark_path, flat_path, bias_path)
+        .and_then(|masters| masters.apply(light, exposure))
+        .map_err(SkotiqError::ImageError)
 }
 
 // Image grading: round-trip test for the rich-header save path.

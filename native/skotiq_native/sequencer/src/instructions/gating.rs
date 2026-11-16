@@ -1,7 +1,5 @@
-//! `gating.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! When a step may run: the target's pointing, darkness and the filter it
+//! asks for.
 
 use super::*;
 

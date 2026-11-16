@@ -248,7 +248,7 @@ class _FramingTelescopeSectionState
       decDegrees: target.decDegrees,
       latitudeDeg: settings.latitude,
       longitudeDeg: settings.longitude,
-      time: DateTime.now(),
+      time: ref.read(clockProvider).instant,
     );
     return alt;
   }

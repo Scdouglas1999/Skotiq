@@ -22,14 +22,16 @@ use crate::post_session::calibration_report::{build_calibration_report, Calibrat
 use crate::post_session::cancel::{check_stage, RUNS};
 use crate::post_session::helpers::{
     aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
-    extract_channel, image_to_f64, load_optional_flat, reject_label, write_channel, FlatMaster,
+    extract_channel, image_to_f64, reject_label, write_channel,
+};
+use crate::post_session::light_calibration::{
+    light_exposure, CalibratedLight, LightCalibration, MasterCache, CALIBRATION_PEDESTAL,
 };
 use crate::post_session::master_cards::{attach_wcs, copy_optics_cards, fits_header_of};
 use crate::post_session::masters::MasterSettingsArgs;
 use crate::run_cancel::CancelToken;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, DrizzleKernel};
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQualityConfig, WeightFormula};
 use skotiq_imaging::integration::{
@@ -44,7 +46,6 @@ use std::path::Path;
 
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// One night (or any set of subs sharing calibration masters).
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -369,31 +370,9 @@ impl ReferenceSignal {
     }
 }
 
-/// Constant added to every calibrated sample, in ADU, so that sky samples
-/// that noise pulls below zero keep their value through the 16-bit star
-/// detection. It is removed again from the finished master.
-pub(crate) const CALIBRATION_PEDESTAL: f32 = 100.0;
-
 /// Memory, in bytes, the batch integration may hold for one band of rows
 /// across every sub. Registered subs that do not fit are kept on disk.
 const DEFAULT_MEMORY_BUDGET: usize = 1 << 30;
-
-/// Calibration masters of one group, loaded once and shared.
-#[derive(Default, Clone)]
-pub(crate) struct GroupMasters {
-    dark: Option<Arc<ImageData>>,
-    /// The dark's exposure in seconds, when its header says.
-    dark_exposure: Option<f64>,
-    flat: Option<Arc<FlatMaster>>,
-    bias: Option<Arc<ImageData>>,
-}
-
-/// Calibration masters loaded once and shared by every group that names them.
-#[derive(Default)]
-struct MasterCache {
-    images: HashMap<String, Arc<ImageData>>,
-    flats: HashMap<String, Arc<FlatMaster>>,
-}
 
 /// A sub named in a master's HISTORY by its file name: the master travels
 /// without the folders, and the full path would carry the user's name with it.
@@ -404,159 +383,25 @@ fn file_name(path: &str) -> &str {
         .unwrap_or(path)
 }
 
-fn present(path: &Option<String>) -> Option<&str> {
-    path.as_deref().map(str::trim).filter(|p| !p.is_empty())
-}
-
-impl MasterCache {
-    fn image(
-        &mut self,
-        path: &Option<String>,
-        label: &str,
-    ) -> Result<Option<Arc<ImageData>>, String> {
-        let Some(path) = present(path) else {
-            return Ok(None);
-        };
-        if let Some(image) = self.images.get(path) {
-            return Ok(Some(Arc::clone(image)));
-        }
-        let image = Arc::new(
-            read_image(Path::new(path))
-                .map_err(|e| format!("failed to read {label} master '{path}': {e}"))?
-                .image,
-        );
-        self.images.insert(path.to_string(), Arc::clone(&image));
-        Ok(Some(image))
-    }
-
-    fn flat(&mut self, path: &Option<String>) -> Result<Option<Arc<FlatMaster>>, String> {
-        let Some(key) = present(path) else {
-            return Ok(None);
-        };
-        if let Some(flat) = self.flats.get(key) {
-            return Ok(Some(Arc::clone(flat)));
-        }
-        let Some(flat) = load_optional_flat(path)? else {
-            return Ok(None);
-        };
-        let flat = Arc::new(flat);
-        self.flats.insert(key.to_string(), Arc::clone(&flat));
-        Ok(Some(flat))
-    }
-
-    fn masters(&mut self, calibration: &CalibrationArgs) -> Result<GroupMasters, String> {
-        Ok(GroupMasters {
-            dark: self.image(&calibration.dark, "dark")?,
-            dark_exposure: present(&calibration.dark)
-                .and_then(fits_header_of)
-                .and_then(|h| h.get_float("EXPTIME")),
-            flat: self.flat(&calibration.flat)?,
-            bias: self.image(&calibration.bias, "bias")?,
-        })
-    }
-}
-
-/// A light calibrated in floating point, and the 16-bit copy star detection
-/// and registration run on.
-pub(crate) struct CalibratedLight {
-    pub(crate) image: ImageData,
-    pub(crate) detection: ImageData,
-    /// The multiplier applied to the dark's thermal signal.
-    pub(crate) dark_scale: f64,
-}
-
-/// The calibrated samples rounded into 16 bits for star detection.
-fn detection_copy(image: &ImageData) -> ImageData {
-    let samples = image.samples_f64();
-    let data: Vec<u16> = samples
-        .iter()
-        .map(|v| {
-            if v.is_finite() {
-                v.round().clamp(0.0, 65535.0) as u16
-            } else {
-                0
-            }
-        })
-        .collect();
-    ImageData::from_u16(image.width, image.height, image.channels, &data)
-}
-
-/// The dark multiplier for a light of `light_exposure` seconds: the exposure
-/// ratio when no exposure-matched dark exists. Scaling needs a bias, so the
-/// pedestal can be separated from the dark's thermal signal.
-fn dark_scale(masters: &GroupMasters, light_exposure: Option<f64>) -> Result<f64, String> {
-    let (Some(_), Some(dark_s), Some(light_s)) =
-        (&masters.dark, masters.dark_exposure, light_exposure)
-    else {
-        return Ok(1.0);
-    };
-    if dark_s <= 0.0 || light_s <= 0.0 || (light_s / dark_s - 1.0).abs() <= 0.01 {
-        return Ok(1.0);
-    }
-    if masters.bias.is_none() {
-        return Err(format!(
-            "the dark is {dark_s} s and the light {light_s} s; a dark of another exposure can only be scaled with a master bias"
-        ));
-    }
-    Ok(light_s / dark_s)
-}
-
-/// Read a light and apply its night's calibration in floating point.
+/// Read a light and apply its night's calibration.
 fn calibrated_light(
     path: &str,
     exposure: Option<f64>,
-    calibration: &CalibrationArgs,
-    masters: &GroupMasters,
+    calibration: &LightCalibration,
 ) -> Result<CalibratedLight, (&'static str, String)> {
-    let image = read_image(Path::new(path))
-        .map_err(|e| ("read", format!("cannot be read: {e}")))?
-        .image;
-    if !matches!(image.channels, 1 | 3) {
+    let read = read_image(Path::new(path)).map_err(|e| ("read", format!("cannot be read: {e}")))?;
+    if !matches!(read.image.channels, 1 | 3) {
         return Err((
             "read",
             format!(
                 "has {} channels; only mono and RGB lights are integrated",
-                image.channels
+                read.image.channels
             ),
         ));
     }
-    let exposure = exposure
-        .filter(|s| *s > 0.0)
-        .or_else(|| fits_header_of(path).and_then(|h| h.get_float("EXPTIME")));
-    let dark_scale = dark_scale(masters, exposure).map_err(|e| ("calibration", e))?;
-    if calibration.scale_dark
-        && masters.dark.is_some()
-        && (masters.bias.is_none() || masters.dark_exposure.is_none() || exposure.is_none())
-    {
-        return Err((
-            "calibration",
-            "the dark is to be scaled, but scaling needs a master bias and the exposures of the dark and the light".to_string(),
-        ));
-    }
-    let cal = skotiq_imaging::calibration::FloatCalibration {
-        bias: masters.bias.as_deref(),
-        dark: masters.dark.as_deref(),
-        dark_scale,
-        flat: masters.flat.as_deref().map(|f| &f.image),
-        flat_pedestal: masters
-            .flat
-            .as_deref()
-            .map(|f| f.pedestal)
-            .unwrap_or(skotiq_imaging::calibration::FlatPedestal::Removed),
-        output_pedestal: CALIBRATION_PEDESTAL,
-    };
-    let mut image = skotiq_imaging::calibration::calibrate_frame_f32(&image, &cal)
-        .map_err(|e| ("calibration", format!("calibration failed: {e}")))?;
-    if calibration.cosmetic_correction {
-        cosmetic_correct_transient(&mut image, CosmeticConfig::default())
-            .map_err(|e| ("calibration", format!("cosmetic correction failed: {e}")))?;
-    }
-    let detection = detection_copy(&image);
-    Ok(CalibratedLight {
-        image,
-        detection,
-        dark_scale,
-    })
+    calibration
+        .apply(&read.image, light_exposure(exposure, &read.header))
+        .map_err(|e| ("calibration", e))
 }
 
 /// A sub resampled onto the grid: samples with `NaN` where it has no
@@ -616,19 +461,13 @@ impl OnGrid {
     }
 }
 
-/// The calibration masters `calibration` names, for one accumulating fold.
-pub(crate) fn fold_masters(calibration: &CalibrationArgs) -> Result<GroupMasters, String> {
-    MasterCache::default().masters(calibration)
-}
-
 /// A light calibrated as a build calibrates it, for one accumulating fold.
 pub(crate) fn calibrate_for_fold(
     path: &str,
     exposure: Option<f64>,
-    calibration: &CalibrationArgs,
-    masters: &GroupMasters,
+    calibration: &LightCalibration,
 ) -> Result<CalibratedLight, String> {
-    calibrated_light(path, exposure, calibration, masters).map_err(|(_, e)| format!("'{path}' {e}"))
+    calibrated_light(path, exposure, calibration).map_err(|(_, e)| format!("'{path}' {e}"))
 }
 
 /// The rejection the build applies, from the request token.
@@ -774,16 +613,12 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     }
     let reg_cfg = build_registration_config(&args.settings.align)?;
     let interp = reg_cfg.interpolator;
-    let grid_masters = cache.masters(&args.grid_reference.calibration)?;
-    let grid = calibrated_light(
-        &args.grid_reference.path,
-        None,
-        &args.grid_reference.calibration,
-        &grid_masters,
-    )
-    .map_err(|(_, reason)| format!("the grid reference '{}' {reason}", args.grid_reference.path))?;
+    let grid_masters = cache.calibration(&args.grid_reference.calibration)?;
+    let grid = calibrated_light(&args.grid_reference.path, None, &grid_masters).map_err(
+        |(_, reason)| format!("the grid reference '{}' {reason}", args.grid_reference.path),
+    )?;
     let grid_stars =
-        skotiq_imaging::registration::ReferenceStars::detect(&grid.detection, &reg_cfg)
+        skotiq_imaging::registration::ReferenceStars::detect(&grid.sixteen_bit, &reg_cfg)
             .map_err(|e| format!("the grid reference '{}': {e}", args.grid_reference.path))?;
     let min_stars = min_registration_stars(reg_cfg.transform_kind);
     if grid_stars.len() < min_stars {
@@ -834,12 +669,11 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     for reference in candidates {
         check_stage(&cancel, "reference", None, None)?;
         let refusal = (|| -> Result<_, String> {
-            let masters = cache.masters(&reference.calibration)?;
-            let light = calibrated_light(&reference.path, None, &reference.calibration, &masters)
-                .map_err(|(_, e)| e)?;
+            let masters = cache.calibration(&reference.calibration)?;
+            let light = calibrated_light(&reference.path, None, &masters).map_err(|(_, e)| e)?;
             let (transform, _) = skotiq_imaging::registration::solve_registration_against(
                 &grid_stars,
-                &light.detection,
+                &light.sixteen_bit,
                 &reg_cfg,
             )
             .map_err(|e| format!("does not register: {e}"))?;
@@ -911,12 +745,11 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         Weighting::None
     } else if formula.eq_ignore_ascii_case(STAR_SIGNAL_FORMULA) {
         Weighting::StarSignal(
-            ReferenceSignal::measure(&reference_light.detection, &reference_detection).ok_or_else(
-                || {
+            ReferenceSignal::measure(&reference_light.sixteen_bit, &reference_detection)
+                .ok_or_else(|| {
                     "the normalization reference has too few unsaturated stars to weight by"
                         .to_string()
-                },
-            )?,
+                })?,
         )
     } else if formula.eq_ignore_ascii_case(NOISE_FORMULA) {
         Weighting::Noise
@@ -988,7 +821,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             .first()
             .map(|l| build_calibration_report(&l.path, &group.calibration))
             .unwrap_or_else(|| build_calibration_report("", &group.calibration));
-        let masters = cache.masters(&group.calibration)?;
+        let masters = cache.calibration(&group.calibration)?;
         let skipped_before = skipped.len();
         let mut summary = GroupSummary {
             label: label.clone(),
@@ -1017,14 +850,13 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 });
             };
             let exposure = (light.exposure_sec > 0.0).then_some(light.exposure_sec);
-            let calibrated =
-                match calibrated_light(&light.path, exposure, &group.calibration, &masters) {
-                    Ok(image) => image,
-                    Err((stage, reason)) => {
-                        skip(stage, reason);
-                        continue;
-                    }
-                };
+            let calibrated = match calibrated_light(&light.path, exposure, &masters) {
+                Ok(image) => image,
+                Err((stage, reason)) => {
+                    skip(stage, reason);
+                    continue;
+                }
+            };
             if (calibrated.dark_scale - 1.0).abs() > 1e-9 {
                 summary.dark_scale = Some(calibrated.dark_scale);
             }
@@ -1041,7 +873,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             }
             let (transform, stats) = match skotiq_imaging::registration::solve_registration_against(
                 &grid_stars,
-                &calibrated.detection,
+                &calibrated.sixteen_bit,
                 &reg_cfg,
             ) {
                 Ok(r) => r,
@@ -1052,7 +884,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             };
             let signal = match &weighting {
                 Weighting::StarSignal(reference) => {
-                    match reference.weigh(&calibrated.detection, &transform) {
+                    match reference.weigh(&calibrated.sixteen_bit, &transform) {
                         Some(s) => Some(s),
                         None => {
                             skip(
@@ -1068,7 +900,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 _ => None,
             };
             let noise = match weighting {
-                Weighting::Noise => noise_of(&calibrated.detection),
+                Weighting::Noise => noise_of(&calibrated.sixteen_bit),
                 _ => None,
             };
             let mut on_grid = OnGrid::new(image, (gw, gh), &transform, interp);
@@ -1568,16 +1400,15 @@ fn validate_flat_response(image: &ImageData) -> Result<(), String> {
 pub(crate) fn check_build_calibration(json: &str) -> Result<serde_json::Value, String> {
     let reference: BuildReferenceArgs = serde_json::from_str(json).map_err(|e| e.to_string())?;
     let mut cache = MasterCache::default();
-    let masters = cache.masters(&reference.calibration)?;
+    let masters = cache.calibration(&reference.calibration)?;
     if let Some(flat) = &masters.flat {
         validate_flat_response(&flat.image)?;
     }
-    let _ = calibrated_light(&reference.path, None, &reference.calibration, &masters)
-        .map_err(|(_, e)| e)?;
+    let _ = calibrated_light(&reference.path, None, &masters).map_err(|(_, e)| e)?;
     let report = build_calibration_report(&reference.path, &reference.calibration);
     // A build scales a dark of another exposure when a bias is present, so
     // that difference does not block it.
-    let scales_darks = masters.bias.is_some();
+    let scales_darks = masters.has_bias();
     for master in &report.masters {
         if master.mismatches.iter().any(|m| {
             !m.within_tolerance

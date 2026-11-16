@@ -9,16 +9,22 @@ part of '../smart_night_models.dart';
 
 /// What light a target gives, read from its catalog object type. Nothing
 /// here names an object: the class comes from the type the catalog gives.
+///
+/// The deep-sky catalog types a nebula emission or reflection from published
+/// emission and reflection catalogs (the nebula light table, see
+/// `dsoTypeFromOpenNgcCode`): a nebula OpenNGC files only as "Neb" or
+/// "Cl+N" reads "Reflection Nebula" or "Cluster + Emission Nebula" when one
+/// of those catalogs classifies it.
 enum TargetLight {
   /// Line emission, imaged through narrowband filters: emission nebulae, HII
-  /// regions, supernova remnants, planetary nebulae, a cluster in its nebula
-  /// and a nebula the catalog does not classify further (OpenNGC "Cl+N" and
-  /// "Neb": OpenNGC types reflection nebulae "RfN" on their own, so an
-  /// untyped bright nebula is counted as glowing gas).
+  /// regions, supernova remnants, planetary nebulae, a cluster in an
+  /// emission nebula, and a nebula no catalog classifies further (OpenNGC
+  /// "Neb" or "Cl+N" with no match in the nebula light table).
   emission,
 
   /// Starlight, imaged through LRGB: galaxies, reflection and dark nebulae,
-  /// clusters, stars, and a target whose type is not known.
+  /// a cluster in a reflection nebula, clusters, stars, and a target whose
+  /// type is not known.
   broadband,
 }
 

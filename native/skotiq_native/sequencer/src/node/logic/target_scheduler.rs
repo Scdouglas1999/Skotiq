@@ -952,9 +952,7 @@ mod tests {
 
         // pin the clock so the scheduler's observer snapshot and
         // our hand-rolled expected ranking are guaranteed to see the same
-        // instant. Pre-Wave-4 the test relied on the two reads being close
-        // enough in wall time; that's true in practice but unnecessarily
-        // racy.
+        // instant.
         let clock = crate::scheduling::MockClock::at("2026-01-15T06:00:00Z");
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock.clone());
         ctx.run.rig.latitude = Some(40.0);
