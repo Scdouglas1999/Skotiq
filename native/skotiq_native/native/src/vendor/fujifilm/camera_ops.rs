@@ -385,14 +385,13 @@ impl CameraDriver for FujifilmCamera {
                     match self.start_bulb_exposure(&sdk, requested).await {
                         Ok(()) => return Ok(()),
                         // A camera that has gone is not one that refused bulb.
-                        Err(
-                            gone @ (DriverError::Disconnected | DriverError::NotConnected),
-                        ) => return Err(gone),
+                        Err(gone @ (DriverError::Disconnected | DriverError::NotConnected)) => {
+                            return Err(gone)
+                        }
                         Err(refusal) => Some(refusal),
                     }
                 };
-                let Some(Shutter::Timed { code, seconds }) = speeds.nearest_timed(requested)
-                else {
+                let Some(Shutter::Timed { code, seconds }) = speeds.nearest_timed(requested) else {
                     return Err(refusal.unwrap_or_else(|| {
                         DriverError::SdkError(format!(
                             "Fujifilm camera: bulb was refused and the camera lists no timed \

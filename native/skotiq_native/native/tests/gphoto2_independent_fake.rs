@@ -440,7 +440,11 @@ fn a_long_request_with_no_bulb_in_the_mode_is_taken_with_the_nearest_speed_and_s
         let notices = camera.take_notices();
         assert_eq!(notices.len(), 1, "{notices:?}");
         assert_eq!(notices[0].title, "Camera refused bulb");
-        assert!(notices[0].message.contains("mode dial"), "{}", notices[0].message);
+        assert!(
+            notices[0].message.contains("mode dial"),
+            "{}",
+            notices[0].message
+        );
         camera.abort_exposure().await.expect("give the frame up");
     });
 }

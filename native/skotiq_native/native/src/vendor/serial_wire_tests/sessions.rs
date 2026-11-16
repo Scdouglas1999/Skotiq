@@ -718,14 +718,23 @@ async fn an_onstep_mount_reports_the_rate_another_program_left_it_on() {
     let mut mount = Lx200Mount::new(fake.path.clone(), Lx200MountType::OnStep, Some(115200));
     mount.connect().await.expect("connect");
 
-    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Lunar));
+    assert_eq!(
+        mount.get_tracking_rate().await.ok(),
+        Some(TrackingRate::Lunar)
+    );
     mount
         .set_tracking_rate(TrackingRate::Sidereal)
         .await
         .expect("set sidereal");
-    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Sidereal));
+    assert_eq!(
+        mount.get_tracking_rate().await.ok(),
+        Some(TrackingRate::Sidereal)
+    );
     *knobs.onstep_rate_flag.lock().unwrap() = "O";
-    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Solar));
+    assert_eq!(
+        mount.get_tracking_rate().await.ok(),
+        Some(TrackingRate::Solar)
+    );
 }
 
 /// Meade's LX200 protocol has no rate query, so the rate is unknown until
@@ -746,5 +755,8 @@ async fn a_meade_mount_claims_no_rate_before_one_is_commanded() {
         .set_tracking_rate(TrackingRate::Lunar)
         .await
         .expect("set lunar");
-    assert_eq!(mount.get_tracking_rate().await.ok(), Some(TrackingRate::Lunar));
+    assert_eq!(
+        mount.get_tracking_rate().await.ok(),
+        Some(TrackingRate::Lunar)
+    );
 }

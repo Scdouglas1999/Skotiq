@@ -310,7 +310,11 @@ impl DeviceManager {
         };
         tracing::warn!("Device {device_id} is recorded as connected but does not answer: {reason}");
         let last_error = format!("Stopped answering: {reason}");
-        if self.mark_lost(device_id, false, &last_error).await.is_some() {
+        if self
+            .mark_lost(device_id, false, &last_error)
+            .await
+            .is_some()
+        {
             let device_type = device_type.as_str().to_string();
             self.app_state.publish_equipment_event(
                 EquipmentEvent::HeartbeatStatusChanged {

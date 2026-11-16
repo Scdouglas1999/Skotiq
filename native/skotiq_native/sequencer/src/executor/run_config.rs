@@ -796,9 +796,7 @@ fn project_onto_trigger_state(
                     state.set_observer_location(config.latitude, config.longitude);
                 }
             }
-            Section::AltitudeFloor => {
-                state.settings.altitude_floor = config.altitude_floor.clone()
-            }
+            Section::AltitudeFloor => state.settings.altitude_floor = config.altitude_floor.clone(),
             Section::MaxSunAltitude => {
                 state.set_max_sun_altitude_degrees(config.max_sun_altitude())
             }

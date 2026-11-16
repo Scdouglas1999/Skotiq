@@ -2168,10 +2168,7 @@ mod site_floor_tests {
         )
     }
 
-    fn context(
-        floor: Option<AltitudeFloor>,
-        clock: std::sync::Arc<MockClock>,
-    ) -> ExecutionContext {
+    fn context(floor: Option<AltitudeFloor>, clock: std::sync::Arc<MockClock>) -> ExecutionContext {
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
         ctx.run.rig.latitude = Some(40.0);
         ctx.run.rig.longitude = Some(-75.0);
@@ -2305,10 +2302,8 @@ mod site_floor_tests {
             "{message}"
         );
         let timed = TargetTrigger::TimeAfter(0);
-        assert!(
-            waiting_message("East", &timed, &timed.label(), &observer)
-                .starts_with(TARGET_WAIT_MESSAGE_PREFIX)
-        );
+        assert!(waiting_message("East", &timed, &timed.label(), &observer)
+            .starts_with(TARGET_WAIT_MESSAGE_PREFIX));
     }
 
     /// A target above the floor now, with a start time after it has set for
