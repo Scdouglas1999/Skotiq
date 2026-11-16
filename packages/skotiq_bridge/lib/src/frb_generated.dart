@@ -120,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1780828477;
+  int get rustContentHash => 240918111;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1323,8 +1323,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int offset,
   });
-
-  Future<SolveHints> crateApiPlateSolveSolveHintsDefault();
 
   Future<StarDetectionConfigApi> crateApiImagingStarDetectionConfigApiDefault();
 }
@@ -10498,27 +10496,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SolveHints> crateApiPlateSolveSolveHintsDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire.wire__crate__api__plate_solve__solve_hints_default(port_);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_solve_hints,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiPlateSolveSolveHintsDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiPlateSolveSolveHintsDefaultConstMeta =>
-      const TaskConstMeta(debugName: "solve_hints_default", argNames: []);
-
-  @override
   Future<StarDetectionConfigApi>
   crateApiImagingStarDetectionConfigApiDefault() {
     return handler.executeNormal(
@@ -11269,12 +11246,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_polar_alignment_status(raw);
-  }
-
-  @protected
-  (double, double) dco_decode_box_autoadd_record_f_64_f_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as (double, double);
   }
 
   @protected
@@ -13172,12 +13143,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (double, double)? dco_decode_opt_box_autoadd_record_f_64_f_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_record_f_64_f_64(raw);
-  }
-
-  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_sequencer_notice(raw);
@@ -13450,16 +13415,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_f_64(arr[0]), dco_decode_f_64(arr[1]));
-  }
-
-  @protected
-  (int, int) dco_decode_record_i_32_i_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
-    }
-    return (dco_decode_i_32(arr[0]), dco_decode_i_32(arr[1]));
   }
 
   @protected
@@ -14243,19 +14198,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       causedBy: dco_decode_opt_box_autoadd_u_64(arr[5]),
       correlationId: dco_decode_opt_String(arr[6]),
       deviceId: dco_decode_opt_String(arr[7]),
-    );
-  }
-
-  @protected
-  SolveHints dco_decode_solve_hints(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SolveHints(
-      focalLengthMm: dco_decode_opt_box_autoadd_f_64(arr[0]),
-      pixelSizeUm: dco_decode_opt_box_autoadd_record_f_64_f_64(arr[1]),
-      binning: dco_decode_record_i_32_i_32(arr[2]),
     );
   }
 
@@ -15396,14 +15338,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_polar_alignment_status(deserializer));
-  }
-
-  @protected
-  (double, double) sse_decode_box_autoadd_record_f_64_f_64(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_record_f_64_f_64(deserializer));
   }
 
   @protected
@@ -18088,19 +18022,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (double, double)? sse_decode_opt_box_autoadd_record_f_64_f_64(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_record_f_64_f_64(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   ) {
@@ -18481,14 +18402,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_f_64(deserializer);
     var var_field1 = sse_decode_f_64(deserializer);
-    return (var_field0, var_field1);
-  }
-
-  @protected
-  (int, int) sse_decode_record_i_32_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_field0 = sse_decode_i_32(deserializer);
-    var var_field1 = sse_decode_i_32(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -19626,21 +19539,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       causedBy: var_causedBy,
       correlationId: var_correlationId,
       deviceId: var_deviceId,
-    );
-  }
-
-  @protected
-  SolveHints sse_decode_solve_hints(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_focalLengthMm = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeUm = sse_decode_opt_box_autoadd_record_f_64_f_64(
-      deserializer,
-    );
-    var var_binning = sse_decode_record_i_32_i_32(deserializer);
-    return SolveHints(
-      focalLengthMm: var_focalLengthMm,
-      pixelSizeUm: var_pixelSizeUm,
-      binning: var_binning,
     );
   }
 
@@ -20866,15 +20764,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_polar_alignment_status(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_record_f_64_f_64(
-    (double, double) self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_record_f_64_f_64(self, serializer);
   }
 
   @protected
@@ -23086,19 +22975,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_record_f_64_f_64(
-    (double, double)? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_record_f_64_f_64(self, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -23394,13 +23270,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_64(self.$1, serializer);
     sse_encode_f_64(self.$2, serializer);
-  }
-
-  @protected
-  void sse_encode_record_i_32_i_32((int, int) self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.$1, serializer);
-    sse_encode_i_32(self.$2, serializer);
   }
 
   @protected
@@ -24407,14 +24276,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_64(self.causedBy, serializer);
     sse_encode_opt_String(self.correlationId, serializer);
     sse_encode_opt_String(self.deviceId, serializer);
-  }
-
-  @protected
-  void sse_encode_solve_hints(SolveHints self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_f_64(self.focalLengthMm, serializer);
-    sse_encode_opt_box_autoadd_record_f_64_f_64(self.pixelSizeUm, serializer);
-    sse_encode_record_i_32_i_32(self.binning, serializer);
   }
 
   @protected

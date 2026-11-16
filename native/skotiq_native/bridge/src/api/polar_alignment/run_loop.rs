@@ -1,5 +1,4 @@
 use crate::api::connection::api_get_connected_devices;
-use crate::api::plate_solve::{gather_solve_hints_for_camera, SolveHints};
 use crate::api::polar_alignment::events::{
     emit_polar_error, emit_polar_image, emit_polar_status, plate_solve_ra_degrees,
 };
@@ -11,12 +10,13 @@ use crate::api::polar_alignment::run_control::{
     store_polar_task, try_admit_polar_run, PolarLoopControl,
 };
 use crate::api::polar_alignment::solve::{
-    polar_solve_downsample, read_polar_solve_hint, solve_polar_frame, PolarSolveHint,
+    polar_solve_downsample, read_polar_solve_hint, solve_polar_frame,
     DEFAULT_POLAR_SOLVE_TIMEOUT_SECS, POLAR_SOLVE_SEARCH_RADIUS_DEG,
 };
 use crate::device::{DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
+use crate::solver::{gather_solve_hints_for_camera, SolveHints, SolvePosition};
 use crate::state::get_state;
 use crate::unified_device_ops::create_unified_device_ops;
 use std::sync::atomic::Ordering as PolarOrdering;
@@ -247,10 +247,6 @@ pub(crate) async fn run_polar_alignment(
         solve_scale.hints.binning = (binning, binning);
     }
     solve_scale.log_scale("Polar alignment solve");
-    // ...and the number that log line prints is the number the solver is
-    // handed. It was computed, logged, and then dropped on the floor for three
-    // release waves while every polar solve ran blind against a 0.4° field.
-    let solve_scale_arcsec_per_px = solve_scale.arcsec_per_px();
 
     // Phase 1: Capture and solve 3 points
     for point in 1..=3 {
@@ -348,7 +344,7 @@ pub(crate) async fn run_polar_alignment(
             &format!("point {}", point),
             &temp_path_str,
             read_polar_solve_hint(&mount_id).await,
-            solve_scale_arcsec_per_px,
+            &solve_scale,
             solve_downsample,
             solve_timeout_secs,
         )
@@ -543,7 +539,6 @@ pub(crate) async fn run_polar_alignment(
     let mut adjust_binning = adjustment_binning(binning);
     let mut adjust_scale = solve_scale.clone();
     adjust_scale.hints.binning = (adjust_binning, adjust_binning);
-    let mut adjust_scale_arcsec_per_px = adjust_scale.arcsec_per_px();
     let mut last_adjust_solve: Option<(f64, f64)> = None;
 
     loop {
@@ -582,7 +577,6 @@ pub(crate) async fn run_polar_alignment(
                 );
                 adjust_binning = binning;
                 adjust_scale = solve_scale.clone();
-                adjust_scale_arcsec_per_px = solve_scale_arcsec_per_px;
                 continue;
             }
             consecutive_failures += 1;
@@ -681,7 +675,7 @@ pub(crate) async fn run_polar_alignment(
             "the adjustment frame",
             &temp_path_str,
             adjustment_solve_hint(last_adjust_solve, mount_hint),
-            adjust_scale_arcsec_per_px,
+            &adjust_scale,
             adjust_downsample,
             solve_timeout_secs,
         )
@@ -882,10 +876,10 @@ pub(crate) fn adjustment_binning(run_binning: i32) -> i32 {
 /// there is one, else where the mount says it points (or blind).
 pub(crate) fn adjustment_solve_hint(
     last_solved: Option<(f64, f64)>,
-    mount_hint: Option<PolarSolveHint>,
-) -> Option<PolarSolveHint> {
+    mount_hint: Option<SolvePosition>,
+) -> Option<SolvePosition> {
     match last_solved {
-        Some((ra_degrees, dec_degrees)) => Some(PolarSolveHint {
+        Some((ra_degrees, dec_degrees)) => Some(SolvePosition {
             ra_degrees,
             dec_degrees,
             search_radius_deg: ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG,
@@ -938,7 +932,7 @@ mod adjustment_tests {
 
     #[test]
     fn a_solved_adjustment_frame_narrows_the_next_search_to_its_field() {
-        let mount = PolarSolveHint {
+        let mount = SolvePosition {
             ra_degrees: 10.0,
             dec_degrees: 80.0,
             search_radius_deg: POLAR_SOLVE_SEARCH_RADIUS_DEG,
@@ -950,7 +944,7 @@ mod adjustment_tests {
 
     #[test]
     fn the_first_adjustment_frame_still_uses_the_mount_or_solves_blind() {
-        let mount = PolarSolveHint {
+        let mount = SolvePosition {
             ra_degrees: 10.0,
             dec_degrees: 80.0,
             search_radius_deg: POLAR_SOLVE_SEARCH_RADIUS_DEG,

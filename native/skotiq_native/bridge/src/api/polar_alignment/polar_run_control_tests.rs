@@ -104,7 +104,7 @@ fn raw_frame(width: u32, height: u32, data: Vec<u16>) -> crate::last_frame::RawF
 /// ADU sky and the difference between two bright stars both survive.
 #[tokio::test]
 async fn polar_solve_frame_is_the_cameras_own_samples() {
-    use crate::api::plate_solve::SolveHints;
+    use crate::solver::SolveHints;
     use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let (width, height) = (16u32, 8u32);
@@ -138,7 +138,7 @@ async fn polar_solve_frame_is_the_cameras_own_samples() {
 /// otherwise solve, three times per alignment run.
 #[tokio::test]
 async fn polar_solve_frame_carries_the_field_scale_hints() {
-    use crate::api::plate_solve::SolveHints;
+    use crate::solver::SolveHints;
     use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_test");
@@ -169,7 +169,7 @@ async fn polar_solve_frame_carries_the_field_scale_hints() {
 /// solver behaves exactly as it did before — no invented numbers.
 #[tokio::test]
 async fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
-    use crate::api::plate_solve::SolveHints;
+    use crate::solver::SolveHints;
     use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_absent_test");

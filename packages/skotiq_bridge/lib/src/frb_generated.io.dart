@@ -317,9 +317,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (double, double) dco_decode_box_autoadd_record_f_64_f_64(dynamic raw);
-
-  @protected
   RotatorCapabilities dco_decode_box_autoadd_rotator_capabilities(dynamic raw);
 
   @protected
@@ -751,9 +748,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PierSide? dco_decode_opt_box_autoadd_pier_side(dynamic raw);
 
   @protected
-  (double, double)? dco_decode_opt_box_autoadd_record_f_64_f_64(dynamic raw);
-
-  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
@@ -823,9 +817,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (double, double) dco_decode_record_f_64_f_64(dynamic raw);
-
-  @protected
-  (int, int) dco_decode_record_i_32_i_32(dynamic raw);
 
   @protected
   (PlatformInt64, bool) dco_decode_record_i_64_bool(dynamic raw);
@@ -902,9 +893,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SkotiqEvent dco_decode_skotiq_event(dynamic raw);
-
-  @protected
-  SolveHints dco_decode_solve_hints(dynamic raw);
 
   @protected
   StarCropApi dco_decode_star_crop_api(dynamic raw);
@@ -1273,11 +1261,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PolarAlignmentStatus sse_decode_box_autoadd_polar_alignment_status(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  (double, double) sse_decode_box_autoadd_record_f_64_f_64(
     SseDeserializer deserializer,
   );
 
@@ -1809,11 +1792,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PierSide? sse_decode_opt_box_autoadd_pier_side(SseDeserializer deserializer);
 
   @protected
-  (double, double)? sse_decode_opt_box_autoadd_record_f_64_f_64(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   );
@@ -1911,9 +1889,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (double, double) sse_decode_record_f_64_f_64(SseDeserializer deserializer);
 
   @protected
-  (int, int) sse_decode_record_i_32_i_32(SseDeserializer deserializer);
-
-  @protected
   (PlatformInt64, bool) sse_decode_record_i_64_bool(
     SseDeserializer deserializer,
   );
@@ -2006,9 +1981,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SkotiqEvent sse_decode_skotiq_event(SseDeserializer deserializer);
-
-  @protected
-  SolveHints sse_decode_solve_hints(SseDeserializer deserializer);
 
   @protected
   StarCropApi sse_decode_star_crop_api(SseDeserializer deserializer);
@@ -2508,15 +2480,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_polar_alignment_status();
     cst_api_fill_to_wire_polar_alignment_status(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_record_f_64_f_64>
-  cst_encode_box_autoadd_record_f_64_f_64((double, double) raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ptr = wire.cst_new_box_autoadd_record_f_64_f_64();
-    cst_api_fill_to_wire_record_f_64_f_64(raw, ptr.ref);
     return ptr;
   }
 
@@ -3206,15 +3169,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_pier_side(PierSide? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_pier_side(raw);
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_record_f_64_f_64>
-  cst_encode_opt_box_autoadd_record_f_64_f_64((double, double)? raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw == null
-        ? ffi.nullptr
-        : cst_encode_box_autoadd_record_f_64_f_64(raw);
   }
 
   @protected
@@ -3938,14 +3892,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_polar_alignment_status> wireObj,
   ) {
     cst_api_fill_to_wire_polar_alignment_status(apiObj, wireObj.ref);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_box_autoadd_record_f_64_f_64(
-    (double, double) apiObj,
-    ffi.Pointer<wire_cst_record_f_64_f_64> wireObj,
-  ) {
-    cst_api_fill_to_wire_record_f_64_f_64(apiObj, wireObj.ref);
   }
 
   @protected
@@ -5872,15 +5818,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_record_i_32_i_32(
-    (int, int) apiObj,
-    wire_cst_record_i_32_i_32 wireObj,
-  ) {
-    wireObj.field0 = cst_encode_i_32(apiObj.$1);
-    wireObj.field1 = cst_encode_i_32(apiObj.$2);
-  }
-
-  @protected
   void cst_api_fill_to_wire_record_i_64_bool(
     (PlatformInt64, bool) apiObj,
     wire_cst_record_i_64_bool wireObj,
@@ -7090,20 +7027,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_solve_hints(
-    SolveHints apiObj,
-    wire_cst_solve_hints wireObj,
-  ) {
-    wireObj.focal_length_mm = cst_encode_opt_box_autoadd_f_64(
-      apiObj.focalLengthMm,
-    );
-    wireObj.pixel_size_um = cst_encode_opt_box_autoadd_record_f_64_f_64(
-      apiObj.pixelSizeUm,
-    );
-    cst_api_fill_to_wire_record_i_32_i_32(apiObj.binning, wireObj.binning);
-  }
-
-  @protected
   void cst_api_fill_to_wire_star_crop_api(
     StarCropApi apiObj,
     wire_cst_star_crop_api wireObj,
@@ -7767,12 +7690,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_polar_alignment_status(
     PolarAlignmentStatus self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_record_f_64_f_64(
-    (double, double) self,
     SseSerializer serializer,
   );
 
@@ -8479,12 +8396,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_record_f_64_f_64(
-    (double, double)? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -8605,9 +8516,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_record_i_32_i_32((int, int) self, SseSerializer serializer);
-
-  @protected
   void sse_encode_record_i_64_bool(
     (PlatformInt64, bool) self,
     SseSerializer serializer,
@@ -8726,9 +8634,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_skotiq_event(SkotiqEvent self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_solve_hints(SolveHints self, SseSerializer serializer);
 
   @protected
   void sse_encode_star_crop_api(StarCropApi self, SseSerializer serializer);
@@ -16438,18 +16343,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void wire__crate__api__plate_solve__solve_hints_default(int port_) {
-    return _wire__crate__api__plate_solve__solve_hints_default(port_);
-  }
-
-  late final _wire__crate__api__plate_solve__solve_hints_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default',
-      );
-  late final _wire__crate__api__plate_solve__solve_hints_default =
-      _wire__crate__api__plate_solve__solve_hints_defaultPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__imaging__star_detection_config_api_default(int port_) {
     return _wire__crate__api__imaging__star_detection_config_api_default(port_);
   }
@@ -17055,19 +16948,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_polar_alignment_status> Function()
           >();
-
-  ffi.Pointer<wire_cst_record_f_64_f_64>
-  cst_new_box_autoadd_record_f_64_f_64() {
-    return _cst_new_box_autoadd_record_f_64_f_64();
-  }
-
-  late final _cst_new_box_autoadd_record_f_64_f_64Ptr =
-      _lookup<
-        ffi.NativeFunction<ffi.Pointer<wire_cst_record_f_64_f_64> Function()>
-      >('frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64');
-  late final _cst_new_box_autoadd_record_f_64_f_64 =
-      _cst_new_box_autoadd_record_f_64_f_64Ptr
-          .asFunction<ffi.Pointer<wire_cst_record_f_64_f_64> Function()>();
 
   ffi.Pointer<wire_cst_rotator_capabilities>
   cst_new_box_autoadd_rotator_capabilities() {
@@ -19550,14 +19430,6 @@ final class wire_cst_polar_alignment_status extends ffi.Struct {
   external int point;
 }
 
-final class wire_cst_record_f_64_f_64 extends ffi.Struct {
-  @ffi.Double()
-  external double field0;
-
-  @ffi.Double()
-  external double field1;
-}
-
 final class wire_cst_rotator_capabilities extends ffi.Struct {
   @ffi.Bool()
   external bool can_reverse;
@@ -21724,12 +21596,12 @@ final class wire_cst_quality_maps_result_api extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_quality_tile_metric_api> tiles;
 }
 
-final class wire_cst_record_i_32_i_32 extends ffi.Struct {
-  @ffi.Int32()
-  external int field0;
+final class wire_cst_record_f_64_f_64 extends ffi.Struct {
+  @ffi.Double()
+  external double field0;
 
-  @ffi.Int32()
-  external int field1;
+  @ffi.Double()
+  external double field1;
 }
 
 final class wire_cst_record_i_64_bool extends ffi.Struct {
@@ -22127,14 +21999,6 @@ final class wire_cst_skotiq_event extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> correlation_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-}
-
-final class wire_cst_solve_hints extends ffi.Struct {
-  external ffi.Pointer<ffi.Double> focal_length_mm;
-
-  external ffi.Pointer<wire_cst_record_f_64_f_64> pixel_size_um;
-
-  external wire_cst_record_i_32_i_32 binning;
 }
 
 final class wire_cst_star_detection_result_api extends ffi.Struct {

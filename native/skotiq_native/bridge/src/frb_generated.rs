@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1780828477;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 240918111;
 
 // Section: executor
 
@@ -7197,26 +7197,6 @@ fn wire__crate__api__devices__camera__set_camera_offset_impl(
         },
     )
 }
-fn wire__crate__api__plate_solve__solve_hints_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "solve_hints_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::plate_solve::SolveHints::default())?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__imaging__star_detection_config_api_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -10892,17 +10872,6 @@ impl SseDecode for Option<crate::device::PierSide> {
     }
 }
 
-impl SseDecode for Option<(f64, f64)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<(f64, f64)>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
 impl SseDecode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11287,15 +11256,6 @@ impl SseDecode for (f64, f64) {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <f64>::sse_decode(deserializer);
         let mut var_field1 = <f64>::sse_decode(deserializer);
-        return (var_field0, var_field1);
-    }
-}
-
-impl SseDecode for (i32, i32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_field0 = <i32>::sse_decode(deserializer);
-        let mut var_field1 = <i32>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -12565,20 +12525,6 @@ impl SseDecode for crate::event::bus::SkotiqEvent {
             caused_by: var_causedBy,
             correlation_id: var_correlationId,
             device_id: var_deviceId,
-        };
-    }
-}
-
-impl SseDecode for crate::api::plate_solve::SolveHints {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_focalLengthMm = <Option<f64>>::sse_decode(deserializer);
-        let mut var_pixelSizeUm = <Option<(f64, f64)>>::sse_decode(deserializer);
-        let mut var_binning = <(i32, i32)>::sse_decode(deserializer);
-        return crate::api::plate_solve::SolveHints {
-            focal_length_mm: var_focalLengthMm,
-            pixel_size_um: var_pixelSizeUm,
-            binning: var_binning,
         };
     }
 }
@@ -17267,28 +17213,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::bus::SkotiqEvent>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::plate_solve::SolveHints {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.focal_length_mm.into_into_dart().into_dart(),
-            self.pixel_size_um.into_into_dart().into_dart(),
-            self.binning.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::plate_solve::SolveHints
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::plate_solve::SolveHints>
-    for crate::api::plate_solve::SolveHints
-{
-    fn into_into_dart(self) -> crate::api::plate_solve::SolveHints {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::imaging::StarCropApi {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -20103,16 +20027,6 @@ impl SseEncode for Option<crate::device::PierSide> {
     }
 }
 
-impl SseEncode for Option<(f64, f64)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <(f64, f64)>::sse_encode(value, serializer);
-        }
-    }
-}
-
 impl SseEncode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20378,14 +20292,6 @@ impl SseEncode for (f64, f64) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <f64>::sse_encode(self.0, serializer);
         <f64>::sse_encode(self.1, serializer);
-    }
-}
-
-impl SseEncode for (i32, i32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.0, serializer);
-        <i32>::sse_encode(self.1, serializer);
     }
 }
 
@@ -21501,15 +21407,6 @@ impl SseEncode for crate::event::bus::SkotiqEvent {
     }
 }
 
-impl SseEncode for crate::api::plate_solve::SolveHints {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<f64>>::sse_encode(self.focal_length_mm, serializer);
-        <Option<(f64, f64)>>::sse_encode(self.pixel_size_um, serializer);
-        <(i32, i32)>::sse_encode(self.binning, serializer);
-    }
-}
-
 impl SseEncode for crate::api::imaging::StarCropApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22483,13 +22380,6 @@ mod io {
         fn cst_decode(self) -> crate::event::imaging::PolarAlignmentStatus {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::event::imaging::PolarAlignmentStatus>::cst_decode(*wrap).into()
-        }
-    }
-    impl CstDecode<(f64, f64)> for *mut wire_cst_record_f_64_f_64 {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> (f64, f64) {
-            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<(f64, f64)>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::device_capabilities::types::RotatorCapabilities>
@@ -24487,12 +24377,6 @@ mod io {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
-    impl CstDecode<(i32, i32)> for wire_cst_record_i_32_i_32 {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> (i32, i32) {
-            (self.field0.cst_decode(), self.field1.cst_decode())
-        }
-    }
     impl CstDecode<(i64, bool)> for wire_cst_record_i_64_bool {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> (i64, bool) {
@@ -25353,16 +25237,6 @@ mod io {
                 caused_by: self.caused_by.cst_decode(),
                 correlation_id: self.correlation_id.cst_decode(),
                 device_id: self.device_id.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::plate_solve::SolveHints> for wire_cst_solve_hints {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::plate_solve::SolveHints {
-            crate::api::plate_solve::SolveHints {
-                focal_length_mm: self.focal_length_mm.cst_decode(),
-                pixel_size_um: self.pixel_size_um.cst_decode(),
-                binning: self.binning.cst_decode(),
             }
         }
     }
@@ -27150,19 +27024,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_record_i_32_i_32 {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                field0: Default::default(),
-                field1: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_record_i_32_i_32 {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_record_i_64_bool {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -27488,20 +27349,6 @@ mod io {
         }
     }
     impl Default for wire_cst_skotiq_event {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_solve_hints {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                focal_length_mm: core::ptr::null_mut(),
-                pixel_size_um: core::ptr::null_mut(),
-                binning: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_solve_hints {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -30432,13 +30279,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default(
-        port_: i64,
-    ) {
-        wire__crate__api__plate_solve__solve_hints_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_default(
         port_: i64,
     ) {
@@ -30754,14 +30594,6 @@ mod io {
     ) -> *mut wire_cst_polar_alignment_status {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_polar_alignment_status::new_with_null_ptr(),
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64(
-    ) -> *mut wire_cst_record_f_64_f_64 {
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(
-            wire_cst_record_f_64_f_64::new_with_null_ptr(),
         )
     }
 
@@ -33113,12 +32945,6 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_record_i_32_i_32 {
-        field0: i32,
-        field1: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
     pub struct wire_cst_record_i_64_bool {
         field0: i64,
         field1: bool,
@@ -33970,13 +33796,6 @@ mod io {
         caused_by: *mut u64,
         correlation_id: *mut wire_cst_list_prim_u_8_strict,
         device_id: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_solve_hints {
-        focal_length_mm: *mut f64,
-        pixel_size_um: *mut wire_cst_record_f_64_f_64,
-        binning: wire_cst_record_i_32_i_32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
