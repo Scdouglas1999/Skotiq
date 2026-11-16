@@ -1193,6 +1193,7 @@ impl MeridianFlipExecutor {
             .await
             .ok()
             .map(|start| (start, tokio::time::Instant::now()));
+        self.stop_guider_before_move("meridian flip slew").await;
         self.run
             .device_ops
             .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
@@ -1559,6 +1560,8 @@ impl MeridianFlipExecutor {
             // Sync the mount model to the actual position, then re-slew to target.
             // This corrects mount pointing errors that survived the flip; a bare
             // re-slew without the sync would land at the same wrong spot.
+            self.stop_guider_before_move("post-flip centering correction")
+                .await;
             self.run
                 .device_ops
                 .mount_sync(&ctx.mount_id, result.ra_degrees / 15.0, result.dec_degrees)
@@ -1613,6 +1616,21 @@ impl MeridianFlipExecutor {
         } else {
             Err(format!("{last_failure} (three frames tried)"))
         }
+    }
+
+    /// The move rule for each of the flip's own slews and syncs. The flip
+    /// stopped the guider before its first step, and nothing in the run starts
+    /// it again before the flip ends; a guider someone started meanwhile is
+    /// stopped here, because one left guiding pulls the mount back toward its
+    /// lock point after every correction. The flip goes on whatever the
+    /// guider answers, as it does at its start.
+    pub(super) async fn stop_guider_before_move(&self, what: &str) {
+        crate::guiding_stop::stop_guider_for_move(
+            &self.run.device_ops,
+            what,
+            crate::GuidingStopReason::MeridianFlip,
+        )
+        .await;
     }
 
     /// Wait for the mount to come to rest before a solve frame: not slewing,

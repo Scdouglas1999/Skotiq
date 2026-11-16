@@ -579,3 +579,57 @@ async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
     assert!(!state.guiding.resume_pending());
     assert_eq!(state.guiding.motion_depth(), 0);
 }
+
+/// Every sync and correction slew of the post-flip recenter goes through the
+/// move rule: a guider someone starts while the recenter takes its frame
+/// (from the guider controls) is stopped before the correction is sent.
+#[tokio::test(start_paused = true)]
+async fn a_guider_started_during_the_flip_recenter_is_stopped_before_each_correction() {
+    let night = flip_night(THRESHOLD_MIN + 1.0).await;
+    night
+        .ops
+        .solve_dec_offsets_deg
+        .lock()
+        .unwrap()
+        .extend([0.6, 0.04, 0.0]);
+    let ops = night.ops.clone();
+    let operator = tokio::spawn(async move {
+        // Guiding is started during each of the first two recenter frames.
+        for frames in 1..=2 {
+            while ops.calls().iter().filter(|c| *c == "camera_exposure").count() < frames {
+                sleep(Duration::from_millis(100)).await;
+            }
+            ops.guiding.store(true, Ordering::SeqCst);
+        }
+    });
+    let flip_ctx = crate::meridian_flip_executor::FlipContext::for_instruction(&night.ctx, None)
+        .await
+        .expect("the run has a mount and a target");
+    let mut executor = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
+        night.flip_config.clone(),
+        night.ctx.run.clone(),
+    );
+    let result = executor.execute(&flip_ctx).await;
+    operator.await.unwrap();
+
+    let calls = night.ops.calls();
+    assert!(
+        matches!(result, crate::meridian_flip_executor::FlipResult::Success { .. }),
+        "{result:?}: {calls:?}"
+    );
+    assert_eq!(
+        night.ops.moves_while_guiding.load(Ordering::SeqCst),
+        0,
+        "a sync or slew ran while the guider guided: {calls:?}"
+    );
+    let mut from = 0;
+    for correction in 1..=2 {
+        let frame = first_call(&calls, from, |c| c == "camera_exposure").unwrap();
+        let sync = first_call(&calls, frame, |c| c.starts_with("mount_sync:")).unwrap();
+        assert!(
+            first_call(&calls, frame, |c| c == "guider_stop").is_some_and(|stop| stop < sync),
+            "correction {correction} was sent without stopping the guider: {calls:?}"
+        );
+        from = sync;
+    }
+}

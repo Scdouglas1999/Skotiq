@@ -495,6 +495,36 @@ mod guiding_through_a_move {
         assert_eq!(ops.slews_while_guider_active.load(Ordering::SeqCst), 0);
     }
 
+    /// A guider started while the Center runs (from the guider controls) is
+    /// stopped again before the correction: left guiding, it pulls the mount
+    /// back toward its lock point after the correction slew.
+    #[tokio::test(start_paused = true)]
+    async fn a_center_stops_a_guider_started_during_it_before_its_correction() {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_off_target_solves(1)
+                .with_mount_slewing_states(vec![true, false])
+                .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
+        );
+        let ctx = slew_ctx(ops.clone(), false).await;
+        let operator = {
+            let ops = ops.clone();
+            tokio::spawn(async move {
+                while ops.camera_exposure_calls.load(Ordering::SeqCst) == 0 {
+                    sleep(Duration::from_millis(100)).await;
+                }
+                ops.guiding.store(true, Ordering::SeqCst);
+            })
+        };
+
+        let result = execute_center(&center_cfg(), &ctx, None).await;
+        operator.await.unwrap();
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.slews_while_guider_active.load(Ordering::SeqCst), 0);
+    }
+
     /// PHD2 in LostLock reports not guiding, yet guides again the moment it
     /// finds the star. A move stops it as it stops a guiding one.
     #[tokio::test(start_paused = true)]
