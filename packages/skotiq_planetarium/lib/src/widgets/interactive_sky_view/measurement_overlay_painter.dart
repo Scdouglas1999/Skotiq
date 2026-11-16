@@ -111,6 +111,8 @@ class _MeasurementOverlayPainter extends CustomPainter {
             '${_formatSeparation(separationDeg)}\n'
             'PA ${positionAngleDeg.toStringAsFixed(1)}°',
         style: const TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: _lineColor,
           fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w500,

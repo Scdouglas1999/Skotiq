@@ -157,6 +157,8 @@ class _FovRingsPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: color.withValues(alpha: 0.85),
           fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w500,

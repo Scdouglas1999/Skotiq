@@ -80,6 +80,8 @@ class _CompassHudPainter extends CustomPainter {
 
   void _drawCardinalMarkers(Canvas canvas, Offset center, double radius) {
     final textStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: ImageOverlayColors.foreground.withValues(alpha: 0.8),
       fontSize: SkotiqTypography.fontSize10,
       fontWeight: FontWeight.bold,
@@ -154,6 +156,8 @@ class _CompassHudPainter extends CustomPainter {
       text: TextSpan(
         text: azText,
         style: TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: ImageOverlayColors.foreground.withValues(alpha: 0.9),
           fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w600,
@@ -200,6 +204,8 @@ class _CompassHudPainter extends CustomPainter {
 
     // Altitude markers (0, 30, 60, 90)
     final markerStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: ImageOverlayColors.foreground.withValues(alpha: 0.5),
       fontSize: SkotiqTypography.fontSize8,
     );
@@ -260,6 +266,8 @@ class _CompassHudPainter extends CustomPainter {
       text: TextSpan(
         text: altText,
         style: TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: ImageOverlayColors.foreground.withValues(alpha: 0.9),
           fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w600,

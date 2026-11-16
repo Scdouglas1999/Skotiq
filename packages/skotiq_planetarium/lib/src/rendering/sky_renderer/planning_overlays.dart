@@ -193,6 +193,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
       final tp = _TextCache.get(
         label,
         const TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: _flipColor,
           fontSize: 9,
           fontWeight: FontWeight.w600,
@@ -203,6 +205,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
       final tp = _TextCache.get(
         'Never rises',
         TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: Colors.white.withValues(alpha: 0.7),
           fontSize: 9,
           fontWeight: FontWeight.w500,
@@ -282,6 +286,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final duskTp = _TextCache.get(
       'Dusk ${ClockFormat.hm(dusk)}',
       TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
         fontWeight: FontWeight.w500,
@@ -292,6 +298,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final dawnTp = _TextCache.get(
       'Dawn ${ClockFormat.hm(dawn)}',
       TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
         fontWeight: FontWeight.w500,

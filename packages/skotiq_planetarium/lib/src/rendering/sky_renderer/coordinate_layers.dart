@@ -171,6 +171,8 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
     double decSpacing,
   ) {
     final textStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: config.gridColor.withValues(alpha: 0.7),
       fontSize: 10,
       fontWeight: FontWeight.w500,
@@ -307,6 +309,8 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
 
     // Draw "Z" label - use cached TextPainter
     final textStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: Colors.white.withValues(alpha: 0.6),
       fontSize: 12,
       fontWeight: FontWeight.bold,
@@ -462,6 +466,8 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
     );
     if (labelOffset != null && _isInView(labelOffset, size)) {
       final textStyle = TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: config.galacticPlaneColor.withValues(alpha: 0.8),
         fontSize: 10,
         fontWeight: FontWeight.w500,
