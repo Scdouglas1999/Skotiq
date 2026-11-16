@@ -33,6 +33,20 @@ fn settle_done_event(status: i32, error: &str) -> GuidingEvent {
     }
 }
 
+/// Tell the operator about PHD2's guiding through the notification channel.
+fn publish_guiding_notice(message: String) {
+    get_state().publish_event(crate::event::correlation::create_event_auto_id(
+        EventSeverity::Warning,
+        crate::event::equipment::EventCategory::System,
+        crate::event::bus::EventPayload::System(crate::event::system::SystemEvent::Notification {
+            title: "Guiding".to_string(),
+            message,
+            level: "warning".to_string(),
+            explicit_transports: None,
+        }),
+    ));
+}
+
 /// Turn PHD2's `get_pixel_scale` answer into a scale the UI can convert with.
 ///
 /// PHD2 answers JSON null when its profile has no focal length or pixel size,
@@ -141,6 +155,15 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                     EventSeverity::Info,
                 );
                 tracing::debug!("PHD2: Published GuideStats event (id={})", stats_id);
+                let at = if frame.timestamp > 0.0 {
+                    frame.timestamp
+                } else {
+                    chrono::Utc::now().timestamp_millis() as f64 / 1000.0
+                };
+                if let Some(message) = watch.observe_step(frame, at) {
+                    tracing::warn!("[GUIDING] {}", message);
+                    publish_guiding_notice(message);
+                }
                 return;
             }
             skotiq_phd2::Phd2Event::StateChanged(state) => {
