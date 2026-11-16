@@ -56,4 +56,24 @@ void main() {
     expect(reported, hasLength(1));
     expect(reported.single, contains('sequencer/Progress'));
   });
+
+  // The rig on 2026-11-15 at 21:52: every host start logged "Dropped a
+  // system/HostRuntimeState event this build cannot read" and the same for
+  // HostStateChanged. Those are the host's sync envelopes, which only travel
+  // on the wire and have no typed form.
+  test('a host sync envelope has no typed form and is not reported', () async {
+    for (final type in ['HostRuntimeState', 'HostStateChanged']) {
+      final envelope = SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.info,
+        category: EventCategory.system,
+        eventType: type,
+        data: const {'channel': 'plateSolve', 'revision': 1},
+      );
+      expect(typedEventFromWire(envelope), isNull);
+    }
+    await Future<void>.delayed(Duration.zero);
+
+    expect(lines.where((e) => e.source == 'BridgeEventCodec'), isEmpty);
+  });
 }

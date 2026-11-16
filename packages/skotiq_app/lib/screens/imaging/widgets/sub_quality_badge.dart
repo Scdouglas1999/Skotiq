@@ -152,7 +152,21 @@ _Grade _grade(WidgetRef ref, ImageStats stats, double? injectedEccentricity) {
   // perfect-zero RMS before the guider has produced a sample.
   final liveRms = guidingRmsTotal > 0 ? guidingRmsTotal : null;
 
-  final hasRules = rules != null && rules.hasActiveRules;
+  // The rules judge star frames. A dark, bias or flat on screen has no
+  // stars to judge, so it gets no verdict.
+  final calibrationFrame = ref.watch(
+    currentImageProvider.select(
+      (image) => switch (image?.settings.frameType) {
+        FrameType.dark ||
+        FrameType.bias ||
+        FrameType.flat ||
+        FrameType.darkFlat =>
+          true,
+        FrameType.light || FrameType.snapshot || null => false,
+      },
+    ),
+  );
+  final hasRules = !calibrationFrame && rules != null && rules.hasActiveRules;
   return (
     hasRules: hasRules,
     rejectReason: hasRules

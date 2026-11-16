@@ -234,17 +234,9 @@ async fn execute_smart_exposure(
     // the inner `take_batch` consumes the full remaining count for that
     // plan in one go.
     loop {
-        // Cancellation / pause / skip checks at every step — same
-        // pattern as Loop / TargetHeader. We honour cancellation
-        // promptly so a "Stop" button doesn't have to wait for the
-        // next filter change.
-        if context.is_cancelled().await {
+        if let Some(status) = stop_requested(context).await {
             save_checkpoint(node_id, context, &state).await;
-            return NodeStatus::Cancelled;
-        }
-        if context.is_skip_to_next_target_requested() {
-            save_checkpoint(node_id, context, &state).await;
-            return NodeStatus::Skipped;
+            return status;
         }
 
         // The surrounding target's `end_when` (its end time, an altitude
@@ -396,6 +388,12 @@ async fn execute_smart_exposure(
         // a time, so the condition is checked before every frame.
         let bounded_by_target = context.active_target_end_trigger().is_some();
         while taken < batch_size {
+            // A filter change or a dither can take minutes; a request made
+            // during it ends the node before the next frame starts.
+            if let Some(status) = stop_requested(context).await {
+                save_checkpoint(node_id, context, &state).await;
+                return status;
+            }
             if taken > 0 && target_window_closed(node_id, context) {
                 save_checkpoint(node_id, context, &state).await;
                 return NodeStatus::Success;
@@ -478,6 +476,19 @@ async fn execute_smart_exposure(
         // Save the checkpoint after each batch so a process crash
         // between batches loses at most `batch_size` frames of progress.
         save_checkpoint(node_id, context, &state).await;
+    }
+}
+
+/// The status a Stop or a next-target request ends the node with, checked
+/// before every filter change and every frame so neither waits for work the
+/// node has not started yet.
+async fn stop_requested(context: &ExecutionContext) -> Option<NodeStatus> {
+    if context.is_cancelled().await {
+        Some(NodeStatus::Cancelled)
+    } else if context.is_skip_to_next_target_requested() {
+        Some(NodeStatus::Skipped)
+    } else {
+        None
     }
 }
 

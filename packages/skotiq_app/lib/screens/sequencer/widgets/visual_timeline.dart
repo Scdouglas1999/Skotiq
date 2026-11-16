@@ -16,15 +16,16 @@ final timelineVisibleProvider = StateProvider<bool>((ref) => false);
 ///
 /// The planetarium's `twilightTimesProvider` intentionally follows the live
 /// observation clock, which starts a periodic timer. The sequencer only needs
-/// tonight's dark-window boundary from app settings, so compute it directly.
+/// tonight's dark-window boundary from app settings, so compute it directly:
+/// the night in progress, or the coming one once its dark has ended.
 final preSessionTwilightTimesProvider =
     Provider<planetarium.TwilightTimes?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final hasLocation = settings != null && settings.hasObserverLocation;
   if (!hasLocation) return null;
 
-  return planetarium.AstronomyCalculations.calculateTwilightTimes(
-    date: ref.watch(clockProvider).instant,
+  return planetarium.AstronomyCalculations.nightAt(
+    now: ref.watch(clockProvider).instant,
     latitudeDeg: settings.latitude,
     longitudeDeg: settings.longitude,
   );

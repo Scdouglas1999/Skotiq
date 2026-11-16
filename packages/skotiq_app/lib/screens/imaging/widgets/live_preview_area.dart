@@ -188,8 +188,11 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
     final exposureProgress = ref.watch(exposureProgressProvider);
     final cameraState = ref.watch(cameraStateProvider);
     // Detected only while the overlay is on: one native detection per frame.
+    // While the frame on screen is still being detected (or its detection
+    // failed) the provider still holds the previous frame's stars; those are
+    // never drawn over this one.
     final starDetectionResult = showStarOverlay
-        ? ref.watch(currentFrameStarsProvider).valueOrNull
+        ? ref.watch(currentFrameStarsProvider).unwrapPrevious().valueOrNull
         : null;
     final frameSolve = ref.watch(currentFrameSolveProvider);
     final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;

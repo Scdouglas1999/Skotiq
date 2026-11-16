@@ -163,6 +163,38 @@ void main() {
     );
   });
 
+  // The rig on 2026-11-16 at 03:12:49: the run's Center stopped the guider
+  // while it settled, PHD2 ended the settle with "Guiding stopped", and the
+  // log said the settle ran out of time and "the guider keeps guiding".
+  test(
+    'a settle that a stop ended is not a settle that ran out of time',
+    () async {
+      final events = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(events.close);
+      final backend = _MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      final container = _container(backend);
+      addTearDown(container.dispose);
+      _markConnected(container);
+      container.read(phd2ControllerProvider);
+      container.read(phd2StateProvider.notifier).state = Phd2State.settling;
+
+      events
+        ..add(_guidingEvent('GuidingStopped'))
+        ..add(_guidingEvent('SettleTimedOut', {'error': 'Guiding stopped'}));
+      await Future<void>.delayed(Duration.zero);
+
+      final logs = container.read(loggingServiceProvider).getRecentLogs();
+      expect(logs.where((e) => e.message.contains('keeps guiding')), isEmpty);
+      expect(logs.where((e) => e.message.contains('in time')), isEmpty);
+      expect(
+        logs.where((e) => e.message.contains('guiding was stopped')),
+        hasLength(1),
+      );
+      expect(container.read(guiderSettleTimeoutProvider), isNull);
+    },
+  );
+
   test('the reason guiding is stopped follows the guider', () async {
     final events = StreamController<SkotiqEvent>.broadcast();
     addTearDown(events.close);

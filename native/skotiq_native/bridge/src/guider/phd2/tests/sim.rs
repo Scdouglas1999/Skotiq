@@ -9,6 +9,8 @@
 //! frames carry the selected star's SNR and mass.
 
 use super::super::*;
+use crate::event::bus::EventPayload;
+use crate::event::system::SystemEvent;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicBool;
@@ -588,4 +590,136 @@ async fn an_acknowledged_stop_that_never_finishes_is_an_error() {
         result.is_err(),
         "a still-guiding PHD2 must not report a successful stop"
     );
+}
+
+// What reaches the event bus for PHD2's own events: a lost star only while
+// PHD2 guides, and one notice when its guide pulses stop reaching the mount.
+
+/// What the bridge published while `send` fed PHD2 events to it.
+async fn published_after(send: impl FnOnce()) -> Vec<EventPayload> {
+    let mut events = get_state().event_bus.subscribe();
+    send();
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let mut published = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        published.push(event.payload);
+    }
+    published
+}
+
+fn lost_stars(published: &[EventPayload]) -> usize {
+    published
+        .iter()
+        .filter(|p| matches!(p, EventPayload::Guiding(GuidingEvent::LostStar)))
+        .count()
+}
+
+fn guiding_notices(published: &[EventPayload]) -> Vec<String> {
+    published
+        .iter()
+        .filter_map(|p| match p {
+            EventPayload::System(SystemEvent::Notification { message, .. }) => {
+                Some(message.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// A guide step at PHD2 time `at` (seconds) with the given raw RA error and
+/// pulse lengths; PHD2 leaves the duration fields out when it sends none.
+fn guide_step(sim: &Sim, at: f64, ra_px: f64, ra_ms: i64, dec_ms: i64) {
+    let mut fields = serde_json::json!({
+        "Timestamp": at, "Frame": at as u64, "RADistanceRaw": ra_px, "DECDistanceRaw": 0.4,
+        "SNR": 150.0, "StarMass": 240_000.0,
+    });
+    if ra_ms > 0 {
+        fields["RADuration"] = serde_json::json!(ra_ms);
+        fields["RADirection"] = serde_json::json!("East");
+    }
+    if dec_ms > 0 {
+        fields["DECDuration"] = serde_json::json!(dec_ms);
+        fields["DECDirection"] = serde_json::json!("North");
+    }
+    sim.event("GuideStep", fields);
+}
+
+const T0: f64 = 1_794_800_000.0;
+
+/// The rig on 2026-11-15 at 21:53 and 21:56: PHD2 was only looping and
+/// reported StarLost when a spot left its candidate box. Skotiq logged
+/// "Guide star lost — guiding suspended" and counted a lost star although
+/// nothing was guiding.
+#[tokio::test]
+async fn a_star_lost_while_phd2_only_loops_is_not_a_lost_guide_star() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig {
+        initial: Capture::Looping,
+        ..SimConfig::default()
+    })
+    .await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let published = published_after(|| sim.event("StarLost", serde_json::json!({}))).await;
+    finish(done).await;
+    assert_eq!(lost_stars(&published), 0, "{published:?}");
+}
+
+#[tokio::test]
+async fn a_star_lost_while_phd2_guides_is_a_lost_guide_star() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig::default()).await;
+    let published = published_after(|| {
+        sim.event("StartGuiding", serde_json::json!({}));
+        sim.event("StarLost", serde_json::json!({}));
+    })
+    .await;
+    finish(done).await;
+    assert_eq!(lost_stars(&published), 1, "{published:?}");
+}
+
+/// The rig on 2026-11-15 22:00-22:16: PHD2's ASCOM link to the mount was
+/// stale, every pulse failed and PHD2 reported each guide step with no pulse
+/// although the star was 5-34 px off. Skotiq showed "Guiding" and said
+/// nothing.
+#[tokio::test]
+async fn guide_steps_that_send_no_pulse_at_large_errors_raise_one_notice() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig::default()).await;
+    let published = published_after(|| {
+        sim.event("StartGuiding", serde_json::json!({}));
+        for i in 0..30 {
+            guide_step(&sim, T0 + 4.5 * f64::from(i), 12.0 + f64::from(i), 0, 0);
+        }
+    })
+    .await;
+    finish(done).await;
+    let notices = guiding_notices(&published);
+    assert_eq!(notices.len(), 1, "{published:?}");
+    assert!(
+        notices[0].contains("not reaching the mount"),
+        "{}",
+        notices[0]
+    );
+}
+
+/// Steady guiding sends no pulse while the star sits inside PHD2's minimum
+/// move, and a large error gets a pulse.
+#[tokio::test]
+async fn guiding_that_corrects_its_errors_raises_no_notice() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig::default()).await;
+    let published = published_after(|| {
+        sim.event("StartGuiding", serde_json::json!({}));
+        for i in 0..60 {
+            let at = T0 + 2.0 * f64::from(i);
+            if i % 10 == 0 {
+                guide_step(&sim, at, 3.0, 400, 0);
+            } else {
+                guide_step(&sim, at, 0.1, 0, 0);
+            }
+        }
+    })
+    .await;
+    finish(done).await;
+    assert!(guiding_notices(&published).is_empty(), "{published:?}");
 }
