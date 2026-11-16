@@ -18,6 +18,7 @@ class FilterSetPicker extends ConsumerWidget {
     required this.value,
     required this.onChanged,
     this.dense = false,
+    this.label,
   });
 
   /// Skotiq's choice for the target on this rig.
@@ -31,6 +32,10 @@ class FilterSetPicker extends ConsumerWidget {
 
   /// 28 px control, for a dense card or side panel.
   final bool dense;
+
+  /// A form row label beside the control ("Filters"); the lines under it
+  /// then run the form's full width.
+  final String? label;
 
   static const _customKey = 'filter-set-builder';
 
@@ -55,7 +60,7 @@ class FilterSetPicker extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Semantics(
+        _labelled(Semantics(
           label: 'Filters',
           child: SkotiqDropdown(
             key: const ValueKey('filter-set-picker'),
@@ -89,7 +94,7 @@ class FilterSetPicker extends ConsumerWidget {
               onChanged(listed.firstWhere((set) => set.key == key));
             },
           ),
-        ),
+        )),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
           current == null || current.key == recommendedKey
@@ -124,6 +129,11 @@ class FilterSetPicker extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  Widget _labelled(Widget control) {
+    final text = label;
+    return text == null ? control : FormRow(label: text, child: control);
   }
 
   /// "Recommended" for Skotiq's set, and the filters of a set whose label

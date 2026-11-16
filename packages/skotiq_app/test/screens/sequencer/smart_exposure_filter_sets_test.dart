@@ -46,6 +46,7 @@ void main() {
   setUp(() {
     smart = SmartExposureNode(
       id: 'smart',
+      name: 'Smart Exposure: L+R',
       parentId: 'm1',
       rotateFilters: false,
       integrationBudgetSecs: 3 * 3600,
@@ -174,6 +175,7 @@ void main() {
     await tester.pumpAndSettle();
     filled = node();
     expect(filled.plans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
+    expect(filled.name, 'Smart Exposure: L+R+G+B');
     final l = filled.plans.first;
     final r = filled.plans[1];
     expect(l.count * l.durationSecs, greaterThan(r.count * r.durationSecs));

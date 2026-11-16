@@ -349,13 +349,11 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                     '${CoordinateFormat.decReadout(widget.target.decDegrees)}',
                     style: muted),
                 const SizedBox(height: SkotiqTokens.spaceLg),
-                FormRow(
+                FilterSetPicker(
                   label: 'Filters',
-                  child: FilterSetPicker(
-                    choice: widget.filterChoice,
-                    value: _set,
-                    onChanged: _choose,
-                  ),
+                  choice: widget.filterChoice,
+                  value: _set,
+                  onChanged: _choose,
                 ),
                 if (multiFilter) ...[
                   const SizedBox(height: SkotiqTokens.spaceMd),

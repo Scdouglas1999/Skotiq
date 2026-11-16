@@ -494,7 +494,8 @@ class _StrategyTile extends StatelessWidget {
         return (
           title: 'Per target',
           subtitle: 'Narrowband for emission nebulae, LRGB for galaxies and '
-              'clusters, from what your wheel holds and the moon.',
+              'clusters, from what your wheel holds. Change any target on the '
+              'preview.',
         );
       case SmartNightStrategy.autoLrgb:
         return (

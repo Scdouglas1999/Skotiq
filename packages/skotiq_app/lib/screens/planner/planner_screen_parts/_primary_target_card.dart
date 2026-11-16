@@ -101,22 +101,20 @@ class _TargetDetailColumn extends ConsumerWidget {
       KeyValueList(rows: _facts(context, ref)),
       if ((filterChoice, filterSet) case (final choice?, final set?)) ...[
         const SizedBox(height: SkotiqTokens.spaceMd),
-        FormRow(
+        FilterSetPicker(
           label: 'Filters',
-          child: FilterSetPicker(
-            choice: choice,
-            value: set,
-            dense: true,
-            onChanged: (picked) => ref
-                .read(filterSetPreferencesProvider.notifier)
-                .choose(target, picked, recommended: choice.recommended)
-                .catchError((Object e) {
-              if (context.mounted) {
-                context.showErrorSnackBar(
-                    'Could not keep the filter set: ${userFacingError(e)}');
-              }
-            }),
-          ),
+          choice: choice,
+          value: set,
+          dense: true,
+          onChanged: (picked) => ref
+              .read(filterSetPreferencesProvider.notifier)
+              .choose(target, picked, recommended: choice.recommended)
+              .catchError((Object e) {
+            if (context.mounted) {
+              context.showErrorSnackBar(
+                  'Could not keep the filter set: ${userFacingError(e)}');
+            }
+          }),
         ),
       ],
       // The sensor the exposure above was computed from, and where each of its

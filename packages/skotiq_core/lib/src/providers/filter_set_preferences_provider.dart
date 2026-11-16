@@ -111,7 +111,7 @@ typedef SequenceTargetKey = ({
 });
 
 /// The target of a sequence's target step as the filter choice reads it.
-/// Its target-library row (by id, else by its name as a catalog designation)
+/// Its target-library row (by id, else by name, as a run binds the step)
 /// gives the object type and size; without a row the type is unknown.
 final sequenceTargetSuggestionProvider = FutureProvider.autoDispose
     .family<TargetSuggestion, SequenceTargetKey>((ref, key) async {
@@ -119,7 +119,7 @@ final sequenceTargetSuggestionProvider = FutureProvider.autoDispose
       final libraryId = key.libraryId;
       final row = libraryId != null
           ? await dao.getTargetById(libraryId)
-          : await dao.getTargetByCatalogId(key.name);
+          : await dao.getTargetByName(key.name);
       return TargetSuggestion(
         targetId: row?.id ?? key.name.hashCode,
         targetName: key.name,
