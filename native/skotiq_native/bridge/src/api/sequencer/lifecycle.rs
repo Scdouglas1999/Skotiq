@@ -1,4 +1,4 @@
-use super::{get_sequence_executor, SequencerState};
+use super::SequencerState;
 use crate::error::SkotiqError;
 use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
@@ -15,7 +15,7 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
     let definition: SequenceDefinition = serde_json::from_str(&json)
         .map_err(|e| SkotiqError::InvalidInput(format!("Failed to parse sequence JSON: {}", e)))?;
 
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     executor
         .load_sequence(definition)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to load sequence: {}", e)))?;
@@ -64,7 +64,7 @@ pub(crate) async fn seed_executor_site_from_settings(
 pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
     tracing::info!("Starting sequence execution");
 
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     seed_executor_site_from_settings(&executor).await;
     executor
         .start()
@@ -86,7 +86,7 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
     tracing::info!("Pausing sequence execution");
 
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .pause()
         .await
@@ -113,8 +113,8 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
     // The executor is held only to ask: its stopping phase can run the plan's
     // shutdown steps for minutes, and status reads go through the same lock.
     let (run_id, run_in_flight, stopping) = {
-        let mut executor = get_sequence_executor().write().await;
-        let run_id = executor.active_sequence_run_id();
+        let mut executor = skotiq_sequencer::get_executor().write().await;
+        let run_id = executor.handle().active_sequence_run_id();
         let run_in_flight = executor.has_run_in_flight();
         let stopping = executor
             .request_stop(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
@@ -161,7 +161,7 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
 pub async fn api_sequencer_skip() -> Result<(), SkotiqError> {
     tracing::info!("Skipping current instruction");
 
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .skip()
         .await
@@ -178,7 +178,7 @@ pub async fn api_sequencer_skip() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_skip_to_node(node_id: String) -> Result<(), SkotiqError> {
     tracing::info!("Skipping execution to node: {}", node_id);
 
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .skip_to_node(node_id)
         .await
@@ -191,7 +191,7 @@ pub async fn api_sequencer_skip_to_node(node_id: String) -> Result<(), SkotiqErr
 pub async fn api_sequencer_reset() -> Result<(), SkotiqError> {
     tracing::info!("Resetting sequence executor");
 
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     executor.reset().await;
 
     Ok(())
@@ -222,7 +222,7 @@ pub async fn api_sequencer_plugin_node_finished(
         success,
         message,
     );
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::executor_handle();
     executor
         .plugin_node_finished(node_id, success, message, structured_detail_json)
         .await
@@ -259,20 +259,20 @@ pub struct CheckpointInfoApi {
 /// Set the checkpoint directory for crash recovery
 pub async fn api_sequencer_set_checkpoint_dir(path: String) -> Result<(), SkotiqError> {
     tracing::info!("Setting checkpoint directory to: {}", path);
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
     executor.set_checkpoint_dir(path);
     Ok(())
 }
 
 /// Check if a recoverable checkpoint exists
 pub fn api_sequencer_has_checkpoint() -> bool {
-    let executor = get_sequence_executor().blocking_read();
+    let executor = skotiq_sequencer::get_executor().blocking_read();
     executor.has_recoverable_checkpoint()
 }
 
 /// Get info about the current checkpoint
 pub fn api_sequencer_get_checkpoint_info() -> Option<CheckpointInfoApi> {
-    let executor = get_sequence_executor().blocking_read();
+    let executor = skotiq_sequencer::get_executor().blocking_read();
     executor
         .get_checkpoint_info()
         .map(|info| CheckpointInfoApi {
@@ -290,7 +290,7 @@ pub fn api_sequencer_get_checkpoint_info() -> Option<CheckpointInfoApi> {
 /// Resume sequence from checkpoint
 pub async fn api_sequencer_resume_from_checkpoint() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence from checkpoint");
-    let mut executor = get_sequence_executor().write().await;
+    let mut executor = skotiq_sequencer::get_executor().write().await;
 
     // Set up device ops before resume - use UnifiedDeviceOps which routes through DeviceManager
     let ops = create_unified_device_ops();
@@ -323,7 +323,7 @@ async fn restore_from_checkpoint(
 /// not yet past the meridian, mount parked or not tracking, already flipped,
 /// the run paused, ...).
 pub async fn api_sequencer_request_meridian_flip() -> Result<(), SkotiqError> {
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::get_executor().read().await;
     executor
         .request_meridian_flip()
         .await
@@ -438,7 +438,7 @@ pub async fn api_perform_meridian_flip(
 /// Save current execution state as checkpoint
 pub async fn api_sequencer_save_checkpoint() -> Result<(), SkotiqError> {
     tracing::info!("Saving checkpoint");
-    let executor = get_sequence_executor().read().await;
+    let executor = skotiq_sequencer::get_executor().read().await;
     executor
         .save_checkpoint()
         .await
@@ -448,7 +448,7 @@ pub async fn api_sequencer_save_checkpoint() -> Result<(), SkotiqError> {
 /// Clear/discard checkpoint (call when sequence completes normally or user discards)
 pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
     tracing::info!("Clearing checkpoint");
-    let executor = get_sequence_executor().blocking_read();
+    let executor = skotiq_sequencer::get_executor().blocking_read();
     executor
         .clear_checkpoint()
         .map_err(|e| SkotiqError::OperationFailed(e))
@@ -456,8 +456,6 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
 
 #[cfg(test)]
 mod executor_site_tests {
-
-    use crate::api::sequencer::get_sequence_executor;
     use crate::api::sequencer::lifecycle::api_sequencer_start;
     use crate::state::get_state;
     use crate::storage::ObserverLocation;
@@ -561,7 +559,7 @@ mod executor_site_tests {
         });
         sequence.root_node_id = Some("wait".to_string());
         {
-            let mut executor = get_sequence_executor().write().await;
+            let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
@@ -570,7 +568,12 @@ mod executor_site_tests {
         let mut events = get_state().event_bus.subscribe();
 
         api_sequencer_start().await.expect("run starts");
-        get_sequence_executor().write().await.stop().await.ok();
+        skotiq_sequencer::get_executor()
+            .write()
+            .await
+            .stop()
+            .await
+            .ok();
 
         let mut started = Vec::new();
         while let Ok(event) = events.try_recv() {
@@ -603,12 +606,12 @@ mod executor_site_tests {
         sequence.root_node_id = Some("wait".to_string());
         crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         let mut run_events = {
-            let mut executor = get_sequence_executor().write().await;
+            let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
             executor.load_sequence(sequence).expect("sequence loads");
-            executor.subscribe()
+            executor.handle().subscribe()
         };
         let bridge = tokio::spawn(async move {
             crate::api::sequencer::event_bridge::run_sequencer_event_loop(
@@ -656,7 +659,7 @@ mod executor_site_tests {
     #[tokio::test]
     async fn stopping_with_no_run_still_announces_stopped() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
-        get_sequence_executor().write().await.reset().await;
+        skotiq_sequencer::get_executor().write().await.reset().await;
         let mut events = get_state().event_bus.subscribe();
 
         crate::api::sequencer::lifecycle::api_sequencer_stop(None)

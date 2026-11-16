@@ -297,7 +297,7 @@ async fn run(
         Some("fw-1".to_string()),
         None,
     );
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     executor.start().await.expect("run starts");
     let mut state = executor.get_state().await;
@@ -836,6 +836,7 @@ async fn resume_or_fresh(
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
     let baseline = executor
+        .handle()
         .trigger_manager()
         .read()
         .await

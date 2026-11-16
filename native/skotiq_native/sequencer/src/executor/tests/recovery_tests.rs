@@ -180,8 +180,8 @@ fn executor_state_recovering_round_trips_through_serde() {
 #[test]
 fn fresh_executor_has_no_recovery_in_flight() {
     let executor = SequenceExecutor::new();
-    assert!(executor.current_recovery().is_none());
-    assert!(executor.recovery_history().is_empty());
+    assert!(executor.handle().current_recovery().is_none());
+    assert!(executor.handle().recovery_history().is_empty());
     // Signals are initialised; entry counter is at the initial value.
     let signals = executor.recovery_signals.clone();
     assert_eq!(signals.current_entry(), 0);
@@ -202,8 +202,8 @@ fn recovery_signals_request_methods_set_flags() {
         .build()
         .unwrap();
     rt.block_on(async {
-        executor.recovery_try_now().await.unwrap();
-        executor.recovery_abort().await.unwrap();
+        executor.handle().recovery_try_now().await.unwrap();
+        executor.handle().recovery_abort().await.unwrap();
     });
     // Both atomics are set even without a running executor (the
     // commands write the atomics first, then forward to the channel
@@ -788,7 +788,7 @@ async fn plugin_node_e2e_completes_via_executor_round_trip() {
         .load_sequence(sequence)
         .expect("sequence should load");
 
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
 
     // The reply task waits for the PluginNodeRequested event and
     // then calls into the SequenceExecutor's public API the same
@@ -825,6 +825,7 @@ async fn plugin_node_e2e_completes_via_executor_round_trip() {
 
                     let guard = executor_for_reply.read().await;
                     guard
+                        .handle()
                         .plugin_node_finished(
                             node_id,
                             true,

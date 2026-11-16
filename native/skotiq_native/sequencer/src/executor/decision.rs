@@ -24,9 +24,35 @@
 //! they're scoped narrowly so the broader `emit_decision` API stays the
 //! single entry point for everything else.
 
-use super::SequenceExecutor;
+use super::{ExecutorHandle, SequenceExecutor};
 
 impl SequenceExecutor {
+    /// Emit a decision into the broadcast channel. Stamps the active
+    /// run id (if any) so persistence can write the FK without
+    /// recomputing.
+    ///
+    /// Returns `true` when at least one subscriber accepted the event.
+    /// Returns `false` when logging is disabled, the channel has no
+    /// subscribers, or the channel is closed. Callers DO NOT need to
+    /// check the return value — the persistence subscriber is the
+    /// source of truth and a lost broadcast slot is recovered on the
+    /// next emit.
+    ///
+    /// A row with a notice goes out with logging off too: the app raises the
+    /// operator's notification from it, and the warning that goes with it is
+    /// never toasted on its own.
+    pub fn emit_decision(&self, mut event: crate::decision::DecisionEvent) -> bool {
+        if event.notice.is_none() && !self.decision_logging_enabled() {
+            return false;
+        }
+        if event.sequence_run_id.is_none() {
+            event.sequence_run_id = *self.active_sequence_run_id.read();
+        }
+        self.decision_tx.send(event).is_ok()
+    }
+}
+
+impl ExecutorHandle {
     /// Subscribe to the structured decision channel. Used by the bridge
     /// to bridge decisions onto the unified `SkotiqEvent` stream as
     /// `SequencerEvent::DecisionLogged` and to persist into the
@@ -65,29 +91,5 @@ impl SequenceExecutor {
     /// Read the currently-active sequence_runs id. `None` between runs.
     pub fn active_sequence_run_id(&self) -> Option<i64> {
         *self.active_sequence_run_id.read()
-    }
-
-    /// Emit a decision into the broadcast channel. Stamps the active
-    /// run id (if any) so persistence can write the FK without
-    /// recomputing.
-    ///
-    /// Returns `true` when at least one subscriber accepted the event.
-    /// Returns `false` when logging is disabled, the channel has no
-    /// subscribers, or the channel is closed. Callers DO NOT need to
-    /// check the return value — the persistence subscriber is the
-    /// source of truth and a lost broadcast slot is recovered on the
-    /// next emit.
-    ///
-    /// A row with a notice goes out with logging off too: the app raises the
-    /// operator's notification from it, and the warning that goes with it is
-    /// never toasted on its own.
-    pub fn emit_decision(&self, mut event: crate::decision::DecisionEvent) -> bool {
-        if event.notice.is_none() && !self.decision_logging_enabled() {
-            return false;
-        }
-        if event.sequence_run_id.is_none() {
-            event.sequence_run_id = self.active_sequence_run_id();
-        }
-        self.decision_tx.send(event).is_ok()
     }
 }

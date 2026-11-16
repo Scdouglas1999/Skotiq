@@ -251,7 +251,7 @@ async fn run_center(keep: &[&str]) -> CenterRun {
             trigger.id = "test_drift".into();
         }
     }
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .load_sequence(center_sequence())
         .expect("sequence loads");

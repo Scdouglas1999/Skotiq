@@ -1,4 +1,3 @@
-use super::get_sequence_executor;
 use crate::api::sequencer::event_translation::{
     instruction_progress_event, recovery_event_completed, recovery_event_gave_up,
     recovery_event_progress, recovery_event_started, typed_sequencer_event_from_progress_detail,
@@ -32,13 +31,6 @@ pub(crate) static SEQUENCER_EVENT_BRIDGES_STARTED: std::sync::atomic::AtomicBool
 
 /// Subscribe to sequencer events and forward them to the main event stream
 pub async fn api_sequencer_subscribe_events() -> Result<(), SkotiqError> {
-    // Validate the executor is reachable before spawning the supervisor so a
-    // bad caller still gets an error synchronously. Drop the lock immediately
-    // — the supervisor takes a fresh one on every restart.
-    {
-        let _executor = get_sequence_executor().read().await;
-    }
-
     if SEQUENCER_EVENT_BRIDGES_STARTED
         .compare_exchange(
             false,
@@ -66,7 +58,7 @@ pub async fn api_sequencer_subscribe_events() -> Result<(), SkotiqError> {
             let state = state.clone();
             async move {
                 let mut rx = {
-                    let executor = get_sequence_executor().read().await;
+                    let executor = skotiq_sequencer::executor_handle();
                     executor.subscribe()
                 };
                 tracing::info!("[EVENT_SUB] Event listener task spawned");
@@ -97,7 +89,7 @@ pub async fn api_sequencer_subscribe_events() -> Result<(), SkotiqError> {
             let state = decision_state.clone();
             async move {
                 let mut rx = {
-                    let executor = get_sequence_executor().read().await;
+                    let executor = skotiq_sequencer::executor_handle();
                     executor.subscribe_decisions()
                 };
                 tracing::info!("[DECISION_SUB] Decision listener task spawned");
@@ -200,9 +192,7 @@ pub(crate) async fn run_sequencer_event_loop(
                     EventPayload::Sequencer(match s {
                         ExecutorState::Paused => SequencerEvent::Paused,
                         ExecutorState::Cancelled => SequencerEvent::Stopped {
-                            sequence_run_id: get_sequence_executor()
-                                .read()
-                                .await
+                            sequence_run_id: skotiq_sequencer::executor_handle()
                                 .active_sequence_run_id(),
                         },
                         _ => continue,
@@ -624,12 +614,7 @@ pub(crate) async fn run_sequencer_event_loop(
 #[cfg(test)]
 pub(crate) async fn wait_for_no_event_listeners() {
     for _ in 0..200 {
-        if get_sequence_executor()
-            .read()
-            .await
-            .event_subscriber_count()
-            == 0
-        {
+        if skotiq_sequencer::executor_handle().event_subscriber_count() == 0 {
             return;
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
@@ -680,7 +665,10 @@ mod instruction_progress_tests {
         else {
             panic!("a step report is an InstructionProgress");
         };
-        assert_eq!((node_id.as_str(), instruction.as_str()), ("center-1", "Center"));
+        assert_eq!(
+            (node_id.as_str(), instruction.as_str()),
+            ("center-1", "Center")
+        );
         assert_eq!(progress_percent, 66.0);
         assert_eq!(words, detail.detail_text());
         assert_eq!(detail_kind, "Center");
@@ -827,7 +815,6 @@ mod frame_event_capture_tests {
 mod event_bridge_idempotence_tests {
 
     use crate::api::sequencer::event_bridge::api_sequencer_subscribe_events;
-    use crate::api::sequencer::get_sequence_executor;
 
     /// Wait for the executor's event-broadcast receiver count to stop changing,
     /// so the assertion is not racing the supervised task's first `subscribe()`.
@@ -835,10 +822,7 @@ mod event_bridge_idempotence_tests {
         let mut last = usize::MAX;
         for _ in 0..40 {
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-            let count = get_sequence_executor()
-                .read()
-                .await
-                .event_subscriber_count();
+            let count = skotiq_sequencer::executor_handle().event_subscriber_count();
             if count == last {
                 return count;
             }
