@@ -22,7 +22,7 @@ base64.workspace = true
 flate2 = "1.1"
 
 # mDNS discovery
-mdns-sd = "0.11"
+mdns-sd = "0.21"
 if-addrs = "0.13"
 
 # Per-instance PRNG for reconnect/restart jitter. fastrand 2.x is small,
