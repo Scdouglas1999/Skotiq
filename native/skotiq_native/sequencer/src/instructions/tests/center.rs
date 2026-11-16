@@ -90,6 +90,50 @@ async fn a_center_without_a_plate_solver_fails_at_once_saying_so() {
     );
 }
 
+/// A correction without sync leaves the mount's model alone and offsets where
+/// the mount is sent by the error the solve measured; with sync, the mount is
+/// told where it points and sent to the target itself.
+#[tokio::test(start_paused = true)]
+async fn a_center_corrects_by_sync_or_by_offset_as_configured() {
+    for sync_mount in [true, false] {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_off_target_solves(1)
+                .with_mount_slewing_states(vec![false, true, false])
+                .with_scripted_mount_coordinates(0.712, 41.27),
+        );
+        let mut ctx = ctx_with_ops(ops.clone()).await;
+        ctx.run.rig.camera_id = Some("cam-1".to_string());
+        ctx.run.rig.mount_id = Some("mount-1".to_string());
+        ctx.target_ra = Some(0.712);
+        ctx.target_dec = Some(41.27);
+        let config = crate::CenterConfig {
+            max_attempts: 2,
+            exposure_duration: 0.01,
+            sync_mount,
+            ..Default::default()
+        };
+
+        let _ = execute_center(&config, &ctx, None).await;
+
+        let (ra, dec) = ops.mount_slew_targets.lock().unwrap()[0];
+        assert!((ra - 0.712).abs() < 1e-9);
+        let expected_dec = if sync_mount { 41.27 } else { 41.26 };
+        assert!((dec - expected_dec).abs() < 1e-9, "sync {sync_mount}: dec {dec}");
+        assert_eq!(
+            ops.mount_sync_calls.load(Ordering::SeqCst),
+            usize::from(sync_mount)
+        );
+    }
+}
+
+#[test]
+fn an_offset_correction_wraps_right_ascension_and_keeps_dec_on_the_sphere() {
+    let (ra, dec) = offset_by_pointing_error((23.99, 89.99), (23.99, 89.99), (0.01, 89.98));
+    assert!((ra - 23.97).abs() < 1e-9, "ra {ra}");
+    assert!((dec - 90.0).abs() < 1e-9, "dec {dec}");
+}
+
 /// What a Center node did with a sky that would not solve.
 struct CenterNodeRun {
     status: NodeStatus,

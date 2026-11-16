@@ -27,7 +27,7 @@ fn _cfg() -> StartGuidingConfig {
 // (lib.rs re-exports `device_ops::*`).
 use async_trait::async_trait;
 
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize};
 use std::sync::Mutex;
 
 /// The frame a camera returns with the focuser at a given position.
@@ -78,6 +78,7 @@ struct ScriptedDomeRotatorOps {
     mount_slew_calls: AtomicU32,
     /// Every slew target, in the order sent.
     mount_slew_targets: Mutex<Vec<(f64, f64)>>,
+    mount_sync_calls: AtomicUsize,
     /// The (RA degrees, Dec) hint of every plate solve.
     plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
     camera_exposure_calls: AtomicU32,
@@ -255,6 +256,7 @@ impl ScriptedDomeRotatorOps {
             mount_slew_state_calls: AtomicU32::new(0),
             mount_slew_calls: AtomicU32::new(0),
             mount_slew_targets: Mutex::new(Vec::new()),
+            mount_sync_calls: AtomicUsize::new(0),
             plate_solve_hints: Mutex::new(Vec::new()),
             camera_exposure_calls: AtomicU32::new(0),
             dithers_after_frame: Mutex::new(Vec::new()),
@@ -733,6 +735,7 @@ impl MountOps for ScriptedDomeRotatorOps {
         }
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.mount_sync_calls.fetch_add(1, Ordering::SeqCst);
         self.inner.mount_sync(id, ra, dec).await
     }
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {

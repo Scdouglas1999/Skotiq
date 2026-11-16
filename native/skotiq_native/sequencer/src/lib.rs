@@ -1906,6 +1906,11 @@ pub struct CenterConfig {
     pub max_attempts: u32,
     pub exposure_duration: f64,
     pub filter: Option<String>,
+    /// Whether each correction syncs the mount to the solve and slews to the
+    /// target again. Off, the correction is an offset slew by the measured
+    /// error and the mount's pointing model is left alone.
+    #[serde(default = "default_enabled")]
+    pub sync_mount: bool,
 }
 
 impl Default for CenterConfig {
@@ -1918,6 +1923,7 @@ impl Default for CenterConfig {
             max_attempts: 5,
             exposure_duration: 5.0,
             filter: None,
+            sync_mount: true,
         }
     }
 }

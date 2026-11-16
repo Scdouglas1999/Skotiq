@@ -816,6 +816,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
             max_attempts: 3,
             exposure_duration: 5.0,
             filter: None,
+            sync_mount: true,
         };
         let result = crate::instructions::execute_center(&config, &ctx, None).await;
         claim.release().await;

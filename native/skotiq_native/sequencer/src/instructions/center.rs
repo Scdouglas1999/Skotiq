@@ -265,6 +265,10 @@ async fn center(
     }
 
     let target_ra_deg = target_ra_hours * 15.0;
+    // Where the mount was last sent. Without sync each correction offsets
+    // this by the measured error; re-deriving it from the target would throw
+    // the earlier corrections away.
+    let mut commanded = (target_ra_hours, target_dec);
 
     tracing::info!(
         "Centering on RA: {:.4}°, Dec: {:.4}° (accuracy: {:.1}\")",
@@ -470,10 +474,6 @@ async fn center(
             ));
         }
 
-        // Sync corrects the mount's internal model to the plate-solved truth
-        // before re-slewing; without it, the next slew would land at the same
-        // wrong spot (the mount thinks it's already at target).
-        //
         // The center stopped the guider when it began; a guider started since
         // (from the guider controls, say) is stopped again before each
         // correction, because one left guiding pulls the mount back toward
@@ -484,21 +484,32 @@ async fn center(
             crate::GuidingStopReason::MountMove,
         )
         .await;
-        if let Err(e) = ctx
-            .run
-            .device_ops
-            .mount_sync(
-                &mount_id,
-                solve_result.ra_degrees / 15.0,
-                solve_result.dec_degrees,
-            )
-            .await
-        {
-            return InstructionResult::failure(format!(
-                "Mount sync failed during centering on attempt {}: {}",
-                attempt, e
-            ))
-            .caused_by(&e);
+        if config.sync_mount {
+            // The mount is told where it really points, so the slew to the
+            // target moves by the true pointing error.
+            if let Err(e) = ctx
+                .run
+                .device_ops
+                .mount_sync(
+                    &mount_id,
+                    solve_result.ra_degrees / 15.0,
+                    solve_result.dec_degrees,
+                )
+                .await
+            {
+                return InstructionResult::failure(format!(
+                    "Mount sync failed during centering on attempt {}: {}",
+                    attempt, e
+                ))
+                .caused_by(&e);
+            }
+            commanded = (target_ra_hours, target_dec);
+        } else {
+            commanded = offset_by_pointing_error(
+                commanded,
+                (target_ra_hours, target_dec),
+                (solve_result.ra_degrees / 15.0, solve_result.dec_degrees),
+            );
         }
 
         tracing::info!("Slewing to correct position...");
@@ -511,7 +522,7 @@ async fn center(
         }
 
         tokio::select! {
-            result = ctx.run.device_ops.mount_slew_to_coordinates(&mount_id, target_ra_deg / 15.0, target_dec) => {
+            result = ctx.run.device_ops.mount_slew_to_coordinates(&mount_id, commanded.0, commanded.1) => {
                 if let Err(e) = result {
                     return InstructionResult::failure(format!(
                         "Correction slew command failed during centering on attempt {}: {}",
@@ -557,6 +568,18 @@ async fn center(
         ),
         Setback::CenterNotConverged,
     )
+}
+
+/// Where to send the mount (RA hours, Dec degrees) so it lands on `target`,
+/// given that commanding `commanded` put it at `solved`.
+pub(crate) fn offset_by_pointing_error(
+    commanded: (f64, f64),
+    target: (f64, f64),
+    solved: (f64, f64),
+) -> (f64, f64) {
+    let ra = commanded.0 - crate::meridian::wrap_hours(solved.0 - target.0);
+    let dec = commanded.1 - (solved.1 - target.1);
+    (ra.rem_euclid(24.0), dec.clamp(-90.0, 90.0))
 }
 
 /// Apply the active target's framing rotation during centering.

@@ -1263,6 +1263,7 @@ async fn recenter_after_mount_fault(
         max_attempts: 3,
         exposure_duration: 5.0,
         filter: None,
+        sync_mount: true,
     };
     let result = crate::instructions::execute_center(&config, ctx, None).await;
     claim.release(ctx).await;
