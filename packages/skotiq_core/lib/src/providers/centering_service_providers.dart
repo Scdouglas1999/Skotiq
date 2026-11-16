@@ -7,7 +7,7 @@ final centeringRunnerProvider = Provider<CenteringRunner>((ref) {
   final host = ref.watch(remoteHostProvider);
   return host == null
       ? const NativeCenteringRunner()
-      : HostCenteringRunner(host);
+      : HostCenteringRunner(host.pointing, host.jobs);
 });
 
 final centeringServiceProvider = Provider<CenteringService>((ref) {

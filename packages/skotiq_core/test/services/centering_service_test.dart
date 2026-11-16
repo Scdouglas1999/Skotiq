@@ -9,8 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show ApiCenteringRequest, ApiCenteringStep;
+import 'package:skotiq_core/backend.dart' show HostJobs, HostPointing;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show RemoteJob;
 
 import '../harness/in_memory_database.dart';
 
@@ -43,6 +45,43 @@ class _ScriptedRunner implements CenteringRunner {
   Future<void> cancel() async {
     if (!_cancelled.isCompleted) _cancelled.complete();
   }
+}
+
+class _HostPointing implements HostPointing {
+  final starts = <Map<String, Object>>[];
+
+  @override
+  Future<String> startCentering({
+    required double raHours,
+    required double decDegrees,
+    required int maxAttempts,
+    required double accuracyArcsec,
+    required double exposureSecs,
+    required bool syncMount,
+  }) async {
+    starts.add({'ra': raHours, 'dec': decDegrees, 'sync': syncMount});
+    return 'job-1';
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _HostJobs implements HostJobs {
+  _HostJobs(this.ending);
+
+  final RemoteJob ending;
+  final cancelled = <String>[];
+
+  @override
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout = const Duration(minutes: 10),
+    Duration pollInterval = const Duration(seconds: 5),
+  }) async => ending;
+
+  @override
+  Future<void> cancelJob(String jobId) async => cancelled.add(jobId);
 }
 
 void main() {
@@ -224,5 +263,100 @@ void main() {
 
     expect(result.success, isFalse);
     expect(runner.requests, isEmpty);
+  });
+
+  test(
+    'a mount that is not connected is refused before the step is asked',
+    () async {
+      final runner = _ScriptedRunner(const []);
+      container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          centeringRunnerProvider.overrideWithValue(runner),
+          mountStateProvider.overrideWith((ref) {
+            final notifier = MountStateNotifier(ref);
+            notifier.setConnecting('test_mount');
+            return notifier;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(centeringServiceProvider)
+          .centerOnTarget(targetRa: 10, targetDec: 45);
+
+      expect(result.errorMessage, 'Mount not connected');
+      expect(runner.requests, isEmpty);
+    },
+  );
+
+  group('on a linked client the host centers', () {
+    test('a host job that converged reads as its solved attempts and a '
+        'success', () async {
+      final pointing = _HostPointing();
+      final runner = HostCenteringRunner(
+        pointing,
+        _HostJobs(
+          const RemoteJob(
+            jobId: 'job-1',
+            operation: 'framing.center-on-target',
+            state: 'succeeded',
+            result: {
+              'success': true,
+              'iterationHistory': [
+                {
+                  'iterationNumber': 1,
+                  'solvedRa': 10.0,
+                  'solvedDec': 45.1,
+                  'offsetArcsec': 360.0,
+                },
+                {
+                  'iterationNumber': 2,
+                  'solvedRa': 10.0,
+                  'solvedDec': 45.0,
+                  'offsetArcsec': 4.0,
+                },
+              ],
+            },
+          ),
+        ),
+      );
+      final result = await containerFor(runner)
+          .read(centeringServiceProvider)
+          .centerOnTarget(
+            targetRa: 10,
+            targetDec: 45,
+            config: const CenteringConfig(syncMount: false),
+          );
+
+      expect(pointing.starts.single, {'ra': 10.0, 'dec': 45.0, 'sync': false});
+      expect(result.success, isTrue);
+      expect(result.iterations, 2);
+      expect(result.finalOffsetArcsec, 4);
+    });
+
+    test('a host job that failed carries the host\'s reason', () async {
+      final runner = HostCenteringRunner(
+        _HostPointing(),
+        _HostJobs(
+          const RemoteJob(
+            jobId: 'job-1',
+            operation: 'framing.center-on-target',
+            state: 'failed',
+            error: {
+              'message': 'Failed to center within 30.0" after 5 attempts',
+              'details': {'iterationHistory': <Object>[]},
+            },
+          ),
+        ),
+      );
+      final result = await containerFor(runner)
+          .read(centeringServiceProvider)
+          .centerOnTarget(targetRa: 10, targetDec: 45);
+
+      expect(result.success, isFalse);
+      expect(result.errorMessage, contains('Failed to center'));
+    });
   });
 }

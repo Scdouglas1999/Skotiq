@@ -13,6 +13,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         apiCenterOnTarget;
 import '../backend/remote_host.dart';
 import '../models/app_screen.dart';
+import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
@@ -45,14 +46,15 @@ final class NativeCenteringRunner implements CenteringRunner {
 /// The linked host's centering: the host runs its Center step and answers
 /// with the attempts it solved and how it ended.
 final class HostCenteringRunner implements CenteringRunner {
-  HostCenteringRunner(this._host);
+  HostCenteringRunner(this._pointing, this._jobs);
 
-  final RemoteHost _host;
+  final HostPointing _pointing;
+  final HostJobs _jobs;
   String? _jobId;
 
   @override
   Stream<ApiCenteringStep> center(ApiCenteringRequest request) async* {
-    final jobId = await _host.pointing.startCentering(
+    final jobId = await _pointing.startCentering(
       raHours: request.raHours,
       decDegrees: request.decDegrees,
       maxAttempts: request.maxAttempts,
@@ -62,7 +64,7 @@ final class HostCenteringRunner implements CenteringRunner {
     );
     _jobId = jobId;
     try {
-      final job = await _host.jobs.awaitJobCompletion(
+      final job = await _jobs.awaitJobCompletion(
         jobId,
         timeout: const Duration(minutes: 10),
         pollInterval: const Duration(seconds: 1),
@@ -105,7 +107,7 @@ final class HostCenteringRunner implements CenteringRunner {
   @override
   Future<void> cancel() async {
     final jobId = _jobId;
-    if (jobId != null) await _host.jobs.cancelJob(jobId);
+    if (jobId != null) await _jobs.cancelJob(jobId);
   }
 }
 
@@ -187,10 +189,18 @@ class CenteringService {
     CenteringConfig config,
     void Function(CenteringStatus)? onStatusUpdate,
   ) async {
-    final mountId = _ref.read(mountStateProvider).deviceId;
-    final cameraId = _ref.read(cameraStateProvider).deviceId;
-    if (mountId == null) return _failure('Mount not connected', const []);
-    if (cameraId == null) return _failure('Camera not connected', const []);
+    final mount = _ref.read(mountStateProvider);
+    final camera = _ref.read(cameraStateProvider);
+    final mountId = mount.deviceId;
+    final cameraId = camera.deviceId;
+    if (mountId == null ||
+        mount.connectionState != DeviceConnectionState.connected) {
+      return _failure('Mount not connected', const []);
+    }
+    if (cameraId == null ||
+        camera.connectionState != DeviceConnectionState.connected) {
+      return _failure('Camera not connected', const []);
+    }
 
     final iterations = <CenteringIteration>[];
     void report(
