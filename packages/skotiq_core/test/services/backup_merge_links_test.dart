@@ -16,12 +16,7 @@ void main() {
   test('rows that name a record by id follow it to its new id', () async {
     final dir = await Directory.systemTemp.createTemp('skotiq_merge_links_');
     addTearDown(() => dir.delete(recursive: true));
-    final logger = LoggingService(
-      applicationSupportDirectoryProvider: () async => dir,
-      nativeInitWithLogging: ({String? logDirectory}) {},
-      nativeInit: () {},
-      currentLogFileProvider: () => null,
-    );
+    final logger = testLogger(dir);
 
     final source = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(source.close);

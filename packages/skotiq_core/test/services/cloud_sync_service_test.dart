@@ -17,16 +17,7 @@ import 'package:http/testing.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
-/// Test-only LoggingService that skips native init (same pattern as
-/// backup_service_extended_test.dart).
-LoggingService _testLogger(Directory tempDir) {
-  return LoggingService(
-    applicationSupportDirectoryProvider: () async => tempDir,
-    nativeInitWithLogging: ({String? logDirectory}) {},
-    nativeInit: () {},
-    currentLogFileProvider: () => null,
-  );
-}
+import 'backup_restore_support.dart';
 
 /// In-memory [SyncTarget]: a flat map of path -> bytes plus a directory
 /// set. Records uploads so prune behaviour can be asserted.
@@ -262,7 +253,7 @@ void main() {
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_test_');
-      logger = _testLogger(tempDir);
+      logger = testLogger(tempDir);
       remote = InMemorySyncTarget();
     });
 
@@ -552,7 +543,7 @@ void main() {
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_cfg_');
-      logger = _testLogger(tempDir);
+      logger = testLogger(tempDir);
       dao = SettingsDao(db);
       keyring = InMemorySecureKeyValueStore();
       secrets = SecretsStore(keyring);
@@ -782,7 +773,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_s3_');
-      logger = _testLogger(tempDir);
+      logger = testLogger(tempDir);
       store = InMemoryS3(bucket: 'astro-backups');
     });
 

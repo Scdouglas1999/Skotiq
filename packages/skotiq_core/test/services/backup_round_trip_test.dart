@@ -16,13 +16,6 @@ import 'package:skotiq_core/services.dart';
 
 import 'backup_restore_support.dart';
 
-LoggingService _logger(Directory dir) => LoggingService(
-  applicationSupportDirectoryProvider: () async => dir,
-  nativeInitWithLogging: ({String? logDirectory}) {},
-  nativeInit: () {},
-  currentLogFileProvider: () => null,
-);
-
 /// [t]'s rows, with every link to a profile written as the profile's name: a
 /// restore matches profiles by name, so their ids may differ.
 Future<List<Map<String, Object?>>> _rows(SkotiqDatabase db, String t) async {
@@ -52,7 +45,7 @@ Future<List<Map<String, Object?>>> _rows(SkotiqDatabase db, String t) async {
 
 BackupService _service(SkotiqDatabase db, Directory dir) => BackupService(
   database: db,
-  logger: _logger(dir),
+  logger: testLogger(dir),
   backupDirectoryProvider: () async => Directory('${dir.path}/backups'),
 );
 
@@ -297,7 +290,7 @@ void main() {
     final file = '${dir.path}/conflict.skbackup';
     await BackupService(
       database: source,
-      logger: _logger(dir),
+      logger: testLogger(dir),
     ).createBackup(customPath: file);
 
     // This database's own night: the same row ids as the backup's target and
@@ -337,7 +330,7 @@ void main() {
 
     final restored = await BackupService(
       database: target,
-      logger: _logger(dir),
+      logger: testLogger(dir),
     ).restoreBackup(filePath: file);
     expect(restored.success, isTrue, reason: restored.errorMessage);
 
@@ -530,7 +523,7 @@ void main() {
     final blocked = File('${dir.path}/not-a-folder')..writeAsStringSync('x');
     result = await BackupService(
       database: db,
-      logger: _logger(dir),
+      logger: testLogger(dir),
       backupDirectoryProvider: () async => Directory('${blocked.path}/in'),
     ).restoreBackup(filePath: good, mode: RestoreMode.replace);
     expect(result.success, isFalse);

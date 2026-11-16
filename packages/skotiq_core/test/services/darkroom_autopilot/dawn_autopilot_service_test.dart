@@ -2720,10 +2720,16 @@ void main() {
       everyElement(DeliveryAttemptState.delivered),
     );
     expect(
-      reports.map((row) => row.filePath),
+      reports.map((row) => p.normalize(row.filePath)),
       containsAll([
-        p.join(output.path, 'darkroom', 'job_${first.jobId}_pass1_report.json'),
-        p.join(output.path, 'darkroom', 'job_${first.jobId}_pass2_report.json'),
+        for (final pass in [1, 2])
+          p.normalize(
+            p.join(
+              output.path,
+              'darkroom',
+              'job_${first.jobId}_pass${pass}_report.json',
+            ),
+          ),
       ]),
     );
 

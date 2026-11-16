@@ -11,18 +11,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
-
-import 'backup_restore_support.dart';
 import 'package:path/path.dart' as p;
 
-LoggingService _testLogger(Directory tempDir) {
-  return LoggingService(
-    applicationSupportDirectoryProvider: () async => tempDir,
-    nativeInitWithLogging: ({String? logDirectory}) {},
-    nativeInit: () {},
-    currentLogFileProvider: () => null,
-  );
-}
+import 'backup_restore_support.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +26,7 @@ void main() {
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       tempDir = await Directory.systemTemp.createTemp('sk_restore_val_');
-      logger = _testLogger(tempDir);
+      logger = testLogger(tempDir);
     });
 
     tearDown(() async {

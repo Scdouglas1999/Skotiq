@@ -312,8 +312,9 @@ void main() {
 
     expect(masterCalls.single.kind, 'dark');
     expect(masterCalls.single.framePaths, hasLength(20));
+    // The frames were filed under `$tmp/Dark`; the master goes beside them.
     expect(
-      masterCalls.single.outputPath,
+      p.normalize(masterCalls.single.outputPath),
       p.join(
         tmp.path,
         'Dark',
