@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/focus_model_service.dart';
+import 'database_provider.dart';
 
 final focusModelServiceProvider = Provider<FocusModelService>((ref) {
   // Plumb user-configurable thresholds
   // through so the autofocus settings panel can override the rejection /
   // reliability / filter-offset gates without a recompile.
   final config = ref.watch(focusModelConfigProvider);
-  final service = FocusModelService(config: config);
+  final service = FocusModelService(
+    ref.watch(databaseProvider).focusHistoryDao,
+    config: config,
+  );
   unawaited(service.initialize());
   return service;
 });

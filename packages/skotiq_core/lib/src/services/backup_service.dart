@@ -637,6 +637,21 @@ class BackupService {
       (json) => FocusModelEntry.fromJson(json),
       database.focusModels,
     ),
+    'focusHistoryPoints': (rows) => _importRows(
+      rows,
+      (json) => FocusHistoryEntry.fromJson(json),
+      database.focusHistoryPoints,
+    ),
+    'focusProfileModels': (rows) => _importRows(
+      rows,
+      (json) => FocusProfileModelEntry.fromJson(json),
+      database.focusProfileModels,
+    ),
+    'focusFilterOffsets': (rows) => _importRows(
+      rows,
+      (json) => FocusFilterOffsetEntry.fromJson(json),
+      database.focusFilterOffsets,
+    ),
     'weatherSettings': (rows) async {
       if (rows.isEmpty) return;
       final raw = rows.first;

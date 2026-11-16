@@ -4,8 +4,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:drift/drift.dart' show Value;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
+import '../database/daos/focus_history_dao.dart';
+import '../database/database.dart' as db;
 import '../utils/skotiq_data_directory.dart';
 import 'focus_temperature_fit.dart';
 import '../utils/logging_service.dart';
@@ -292,9 +295,12 @@ class ProfileFocusData {
   );
 }
 
+/// Each equipment profile's autofocus history, the temperature line fitted to
+/// it and the per-filter focus offsets, kept in the database.
 class FocusModelService {
   final Map<String, ProfileFocusData> _profileData = {};
-  String? _storageDir;
+  final FocusHistoryDao _store;
+  final Future<Directory?> Function() _jsonFolder;
   Future<void>? _initializeFuture;
   bool _isInitialized = false;
 
@@ -302,9 +308,20 @@ class FocusModelService {
   /// application.
   final FocusModelConfig config;
 
-  FocusModelService({this.config = const FocusModelConfig()});
+  /// [jsonFolder] names the folder of the file store this one replaced; its
+  /// profiles are imported once. Defaults to `<documents>/Skotiq/focus_models`.
+  FocusModelService(
+    this._store, {
+    this.config = const FocusModelConfig(),
+    Future<Directory?> Function()? jsonFolder,
+  }) : _jsonFolder = jsonFolder ?? _documentsJsonFolder;
 
-  /// Initialize storage directory
+  static Future<Directory?> _documentsJsonFolder() async {
+    final documents = await resolveSkotiqDocumentsDirectory();
+    return Directory('${documents.path}/Skotiq/focus_models');
+  }
+
+  /// Reads every profile from the database, importing the file store first.
   Future<void> initialize() async {
     if (_isInitialized) return;
     _initializeFuture ??= _initializeInternal();
@@ -312,10 +329,8 @@ class FocusModelService {
   }
 
   Future<void> _initializeInternal() async {
-    final appDir = await resolveSkotiqDocumentsDirectory();
-    _storageDir = '${appDir.path}/Skotiq/focus_models';
-    await Directory(_storageDir!).create(recursive: true);
     await _loadAllProfiles();
+    await _importJsonFiles();
     _isInitialized = true;
   }
 
@@ -729,12 +744,7 @@ class FocusModelService {
   Future<void> clearProfileData(String profileId) async {
     await initialize();
     _profileData.remove(profileId);
-    if (_storageDir != null) {
-      final file = File('$_storageDir/$profileId.json');
-      if (await file.exists()) {
-        await file.delete();
-      }
-    }
+    await _store.deleteProfile(profileId);
   }
 
   String exportData(String profileId) {
@@ -747,44 +757,148 @@ class FocusModelService {
     await initialize();
     final json = jsonDecode(jsonData) as Map<String, dynamic>;
     // An export identifies its source profile, but Import means "apply this
-    // model to the profile the operator selected." Persisting the source id
-    // caused the data to migrate back to that source key on the next launch.
+    // model to the profile the operator selected."
     final data = ProfileFocusData.fromJson(json).copyWith(profileId: profileId);
     _profileData[profileId] = data;
     await _saveProfile(profileId);
   }
 
   Future<void> _saveProfile(String profileId) async {
-    if (_storageDir == null) return;
-
     final data = _profileData[profileId];
     if (data == null) return;
-
-    final file = File('$_storageDir/$profileId.json');
-    await file.writeAsString(jsonEncode(data.toJson()));
+    final model = data.temperatureModel;
+    await _store.replaceProfile(
+      profileId,
+      points: [
+        for (final p in data.dataPoints)
+          db.FocusHistoryPointsCompanion.insert(
+            profileId: profileId,
+            recordedAt: p.timestamp,
+            temperatureCelsius: p.temperatureCelsius,
+            focusPosition: p.focusPosition,
+            hfr: p.hfr,
+            filterName: Value(p.filterName),
+          ),
+      ],
+      model: db.FocusProfileModelsCompanion.insert(
+        profileId: profileId,
+        referenceFilter: Value(data.referenceFilter),
+        slope: Value(model?.slope),
+        intercept: Value(model?.intercept),
+        rSquared: Value(model?.rSquared),
+        pointCount: Value(model?.dataPointCount),
+        modelUpdatedAt: Value(model?.lastUpdated),
+      ),
+      offsets: [
+        for (final o in data.filterOffsets.values)
+          db.FocusFilterOffsetsCompanion.insert(
+            profileId: profileId,
+            filterName: o.filterName,
+            referenceFilter: o.referenceFilter,
+            offsetSteps: o.offsetSteps,
+            measurementCount: o.measurementCount,
+            confidence: o.confidence,
+            confidenceBand: o.confidenceBand.name,
+            confidenceReason: o.confidenceReason,
+            temperatureCorrected: o.temperatureCorrected,
+          ),
+      ],
+    );
   }
 
   Future<void> _loadAllProfiles() async {
-    if (_storageDir == null) return;
+    final points = await _store.allPoints();
+    final models = await _store.allModels();
+    final offsets = await _store.allOffsets();
+    final profiles = {
+      for (final m in models) m.profileId,
+      for (final p in points) p.profileId,
+      for (final o in offsets) o.profileId,
+    };
+    for (final profileId in profiles) {
+      final row = models.where((m) => m.profileId == profileId).firstOrNull;
+      final slope = row?.slope;
+      final intercept = row?.intercept;
+      final rSquared = row?.rSquared;
+      final pointCount = row?.pointCount;
+      final updated = row?.modelUpdatedAt;
+      _profileData[profileId] = ProfileFocusData(
+        profileId: profileId,
+        dataPoints: [
+          for (final p in points.where((p) => p.profileId == profileId))
+            FocusHistoryPoint(
+              timestamp: p.recordedAt,
+              temperatureCelsius: p.temperatureCelsius,
+              focusPosition: p.focusPosition,
+              hfr: p.hfr,
+              filterName: p.filterName,
+            ),
+        ],
+        temperatureModel:
+            slope == null ||
+                intercept == null ||
+                rSquared == null ||
+                pointCount == null ||
+                updated == null
+            ? null
+            : FocusModel(
+                slope: slope,
+                intercept: intercept,
+                rSquared: rSquared,
+                dataPointCount: pointCount,
+                lastUpdated: updated,
+              ),
+        filterOffsets: {
+          for (final o in offsets.where((o) => o.profileId == profileId))
+            o.filterName: FilterOffset(
+              filterName: o.filterName,
+              referenceFilter: o.referenceFilter,
+              offsetSteps: o.offsetSteps,
+              measurementCount: o.measurementCount,
+              confidence: o.confidence,
+              confidenceBand: FilterOffset._confidenceBandFromJson(
+                o.confidenceBand,
+              ),
+              confidenceReason: o.confidenceReason,
+              temperatureCorrected: o.temperatureCorrected,
+            ),
+        },
+        referenceFilter: row?.referenceFilter,
+      );
+    }
+  }
 
-    final dir = Directory(_storageDir!);
-    if (!await dir.exists()) return;
-
-    await for (final entity in dir.list()) {
-      if (entity is File && entity.path.endsWith('.json')) {
-        try {
-          final content = await entity.readAsString();
-          final json = jsonDecode(content) as Map<String, dynamic>;
-          final data = ProfileFocusData.fromJson(json);
+  /// Moves the profiles of the file store into the database: each file is
+  /// written to the database whole, then renamed `<name>.json.imported`, so
+  /// it is read once and kept. A profile the database already holds keeps the
+  /// database's copy; an unreadable file is left where it is and logged.
+  Future<void> _importJsonFiles() async {
+    final folder = await _jsonFolder();
+    if (folder == null || !await folder.exists()) return;
+    await for (final entity in folder.list()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      try {
+        final json =
+            jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
+        final data = ProfileFocusData.fromJson(json);
+        if (!_profileData.containsKey(data.profileId)) {
           _profileData[data.profileId] = data;
-        } catch (e) {
-          // Log corrupted files but continue loading others
-          Log.warning(
-            'FocusModelService: Skipping corrupted focus data file ${entity.path}: $e',
-            source: 'FocusModelService',
-            error: e,
-          );
+          await _saveProfile(data.profileId);
         }
+        await entity.rename('${entity.path}.imported');
+        Log.info(
+          'Moved the focus data of profile ${data.profileId} '
+          '(${data.dataPoints.length} points, ${data.filterOffsets.length} '
+          'filter offsets) from ${entity.path} into the database',
+          source: 'FocusModelService',
+        );
+      } catch (e) {
+        Log.warning(
+          'Focus data file ${entity.path} could not be moved into the '
+          'database and is left in place: $e',
+          source: 'FocusModelService',
+          error: e,
+        );
       }
     }
   }

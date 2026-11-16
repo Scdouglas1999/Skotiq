@@ -71,8 +71,8 @@ class FocusModelHandlers implements RouteSource {
 
   /// Get the current profile ID from the active equipment profile.
   ///
-  /// String form, keyed to the legacy [FocusModelService] storage (which
-  /// scopes its on-disk JSON files by stringified profile id).
+  /// String form: [FocusModelService] keys a profile's focus data by the
+  /// profile id as text.
   String? _getActiveProfileId() {
     final activeProfile = container.read(activeEquipmentProfileProvider);
     return activeProfile?.id.toString();

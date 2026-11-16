@@ -135,11 +135,14 @@ const Map<String, BackupMergeRule> backupMergeRules = {
       ['file_path', 'created_at'],
     ],
   ),
+  'focus_filter_offsets': BackupMergeRule(),
+  'focus_history_points': BackupMergeRule(),
   'focus_models': BackupMergeRule(
     keys: [
       ['uuid'],
     ],
   ),
+  'focus_profile_models': BackupMergeRule(),
   'frame_forensics': BackupMergeRule(
     partOf: ['captured_image_id'],
     links: {'sequence_run_id': 'sequence_runs'},
