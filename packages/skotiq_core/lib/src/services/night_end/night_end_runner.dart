@@ -9,6 +9,7 @@ import '../../models/notification/notification_categories.dart';
 import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
+import '../darkroom_target_frames.dart';
 import '../end_of_night_calibration/eon_service.dart';
 import '../logging_service.dart';
 import '../notification_service.dart';
@@ -160,7 +161,7 @@ class NightEndRunner {
     if (lightIds.isEmpty) return null;
     final targets = await loadDarkroomTargets(_ref.read(databaseProvider));
     final names = [
-      for (final entry in targets.entries)
+      for (final entry in targets.byTarget.entries)
         if (entry.value.any((frame) => lightIds.contains(frame.id))) entry.key,
     ]..sort();
     const buildOff = NightEndStep(

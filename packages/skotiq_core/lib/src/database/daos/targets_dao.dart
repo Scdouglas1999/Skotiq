@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/targets.dart';
+import '../../services/target_standing.dart';
 
 part 'targets_dao.g.dart';
 
@@ -12,47 +13,58 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     implements TargetLibrary {
   TargetsDao(super.db);
 
-  /// Predicate identifying "untracked" library targets that are safe to remove
-  /// in the Analytics → Projects cleanup: not a favorite, no integration goal,
-  /// no captured frame, no imaging session naming it and in no project. Every
-  /// target the user has invested in is kept.
-  Expression<bool> _untrackedPredicate($TargetsTable t) {
-    final db = attachedDatabase;
-    Expression<bool> referenced<T extends HasResultSet, D>(
-      ResultSetImplementation<T, D> table,
-      Expression<int> targetColumn,
-    ) => existsQuery(
-      selectOnly(table)
-        ..addColumns([targetColumn])
-        ..where(targetColumn.equalsExp(t.id)),
-    );
-    return t.goalIntegrationSecs.isSmallerOrEqualValue(0.0) &
-        t.isFavorite.equals(false) &
-        t.capturedSubs.equals(0) &
-        t.totalIntegrationSecs.equals(0.0) &
-        referenced(db.imagingSessions, db.imagingSessions.targetId).not() &
-        referenced(db.capturedImages, db.capturedImages.targetId).not() &
-        referenced(db.integrationGoals, db.integrationGoals.targetId).not() &
-        referenced(db.projectTargets, db.projectTargets.targetId).not();
+  /// Saved targets the cleanup in Plan > Targets may remove: unused by
+  /// [targetStanding] (nothing was captured for them), and nothing else the
+  /// user set up refers to them: not a favorite, no integration goal, no
+  /// imaging session and in no group.
+  Future<List<int>> _untrackedTargetIds() async {
+    Future<Set<int>> referencing(String table) async => {
+      for (final row in await customSelect(
+        'SELECT DISTINCT target_id FROM $table WHERE target_id IS NOT NULL',
+      ).get())
+        row.read<int>('target_id'),
+    };
+    final frames = <int, int>{
+      for (final row in await customSelect(
+        'SELECT target_id, COUNT(*) AS n FROM captured_images '
+        'WHERE target_id IS NOT NULL GROUP BY target_id',
+      ).get())
+        row.read<int>('target_id'): row.read<int>('n'),
+    };
+    final planned = {
+      ...await referencing('imaging_sessions'),
+      ...await referencing('integration_goals'),
+      ...await referencing('project_targets'),
+    };
+    return [
+      for (final t in await getAllTargets())
+        if (targetStanding(
+                  TargetCaptures(frames: frames[t.id] ?? 0),
+                  const ProjectRule(),
+                ) ==
+                TargetStanding.unused &&
+            !t.isFavorite &&
+            t.goalIntegrationSecs <= 0 &&
+            t.capturedSubs == 0 &&
+            t.totalIntegrationSecs == 0 &&
+            !planned.contains(t.id))
+          t.id,
+    ];
   }
 
-  /// Counts library targets matching [_untrackedPredicate]. Drives the opt-in
-  /// "Remove untracked targets" affordance (button is hidden when this is 0).
-  Future<int> countUntrackedTargets() async {
-    final count = targets.id.count();
-    final query = selectOnly(targets)
-      ..addColumns([count])
-      ..where(_untrackedPredicate(targets));
-    final row = await query.getSingle();
-    return row.read(count) ?? 0;
-  }
+  /// How many saved targets [deleteUntrackedTargets] would remove.
+  @override
+  Future<int> countUntrackedTargets() async =>
+      (await _untrackedTargetIds()).length;
 
-  /// Permanently deletes every library target matching [_untrackedPredicate].
-  /// Returns the number of rows removed. Favorites, goal-tracked targets,
-  /// targets with captured data, and session-referenced targets are never
-  /// touched. This is irreversible — callers must confirm with the user first.
-  Future<int> deleteUntrackedTargets() {
-    return (delete(targets)..where(_untrackedPredicate)).go();
+  /// Permanently deletes the saved targets nothing was captured for and
+  /// nothing refers to; returns how many. Callers confirm with the user
+  /// first.
+  @override
+  Future<int> deleteUntrackedTargets() async {
+    final ids = await _untrackedTargetIds();
+    if (ids.isEmpty) return 0;
+    return (delete(targets)..where((t) => t.id.isIn(ids))).go();
   }
 
   @override

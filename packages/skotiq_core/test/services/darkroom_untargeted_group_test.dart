@@ -26,6 +26,6 @@ void main() {
       db,
       readHeader: (_) async => FrameHeader(const {}),
     );
-    expect(targets.keys, ['Frames with no target']);
+    expect(targets.byTarget.keys, ['Frames with no target']);
   });
 }

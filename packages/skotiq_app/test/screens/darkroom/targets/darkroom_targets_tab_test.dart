@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -282,6 +283,8 @@ Future<_Harness> _pump(
             captureFolder: _captureFolder, documents: Directory('/home')),
       ),
       darkroomFileExistsProvider.overrideWithValue((_) => true),
+      darkroomFrameHeaderReaderProvider
+          .overrideWithValue((_) async => FrameHeader(const {})),
       subThumbnailProvider.overrideWith(
         (ref, id) => Future<Uint8List>.error(StateError('no thumbnail')),
       ),
@@ -945,5 +948,93 @@ void main() {
       find.text('Flat G_from_disk.fits', findRichText: true),
       findsOneWidget,
     );
+  });
+
+  group('projects and Other captures', () {
+    /// Two snapshots of a target, and three lights with no target.
+    Future<void> addOtherCaptures(WidgetTester tester, _Harness h) async {
+      final db = h.owner.db;
+      final snap = await db.targetsDao.createTarget(
+        TargetsCompanion.insert(name: 'NGC 7331', ra: 22.616, dec: 34.42),
+      );
+      for (var i = 0; i < 5; i++) {
+        await db.into(db.capturedImages).insert(
+              CapturedImagesCompanion.insert(
+                filePath: '/data/other_$i.fits',
+                fileName: 'other_$i.fits',
+                exposureDuration: 2,
+                capturedAt: DateTime(2026, 10, 24, 21, i),
+                targetId: Value(i < 2 ? snap : null),
+              ),
+            );
+      }
+      h.container.invalidate(darkroomTargetsProvider);
+      await _settle(tester);
+    }
+
+    testWidgets('only projects are listed open; the rest fold away', (
+      tester,
+    ) async {
+      final h = await _pump(tester);
+      await addOtherCaptures(tester, h);
+
+      expect(find.text('1 PROJECT · LAST IMAGED'), findsOneWidget);
+      expect(find.byKey(const ValueKey('darkroom_target_row_NGC 891')),
+          findsOneWidget);
+      final fold = find.byKey(const ValueKey('darkroom_other_captures'));
+      expect(fold, findsOneWidget);
+      expect(
+        find.textContaining('2 groups · 5 lights', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('darkroom_target_row_NGC 7331')),
+          findsNothing);
+
+      await tester.tap(fold);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('darkroom_target_row_NGC 7331')),
+          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('darkroom_target_row_Frames with no target')),
+        findsOneWidget,
+      );
+      expect(find.text('Snapshots taken by hand'), findsOneWidget);
+      expect(find.text('No target recorded'), findsOneWidget);
+    });
+
+    testWidgets('hiding a project moves it to Other captures, Undo puts it back',
+        (tester) async {
+      final h = await _pump(tester);
+      await tester.tap(find.byKey(const ValueKey('darkroom_target_menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Move to Other captures'));
+      await _settle(tester);
+
+      expect(find.text('0 PROJECTS · LAST IMAGED'), findsOneWidget);
+      final placements = await TargetPlacements.load(h.owner.db.settingsDao);
+      expect(placements.of('NGC 891'), TargetPlacement.hidden);
+      expect(
+        find.textContaining('You moved this to Other captures.',
+            findRichText: true),
+        findsOneWidget,
+      );
+      // Nothing was removed.
+      expect(await h.owner.db.imagesDao.getAllImages(), isNotEmpty);
+
+      await tester.tap(find.text('Undo'));
+      await _settle(tester);
+      expect(find.text('1 PROJECT · LAST IMAGED'), findsOneWidget);
+    });
+
+    testWidgets('the phone list folds Other captures too', (tester) async {
+      final h = await _pump(tester, size: const Size(390, 844));
+      await addOtherCaptures(tester, h);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const ValueKey('darkroom_other_captures')));
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('darkroom_target_row_NGC 7331')),
+          findsOneWidget);
+    });
   });
 }

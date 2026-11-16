@@ -13,6 +13,7 @@ import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'framing_check.dart';
 import 'target_detail.dart';
+import 'target_tidy.dart';
 import 'package:skotiq_core/providers.dart';
 
 const double _listWidth = 300;
@@ -22,6 +23,7 @@ const double _listWidthNarrow = 248;
 const double _narrowWidth = 1100;
 
 const double _thumbSize = 56;
+const double _thumbSizeCompact = 40;
 
 /// The Targets tab: every imaged target, and the selected one's detail or its
 /// framing check.
@@ -34,6 +36,10 @@ class DarkroomTargetsTab extends ConsumerStatefulWidget {
 
 class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
   String _query = '';
+
+  /// Whether Other captures is unfolded; until the user folds or unfolds it,
+  /// open exactly when the selected target is one of them.
+  bool? _othersOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -80,8 +86,15 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
     }
     final wanted = route.target;
     final selected = wanted == null
-        ? list.first
-        : list.where((t) => t.key == wanted).firstOrNull;
+        ? (list.where((t) => t.isProject).firstOrNull ?? list.first)
+        : list.where((t) => t.key == wanted).firstOrNull ??
+            list
+                .where(
+                  (t) =>
+                      normalizeDarkroomTargetName(t.key) ==
+                      normalizeDarkroomTargetName(wanted),
+                )
+                .firstOrNull;
     if (selected != null && route.view == DarkroomTargetView.framing) {
       return DarkroomFramingCheck(
         key: ValueKey('darkroom_framing_${selected.key}'),
@@ -110,6 +123,8 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
               selectedKey: null,
               query: _query,
               onQuery: (q) => setState(() => _query = q),
+              othersOpen: _othersOpen ?? false,
+              onOthersOpen: (open) => setState(() => _othersOpen = open),
             );
           }
           return Column(
@@ -132,6 +147,8 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
                 selectedKey: selected?.key,
                 query: _query,
                 onQuery: (q) => setState(() => _query = q),
+                othersOpen: _othersOpen ?? selected?.isProject == false,
+                onOthersOpen: (open) => setState(() => _othersOpen = open),
               ),
             ),
             VerticalDivider(
@@ -174,18 +191,23 @@ class _BackToTargets extends StatelessWidget {
   }
 }
 
+/// The projects, then everything else under one folded "Other captures".
 class _TargetList extends ConsumerWidget {
   const _TargetList({
     required this.targets,
     required this.selectedKey,
     required this.query,
     required this.onQuery,
+    required this.othersOpen,
+    required this.onOthersOpen,
   });
 
   final List<DarkroomTarget> targets;
   final String? selectedKey;
   final String query;
   final ValueChanged<String> onQuery;
+  final bool othersOpen;
+  final ValueChanged<bool> onOthersOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -198,6 +220,20 @@ class _TargetList extends ConsumerWidget {
             for (final t in targets)
               if (normalizeDarkroomTargetName(t.key).contains(needle)) t,
           ];
+    final projects = [
+      for (final t in shown)
+        if (t.isProject) t,
+    ];
+    final others = [
+      for (final t in shown)
+        if (!t.isProject) t,
+    ];
+    // A search that finds only other captures shows them.
+    final open = othersOpen || (needle.isNotEmpty && projects.isEmpty);
+    final eyebrow = SkotiqTypography.monoXs.copyWith(
+      color: colors.textSecondary,
+      letterSpacing: 1.1,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -221,12 +257,9 @@ class _TargetList extends ConsumerWidget {
             SkotiqTokens.spaceSm,
           ),
           child: Text(
-            '${shown.length} TARGET${shown.length == 1 ? '' : 'S'} · '
+            '${projects.length} PROJECT${projects.length == 1 ? '' : 'S'} · '
             'LAST IMAGED',
-            style: SkotiqTypography.monoXs.copyWith(
-              color: colors.textSecondary,
-              letterSpacing: 1.1,
-            ),
+            style: eyebrow,
           ),
         ),
         Expanded(
@@ -240,23 +273,143 @@ class _TargetList extends ConsumerWidget {
                     ),
                   ),
                 )
-              : ListView.separated(
+              : ListView(
                   padding: const EdgeInsets.fromLTRB(
                     SkotiqTokens.spaceSm,
                     0,
                     SkotiqTokens.spaceSm,
                     SkotiqTokens.spaceLg,
                   ),
-                  itemCount: shown.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: SkotiqTokens.spaceXs),
-                  itemBuilder: (context, i) => _TargetRow(
-                    target: shown[i],
-                    selected: shown[i].key == selectedKey,
-                    job: job,
-                  ),
+                  children: [
+                    if (projects.isEmpty && needle.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          SkotiqTokens.spaceSm,
+                          0,
+                          SkotiqTokens.spaceSm,
+                          SkotiqTokens.spaceMd,
+                        ),
+                        child: Text(
+                          'A target becomes a project once it has enough '
+                          'kept light. Until then it is under Other captures.',
+                          style: SkotiqTypography.bodySm.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    for (final (i, t) in projects.indexed) ...[
+                      if (i > 0) const SizedBox(height: SkotiqTokens.spaceXs),
+                      _TargetRow(
+                        target: t,
+                        selected: t.key == selectedKey,
+                        job: job,
+                      ),
+                    ],
+                    if (others.isNotEmpty) ...[
+                      const SizedBox(height: SkotiqTokens.spaceMd),
+                      _OthersHeader(
+                        others: others,
+                        open: open,
+                        onToggle: () => onOthersOpen(!open),
+                      ),
+                      if (open)
+                        for (final t in others) ...[
+                          const SizedBox(height: SkotiqTokens.spaceXs),
+                          _TargetRow(
+                            target: t,
+                            selected: t.key == selectedKey,
+                            job: job,
+                            compact: true,
+                          ),
+                        ],
+                    ],
+                  ],
                 ),
         ),
+      ],
+    );
+  }
+}
+
+/// The fold over everything that is not a project, with how much is in it.
+class _OthersHeader extends StatelessWidget {
+  const _OthersHeader({
+    required this.others,
+    required this.open,
+    required this.onToggle,
+  });
+
+  final List<DarkroomTarget> others;
+  final bool open;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    final lights = others.fold<int>(0, (n, t) => n + t.frames.length);
+    final count = '${others.length} '
+        '${others.length == 1 ? 'group' : 'groups'} · '
+        '$lights light${lights == 1 ? '' : 's'}';
+    return Row(
+      children: [
+        Expanded(
+          child: Semantics(
+            button: true,
+            expanded: open,
+            label: 'Other captures, $count',
+            onTap: onToggle,
+            excludeSemantics: true,
+            child: InkWell(
+              key: const ValueKey('darkroom_other_captures'),
+              borderRadius: SkotiqTokens.borderRadiusMd,
+              onTap: onToggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: SkotiqTokens.minTouchTarget,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: SkotiqTokens.spaceSm,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        open ? SkotiqIcons.chevronDown : SkotiqIcons.chevronRight,
+                        size: SkotiqTokens.iconSm,
+                        color: colors.textSecondary,
+                      ),
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'OTHER CAPTURES',
+                                style: SkotiqTypography.monoXs.copyWith(
+                                  color: colors.textSecondary,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '  $count',
+                                style: SkotiqTypography.caption.copyWith(
+                                  color: colors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const DarkroomProjectRuleButton(),
       ],
     );
   }
@@ -267,11 +420,16 @@ class _TargetRow extends StatefulWidget {
     required this.target,
     required this.selected,
     required this.job,
+    this.compact = false,
   });
 
   final DarkroomTarget target;
   final bool selected;
   final DarkroomBuildJob? job;
+
+  /// An other capture: a smaller picture, and why it is not a project in
+  /// place of its build status.
+  final bool compact;
 
   @override
   State<_TargetRow> createState() => _TargetRowState();
@@ -284,9 +442,12 @@ class _TargetRowState extends State<_TargetRow> {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final t = widget.target;
-    final (status, tone) = darkroomTargetStatus(t, widget.job, colors);
+    var (status, tone) = darkroomTargetStatus(t, widget.job, colors);
+    if (widget.compact) (status, tone) = (t.otherReason, colors.textMuted);
     final nights = t.nights.length;
+    final lights = t.frames.length;
     final meta = [
+      if (widget.compact) '$lights light${lights == 1 ? '' : 's'}',
       '$nights night${nights == 1 ? '' : 's'}',
       if (t.filters.isNotEmpty) darkroomFilterSummary(t.filters),
       if (t.keptSeconds > 0) describeIntegration(t.keptSeconds),
@@ -326,7 +487,7 @@ class _TargetRowState extends State<_TargetRow> {
                 ClipRRect(
                   borderRadius: SkotiqTokens.borderRadiusSm,
                   child: SizedBox.square(
-                    dimension: _thumbSize,
+                    dimension: widget.compact ? _thumbSizeCompact : _thumbSize,
                     child: DarkroomPreviewImage(
                       path: t.heroImagePath,
                       alignment: const Alignment(.4, 0),

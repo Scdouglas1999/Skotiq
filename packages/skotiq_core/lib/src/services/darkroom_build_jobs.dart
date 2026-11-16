@@ -1,4 +1,3 @@
-import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -6,11 +5,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../database/database.dart';
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
-import 'frame_header.dart';
+import 'darkroom_target_frames.dart';
 import 'darkroom_build_service.dart';
 import 'notification_service.dart';
 import '../providers/darkroom_build_service_provider.dart';
@@ -292,40 +290,6 @@ Map<String, List<int>> darkroomBuildLightIds(
     }
   }
   return byFilter;
-}
-
-/// Every captured light, by target: the target's name, else the FITS
-/// `OBJECT`, else its session.
-Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
-  SkotiqDatabase db, {
-  FrameHeaderReader readHeader = readFrameHeader,
-}) async {
-  final images = await db.imagesDao.getAllImages();
-  final names = {
-    for (final t in await db.targetsDao.getAllTargets()) t.id: t.name,
-  };
-  final targets = <String, List<DbCapturedImage>>{};
-  for (final f in images.where((f) => f.isLight)) {
-    var name = names[f.targetId];
-    if (name == null) {
-      try {
-        name = (await readHeader(f.filePath)).string('OBJECT');
-      } catch (e) {
-        // Unreadable files stay listed under their session.
-        Log.debug(
-          'Darkroom: no OBJECT for ${f.filePath}: $e',
-          source: 'darkroom',
-        );
-      }
-    }
-    // Frames with no target are grouped by session; "unassigned" read as an
-    // error state.
-    name ??= f.sessionId == null
-        ? 'Frames with no target'
-        : 'Session ${f.sessionId}';
-    targets.putIfAbsent(name, () => []).add(f);
-  }
-  return targets;
 }
 
 /// The master builds of this process. They live above every screen, so a

@@ -9,6 +9,23 @@ import 'package:skotiq_core/services.dart';
 import '../darkroom_previews.dart';
 import 'darkroom_targets_model.dart';
 
+/// How the Darkroom reads a frame file's header, for the `OBJECT` of lights
+/// that name no target.
+final darkroomFrameHeaderReaderProvider = Provider<FrameHeaderReader>(
+  (ref) => readFrameHeader,
+);
+
+/// The user's project rule settings.
+final darkroomProjectRuleProvider = FutureProvider.autoDispose<ProjectRule>(
+  (ref) => ProjectRule.load(ref.watch(settingsDaoProvider)),
+);
+
+/// The user's corrections to where targets are listed.
+final darkroomTargetPlacementsProvider =
+    FutureProvider.autoDispose<TargetPlacements>(
+  (ref) => TargetPlacements.load(ref.watch(settingsDaoProvider)),
+);
+
 /// Every imaged target with its nights and masters, most recently imaged
 /// first. Re-read when a master build finishes.
 final darkroomTargetsProvider =
@@ -22,7 +39,12 @@ final darkroomTargetsProvider =
   ref.watch(darkroomDraftPreviewRevisionProvider);
   final db = ref.watch(databaseProvider);
   final mastersDao = ref.watch(integratedMastersDaoProvider);
-  final framesByTarget = await loadDarkroomTargets(db);
+  final rule = await ref.watch(darkroomProjectRuleProvider.future);
+  final placements = await ref.watch(darkroomTargetPlacementsProvider.future);
+  final grouped = await loadDarkroomTargets(
+    db,
+    readHeader: ref.watch(darkroomFrameHeaderReaderProvider),
+  );
   final masters = await mastersDao.getAll();
   final rows = await db.targetsDao.getAllTargets();
   final folded = <int, Set<int>>{};
@@ -45,12 +67,15 @@ final darkroomTargetsProvider =
     };
   }
   return buildDarkroomTargets(
-    framesByTarget: framesByTarget,
+    framesByTarget: grouped.byTarget,
+    unidentified: grouped.unidentified,
     masters: masters,
     targetRows: rows,
     foldedByMaster: folded,
     usedByMaster: used,
     draftPreviews: drafts,
+    rule: rule,
+    placements: placements,
   );
 });
 
@@ -63,7 +88,7 @@ Future<List<IntegratedMaster>> darkroomMastersOfFrames(
   Set<int> imageIds,
 ) async {
   if (imageIds.isEmpty) return const [];
-  final framesByTarget = await loadDarkroomTargets(db);
+  final grouped = await loadDarkroomTargets(db);
   final rowsByName = {
     for (final t in await db.targetsDao.getAllTargets()) t.name: t,
   };
@@ -75,14 +100,14 @@ Future<List<IntegratedMaster>> darkroomMastersOfFrames(
       },
   };
   final own = <IntegratedMaster>{};
-  for (final MapEntry(key: key, value: frames) in framesByTarget.entries) {
+  for (final MapEntry(key: key, value: frames) in grouped.byTarget.entries) {
     final frameIds = {for (final f in frames) f.id};
     if (!frameIds.any(imageIds.contains)) continue;
     for (final m in masters) {
       if (darkroomMasterBelongsTo(
         m,
         key,
-        row: rowsByName[key],
+        rowIds: darkroomTargetRowIds(frames, rowsByName[key]),
         frameIds: frameIds,
         foldedIds: folded[m.id] ?? const {},
       )) {
