@@ -756,3 +756,83 @@ async fn a_run_of_frames_with_almost_no_signal_is_told_once_until_signal_returns
     manager.note_frame_signal(camera, 120.0, dim).await;
     assert_eq!(notices_about(&mut rx, camera).len(), 1);
 }
+
+/// The messages of the log events this thread emits while it is the default
+/// subscriber.
+#[derive(Clone, Default)]
+struct LogCapture(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+struct LogMessage(String);
+
+impl tracing::field::Visit for LogMessage {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if field.name() == "message" {
+            self.0 = format!("{value:?}");
+        }
+    }
+}
+
+impl tracing::Subscriber for LogCapture {
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        *metadata.level() <= tracing::Level::INFO
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        let mut message = LogMessage(String::new());
+        event.record(&mut message);
+        self.0.lock().unwrap().push(message.0);
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+// A GoTo named no target in either log on the rig: only the guider stop that
+// came before it did.
+#[tokio::test]
+async fn a_slew_is_logged_with_its_target_and_its_arrival() {
+    let _serialized = sim::sim_singleton_test_lock().lock().await;
+    attach(MOUNT, DeviceType::Mount).await;
+    stop_sim_slew().await;
+    {
+        let mut mount = sim::mount::get_sim_mount().write().await;
+        mount.status.parked = false;
+        mount.status.tracking = true;
+    }
+    let capture = LogCapture::default();
+    let _logging = tracing::subscriber::set_default(capture.clone());
+
+    get_device_manager()
+        .mount_slew(MOUNT, 22.6178, 34.4156)
+        .await
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    let lines = loop {
+        let lines = capture.0.lock().unwrap().clone();
+        if lines
+            .iter()
+            .any(|l| l.contains("arrived at the slew target"))
+            || std::time::Instant::now() > deadline
+        {
+            break lines;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    };
+    stop_sim_slew().await;
+
+    assert!(
+        lines
+            .iter()
+            .any(|l| l == "Mount sim_mount_1 slewing to RA 22.6178 h, Dec +34.4156° (J2000)"),
+        "{lines:?}"
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|l| l == "Mount sim_mount_1 arrived at the slew target"),
+        "{lines:?}"
+    );
+}

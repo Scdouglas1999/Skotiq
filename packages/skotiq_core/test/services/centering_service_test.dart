@@ -100,6 +100,25 @@ class _TestBackendNotifier extends BackendNotifier {
   void replaceBackend(SkotiqBackend backend) => state = backend;
 }
 
+class _RecordingLogger extends LoggingService {
+  final List<String> lines = [];
+
+  @override
+  void debug(String message, {String? source, Map<String, Object?>? fields}) {}
+  @override
+  void info(String message, {String? source, Map<String, Object?>? fields}) =>
+      lines.add(message);
+  @override
+  void warning(
+    String message, {
+    String? source,
+    Map<String, Object?>? fields,
+  }) => lines.add(message);
+  @override
+  void error(String message, {String? source, Map<String, Object?>? fields}) =>
+      lines.add(message);
+}
+
 // Generate mocks for these classes
 @GenerateMocks([ImagingService, PlateSolveService, DeviceService])
 void main() {
@@ -110,8 +129,10 @@ void main() {
     late MockDeviceService mockDeviceService;
     late _PollBackend pollBackend;
     late _TestBackendNotifier backendNotifier;
+    late _RecordingLogger logger;
 
     setUp(() {
+      logger = _RecordingLogger();
       mockImagingService = MockImagingService();
       mockPlateSolveService = MockPlateSolveService();
       mockDeviceService = MockDeviceService();
@@ -131,6 +152,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
+          loggingServiceProvider.overrideWithValue(logger),
           imagingServiceProvider.overrideWithValue(mockImagingService),
           plateSolveServiceProvider.overrideWithValue(mockPlateSolveService),
           deviceServiceProvider.overrideWithValue(mockDeviceService),
@@ -222,6 +244,49 @@ void main() {
           verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
         },
       );
+
+      // The rig's logs had no line saying how a centering ended.
+      test('the log states how centering ended', () async {
+        when(
+          mockImagingService.captureUtilityFrame(
+            settings: anyNamed('settings'),
+            targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
+          ),
+        ).thenAnswer((_) async => _centeringImage());
+        when(
+          mockPlateSolveService.solveWithFallback(
+            imagePath: anyNamed('imagePath'),
+            hintRaHours: anyNamed('hintRaHours'),
+            hintDecDegrees: anyNamed('hintDecDegrees'),
+            searchRadiusDegrees: anyNamed('searchRadiusDegrees'),
+            timeoutSeconds: anyNamed('timeoutSeconds'),
+          ),
+        ).thenAnswer((_) async => _solvedAt(150, 45));
+
+        final result = await container
+            .read(centeringServiceProvider)
+            .centerOnTarget(
+              targetRa: 10,
+              targetDec: 45,
+              solverConfig: const PlateSolverConfig(),
+              config: const CenteringConfig(
+                toleranceArcsec: 5,
+                exposureTime: 1,
+              ),
+            );
+
+        expect(result.success, isTrue);
+        expect(
+          logger.lines,
+          contains(
+            'Centering done after 1 attempt: 0.0" from the target '
+            '(accuracy 5.0")',
+          ),
+        );
+      });
 
       test('succeeds on first iteration when within tolerance', () async {
         // Arrange

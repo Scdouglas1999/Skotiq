@@ -334,6 +334,7 @@ pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, DeviceOpError
         return Err(not_connected("focuser"));
     }
     let mut status = focuser.status.clone();
+    crate::simulator::focuser::sim_focuser_status_now(&mut status);
     if status.temperature.is_some() {
         status.temperature = Some(crate::simulator::focuser::sim_focuser_temperature_c());
     }

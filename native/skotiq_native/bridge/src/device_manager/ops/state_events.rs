@@ -309,6 +309,7 @@ impl DeviceManager {
             .await;
             match result {
                 Ok(progress) if progress.near_target => {
+                    tracing::info!("Mount {} arrived at the slew target", mount_id);
                     app_state.publish_equipment_event(
                         EquipmentEvent::MountSlewCompleted {
                             device_id: mount_id,

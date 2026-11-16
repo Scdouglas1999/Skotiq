@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/equipment_health_panel.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -99,4 +100,65 @@ void main() {
     expect(find.textContaining('OK - 1'), findsOneWidget);
     expect(find.textContaining('s ago'), findsOneWidget);
   });
+
+  // PHD2 is reached over its own socket; the device heartbeat never polls it.
+  // On the rig the panel said "5 of 5 healthy" above a PHD2 row reading "No
+  // contact recorded".
+  testWidgets('the heartbeats leave out a guider the heartbeat never polls',
+      (tester) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await pumpAppScreen(
+      tester,
+      const EquipmentHealthPanel(),
+      size: const Size(900, 700),
+      settle: false,
+      extraOverrides: [
+        equipmentHealthExpandedProvider.overrideWith((ref) => true),
+        equipmentHealthReportProvider.overrideWithValue(
+          const AsyncValue.data(_report),
+        ),
+        mountStateProvider.overrideWith(_ConnectedMount.new),
+        guiderStateProvider.overrideWith(_ConnectedPhd2.new),
+        deviceLastContactProvider.overrideWith((ref) {
+          final contacts = DeviceLastContactNotifier(
+            autoStart: false,
+            probe: (id) async => id == 'sim:mount:1'
+                ? (now, true)
+                : throw StateError('Device $id not found'),
+          );
+          ref.listen(
+            connectedDeviceDescriptorsProvider,
+            (_, next) => contacts.track(next.map((d) => d.deviceId)),
+            fireImmediately: true,
+          );
+          return contacts;
+        }),
+      ],
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('1 of 1 healthy'), findsOneWidget);
+    expect(find.text('No contact recorded'), findsNothing);
+    expect(find.text('PHD2'), findsNothing);
+  });
+}
+
+class _ConnectedMount extends MountStateNotifier {
+  _ConnectedMount(super.ref) {
+    state = const MountState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'sim:mount:1',
+      deviceName: 'Simulated Mount',
+    );
+  }
+}
+
+class _ConnectedPhd2 extends GuiderStateNotifier {
+  _ConnectedPhd2(super.ref) {
+    state = const GuiderState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'phd2:localhost:4400',
+      deviceName: 'PHD2',
+    );
+  }
 }

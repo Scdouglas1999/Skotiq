@@ -263,15 +263,17 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     let focus_position = if guide_scope {
         None
     } else {
-        let focuser = crate::simulator::focuser::get_sim_focuser().read().await;
-        if focuser.status.connected {
+        let mut focuser = crate::simulator::focuser::get_sim_focuser()
+            .read()
+            .await
+            .status
+            .clone();
+        crate::simulator::focuser::sim_focuser_status_now(&mut focuser);
+        if focuser.connected {
             // A cooling tube moves best focus outward (see
             // `SKOTIQ_SIM_NIGHT_COOLING_C_PER_HOUR`); a focuser left where
             // it was is that far out of focus.
-            Some(
-                focuser.status.position
-                    - crate::simulator::focuser::sim_thermal_focus_shift_steps(),
-            )
+            Some(focuser.position - crate::simulator::focuser::sim_thermal_focus_shift_steps())
         } else {
             None
         }

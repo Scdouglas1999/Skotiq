@@ -95,26 +95,80 @@ class ObjectSearchState {
   }
 }
 
-/// Compute Levenshtein distance between two strings.
-/// Used for fuzzy matching in search.
+final RegExp _whitespaceRun = RegExp(r'\s+');
+
+/// Whether [text] has a character `\s` matches. Most catalog names have
+/// none, and this skips the regular expression for them.
+bool _hasWhitespace(String text) {
+  for (var i = 0; i < text.length; i++) {
+    final c = text.codeUnitAt(i);
+    if (c <= 0x20) {
+      if (c == 0x20 || (c >= 0x09 && c <= 0x0D)) return true;
+    } else if (c >= 0xA0 &&
+        (c == 0xA0 ||
+            c == 0x1680 ||
+            (c >= 0x2000 && c <= 0x200A) ||
+            c == 0x2028 ||
+            c == 0x2029 ||
+            c == 0x202F ||
+            c == 0x205F ||
+            c == 0x3000 ||
+            c == 0xFEFF)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// A search string prepared once for matching against every catalog name.
+class _SearchQuery {
+  factory _SearchQuery(String query) {
+    final lower = query.toLowerCase();
+    return _SearchQuery._(
+      lower,
+      lower.replaceAll(_whitespaceRun, ''),
+      _splitDesignation(lower),
+    );
+  }
+
+  _SearchQuery._(this.lower, this.compact, this.designation)
+    : designationDigits = designation?.number.toString();
+
+  final String lower;
+
+  /// [lower] without whitespace.
+  final String compact;
+
+  /// The query as a catalog designation (`NGC 7331` -> `('ngc', 7331)`).
+  final ({String prefix, int number})? designation;
+
+  /// The digits every designation with [designation]'s number contains.
+  final String? designationDigits;
+}
+
+/// Levenshtein distance between two strings, for fuzzy matching in search.
 int _levenshteinDistance(String a, String b) {
   if (a == b) return 0;
   if (a.isEmpty) return b.length;
   if (b.isEmpty) return a.length;
 
-  // Use two-row optimization to save memory
-  var prevRow = List<int>.generate(b.length + 1, (i) => i);
-  var currRow = List<int>.filled(b.length + 1, 0);
+  var prevRow = Int32List(b.length + 1);
+  var currRow = Int32List(b.length + 1);
+  for (var j = 0; j <= b.length; j++) {
+    prevRow[j] = j;
+  }
 
   for (var i = 1; i <= a.length; i++) {
     currRow[0] = i;
+    final ai = a.codeUnitAt(i - 1);
     for (var j = 1; j <= b.length; j++) {
-      final cost = a[i - 1] == b[j - 1] ? 0 : 1;
-      currRow[j] = [
-        currRow[j - 1] + 1, // insertion
-        prevRow[j] + 1, // deletion
-        prevRow[j - 1] + cost, // substitution
-      ].reduce(math.min);
+      final cost = ai == b.codeUnitAt(j - 1) ? 0 : 1;
+      final insertion = currRow[j - 1] + 1;
+      final deletion = prevRow[j] + 1;
+      final substitution = prevRow[j - 1] + cost;
+      var best = insertion < deletion ? insertion : deletion;
+      if (substitution < best) best = substitution;
+      currRow[j] = best;
     }
     final temp = prevRow;
     prevRow = currRow;
@@ -123,14 +177,24 @@ int _levenshteinDistance(String a, String b) {
   return prevRow[b.length];
 }
 
+/// The edit distance between [a] and [b] when it is at most [maxDistance],
+/// else null. Lengths that differ by more than that answer without the
+/// distance.
+int? _distanceWithin(String a, String b, int maxDistance) {
+  if ((a.length - b.length).abs() > maxDistance) return null;
+  final distance = _levenshteinDistance(a, b);
+  return distance <= maxDistance ? distance : null;
+}
+
 /// Score a query match against a target string.
 /// Returns null if no match, or a score (lower = better).
 /// 0 = exact match, 1 = starts with, 2 = contains, 3+ = fuzzy match
-int? _scoreMatch(String query, String target) {
-  final q = query.toLowerCase();
+int? _scoreMatch(_SearchQuery query, String target) {
+  final q = query.lower;
+  final qNorm = query.compact;
   final t = target.toLowerCase();
-  final qNorm = q.replaceAll(RegExp(r'\s+'), '');
-  final tNorm = t.replaceAll(RegExp(r'\s+'), '');
+  final spaced = _hasWhitespace(t);
+  final tNorm = spaced ? t.replaceAll(_whitespaceRun, '') : t;
 
   if (t == q || tNorm == qNorm) return 0;
 
@@ -142,19 +206,18 @@ int? _scoreMatch(String query, String target) {
   if (q.length >= 3) {
     // For short targets, compare directly
     if (tNorm.length <= qNorm.length + 3) {
-      final dist = _levenshteinDistance(qNorm, tNorm);
       // Allow edit distance up to ~30% of query length, minimum 1
       final maxDist = math.max(1, (qNorm.length * 0.35).floor());
-      if (dist <= maxDist) return 3 + dist;
+      final dist = _distanceWithin(qNorm, tNorm, maxDist);
+      if (dist != null) return 3 + dist;
     }
 
     // For longer targets, check each word
-    final words = t.split(RegExp(r'\s+'));
-    for (final word in words) {
+    final maxDist = math.max(1, (q.length * 0.35).floor());
+    for (final word in spaced ? t.split(_whitespaceRun) : [t]) {
       if (word.length >= q.length - 2) {
-        final dist = _levenshteinDistance(q, word);
-        final maxDist = math.max(1, (q.length * 0.35).floor());
-        if (dist <= maxDist) return 3 + dist;
+        final dist = _distanceWithin(q, word, maxDist);
+        if (dist != null) return 3 + dist;
       }
     }
   }
@@ -188,26 +251,31 @@ const Set<String> _bareNumberCatalogs = {'m', 'ngc', 'ic'};
   if (known != null && known.suffix.isEmpty) {
     return (prefix: known.catalog.toLowerCase(), number: known.number);
   }
-  final normalized = value.toLowerCase().replaceAll(RegExp(r'[\s_]+'), '');
-  final match = RegExp(r'^([a-z]*)0*(\d+)$').firstMatch(normalized);
+  final normalized = value.toLowerCase().replaceAll(_designationSeparators, '');
+  final match = _bareDesignation.firstMatch(normalized);
   if (match == null) return null;
   final number = int.tryParse(match.group(2)!);
   if (number == null) return null;
   return (prefix: match.group(1)!, number: number);
 }
 
+final RegExp _designationSeparators = RegExp(r'[\s_]+');
+final RegExp _bareDesignation = RegExp(r'^([a-z]*)0*(\d+)$');
+
 /// Whether [designation] is the object the designation-shaped [query] names.
 ///
 /// A prefixed query pins the catalogue (`ugc 6720` must not answer NGC6720);
 /// a bare number is only honoured for [_bareNumberCatalogs].
-bool _isExactDesignation(
-  ({String prefix, int number}) query,
-  String designation,
-) {
+bool _isExactDesignation(_SearchQuery query, String designation) {
+  final wanted = query.designation;
+  if (wanted == null) return false;
+  // A designation with this number spells its digits out; most catalog ids
+  // do not, and skip the parse.
+  if (!designation.contains(query.designationDigits!)) return false;
   final parsed = _splitDesignation(designation);
-  if (parsed == null || parsed.number != query.number) return false;
-  if (query.prefix.isEmpty) return _bareNumberCatalogs.contains(parsed.prefix);
-  return parsed.prefix == query.prefix;
+  if (parsed == null || parsed.number != wanted.number) return false;
+  if (wanted.prefix.isEmpty) return _bareNumberCatalogs.contains(parsed.prefix);
+  return parsed.prefix == wanted.prefix;
 }
 
 /// Map of well-known star proper names to their common designations
@@ -266,6 +334,32 @@ final solarSystemSearchObjectsProvider = Provider<List<CelestialObject>>((ref) {
   return objects;
 });
 
+/// Hands the isolate back to the event loop between slices of a catalog
+/// scan, so frames and input keep being handled while a search walks the
+/// whole star catalog, and ends the scan once a newer search replaced it.
+class _ScanSlicer {
+  _ScanSlicer(this._isCurrent);
+
+  final bool Function() _isCurrent;
+  final Stopwatch _slice = Stopwatch()..start();
+
+  /// Under one frame at 60 Hz, leaving room for the frame itself.
+  static const int _sliceMicroseconds = 8000;
+
+  /// Whether the scan at object [index] has used up its slice. Read every
+  /// 256 objects.
+  bool due(int index) =>
+      index & 0xFF == 0 && _slice.elapsedMicroseconds >= _sliceMicroseconds;
+
+  /// Lets queued events run; false when the scan should stop because a newer
+  /// search started.
+  Future<bool> yieldSlice() async {
+    await Future<void>.delayed(Duration.zero);
+    _slice.reset();
+    return _isCurrent();
+  }
+}
+
 class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
   final Ref _ref;
   int _searchGeneration = 0;
@@ -288,14 +382,13 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
 
     state = state.copyWith(query: query, isSearching: true);
 
-    final qLower = query.toLowerCase().trim();
-    final filters = state.filters;
-
     // Catalogue numbers are zero-padded in cross-identifiers, so a plain
     // substring match on a typed designation drags in every object whose
     // PGC/UGC digits happen to contain it. A designation-shaped query resolves
     // its own catalogue entry first, deterministically.
-    final designationQuery = _splitDesignation(qLower);
+    final q = _SearchQuery(query.trim());
+    final filters = state.filters;
+    final slicer = _ScanSlicer(() => _canPublish(generation));
 
     try {
       final scored = <ScoredSearchResult>[];
@@ -303,7 +396,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
       // Check well-known name mappings first for DSO names
       final wellKnownIds = <String>{};
       for (final entry in kWellKnownDsoNames.entries) {
-        final score = _scoreMatch(qLower, entry.key);
+        final score = _scoreMatch(q, entry.key);
         if (score != null) {
           wellKnownIds.addAll(
             entry.value.map((v) => v.toLowerCase().replaceAll(' ', '')),
@@ -314,7 +407,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
       // Check well-known star name aliases
       String? starNameAlias;
       for (final entry in _wellKnownStarNames.entries) {
-        final score = _scoreMatch(qLower, entry.key);
+        final score = _scoreMatch(q, entry.key);
         if (score != null) {
           starNameAlias = entry.value.toLowerCase();
           break;
@@ -325,15 +418,14 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
           filters.typeFilter == SearchObjectTypeFilter.stars) {
         try {
           final loadedStars = await _ref.read(loadedStarsProvider.future);
-          for (final star in loadedStars) {
+          for (var i = 0; i < loadedStars.length; i++) {
+            if (slicer.due(i) && !await slicer.yieldSlice()) return;
+            final star = loadedStars[i];
             if (!_passesFilters(star, filters)) continue;
 
             // "HD 48915" names one star; nothing weaker may outrank it.
-            if (designationQuery != null &&
-                (_isExactDesignation(designationQuery, star.id) ||
-                    star.catalogIds.any(
-                      (id) => _isExactDesignation(designationQuery, id),
-                    ))) {
+            if (_isExactDesignation(q, star.id) ||
+                star.catalogIds.any((id) => _isExactDesignation(q, id))) {
               scored.add(
                 ScoredSearchResult(
                   object: star,
@@ -345,7 +437,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
 
             // Check proper name
-            final nameScore = _scoreMatch(qLower, star.name);
+            final nameScore = _scoreMatch(q, star.name);
             if (nameScore != null) {
               scored.add(
                 ScoredSearchResult(
@@ -370,7 +462,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
 
             // Check catalog IDs (HIP, HD, HR)
-            final idScore = _scoreMatch(qLower, star.id);
+            final idScore = _scoreMatch(q, star.id);
             if (idScore != null) {
               scored.add(
                 ScoredSearchResult(
@@ -383,7 +475,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
 
             for (final catId in star.catalogIds) {
-              final catScore = _scoreMatch(qLower, catId);
+              final catScore = _scoreMatch(q, catId);
               if (catScore != null) {
                 scored.add(
                   ScoredSearchResult(
@@ -412,12 +504,15 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
           final loadedDsos = await _ref.read(loadedDsosProvider.future);
           final catalogIds = {for (final d in loadedDsos) d.id};
 
-          for (final dso in [
+          final dsos = [
             ...loadedDsos,
             // The Pleiades, M40 and a few Caldwell objects are not in the
             // downloaded OpenNGC file; search them too.
             ...kSupplementalDsos.where((d) => !catalogIds.contains(d.id)),
-          ]) {
+          ];
+          for (var i = 0; i < dsos.length; i++) {
+            if (slicer.due(i) && !await slicer.yieldSlice()) return;
+            final dso = dsos[i];
             if (!_passesDsoTypeFilter(dso, filters.typeFilter)) continue;
             if (!_passesFilters(dso, filters)) continue;
 
@@ -449,7 +544,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
               for (final cn in commonNames.split(',')) {
                 final trimmed = cn.trim();
                 if (trimmed.isEmpty) continue;
-                final cnScore = _scoreMatch(qLower, trimmed);
+                final cnScore = _scoreMatch(q, trimmed);
                 if (cnScore != null &&
                     (bestScore == null || cnScore < bestScore)) {
                   bestScore = cnScore;
@@ -459,21 +554,21 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
 
             final (displayName, _) = _getDsoDisplayInfoForSearch(dso);
-            final displayScore = _scoreMatch(qLower, displayName);
+            final displayScore = _scoreMatch(q, displayName);
             if (displayScore != null &&
                 (bestScore == null || displayScore < bestScore)) {
               bestScore = displayScore;
               matchSource = 'name';
             }
 
-            final idScore = _scoreMatch(qLower, dso.id);
+            final idScore = _scoreMatch(q, dso.id);
             if (idScore != null && (bestScore == null || idScore < bestScore)) {
               bestScore = idScore;
               matchSource = 'id';
             }
 
             for (final catId in dso.catalogIds) {
-              final catScore = _scoreMatch(qLower, catId);
+              final catScore = _scoreMatch(q, catId);
               if (catScore != null &&
                   (bestScore == null || catScore < bestScore)) {
                 bestScore = catScore;
@@ -483,7 +578,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
 
             final constellation = dso.constellation;
             if (constellation != null) {
-              final conScore = _scoreMatch(qLower, constellation);
+              final conScore = _scoreMatch(q, constellation);
               if (conScore != null &&
                   conScore <= 1 &&
                   (bestScore == null || conScore + 5 < bestScore)) {
@@ -495,11 +590,8 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
 
             // An exact catalogue designation beats every fuzzier band above,
             // so it is applied last and unconditionally.
-            if (designationQuery != null &&
-                (_isExactDesignation(designationQuery, dso.id) ||
-                    dso.catalogIds.any(
-                      (id) => _isExactDesignation(designationQuery, id),
-                    ))) {
+            if (_isExactDesignation(q, dso.id) ||
+                dso.catalogIds.any((id) => _isExactDesignation(q, id))) {
               bestScore = _exactDesignationScore;
               matchSource = 'designation';
             }
@@ -533,7 +625,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
           final bodies = _ref.read(solarSystemSearchObjectsProvider);
           for (final body in bodies) {
             if (!_passesFilters(body, filters)) continue;
-            final nameScore = _scoreMatch(qLower, body.name);
+            final nameScore = _scoreMatch(q, body.name);
             if (nameScore != null) {
               scored.add(
                 ScoredSearchResult(

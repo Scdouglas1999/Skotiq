@@ -367,6 +367,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
 
       case DeviceType.guider:
         final state = ref.watch(guiderStateProvider);
+        final activity = ref.watch(phd2StateProvider);
         final scale = ref.watch(guideScaleProvider);
         final total = state.rmsTotal == null
             ? null
@@ -385,7 +386,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
             label: 'RMS RA',
           ),
           _DeviceMetric(
-            value: state.isGuiding ? 'Guiding' : 'Idle',
+            value: context.l10n.text(guiderStateLabel(activity).$1),
             label: 'State',
           ),
         ];
