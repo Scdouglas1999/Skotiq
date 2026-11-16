@@ -505,13 +505,9 @@ class SkotiqApi {
   // Devices
   // =========================================================================
 
-  async getDevices(deviceType) {
-    const q = deviceType ? '?deviceType=' + encodeURIComponent(deviceType) : '';
-    return this._get('/api/devices' + q);
-  }
-
-  async getConnectedDevices() {
-    return this._get('/api/devices/connected');
+  /** The devices the host knows about, with their state and the last scan. */
+  async getDevices() {
+    return this._get('/api/devices');
   }
 
   async connectDevice(deviceId, deviceType) {

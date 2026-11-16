@@ -236,11 +236,13 @@ and excludes WebSocket-only routes.
 
 ### POST /api/devices/discover
 
-Discover the host's devices now, optionally only `?deviceType=camera` (or
-another type). This is a scan the user asked for: it asks every vendor SDK
-and probes the serial ports that no connected device holds (none while a
-mount connected through ASCOM, Alpaca or INDI is connected). Types whose
-discovery failed are listed in `discoveryErrors`.
+Scan for the host's devices now. This is the app's one scan: the host's own
+Scan button runs the same one, and a scan asked for while one runs joins it.
+It asks every vendor SDK, probes the serial ports that no connected device
+holds (none while a mount connected through ASCOM, Alpaca or INDI is
+connected), and asks the Alpaca and INDI servers set in Settings. The answer
+lists what the scan found, optionally only `?deviceType=camera` (or another
+type); backends whose scan failed are listed in `discoveryErrors`.
 
 **Response:**
 ```json
@@ -254,23 +256,40 @@ discovery failed are listed in `discoveryErrors`.
       "description": "ZWO native driver"
     }
   ],
-  "discoveryErrors": { "mount": "..." }
+  "discoveryErrors": { "indi": "INDI server connection failed: ..." }
 }
 ```
 
 ### GET /api/devices
 
-What the last `POST /api/devices/discover` found, optionally only
-`?deviceType=`, without discovering. `discoveredAt` is null before the first
-discovery.
+Every device the host knows about: the device in each slot (connected,
+connecting, or failed to connect), every device the active profile names, and
+every device the last scan found, each once. It never scans. `lastScanAt` is
+when the last scan finished, or null when none has run since the host started.
+The Equipment drawer, a linked client and the web dashboard all list this.
 
 **Response:**
 ```json
 {
-  "devices": [ ... ],
-  "discoveredAt": "2026-11-16T05:53:52.649Z"
+  "devices": [
+    {
+      "id": "sim_camera_1",
+      "name": "Simulated Camera",
+      "deviceType": "camera",
+      "driverType": "simulator",
+      "description": "",
+      "state": "connected",
+      "error": null,
+      "inProfile": true,
+      "foundByScan": false
+    }
+  ],
+  "lastScanAt": "2026-11-16T02:52:00.000Z"
 }
 ```
+
+`state` is one of `connected`, `connecting`, `error` (with `error` saying
+why) and `disconnected`.
 
 ### POST /api/devices/connect
 

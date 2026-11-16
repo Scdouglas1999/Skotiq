@@ -1,8 +1,10 @@
 import '../../../models/backend/device_capabilities.dart' show DomeCapabilities;
+import '../../../models/equipment/known_devices.dart';
 
 /// Device actions that only a linked imaging host can take for its client:
-/// the camera warm-up it runs next to the camera, its switch channels, and
-/// the dome and cover readings a local process takes from the bridge.
+/// the camera warm-up it runs next to the camera, its switch channels, the
+/// dome and cover readings a local process takes from the bridge, and the
+/// list of devices the host knows about.
 ///
 /// The remote half of a feature whose local half is a service or DAO in this
 /// process; reached through `backend.remoteHost`, which is null locally.
@@ -24,4 +26,7 @@ abstract interface class HostDeviceControl {
   Future<DomeCapabilities?> getDomeCapabilities(String deviceId);
 
   Future<Map<String, dynamic>> getCoverStatus(String deviceId);
+
+  /// `GET /api/devices`: the devices the host knows about.
+  Future<KnownDevices> knownDevices();
 }

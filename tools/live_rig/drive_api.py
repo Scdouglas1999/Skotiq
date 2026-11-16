@@ -116,20 +116,21 @@ def main():
                  '/api/system/disk-space', '/api/system/endpoints'):
         show(rig.call('GET', path))
 
-    print('== discovery (per type)')
+    print('== discovery (one scan, by type)')
     found = {}
+    e = rig.call('POST', '/api/devices/discover', timeout=90)
+    payload = e.get('json')
+    scanned = payload.get('devices', []) if isinstance(payload, dict) else []
+    print('  status %s, scan errors %s' % (
+        e['status'], payload.get('discoveryErrors') if isinstance(payload, dict) else '?'))
     for t in DEVICE_TYPES:
-        e = rig.call('POST', '/api/devices/discover?deviceType=' + t, timeout=90)
-        payload = e.get('json')
-        devices = payload.get('devices', payload) if isinstance(payload, dict) else payload
-        n = len(devices) if isinstance(devices, list) else '?'
-        print('  %-18s %s  %s' % (t, e['status'], n))
-        if isinstance(devices, list) and devices:
+        devices = [d for d in scanned if isinstance(d, dict)
+                   and str(d.get('deviceType', '')).lower().rstrip('_') == t]
+        print('  %-18s %s' % (t, len(devices)))
+        if devices:
             found[t] = devices
             for d in devices:
-                if isinstance(d, dict):
-                    print('        %s  [%s]' % (d.get('displayName') or d.get('name'),
-                                                d.get('driverType') or d.get('driver')))
+                print('        %s  [%s]' % (d.get('name'), d.get('driverType')))
 
     print('== already connected')
     show(rig.call('GET', '/api/devices/connected'))

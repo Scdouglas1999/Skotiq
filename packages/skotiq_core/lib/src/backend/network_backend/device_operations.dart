@@ -76,7 +76,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       final typeValue = device['deviceType'] ?? device['type'];
       if (typeValue is! String) {
         throw FormatException(
-          'GET /api/devices returned device row $index without a valid '
+          'POST /api/devices/discover returned device row $index without a valid '
           '`deviceType`',
         );
       }
@@ -89,17 +89,17 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       final driverType = device['driverType'];
       if (id is! String || id.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device row $index without a valid `id`',
+          'POST /api/devices/discover returned device row $index without a valid `id`',
         );
       }
       if (name is! String || name.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device $id without a valid `name`',
+          'POST /api/devices/discover returned device $id without a valid `name`',
         );
       }
       if (driverType is! String || driverType.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device $id without a valid `driverType`',
+          'POST /api/devices/discover returned device $id without a valid `driverType`',
         );
       }
       byType[deviceType]!.add(
@@ -142,6 +142,9 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         : response['available'];
     return _rowsFromJson<Map<String, dynamic>>(source, (row) => row);
   }
+
+  Future<KnownDevices> knownDevices() async =>
+      KnownDevices.fromJson(await _get(DeviceDiscoveryApi.getDevices));
 
   /// Invalidate device cache (called when "Scan Network" is clicked)
   @override

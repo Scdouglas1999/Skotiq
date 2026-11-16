@@ -34,20 +34,14 @@ class AssignAction {
   });
 }
 
-/// Provider to track when the last scan occurred
-// autoDispose: the "last scan: N seconds ago" label is only meaningful while
-// the Equipment screen is mounted. Resetting on screen teardown avoids
-// stale "last scan: 6 hours ago" strings from a previous session.
-final lastScanTimeProvider =
-    StateProvider.autoDispose<DateTime?>((ref) => null);
-
 /// Bumped by the page header's "Scan for devices" primary. The drawer listens,
 /// expands and runs the SAME scan its own button runs — the screen has one
 /// primary action and one scan code path, not two that can drift.
 final discoveryScanRequestProvider = StateProvider<int>((ref) => 0);
 
-/// A collapsible panel at the bottom of the equipment screen for discovering devices.
-/// Shows available backends, discovered devices grouped by type, and connection controls.
+/// The drawer at the foot of Equipment > Devices: every device the imaging
+/// host knows about (connected, named by the active profile, or found by the
+/// last scan) with its state, and Scan to look for new ones.
 class DiscoveryPanel extends ConsumerStatefulWidget {
   final ValueChanged<(DeviceInfo, int)>? onAssignDevice;
 
@@ -96,10 +90,7 @@ class DiscoveryPanel extends ConsumerStatefulWidget {
 }
 
 class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
-    with
-        SingleTickerProviderStateMixin,
-        DeviceConnectionMixin,
-        WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, DeviceConnectionMixin {
   bool _isExpanded = false;
   bool _isScanning = false;
   // True while the Rust-side manual hot-plug rescan is running. Kept
@@ -113,14 +104,10 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
-  // 30s tick refreshes the "Last scan: N seconds ago" label. Suspended when
-  // the app is backgrounded so a hidden equipment tab doesn't tick.
-  Timer? _lastScanTimer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _backendSubscription = ref.listenManual<SkotiqBackend>(
       backendProvider,
       (previous, next) {
@@ -138,51 +125,16 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    // A linked client has no scan of its own until someone presses Scan, so
-    // it read "0 found · Never scanned" beside a host that had found its
-    // devices. It asks the host once, quietly, when the list is first shown.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !ref.read(isRemoteModeProvider)) return;
-      if (ref.read(lastScanTimeProvider) != null ||
-          ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt != null) {
-        return;
-      }
-      unawaited(_scanForDevices());
-    });
     _expandAnimation = CurvedAnimation(
       parent: _expandController,
       curve: Curves.easeOut,
     );
-    _startLastScanTimer();
-  }
-
-  void _startLastScanTimer() {
-    _lastScanTimer?.cancel();
-    _lastScanTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (_lastScanTimer == null || !_lastScanTimer!.isActive) {
-        if (mounted) setState(() {});
-        _startLastScanTimer();
-      }
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      _lastScanTimer?.cancel();
-      _lastScanTimer = null;
-    }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _backendSubscription?.close();
     _expandController.dispose();
-    _lastScanTimer?.cancel();
     super.dispose();
   }
 
@@ -202,14 +154,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     final scan = _operations.beginLatest();
     setState(() => _isScanning = true);
     try {
-      // discoverAll clears stale grouped results before scanning.
       await ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
-      if (_isCurrentOperation(scan, scanning: true)) {
-        final completedAt =
-            ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt;
-        ref.read(lastScanTimeProvider.notifier).state =
-            completedAt ?? DateTime.now();
-      }
     } catch (e) {
       if (mounted && _isCurrentOperation(scan, scanning: true)) {
         context
@@ -269,12 +214,24 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       (!scanning || _isScanning) &&
       (!rescanning || _isRescanning);
 
-  /// When the last scan ran, or null before any has: a rig that connects
-  /// from its profile never scans, and "0 found · Never scanned" beside its
-  /// connected devices read as a fault.
-  String? _formatLastScanTime(DateTime? lastScan) => lastScan == null
-      ? null
-      : RelativeTime.ago(lastScan, style: RelativeTimeStyle.words);
+  /// "7 devices · Last scan 21:52"; each half only when it says something,
+  /// and null when neither does. Each row says whether it is connected.
+  String? _summary(KnownDevices? known) {
+    if (known == null) return null;
+    final lastScanAt = known.lastScanAt;
+    final parts = [
+      if (known.devices.isNotEmpty)
+        known.devices.length == 1
+            ? '1 device'
+            : '${known.devices.length} devices',
+      if (lastScanAt != null)
+        'Last scan ${ClockFormat.hmOrMonthDayHm(
+          lastScanAt.toLocal(),
+          ref.read(clockProvider).instant,
+        )}',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,15 +244,10 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     });
 
     final colors = SkotiqColors.of(context);
-    final discoveryState = ref.watch(unifiedDiscoveryProvider);
-    final lastScanTime = ref.watch(lastScanTimeProvider);
-    final devices = discoveryState.groupedDevices;
-    final isDiscovering = discoveryState.isDiscovering || _isScanning;
-    final discoveryCompletedAt = discoveryState.lastDiscoveryCompletedAt;
-
-    final lastScanText = _formatLastScanTime(
-      lastScanTime ?? discoveryCompletedAt,
-    );
+    final known = ref.watch(knownDevicesProvider);
+    final isDiscovering =
+        ref.watch(unifiedDiscoveryProvider.select((s) => s.isDiscovering)) ||
+            _isScanning;
 
     return Container(
       decoration: BoxDecoration(
@@ -308,8 +260,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
         children: [
           _buildHeadRow(
             colors,
-            found: devices.length,
-            lastScanText: lastScanText,
+            summary: _summary(known.valueOrNull),
             isDiscovering: isDiscovering,
           ),
           // Flexible(loose): under a tight parent this section takes the
@@ -325,9 +276,20 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
                   SkotiqTokens.space2xl,
                   SkotiqTokens.spaceMd,
                 ),
-                child: devices.isEmpty
-                    ? _buildNothingFound(colors, isDiscovering)
-                    : _buildDeviceColumns(devices),
+                child: switch (known) {
+                  AsyncValue(valueOrNull: final list?) => list.devices.isEmpty
+                      ? _buildNothingKnown(isDiscovering)
+                      : _buildDeviceColumns(list.devices),
+                  AsyncValue(error: final error?) => EmptyState.error(
+                      title: 'Could not read the devices',
+                      body: userFacingError(error),
+                      onRetry: () => ref.invalidate(knownDevicesProvider),
+                    ),
+                  _ => const Padding(
+                      padding: EdgeInsets.all(SkotiqTokens.spaceLg),
+                      child: Center(child: SkotiqSpinner()),
+                    ),
+                },
               ),
             ),
           ),
@@ -336,17 +298,15 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     );
   }
 
-  /// `[radio] [DISCOVERED DEVICES] [11 found · scanned 2 min ago] … [Rescan] [v]`
+  /// `[radio] [KNOWN DEVICES] [7 devices · Last scan 21:52] … [Rescan] [Scan all] [v]`
   ///
   /// On a phone the eyebrow, the summary and two labelled buttons do not fit
   /// 312 px — measured, the row overflowed by 243 px. Below
-  /// [_discoveryHeadCompactWidth] the summary drops (it is repeated in the
-  /// rows beneath) and the two scans become icon buttons with the same
-  /// tooltips.
+  /// [_discoveryHeadCompactWidth] the summary sits under the eyebrow and the
+  /// two scans become icon buttons with the same tooltips.
   Widget _buildHeadRow(
     SkotiqColors colors, {
-    required int found,
-    required String? lastScanText,
+    required String? summary,
     required bool isDiscovering,
   }) {
     return SizedBox(
@@ -367,12 +327,30 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
           builder: (context, constraints) {
             final compact = constraints.hasBoundedWidth &&
                 constraints.maxWidth < _discoveryHeadCompactWidth;
+            final eyebrow = Text(
+              'Known devices'.toUpperCase(),
+              style: SkotiqTypography.eyebrow.copyWith(
+                color: colors.textMuted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+            final summaryText = summary == null
+                ? null
+                : Text(
+                    summary,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
             return Row(
               children: [
                 // The label and the summary share ONE Expanded, and there is
                 // no Spacer: a Flexible child beside a Spacer splits the row's
-                // slack three ways, which truncated the label to
-                // "DISCOVERED DEVIC…" in a 652 px row it fits twice over.
+                // slack three ways, which truncated the label in a 652 px row
+                // it fits twice over.
                 Expanded(
                   child: Row(
                     children: [
@@ -382,28 +360,23 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
                         color: colors.textMuted,
                       ),
                       const SizedBox(width: SkotiqTokens.spaceSm + 2),
-                      Flexible(
-                        child: Text(
-                          'Discovered devices'.toUpperCase(),
-                          style: SkotiqTypography.eyebrow.copyWith(
-                            color: colors.textMuted,
+                      if (compact)
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              eyebrow,
+                              if (summaryText != null) summaryText
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (!compact && lastScanText != null) ...[
-                        const SizedBox(width: SkotiqTokens.spaceMd),
-                        Flexible(
-                          child: Text(
-                            '$found found · $lastScanText',
-                            style: SkotiqTypography.caption.copyWith(
-                              color: colors.textMuted,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        )
+                      else ...[
+                        Flexible(child: eyebrow),
+                        if (summaryText != null) ...[
+                          const SizedBox(width: SkotiqTokens.spaceMd),
+                          Flexible(child: summaryText),
+                        ],
                       ],
                     ],
                   ),
@@ -467,8 +440,8 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     );
   }
 
-  /// The discovered devices in two columns, per 06 §Equipment.
-  Widget _buildDeviceColumns(List<UnifiedDevice> devices) {
+  /// The known devices in two columns, per 06 §Equipment.
+  Widget _buildDeviceColumns(List<KnownDevice> devices) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns =
@@ -488,10 +461,10 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
                         i < (column + 1) * perColumn && i < devices.length;
                         i++)
                       _DeviceRowItem(
-                        device: devices[i],
-                        deviceType: devices[i].type,
-                        onConnect: () => _connectDevice(devices[i]),
-                        onDisconnect: () => _disconnectDevice(devices[i]),
+                        known: devices[i],
+                        onConnect: () => _connectDevice(devices[i].device),
+                        onDisconnect: () =>
+                            _disconnectDevice(devices[i].device),
                         onAssignDevice: widget.onAssignDevice,
                       ),
                   ],
@@ -504,18 +477,23 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     );
   }
 
-  /// ONE empty state, carrying the thing the bare "No devices found" withheld:
+  /// The drawer before the host knows any device. After a scan it names
   /// which backends were asked and which of them failed.
-  Widget _buildNothingFound(SkotiqColors colors, bool isDiscovering) {
+  Widget _buildNothingKnown(bool isDiscovering) {
     final discoveryState = ref.watch(unifiedDiscoveryProvider);
     final searched = discoveryState.backendStates.keys.toList()
       ..sort((a, b) => a.index.compareTo(b.index));
     final failed = discoveryState.errorBackends.toSet();
+    final where =
+        ref.watch(isRemoteModeProvider) ? 'the host' : 'this computer';
 
+    final String title;
     final String detail;
     if (searched.isEmpty) {
-      detail = 'Nothing has been searched yet.';
+      title = isDiscovering ? 'Scanning' : 'No devices yet';
+      detail = 'Scan looks for the devices $where can reach.';
     } else {
+      title = isDiscovering ? 'Scanning' : 'No devices found';
       final names = searched.map((b) {
         final label = b.displayName;
         return failed.contains(b) ? '$label (failed)' : label;
@@ -525,7 +503,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
 
     return EmptyState(
       icon: LucideIcons.radio,
-      title: isDiscovering ? 'Scanning' : 'No devices found',
+      title: title,
       body: '$detail Devices on another machine are reached over Alpaca or '
           'INDI. Set the server address in Settings.',
       action: SkotiqButton(

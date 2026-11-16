@@ -153,6 +153,10 @@ MockBackend mockBackend() {
   // void methods are fine. Still, set up explicitly so `verify(() => ...)`
   // works for tests that want to assert disposal.
   // No camera is keeping a capture unless a test says one is.
+  // The device list reads the registry's connected devices; none unless a
+  // test connects some.
+  when(() => backend.getConnectedDevices())
+      .thenAnswer((_) async => const <DeviceInfo>[]);
   when(
     () => backend.cameraRetainedCaptures(),
   ).thenAnswer((_) async => const <RetainedCapture>[]);

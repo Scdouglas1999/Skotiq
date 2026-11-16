@@ -90,7 +90,7 @@ test('device inventory refresh clears ids that are no longer connected', () => {
   assert.ok(match, 'fetchDevices must exist');
 
   const body = match[1];
-  const inventory = body.indexOf('state.connectedDevices = result.devices || []');
+  const inventory = body.indexOf('state.connectedDevices = state.devices.filter(');
   const clearCamera = body.indexOf('state.cameraDeviceId = null');
   const selectDevices = body.indexOf('for (const dev of state.connectedDevices)');
   assert.ok(clearCamera > inventory, 'old ids must be cleared after inventory fetch');
