@@ -25,6 +25,32 @@ const _edt = FixedOffsetClock(
   label: 'UTC-04:00',
 );
 
+/// The first instant after [from] at which [target] stands [hours] past the
+/// meridian at Boston.
+DateTime _pastMeridian(TargetHeaderNode target, double hours, DateTime from) {
+  final lst = AstronomyCalculations.localSiderealTime(from, boston.longitude);
+  final ahead = (target.raHours + hours - lst) % 24;
+  return from.add(Duration(seconds: (ahead * 3600 * 0.9972696).round()));
+}
+
+/// A tracking mount pointing at [target], in the equinox of date.
+MountState _mountOn(TargetHeaderNode target, DateTime now,
+    {String? sideOfPier}) {
+  final (ra, dec) = AstronomyCalculations.precessFromJ2000ToDate(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
+    dt: now,
+  );
+  return MountState(
+    connectionState: DeviceConnectionState.connected,
+    isTracking: true,
+    isParked: false,
+    ra: ra / 15.0,
+    dec: dec,
+    sideOfPier: sideOfPier,
+  );
+}
+
 void main() {
   // 22:00 EDT.
   final lateEvening = DateTime.utc(2026, 10, 20, 2);
@@ -118,16 +144,17 @@ void main() {
   // after it alike; Coming up said "Meridian flip now" for the rest of the
   // target after the flip had run.
   test('a flip done this run is not still coming', () {
-    final lst =
-        AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
+    final plan = TwoTargetPlan();
+    // An hour past the meridian, with the mount on the target.
+    final now = _pastMeridian(plan.m74, 1, lateEvening);
     final container = planContainer(
-      now: lateEvening,
-      sequence: TwoTargetPlan().sequence,
+      now: now,
+      sequence: plan.sequence,
       clock: _edt,
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: lateEvening.subtract(const Duration(hours: 1)),
+        startTime: now.subtract(const Duration(hours: 1)),
       ),
       extra: [
         nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
@@ -139,17 +166,7 @@ void main() {
           ),
         ),
         mountStateProvider.overrideWith(
-          (ref) => _Mount(
-            ref,
-            MountState(
-              connectionState: DeviceConnectionState.connected,
-              isTracking: true,
-              isParked: false,
-              // An hour past the meridian.
-              ra: (lst - 1 + 24) % 24,
-              dec: 42,
-            ),
-          ),
+          (ref) => _Mount(ref, _mountOn(plan.m74, now)),
         ),
       ],
     );
@@ -157,33 +174,31 @@ void main() {
 
     expect(
       container.read(nightTargetProvider)!.flipAt,
-      _edt.fromUtc(lateEvening),
+      _edt.fromUtc(now),
       reason: 'past the threshold and not flipped: the flip is due now',
     );
 
     // ignore: invalid_use_of_protected_member
     container.read(nightSessionEventsProvider.notifier).state =
         NightSessionEvents(
-      flips: [lateEvening.subtract(const Duration(minutes: 40))],
+      flips: [now.subtract(const Duration(minutes: 40))],
     );
     expect(container.read(nightTargetProvider)!.flipAt, isNull);
   });
 
-  // SY-33: the flip moved the mount to pier east and then failed in its
-  // recovery; the host said the mount must not flip again, and Coming up and
-  // the altitude chart still read "Meridian flip 22:51".
-  test('a flip that moved the mount across the pier is not still coming', () {
+  // F32: the run had just started and the mount still pointed near the pole
+  // from an earlier move; the chart said "flip 04:59" for a target whose flip
+  // came at 02:16.
+  test('before the run slews to its target the flip is the target\'s', () {
+    final plan = TwoTargetPlan();
     final lst =
         AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
     final container = planContainer(
       now: lateEvening,
-      sequence: TwoTargetPlan().sequence,
+      sequence: plan.sequence,
       clock: _edt,
       execution: SequenceExecutionState.running,
-      session: SessionState(
-        isActive: true,
-        startTime: lateEvening.subtract(const Duration(hours: 1)),
-      ),
+      session: SessionState(isActive: true, startTime: lateEvening),
       extra: [
         nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
         isMeridianFlipEnabledProvider.overrideWithValue(true),
@@ -200,11 +215,50 @@ void main() {
               connectionState: DeviceConnectionState.connected,
               isTracking: true,
               isParked: false,
-              ra: (lst - 1 + 24) % 24,
-              dec: 42,
-              sideOfPier: 'East',
+              // Five hours east of the meridian, near the pole.
+              ra: (lst + 5.08) % 24,
+              dec: 80,
+              sideOfPier: 'West',
             ),
           ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final target = container.read(nightTargetProvider)!;
+    expect(
+      target.flipAt!.difference(target.transitAt!).inMinutes,
+      inInclusiveRange(9, 10),
+    );
+  });
+
+  // SY-33: the flip moved the mount to pier east and then failed in its
+  // recovery; the host said the mount must not flip again, and Coming up and
+  // the altitude chart still read "Meridian flip 22:51".
+  test('a flip that moved the mount across the pier is not still coming', () {
+    final plan = TwoTargetPlan();
+    final now = _pastMeridian(plan.m74, 1, lateEvening);
+    final container = planContainer(
+      now: now,
+      sequence: plan.sequence,
+      clock: _edt,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: now.subtract(const Duration(hours: 1)),
+      ),
+      extra: [
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+        isMeridianFlipEnabledProvider.overrideWithValue(true),
+        effectiveMeridianFlipSettingsProvider.overrideWithValue(
+          const MeridianFlipSettings(
+            triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+            minutesPastMeridian: 10,
+          ),
+        ),
+        mountStateProvider.overrideWith(
+          (ref) => _Mount(ref, _mountOn(plan.m74, now, sideOfPier: 'East')),
         ),
         nightFlipProvider.overrideWith(_MovedAcrossPier.new),
       ],
