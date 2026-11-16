@@ -32,15 +32,10 @@ List<ShotFrame> get currentTargetFrames => _tonight.frames
     .where((f) => f.target.id == lastFrame.target.id)
     .toList(growable: false);
 
-/// A clock that shows "now" as [ShotNight.now].
-///
-/// The title-bar clock asks for the real instant; this re-expresses an instant
-/// near the real now as the same distance from the fiction's now. Every other
-/// timestamp (the seeded frames) passes through unchanged.
+/// The clock stopped at [ShotNight.now]: every readout that asks the app's
+/// clock agrees with the scene.
 class ShotClock implements Clock {
   const ShotClock();
-
-  static Duration get _shift => ShotNight.now.difference(DateTime.now());
 
   @override
   DateTime now() => ShotNight.now;
@@ -52,18 +47,12 @@ class ShotClock implements Clock {
   Duration get utcOffset => ShotNight.now.timeZoneOffset;
 
   @override
-  DateTime fromUtc(DateTime utc) {
-    final real = DateTime.now().toUtc();
-    final local = utc.toLocal();
-    if (utc.difference(real).abs() < const Duration(minutes: 5)) {
-      return local.add(_shift);
-    }
-    return local;
-  }
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
 }
 
-/// The frame on the stage and in the Imaging viewer: M31 from the Digitized
-/// Sky Survey (see `test/fixtures/README.md`). Statistics that can be measured
+/// The frame on the stage and in the Imaging viewer: a 30 s L sub of M31 from
+/// the owner's rig, through the app's auto-stretch (see
+/// `test/fixtures/README.md`). Statistics that can be measured
 /// from the pixels are measured; HFR, stars and eccentricity are the last
 /// seeded frame's.
 CapturedImageData? capturedFrame;
@@ -74,7 +63,7 @@ Uint8List? frameThumbnail;
 Future<CapturedImageData> loadCapturedFrame() async {
   final file = File(
     '${SurfaceGoldenHarness.repoRoot().path}'
-    '/packages/skotiq_app/test/fixtures/m31_dss2_gray.png',
+    '/packages/skotiq_app/test/fixtures/m31_l_30s_rig.png',
   );
   final codec = await ui.instantiateImageCodec(await file.readAsBytes());
   final frame = await codec.getNextFrame();
@@ -150,10 +139,10 @@ Future<CapturedImageData> loadCapturedFrame() async {
 final screenshotProfile = EquipmentProfileModel(
   id: 1,
   name: ShotNight.profileName,
-  description: 'Esprit 100ED on the EQ6-R, LRGB',
+  description: 'GSO 10-inch f/4 on the NYX-101, LRGB',
   isActive: true,
-  cameraId: 'asi2600mm',
-  mountId: 'eq6r',
+  cameraId: 'asi1600mm',
+  mountId: 'nyx101',
   focuserId: 'eaf',
   filterWheelId: 'efw',
   guiderId: 'phd2',
@@ -212,7 +201,7 @@ class _Observer extends planetarium.PlanetariumObserverNotifier {
 
 class _Camera extends CameraStateNotifier {
   _Camera(super.ref) {
-    setConnecting('asi2600mm', ShotNight.camera);
+    setConnecting('asi1600mm', ShotNight.camera);
     setConnected();
     setCooling(true);
     setTargetTemp(ShotNight.setpoint);
@@ -227,7 +216,7 @@ class _Mount extends MountStateNotifier {
   _Mount(super.ref) {
     final t = lastFrame.target;
     final (alt, az) = ShotNight.altAz(t, ShotNight.now);
-    setConnecting('eq6r', ShotNight.mount);
+    setConnecting('nyx101', ShotNight.mount);
     setConnected();
     updatePosition(t.raHours, t.decDegrees, alt, az);
     setParked(false);
@@ -281,8 +270,7 @@ class _Calibration extends CalibrationStateNotifier {
   }
 }
 
-/// Eighteen minutes of guiding ending at the real now (the graph draws a
-/// rolling window ending at the wall clock), in guide-camera pixels as PHD2
+/// Eighteen minutes of guiding ending at the scene's now, in guide-camera pixels as PHD2
 /// reports them: the periodic error the mount leaves, seeing, and one dither.
 /// About 0.5" RMS per axis at [guidePixelScale], as the frames record.
 final guideTrace = <GuideGraphPoint>[
@@ -300,7 +288,7 @@ final guideTrace = <GuideGraphPoint>[
               0.07 * math.cos(i * 1.3) -
               (i > 140 && i < 146 ? 0.4 * (146 - i) / 6 : 0)) /
           guidePixelScale,
-      DateTime.now().subtract(Duration(seconds: 3 * i)),
+      ShotNight.now.subtract(Duration(seconds: 3 * i)),
     ),
 ];
 
@@ -369,7 +357,7 @@ class _GuideStats extends GuideStatsNotifier {
 class _Focuser extends FocuserStateNotifier {
   _Focuser(super.ref) {
     setConnecting('eaf', ShotNight.focuser);
-    setConnected(maxPosition: 60000, stepSize: 1, isAbsolute: true);
+    setConnected(maxPosition: 600000, stepSize: 1, isAbsolute: true);
     updatePosition(lastFrame.focuserPosition);
     updateTemperature(lastFrame.focuserTemp);
   }
@@ -386,12 +374,10 @@ class _FilterWheel extends FilterWheelStateNotifier {
 class _Session extends SessionStateNotifier {
   _Session(super.ref) {
     final frames = _tonight.frames;
-    final elapsed = ShotNight.now.difference(_tonight.start);
     // ignore: invalid_use_of_protected_member
     state = SessionState(
       isActive: true,
-      // SessionState.duration counts from the wall clock.
-      startTime: DateTime.now().subtract(elapsed),
+      startTime: _tonight.start,
       targetName: lastFrame.target.name,
       targetRa: lastFrame.target.raHours,
       targetDec: lastFrame.target.decDegrees,
@@ -474,7 +460,7 @@ final screenshotSequence = () {
             durationSecs: t.plan.exposureSecs,
             gain: ShotNight.gain,
             offset: ShotNight.offset,
-            ditherEvery: 3,
+            ditherEvery: 10,
           ),
       ],
       ditherOnFilterChange: false,
@@ -668,18 +654,6 @@ List<Override> rigOverrides() => <Override>[
           gain: ShotNight.gain,
           offset: ShotNight.offset,
           filter: lastFrame.filter,
-        ),
-      ),
-      // The countdown at the fiction's now, not the wall clock's.
-      meridianCountdownProvider.overrideWith(
-        (ref) => computeMeridianCountdown(
-          mount: ref.watch(mountStateProvider),
-          longitude: ShotNight.longitude,
-          latitude: ShotNight.latitude,
-          settings: ref.watch(effectiveMeridianFlipSettingsProvider),
-          execState: ref.watch(sequenceExecutionStateProvider),
-          enabled: ref.watch(isMeridianFlipEnabledProvider),
-          nowUtc: ShotNight.now.toUtc(),
         ),
       ),
       phd2StateProvider.overrideWith((ref) => Phd2State.guiding),

@@ -233,7 +233,7 @@ List<UpcomingItemVm> _upcoming() {
     UpcomingItemVm(
       kind: UpcomingKind.dither,
       afterFrame:
-          currentTargetFrames.length + 3 - currentTargetFrames.length % 3,
+          currentTargetFrames.length + 10 - currentTargetFrames.length % 10,
     ),
     const UpcomingItemVm(
       kind: UpcomingKind.autofocus,
@@ -515,7 +515,7 @@ List<EquipmentRowVm> _equipment() {
     EquipmentRowVm(
       kind: EquipmentKind.mount,
       status: EquipmentStatus.ok,
-      deviceName: 'EQ6-R Pro',
+      deviceName: 'NYX-101',
       details: [
         _t('tracking'),
         _t(az < 180 ? 'pier W' : 'pier E'),
@@ -563,7 +563,7 @@ List<NightLogEntryVm> _log() {
       message: _t('#${_night.frames.indexOf(f) + 1} ${f.filter} accepted · '
           'HFR ${f.hfr.toStringAsFixed(2)}'),
     ));
-    if (f.frameNumber % 3 == 0) {
+    if (f.frameNumber % 10 == 0) {
       entries.add(NightLogEntryVm(
         at: f.capturedAt.add(const Duration(seconds: 2)),
         message: _t('Dither 1.5 px · settled 8 s'),
@@ -614,7 +614,7 @@ NightCameraPanelVm _camera() {
     canCommand: true,
     runLive: true,
     connected: true,
-    deviceName: 'ASI2600MM Pro',
+    deviceName: 'ASI1600MM-Cool',
     coolerState: NightCoolerState.atSetpoint,
     sensorTemp: -10,
     setpoint: -10,
@@ -706,7 +706,7 @@ NightFocusPanelVm _focus() {
     fitQuality: 0.97,
     focuserName: 'EAF',
     position: lastFrame.focuserPosition,
-    maxPosition: 60000,
+    maxPosition: 600000,
     focuserTemp: lastFrame.focuserTemp,
     recentRuns: [
       for (final run in runs.reversed.take(4))
@@ -794,7 +794,7 @@ List<Override> tonightOverrides({NightPanelTab tab = NightPanelTab.overview}) =>
       nightPanelOpsProvider.overrideWithValue(FakePanelOps()),
       nightFocusActiveProvider.overrideWithValue(false),
       nightGuideAlertProvider.overrideWithValue(false),
-      mountCapabilitiesProvider('eq6r')
+      mountCapabilitiesProvider('nyx101')
           .overrideWith((_) async => scope.kFullMount),
       nightActionInputsProvider.overrideWithValue(
         NightActionInputs(

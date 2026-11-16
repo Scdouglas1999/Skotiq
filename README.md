@@ -22,7 +22,7 @@ Plan, capture, calibrate and integrate in one astrophotography workspace.
 
 <img src="assets/screenshots/tonight.png" width="1000" alt="Skotiq Tonight during a three-target LRGB run on M31: the plan and its steps, the latest frame, the frame strip, HFR, guiding and focus history, and the connected equipment">
 
-<sub>Rendered from the app over a sample night. The frame is M31 from the Digitized Sky Survey.</sub>
+<sub>Rendered from the app over a sample night. The frame is a raw 30 s sub of M31 from the author's rig.</sub>
 
 </div>
 
@@ -61,7 +61,7 @@ Mosaic panels get laid out here too.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq Equipment with a ZWO ASI2600MM Pro at -10 °C, a Sky-Watcher EQ6-R Pro tracking, a ZWO EAF focuser, a seven-slot filter wheel and PHD2 guiding all connected, beside the profile's readiness and device health">
+<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq Equipment with a ZWO ASI1600MM-Cool at -10 °C, a Pegasus NYX-101 tracking, a ZWO EAF focuser, a seven-slot filter wheel and PHD2 guiding all connected, beside the profile's readiness and device health">
 <p><b>Connect once.</b> Save the rig as a profile — camera, mount, focuser, filter wheel,
 guider and the optics in front of them — and it brings the lot back next time.</p>
 </td>

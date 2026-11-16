@@ -164,7 +164,7 @@ class ShotNightRun {
         return t.isAfter(s.start) && t.isBefore(end) && t.isBefore(s.end);
       }).length;
 
-  int get dithers => frames.length ~/ 3;
+  int get dithers => frames.length ~/ 10;
 
   /// The run record's statistics, as the executor writes them.
   Map<String, Object?> get stats {
@@ -212,21 +212,21 @@ abstract final class ShotNight {
   static const String siteName = 'Spruce Knob';
   static const String timezone = 'America/New_York';
 
-  static const String profileName = 'Esprit 100 · 2600MM';
+  static const String profileName = '10" Newt';
   static const String sequenceName = 'Autumn galaxies + M1';
-  static const String camera = 'ZWO ASI2600MM Pro';
-  static const String mount = 'Sky-Watcher EQ6-R Pro';
+  static const String camera = 'ZWO ASI1600MM-Cool';
+  static const String mount = 'Pegasus NYX-101';
   static const String focuser = 'ZWO EAF';
-  static const String filterWheel = 'ZWO EFW 7x36 II';
+  static const String filterWheel = 'ZWO EFW';
   static const String guider = 'PHD2';
-  static const String telescope = 'Sky-Watcher Esprit 100ED';
-  static const double focalLength = 550;
-  static const double aperture = 100;
-  static const double pixelSizeUm = 3.76;
-  static const int sensorWidth = 6248;
-  static const int sensorHeight = 4176;
-  static const int gain = 100;
-  static const int offset = 50;
+  static const String telescope = 'GSO 10" f/4 Newtonian';
+  static const double focalLength = 1016;
+  static const double aperture = 254;
+  static const double pixelSizeUm = 3.8;
+  static const int sensorWidth = 4656;
+  static const int sensorHeight = 3520;
+  static const int gain = 76;
+  static const int offset = 15;
   static const double setpoint = -10;
   static const List<String> filters = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
 
@@ -244,9 +244,9 @@ abstract final class ShotNight {
     constellation: 'Peg',
     sizeArcmin: 10.5,
     plan: ShotFilterPlan(
-      exposureSecs: 180,
-      frames: {'L': 20, 'R': 6, 'G': 6, 'B': 6},
-      goalFrames: {'L': 120, 'R': 40, 'G': 40, 'B': 40},
+      exposureSecs: 60,
+      frames: {'L': 60, 'R': 20, 'G': 20, 'B': 20},
+      goalFrames: {'L': 360, 'R': 120, 'G': 120, 'B': 120},
     ),
   );
 
@@ -261,9 +261,9 @@ abstract final class ShotNight {
     constellation: 'And',
     sizeArcmin: 190,
     plan: ShotFilterPlan(
-      exposureSecs: 120,
-      frames: {'L': 40, 'R': 15, 'G': 15, 'B': 15},
-      goalFrames: {'L': 360, 'R': 120, 'G': 120, 'B': 120},
+      exposureSecs: 30,
+      frames: {'L': 160, 'R': 60, 'G': 60, 'B': 60},
+      goalFrames: {'L': 1440, 'R': 480, 'G': 480, 'B': 480},
     ),
   );
 
@@ -278,9 +278,9 @@ abstract final class ShotNight {
     constellation: 'Tau',
     sizeArcmin: 6,
     plan: ShotFilterPlan(
-      exposureSecs: 240,
-      frames: {'L': 24, 'R': 8, 'G': 8, 'B': 8},
-      goalFrames: {'L': 150, 'R': 50, 'G': 50, 'B': 50},
+      exposureSecs: 30,
+      frames: {'L': 150, 'R': 50, 'G': 50, 'B': 50},
+      goalFrames: {'L': 1200, 'R': 400, 'G': 400, 'B': 400},
     ),
   );
 
@@ -295,9 +295,9 @@ abstract final class ShotNight {
     constellation: 'And',
     sizeArcmin: 13.5,
     plan: ShotFilterPlan(
-      exposureSecs: 180,
-      frames: {'L': 40, 'R': 12, 'G': 12, 'B': 12},
-      goalFrames: {'L': 120, 'R': 36, 'G': 36, 'B': 36},
+      exposureSecs: 60,
+      frames: {'L': 120, 'R': 36, 'G': 36, 'B': 36},
+      goalFrames: {'L': 360, 'R': 108, 'G': 108, 'B': 108},
     ),
   );
 
@@ -312,9 +312,9 @@ abstract final class ShotNight {
     constellation: 'Cas',
     sizeArcmin: 60,
     plan: ShotFilterPlan(
-      exposureSecs: 300,
-      frames: {'Ha': 36, 'OIII': 36, 'SII': 36},
-      goalFrames: {'Ha': 120, 'OIII': 120, 'SII': 120},
+      exposureSecs: 180,
+      frames: {'Ha': 60, 'OIII': 60, 'SII': 60},
+      goalFrames: {'Ha': 200, 'OIII': 200, 'SII': 200},
     ),
   );
 
@@ -329,9 +329,9 @@ abstract final class ShotNight {
     constellation: 'Tri',
     sizeArcmin: 70,
     plan: ShotFilterPlan(
-      exposureSecs: 180,
-      frames: {'L': 30, 'R': 10, 'G': 10, 'B': 10},
-      goalFrames: {'L': 160, 'R': 50, 'G': 50, 'B': 50},
+      exposureSecs: 60,
+      frames: {'L': 90, 'R': 30, 'G': 30, 'B': 30},
+      goalFrames: {'L': 480, 'R': 150, 'G': 150, 'B': 150},
     ),
   );
 
@@ -473,13 +473,13 @@ abstract final class ShotNight {
         }
       }
     }
-    const overheadSecs = 14;
+    const overheadSecs = 6;
     var t = slot.start.add(const Duration(minutes: 3));
     // Autofocus at the start of each target, then on a 1 degree drop.
     var temp = ambientAt(day, t);
     var focusTemp = temp;
     var position = _focusPosition(temp);
-    focus.add(ShotAutofocus(t, position, 1.86 + random.nextDouble() * 0.08,
+    focus.add(ShotAutofocus(t, position, 2.08 + random.nextDouble() * 0.08,
         double.parse(temp.toStringAsFixed(1))));
     t = t.add(const Duration(minutes: 3));
     var number = 0;
@@ -493,7 +493,7 @@ abstract final class ShotNight {
       if ((focusTemp - temp).abs() >= 1.0) {
         position = _focusPosition(temp);
         focusTemp = temp;
-        focus.add(ShotAutofocus(end, position, 1.84 + random.nextDouble() * 0.1,
+        focus.add(ShotAutofocus(end, position, 2.06 + random.nextDouble() * 0.1,
             double.parse(temp.toStringAsFixed(1))));
         t = end.add(const Duration(minutes: 2, seconds: 40));
         continue;
@@ -569,13 +569,13 @@ abstract final class ShotNight {
         ),
       );
       t = end.add(const Duration(seconds: overheadSecs));
-      if (number % 3 == 0) t = t.add(const Duration(seconds: 11));
+      if (number % 10 == 0) t = t.add(const Duration(seconds: 11));
     }
   }
 
   /// The focuser position for an ambient temperature: about 30 steps per
   /// degree, outward as it cools.
-  static int _focusPosition(double temp) => (28420 + (9 - temp) * 31).round();
+  static int _focusPosition(double temp) => (59800 + (9 - temp) * 31).round();
 
   /// Local sidereal time in hours at [t].
   static double lst(DateTime t) {

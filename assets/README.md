@@ -42,11 +42,12 @@ Published README screenshots live in `assets/screenshots/`.
 
 **Generated.** `packages/skotiq_app/test/golden/public_screenshots_test.dart`
 renders every file above except the last five. Each one is the real app (router,
-shell, screens) over one seeded night: a site in the Eastern time zone, an
-Esprit 100 with an ASI2600MM on an EQ6-R, and a run on NGC 7331, M31 and M1 at
-23:47 on the evening the test runs. The frame shown is M31 from the Digitized
-Sky Survey (`packages/skotiq_app/test/fixtures/README.md`); the frame
-statistics, guiding and history are generated from that night, not measured.
+shell, screens) over one seeded night: a site in the Eastern time zone, the
+author's rig (a 10-inch f/4 Newtonian with an ASI1600MM-Cool on a NYX-101), and
+a run on NGC 7331, M31 and M1 at 23:47 on the evening the test runs, with the
+app clock stopped there. The frame shown is a raw 30 s sub of M31 from that rig
+through the app's own stretch (`packages/skotiq_app/test/fixtures/README.md`);
+the frame statistics, guiding and history are generated, not measured.
 The test writes into this folder only when you ask it to, in two runs:
 
 ```bash
@@ -62,11 +63,6 @@ phone set at 390 x 844 (three times that in pixels) without the desktop window
 controls. Without `SKOTIQ_CAPTURE_ASSETS=1` the test writes to a temporary
 directory and leaves the tracked files alone. Commit the regenerated PNGs; do
 not hand-edit one, because the next capture run overwrites it.
-
-A few readouts count from the wall clock rather than the night's 23:47 (the
-Imaging and Analytics run duration, the History row of the running night and
-the Sequencer's ETA column); they agree with the rest of the set only when the
-capture runs close to 23:47.
 
 **Captured from the running app.** `framing`, `planetarium`, `weather` and
 `darkroom-draft` need survey tiles, the star catalog, radar imagery or built
