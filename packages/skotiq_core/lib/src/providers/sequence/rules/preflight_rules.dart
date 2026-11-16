@@ -1028,30 +1028,3 @@ int _binningToInt(BinningMode mode) {
       return 4;
   }
 }
-
-/// Returns true if the supplied list of dark-library entries has at
-/// least one master dark for the requested combination. Exposed for
-/// the dialog's "capture missing darks" deep-link.
-bool darkLibraryHasMatchingMaster(
-  List<DarkLibraryEntry> entries, {
-  required int gain,
-  required int offset,
-  required double durationSecs,
-  required int binX,
-  required int binY,
-  double? targetTemp,
-}) {
-  return entries.any((e) {
-    if (e.frameType != 'dark') return false;
-    if (e.masterDarkPath == null) return false;
-    if (e.gain != gain) return false;
-    if (e.offset != offset) return false;
-    if (e.binX != binX) return false;
-    if (e.binY != binY) return false;
-    if ((e.exposureTime - durationSecs).abs() > 1.0) return false;
-    if (targetTemp != null && e.temperature != null) {
-      if ((e.temperature! - targetTemp).abs() > 0.5) return false;
-    }
-    return true;
-  });
-}
