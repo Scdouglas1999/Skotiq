@@ -102,7 +102,9 @@ void main() {
           binY: any(named: 'binY'),
           temperature: any(named: 'temperature'),
         ),
-      ).thenAnswer((_) async => r'C:\Users\scdou\Documents\Darks\master.fits');
+      ).thenAnswer(
+        (_) async => r'C:\Users\observer\Documents\Darks\master.fits',
+      );
       when(
         () => backend.calibrateImageFile(
           lightPath: any(named: 'lightPath'),
@@ -123,7 +125,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      const light = r'C:\Users\scdou\Documents\NGC7380\NGC0891_L_0001.fits';
+      const light = r'C:\Users\observer\Documents\NGC7380\NGC0891_L_0001.fits';
       final result = await container
           .read(calibrationServiceProvider)
           .calibrateFile(
@@ -134,7 +136,7 @@ void main() {
           );
 
       const expected =
-          r'C:\Users\scdou\Documents\NGC7380\NGC0891_L_0001_cal.fits';
+          r'C:\Users\observer\Documents\NGC7380\NGC0891_L_0001_cal.fits';
       expect(result.outputPath, expected);
       verify(
         () => backend.calibrateImageFile(
@@ -170,14 +172,14 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    const light = r'C:\Users\scdou\Documents\NGC7380\IMG_0001.CR3';
+    const light = r'C:\Users\observer\Documents\NGC7380\IMG_0001.CR3';
     final result = await container
         .read(calibrationServiceProvider)
         .calibrateFile(
           lightPath: light,
           settings: const CalibrationSettings(
             autoDarkFromLibrary: false,
-            masterBiasPath: r'C:\Users\scdou\Documents\Bias\master.fits',
+            masterBiasPath: r'C:\Users\observer\Documents\Bias\master.fits',
           ),
           exposureTime: 120,
           gain: 800,
@@ -185,7 +187,7 @@ void main() {
 
     expect(
       result.outputPath,
-      r'C:\Users\scdou\Documents\NGC7380\IMG_0001_cal.fits',
+      r'C:\Users\observer\Documents\NGC7380\IMG_0001_cal.fits',
     );
   });
 }

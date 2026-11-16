@@ -574,7 +574,7 @@ void main() {
       );
       expect(
         seam.merged.single['basePath'],
-        contains('swarm_overlay/tiles/9/99.skt'),
+        contains(p.join('swarm_overlay', 'tiles', '9', '99.skt')),
       );
       // The returned total is the overlay's own (community) depth.
       expect(overlayFrames, 42);
@@ -634,7 +634,7 @@ void main() {
       final after = await dao.getTile(99, healpixOrder: 9);
       expect(after!.totalFrames, 1);
       expect(after.integrationSeconds, closeTo(300.0, 1e-9));
-      expect(after.sidecarPath, contains('tiles/9/99.skt'));
+      expect(after.sidecarPath, contains(p.join('tiles', '9', '99.skt')));
       expect(after.sidecarPath, isNot(contains('swarm_overlay')));
       expect(after.swarmOverlayFrames, 42);
     },

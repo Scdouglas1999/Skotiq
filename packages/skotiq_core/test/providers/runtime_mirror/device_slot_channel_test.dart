@@ -133,6 +133,11 @@ void main() {
   test('a tracking mount that drifts less than the cards show sends '
       'nothing', () async {
     final host = mirrorHost();
+    // The host's own 2 s position poll is another input, and a failed read is
+    // sent; a read that never answers keeps it out of what is measured here.
+    when(
+      () => host.backend.getMountStatus(any()),
+    ).thenAnswer((_) => Completer<MountStatus>().future);
     final mount = host.container.read(mountStateProvider.notifier);
     _connect(mount, 'mount-1', 'Mount');
     mount.updatePosition(3.5, 40, 62.01, 180.02);

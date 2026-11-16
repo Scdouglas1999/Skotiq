@@ -160,7 +160,7 @@ void main() {
     companion.listen(frameAutoSolveProvider, (_, __) {});
     companion.read(currentImageProvider.notifier).state = _frame(
       1,
-      path: r'C:\Users\scdou\Documents\NGC7380\Unknown_R_0001.fits',
+      path: r'C:\Users\observer\Documents\NGC7380\Unknown_R_0001.fits',
     );
     await settle();
     expect(solver.calls, isEmpty);

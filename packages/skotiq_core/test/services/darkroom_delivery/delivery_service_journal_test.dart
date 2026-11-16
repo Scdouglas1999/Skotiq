@@ -724,6 +724,10 @@ void main() {
 
     test('a published file still on the rig is left waiting, and is not '
         'hashed to find that out', () async {
+      if (Platform.isWindows) {
+        markTestSkipped('POSIX permission bits');
+        return;
+      }
       // The existence check is `stat`, not `describe`: a peer row is looked at
       // on every heartbeat pass for as long as the desktop leaves it unpulled,
       // and hashing there would re-read every published master on an appliance

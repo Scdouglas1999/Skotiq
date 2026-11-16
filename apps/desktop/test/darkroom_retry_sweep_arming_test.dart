@@ -15,6 +15,7 @@
 // So the sweep belongs to delivery: `resumeDarkroomWork` is the one seam every
 // mode that owns the journal runs, and it is what arms the timer.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -155,7 +156,7 @@ void main() {
       final targetId = await DeliveryTargetsDao(database).create(
         name: 'attic-nas',
         kind: ArtifactDestinationKind.watchedFolder,
-        configJson: '{"path":"${drop.path}"}',
+        configJson: jsonEncode({'path': drop.path}),
         content: {ArtifactContent.linearMasters},
       );
       final journal = DeliveryJournalDao(database);

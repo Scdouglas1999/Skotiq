@@ -123,6 +123,12 @@ void main() {
   group('a staged copy that cannot be read back', () {
     test('names the destination, not the source, when the destination is '
         'removed mid-copy', () async {
+      if (Platform.isWindows) {
+        // Windows refuses to delete a folder while a file in it is open, so
+        // the destination cannot vanish under an in-process copy.
+        markTestSkipped('a folder with an open file cannot be deleted');
+        return;
+      }
       final path = p.join(source.path, 'huge_master.fits');
       final handle = await File(path).open(mode: FileMode.write);
       await handle.setPosition(_bigEnoughToRace - 1);
@@ -185,6 +191,10 @@ void main() {
 
     test('a destination that refuses the read back is the destination\'s '
         'permissions', () async {
+      if (Platform.isWindows) {
+        markTestSkipped('POSIX permission bits');
+        return;
+      }
       final artifact = await master('locked.fits');
       // The staged name exists already, writable but not readable. The copy
       // lands; reading it back is what the destination refuses.

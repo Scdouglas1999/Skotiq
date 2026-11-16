@@ -91,6 +91,11 @@ class SingleInstanceLock {
 
   static String lockPathFor(File dbFile) => '${dbFile.path}.lock';
 
+  /// The byte the claim locks, far past the holder note at the start of the
+  /// file. Windows locks are mandatory: a lock over the note would stop the
+  /// next instance from reading who holds the database.
+  static const int _claimedByte = 1 << 30;
+
   /// Claims [dbFile] for this process.
   ///
   /// Throws [SkotiqAlreadyRunningException] if another process holds it.
@@ -124,7 +129,7 @@ class SingleInstanceLock {
       // taken; FileLock.blockingExclusive would hang startup behind whatever
       // the other instance is doing, which for an all-night session is
       // indistinguishable from a freeze.
-      await handle.lock(FileLock.exclusive);
+      await handle.lock(FileLock.exclusive, _claimedByte, _claimedByte + 1);
     } on FileSystemException {
       final detail = await _readHolder(lockPath);
       await handle.close();
@@ -190,7 +195,7 @@ class SingleInstanceLock {
     if (--_refCount > 0) return;
     _heldInThisProcess.remove(lockPath);
     try {
-      await handle.unlock();
+      await handle.unlock(_claimedByte, _claimedByte + 1);
     } on FileSystemException {
       // Already gone; closing below still drops the kernel lock.
     }

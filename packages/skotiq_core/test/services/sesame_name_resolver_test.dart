@@ -40,6 +40,12 @@ String _sesameXml(String oname, double raDeg, double decDeg, String otype) =>
     '<jradeg>$raDeg</jradeg><jdedeg>$decDeg</jdedeg>'
     '<oname>$oname</oname></Resolver></Target></Sesame>';
 
+/// How the operating system words a refused connection; the error text passes
+/// the system's own words through.
+final _refusedByTheOs = Platform.isWindows
+    ? 'The remote computer refused the network connection'
+    : 'Connection refused';
+
 void main() {
   group('SesameNameResolver', () {
     test('parses the object, coordinates and collapses SIMBAD padding', () {
@@ -106,7 +112,7 @@ void main() {
       expect(error, isA<TargetNameLookupUnavailable>());
       expect(
         userFacingError(error),
-        'Could not reach SIMBAD (Connection refused).',
+        'Could not reach SIMBAD ($_refusedByTheOs).',
       );
     });
 

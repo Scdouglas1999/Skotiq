@@ -10,6 +10,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -287,7 +288,7 @@ void main() {
     expect(ngc.deliver.state, NightEndStepState.done);
     expect(ngc.deliver.detail, startsWith('Delivered'));
     expect(first.message.state, NightEndStepState.done);
-    expect(ngc.directory, '${folder.path}/Masters/NGC891');
+    expect(ngc.directory, p.join(folder.path, 'Masters', 'NGC891'));
 
     expect(native.built, ['L', 'R']);
     for (final build in native.requests.where((r) => r['op'] == 'build')) {

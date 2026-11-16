@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/services.dart';
 
 void main() {
@@ -90,7 +91,7 @@ void main() {
         service.installFromBytes(upload, filename: 'new.skplugin'),
         throwsA(isA<PluginRegistryException>()),
       );
-      expect(directory.listSync().map((entry) => entry.path.split('/').last), [
+      expect(directory.listSync().map((entry) => p.basename(entry.path)), [
         PluginManagementService.registryFileName,
       ]);
     },

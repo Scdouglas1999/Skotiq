@@ -39,12 +39,13 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 
-const String _masterPath = '/tmp/skotiq-test/m31_B.fits';
+final String _masterPath = '$darkroomScratch/m31_B.fits';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -277,12 +278,12 @@ void main() {
     List<Map<String, dynamic>> steps, {
     String name = 'Draft',
     int? masterId,
-    String path = _masterPath,
+    String? path,
     RecipeAuthor by = RecipeAuthor.autopilot,
   }) {
     return recipes.create(
       masterId: masterId,
-      baseMasterPath: path,
+      baseMasterPath: path ?? _masterPath,
       name: name,
       stepsJson: jsonEncode(steps),
       createdBy: by,
@@ -818,12 +819,12 @@ void main() {
     );
     final lId = await seedMaster(
       name: 'Master · L',
-      path: '/tmp/skotiq-test/m31_L.fits',
+      path: '$darkroomScratch/m31_L.fits',
       filter: 'L',
     );
     final gId = await seedMaster(
       name: 'Master · G',
-      path: '/tmp/skotiq-test/m31_G.fits',
+      path: '$darkroomScratch/m31_G.fits',
       filter: 'G',
     );
     await foldFrame(bId, sessionId, 'b1');
@@ -835,7 +836,7 @@ void main() {
       [_step('denoise')],
       name: 'Master · L draft',
       masterId: lId,
-      path: '/tmp/skotiq-test/m31_L.fits',
+      path: '$darkroomScratch/m31_L.fits',
     );
 
     // Narrower than the Edit tab's image list needs, so the bar carries the
@@ -876,7 +877,7 @@ void main() {
     );
     final lId = await seedMaster(
       name: 'Master · L',
-      path: '/tmp/skotiq-test/m31_L.fits',
+      path: '$darkroomScratch/m31_L.fits',
       filter: 'L',
     );
     await seedRecipe([_step('denoise')],
@@ -1146,14 +1147,14 @@ void main() {
       (tester) async {
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/job_1_master_1_draft.jpg.skrecipe',
+      path: '$darkroomScratch/job_1_master_1_draft.jpg.skrecipe',
       text: jsonEncode({
         'kind': 'skrecipe',
         'schemaVersion': 1,
         'fingerprint': '69dbbc0189442a0d7fb286a1bb06acb8',
-        'masterPath': '/tmp/skotiq-test/somewhere_else.fits',
+        'masterPath': '$darkroomScratch/somewhere_else.fits',
         'recipe': {
-          'baseMasterRef': '/tmp/skotiq-test/somewhere_else.fits',
+          'baseMasterRef': '$darkroomScratch/somewhere_else.fits',
           'createdBy': 'autopilot',
           'steps': [
             _step('crop'),
@@ -1195,7 +1196,7 @@ void main() {
     darkroom.unregisteredOps = {'wavelet_sharpen@3'};
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/future.fits.skrecipe',
+      path: '$darkroomScratch/future.fits.skrecipe',
       text: jsonEncode({
         'kind': 'skrecipe',
         'schemaVersion': 1,
@@ -1248,8 +1249,8 @@ void main() {
 
   testWidgets('a sidecar with no steps is refused by name', (tester) async {
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
-    sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/empty.skrecipe',
+    sidecarAnswer = DarkroomSidecarPick(
+      path: '$darkroomScratch/empty.skrecipe',
       text: '{"kind":"skrecipe","recipe":{"steps":[]}}',
     );
 
@@ -1288,8 +1289,8 @@ void main() {
       masterId: masterId,
     );
     // The first 900 bytes of a real sidecar: the JSON ends mid-string.
-    sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/truncated.skrecipe',
+    sidecarAnswer = DarkroomSidecarPick(
+      path: '$darkroomScratch/truncated.skrecipe',
       text: '{"kind":"skrecipe","schemaVersion":1,"masterPath":"/tmp/night',
     );
 
@@ -1321,8 +1322,8 @@ void main() {
       name: 'Master · B draft',
       masterId: masterId,
     );
-    sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/empty.skrecipe',
+    sidecarAnswer = DarkroomSidecarPick(
+      path: '$darkroomScratch/empty.skrecipe',
       text: '{"kind":"skrecipe","recipe":{"steps":[]}}',
     );
 
@@ -1364,8 +1365,8 @@ void main() {
     // character." — which names nothing the operator chose and nothing they can
     // do. The missing-master error two inches away names two next steps.
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
-    sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/notjson.skrecipe',
+    sidecarAnswer = DarkroomSidecarPick(
+      path: '$darkroomScratch/notjson.skrecipe',
       text: 'this is not json at all',
     );
 
@@ -1405,8 +1406,8 @@ void main() {
     // another import replaced it — pushing the three start buttons down with
     // it.
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
-    sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/notjson.skrecipe',
+    sidecarAnswer = DarkroomSidecarPick(
+      path: '$darkroomScratch/notjson.skrecipe',
       text: 'this is not json at all',
     );
 

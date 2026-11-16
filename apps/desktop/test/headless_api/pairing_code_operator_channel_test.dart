@@ -19,6 +19,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_attempt_tracker.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
@@ -89,7 +90,7 @@ void main() {
       expect(path, isNotNull);
       // It lands in the app-support root, NOT in the logs directory (which
       // is enumerable/downloadable through /api/logs/files/...).
-      expect(path, equals('${tempDir.path}/$kPairingCodeFileName'));
+      expect(path, equals(p.join(tempDir.path, kPairingCodeFileName)));
 
       final file = File(path!);
       expect(await file.exists(), isTrue);

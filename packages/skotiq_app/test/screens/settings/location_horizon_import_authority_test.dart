@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/screens/settings/widgets/location_settings.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -100,7 +101,8 @@ void main() {
       extraOverrides: [
         ..._settingsOverrides(),
         horizonImportPickerProvider.overrideWithValue(
-          () async => XFile('/selected-horizon.csv'),
+          // A picker answers a path in the host's own separators.
+          () async => XFile(p.join(p.separator, 'selected-horizon.csv')),
         ),
         horizonImportReaderProvider.overrideWithValue(
           (file) async => '0,12\n90,7\n',

@@ -35,12 +35,13 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 
-const String _masterPath = '/tmp/skotiq-test/m31_G.fits';
+final String _masterPath = '$darkroomScratch/m31_G.fits';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {

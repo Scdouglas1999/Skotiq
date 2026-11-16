@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:image/image.dart' as img;
 import 'package:skotiq_app/screens/darkroom/darkroom_previews.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
@@ -72,7 +73,7 @@ void main() {
   test('a recipe draft is kept beside its master, one file per recipe', () {
     expect(
       darkroomRecipePreviewPath('/data/Masters/NGC_891/L.fits', 7),
-      '/data/Masters/NGC_891/previews/recipe-7.jpg',
+      p.join('/data/Masters/NGC_891', 'previews', 'recipe-7.jpg'),
     );
   });
 
@@ -82,10 +83,13 @@ void main() {
       _recipe(2, '/m/L.fits', DateTime(2026, 10, 24)),
       _recipe(3, '/m/L.fits', DateTime(2026, 10, 22)),
     ];
-    final onDisk = {'/m/previews/recipe-1.jpg', '/m/previews/recipe-3.jpg'};
+    final onDisk = {
+      p.join('/m', 'previews', 'recipe-1.jpg'),
+      p.join('/m', 'previews', 'recipe-3.jpg'),
+    };
     expect(
       darkroomRecipeDraftPreview(recipes, exists: onDisk.contains),
-      '/m/previews/recipe-3.jpg',
+      p.join('/m', 'previews', 'recipe-3.jpg'),
     );
     expect(darkroomRecipeDraftPreview(recipes, exists: (_) => false), isNull);
   });

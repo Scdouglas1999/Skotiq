@@ -484,7 +484,14 @@ void main() {
     }
 
     test('rejects a directory that cannot be created', () async {
-      final response = await post({'path': '/proc/skotiq-cannot-write'});
+      // A folder inside a regular file cannot be made on any system.
+      final parent = Directory.systemTemp.createTempSync('sk-save-path-file');
+      addTearDown(() => parent.deleteSync(recursive: true));
+      final file = File('${parent.path}${Platform.pathSeparator}not-a-folder')
+        ..writeAsStringSync('');
+      final response = await post({
+        'path': '${file.path}${Platform.pathSeparator}images',
+      });
 
       expect(response.statusCode, HttpStatus.badRequest);
       final body = jsonDecode(await response.readAsString()) as Map;

@@ -27,6 +27,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
@@ -224,7 +225,7 @@ DawnPhotometryResolver _emptyPhotometry() {
   );
 }
 
-const String _masterPath = '/tmp/skotiq-test/m31_L.fits';
+final String _masterPath = '$darkroomScratch/m31_L.fits';
 
 Map<String, dynamic> _step(
   String opId, {

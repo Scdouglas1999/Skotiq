@@ -16,6 +16,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 /// The directories this batch owns.
 const _scoped = <String>[
@@ -51,8 +52,10 @@ void main() {
       final root = Directory(dir);
       if (!root.existsSync()) continue;
       for (final entity in root.listSync(recursive: true)) {
-        if (entity is! File || !entity.path.endsWith('.dart')) continue;
-        if (_gestureOnly.any(entity.path.endsWith)) continue;
+        // `/` between the parts on every host, as [_gestureOnly] names them.
+        final path = p.posix.joinAll(p.split(entity.path));
+        if (entity is! File || !path.endsWith('.dart')) continue;
+        if (_gestureOnly.any(path.endsWith)) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           if (!opener.hasMatch(lines[i].split('//').first)) continue;
@@ -62,7 +65,7 @@ void main() {
           // `Tooltip(message: …, child: Semantics(`).
           final window = lines.sublist(i < 15 ? 0 : i - 15, i + 1).join('\n');
           if (window.contains('Semantics(')) continue;
-          offenders.add('${entity.path}:${i + 1}');
+          offenders.add('$path:${i + 1}');
         }
       }
     }

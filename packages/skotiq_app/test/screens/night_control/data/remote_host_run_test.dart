@@ -48,7 +48,7 @@ db.DbCapturedImage _row(
 }) =>
     db.DbCapturedImage(
       id: id,
-      filePath: 'C:/Users/scdou/Documents/frame_$id.fits',
+      filePath: 'C:/Users/observer/Documents/frame_$id.fits',
       fileName: 'frame_$id.fits',
       fileFormat: 'fits',
       binX: 1,

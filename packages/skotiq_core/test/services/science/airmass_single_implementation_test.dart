@@ -25,6 +25,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Walks up from the test's working directory to the repository root — the
@@ -98,12 +99,10 @@ bool _looksLikePickering(String source) {
   return pattern.hasMatch(source);
 }
 
-String _relative(File file) {
-  final rootPath = '${_repoRoot().path}/';
-  return file.path.startsWith(rootPath)
-      ? file.path.substring(rootPath.length)
-      : file.path;
-}
+/// [file]'s path from the repository root, with `/` between its parts so it
+/// compares equal to [_canonicalPath] on every host.
+String _relative(File file) =>
+    p.split(p.relative(file.path, from: _repoRoot().path)).join('/');
 
 void main() {
   group('one airmass implementation', () {

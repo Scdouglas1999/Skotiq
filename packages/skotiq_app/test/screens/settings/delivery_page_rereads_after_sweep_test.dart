@@ -16,6 +16,7 @@
 // real DeliveryRetrySweeper over the real transport factory writing real bytes,
 // and the page never unmounted between the two reads.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -66,7 +67,7 @@ Future<int> _seedOwedRow(
   final targetId = await DeliveryTargetsDao(database).create(
     name: name,
     kind: ArtifactDestinationKind.watchedFolder,
-    configJson: '{"path":"${drop.path}"}',
+    configJson: jsonEncode({'path': drop.path}),
     content: content,
   );
   final journal = DeliveryJournalDao(database);

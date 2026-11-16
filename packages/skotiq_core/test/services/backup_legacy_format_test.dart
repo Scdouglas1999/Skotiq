@@ -27,12 +27,7 @@ void main() {
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('skotiq_legacy_backup_');
-    logger = LoggingService(
-      applicationSupportDirectoryProvider: () async => dir,
-      nativeInitWithLogging: ({String? logDirectory}) {},
-      nativeInit: () {},
-      currentLogFileProvider: () => null,
-    );
+    logger = testLogger(dir);
   });
   tearDown(() => dir.delete(recursive: true));
 

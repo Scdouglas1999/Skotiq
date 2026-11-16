@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 
@@ -101,10 +102,12 @@ void main() {
       final total = infos.fold<int>(0, (sum, file) => sum + file.sizeBytes);
       expect(await service.getLogSizeBytes(), total);
       final old = File(
-        '${service.logDirectory}/skotiq-requests.log.2000-01-01',
+        p.join(service.logDirectory!, 'skotiq-requests.log.2000-01-01'),
       );
       await old.writeAsString('old request');
-      final unrelated = File('${service.logDirectory}/skotiq-requests.log');
+      final unrelated = File(
+        p.join(service.logDirectory!, 'skotiq-requests.log'),
+      );
       await unrelated.writeAsString('unrelated');
       final exported = await service.exportLogs('${root.path}/export.txt');
       expect(
