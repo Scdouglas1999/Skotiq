@@ -65,8 +65,16 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
       const AppSettingsState(latitude: 35, longitude: -118);
 }
 
+final _modelSix = CurrentSky(
+  model: CloudCoverForecast(
+    percent: 6,
+    source: 'Open-Meteo',
+    validAt: DateTime.utc(2026, 11, 14, 2, 45),
+  ),
+);
+
 Future<void> _pumpWeather(WidgetTester tester, List<RadarFrame> frames,
-    {bool cloudForecast = false}) async {
+    {CurrentSky? sky}) async {
   await pumpAppScreen(
     tester,
     const WeatherScreen(),
@@ -80,19 +88,14 @@ Future<void> _pumpWeather(WidgetTester tester, List<RadarFrame> frames,
         (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
       ),
       appSettingsProvider.overrideWith(_SiteSettingsNotifier.new),
-      if (cloudForecast) ...[
-        cloudCoverForecastProvider
-            .overrideWith((ref) async => CloudCoverForecast(
-                  percent: 6,
-                  source: 'Open-Meteo',
-                  validAt: DateTime.utc(2026, 11, 14, 2, 45),
-                )),
+      if (sky != null) ...[
+        currentSkyProvider.overrideWith((ref) async => sky),
         evaluateWeatherConditionsProvider.overrideWith((ref) async {
           final service = WeatherAlertService();
           ref.onDispose(service.dispose);
           return service.evaluateConditions(
             motion: null,
-            currentCloudDensity: 6,
+            currentCloudDensity: sky.percent,
             settings: const WeatherSettings(),
           );
         }),
@@ -142,10 +145,9 @@ void main() {
   testWidgets(
       '6% forecast discloses model and sample time without observing clear sky',
       (tester) async {
-    await _pumpWeather(tester, _loop(past: 1), cloudForecast: true);
-    expect(find.text('FORECAST CLOUD COVER'), findsOneWidget);
-    expect(
-        find.text('Open-Meteo model · 2026-11-14 02:45 UTC'), findsOneWidget);
+    await _pumpWeather(tester, _loop(past: 1), sky: _modelSix);
+    expect(find.text('CLOUD COVER NOW'), findsOneWidget);
+    expect(find.text('Open-Meteo 6 % · 02:45 UTC'), findsOneWidget);
     expect(find.textContaining('Model estimate, not an observation'),
         findsOneWidget);
     expect(find.text('No forecast alert'), findsOneWidget);
@@ -153,6 +155,44 @@ void main() {
     expect(find.text('Clear'), findsNothing);
     expect(find.text('Warmer'), findsWidgets);
     expect(find.text('Colder'), findsWidgets);
+  });
+
+  testWidgets(
+      'a station report is the figure, with the model and their disagreement',
+      (tester) async {
+    final observedAt = DateTime.now().toUtc();
+    await _pumpWeather(
+      tester,
+      _loop(past: 1),
+      sky: CurrentSky(
+        station: StationSky(
+          stationId: 'KOQN',
+          stationName: 'West Chester',
+          distanceKm: 15.4,
+          observedAt: observedAt,
+          amount: CloudAmount.clear,
+          seesUpToFeet: 12000,
+        ),
+        model: CloudCoverForecast(
+          percent: 62,
+          source: 'Open-Meteo',
+          validAt: observedAt,
+        ),
+        modelHighCloudPercent: 0,
+      ),
+    );
+    expect(find.text('CLOUD COVER NOW'), findsOneWidget);
+    expect(
+        find.textContaining('KOQN station · 15 km · observed'), findsOneWidget);
+    expect(
+      find.text('Automated report: clear below 12,000 ft. Higher cloud comes '
+          'from the model (0 % high cloud).'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Model: Open-Meteo 62 %'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('weather_sources_disagree')), findsOneWidget);
+    expect(find.textContaining('Model estimate'), findsNothing);
   });
 
   group('latestObservedRadarFrameIndex', () {

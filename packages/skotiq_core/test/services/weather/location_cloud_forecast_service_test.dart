@@ -22,8 +22,7 @@ Object _nwsGrid() => {
   },
 };
 
-Object _openMeteo({String time = '2026-11-14T03:00'}) => {
-  'current': {'time': time, 'cloud_cover': 8},
+Object _openMeteo() => {
   'hourly': {
     'time': ['2026-11-14T03:00', '2026-11-14T04:00'],
     'cloud_cover': [8, 7],
@@ -64,181 +63,73 @@ class _TrackedClient extends MockClient {
 }
 
 void main() {
-  test(
-    'expired NWS data falls back for both current and future hours',
-    () async {
-      final client = MockClient((request) async {
-        if (request.url.host == 'api.weather.gov') {
-          if (request.url.path.startsWith('/points/')) {
-            return _json({
-              'properties': {
-                'forecastGridData':
-                    'https://api.weather.gov/gridpoints/TST/1,1',
-              },
-            });
-          }
-          return _json({
-            'properties': {
-              'skyCover': {
-                'uom': 'wmoUnit:percent',
-                'values': [
-                  {'validTime': '2026-11-12T03:00:00+00:00/PT1H', 'value': 87},
-                ],
-              },
-            },
-          });
-        }
-        return _json(_openMeteo());
-      });
-      final service = LocationCloudForecastService(
-        httpClient: client,
-        clock: () => _now,
-      );
-      addTearDown(service.dispose);
-      final current = await service.fetchCurrentCloudForecast(
-        latitude: 40,
-        longitude: -75,
-      );
-      final hours = await service.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
-      expect(current!.source, 'Open-Meteo');
-      expect(hours.providerName, current.source);
-      expect(
-        hours.frames.any((frame) => frame.timestamp.isAfter(_now)),
-        isTrue,
-      );
-    },
-  );
+  http.Response nwsAnswer(http.Request request) =>
+      request.url.path.startsWith('/points/')
+      ? _json({
+          'properties': {
+            'forecastGridData': 'https://api.weather.gov/gridpoints/TST/1,1',
+          },
+        })
+      : _json(_nwsGrid());
 
-  test(
-    'NWS87 beats Open-Meteo8 by coverage policy for current and hours',
-    () async {
-      final hosts = <String>[];
-      final client = _TrackedClient((request) async {
-        hosts.add(request.url.host);
-        if (request.url.host == 'api.weather.gov') {
-          if (request.url.path.startsWith('/points/')) {
-            return _json({
-              'properties': {
-                'forecastGridData':
-                    'https://api.weather.gov/gridpoints/TST/1,1',
-              },
-            });
-          }
-          return _json(_nwsGrid());
-        }
-        return _json(_openMeteo());
-      });
-      final service = LocationCloudForecastService(
-        httpClient: client,
-        clock: () => _now,
-      );
-      final current = await service.fetchCurrentCloudForecast(
-        latitude: 40,
-        longitude: -75,
-      );
-      final hours = await service.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
-      expect(current!.percent, 87);
-      expect(current.source, 'National Weather Service');
-      expect(current.validAt, DateTime.utc(2026, 11, 14, 3));
-      expect(hours.isSuccess, isTrue);
-      expect(hours.providerName, current.source);
-      expect(hours.frames.first.opacity, .87);
-      expect(hosts, everyElement('api.weather.gov'));
-      expect(client.closeCount, 0);
-      service.dispose();
-      expect(client.closeCount, 1);
-    },
-  );
+  test('the NWS grid comes first where it answers', () async {
+    final hosts = <String>[];
+    final client = _TrackedClient((request) async {
+      hosts.add(request.url.host);
+      return request.url.host == 'api.weather.gov'
+          ? nwsAnswer(request)
+          : _json(_openMeteo());
+    });
+    final service = LocationCloudForecastService(
+      httpClient: client,
+      clock: () => _now,
+    );
+    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
+    expect(hours.providerName, 'National Weather Service');
+    expect(hosts, everyElement('api.weather.gov'));
+    expect(client.closeCount, 0);
+    service.dispose();
+    expect(client.closeCount, 1);
+  });
 
-  test(
-    'unsupported NWS point falls back to the existing global model',
-    () async {
-      final client = MockClient(
-        (request) async => request.url.host == 'api.weather.gov'
-            ? http.Response('not covered', 404)
-            : _json(_openMeteo()),
-      );
-      final service = LocationCloudForecastService(
-        httpClient: client,
-        clock: () => _now,
-      );
-      addTearDown(service.dispose);
-      final current = await service.fetchCurrentCloudForecast(
-        latitude: 40,
-        longitude: -75,
-      );
-      final hours = await service.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
-      expect(current!.source, 'Open-Meteo');
-      expect(current.percent, 8);
-      expect(hours.providerName, current.source);
-      expect(hours.frames.first.opacity, .08);
-    },
-  );
+  test('the NWS grid answers without the model', () async {
+    final client = MockClient(
+      (request) async => request.url.host == 'api.weather.gov'
+          ? nwsAnswer(request)
+          : http.Response('unavailable', 503),
+    );
+    final service = LocationCloudForecastService(
+      httpClient: client,
+      clock: () => _now,
+    );
+    addTearDown(service.dispose);
+    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
+    expect(hours.providerName, 'National Weather Service');
+    expect(hours.frames.first.opacity, .87);
+  });
 
-  test('clearly outside NWS region skips its endpoints', () async {
+  test('outside the NWS region its endpoints are never asked', () async {
+    final hosts = <String>[];
     final client = MockClient((request) async {
-      expect(request.url.host, 'api.open-meteo.com');
-      return _json(_openMeteo());
+      hosts.add(request.url.host);
+      return request.url.host == 'api.met.no'
+          ? _json(_metNorway())
+          : http.Response('unavailable', 404);
     });
     final service = LocationCloudForecastService(
       httpClient: client,
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    expect(
-      (await service.fetchCurrentCloudForecast(
-        latitude: 48,
-        longitude: 2,
-      ))!.source,
-      'Open-Meteo',
-    );
-    expect(
-      (await service.fetchRadarFrames(latitude: 48, longitude: 2)).providerName,
-      'Open-Meteo',
-    );
+    final hours = await service.fetchRadarFrames(latitude: 48, longitude: 2);
+    expect(hours.providerName, 'MET Norway');
+    expect(hosts, isNot(contains('api.weather.gov')));
   });
 
-  test(
-    'MET Norway remains the fallback when NWS and Open-Meteo fail',
-    () async {
-      final client = MockClient(
-        (request) async => request.url.host == 'api.met.no'
-            ? _json(_metNorway())
-            : http.Response('unavailable', 404),
-      );
-      final service = LocationCloudForecastService(
-        httpClient: client,
-        clock: () => _now,
-      );
-      addTearDown(service.dispose);
-      final current = await service.fetchCurrentCloudForecast(
-        latitude: 40,
-        longitude: -75,
-      );
-      final hours = await service.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
-      expect(current!.source, 'MET Norway');
-      expect(current.percent, 96.1);
-      expect(current.validAt, DateTime.utc(2026, 11, 14, 3));
-      expect(hours.providerName, current.source);
-    },
-  );
-
-  test('missing or stale current samples do not become a clear zero', () async {
+  test('MET Norway is the last fallback', () async {
     final client = MockClient(
-      (request) async => request.url.host == 'api.open-meteo.com'
-          ? _json(_openMeteo(time: '2026-11-12T03:00'))
+      (request) async => request.url.host == 'api.met.no'
+          ? _json(_metNorway())
           : http.Response('unavailable', 404),
     );
     final service = LocationCloudForecastService(
@@ -246,23 +137,18 @@ void main() {
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    expect(
-      await service.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-      isNull,
-    );
+    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
+    expect(hours.providerName, 'MET Norway');
+    expect(hours.frames.first.opacity, closeTo(.961, 1e-9));
   });
 
-  test('all sources unavailable return unknown and failed frames', () async {
+  test('all sources unavailable return a failed result', () async {
     final client = MockClient((_) async => http.Response('unavailable', 404));
     final service = LocationCloudForecastService(
       httpClient: client,
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    expect(
-      await service.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-      isNull,
-    );
     expect(
       (await service.fetchRadarFrames(latitude: 40, longitude: -75)).isSuccess,
       isFalse,

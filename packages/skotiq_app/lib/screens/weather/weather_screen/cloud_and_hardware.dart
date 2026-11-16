@@ -39,10 +39,7 @@ class _WeatherConditions extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final weatherState = ref.watch(weatherStateProvider);
     final safetyDeviceState = ref.watch(safetyMonitorStateProvider);
-    final forecast = ref.watch(cloudCoverForecastProvider).valueOrNull;
-    final validAt = forecast?.validAt?.toUtc();
-    final forecastSource = '${forecast?.source ?? 'Weather'} model · '
-        '${validAt == null ? 'sample time unavailable' : '${ClockFormat.dateHm(validAt)} UTC'}';
+    final sky = ref.watch(currentSkyProvider).valueOrNull;
 
     final hasWeatherDevice =
         weatherState.connectionState == DeviceConnectionState.connected;
@@ -87,7 +84,7 @@ class _WeatherConditions extends ConsumerWidget {
         Readout(
           value: cloudCoverPercent!.toStringAsFixed(0),
           unit: '%',
-          label: 'Forecast cloud cover',
+          label: 'Cloud cover now',
           valueColor: _cloudCoverTone(colors, cloudCoverPercent),
         ),
       if (radarAvailable && alertRadiusKm != null)
@@ -125,18 +122,9 @@ class _WeatherConditions extends ConsumerWidget {
                 ),
             ],
           ),
-        if (radarAvailable && cloudCoverPercent != null) ...[
+        if (radarAvailable && cloudCoverPercent != null && sky != null) ...[
           const SizedBox(height: SkotiqTokens.spaceSm),
-          Text(
-            forecastSource,
-            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
-          ),
-          Text(
-            'Model estimate, not an observation. Check the local sky; '
-            'satellite brightness is a separate measurement.',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
-          ),
+          _SkyNowSources(sky: sky),
         ],
         if (expanded) ...[
           if (radarAvailable) ...[
@@ -168,6 +156,83 @@ class _WeatherConditions extends ConsumerWidget {
     if (percent <= 25) return colors.success;
     if (percent <= 60) return colors.warning;
     return colors.error;
+  }
+}
+
+/// Where the cloud figure comes from and how old it is: the station report,
+/// the model beside it, and a warning when the two disagree.
+class _SkyNowSources extends StatelessWidget {
+  final CurrentSky sky;
+
+  const _SkyNowSources({required this.sky});
+
+  static String _utc(DateTime time) => '${ClockFormat.hm(time.toUtc())} UTC';
+
+  static String _amount(CloudAmount amount) => switch (amount) {
+        CloudAmount.clear => 'clear',
+        CloudAmount.few => 'a few clouds',
+        CloudAmount.scattered => 'scattered clouds',
+        CloudAmount.broken => 'mostly cloudy',
+        CloudAmount.overcast => 'overcast',
+        CloudAmount.obscured => 'sky hidden',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final muted = SkotiqTypography.caption.copyWith(color: colors.textMuted);
+    final secondary =
+        SkotiqTypography.caption.copyWith(color: colors.textSecondary);
+    final station = sky.station;
+    final model = sky.model;
+    final modelValidAt = model?.validAt;
+    final high = sky.modelHighCloudPercent;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (station != null) ...[
+          Text(
+            '${station.stationId} station · '
+            '${station.distanceKm.toStringAsFixed(0)} km · '
+            'observed ${_utc(station.observedAt)} '
+            '(${RelativeTime.ago(station.observedAt)})',
+            style: muted,
+          ),
+          Text(
+            station.seesUpToFeet == null
+                ? 'Observer reports ${_amount(station.amount)}.'
+                : 'Automated report: ${_amount(station.amount)} below '
+                    '${QuantityFormat.grouped(station.seesUpToFeet!)} ft. '
+                    'Higher cloud comes from the model'
+                    '${high == null ? '' : ' (${high.toStringAsFixed(0)} % high cloud)'}.',
+            style: secondary,
+          ),
+        ],
+        if (model != null)
+          Text(
+            '${station == null ? '' : 'Model: '}${model.source} '
+            '${model.percent.toStringAsFixed(0)} % · '
+            '${modelValidAt == null ? 'time unknown' : _utc(modelValidAt)}',
+            style: muted,
+          ),
+        if (station == null)
+          Text(
+            'Model estimate, not an observation: no weather station within '
+            '${StationSky.maximumDistanceKm.toStringAsFixed(0)} km '
+            'reported in the last ${StationSky.maximumAge.inMinutes} minutes.',
+            style: secondary,
+          ),
+        if (sky.sourcesDisagree)
+          Text(
+            'The station and the model disagree '
+            '(${station!.percent.toStringAsFixed(0)} % against '
+            '${model!.percent.toStringAsFixed(0)} %). Look at the sky.',
+            key: const ValueKey('weather_sources_disagree'),
+            style: SkotiqTypography.caption.copyWith(color: colors.warning),
+          ),
+      ],
+    );
   }
 }
 

@@ -2,9 +2,8 @@
 // for Open-Meteo. These guard that MET Norway's compact Locationforecast JSON
 // is parsed into RadarFrames that match Open-Meteo's conventions exactly (UTC
 // timestamps, opacity = cloud_area_fraction / 100, forecast flag), that
-// malformed entries are skipped rather than thrown on, that non-200s surface as
-// error results, and that the static fetchCurrentCloudCover picks the entry
-// nearest to "now" (within tolerance) and returns null on garbage.
+// malformed entries are skipped rather than thrown on, and that non-200s surface as
+// error results.
 
 import 'dart:convert';
 
@@ -255,74 +254,5 @@ void main() {
     final (history, forecast) = provider.getAvailableTimeRange();
     expect(history, Duration.zero);
     expect(forecast.inDays, greaterThanOrEqualTo(7));
-  });
-
-  group('fetchCurrentCloudCover', () {
-    test('returns the entry nearest to now within tolerance', () async {
-      final now = DateTime.now().toUtc();
-      final client = MockClient((_) async {
-        return http.Response(
-          forecastBody([
-            (now.subtract(const Duration(minutes: 20)).toIso8601String(), 30.0),
-            (now.add(const Duration(minutes: 10)).toIso8601String(), 70.0),
-            (now.add(const Duration(hours: 3)).toIso8601String(), 90.0),
-          ]),
-          200,
-        );
-      });
-      addTearDown(client.close);
-
-      final cover = await MetNoCloudProvider.fetchCurrentCloudCover(
-        client,
-        40.0,
-        -105.0,
-      );
-      // +10min entry is closest to now → 70%.
-      expect(cover, closeTo(70.0, 1e-9));
-    });
-
-    test('returns null when the nearest entry is beyond ±90 min', () async {
-      final now = DateTime.now().toUtc();
-      final client = MockClient((_) async {
-        return http.Response(
-          forecastBody([
-            (now.add(const Duration(hours: 5)).toIso8601String(), 40.0),
-          ]),
-          200,
-        );
-      });
-      addTearDown(client.close);
-
-      final cover = await MetNoCloudProvider.fetchCurrentCloudCover(
-        client,
-        40.0,
-        -105.0,
-      );
-      expect(cover, isNull);
-    });
-
-    test('returns null on a non-200', () async {
-      final client = MockClient((_) async => http.Response('nope', 500));
-      addTearDown(client.close);
-      final cover = await MetNoCloudProvider.fetchCurrentCloudCover(
-        client,
-        40.0,
-        -105.0,
-      );
-      expect(cover, isNull);
-    });
-
-    test('returns null on garbage JSON', () async {
-      final client = MockClient(
-        (_) async => http.Response('not json at all', 200),
-      );
-      addTearDown(client.close);
-      final cover = await MetNoCloudProvider.fetchCurrentCloudCover(
-        client,
-        40.0,
-        -105.0,
-      );
-      expect(cover, isNull);
-    });
   });
 }

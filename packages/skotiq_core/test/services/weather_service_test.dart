@@ -17,7 +17,7 @@ void main() {
       alertService.dispose();
     });
 
-    test('6% model cloud cover does not claim an observed clear sky', () {
+    test('6% cloud cover does not claim an observed clear sky', () {
       final alert = alertService.evaluateConditions(
         motion: null,
         currentCloudDensity: 6,
@@ -25,7 +25,7 @@ void main() {
       );
       expect(alert.cloudDensityPercent, 6);
       expect(alert.level, AlertLevel.clear);
-      expect(alert.message, contains('Forecast cloud cover: 6%'));
+      expect(alert.message, contains('Cloud cover now: 6%'));
       expect(alert.message, contains('Local conditions may differ'));
       expect(alert.message, isNot(contains('No clouds detected')));
     });

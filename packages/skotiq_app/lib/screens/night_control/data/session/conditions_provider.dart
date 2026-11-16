@@ -1,14 +1,15 @@
 // Overview's "Conditions" block.
 //
 // A connected weather device is the source when there is one. Without it the
-// Open-Meteo cloud cover is shown, and only as a forecast, because it is a
-// model of the sky over the site and not a reading of it. With neither the
-// block says "no weather source" and shows nothing. Seeing has no source in
+// cloud cover now from the internet is shown with where it came from: a
+// nearby station's report or a model, neither a reading at the site. With
+// neither the block says "no weather source" and shows nothing. Seeing has no source in
 // the app and never appears; SQM appears only when the device reports it.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
@@ -190,18 +191,48 @@ const Duration nightSkyClearOverride = Duration(minutes: 30);
   );
 }
 
-/// The forecast cloud cover for the site, percent; null without a site or
+/// The sky over the site now from the internet; null without a site or
 /// while it loads.
-final nightForecastCloudProvider = Provider<double?>((ref) {
-  return ref.watch(cloudCoverPercentageProvider).valueOrNull;
+final nightSkyNowProvider = Provider<CurrentSky?>((ref) {
+  return ref.watch(currentSkyProvider).valueOrNull;
 });
+
+/// Where the internet figure came from, and whether its sources disagree.
+List<NightText> nightSkyNowNotes(CurrentSky sky, Clock clock) {
+  final station = sky.station;
+  final model = sky.model;
+  return <NightText>[
+    if (station != null)
+      NightText(
+        'nightSkyStation',
+        params: <String, String>{
+          'station': station.stationId,
+          'distance': station.distanceKm.toStringAsFixed(0),
+          'time': ClockFormat.hm(clock.fromUtc(station.observedAt)),
+        },
+      )
+    else if (model != null)
+      NightText(
+        'nightSkyModelOnly',
+        params: <String, String>{'source': model.source},
+      ),
+    if (sky.sourcesDisagree)
+      NightText(
+        'nightSkyDisagree',
+        params: <String, String>{
+          'station': _percent(station!.percent),
+          'model': _percent(model!.percent),
+        },
+      ),
+  ];
+}
 
 /// Where the Conditions block gets its numbers.
 final nightConditionsSourceProvider = Provider<ConditionsSource>((ref) {
   final weather = ref.watch(weatherStateProvider);
   if (nightConnected(weather.connectionState)) return ConditionsSource.device;
-  if (ref.watch(nightForecastCloudProvider) != null) {
-    return ConditionsSource.forecast;
+  if (ref.watch(nightSkyNowProvider) != null) {
+    return ConditionsSource.internet;
   }
   return ConditionsSource.none;
 });
@@ -258,19 +289,22 @@ final nightConditionsProvider = Provider<NightConditionsVm>((ref) {
             ),
         ],
       );
-    case ConditionsSource.forecast:
-      final cloud = ref.watch(nightForecastCloudProvider);
+    case ConditionsSource.internet:
+      final sky = ref.watch(nightSkyNowProvider);
       return NightConditionsVm(
         source: source,
         safe: safe,
         verdictUnknown: reading.hostUnknown,
-        notes: notes,
+        notes: <NightText>[
+          if (sky != null) ...nightSkyNowNotes(sky, ref.watch(clockProvider)),
+          ...notes,
+        ],
         skyOverride: skyOverride,
         metrics: <MetricVm>[
-          if (cloud != null)
+          if (sky != null)
             MetricVm(
-              label: const NightText('nightSessionCloudsForecast'),
-              value: _percent(cloud),
+              label: const NightText('nightSessionCloudsNow'),
+              value: _percent(sky.percent),
             ),
         ],
       );

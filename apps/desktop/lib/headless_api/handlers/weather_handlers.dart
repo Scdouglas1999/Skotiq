@@ -168,29 +168,47 @@ class WeatherHandlers implements RouteSource {
       '[API] GET /api/weather/cloud-cover?lat=${_coarseCoord(lat)}&lon=${_coarseCoord(lon)}',
     );
 
-    // The current-weather service selects a valid sample for this site and
-    // instant. A nearest sample from the weekly forecast can be expired or
-    // belong to a future interval, so it cannot answer this endpoint.
     try {
-      final forecast = await container
-          .read(locationCloudForecastServiceProvider)
-          .fetchCurrentCloudForecast(latitude: lat, longitude: lon);
-
-      if (forecast == null || forecast.validAt == null) {
+      final sky = await container
+          .read(currentSkyServiceProvider)
+          .fetch(latitude: lat, longitude: lon);
+      final validAt = sky?.validAt;
+      if (sky == null || validAt == null) {
         return jsonResponse({
           "error": "cloud_cover_fetch_failed",
           "message": 'No current cloud cover data available',
         }, statusCode: 502);
       }
-
+      final station = sky.station;
+      final model = sky.model;
       return jsonOk({
         "hasData": true,
         "latitude": lat,
         "longitude": lon,
-        "source": forecast.source,
-        "cloudCoverPercent": forecast.percent,
-        "timestamp": forecast.validAt!.toUtc().millisecondsSinceEpoch,
+        "source": sky.source,
+        "cloudCoverPercent": sky.percent,
+        "timestamp": validAt.toUtc().millisecondsSinceEpoch,
         "fetchedAt": DateTime.now().millisecondsSinceEpoch,
+        "sourcesDisagree": sky.sourcesDisagree,
+        "station": station == null
+            ? null
+            : {
+                "id": station.stationId,
+                "name": station.stationName,
+                "distanceKm": station.distanceKm,
+                "observedAt": station.observedAt.millisecondsSinceEpoch,
+                "cloudAmount": station.amount.name,
+                "cloudCoverPercent": station.percent,
+                "seesUpToFeet": station.seesUpToFeet,
+              },
+        "model": model == null
+            ? null
+            : {
+                "source": model.source,
+                "cloudCoverPercent": model.percent,
+                "highCloudPercent": sky.modelHighCloudPercent,
+                "validAt": model.validAt?.toUtc().millisecondsSinceEpoch,
+              },
       });
     } catch (e, stackTrace) {
       // Genuine live network fetch can fail; surface a clean 502.
