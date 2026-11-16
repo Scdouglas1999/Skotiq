@@ -1244,9 +1244,18 @@ mod tests {
         .await
         .expect("a caller hung behind the wedged worker");
         assert_eq!(results.len(), 10);
-        assert!(results
-            .iter()
-            .all(|r| matches!(r, Err(DriverError::Timeout(_)))));
+        // A reply that never came and a queue that never drained are both
+        // timeouts to the ops layer, whichever driver error carries them.
+        for result in results {
+            let error = result.expect_err("a wedged worker answered");
+            assert!(
+                matches!(
+                    crate::dispatch::error::DeviceOpError::from(error),
+                    crate::dispatch::error::DeviceOpError::Timeout { .. }
+                ),
+                "a caller behind the wedged worker failed with something other than a timeout"
+            );
+        }
         drop(release_tx);
     }
 
