@@ -130,8 +130,8 @@ class _AltitudeGraphPainter extends CustomPainter {
 
     // Altitude over 24 hours, and the floor in the direction the object
     // stands at each of them.
-    double yOf(double alt) =>
-        (size.height / 2 - (alt / 90) * (size.height / 2)).clamp(0, size.height);
+    double yOf(double alt) => (size.height / 2 - (alt / 90) * (size.height / 2))
+        .clamp(0, size.height);
     final points = <Offset>[];
     final floorPoints = <Offset>[];
     for (int hour = 0; hour <= 24; hour++) {

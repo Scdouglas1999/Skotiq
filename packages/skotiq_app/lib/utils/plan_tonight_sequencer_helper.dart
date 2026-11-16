@@ -180,22 +180,22 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   );
 
   return ref.read(smartNightServiceProvider).buildSingleTargetSequence(
-    profile: captureProfile,
-    suggestion: target,
-    windowStart: start,
-    windowEnd: end,
-    availableFilters: filters,
-    latitudeDeg: settings.latitude,
-    longitudeDeg: settings.longitude,
-    exposureContext: exposureContext,
-    settings: smartNightSettings,
-    strategy: options?.strategy,
-    fillWindow: fillWindow,
-    includeSessionShutdown: options?.shutdown,
-    integrationBudgetHours: integrationBudgetHours,
-    integrationGoalProgress: integrationGoals,
-    includeSessionPreamble: includeSessionPreamble,
-  );
+        profile: captureProfile,
+        suggestion: target,
+        windowStart: start,
+        windowEnd: end,
+        availableFilters: filters,
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
+        exposureContext: exposureContext,
+        settings: smartNightSettings,
+        strategy: options?.strategy,
+        fillWindow: fillWindow,
+        includeSessionShutdown: options?.shutdown,
+        integrationBudgetHours: integrationBudgetHours,
+        integrationGoalProgress: integrationGoals,
+        includeSessionPreamble: includeSessionPreamble,
+      );
 }
 
 Future<TargetSuggestion> framingTargetSuggestion({

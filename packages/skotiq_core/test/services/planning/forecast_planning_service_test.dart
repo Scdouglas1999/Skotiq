@@ -104,12 +104,11 @@ void main() {
     decDegrees: -60.0,
   );
 
-  ForecastPlanningService service() =>
-      ForecastPlanningService(
-        latitudeDegrees: lat,
-        longitudeDegrees: lon,
-        floor: minimum30,
-      );
+  ForecastPlanningService service() => ForecastPlanningService(
+    latitudeDegrees: lat,
+    longitudeDegrees: lon,
+    floor: minimum30,
+  );
 
   group('construction', () {
     test('rejects a cloud threshold outside [0,1]', () {

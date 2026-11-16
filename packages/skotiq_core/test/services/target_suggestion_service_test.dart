@@ -245,9 +245,7 @@ void main() {
         'keeps star-typed rows when they have a size or were asked for',
         () async {
           final extended = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -105.0,
             targets: [
@@ -428,8 +426,7 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(
-          ),
+          config: const TargetSuggestionConfig(),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
@@ -682,9 +679,7 @@ void main() {
         ];
 
         final suggestions = await service.getSuggestionsForTonight(
-          config: const TargetSuggestionConfig(
-            minScore: 0.0,
-          ),
+          config: const TargetSuggestionConfig(minScore: 0.0),
           latitude: 40.0,
           longitude: -75.0,
           targets: targets,
@@ -781,9 +776,7 @@ void main() {
             ];
 
             final suggestions = await service.getSuggestionsForTonight(
-              config: const TargetSuggestionConfig(
-                minScore: 0.0,
-              ),
+              config: const TargetSuggestionConfig(minScore: 0.0),
               latitude: 40.0,
               longitude: -75.0,
               targets: targets,
@@ -817,9 +810,7 @@ void main() {
             ];
 
             final suggestions = await service.getSuggestionsForTonight(
-              config: const TargetSuggestionConfig(
-                minScore: 0.0,
-              ),
+              config: const TargetSuggestionConfig(minScore: 0.0),
               latitude: 40.0,
               longitude: -75.0,
               targets: targets,
@@ -858,9 +849,7 @@ void main() {
           ];
 
           final suggestions = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -75.0,
             targets: targets,
@@ -894,9 +883,7 @@ void main() {
           ];
 
           final suggestions = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -75.0,
             targets: targets,
@@ -930,9 +917,7 @@ void main() {
             ];
 
             final suggestions = await service.getSuggestionsForTonight(
-              config: const TargetSuggestionConfig(
-                minScore: 0.0,
-              ),
+              config: const TargetSuggestionConfig(minScore: 0.0),
               latitude: 40.0,
               longitude: -75.0,
               targets: targets,
@@ -967,9 +952,7 @@ void main() {
           ];
 
           final suggestions = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -75.0,
             targets: targets,
@@ -1000,9 +983,7 @@ void main() {
           ];
 
           final suggestions = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -75.0,
             targets: targets,
@@ -1030,9 +1011,7 @@ void main() {
           ];
 
           final suggestions = await service.getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(
-              minScore: 0.0,
-            ),
+            config: const TargetSuggestionConfig(minScore: 0.0),
             latitude: 40.0,
             longitude: -75.0,
             targets: targets,

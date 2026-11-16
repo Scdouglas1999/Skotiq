@@ -104,27 +104,31 @@ void main() {
     },
   );
 
-  test('a checkpoint and its backup are carried over from one folder',
-      () async {
-    final data = p.join(root.path, 'var', 'data');
-    write(p.join(data, 'checkpoints'), 'daemon night');
-    File(p.join(data, 'checkpoints', '$_checkpoint.bak'))
-        .writeAsStringSync('daemon night, earlier');
-    File(p.join(data, '$_checkpoint.bak'))
-        .writeAsStringSync('window night, weeks ago');
+  test(
+    'a checkpoint and its backup are carried over from one folder',
+    () async {
+      final data = p.join(root.path, 'var', 'data');
+      write(p.join(data, 'checkpoints'), 'daemon night');
+      File(
+        p.join(data, 'checkpoints', '$_checkpoint.bak'),
+      ).writeAsStringSync('daemon night, earlier');
+      File(
+        p.join(data, '$_checkpoint.bak'),
+      ).writeAsStringSync('window night, weeks ago');
 
-    final resolved = await resolve({
-      skotiqDataDirEnv: data,
-      skotiqDatabaseDirEnv: p.join(root.path, 'var', 'database'),
-    });
+      final resolved = await resolve({
+        skotiqDataDirEnv: data,
+        skotiqDatabaseDirEnv: p.join(root.path, 'var', 'database'),
+      });
 
-    expect(read(resolved), 'daemon night');
-    expect(
-      File(p.join(resolved.path, '$_checkpoint.bak')).readAsStringSync(),
-      'daemon night, earlier',
-    );
-    expect(File(p.join(data, '$_checkpoint.bak')).existsSync(), isTrue);
-  });
+      expect(read(resolved), 'daemon night');
+      expect(
+        File(p.join(resolved.path, '$_checkpoint.bak')).readAsStringSync(),
+        'daemon night, earlier',
+      );
+      expect(File(p.join(data, '$_checkpoint.bak')).existsSync(), isTrue);
+    },
+  );
 
   test('this database\'s own checkpoint is never replaced', () async {
     write(support.path, 'stale');

@@ -44,63 +44,63 @@ class _StatsBar extends StatelessWidget {
 
     // A well under the frame: a data display, not another panel.
     return Container(
-        decoration: BoxDecoration(
-          color: colors.well,
-          borderRadius: SkotiqTokens.borderRadiusLg,
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.spaceLg,
-          vertical: SkotiqTokens.spaceMd,
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Keep readouts + status on one line only when there is
-            // comfortable room; otherwise stack the status under them.
-            final inline = constraints.maxWidth >= _inlineStatusWidth;
-            final strip = ReadoutRow(
-              gap: SkotiqTokens.space2xl,
-              children: readouts,
-            );
-            final status = _StatusIndicator(
-              status: currentFilter?.status ?? FilterCalibrationStatus.pending,
-              colors: colors,
-            );
+      decoration: BoxDecoration(
+        color: colors.well,
+        borderRadius: SkotiqTokens.borderRadiusLg,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceLg,
+        vertical: SkotiqTokens.spaceMd,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Keep readouts + status on one line only when there is
+          // comfortable room; otherwise stack the status under them.
+          final inline = constraints.maxWidth >= _inlineStatusWidth;
+          final strip = ReadoutRow(
+            gap: SkotiqTokens.space2xl,
+            children: readouts,
+          );
+          final status = _StatusIndicator(
+            status: currentFilter?.status ?? FilterCalibrationStatus.pending,
+            colors: colors,
+          );
 
-            // The run's own last word (how many frames it saved, or why it
-            // stopped), once it is over. An error has its banner.
-            final outcome = !state.isCapturing && state.errorMessage == null
-                ? state.statusMessage
-                : null;
+          // The run's own last word (how many frames it saved, or why it
+          // stopped), once it is over. An error has its banner.
+          final outcome = !state.isCapturing && state.errorMessage == null
+              ? state.statusMessage
+              : null;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (inline)
-                  Row(
-                    children: [
-                      Expanded(child: strip),
-                      const SizedBox(width: SkotiqTokens.spaceLg),
-                      status,
-                    ],
-                  )
-                else ...[
-                  strip,
-                  const SizedBox(height: SkotiqTokens.spaceMd),
-                  Align(alignment: Alignment.centerRight, child: status),
-                ],
-                if (outcome != null) ...[
-                  const SizedBox(height: SkotiqTokens.spaceSm),
-                  Text(
-                    outcome,
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textSecondary),
-                  ),
-                ],
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (inline)
+                Row(
+                  children: [
+                    Expanded(child: strip),
+                    const SizedBox(width: SkotiqTokens.spaceLg),
+                    status,
+                  ],
+                )
+              else ...[
+                strip,
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                Align(alignment: Alignment.centerRight, child: status),
               ],
-            );
-          },
-        ),
+              if (outcome != null) ...[
+                const SizedBox(height: SkotiqTokens.spaceSm),
+                Text(
+                  outcome,
+                  style: SkotiqTypography.bodySm
+                      .copyWith(color: colors.textSecondary),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -366,9 +366,8 @@ class _VisualizationsSection extends ConsumerWidget {
                       toleranceAdu: toleranceAdu,
                     )
                   : null;
-              final results = state.showFilterCards
-                  ? _FilterResults(state: state)
-                  : null;
+              final results =
+                  state.showFilterCards ? _FilterResults(state: state) : null;
 
               if (constraints.maxWidth < _sideBySideWidth) {
                 return graph ?? results ?? const SizedBox.shrink();

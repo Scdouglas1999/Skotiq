@@ -126,8 +126,7 @@ void main() {
       expect(
         issues.single.severity,
         ValidationSeverity.error,
-        reason:
-            'the engine refuses this categorically. It cannot be a warning',
+        reason: 'the engine refuses this categorically. It cannot be a warning',
       );
       expect(issues.single.title, contains('Daylight Gate'));
     });

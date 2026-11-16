@@ -156,20 +156,19 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
       if (node is TargetHeaderNode && node.isEnabled) {
         // When it clears and leaves the site's altitude floor (and its own
         // minimum), over that night's local noon to noon.
-        final visibility = floor
-            .forTargetMinimum(node.minAltitude)
-            .visibilityAround(
-              raDeg: node.raHours * 15.0,
-              decDeg: node.decDegrees,
-              center: DateTime(
-                nightDate.year,
-                nightDate.month,
-                nightDate.day,
-                24,
-              ),
-              latitudeDeg: lat,
-              longitudeDeg: lon,
-            );
+        final visibility =
+            floor.forTargetMinimum(node.minAltitude).visibilityAround(
+                  raDeg: node.raHours * 15.0,
+                  decDeg: node.decDegrees,
+                  center: DateTime(
+                    nightDate.year,
+                    nightDate.month,
+                    nightDate.day,
+                    24,
+                  ),
+                  latitudeDeg: lat,
+                  longitudeDeg: lon,
+                );
         windows[node.id] = visibility;
       }
     }

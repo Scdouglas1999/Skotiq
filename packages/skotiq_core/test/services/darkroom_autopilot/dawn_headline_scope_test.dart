@@ -138,10 +138,7 @@ void main() {
   test('a night that drafted nothing still states what it integrated', () {
     final report = _report(masters: [_unreadable(1, 'L')]);
 
-    expect(
-      report.headline,
-      'Your night: no draft was rendered; 6s integrated',
-    );
+    expect(report.headline, 'Your night: no draft was rendered; 6s integrated');
     expect(report.draftedIntegrationSeconds, 0.0);
   });
 

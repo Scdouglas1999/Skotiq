@@ -275,10 +275,8 @@ void main() {
   testWidgets(
       'on a wide window a row previews its image and a second tap opens it',
       (tester) async {
-    final l =
-        await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
-    final r =
-        await seedMaster(name: 'NGC891 R', filter: 'R', target: 'NGC891');
+    final l = await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
+    final r = await seedMaster(name: 'NGC891 R', filter: 'R', target: 'NGC891');
     final router = await pump(tester);
     String? opened() => router
         .routerDelegate.currentConfiguration.uri.queryParameters['master'];
@@ -303,8 +301,7 @@ void main() {
   });
 
   testWidgets('the preview\'s Edit opens the previewed image', (tester) async {
-    final l =
-        await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
+    final l = await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
     final router = await pump(tester);
 
     await tester.tap(find.byKey(const ValueKey('darkroom_edit_preview_open')));

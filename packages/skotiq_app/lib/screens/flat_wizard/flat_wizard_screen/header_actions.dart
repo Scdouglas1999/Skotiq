@@ -94,7 +94,8 @@ class _RunButton extends ConsumerWidget {
     }
     return SkotiqButton(
       key: TourTarget.flatStartButton.key,
-      label: state.mode == FlatWizardMode.quick ? 'Start capture' : 'Start batch',
+      label:
+          state.mode == FlatWizardMode.quick ? 'Start capture' : 'Start batch',
       onPressed: () => _startCapture(context, ref),
     );
   }

@@ -730,7 +730,10 @@ mod tests {
         ] {
             let now = when.unwrap();
             let sun_altitude = crate::solar::sun_altitude_degrees(40.0, -75.0, &now);
-            assert!((-10.0..0.0).contains(&sun_altitude), "{now}: {sun_altitude}");
+            assert!(
+                (-10.0..0.0).contains(&sun_altitude),
+                "{now}: {sun_altitude}"
+            );
             let sun_azimuth = crate::solar::sun_azimuth_degrees(40.0, -75.0, &now);
 
             let (alt, az) = panel::sky_flat_alt_az(40.0, -75.0, now);

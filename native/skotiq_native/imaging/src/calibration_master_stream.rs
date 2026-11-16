@@ -320,8 +320,7 @@ fn working_copy_bytes(paths: &[PathBuf]) -> u64 {
                 let bytes = header.get_int("BITPIX").map_or(2, |b| b.unsigned_abs() / 8);
                 Some(samples * bytes.max(2))
             });
-            from_header
-                .unwrap_or_else(|| std::fs::metadata(path).map_or(0, |file| file.len() * 3))
+            from_header.unwrap_or_else(|| std::fs::metadata(path).map_or(0, |file| file.len() * 3))
         })
         .sum()
 }

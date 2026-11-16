@@ -66,8 +66,7 @@ DateTime? _clears(AltitudeFloor floor, _Target target) => floor.risesAbove(
 );
 
 Matcher _within(DateTime expected, Duration tolerance) => predicate<DateTime?>(
-  (actual) =>
-      actual != null && actual.difference(expected).abs() <= tolerance,
+  (actual) => actual != null && actual.difference(expected).abs() <= tolerance,
   'within $tolerance of $expected',
 );
 
@@ -153,12 +152,13 @@ void main() {
           ),
         },
       );
-      final timings = SequenceTimeEstimator(floor: floor).estimateSequenceTiming(
-        sequence,
-        _night,
-        latitude: _latitude,
-        longitude: _longitude,
-      );
+      final timings = SequenceTimeEstimator(floor: floor)
+          .estimateSequenceTiming(
+            sequence,
+            _night,
+            latitude: _latitude,
+            longitude: _longitude,
+          );
       return timings.firstWhere((t) => t.nodeId == 'light').estimatedStart;
     }
 
@@ -275,13 +275,16 @@ void main() {
       return suggestions.single.visibility.hoursAboveMinAlt!;
     }
 
-    test('the eastern target loses the time it spends behind the trees', () async {
-      final open = await hours(
-        const AltitudeFloor(horizon: null, minimumDeg: 0),
-        _east,
-      );
-      expect(await hours(trees, _east), lessThan(open - 1));
-    });
+    test(
+      'the eastern target loses the time it spends behind the trees',
+      () async {
+        final open = await hours(
+          const AltitudeFloor(horizon: null, minimumDeg: 0),
+          _east,
+        );
+        expect(await hours(trees, _east), lessThan(open - 1));
+      },
+    );
 
     test('Best Targets reports the eastern target rising when it clears the '
         'trees', () {

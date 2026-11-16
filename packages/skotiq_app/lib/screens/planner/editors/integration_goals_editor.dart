@@ -527,7 +527,8 @@ class _GoalRowState extends State<_GoalRow> {
               SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
       ),
-      Text('${QuantityFormat.trimmed(p.goal.exposureSeconds)} s ×', style: muted),
+      Text('${QuantityFormat.trimmed(p.goal.exposureSeconds)} s ×',
+          style: muted),
       const SizedBox(width: SkotiqTokens.spaceSm),
       frames,
     ];
@@ -701,8 +702,7 @@ class _AddGoalRowState extends State<_AddGoalRow> {
       width: 80,
       child: field(_exposureCtl, suffix: 's'),
     );
-    final frames =
-        SizedBox(width: _kGoalNumberWidth, child: field(_frameCtl));
+    final frames = SizedBox(width: _kGoalNumberWidth, child: field(_frameCtl));
     final priority = Row(
       mainAxisSize: MainAxisSize.min,
       children: [

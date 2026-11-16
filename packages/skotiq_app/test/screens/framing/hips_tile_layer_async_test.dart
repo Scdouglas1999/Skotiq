@@ -247,8 +247,7 @@ void main() {
         reason: 'No drawAtlas path is used by this painter; all geometry is a '
             'subdivided drawVertices mesh.');
     expect(recorder.nDrawRect, 0,
-        reason:
-            'The painter draws no solid fills. It composites imagery only, '
+        reason: 'The painter draws no solid fills. It composites imagery only, '
             'staying transparent where no tile is resident.');
     // Structural framing: exactly one save/clip/restore around the mosaic.
     expect(recorder.nSaves, 1);

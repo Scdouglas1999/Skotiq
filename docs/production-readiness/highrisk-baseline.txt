@@ -69,11 +69,13 @@ native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_GUARD.set(guard).ok();
 native/skotiq_native/bridge/src/simulator/camera.rs	sim_imaging_camera_traits	highrisk	1	baseline	SimCameraTraits::parse(&std::env::var(SIM_CAMERA_TRAITS_ENV).unwrap_or_default())
 native/skotiq_native/bridge/src/simulator/sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
+native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	card_number	highrisk	1	baseline	let value = card[10..].split('/').next().unwrap_or_default().trim();
 native/skotiq_native/bridge/src/util/supervisor.rs	install_global_subscriber	highrisk	1	baseline	GLOBAL_WRITER.set(writer.clone()).ok();
 native/skotiq_native/bridge/src/util/temp_fits.rs	create_unique_temp_fits_path	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/device/src/ascom/dome.rs	-	highrisk	1	baseline	//! is not implemented reads as absent and any other failure fails the read.
 native/skotiq_native/device/src/driver.rs	describe	highrisk	1	baseline	iso_speeds: self.get_iso_speeds().await.unwrap_or_default(),
 native/skotiq_native/device/src/driver.rs	describe	highrisk	1	baseline	readout_modes: self.get_readout_modes().await.unwrap_or_default(),
+native/skotiq_native/imaging/src/calibration_master_stream.rs	hidden_entries	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/imaging/src/raw.rs	read_raw_header	highrisk	1	baseline	let cfa = color_filter_from(&info).ok();
 native/skotiq_native/imaging/src/raw_exif.rs	camera_record	highrisk	1	baseline	record_in_tiff(r).unwrap_or_default()
 native/skotiq_native/imaging/src/raw_exif.rs	record_in_tiff	highrisk	1	baseline	.unwrap_or_default();
@@ -204,7 +206,7 @@ packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart	_createD
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	baseline	// `canPark` no longer ships a button that hits a "Not implemented"
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	-	highrisk	1	baseline	/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
 packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart	_exportFinderChart	highrisk	1	baseline	// UnimplementedError there — so the chart goes to a sandbox path and
-packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."
+packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_row.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."
 packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart	build	highrisk	1	baseline	// '+' re-applies 4+1 and is a silent no-op, while the popup keeps
 packages/skotiq_app/lib/screens/settings/backup_screen.dart	_BackupScreenState	highrisk	1	baseline	/// UnimplementedError — so on those platforms the file goes to a sandbox path
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
@@ -214,7 +216,6 @@ packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/p
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/telegram_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/webhook_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
 packages/skotiq_app/lib/screens/settings/widgets/solver_detection_card.dart	_open	highrisk	1	baseline	// error rather than a silent no-op.
-packages/skotiq_app/lib/screens/tonight/one_tap_tonight_controller.dart	-	highrisk	1	baseline	/// loud failure rather than a silent no-op so the screen can explain *why*
 packages/skotiq_app/lib/services/file_download_service.dart	downloadFileToDevice	highrisk	1	baseline	// throws UnimplementedError on Android/iOS, so this branch must never be
 packages/skotiq_app/lib/services/sequence_action_service.dart	SequenceActionService	highrisk	1	baseline	/// this async callback) we return a silent no-op instead of issuing a
 packages/skotiq_core/lib/src/services/device_service/connections/device_connections.dart	_disconnect	highrisk	1	baseline	// "Nothing connected" is a typed precondition, not a silent no-op, so a

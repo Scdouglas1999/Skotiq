@@ -248,7 +248,8 @@ void main() {
     expect(find.byKey(const ValueKey('link.pairCode')), findsNothing);
   });
 
-  testWidgets('an older host is offered "Update the host", with the token '
+  testWidgets(
+      'an older host is offered "Update the host", with the token '
       'this device holds for it', (tester) async {
     await setSize(tester);
     final older = _host.copyWith(version: '0.0.1', authToken: 'paired-token');
@@ -318,7 +319,8 @@ void main() {
     expect(find.byKey(const ValueKey('link.updateHost')), findsNothing);
   });
 
-  testWidgets('a remembered host that does not answer is unreachable, not a '
+  testWidgets(
+      'a remembered host that does not answer is unreachable, not a '
       'release mismatch', (tester) async {
     await setSize(tester);
     final remembered = LinkedRig(

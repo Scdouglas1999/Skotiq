@@ -642,7 +642,9 @@ void openLastRun(BuildContext context, WidgetRef ref) {
         ? AppRoutes.history()
         : AppRoutes.night(
             NightRef.run(
-              runs.reduce((a, b) => a.startedAt.isAfter(b.startedAt) ? a : b).id,
+              runs
+                  .reduce((a, b) => a.startedAt.isAfter(b.startedAt) ? a : b)
+                  .id,
             ),
           ),
   );

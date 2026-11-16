@@ -670,11 +670,13 @@ void main() {
 
     test('an altitude-limit recovery trigger with no altitude of its own '
         'follows the site floor', () {
-      Object? limit(double? threshold) => (RecoveryNode(
-        id: 'recovery',
-        triggerType: TriggerType.altitudeLimit,
-        triggerThreshold: threshold,
-      ).toRustTriggerConfig() as Map)['AltitudeLimit'];
+      Object? limit(double? threshold) =>
+          (RecoveryNode(
+                id: 'recovery',
+                triggerType: TriggerType.altitudeLimit,
+                triggerThreshold: threshold,
+              ).toRustTriggerConfig()
+              as Map)['AltitudeLimit'];
       expect(limit(null), {'min_altitude': null});
       expect(limit(35), {'min_altitude': 35.0});
     });

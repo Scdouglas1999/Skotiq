@@ -483,7 +483,10 @@ async fn a_failed_download_keeps_the_capture_and_the_next_exposure_goes_ahead() 
     let kept = canon.retained_captures();
     assert_eq!(kept.len(), 1, "{kept:?}");
     assert!(kept[0].in_camera_memory && !kept[0].in_hand, "{kept:?}");
-    assert!(fake.files_left(CANON_PORT) >= 1, "the file is still on the camera");
+    assert!(
+        fake.files_left(CANON_PORT) >= 1,
+        "the file is still on the camera"
+    );
 
     // The cable is good again. The next exposure is not refused, and the
     // kept file is read off the camera's memory first.
@@ -510,7 +513,8 @@ async fn a_capture_kept_on_the_card_is_retrieved_later_and_stays_on_the_card() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
     let mut nikon = connected(0, NIKON, NIKON_PORT).await;
-    let switch = std::env::temp_dir().join(format!("skotiq-fake-get-fails-card-{}", std::process::id()));
+    let switch =
+        std::env::temp_dir().join(format!("skotiq-fake-get-fails-card-{}", std::process::id()));
     std::env::set_var("FAKE_GPHOTO2_FAIL_GET_FILE", &switch);
 
     std::fs::write(&switch, b"").unwrap();
@@ -519,7 +523,10 @@ async fn a_capture_kept_on_the_card_is_retrieved_later_and_stays_on_the_card() {
         .await
         .expect("start exposure");
     let error = nikon.download_image().await.unwrap_err();
-    assert!(error.to_string().contains("on the camera's card"), "{error}");
+    assert!(
+        error.to_string().contains("on the camera's card"),
+        "{error}"
+    );
     let kept = nikon.retained_captures();
     assert_eq!(kept.len(), 1);
     assert!(!kept[0].in_camera_memory && !kept[0].in_hand, "{kept:?}");
@@ -535,7 +542,10 @@ async fn a_capture_kept_on_the_card_is_retrieved_later_and_stays_on_the_card() {
     std::fs::remove_file(&switch).unwrap();
     let file = nikon.retrieve_capture(&kept[0].location).await.unwrap();
     assert!(!file.bytes.is_empty());
-    assert!(fake.files_left(NIKON_PORT) >= on_card, "card files are kept");
+    assert!(
+        fake.files_left(NIKON_PORT) >= on_card,
+        "card files are kept"
+    );
     std::env::remove_var("FAKE_GPHOTO2_FAIL_GET_FILE");
 }
 

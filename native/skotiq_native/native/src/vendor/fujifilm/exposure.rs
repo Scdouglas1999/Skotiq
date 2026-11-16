@@ -333,7 +333,10 @@ mod tests {
                 seconds: 32.0
             })
         );
-        assert_eq!(ShutterSpeeds::from_reported(&[-1]).nearest_timed(30.0), None);
+        assert_eq!(
+            ShutterSpeeds::from_reported(&[-1]).nearest_timed(30.0),
+            None
+        );
     }
 
     #[test]

@@ -228,8 +228,7 @@ void main() {
 
       final stored = (await targets.readAll()).destinations;
       expect(stored.single.enabled, isFalse);
-      expect(
-          find.textContaining('Off: nothing is sent here.'), findsOneWidget);
+      expect(find.textContaining('Off: nothing is sent here.'), findsOneWidget);
     },
   );
 
@@ -408,8 +407,7 @@ void main() {
       expect(
         find.textContaining('waiting for office-pc to pull'),
         findsOneWidget,
-        reason:
-            'A published peer row is owed a PULL, not a retry. The journal '
+        reason: 'A published peer row is owed a PULL, not a retry. The journal '
             'state is the same and the sentence must not be.',
       );
       expect(find.textContaining('Pairing: Office PC'), findsOneWidget);

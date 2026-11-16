@@ -79,7 +79,8 @@ void main() {
       });
     });
 
-    test('can be reached: from Settings > Help & tutorials or from its screen', () {
+    test('can be reached: from Settings > Help & tutorials or from its screen',
+        () {
       for (final tour in Tour.values) {
         final listed = Tour.workflows.contains(tour) ||
             tour == Tour.firstNight ||

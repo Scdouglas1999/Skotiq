@@ -47,8 +47,7 @@ void main() {
   }
 
   group('activation', () {
-    test('off by default: an offline laptop never reaches for the network',
-        () {
+    test('off by default: an offline laptop never reaches for the network', () {
       final container = containerAt(fovDegrees: 1.5);
       expect(container.read(planetariumSkyImageryEnabledProvider), isFalse);
       expect(container.read(planetariumSkyImageryActiveProvider), isFalse);

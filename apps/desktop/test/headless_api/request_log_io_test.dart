@@ -87,8 +87,11 @@ void main() {
         logger.getRecentLogs().where((e) => e.message == 'handler reached'),
         hasLength(1),
       );
-      expect(completionEntered.isCompleted, isFalse,
-          reason: 'request lines are written in order, one at a time');
+      expect(
+        completionEntered.isCompleted,
+        isFalse,
+        reason: 'request lines are written in order, one at a time',
+      );
       allowStart.complete();
       await completionEntered.future.timeout(const Duration(seconds: 5));
       allowCompletion.complete();

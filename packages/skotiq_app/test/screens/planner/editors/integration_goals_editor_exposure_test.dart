@@ -162,7 +162,7 @@ void main() {
     expect(find.textContaining('old host failed'), findsNothing);
     expect(
       tester
-            .widget<SkotiqDropdown>(
+          .widget<SkotiqDropdown>(
             find.byType(SkotiqDropdown),
           )
           .value,
@@ -174,7 +174,7 @@ void main() {
     await tester.pump();
     expect(
       tester
-            .widget<SkotiqDropdown>(
+          .widget<SkotiqDropdown>(
             find.byType(SkotiqDropdown),
           )
           .value,

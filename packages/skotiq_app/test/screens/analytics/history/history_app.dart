@@ -56,12 +56,16 @@ import 'package:skotiq_ui/skotiq_ui.dart';
         allSessionsProvider
             .overrideWith((ref) => sessionStream ?? Stream.value(sessions)),
         sequenceRunsProvider.overrideWith((ref) => Stream.value(runs)),
-        standaloneImagesProvider.overrideWith((ref) => Stream.value(standalone)),
+        standaloneImagesProvider
+            .overrideWith((ref) => Stream.value(standalone)),
         allDbImagesProvider.overrideWith((ref) => Stream.value(images)),
         allDbTargetsProvider.overrideWith((ref) => Stream.value(targets)),
         dbSessionImagesProvider.overrideWith(
           (ref, id) => Stream.value(
-            [for (final image in images) if (image.sessionId == id) image],
+            [
+              for (final image in images)
+                if (image.sessionId == id) image
+            ],
           ),
         ),
         notesForRunProvider

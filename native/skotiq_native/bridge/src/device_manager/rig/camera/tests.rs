@@ -417,7 +417,11 @@ async fn a_read_mode_is_written_only_when_the_camera_is_in_another() {
         use_readout_mode(&mut camera, "Turbo").await.unwrap(),
         ReadModeUse::NotListed(vec!["Normal".to_string(), "High speed".to_string()])
     );
-    assert_eq!(writes(), 1, "a mode the camera does not list writes nothing");
+    assert_eq!(
+        writes(),
+        1,
+        "a mode the camera does not list writes nothing"
+    );
 
     // A camera that will not say which mode it is in is put in the one asked for.
     camera.mode = None;

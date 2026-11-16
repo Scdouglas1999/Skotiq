@@ -4,7 +4,8 @@ import 'package:skotiq_app/screens/analytics/history/night_views/review_view.dar
 /// A night's review the way the night page shows it: the header actions over
 /// the Report (or the Workbench).
 class ReviewHost extends StatelessWidget {
-  const ReviewHost({super.key, required this.sessionId, this.workbench = false});
+  const ReviewHost(
+      {super.key, required this.sessionId, this.workbench = false});
 
   final int sessionId;
   final bool workbench;

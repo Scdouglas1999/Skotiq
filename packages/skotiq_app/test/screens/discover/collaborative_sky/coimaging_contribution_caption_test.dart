@@ -43,8 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('You are pooling light here'), findsNothing);
-    expect(
-        find.text('Joined: not contributing (sharing off)'), findsOneWidget);
+    expect(find.text('Joined: not contributing (sharing off)'), findsOneWidget);
 
     await tester.tap(find.text('Turn on sharing'));
     await tester.pumpAndSettle();

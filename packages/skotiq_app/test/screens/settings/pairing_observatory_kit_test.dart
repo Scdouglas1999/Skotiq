@@ -55,8 +55,7 @@ void main() {
     expect(primaries, isEmpty);
 
     final start = find.widgetWithText(SkotiqButton, 'Start pairing');
-    expect(tester.widget<SkotiqButton>(start).variant,
-        ButtonVariant.secondary);
+    expect(tester.widget<SkotiqButton>(start).variant, ButtonVariant.secondary);
     expect(tester.getSize(start).width, lessThan(320));
   });
 

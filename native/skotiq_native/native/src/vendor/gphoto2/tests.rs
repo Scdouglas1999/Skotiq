@@ -493,7 +493,8 @@ fn shutter_choices_of_every_maker_read_as_seconds() {
 #[test]
 fn an_exposure_uses_a_timed_speed_only_when_it_lasts_as_long() {
     let canon = speeds("shutterspeed", CANON_SPEEDS);
-    let timed = |seconds| match plan_exposure("Canon EOS 6D", &canon, true, false, seconds).unwrap() {
+    let timed = |seconds| match plan_exposure("Canon EOS 6D", &canon, true, false, seconds).unwrap()
+    {
         ExposurePlan::Timed(speed) => Some(speed.choice),
         ExposurePlan::Bulb => None,
     };
@@ -1049,7 +1050,9 @@ fn a_capture_that_could_not_be_downloaded_is_recorded_and_blocks_nothing() {
     camera.facts.capture_target = Some("Memory card".into());
     let error = camera.retain_capture(&path, None, DriverError::SdkError("read failed".into()));
     assert!(
-        error.to_string().contains("on the camera's card at /DCIM/failed.CR2"),
+        error
+            .to_string()
+            .contains("on the camera's card at /DCIM/failed.CR2"),
         "{error}"
     );
     let retained = camera.retained_captures();

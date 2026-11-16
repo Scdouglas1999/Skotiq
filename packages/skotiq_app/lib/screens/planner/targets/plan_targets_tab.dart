@@ -566,7 +566,8 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     if (confirmed != true || !mounted) return;
     final host = ref.backendScope();
     try {
-      final removed = await ref.read(targetLibraryProvider).deleteUntrackedTargets();
+      final removed =
+          await ref.read(targetLibraryProvider).deleteUntrackedTargets();
       if (!mounted || host.isStale) return;
       ref.invalidate(allDbTargetsProvider);
       ref.invalidate(favoriteDbTargetsProvider);
@@ -651,9 +652,8 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                   if (t.inGroup(group.id!)) t,
               ];
         final rows = _rows(scoped, autopilot, windows);
-        final selected = rows
-            .where((r) => r.target.id == _selectedTargetId)
-            .firstOrNull;
+        final selected =
+            rows.where((r) => r.target.id == _selectedTargetId).firstOrNull;
         // Beside the list the detail always shows a target; the first row
         // stands in until one is chosen.
         final shown = selected ?? (sideBySide ? rows.firstOrNull : null);
@@ -706,9 +706,8 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           onDeleteGroup: _deleteGroup,
           onCleanUp: _cleanUp,
           onAddTarget: () => _addTarget(group, {for (final t in scoped) t.id}),
-          onPlanTonight: group == null
-              ? null
-              : () => _planTonight(group, scoped),
+          onPlanTonight:
+              group == null ? null : () => _planTonight(group, scoped),
           onOpen: (row) {
             _select(row.target.id);
             if (!sideBySide) _openDetailOver(context, row.target.id);
@@ -853,7 +852,10 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           'Set location',
           AppRoutes.settings(SettingsSectionId.location),
         ),
-      SchedulerReadinessIssueId.weather => ('Open Weather', AppRoute.weather.path),
+      SchedulerReadinessIssueId.weather => (
+          'Open Weather',
+          AppRoute.weather.path
+        ),
       _ => null,
     };
 
@@ -862,7 +864,8 @@ String _hours(double seconds) => DurationFormat.decimalHours(seconds);
 
 /// "4.5h / 12h", "31.9h · no goal", or "Not started".
 String _progressText(ProjectProgress p) {
-  if (p.goal.isSet) return '${_hours(p.integratedSecs)} / ${_hours(p.goal.goalSecs)}';
+  if (p.goal.isSet)
+    return '${_hours(p.integratedSecs)} / ${_hours(p.goal.goalSecs)}';
   if (p.integratedSecs <= 0) return 'Not started';
   return '${_hours(p.integratedSecs)} · no goal';
 }

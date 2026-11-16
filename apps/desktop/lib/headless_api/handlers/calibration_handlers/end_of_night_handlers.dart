@@ -98,10 +98,9 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
     unawaited(
       container.read(endOfNightCalibrationCoordinatorProvider).runNow(),
     );
-    return Response(
-      HttpStatus.accepted,
-      body: jsonEncode(await _endOfNightJson()),
-      headers: const {'content-type': 'application/json'},
+    return jsonResponse(
+      await _endOfNightJson(),
+      statusCode: HttpStatus.accepted,
     );
   }
 

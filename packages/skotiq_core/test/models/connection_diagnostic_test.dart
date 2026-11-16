@@ -281,38 +281,35 @@ void main() {
     });
   });
 
-  group(
-    'diagnoseConnectionFailure: every category yields non-empty steps',
-    () {
-      for (final category in DiagnosticCategory.values) {
-        test('$category produces concrete steps', () {
-          // Drive each category via a representative input.
-          final d = _diagnosisForCategory(category);
-          expect(d.category, category);
-          expect(d.steps, isNotEmpty);
-          expect(d.steps.length, greaterThanOrEqualTo(3));
-          expect(d.steps.length, lessThanOrEqualTo(6));
-          for (final step in d.steps) {
-            expect(step.instruction.trim(), isNotEmpty);
-          }
-          expect(d.headline.trim(), isNotEmpty);
-          expect(d.plainLanguage.trim(), isNotEmpty);
-        });
-      }
-
-      test('unknown still yields non-empty steps and preserves raw', () {
-        const raw = 'completely novel failure mode';
-        final d = diagnoseConnectionFailure(
-          deviceType: DeviceType.mount,
-          driverType: DriverType.indi,
-          rawError: raw,
-        );
-        expect(d.category, DiagnosticCategory.unknown);
+  group('diagnoseConnectionFailure: every category yields non-empty steps', () {
+    for (final category in DiagnosticCategory.values) {
+      test('$category produces concrete steps', () {
+        // Drive each category via a representative input.
+        final d = _diagnosisForCategory(category);
+        expect(d.category, category);
         expect(d.steps, isNotEmpty);
-        expect(d.rawError, raw);
+        expect(d.steps.length, greaterThanOrEqualTo(3));
+        expect(d.steps.length, lessThanOrEqualTo(6));
+        for (final step in d.steps) {
+          expect(step.instruction.trim(), isNotEmpty);
+        }
+        expect(d.headline.trim(), isNotEmpty);
+        expect(d.plainLanguage.trim(), isNotEmpty);
       });
-    },
-  );
+    }
+
+    test('unknown still yields non-empty steps and preserves raw', () {
+      const raw = 'completely novel failure mode';
+      final d = diagnoseConnectionFailure(
+        deviceType: DeviceType.mount,
+        driverType: DriverType.indi,
+        rawError: raw,
+      );
+      expect(d.category, DiagnosticCategory.unknown);
+      expect(d.steps, isNotEmpty);
+      expect(d.rawError, raw);
+    });
+  });
 
   group('diagnoseConnectionFailure: device-specific copy', () {
     test('camera USB steps mention 12V power supply; mount does not', () {

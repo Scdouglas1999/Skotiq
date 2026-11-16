@@ -94,11 +94,7 @@ void main() {
           backend: b,
           deviceId: cam,
         );
-        expect(
-          cfg.maxAdu,
-          65520,
-          reason: '4095 << 4: what the frames contain',
-        );
+        expect(cfg.maxAdu, 65520, reason: '4095 << 4: what the frames contain');
         expect(cfg.bitDepth, 12, reason: 'ADC precision is still reported');
         expect(cfg.targetAduFor(50), closeTo(32760, 1));
       },

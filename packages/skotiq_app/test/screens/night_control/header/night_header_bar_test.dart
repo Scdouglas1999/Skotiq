@@ -143,7 +143,8 @@ void main() {
       );
     });
 
-    testWidgets('running, the target waiting to start: the header says what '
+    testWidgets(
+        'running, the target waiting to start: the header says what '
         'for', (tester) async {
       final base = headerFor(NightRunPhase.running);
       const waiting =

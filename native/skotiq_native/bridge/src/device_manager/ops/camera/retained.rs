@@ -51,7 +51,13 @@ fn save_camera_file(file: &skotiq_device::CameraFile) -> Result<PathBuf, DeviceO
     let name: String = file
         .file_name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let mut path = dir.join(format!("{stamp}_{name}"));
     let mut copy = 1;
@@ -66,7 +72,11 @@ fn save_camera_file(file: &skotiq_device::CameraFile) -> Result<PathBuf, DeviceO
 impl DeviceManager {
     /// After an exposure is started or a frame is read: pass on what the
     /// driver has to tell the user, and record the captures it kept.
-    pub(crate) async fn relay_camera_reports(&self, device_id: &str, camera: &dyn rig::camera::Camera) {
+    pub(crate) async fn relay_camera_reports(
+        &self,
+        device_id: &str,
+        camera: &dyn rig::camera::Camera,
+    ) {
         for notice in camera.take_notices().await {
             self.publish_notice(&notice.title, notice.message);
         }
@@ -209,7 +219,9 @@ impl DeviceManager {
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
                     .iter()
-                    .any(|r| r.device_id == device_id && r.location == location && r.in_camera_memory);
+                    .any(|r| {
+                        r.device_id == device_id && r.location == location && r.in_camera_memory
+                    });
                 // A memory file that the camera no longer lists cannot come back.
                 if in_memory
                     && e.to_string().to_ascii_lowercase().contains("not found")

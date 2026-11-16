@@ -395,7 +395,8 @@ impl CameraDriver for GPhoto2Camera {
                 ),
             }
         }
-        let image = decoded.map_err(|error| self.retain_capture(&files[read], Some(bytes), error))?;
+        let image =
+            decoded.map_err(|error| self.retain_capture(&files[read], Some(bytes), error))?;
         Ok(image)
     }
 

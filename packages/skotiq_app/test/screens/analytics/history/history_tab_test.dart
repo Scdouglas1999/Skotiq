@@ -97,7 +97,8 @@ void main() {
     expect(toneOf('Completed'), ChipTone.success);
   });
 
-  testWidgets('a run cut off by a restart shows no elapsed time and is not '
+  testWidgets(
+      'a run cut off by a restart shows no elapsed time and is not '
       'listed as running', (tester) async {
     useWindow(tester, _desktop);
     final started = DateTime.now().subtract(const Duration(hours: 1));
@@ -199,19 +200,30 @@ void main() {
     final built = historyApp(
       sessions: [
         session(1, name: 'A', start: at, autofocus: 2),
-        session(2, name: 'B', start: at.add(const Duration(days: 1)),
-            autofocus: 3),
+        session(2,
+            name: 'B', start: at.add(const Duration(days: 1)), autofocus: 3),
       ],
       runs: [
         run(1, name: 'A', start: at, stats: {'meridianFlips': 2}),
       ],
       images: [
-        frame(1, sessionId: 1, at: at, exposure: 3600, temperature: -10,
-            hfr: 2, rms: 0.8),
-        frame(2, sessionId: 1, at: at, accepted: false, exposure: 120,
-            temperature: -5, hfr: 10, rms: 4),
-        frame(3, sessionId: 1, at: at, type: 'flat', exposure: 2,
-            temperature: 0),
+        frame(1,
+            sessionId: 1,
+            at: at,
+            exposure: 3600,
+            temperature: -10,
+            hfr: 2,
+            rms: 0.8),
+        frame(2,
+            sessionId: 1,
+            at: at,
+            accepted: false,
+            exposure: 120,
+            temperature: -5,
+            hfr: 10,
+            rms: 4),
+        frame(3,
+            sessionId: 1, at: at, type: 'flat', exposure: 2, temperature: 0),
       ],
     );
     await tester.pumpWidget(built.app);

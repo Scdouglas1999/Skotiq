@@ -246,7 +246,10 @@ abstract class DeviceBackend {
 
   /// Read a kept capture off its camera and save the camera's file on the
   /// host. Answers the path it was saved to there.
-  Future<String> cameraRetrieveRetainedCapture(String deviceId, String location);
+  Future<String> cameraRetrieveRetainedCapture(
+    String deviceId,
+    String location,
+  );
 
   Future<void> cameraSetGain(String deviceId, int gain);
 

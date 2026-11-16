@@ -413,8 +413,9 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
       late final ({DateTime start, DateTime end, TwilightTimes twilight})
       window;
       try {
-        window =
-            ref.read(smartNightServiceProvider).calculateWindow(
+        window = ref
+            .read(smartNightServiceProvider)
+            .calculateWindow(
               latitudeDeg: settings.latitude,
               longitudeDeg: settings.longitude,
             );
@@ -432,16 +433,18 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
         subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
       );
 
-      return ref.read(smartNightServiceProvider).previewTargetIntegration(
-        profile: profile,
-        suggestion: suggestion,
-        windowStart: window.start,
-        windowEnd: window.end,
-        availableFilters: filters,
-        latitudeDeg: settings.latitude,
-        longitudeDeg: settings.longitude,
-        exposureContext: exposureContext,
-        settings: smartNightSettings,
-        integrationGoalProgress: integrationGoals,
-      );
+      return ref
+          .read(smartNightServiceProvider)
+          .previewTargetIntegration(
+            profile: profile,
+            suggestion: suggestion,
+            windowStart: window.start,
+            windowEnd: window.end,
+            availableFilters: filters,
+            latitudeDeg: settings.latitude,
+            longitudeDeg: settings.longitude,
+            exposureContext: exposureContext,
+            settings: smartNightSettings,
+            integrationGoalProgress: integrationGoals,
+          );
     });

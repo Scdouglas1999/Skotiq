@@ -44,9 +44,7 @@ async fn reconnect_reapplies_mount_tracking() {
 
     // Simulate a heartbeat-lost disconnect: device goes to Error and the
     // driver loses tracking (sim singleton flipped off).
-    manager
-        .mark_lost(device_id, true, "simulated yank")
-        .await;
+    manager.mark_lost(device_id, true, "simulated yank").await;
     get_sim_mount().write().await.status.tracking = false;
     assert_eq!(
         manager
@@ -107,9 +105,7 @@ async fn reconnect_reapplies_camera_cooler() {
     );
 
     // Heartbeat-lost: Error state + driver loses cooler (sim defaults).
-    manager
-        .mark_lost(device_id, true, "simulated yank")
-        .await;
+    manager.mark_lost(device_id, true, "simulated yank").await;
     {
         let mut cam = get_sim_camera().write().await;
         cam.status.cooler_on = Some(false);
@@ -244,9 +240,7 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
             .retained
             .iter()
             .position(|(kept, _)| kept.location == location)
-            .ok_or_else(|| {
-                skotiq_device::DriverError::SdkError(format!("{location} not found"))
-            })?;
+            .ok_or_else(|| skotiq_device::DriverError::SdkError(format!("{location} not found")))?;
         let (kept, bytes) = self.retained.remove(index);
         Ok(skotiq_device::CameraFile {
             file_name: kept.location.rsplit('/').next().unwrap().to_string(),
@@ -470,7 +464,10 @@ async fn a_capture_kept_on_the_camera_is_listed_blocks_no_reconnect_and_is_retri
             titles.push(title);
         }
     }
-    assert_eq!(titles, ["Camera refused bulb", "Capture kept on the camera"]);
+    assert_eq!(
+        titles,
+        ["Camera refused bulb", "Capture kept on the camera"]
+    );
 
     // A reconnect is not held for it: it reaches the vendor open (this fake
     // has no SDK), and the record outlives the driver it came from.

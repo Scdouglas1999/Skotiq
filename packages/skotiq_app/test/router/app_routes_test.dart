@@ -147,8 +147,10 @@ void main() {
         ('/session-replay', '/analytics?tab=history'),
         ('/session-replay/12', '/analytics?tab=history&run=12&view=log'),
         ('/replay/7?name=M31', '/analytics?tab=history&run=7&view=log'),
-        ('/session-review?session=3',
-            '/analytics?tab=history&night=3&view=report'),
+        (
+          '/session-review?session=3',
+          '/analytics?tab=history&night=3&view=report'
+        ),
         ('/session-review', '/analytics?tab=history'),
         ('/session-review?target=4', '/darkroom?tab=targets'),
         ('/analytics?tab=equipment', '/analytics?tab=history'),
@@ -267,11 +269,11 @@ void main() {
       }
       expect(ScienceTab.fromQuery('first_light'), ScienceTab.firstLight);
       for (final view in NightView.values) {
-        final uri = Uri.parse(
-            AppRoutes.night(const NightRef.session(4), view: view));
+        final uri =
+            Uri.parse(AppRoutes.night(const NightRef.session(4), view: view));
         expect(NightView.fromQuery(uri.queryParameters['view']), view);
-        expect(NightRef.fromQuery(uri.queryParameters),
-            const NightRef.session(4));
+        expect(
+            NightRef.fromQuery(uri.queryParameters), const NightRef.session(4));
       }
       expect(
           NightRef.fromQuery(Uri.parse(AppRoutes.night(const NightRef.run(9)))

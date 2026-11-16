@@ -184,8 +184,11 @@ void main() {
     expect(issues, isNotEmpty);
     for (final issue in issues) {
       final hint = issue.resolutionHint ?? '';
-      expect(hint, isNot(contains('Dark Library')),
-          reason: 'there is no Dark Library page to open');
+      expect(
+        hint,
+        isNot(contains('Dark Library')),
+        reason: 'there is no Dark Library page to open',
+      );
       if (hint.contains('darks')) {
         expect(hint, contains('Darkroom > Calibration'));
       }

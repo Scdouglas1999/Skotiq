@@ -811,14 +811,8 @@ async fn recovery_reconnects_a_lost_focuser_without_replacing_the_connected_came
         "the connected camera's handle and retained files must stay intact"
     );
     assert_eq!(devices.call_count(&format!("connect_device:{focuser}")), 1);
-    assert_eq!(
-        devices.call_count(&format!("device_answers:{camera}")),
-        2
-    );
-    assert_eq!(
-        devices.call_count(&format!("device_answers:{focuser}")),
-        2
-    );
+    assert_eq!(devices.call_count(&format!("device_answers:{camera}")), 2);
+    assert_eq!(devices.call_count(&format!("device_answers:{focuser}")), 2);
     assert!(devices.connected.lock().unwrap().contains(focuser));
 }
 
@@ -4011,5 +4005,8 @@ async fn a_run_with_a_target_and_no_site_says_so_once_as_a_notice() {
             .current_altitude;
     }
     let _ = executor.stop().await;
-    assert!(altitude.is_some(), "the site set during the run was not used");
+    assert!(
+        altitude.is_some(),
+        "the site set during the run was not used"
+    );
 }

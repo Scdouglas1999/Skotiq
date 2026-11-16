@@ -294,15 +294,17 @@ class RetainedCapture {
   final String reason;
   final DateTime retainedAt;
 
+  /// Reads what [toJson] writes; every field is required, so a capture the
+  /// host described in part is refused instead of listed with blanks.
   factory RetainedCapture.fromJson(Map<String, dynamic> json) =>
       RetainedCapture(
-        deviceId: json['deviceId'] as String? ?? '',
-        cameraName: json['cameraName'] as String? ?? '',
-        location: json['location'] as String? ?? '',
-        inCameraMemory: json['inCameraMemory'] as bool? ?? false,
-        reason: json['reason'] as String? ?? '',
+        deviceId: json['deviceId'] as String,
+        cameraName: json['cameraName'] as String,
+        location: json['location'] as String,
+        inCameraMemory: json['inCameraMemory'] as bool,
+        reason: json['reason'] as String,
         retainedAt: DateTime.fromMillisecondsSinceEpoch(
-          (json['retainedAtMs'] as num?)?.toInt() ?? 0,
+          (json['retainedAtMs'] as num).toInt(),
           isUtc: true,
         ),
       );

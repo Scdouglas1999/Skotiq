@@ -20,12 +20,12 @@ const int _kMissingFilterSentinel = -999;
     return valid
         ? (slot: index, missing: null, note: null)
         : index == null
-        ? (slot: null, missing: null, note: null)
-        : (
-            slot: null,
-            missing: 'Filter #$index (not on the wheel)',
-            note: 'Slot #$index is not on the wheel or in the profile.',
-          );
+            ? (slot: null, missing: null, note: null)
+            : (
+                slot: null,
+                missing: 'Filter #$index (not on the wheel)',
+                note: 'Slot #$index is not on the wheel or in the profile.',
+              );
   }
   if (matchingFilterIndex(named, slots) case final slot?) {
     return (slot: slot, missing: null, note: null);
@@ -561,10 +561,12 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
         source: 'InstructionNodeProperties',
       );
     }
-    final choice = _stepFilterChoice(node.filter, node.filterIndex, filterNames);
+    final choice =
+        _stepFilterChoice(node.filter, node.filterIndex, filterNames);
     final bool missingFromList = choice.missing != null;
     if (missingFromList) {
-      filterOptions.add((index: _kMissingFilterSentinel, name: choice.missing!));
+      filterOptions
+          .add((index: _kMissingFilterSentinel, name: choice.missing!));
     }
     final currentFilter = missingFromList
         ? filterOptions.last

@@ -231,16 +231,17 @@ void main() {
         ),
       );
 
-      final result = const PreSessionSimulator(
-          estimator: SequenceTimeEstimator(
-            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
-          ),
-        ).simulate(
-        sequence,
-        start: DateTime(2026, 5, 21, 22),
-        latitude: 40,
-        longitude: -75,
-      );
+      final result =
+          const PreSessionSimulator(
+            estimator: SequenceTimeEstimator(
+              floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+            ),
+          ).simulate(
+            sequence,
+            start: DateTime(2026, 5, 21, 22),
+            latitude: 40,
+            longitude: -75,
+          );
 
       expect(result.segments, isEmpty);
       expect(result.hasBlockingIssues, isTrue);
@@ -316,16 +317,17 @@ void main() {
         ),
       );
 
-      final result = const PreSessionSimulator(
-          estimator: SequenceTimeEstimator(
-            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
-          ),
-        ).simulate(
-        sequence,
-        start: DateTime(2026, 5, 21, 22),
-        latitude: 40,
-        longitude: -75,
-      );
+      final result =
+          const PreSessionSimulator(
+            estimator: SequenceTimeEstimator(
+              floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+            ),
+          ).simulate(
+            sequence,
+            start: DateTime(2026, 5, 21, 22),
+            latitude: 40,
+            longitude: -75,
+          );
 
       expect(result.hasBlockingIssues, isTrue);
       expect(
@@ -443,16 +445,17 @@ void main() {
         ),
       );
 
-      final result = const PreSessionSimulator(
-          estimator: SequenceTimeEstimator(
-            floor: AltitudeFloor(horizon: null, minimumDeg: 20),
-          ),
-        ).simulate(
-        sequence,
-        start: DateTime(2026, 5, 21, 22),
-        latitude: 40,
-        longitude: -75,
-      );
+      final result =
+          const PreSessionSimulator(
+            estimator: SequenceTimeEstimator(
+              floor: AltitudeFloor(horizon: null, minimumDeg: 20),
+            ),
+          ).simulate(
+            sequence,
+            start: DateTime(2026, 5, 21, 22),
+            latitude: 40,
+            longitude: -75,
+          );
 
       expect(result.hasBlockingIssues, isTrue);
       expect(

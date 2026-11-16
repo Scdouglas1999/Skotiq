@@ -500,7 +500,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       DeviceApi.cameraRetrieveRetainedCapture,
       body: {'deviceId': deviceId, 'location': location},
     );
-    return response['savedTo'] as String? ?? '';
+    return response['savedTo'] as String;
   }
 
   @override

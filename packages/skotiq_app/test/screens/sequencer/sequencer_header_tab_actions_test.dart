@@ -51,7 +51,8 @@ void main() {
     expect(find.widgetWithText(SkotiqButton, 'Save current'), findsNothing);
   });
 
-  testWidgets('the Builder header has neither save action, and every tab has '
+  testWidgets(
+      'the Builder header has neither save action, and every tab has '
       'its icon', (tester) async {
     await pumpOn(tester, SequencerTab.builder);
     expect(find.widgetWithText(SkotiqButton, 'Save current'), findsNothing);

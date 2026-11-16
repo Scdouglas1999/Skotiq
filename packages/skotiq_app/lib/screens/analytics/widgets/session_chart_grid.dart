@@ -70,7 +70,16 @@ class SessionChartGrid extends StatelessWidget {
 
     if (stacked) {
       return Column(
-        children: [population, hfr, gap, guiding, gap, focuser, gap, temperature],
+        children: [
+          population,
+          hfr,
+          gap,
+          guiding,
+          gap,
+          focuser,
+          gap,
+          temperature
+        ],
       );
     }
     return Column(
@@ -79,7 +88,11 @@ class SessionChartGrid extends StatelessWidget {
         Row(children: [Expanded(child: hfr), gap, Expanded(child: guiding)]),
         gap,
         Row(
-          children: [Expanded(child: focuser), gap, Expanded(child: temperature)],
+          children: [
+            Expanded(child: focuser),
+            gap,
+            Expanded(child: temperature)
+          ],
         ),
       ],
     );

@@ -43,7 +43,8 @@ class NightRunLogView extends ConsumerWidget {
     final notes = SkotiqPanel(
       child: RunNotesSection(
         sequenceRunId: run.id,
-        targetId: targetName ?? entry.runTargets.firstOrNull ?? run.sequenceName,
+        targetId:
+            targetName ?? entry.runTargets.firstOrNull ?? run.sequenceName,
         colors: colors,
         embedded: true,
       ),

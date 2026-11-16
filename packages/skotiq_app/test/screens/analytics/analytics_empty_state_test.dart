@@ -185,8 +185,7 @@ void main() {
   });
 
   group('Optics chrome', () {
-    testWidgets('the view prints no page title and no essay',
-        (tester) async {
+    testWidgets('the view prints no page title and no essay', (tester) async {
       await tester.pumpWidget(
         _host(const OpticsDiagnosticsView(sessionId: null)),
       );

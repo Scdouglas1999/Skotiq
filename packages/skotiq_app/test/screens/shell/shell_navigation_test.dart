@@ -5,7 +5,8 @@ import 'package:skotiq_app/screens/shell/shell_navigation.dart';
 
 void main() {
   group('ShellNavigation', () {
-    test('the rail runs in the order of a night: Tonight, Prepare, Observe, '
+    test(
+        'the rail runs in the order of a night: Tonight, Prepare, Observe, '
         'Review', () {
       // UI plan 3.9. Settings is deliberately absent: it lives in the top bar.
       // The Flat wizard is a tool reached from the Darkroom, Imaging and the
@@ -62,7 +63,8 @@ void main() {
       );
     });
 
-    test('the Flat wizard is off the rail, in the palette, hosted by the '
+    test(
+        'the Flat wizard is off the rail, in the palette, hosted by the '
         'Darkroom', () {
       expect(ShellNavigation.rail, isNot(contains(AppRoute.flatWizard)));
       expect(AppRoute.flatWizard.palette, isTrue);

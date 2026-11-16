@@ -523,7 +523,10 @@ class _SnapshotPanel extends StatelessWidget {
               'Frames captured',
               '${snapshot.frameCount} of ${ready.run.frameCount}',
             ),
-            ('Last HFR', hfr != null ? hfr.toStringAsFixed(2) : kReadoutUnknown),
+            (
+              'Last HFR',
+              hfr != null ? hfr.toStringAsFixed(2) : kReadoutUnknown
+            ),
             (
               'Guide RMS',
               rms != null ? '${rms.toStringAsFixed(2)}"' : kReadoutUnknown,

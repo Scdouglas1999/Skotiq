@@ -91,8 +91,7 @@ void main() {
         of: find.text(entry),
         matching: find.byType(InkWell),
       );
-      expect(find.descendant(of: item.first, matching: markers),
-          findsOneWidget,
+      expect(find.descendant(of: item.first, matching: markers), findsOneWidget,
           reason: entry);
     }
   });

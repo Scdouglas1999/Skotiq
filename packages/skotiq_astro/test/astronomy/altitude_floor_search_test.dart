@@ -123,7 +123,10 @@ void main() {
     );
     expect(rank(AltitudeFloorSamples.flat(30)), isNotEmpty);
     // A ridge to 50 degrees across the whole southern sky.
-    const ridge = AltitudeFloorSamples([0, 89, 90, 270, 271, 359], [0, 0, 50, 50, 0, 0]);
+    const ridge = AltitudeFloorSamples(
+      [0, 89, 90, 270, 271, 359],
+      [0, 0, 50, 50, 0, 0],
+    );
     expect(rank(ridge), isEmpty);
   });
 }

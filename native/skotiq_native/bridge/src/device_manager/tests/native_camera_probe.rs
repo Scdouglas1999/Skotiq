@@ -242,6 +242,9 @@ async fn a_camera_that_answers_is_left_connected_by_the_probe_and_by_recovery() 
     manager.hold_vendor_camera(device_id, Box::new(ThermometerlessCamera { status: idle }));
 
     assert!(manager.answers_now(device_id).await);
-    assert_eq!(manager.connect_device_automatically(device_id).await, Ok(()));
+    assert_eq!(
+        manager.connect_device_automatically(device_id).await,
+        Ok(())
+    );
     assert!(manager.is_connected(device_id).await);
 }

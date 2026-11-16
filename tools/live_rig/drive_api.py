@@ -136,7 +136,7 @@ def main():
 
     print('== camera')
     for path in ('/api/camera/cooling', '/api/camera/gain', '/api/camera/offset',
-                 '/api/camera/readout-modes', '/api/camera/recommended-settings'):
+                 '/api/camera/recommended-settings'):
         show(rig.call('GET', path))
 
     if args.set_filter >= 0:

@@ -540,7 +540,10 @@ const RECONNECT_SETTLE_WAITS: [std::time::Duration; 2] = [
 
 /// The first of `device_ids` that does not answer now, as the sentence the
 /// operator is shown; `None` when every one answers.
-async fn first_silent_device(device_ops: &SharedDeviceOps, device_ids: &[String]) -> Option<String> {
+async fn first_silent_device(
+    device_ops: &SharedDeviceOps,
+    device_ids: &[String],
+) -> Option<String> {
     for device_id in device_ids {
         match device_ops.device_answers(device_id).await {
             Ok(true) => {}
