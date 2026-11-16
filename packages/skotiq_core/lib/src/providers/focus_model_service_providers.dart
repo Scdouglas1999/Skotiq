@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/focus_model_service.dart';
+import '../utils/logging_service.dart';
 import 'database_provider.dart';
 
 final focusModelServiceProvider = Provider<FocusModelService>((ref) {
@@ -12,7 +13,18 @@ final focusModelServiceProvider = Provider<FocusModelService>((ref) {
     ref.watch(databaseProvider).focusHistoryDao,
     config: config,
   );
-  unawaited(service.initialize());
+  // Readers await initialize() themselves; this early start only warms the
+  // cache, so its failure is logged here and raised again to those readers.
+  unawaited(
+    service.initialize().catchError((Object e, StackTrace s) {
+      Log.error(
+        'Focus models did not load: $e',
+        source: 'focusModelServiceProvider',
+        error: e,
+        stackTrace: s,
+      );
+    }),
+  );
   return service;
 });
 

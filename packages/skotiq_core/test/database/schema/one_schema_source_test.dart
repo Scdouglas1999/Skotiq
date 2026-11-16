@@ -55,19 +55,30 @@ const _columnsAddedAfterBase = {
   'mosaic_projects': {'start_corner', 'serpentine'},
 };
 
-/// [tables] (a [dumpSchema] `tables` map) without [_columnsAddedAfterBase].
+/// Tables schema steps after the base build added. The base comparisons
+/// leave them out; each step's own migration test covers it. Schema 73: the
+/// focus models moved into the database.
+const _tablesAddedAfterBase = {
+  'focus_history_points',
+  'focus_profile_models',
+  'focus_filter_offsets',
+};
+
+/// [tables] (a [dumpSchema] `tables` map) without [_tablesAddedAfterBase]
+/// and [_columnsAddedAfterBase].
 Map<dynamic, dynamic> _asOfBase(Map<dynamic, dynamic> tables) => {
   for (final MapEntry(:key, :value) in tables.entries)
-    key: _columnsAddedAfterBase[key] == null
-        ? value
-        : {
-            ...(value as Map),
-            'columns': [
-              for (final column in (value['columns'] as List))
-                if (!_columnsAddedAfterBase[key]!.contains(column['name']))
-                  column,
-            ],
-          },
+    if (!_tablesAddedAfterBase.contains(key))
+      key: _columnsAddedAfterBase[key] == null
+          ? value
+          : {
+              ...(value as Map),
+              'columns': [
+                for (final column in (value['columns'] as List))
+                  if (!_columnsAddedAfterBase[key]!.contains(column['name']))
+                    column,
+              ],
+            },
 };
 
 /// What schema steps after the base build changed in the tables they
@@ -105,7 +116,10 @@ Map<String, String?> _outsideRebuilt(
   Map<String, String?> master,
   raw.Database db,
 ) {
-  final names = _rebuiltColumns.keys.map((t) => "'$t'").join(', ');
+  final names = {
+    ..._rebuiltColumns.keys,
+    ..._tablesAddedAfterBase,
+  }.map((t) => "'$t'").join(', ');
   final rebuilt = {
     for (final row in db.select(
       'SELECT type, name FROM sqlite_master WHERE tbl_name IN ($names)',
@@ -171,7 +185,7 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [72]);
+        expect(db.select('PRAGMA user_version').first.values, [73]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
       // altered or added but the tables later steps rebuilt, which keep their
@@ -214,6 +228,10 @@ void main() {
         countsAfter['app_settings'],
         greaterThanOrEqualTo(countsBefore['app_settings']!),
       );
+      // The tables later steps add start empty.
+      for (final table in _tablesAddedAfterBase) {
+        expect(countsAfter.remove(table), 0, reason: table);
+      }
       expect(
         {...countsAfter}..remove('app_settings'),
         {...countsBefore}..remove('app_settings'),
@@ -227,13 +245,13 @@ void main() {
 
       final onDisk = _withRaw(file, dumpRowCounts);
       final declared = {for (final t in db.allTables) t.actualTableName};
-      expect(declared, onDisk.keys.toSet());
+      expect(declared.difference(_tablesAddedAfterBase), onDisk.keys.toSet());
 
       for (final table in db.allTables) {
         final rows = await db.select(table).get();
         expect(
           rows,
-          hasLength(onDisk[table.actualTableName]),
+          hasLength(onDisk[table.actualTableName] ?? 0),
           reason: table.actualTableName,
         );
       }
@@ -377,7 +395,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [72]);
+      expect(db.select('PRAGMA user_version').first.values, [73]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(

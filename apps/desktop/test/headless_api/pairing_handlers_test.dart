@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/models.dart' show KnownDevices;
 import 'package:skotiq_core/providers.dart';
 
 import 'handler_test_helpers.dart';
@@ -26,6 +27,9 @@ void main() {
       pairingService = PairingService(database: database);
       container = createHeadlessTestContainer(
         overrides: [
+          hostKnownDevicesProvider.overrideWith(
+            (ref) async => const KnownDevices(),
+          ),
           appVersionProvider.overrideWithValue(
             const AppVersionInfo(version: '2.5.0', buildNumber: 5),
           ),
@@ -385,6 +389,9 @@ void main() {
 
       final firstContainer = createHeadlessTestContainer(
         overrides: [
+          hostKnownDevicesProvider.overrideWith(
+            (ref) async => const KnownDevices(),
+          ),
           appVersionProvider.overrideWithValue(
             const AppVersionInfo(version: '2.5.0', buildNumber: 5),
           ),
@@ -471,6 +478,9 @@ void main() {
 
       final secondContainer = createHeadlessTestContainer(
         overrides: [
+          hostKnownDevicesProvider.overrideWith(
+            (ref) async => const KnownDevices(),
+          ),
           appVersionProvider.overrideWithValue(
             const AppVersionInfo(version: '2.5.0', buildNumber: 5),
           ),
@@ -563,6 +573,9 @@ void main() {
       addTearDown(() => client.close(force: true));
       final lazyContainer = createHeadlessTestContainer(
         overrides: [
+          hostKnownDevicesProvider.overrideWith(
+            (ref) async => const KnownDevices(),
+          ),
           appVersionProvider.overrideWithValue(
             const AppVersionInfo(version: '2.5.0', buildNumber: 5),
           ),
@@ -643,6 +656,9 @@ void main() {
     addTearDown(() => client.close(force: true));
     final gatedContainer = createHeadlessTestContainer(
       overrides: [
+        hostKnownDevicesProvider.overrideWith(
+          (ref) async => const KnownDevices(),
+        ),
         appVersionProvider.overrideWithValue(
           const AppVersionInfo(version: '2.5.0', buildNumber: 5),
         ),
@@ -711,6 +727,9 @@ void main() {
     addTearDown(() => client.close(force: true));
     final stuckContainer = createHeadlessTestContainer(
       overrides: [
+        hostKnownDevicesProvider.overrideWith(
+          (ref) async => const KnownDevices(),
+        ),
         appVersionProvider.overrideWithValue(
           const AppVersionInfo(version: '2.5.0', buildNumber: 5),
         ),
