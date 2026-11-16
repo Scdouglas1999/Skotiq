@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -313,7 +314,7 @@ void main() {
       expect(notifications.sent.single, contains('Masters ready: NGC891'));
       expect(notifications.sent.single, contains('No filter has flats (L, R)'));
       expect(notifications.links.single, 'darkroom_target:NGC891');
-      expect(job.directory, '${folder.path}/Masters/NGC891');
+      expect(job.directory, p.join(folder.path, 'Masters', 'NGC891'));
     },
   );
 
@@ -482,7 +483,7 @@ void main() {
       await restored.accept();
       final done = after.read(darkroomBuildJobsProvider)!;
       expect(done.stage, DarkroomJobStage.done);
-      expect(done.directory, '${folder.path}/Masters/NGC891');
+      expect(done.directory, p.join(folder.path, 'Masters', 'NGC891'));
       expect(native.built, ['L', 'R']);
     });
 

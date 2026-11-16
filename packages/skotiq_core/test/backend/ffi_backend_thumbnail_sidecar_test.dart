@@ -93,12 +93,6 @@ void main() {
     );
   });
 
-  tearDown(() async {
-    backend.dispose();
-    await db.close();
-    await temp.delete(recursive: true);
-  });
-
   /// The service writes sidecars without awaiting, so give the microtask and
   /// the file write a chance to land before asserting on disk.
   Future<void> settle() async {
@@ -106,6 +100,15 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
   }
+
+  tearDown(() async {
+    backend.dispose();
+    await db.close();
+    // A test can end while its unawaited sidecar write is still open, and
+    // Windows will not delete a folder holding an open file.
+    await settle();
+    await temp.delete(recursive: true);
+  });
 
   test('a sidecar on disk is served without decoding the frame', () async {
     final (id, path) = await seedFrame();
@@ -222,6 +225,10 @@ void main() {
   test(
     'a sidecar that cannot be written does not deny the caller its bytes',
     () async {
+      if (Platform.isWindows) {
+        markTestSkipped('POSIX permission bits');
+        return;
+      }
       // A read-only frame directory — a mounted archive, or a share the
       // operator only has read rights on. The decode succeeded; the caller
       // must get its thumbnail regardless of whether the cache write lands.

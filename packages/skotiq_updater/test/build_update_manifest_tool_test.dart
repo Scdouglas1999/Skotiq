@@ -31,6 +31,8 @@ Future<ProcessResult> _runTool(List<String> args, {String? privateKey}) async {
       if (privateKey != null) 'SKOTIQ_UPDATE_PRIVATE_KEY': privateKey,
     },
     workingDirectory: _packageRoot(),
+    // The Flutter SDK's dart is a .bat on Windows, which only a shell can start.
+    runInShell: Platform.isWindows,
   );
 }
 

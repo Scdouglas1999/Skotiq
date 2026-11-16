@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show UpdateKind, Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
@@ -2721,8 +2722,8 @@ void main() {
     expect(
       reports.map((row) => row.filePath),
       containsAll([
-        '${output.path}/darkroom/job_${first.jobId}_pass1_report.json',
-        '${output.path}/darkroom/job_${first.jobId}_pass2_report.json',
+        p.join(output.path, 'darkroom', 'job_${first.jobId}_pass1_report.json'),
+        p.join(output.path, 'darkroom', 'job_${first.jobId}_pass2_report.json'),
       ]),
     );
 

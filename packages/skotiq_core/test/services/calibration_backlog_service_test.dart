@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
@@ -313,8 +314,12 @@ void main() {
     expect(masterCalls.single.framePaths, hasLength(20));
     expect(
       masterCalls.single.outputPath,
-      '${tmp.path}/Dark/Masters/'
-      'MasterDark_90s_g76_o15_m10C_bin1_20261025-090000.fits',
+      p.join(
+        tmp.path,
+        'Dark',
+        'Masters',
+        'MasterDark_90s_g76_o15_m10C_bin1_20261025-090000.fits',
+      ),
     );
     expect(built.framesCombined, 19);
     expect(built.leftOut, hasLength(1));

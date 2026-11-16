@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
@@ -245,7 +246,11 @@ void main() {
     ]);
     expect(
       rig.built.first.outputPath,
-      '/n/Dark/Masters/MasterDark_90s_g76_o15_m10C_bin1_20261022-0630.fits',
+      p.join(
+        '/n/Dark',
+        'Masters',
+        'MasterDark_90s_g76_o15_m10C_bin1_20261022-0630.fits',
+      ),
     );
     expect(report.masters.where((m) => m.built), hasLength(3));
     expect(report.problems, isEmpty);

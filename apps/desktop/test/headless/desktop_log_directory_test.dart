@@ -10,6 +10,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_desktop/desktop_logging_init.dart';
 
 void main() {
@@ -40,7 +41,7 @@ void main() {
       );
 
       expect(paths.dataRoot, instanceRoot.path);
-      expect(paths.logDirectory, '${instanceRoot.path}/logs');
+      expect(paths.logDirectory, p.join(instanceRoot.path, 'logs'));
       expect(Directory(paths.logDirectory).existsSync(), isTrue);
       // The shared platform-support log directory must NOT be the target: that
       // is what made two instances write to one file.
@@ -78,7 +79,7 @@ void main() {
       );
 
       expect(paths.dataRoot, appSupport.path);
-      expect(paths.logDirectory, '${appSupport.path}/logs');
+      expect(paths.logDirectory, p.join(appSupport.path, 'logs'));
       expect(Directory(paths.logDirectory).existsSync(), isTrue);
     },
   );
