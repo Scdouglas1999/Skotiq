@@ -3,7 +3,7 @@
 //   * the on-canvas scale bar reports a *real* angular distance derived from the
 //     shared FramingPlateScale, so it scales with the preview FOV rather than
 //     reading a fixed value,
-//   * the survey-source picker is a real SkotiqDropdown wired to
+//   * the survey-source picker is a SkotiqMenuChip wired to
 //     FramingNotifier.setSurveySource (selecting a band changes the active
 //     source — no dead handler),
 //   * the no-image fallback still renders the FOV reticle (the synthetic plate
@@ -151,17 +151,17 @@ void main() {
         reason: 'a 20° field should yield a degree-scale bar');
   });
 
-  testWidgets('survey-source dropdown is present and lists every survey band',
+  testWidgets('the survey chip is present and lists every survey band',
       (tester) async {
     await _pumpCanvas(
       tester,
       framingState: const FramingState(surveySource: SurveySource.dss2Red),
     );
 
-    expect(find.byType(SkotiqDropdown), findsOneWidget);
+    expect(find.byType(SkotiqFilterChip), findsOneWidget);
 
     // Open the menu and assert every survey source is offered.
-    await tester.tap(find.byType(SkotiqDropdown));
+    await tester.tap(find.byType(SkotiqFilterChip));
     await tester.pumpAndSettle();
 
     for (final source in SurveySource.values) {
@@ -180,7 +180,7 @@ void main() {
 
     expect(container.read(framingProvider).surveySource, SurveySource.dss2Red);
 
-    await tester.tap(find.byType(SkotiqDropdown));
+    await tester.tap(find.byType(SkotiqFilterChip));
     await tester.pumpAndSettle();
 
     // Pick a different band; the dropdown menu shows display names.

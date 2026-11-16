@@ -3,6 +3,7 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show withCatalogObjectTypes;
 import 'package:skotiq_core/settings.dart';
 import 'package:shelf/shelf.dart';
 
@@ -133,11 +134,13 @@ class SuggestionHandlers implements RouteSource {
       });
     }
 
-    final targets = await database.targetsDao.getAllTargets();
-    if (targets.isEmpty) {
+    final rows = await database.targetsDao.getAllTargets();
+    if (rows.isEmpty) {
       return jsonOk({"suggestions": []});
     }
 
+    final loggingService = container.read(loggingServiceProvider);
+    final targets = await withCatalogObjectTypes(rows, loggingService);
     final sessions = await database.sessionsDao.getAllSessions();
 
     final config = TargetSuggestionConfig(
@@ -266,6 +269,8 @@ class SuggestionHandlers implements RouteSource {
 
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);
 
+    final loggingService = container.read(loggingServiceProvider);
+    final typed = await withCatalogObjectTypes([target], loggingService);
     final suggestionService = container.read(targetSuggestionServiceProvider);
 
     const config = TargetSuggestionConfig(
@@ -276,7 +281,7 @@ class SuggestionHandlers implements RouteSource {
       config: config,
       latitude: latitude,
       longitude: longitude,
-      targets: [target],
+      targets: typed,
       sessions: sessions,
       // Scored wherever it stands: this answers for one target, not for
       // what is worth imaging tonight.

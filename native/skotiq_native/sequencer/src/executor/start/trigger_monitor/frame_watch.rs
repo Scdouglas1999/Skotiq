@@ -238,11 +238,7 @@ impl FrameWatchStage {
                 }
                 Err(_) => return,
             };
-            let ExecutorEvent::NodeProgress {
-                structured_detail: Some(detail),
-                ..
-            } = event
-            else {
+            let ExecutorEvent::NodeProgress { detail, .. } = event else {
                 continue;
             };
             let (path, reject, hfr, eccentricity, star_count, capture) = match *detail {

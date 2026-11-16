@@ -169,10 +169,10 @@ void main() {
     final l = masters.firstWhere((m) => m.id == owner.masters['L']);
     final rows = await owner.db.targetsDao.getAllTargets();
     expect(
-      darkroomMasterBelongsTo(l, 'NGC 891', row: rows.single),
+      darkroomMasterBelongsTo(l, 'NGC 891', rowIds: {rows.single.id}),
       isTrue,
     );
-    expect(darkroomMasterBelongsTo(l, 'M 81', row: null), isFalse);
+    expect(darkroomMasterBelongsTo(l, 'M 81'), isFalse);
 
     final dao = IntegratedMastersDao(owner.db);
     final planned = await dao.getById(

@@ -165,7 +165,7 @@ mod tests {
         executor
             .load_sequence(waiting_plan())
             .expect("sequence loads");
-        let mut events = executor.subscribe();
+        let mut events = executor.handle().subscribe();
         executor.start().await.expect("run starts");
         // What the start announced is not under test.
         announced(&mut events, std::time::Duration::from_millis(300)).await;
@@ -226,7 +226,7 @@ mod tests {
     #[tokio::test]
     async fn with_no_run_there_is_nothing_to_hold() {
         let executor = SequenceExecutor::new();
-        let mut events = executor.subscribe();
+        let mut events = executor.handle().subscribe();
 
         let held = executor
             .handle()

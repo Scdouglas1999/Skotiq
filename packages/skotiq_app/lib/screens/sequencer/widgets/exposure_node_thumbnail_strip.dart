@@ -5,13 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/database.dart' show ProducingNodeThumbnail;
 import 'package:skotiq_core/errors.dart' show userFacingError;
-import 'package:skotiq_core/providers.dart' show exposureNodeThumbnailsProvider;
+import 'package:skotiq_core/providers.dart'
+    show SavedFrameRef, exposureNodeThumbnailsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';
 import '../../../utils/filter_label.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import '../../../widgets/saved_frame/saved_frame_viewer.dart';
 import 'package:skotiq_core/models.dart';
 
 /// Inline frame strip rendered beneath each
@@ -27,9 +29,8 @@ import 'package:skotiq_core/models.dart';
 ///   * grey   — ungraded / pending
 ///
 /// Hover (desktop) or long-press (mobile) surfaces an HFR / eccentricity
-/// / exposure / filter / timestamp tooltip. Tap opens the full image in a
-/// modal viewer using the existing `backend.getImageThumbnail` thumbnail
-/// preview followed by a "Open in viewer" affordance.
+/// / exposure / filter / timestamp tooltip. Tap opens the frame at full
+/// resolution in the saved-frame viewer.
 ///
 /// The strip lazy-loads thumbnails: only the actual JPEG/PNG bytes are
 /// fetched on demand (via `backend.getImageThumbnail` — same path as the
@@ -180,12 +181,45 @@ class _ThumbnailRow extends StatelessWidget {
               tilePx: tilePx,
               badgeHeight: prefs.badgeRowHeight,
               colors: colors,
+              onOpen: () => SavedFrameViewer.show(
+                context,
+                frames: [for (final t in thumbnails) _viewerEntry(t)],
+                initialIndex: thumbnails.indexOf(thumb),
+              ),
             );
           },
         ),
       ),
     );
   }
+}
+
+/// [t] as the saved-frame viewer names it.
+SavedFrameEntry _viewerEntry(ProducingNodeThumbnail t) {
+  return SavedFrameEntry(
+    frame: SavedFrameRef(
+      imageId: t.id,
+      hostPath: t.filePath,
+      capturedAt: t.capturedAt,
+    ),
+    title: t.fileName,
+    time: t.capturedAt.toLocal().toString().split('.').first,
+    status: [
+      '${filterLabel(t.filter)} · ${t.exposureDuration.toStringAsFixed(1)}s',
+      if (t.hfr != null) 'HFR ${t.hfr!.toStringAsFixed(2)}',
+      if (t.eccentricity != null) 'ecc ${t.eccentricity!.toStringAsFixed(2)}',
+      if (t.starCount != null) '${t.starCount} stars',
+      if (t.isAccepted)
+        t.runtimeGrade ?? 'accepted'
+      else
+        switch (frameExclusionKindOf(t.rejectionReason)) {
+          FrameExclusionKind.offTarget => 'OFF TARGET',
+          FrameExclusionKind.obstructed => 'OBSTRUCTED',
+          null => 'REJECTED',
+        },
+    ].join(' · '),
+    accepted: t.isAccepted,
+  );
 }
 
 class _MoreBadge extends StatelessWidget {
@@ -231,11 +265,15 @@ class _ThumbnailTile extends ConsumerStatefulWidget {
   final double badgeHeight;
   final SkotiqColors colors;
 
+  /// Shows the frame at full resolution among the node's frames.
+  final VoidCallback onOpen;
+
   const _ThumbnailTile({
     required this.thumbnail,
     required this.tilePx,
     required this.badgeHeight,
     required this.colors,
+    required this.onOpen,
   });
 
   @override
@@ -315,18 +353,6 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
     }
   }
 
-  void _openInViewer() {
-    final t = widget.thumbnail;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => _FullFrameDialog(
-        thumbnail: t,
-        bytesFuture: _bytesFuture,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final px = widget.tilePx;
@@ -335,8 +361,8 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
       message: _tooltip(),
       waitDuration: const Duration(milliseconds: 350),
       child: GestureDetector(
-        onTap: _openInViewer,
-        onLongPress: _openInViewer,
+        onTap: widget.onOpen,
+        onLongPress: widget.onOpen,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,160 +417,6 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _FullFrameDialog extends ConsumerWidget {
-  final ProducingNodeThumbnail thumbnail;
-  final Future<Uint8List?>? bytesFuture;
-
-  const _FullFrameDialog({
-    required this.thumbnail,
-    required this.bytesFuture,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
-    final t = thumbnail;
-    return Dialog(
-      backgroundColor: colors.surface,
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 800,
-          designMaxHeight: 720,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      t.fileName,
-                      style: SkotiqTypography.labelStrong
-                          .copyWith(color: colors.textPrimary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(LucideIcons.x, size: 16),
-                    color: colors.textMuted,
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: Container(
-                width: double.infinity,
-                color: colors.background,
-                padding: const EdgeInsets.all(12),
-                child: FutureBuilder<Uint8List?>(
-                  future: bytesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                          child: SkotiqMark(
-                              motion: SkotiqMarkMotion.loading, size: 36));
-                    }
-                    final bytes = snapshot.data;
-                    if (bytes != null && bytes.isNotEmpty) {
-                      return InteractiveViewer(
-                        child: Image.memory(
-                          bytes,
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                        ),
-                      );
-                    }
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(LucideIcons.image,
-                              size: 48, color: colors.textMuted),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Preview unavailable for ${t.fileName}.\nOpen in the imaging viewer for the full frame.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: colors.textMuted,
-                                fontSize: SkotiqTypography.fontSize12),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: _FrameMetadata(thumb: t, colors: colors),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FrameMetadata extends StatelessWidget {
-  final ProducingNodeThumbnail thumb;
-  final SkotiqColors colors;
-
-  const _FrameMetadata({required this.thumb, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget chip(String label, String value) => Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label,
-                  style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize10,
-                      color: colors.textMuted)),
-              Text(value,
-                  style:
-                      SkotiqTypography.h6.copyWith(color: colors.textPrimary)),
-            ],
-          ),
-        );
-    return Wrap(
-      runSpacing: 6,
-      children: [
-        chip('Filter', filterLabel(thumb.filter)),
-        chip('Exposure', '${thumb.exposureDuration.toStringAsFixed(1)}s'),
-        chip('HFR', thumb.hfr?.toStringAsFixed(2) ?? '—'),
-        chip('Eccentricity', thumb.eccentricity?.toStringAsFixed(2) ?? '—'),
-        chip('Stars', thumb.starCount?.toString() ?? '—'),
-        chip(
-          'Grade',
-          thumb.isAccepted
-              ? (thumb.runtimeGrade ?? 'accepted')
-              : switch (frameExclusionKindOf(thumb.rejectionReason)) {
-                  FrameExclusionKind.offTarget => 'OFF TARGET',
-                  FrameExclusionKind.obstructed => 'OBSTRUCTED',
-                  null => 'REJECTED',
-                },
-        ),
-        chip(
-          'Captured',
-          thumb.capturedAt.toLocal().toString().split('.').first,
-        ),
-      ],
     );
   }
 }

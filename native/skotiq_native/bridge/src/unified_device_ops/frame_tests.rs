@@ -203,8 +203,15 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
         dither_every: None,
         ..Default::default()
     };
-    let exposed =
-        skotiq_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let exposed = skotiq_sequencer::instructions::execute_exposure(
+        &config,
+        &ctx,
+        frames_named_in(dir.path()),
+        &skotiq_sequencer::instructions::BurstControl::default(),
+        |_, _, _| {},
+    )
+    .await
+    .result;
 
     crate::simulator::camera::get_sim_camera()
         .write()
@@ -311,6 +318,14 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
         matches!(result, skotiq_sequencer::FlipResult::Success { .. }),
         "a flip that landed on target was reported as {result:?}"
     );
+}
+
+/// Frames named `frame_NNNN.fits` in `dir`.
+fn frames_named_in(dir: &std::path::Path) -> skotiq_sequencer::FrameSavePathRenderer {
+    let dir = dir.to_path_buf();
+    Box::new(move |frame: &skotiq_sequencer::FrameToName| {
+        Ok((dir.clone(), format!("frame_{:04}.fits", frame.index_in_burst)))
+    })
 }
 
 fn walk_fits(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
@@ -496,8 +511,15 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
         dither_every: None,
         ..Default::default()
     };
-    let exposed =
-        skotiq_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let exposed = skotiq_sequencer::instructions::execute_exposure(
+        &config,
+        &ctx,
+        frames_named_in(sequence_dir.path()),
+        &skotiq_sequencer::instructions::BurstControl::default(),
+        |_, _, _| {},
+    )
+    .await
+    .result;
     assert!(
         exposed.status == skotiq_sequencer::NodeStatus::Success,
         "{:?}",

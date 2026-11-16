@@ -1122,11 +1122,6 @@ typedef struct wire_cst_polar_alignment_status {
   int32_t point;
 } wire_cst_polar_alignment_status;
 
-typedef struct wire_cst_record_f_64_f_64 {
-  double field0;
-  double field1;
-} wire_cst_record_f_64_f_64;
-
 typedef struct wire_cst_rotator_capabilities {
   bool can_reverse;
   bool reverse;
@@ -1287,15 +1282,18 @@ typedef struct wire_cst_SequencerEvent_InstructionProgress {
   struct wire_cst_list_prim_u_8_strict *instruction;
   double progress_percent;
   struct wire_cst_list_prim_u_8_strict *detail;
-} wire_cst_SequencerEvent_InstructionProgress;
-
-typedef struct wire_cst_SequencerEvent_InstructionProgressStructured {
-  struct wire_cst_list_prim_u_8_strict *node_id;
-  struct wire_cst_list_prim_u_8_strict *instruction;
-  double progress_percent;
   struct wire_cst_list_prim_u_8_strict *detail_kind;
   struct wire_cst_list_prim_u_8_strict *detail_json;
-} wire_cst_SequencerEvent_InstructionProgressStructured;
+} wire_cst_SequencerEvent_InstructionProgress;
+
+typedef struct wire_cst_SequencerEvent_DitherPerformed {
+  struct wire_cst_list_prim_u_8_strict *node_id;
+} wire_cst_SequencerEvent_DitherPerformed;
+
+typedef struct wire_cst_SequencerEvent_FrameWatchReport {
+  struct wire_cst_list_prim_u_8_strict *kind;
+  struct wire_cst_list_prim_u_8_strict *payload_json;
+} wire_cst_SequencerEvent_FrameWatchReport;
 
 typedef struct wire_cst_SequencerEvent_DepthGoalCompleted {
   struct wire_cst_list_prim_u_8_strict *node_id;
@@ -1534,7 +1532,8 @@ typedef union SequencerEventKind {
   struct wire_cst_SequencerEvent_MeridianFlipOutcome MeridianFlipOutcome;
   struct wire_cst_SequencerEvent_TriggerFired TriggerFired;
   struct wire_cst_SequencerEvent_InstructionProgress InstructionProgress;
-  struct wire_cst_SequencerEvent_InstructionProgressStructured InstructionProgressStructured;
+  struct wire_cst_SequencerEvent_DitherPerformed DitherPerformed;
+  struct wire_cst_SequencerEvent_FrameWatchReport FrameWatchReport;
   struct wire_cst_SequencerEvent_DepthGoalCompleted DepthGoalCompleted;
   struct wire_cst_SequencerEvent_FrameAccepted FrameAccepted;
   struct wire_cst_SequencerEvent_FrameRejected FrameRejected;
@@ -1675,7 +1674,8 @@ typedef struct wire_cst_api_night_score {
   double peak_azimuth_deg;
   int64_t peak_unix_ms;
   double hours_above_floor;
-  int64_t *first_usable_unix_ms;
+  int64_t *above_floor_from_unix_ms;
+  int64_t *above_floor_until_unix_ms;
   double *best_airmass;
   double moon_distance_deg;
 } wire_cst_api_night_score;
@@ -2429,10 +2429,10 @@ typedef struct wire_cst_quality_maps_result_api {
   struct wire_cst_list_quality_tile_metric_api *tiles;
 } wire_cst_quality_maps_result_api;
 
-typedef struct wire_cst_record_i_32_i_32 {
-  int32_t field0;
-  int32_t field1;
-} wire_cst_record_i_32_i_32;
+typedef struct wire_cst_record_f_64_f_64 {
+  double field0;
+  double field1;
+} wire_cst_record_f_64_f_64;
 
 typedef struct wire_cst_record_i_64_bool {
   int64_t field0;
@@ -2698,12 +2698,6 @@ typedef struct wire_cst_skotiq_event {
   struct wire_cst_list_prim_u_8_strict *correlation_id;
   struct wire_cst_list_prim_u_8_strict *device_id;
 } wire_cst_skotiq_event;
-
-typedef struct wire_cst_solve_hints {
-  double *focal_length_mm;
-  struct wire_cst_record_f_64_f_64 *pixel_size_um;
-  struct wire_cst_record_i_32_i_32 binning;
-} wire_cst_solve_hints;
 
 typedef struct wire_cst_star_detection_result_api {
   struct wire_cst_list_detected_star_info *stars;
@@ -3749,8 +3743,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset(i
                                                                                struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                int32_t offset);
 
-void frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default(int64_t port_);
-
 void frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_default(int64_t port_);
 
 struct wire_cst_api_acquisition_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings(void);
@@ -3842,8 +3834,6 @@ struct wire_cst_polar_alignment_event *frbgen_skotiq_bridge_cst_new_box_autoadd_
 struct wire_cst_polar_alignment_image_event *frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_image_event(void);
 
 struct wire_cst_polar_alignment_status *frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_status(void);
-
-struct wire_cst_record_f_64_f_64 *frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64(void);
 
 struct wire_cst_rotator_capabilities *frbgen_skotiq_bridge_cst_new_box_autoadd_rotator_capabilities(void);
 
@@ -3997,7 +3987,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_image_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_rotator_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities);
@@ -4269,7 +4258,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_platesolve_get_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_platesolve_set_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_platesolve_verify);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_start_all_sky_polar_alignment);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_stop_polar_alignment);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment);

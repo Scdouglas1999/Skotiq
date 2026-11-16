@@ -147,6 +147,7 @@ class InstantCalibration extends EndOfNightCalibrationService {
     required String reason,
     EonSettings? settings,
     bool forceWarmUp = false,
+    bool retake = false,
   }) async {
     reasons.add(reason);
     final report = EonReport(reason: reason, startedAt: DateTime.now())

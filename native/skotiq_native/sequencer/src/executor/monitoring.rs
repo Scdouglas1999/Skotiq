@@ -217,23 +217,6 @@ pub(super) fn mount_tracking_poll_verdict(
     (expected, just_lost)
 }
 
-impl SequenceExecutor {
-    /// Tracking is about to be switched off from the app's own mount controls
-    /// while a run is active. The stop that follows is the operator's: it
-    /// pauses the run, and it is never read as the mount's tracking limit.
-    pub async fn note_operator_tracking_stop(&self) {
-        let active = matches!(
-            self.run_state.get(),
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        );
-        if !active {
-            return;
-        }
-        let lock = self.trigger_manager.read().await.state();
-        lock.write().await.tracking.note_operator_stop();
-    }
-}
-
 /// Apply one mount tracking poll to the trigger state's loss baseline and
 /// return whether it is a genuine loss (see [`mount_tracking_poll_verdict`]).
 /// The caller records the reading in `mount_is_tracking` afterwards.
@@ -1085,6 +1068,23 @@ pub fn safety_fail_mode_no_data_resolution(mode: SafetyFailMode) -> NoDataResolu
         SafetyFailMode::FailClosed => NoDataResolution::Unsafe,
         SafetyFailMode::FailOpen => NoDataResolution::Safe,
         SafetyFailMode::WarnOnly => NoDataResolution::Preserve,
+    }
+}
+
+impl ExecutorHandle {
+    /// Tracking is about to be switched off from the app's own mount controls
+    /// while a run is active. The stop that follows is the operator's: it
+    /// pauses the run, and it is never read as the mount's tracking limit.
+    pub async fn note_operator_tracking_stop(&self) {
+        let active = matches!(
+            self.run_state.get(),
+            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+        );
+        if !active {
+            return;
+        }
+        let lock = self.trigger_manager.read().await.state();
+        lock.write().await.tracking.note_operator_stop();
     }
 }
 

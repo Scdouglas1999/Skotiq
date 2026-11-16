@@ -41,12 +41,14 @@ class _EndOfNightCalibrationSettingsState
   final _darkCount = TextEditingController();
   final _biasCount = TextEditingController();
   final _capWait = TextEditingController();
+  final _darkValidDays = TextEditingController();
 
   @override
   void dispose() {
     _darkCount.dispose();
     _biasCount.dispose();
     _capWait.dispose();
+    _darkValidDays.dispose();
     super.dispose();
   }
 
@@ -161,7 +163,8 @@ class _EndOfNightCalibrationSettingsState
             SettingRow(
               icon: LucideIcons.layers,
               title: 'Bias frames',
-              subtitle: 'One set for each gain, offset and binning.',
+              subtitle: 'One set for each gain, offset, binning and '
+                  'set-point.',
               trailing: SettingsNumberInput(
                 controller: _biasCount,
                 authoritativeValue: s.biasCount.toDouble(),
@@ -171,6 +174,30 @@ class _EndOfNightCalibrationSettingsState
                 max: EonSettings.maxCount.toDouble(),
                 decimals: 0,
                 onChanged: (v) => _save(s.copyWith(biasCount: v.round())),
+              ),
+              isLast: true,
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: 'Reusing the library',
+          children: [
+            SettingRow(
+              icon: LucideIcons.library,
+              title: 'Keep library darks for',
+              subtitle: 'A set the dark library already holds at the same '
+                  'gain, offset, binning, read mode and set-point is not '
+                  'retaken. Bias masters stay valid for good; dark masters '
+                  'for this many days, then they are taken again.',
+              trailing: SettingsNumberInput(
+                controller: _darkValidDays,
+                authoritativeValue: s.darkValidDays.toDouble(),
+                authorityKey: 'eon',
+                suffix: 'days',
+                min: 1,
+                max: EonSettings.maxDarkValidDays.toDouble(),
+                decimals: 0,
+                onChanged: (v) => _save(s.copyWith(darkValidDays: v.round())),
               ),
               isLast: true,
             ),
@@ -280,6 +307,19 @@ class _EndOfNightStatusCard extends ConsumerWidget {
                 color: colors.textSecondary,
               ),
             ),
+            if (report != null && report.reused.isNotEmpty) ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              for (final line in report.reused)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
+                  child: Text(
+                    line,
+                    style: SkotiqTypography.bodySm.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ),
+            ],
             if (report != null && report.problems.isNotEmpty) ...[
               const SizedBox(height: SkotiqTokens.spaceSm),
               for (final problem in report.problems)
@@ -313,7 +353,7 @@ class _EndOfNightStatusCard extends ConsumerWidget {
                     size: ButtonSize.small,
                     onPressed: service.cancel,
                   )
-                else
+                else ...[
                   SkotiqButton(
                     label: 'Take darks and bias now',
                     icon: LucideIcons.play,
@@ -325,6 +365,18 @@ class _EndOfNightStatusCard extends ConsumerWidget {
                             .runNow()
                         : null,
                   ),
+                  SkotiqButton(
+                    label: 'Retake all, ignoring the library',
+                    icon: LucideIcons.refreshCw,
+                    variant: ButtonVariant.ghost,
+                    size: ButtonSize.small,
+                    onPressed: canStart
+                        ? () => ref
+                            .read(endOfNightCalibrationCoordinatorProvider)
+                            .runNow(retake: true)
+                        : null,
+                  ),
+                ],
               ],
             ),
           ],

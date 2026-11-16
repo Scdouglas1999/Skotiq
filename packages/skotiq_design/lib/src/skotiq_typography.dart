@@ -27,11 +27,12 @@ abstract final class SkotiqTypography {
   /// renders offline (no runtime font fetch).
   static const String fontFamilyMono = 'SplineSansMono';
 
-  /// Where glyphs missing from both faces come from: Sora (bundled for the
-  /// wordmark) has the arcminute and arcsecond primes (′ ″) that Hanken
-  /// Grotesk and Spline Sans Mono lack, so every platform draws them in a
-  /// bundled face instead of whatever system font it falls back to.
-  static const List<String> fontFamilyFallback = ['Sora'];
+  /// Where glyphs missing from both faces come from, so every platform draws
+  /// them in a bundled face instead of whatever system font it has (or a box
+  /// when it has none): Sora (bundled for the wordmark) for the arcminute and
+  /// arcsecond primes (′ ″), then Skotiq Symbols, a Noto subset, for Greek,
+  /// superscript signs (e⁻), arrows, geometric shapes (▸) and symbols (★ ⓘ ⌘).
+  static const List<String> fontFamilyFallback = ['Sora', 'SkotiqSymbols'];
 
   // Named TextStyles below are preferred for new UI. Numeric tokens support
   // dense scientific readouts with custom weights, heights or canvas scaling.

@@ -290,20 +290,9 @@ pub enum ExecutorEvent {
         node_id: NodeId,
         instruction: String,
         progress_percent: f64,
-        /// Legacy stringified detail (matches pre-Pack-H wire format so
-        /// any subscriber that still consumes `detail` as a string keeps
-        /// working). Derived from `structured_detail` via
-        /// `ProgressDetail::detail_text()`.
-        detail: String,
-        /// structured detail payload, boxed to keep the
-        /// `ExecutorEvent` variant size small. `None` for legacy
-        /// progress emissions that don't carry a structured payload
-        /// (instruction nodes pre-dating the progress refactor).
-        /// The bridge layer reads this to dispatch to the typed
-        /// `SequencerEvent` variants (`FrameAccepted`, `FrameRejected`,
-        /// `SchedulerDecision`, `IntegrationBudget`) without parsing
-        /// `detail`.
-        structured_detail: Option<Box<crate::node::ProgressDetail>>,
+        /// What the step reports, boxed to keep `ExecutorEvent` small. Its
+        /// words are [`crate::node::ProgressDetail::detail_text`].
+        detail: Box<crate::node::ProgressDetail>,
     },
     ExposureStarted {
         frame: u32,

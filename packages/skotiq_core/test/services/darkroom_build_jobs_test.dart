@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoDesignations;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -111,6 +112,7 @@ void main() {
     final service = container.read(darkroomBuildServiceProvider);
     final frames = (await loadDarkroomTargets(
       db,
+      DsoDesignations.empty,
       readHeader: (_) async => FrameHeader(const {}),
     ))['NGC891']!;
     final groups = await service.prepare(frames);

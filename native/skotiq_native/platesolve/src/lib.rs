@@ -618,6 +618,12 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
     }
 }
 
+/// The frame's width and height in whole pixels, from its primary FITS header.
+pub fn fits_frame_size(path: &Path) -> Option<(u32, u32)> {
+    // NAXIS values are integers well inside u32.
+    fits_image_size(path).map(|(w, h)| (w as u32, h as u32))
+}
+
 /// Read numeric cards off a FITS primary header without decoding pixel data.
 ///
 /// Returns one slot per requested keyword, in the order asked for; every slot

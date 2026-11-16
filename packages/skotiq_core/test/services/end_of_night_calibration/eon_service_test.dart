@@ -204,6 +204,11 @@ class FakeRig implements EonRig {
   @override
   Future<double> darkTemperatureToleranceC() async => darkToleranceC;
 
+  EonLibrary libraryHoldings = const EonLibrary(masters: [], frameGroups: []);
+
+  @override
+  Future<EonLibrary> library() async => libraryHoldings;
+
   @override
   Future<int> registerMaster(
     CalibrationMasterBuildResult built,
@@ -810,6 +815,190 @@ void main() {
       expect(rig.filterMoves, isEmpty);
     });
   });
+
+  group('the library', libraryTests);
+}
+
+CalibrationMasterRecord libraryMaster({
+  required CalibrationMasterType type,
+  double exposure = 0.001,
+  int gain = 76,
+  DateTime? createdAt,
+}) => CalibrationMasterRecord(
+  type: type,
+  id: 7,
+  filePath: '/lib/Masters/${type.name}_$exposure.fits',
+  isMaster: true,
+  exposureSeconds: exposure,
+  temperature: -10,
+  gain: gain,
+  offset: 15,
+  setPointC: -10,
+  createdAt: createdAt ?? DateTime(2026, 10, 15, 4),
+);
+
+void libraryTests() {
+  late FakeRig rig;
+  late EndOfNightCalibrationService service;
+  const settings = EonSettings(enabled: true);
+
+  setUp(() {
+    rig = FakeRig();
+    service = EndOfNightCalibrationService(rig, () async => settings);
+  });
+
+  List<ExposureNode> exposures() =>
+      rig.sequences.single.nodes.values.whereType<ExposureNode>().toList();
+
+  test('a bias master of the setting in the library takes no bias', () async {
+    rig.libraryHoldings = EonLibrary(
+      masters: [libraryMaster(type: CalibrationMasterType.bias)],
+      frameGroups: const [],
+    );
+    final report = await service.run(reason: 'dawn ended imaging');
+
+    expect(exposures().map((n) => n.frameType), [
+      FrameType.dark,
+      FrameType.dark,
+    ]);
+    expect(report.reused, [
+      'Bias at gain 76 / offset 15 / -10 °C: library master from Oct 15, '
+          'not retaken',
+    ]);
+    expect(report.plannedBiasFrames, 0);
+    expect(rig.notifications.first.$2, contains('not retaken'));
+    expect(report.summary, contains('already in the library'));
+  });
+
+  test('a bias master at another gain still takes the bias', () async {
+    rig.libraryHoldings = EonLibrary(
+      masters: [libraryMaster(type: CalibrationMasterType.bias, gain: 139)],
+      frameGroups: const [],
+    );
+    final report = await service.run(reason: 'dawn ended imaging');
+
+    expect(
+      exposures().where((n) => n.frameType == FrameType.bias),
+      hasLength(1),
+    );
+    expect(report.reused, isEmpty);
+  });
+
+  test('a dark master older than the setting is retaken', () async {
+    rig.libraryHoldings = EonLibrary(
+      masters: [
+        libraryMaster(
+          type: CalibrationMasterType.dark,
+          exposure: 90,
+          createdAt: DateTime(2026, 6, 1),
+        ),
+        libraryMaster(
+          type: CalibrationMasterType.dark,
+          exposure: 120,
+          createdAt: DateTime(2026, 10, 1),
+        ),
+      ],
+      frameGroups: const [],
+    );
+    final report = await service.run(
+      reason: 'dawn ended imaging',
+      settings: const EonSettings(enabled: true, darkValidDays: 120),
+    );
+
+    expect(
+      exposures()
+          .where((n) => n.frameType == FrameType.dark)
+          .map((n) => n.durationSecs),
+      [90],
+    );
+    expect(report.reused, [
+      '120 s darks at gain 76 / offset 15 / -10 °C: library master from '
+          'Oct 1, not retaken',
+    ]);
+  });
+
+  test('frames without a master are built, and nothing is taken', () async {
+    final biasFrames = [
+      for (var i = 0; i < 50; i++)
+        frame(500 + i, type: 'bias', exposure: 0.001, dir: '/lib/Bias'),
+    ];
+    rig.libraryHoldings = EonLibrary(
+      masters: [
+        libraryMaster(type: CalibrationMasterType.dark, exposure: 90),
+        libraryMaster(type: CalibrationMasterType.dark, exposure: 120),
+      ],
+      frameGroups: [
+        CalibrationFrameGroup(
+          setting: const CalibrationFrameSetting(
+            type: FrameType.bias,
+            exposureSecs: 0.001,
+            gain: 76,
+            offset: 15,
+            binX: 1,
+            binY: 1,
+            readMode: null,
+            setPointC: -10,
+          ),
+          frames: biasFrames,
+          offSetPoint: const [],
+        ),
+      ],
+    );
+    final report = await service.run(reason: 'dawn ended imaging');
+
+    expect(rig.sequences, isEmpty);
+    expect(rig.calls, isNot(contains('run')));
+    expect(rig.calls, isNot(contains('mount home')));
+    expect(rig.built.single.framePaths, [
+      for (final f in biasFrames) f.filePath,
+    ]);
+    expect(rig.built.single.kind, 'bias');
+    expect(report.phase, EonPhase.finished, reason: report.summary);
+    expect(report.reused, hasLength(3));
+    expect(
+      report.reused.last,
+      'Bias at gain 76 / offset 15 / -10 °C: master built from 50 library '
+      'frames of Oct 22, not retaken',
+    );
+    expect(report.summary, startsWith('No frames were taken.'));
+    expect(rig.calls, contains('warmUp'));
+  });
+
+  test('a retake takes every set, also those in the library', () async {
+    rig.libraryHoldings = EonLibrary(
+      masters: [libraryMaster(type: CalibrationMasterType.bias)],
+      frameGroups: const [],
+    );
+    final report = await service.run(reason: 'manual', retake: true);
+
+    expect(
+      exposures().where((n) => n.frameType == FrameType.bias),
+      hasLength(1),
+    );
+    expect(report.reused, isEmpty);
+  });
+
+  test('a library that cannot be read takes every set, and says so', () async {
+    final failing = _FailingLibraryRig();
+    final report = await EndOfNightCalibrationService(
+      failing,
+      () async => settings,
+    ).run(reason: 'manual');
+
+    expect(
+      failing.sequences.single.nodes.values.whereType<ExposureNode>(),
+      hasLength(3),
+    );
+    expect(
+      report.problems,
+      contains(startsWith('The calibration library could not be read')),
+    );
+  });
+}
+
+class _FailingLibraryRig extends FakeRig {
+  @override
+  Future<EonLibrary> library() async => throw 'database is locked';
 }
 
 Future<void> pumpUntil(bool Function() condition) async {

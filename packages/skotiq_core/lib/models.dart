@@ -71,6 +71,7 @@ export 'src/models/annotation_settings.dart';
 export 'src/models/phd2_models.dart';
 export 'src/models/weather/weather_models.dart';
 export 'src/models/weather/cloud_cover_forecast.dart';
+export 'src/models/weather/current_sky.dart';
 export 'src/models/autofocus_progress.dart';
 export 'src/models/focuser_backlash_calibration.dart';
 export 'src/models/focuser_backlash_progress.dart';
@@ -179,6 +180,7 @@ export 'src/models/collaboration/collaboration_models.dart';
 // Darkroom (v58): the non-destructive recipe stack + branch graph, the durable
 // dawn-job queue, and the delivery destinations + journal.
 export 'src/models/darkroom/darkroom_models.dart';
+export 'src/models/darkroom/target_standing.dart';
 // Calibration Library Manager (v46): unified browse / tag / auto-match over
 // dark_library, flat_library, and defect_maps + the calibration_tags layer.
 export 'src/models/calibration/calibration_library_models.dart';

@@ -1,5 +1,6 @@
 use crate::api::polar_alignment::pole_slew::POLE_REGION_OFFSET_DEG;
 use crate::device_manager::get_device_manager;
+use crate::solver::SolvePosition;
 
 // How a polar-alignment frame is plate solved.
 //
@@ -41,16 +42,6 @@ const POLAR_DOWNSAMPLE_LONG_SIDE_PX: u32 = 3000;
 /// The ASTAP `-z` factor meaning "read the frame as it is".
 const NO_DOWNSAMPLE: u32 = 1;
 
-/// The mount's own idea of where it is pointing, ready to hand to a solver.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct PolarSolveHint {
-    /// Degrees, `[0, 360)` — the unit `plate_solve_near_scaled` takes.
-    pub(crate) ra_degrees: f64,
-    /// Degrees, `[-90, 90]`.
-    pub(crate) dec_degrees: f64,
-    pub(crate) search_radius_deg: f64,
-}
-
 /// Build a solve hint from a mount status report.
 ///
 /// `ra_hours` is the unit [`MountStatus::right_ascension`] is in; the solver
@@ -61,14 +52,14 @@ pub(crate) struct PolarSolveHint {
 pub(crate) fn polar_solve_hint_from_mount(
     ra_hours: f64,
     dec_degrees: f64,
-) -> Option<PolarSolveHint> {
+) -> Option<SolvePosition> {
     if !ra_hours.is_finite() || !dec_degrees.is_finite() {
         return None;
     }
     if !(-90.0..=90.0).contains(&dec_degrees) {
         return None;
     }
-    Some(PolarSolveHint {
+    Some(SolvePosition {
         ra_degrees: (ra_hours.rem_euclid(24.0)) * 15.0,
         dec_degrees,
         search_radius_deg: POLAR_SOLVE_SEARCH_RADIUS_DEG.clamp(0.0, ASTAP_MAX_SEARCH_RADIUS_DEG),
@@ -80,7 +71,7 @@ pub(crate) fn polar_solve_hint_from_mount(
 /// A driver that cannot report a position is not an error for the run: polar
 /// alignment solved blind before this existed and still does whenever the
 /// answer is `None`.
-pub(crate) async fn read_polar_solve_hint(mount_id: &str) -> Option<PolarSolveHint> {
+pub(crate) async fn read_polar_solve_hint(mount_id: &str) -> Option<SolvePosition> {
     match get_device_manager().mount_get_status(mount_id).await {
         Ok(status) => {
             let hint = polar_solve_hint_from_mount(status.right_ascension, status.declination);
@@ -130,64 +121,52 @@ pub(crate) fn polar_solve_downsample(width_px: u32, height_px: u32, binning: i32
 /// Plate solve one polar-alignment frame.
 ///
 /// `what` names the frame for the operator ("point 1", "the adjustment
-/// frame"); `scale_arcsec_px` is the measured plate scale of the frame as
-/// taken. The escalation — the mount's position at
-/// [`POLAR_SOLVE_SEARCH_RADIUS_DEG`], then blind — and the budget that keeps
-/// both inside the operator's timeout live in [`crate::api::plate_solve`], so
-/// every solve in the app escalates the same way. This decides only what the
-/// hint IS.
+/// frame"); `scale` is the camera and binning the frame was taken at. The
+/// escalation (the mount's position at [`POLAR_SOLVE_SEARCH_RADIUS_DEG`], then
+/// blind) and the budget that keeps both inside the operator's timeout are
+/// [`crate::solver`]'s, as for every solve in the app. This decides only what
+/// the hint IS.
 pub(crate) async fn solve_polar_frame(
     what: &str,
     file_path: &str,
-    hint: Option<PolarSolveHint>,
-    scale_arcsec_px: Option<f64>,
+    hint: Option<SolvePosition>,
+    scale: &crate::solver::SolveScale,
     downsample: u32,
     timeout_secs: f64,
-) -> Result<crate::api::plate_solve::PlateSolveResult, String> {
-    let budget = crate::api::plate_solve::split_solve_budget(timeout_secs, hint.is_some());
-    let timeout = Some(timeout_secs.ceil().clamp(1.0, 3600.0) as u32);
+) -> Result<skotiq_imaging::PlateSolveResult, String> {
+    let budget = crate::solver::split_solve_budget(timeout_secs, hint.is_some());
+    match hint {
+        Some(hint) => tracing::info!(
+            "Polar alignment {}: solving from the mount at RA {:.4}°, Dec {:.4}° \
+             (search radius {:.0}°, -z {}, {:.0}s hinted then {:.0}s blind)",
+            what,
+            hint.ra_degrees,
+            hint.dec_degrees,
+            hint.search_radius_deg,
+            downsample,
+            budget.hinted_secs,
+            budget.blind_secs
+        ),
+        None => tracing::info!(
+            "Polar alignment {}: the mount cannot say where it is pointing; solving blind \
+             (-z {}, {:.0}s)",
+            what,
+            downsample,
+            budget.blind_secs
+        ),
+    }
 
-    let result = match hint {
-        Some(hint) => {
-            tracing::info!(
-                "Polar alignment {}: solving from the mount at RA {:.4}°, Dec {:.4}° \
-                 (search radius {:.0}°, -z {}, {:.0}s hinted then {:.0}s blind)",
-                what,
-                hint.ra_degrees,
-                hint.dec_degrees,
-                hint.search_radius_deg,
-                downsample,
-                budget.hinted_secs,
-                budget.blind_secs
-            );
-            crate::api::plate_solve::plate_solve_near_scaled(
-                file_path.to_string(),
-                hint.ra_degrees,
-                hint.dec_degrees,
-                hint.search_radius_deg,
-                timeout,
-                scale_arcsec_px,
-                Some(downsample),
-            )
-            .await
-        }
-        None => {
-            tracing::info!(
-                "Polar alignment {}: the mount cannot say where it is pointing; solving blind \
-                 (-z {}, {:.0}s)",
-                what,
-                downsample,
-                budget.blind_secs
-            );
-            crate::api::plate_solve::plate_solve_blind_scaled(
-                file_path.to_string(),
-                timeout,
-                scale_arcsec_px,
-                Some(downsample),
-            )
-            .await
-        }
-    };
+    let result = crate::solver::solve(
+        file_path,
+        crate::solver::SolveRequest {
+            position: hint,
+            frame_scale: None,
+            scale,
+            timeout_secs: Some(timeout_secs.ceil().clamp(1.0, 3600.0) as u32),
+            downsample: Some(downsample),
+        },
+    )
+    .await;
 
     match result {
         Ok(result) if result.success => {

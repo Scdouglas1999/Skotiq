@@ -165,7 +165,7 @@ void main() {
                   targetName: 'NGC7380', objectType: 'Emission Nebula'),
               rotationDegrees: 37,
             ));
-    expect(result.strategy, SmartNightStrategy.narrowbandSho);
+    expect(result.filterSet.preset, SmartNightStrategy.narrowbandSho);
     final header =
         result.sequence.nodes.values.whereType<TargetHeaderNode>().single;
     expect(header.raHours, 22.8);
@@ -184,8 +184,9 @@ void main() {
         (ref) => buildPlanTonightTargetSequenceFromSuggestion(
             ref: ref,
             target: _suggestion(),
-            options: const AutoBuildOptions(
-                strategy: SmartNightStrategy.oscOneShot,
+            options: AutoBuildOptions(
+                filterSet: FilterSet.single(smartNightUnfilteredName),
+                rotateFilters: false,
                 end: AutoBuildEnd.nautical,
                 gain: 139,
                 offset: 21,

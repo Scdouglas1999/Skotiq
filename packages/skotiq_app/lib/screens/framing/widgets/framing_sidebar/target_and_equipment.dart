@@ -443,7 +443,8 @@ class FramingTargetSection extends StatelessWidget {
 
 /// The Camera section: the active profile's field of view as readouts, the
 /// camera and telescope, or the single [SkotiqBanner] for the current
-/// `FramingEquipmentStatus` (noProfile / noFocalLength / noCameraSpecs).
+/// `FramingEquipmentStatus` (noProfile / noFocalLength / noCameraSpecs). With
+/// more than one profile the title row switches between them.
 class FramingEquipmentSection extends StatelessWidget {
   final SkotiqColors colors;
   final AsyncValue<FramingEquipmentResult> equipmentAsync;
@@ -542,8 +543,13 @@ class FramingEquipmentSection extends StatelessWidget {
 
     return FramingPanelSection(
       title: 'Camera',
-      note: result.isReady ? (result.profileName ?? 'Ready') : 'Not configured',
-      noteColor: result.isReady ? null : colors.warning,
+      note: result.isReady ? null : 'Not configured',
+      noteColor: colors.warning,
+      actions: [
+        _ProfileSwitch(
+          fallbackName: result.isReady ? (result.profileName ?? 'Ready') : null,
+        ),
+      ],
       children: [body],
     );
   }
@@ -596,6 +602,70 @@ class FramingEquipmentSection extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The active equipment profile on the Camera title row: a menu of the
+/// profiles when there is more than one to choose from, else its name.
+class _ProfileSwitch extends ConsumerWidget {
+  /// Shown when there is nothing to switch to; null shows nothing.
+  final String? fallbackName;
+
+  const _ProfileSwitch({required this.fallbackName});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = SkotiqColors.of(context);
+    final profiles = ref.watch(allProfilesProvider).valueOrNull ?? const [];
+    final active = ref.watch(activeEquipmentProfileProvider);
+    if (profiles.length < 2) {
+      final name = fallbackName;
+      if (name == null) return const SizedBox.shrink();
+      return Flexible(
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
+        ),
+      );
+    }
+
+    Future<void> activate(int profileId) async {
+      final profile = profiles.firstWhere((p) => p.id == profileId);
+      try {
+        await ref
+            .read(equipmentProfilesProvider.notifier)
+            .setActiveProfile(profileId);
+      } catch (e) {
+        if (!context.mounted) return;
+        context.showErrorSnackBar(
+          failureText('Could not switch to "${profile.name}"', e),
+        );
+      }
+    }
+
+    return Flexible(
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: SkotiqMenuChip<int>(
+          name: 'Equipment profile',
+          label: active?.name ?? 'Pick a profile',
+          entries: [
+            for (final profile in profiles)
+              SkotiqMenuChoice(
+                profile.id,
+                profile.name,
+                checked: profile.id == active?.id,
+              ),
+          ],
+          onSelected: activate,
+        ),
+      ),
     );
   }
 }

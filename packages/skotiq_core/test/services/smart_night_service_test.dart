@@ -56,6 +56,7 @@ void main() {
         mountName: 'ZWO AM5',
         defaultGain: 100,
         defaultOffset: 50,
+        filterWheelId: 'efw-1',
         filterNames: ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'],
       );
 
@@ -1024,7 +1025,7 @@ void main() {
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
 
-      expect(result.strategy, SmartNightStrategy.autoLrgb);
+      expect(result.filterSet.preset, SmartNightStrategy.autoLrgb);
       expect(
         result.filterPlans.map((p) => p.filterName),
         containsAll(['L', 'R', 'G', 'B']),
@@ -1061,11 +1062,71 @@ void main() {
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
 
-      expect(result.strategy, SmartNightStrategy.narrowbandSho);
+      expect(result.filterSet.preset, SmartNightStrategy.narrowbandSho);
       expect(
         result.filterPlans.map((p) => p.filterName),
         containsAll(['Ha', 'OIII', 'SII']),
       );
+    });
+
+    group('filter order', () {
+      SmartExposureNode smartExposure(
+        EquipmentProfileModel profile, {
+        SmartNightSettings settings = const SmartNightSettings(
+          subExposureFloorSecs: 1,
+        ),
+        bool fillWindow = false,
+      }) => service
+          .buildSingleTargetSequence(
+            profile: profile,
+            suggestion: fakeSuggestion(id: 1, name: 'M51'),
+            windowStart: siteTime(2026, 5, 17, 22),
+            windowEnd: siteTime(2026, 5, 18, 5),
+            latitudeDeg: _siteLatitude,
+            longitudeDeg: _siteLongitude,
+            availableFilters: profile.filterNames,
+            settings: settings,
+            fillWindow: fillWindow,
+          )
+          .sequence
+          .nodes
+          .values
+          .whereType<SmartExposureNode>()
+          .single;
+
+      test('a motorized wheel takes one exposure per filter in turn', () {
+        final node = smartExposure(monoProfile, fillWindow: true);
+        expect(node.rotateFilters, isTrue);
+        expect(node.batchSize, 1);
+        expect(node.loopUntilStopped, isTrue);
+      });
+
+      test('filters named on a profile with no wheel device stay in blocks, '
+          'counted from the window', () {
+        final manual = monoProfile.copyWith(filterWheelId: '');
+        expect(smartNightRotatesFilters(manual), isFalse);
+        final node = smartExposure(manual, fillWindow: true);
+        expect(node.rotateFilters, isFalse);
+        expect(node.loopUntilStopped, isFalse);
+        expect(node.integrationBudgetSecs, greaterThan(0));
+        expect(node.plans.every((p) => p.count > 1), isTrue);
+      });
+
+      test('a plan the user switched to blocks keeps them', () {
+        final node = smartExposure(
+          monoProfile,
+          settings: const SmartNightSettings(
+            subExposureFloorSecs: 1,
+            rotateFilters: false,
+          ),
+        );
+        expect(node.rotateFilters, isFalse);
+      });
+
+      test('every row dithers on the same cadence', () {
+        final node = smartExposure(monoProfile);
+        expect(node.plans.map((p) => p.ditherEvery).toSet(), {3});
+      });
     });
 
     test('buildSingleTargetSequence with only L filter emits single plan', () {
@@ -1121,7 +1182,7 @@ void main() {
           settings: const SmartNightSettings(subExposureFloorSecs: 1),
         );
 
-        expect(result.strategy, SmartNightStrategy.oscOneShot);
+        expect(result.filterSet.preset, isNull);
         expect(result.filterPlans, hasLength(1));
         expect(result.filterPlans.single.filterName, isEmpty);
         expect(result.filterPlans.single.count, greaterThan(0));
@@ -1223,7 +1284,7 @@ void main() {
             latitudeDeg: _siteLatitude,
             longitudeDeg: _siteLongitude,
             availableFilters: narrowbandProfile.filterNames,
-            strategy: SmartNightStrategy.monoLrgb,
+            filterSet: FilterSet.preset(SmartNightStrategy.monoLrgb, const []),
             settings: const SmartNightSettings(subExposureFloorSecs: 1),
           ),
           throwsA(
@@ -1401,7 +1462,7 @@ void main() {
       expect(lPlan.durationSecs, 120);
     });
 
-    test('partial LRGB wheel emits L R G without B', () {
+    test('a wheel without B images the whole set it has: L', () {
       const partialLrgbProfile = EquipmentProfileModel(
         id: 5,
         name: 'Partial LRGB',
@@ -1422,11 +1483,8 @@ void main() {
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
 
-      expect(
-        result.filterPlans.map((p) => p.filterName),
-        containsAll(['L', 'R', 'G']),
-      );
-      expect(result.filterPlans.map((p) => p.filterName), isNot(contains('B')));
+      expect(result.filterPlans.map((p) => p.filterName), ['L']);
+      expect(result.filterSet.preset, SmartNightStrategy.luminance);
     });
 
     test('buildSingleTargetSequence infers HOO for emission nebula', () {
@@ -1454,7 +1512,7 @@ void main() {
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
       );
 
-      expect(result.strategy, SmartNightStrategy.narrowbandHoo);
+      expect(result.filterSet.preset, SmartNightStrategy.narrowbandHoo);
       expect(
         result.filterPlans.map((p) => p.filterName),
         containsAll(['Ha', 'OIII']),
@@ -2541,7 +2599,7 @@ void main() {
 
     test('M1 on the owner wheel plans SHO with longer subs than LRGB', () {
       final m1 = imageTonight(target(1, 'M1', 'Supernova Remnant'));
-      expect(m1.strategy, SmartNightStrategy.narrowbandSho);
+      expect(m1.filterSet.preset, SmartNightStrategy.narrowbandSho);
       expect(m1.filterPlans.map((p) => p.filterName), ['Ha', 'OIII', 'SII']);
       expect(
         m1.plannedTarget.filterReason,
@@ -2575,7 +2633,12 @@ void main() {
         latitudeDeg: _siteLatitude,
         longitudeDeg: _siteLongitude,
         availableFilters: ownerWheel,
-        strategy: SmartNightStrategy.autoLrgb,
+        filterSet: FilterSet.preset(SmartNightStrategy.autoLrgb, const [
+          'L',
+          'R',
+          'G',
+          'B',
+        ]),
       );
       expect(result.filterPlans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
       expect(result.plannedTarget.filterReason, 'LRGB: your choice.');
@@ -2643,7 +2706,15 @@ void main() {
         strategy: null,
         settings: const SmartNightSettings(defaultIntegrationBudgetHours: 2),
         planTimer: const PlanTimer(),
-        targetStrategies: const {33: SmartNightStrategy.haLrgb},
+        targetSets: {
+          33: FilterSet.preset(SmartNightStrategy.haLrgb, const [
+            'L',
+            'R',
+            'G',
+            'B',
+            'Ha',
+          ]),
+        },
       );
       final galaxy = plan.plannedTargets.single;
       expect(galaxy.filterPlans.map((f) => f.filterName), [

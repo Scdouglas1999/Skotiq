@@ -97,9 +97,6 @@ class FramingState {
   /// Whether to highlight the capture sequence path
   final bool showSequencePath;
 
-  /// Whether to show the optical config overlay panel on the framing canvas
-  final bool showOpticalConfigPanel;
-
   const FramingState({
     this.target,
     this.sourceSuggestion,
@@ -130,7 +127,6 @@ class FramingState {
     this.selectedPanelIndex = -1,
     this.showPanelNumbers = true,
     this.showSequencePath = true,
-    this.showOpticalConfigPanel = false,
   });
 
   /// RA in hours the FOV reticle is aimed at: the explicit [aimRaHours] when
@@ -197,7 +193,6 @@ class FramingState {
     int? selectedPanelIndex,
     bool? showPanelNumbers,
     bool? showSequencePath,
-    bool? showOpticalConfigPanel,
     bool clearImage = false,
     bool clearTarget = false,
     bool clearSourceSuggestion = false,
@@ -247,8 +242,6 @@ class FramingState {
       selectedPanelIndex: selectedPanelIndex ?? this.selectedPanelIndex,
       showPanelNumbers: showPanelNumbers ?? this.showPanelNumbers,
       showSequencePath: showSequencePath ?? this.showSequencePath,
-      showOpticalConfigPanel:
-          showOpticalConfigPanel ?? this.showOpticalConfigPanel,
     );
   }
 }

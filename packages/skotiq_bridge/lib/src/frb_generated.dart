@@ -122,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1964219699;
+  int get rustContentHash => 288174336;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1346,8 +1346,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int offset,
   });
-
-  Future<SolveHints> crateApiPlateSolveSolveHintsDefault();
 
   Future<StarDetectionConfigApi> crateApiImagingStarDetectionConfigApiDefault();
 }
@@ -7181,7 +7179,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_api_target_score_now,
-          decodeErrorData: null,
+          decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiTargetScoringApiRankSchedulerTargetsConstMeta,
         argValues: [
@@ -7864,7 +7862,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_api_night_score,
-          decodeErrorData: null,
+          decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiTargetScoringApiScoreTargetsForNightConstMeta,
         argValues: [sky, targets, weights],
@@ -10674,27 +10672,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SolveHints> crateApiPlateSolveSolveHintsDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire.wire__crate__api__plate_solve__solve_hints_default(port_);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_solve_hints,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiPlateSolveSolveHintsDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiPlateSolveSolveHintsDefaultConstMeta =>
-      const TaskConstMeta(debugName: "solve_hints_default", argNames: []);
-
-  @override
   Future<StarDetectionConfigApi>
   crateApiImagingStarDetectionConfigApiDefault() {
     return handler.executeNormal(
@@ -11136,8 +11113,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiNightScore dco_decode_api_night_score(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return ApiNightScore(
       targetId: dco_decode_String(arr[0]),
       totalScore: dco_decode_f_64(arr[1]),
@@ -11152,9 +11129,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       peakAzimuthDeg: dco_decode_f_64(arr[10]),
       peakUnixMs: dco_decode_i_64(arr[11]),
       hoursAboveFloor: dco_decode_f_64(arr[12]),
-      firstUsableUnixMs: dco_decode_opt_box_autoadd_i_64(arr[13]),
-      bestAirmass: dco_decode_opt_box_autoadd_f_64(arr[14]),
-      moonDistanceDeg: dco_decode_f_64(arr[15]),
+      aboveFloorFromUnixMs: dco_decode_opt_box_autoadd_i_64(arr[13]),
+      aboveFloorUntilUnixMs: dco_decode_opt_box_autoadd_i_64(arr[14]),
+      bestAirmass: dco_decode_opt_box_autoadd_f_64(arr[15]),
+      moonDistanceDeg: dco_decode_f_64(arr[16]),
     );
   }
 
@@ -11646,12 +11624,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_polar_alignment_status(raw);
-  }
-
-  @protected
-  (double, double) dco_decode_box_autoadd_record_f_64_f_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as (double, double);
   }
 
   @protected
@@ -13579,12 +13551,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (double, double)? dco_decode_opt_box_autoadd_record_f_64_f_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_record_f_64_f_64(raw);
-  }
-
-  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_sequencer_notice(raw);
@@ -13857,16 +13823,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_f_64(arr[0]), dco_decode_f_64(arr[1]));
-  }
-
-  @protected
-  (int, int) dco_decode_record_i_32_i_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
-    }
-    return (dco_decode_i_32(arr[0]), dco_decode_i_32(arr[1]));
   }
 
   @protected
@@ -14202,16 +14158,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           instruction: dco_decode_String(raw[2]),
           progressPercent: dco_decode_f_64(raw[3]),
           detail: dco_decode_String(raw[4]),
+          detailKind: dco_decode_String(raw[5]),
+          detailJson: dco_decode_String(raw[6]),
         );
       case 17:
-        return SequencerEvent_InstructionProgressStructured(
-          nodeId: dco_decode_String(raw[1]),
-          instruction: dco_decode_String(raw[2]),
-          progressPercent: dco_decode_f_64(raw[3]),
-          detailKind: dco_decode_String(raw[4]),
-          detailJson: dco_decode_String(raw[5]),
+        return SequencerEvent_DitherPerformed(
+          nodeId: dco_decode_opt_String(raw[1]),
         );
       case 18:
+        return SequencerEvent_FrameWatchReport(
+          kind: dco_decode_String(raw[1]),
+          payloadJson: dco_decode_String(raw[2]),
+        );
+      case 19:
         return SequencerEvent_DepthGoalCompleted(
           nodeId: dco_decode_String(raw[1]),
           filterName: dco_decode_String(raw[2]),
@@ -14222,7 +14181,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           score: dco_decode_f_64(raw[7]),
           threshold: dco_decode_f_64(raw[8]),
         );
-      case 19:
+      case 20:
         return SequencerEvent_FrameAccepted(
           nodeId: dco_decode_String(raw[1]),
           frame: dco_decode_u_32(raw[2]),
@@ -14235,7 +14194,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           savePath: dco_decode_opt_String(raw[9]),
           capture: dco_decode_box_autoadd_frame_capture_metadata(raw[10]),
         );
-      case 20:
+      case 21:
         return SequencerEvent_FrameRejected(
           nodeId: dco_decode_String(raw[1]),
           frame: dco_decode_u_32(raw[2]),
@@ -14257,7 +14216,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sensorTempAtCapture: dco_decode_opt_box_autoadd_f_64(raw[18]),
           capture: dco_decode_box_autoadd_frame_capture_metadata(raw[19]),
         );
-      case 21:
+      case 22:
         return SequencerEvent_SchedulerDecision(
           nodeId: dco_decode_String(raw[1]),
           decisionCounter: dco_decode_u_32(raw[2]),
@@ -14266,7 +14225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pickedScore: dco_decode_opt_box_autoadd_f_64(raw[5]),
           scores: dco_decode_list_scheduler_score_entry(raw[6]),
         );
-      case 22:
+      case 23:
         return SequencerEvent_IntegrationBudget(
           targetId: dco_decode_String(raw[1]),
           filter: dco_decode_String(raw[2]),
@@ -14275,7 +14234,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fraction: dco_decode_f_64(raw[5]),
           budgetMet: dco_decode_bool(raw[6]),
         );
-      case 23:
+      case 24:
         return SequencerEvent_ExposureAdjusted(
           nodeId: dco_decode_String(raw[1]),
           adaptedSecs: dco_decode_f_64(raw[2]),
@@ -14284,7 +14243,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           filter: dco_decode_opt_String(raw[5]),
           reason: dco_decode_String(raw[6]),
         );
-      case 24:
+      case 25:
         return SequencerEvent_PhotometryFrame(
           nodeId: dco_decode_String(raw[1]),
           targetDesignation: dco_decode_String(raw[2]),
@@ -14303,7 +14262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           reduceLive: dco_decode_bool(raw[15]),
           applyDifferential: dco_decode_bool(raw[16]),
         );
-      case 25:
+      case 26:
         return SequencerEvent_PhotometryCadenceBroken(
           nodeId: dco_decode_String(raw[1]),
           frame: dco_decode_u_32(raw[2]),
@@ -14312,7 +14271,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           maxGapSecs: dco_decode_f_64(raw[5]),
           cadenceBreaks: dco_decode_u_32(raw[6]),
         );
-      case 26:
+      case 27:
         return SequencerEvent_PhotometrySummary(
           nodeId: dco_decode_String(raw[1]),
           targetDesignation: dco_decode_String(raw[2]),
@@ -14321,7 +14280,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           cadenceBreaks: dco_decode_u_32(raw[5]),
           lastRejectReason: dco_decode_opt_String(raw[6]),
         );
-      case 27:
+      case 28:
         return SequencerEvent_RecoveryStarted(
           startedAtIso: dco_decode_String(raw[1]),
           causeKind: dco_decode_String(raw[2]),
@@ -14334,7 +14293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: dco_decode_String(raw[9]),
           lastError: dco_decode_opt_String(raw[10]),
         );
-      case 28:
+      case 29:
         return SequencerEvent_RecoveryProgress(
           startedAtIso: dco_decode_String(raw[1]),
           causeKind: dco_decode_String(raw[2]),
@@ -14347,7 +14306,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: dco_decode_String(raw[9]),
           lastError: dco_decode_opt_String(raw[10]),
         );
-      case 29:
+      case 30:
         return SequencerEvent_RecoveryCompleted(
           startedAtIso: dco_decode_String(raw[1]),
           causeKind: dco_decode_String(raw[2]),
@@ -14360,7 +14319,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: dco_decode_String(raw[9]),
           lastError: dco_decode_opt_String(raw[10]),
         );
-      case 30:
+      case 31:
         return SequencerEvent_RecoveryGaveUp(
           startedAtIso: dco_decode_String(raw[1]),
           causeKind: dco_decode_String(raw[2]),
@@ -14374,7 +14333,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           lastError: dco_decode_opt_String(raw[10]),
           abortedByUser: dco_decode_bool(raw[11]),
         );
-      case 31:
+      case 32:
         return SequencerEvent_PluginNodeRequested(
           nodeId: dco_decode_String(raw[1]),
           pluginId: dco_decode_String(raw[2]),
@@ -14383,14 +14342,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: dco_decode_opt_String(raw[5]),
           timeoutSecs: dco_decode_u_32(raw[6]),
         );
-      case 32:
+      case 33:
         return SequencerEvent_PluginNodeProgress(
           nodeId: dco_decode_String(raw[1]),
           pluginId: dco_decode_String(raw[2]),
           nodeTypeId: dco_decode_String(raw[3]),
           detailJson: dco_decode_String(raw[4]),
         );
-      case 33:
+      case 34:
         return SequencerEvent_DecisionLogged(
           timestampIso: dco_decode_String(raw[1]),
           category: dco_decode_String(raw[2]),
@@ -14650,19 +14609,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       causedBy: dco_decode_opt_box_autoadd_u_64(arr[5]),
       correlationId: dco_decode_opt_String(arr[6]),
       deviceId: dco_decode_opt_String(arr[7]),
-    );
-  }
-
-  @protected
-  SolveHints dco_decode_solve_hints(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SolveHints(
-      focalLengthMm: dco_decode_opt_box_autoadd_f_64(arr[0]),
-      pixelSizeUm: dco_decode_opt_box_autoadd_record_f_64_f_64(arr[1]),
-      binning: dco_decode_record_i_32_i_32(arr[2]),
     );
   }
 
@@ -15445,7 +15391,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_peakAzimuthDeg = sse_decode_f_64(deserializer);
     var var_peakUnixMs = sse_decode_i_64(deserializer);
     var var_hoursAboveFloor = sse_decode_f_64(deserializer);
-    var var_firstUsableUnixMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_aboveFloorFromUnixMs = sse_decode_opt_box_autoadd_i_64(
+      deserializer,
+    );
+    var var_aboveFloorUntilUnixMs = sse_decode_opt_box_autoadd_i_64(
+      deserializer,
+    );
     var var_bestAirmass = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_moonDistanceDeg = sse_decode_f_64(deserializer);
     return ApiNightScore(
@@ -15462,7 +15413,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       peakAzimuthDeg: var_peakAzimuthDeg,
       peakUnixMs: var_peakUnixMs,
       hoursAboveFloor: var_hoursAboveFloor,
-      firstUsableUnixMs: var_firstUsableUnixMs,
+      aboveFloorFromUnixMs: var_aboveFloorFromUnixMs,
+      aboveFloorUntilUnixMs: var_aboveFloorUntilUnixMs,
       bestAirmass: var_bestAirmass,
       moonDistanceDeg: var_moonDistanceDeg,
     );
@@ -16068,14 +16020,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_polar_alignment_status(deserializer));
-  }
-
-  @protected
-  (double, double) sse_decode_box_autoadd_record_f_64_f_64(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_record_f_64_f_64(deserializer));
   }
 
   @protected
@@ -18830,19 +18774,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (double, double)? sse_decode_opt_box_autoadd_record_f_64_f_64(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_record_f_64_f_64(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   ) {
@@ -19223,14 +19154,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_f_64(deserializer);
     var var_field1 = sse_decode_f_64(deserializer);
-    return (var_field0, var_field1);
-  }
-
-  @protected
-  (int, int) sse_decode_record_i_32_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_field0 = sse_decode_i_32(deserializer);
-    var var_field1 = sse_decode_i_32(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -19660,26 +19583,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_instruction = sse_decode_String(deserializer);
         var var_progressPercent = sse_decode_f_64(deserializer);
         var var_detail = sse_decode_String(deserializer);
+        var var_detailKind = sse_decode_String(deserializer);
+        var var_detailJson = sse_decode_String(deserializer);
         return SequencerEvent_InstructionProgress(
           nodeId: var_nodeId,
           instruction: var_instruction,
           progressPercent: var_progressPercent,
           detail: var_detail,
-        );
-      case 17:
-        var var_nodeId = sse_decode_String(deserializer);
-        var var_instruction = sse_decode_String(deserializer);
-        var var_progressPercent = sse_decode_f_64(deserializer);
-        var var_detailKind = sse_decode_String(deserializer);
-        var var_detailJson = sse_decode_String(deserializer);
-        return SequencerEvent_InstructionProgressStructured(
-          nodeId: var_nodeId,
-          instruction: var_instruction,
-          progressPercent: var_progressPercent,
           detailKind: var_detailKind,
           detailJson: var_detailJson,
         );
+      case 17:
+        var var_nodeId = sse_decode_opt_String(deserializer);
+        return SequencerEvent_DitherPerformed(nodeId: var_nodeId);
       case 18:
+        var var_kind = sse_decode_String(deserializer);
+        var var_payloadJson = sse_decode_String(deserializer);
+        return SequencerEvent_FrameWatchReport(
+          kind: var_kind,
+          payloadJson: var_payloadJson,
+        );
+      case 19:
         var var_nodeId = sse_decode_String(deserializer);
         var var_filterName = sse_decode_String(deserializer);
         var var_goalId = sse_decode_String(deserializer);
@@ -19698,7 +19622,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           score: var_score,
           threshold: var_threshold,
         );
-      case 19:
+      case 20:
         var var_nodeId = sse_decode_String(deserializer);
         var var_frame = sse_decode_u_32(deserializer);
         var var_total = sse_decode_u_32(deserializer);
@@ -19723,7 +19647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           savePath: var_savePath,
           capture: var_capture,
         );
-      case 20:
+      case 21:
         var var_nodeId = sse_decode_String(deserializer);
         var var_frame = sse_decode_u_32(deserializer);
         var var_total = sse_decode_u_32(deserializer);
@@ -19774,7 +19698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sensorTempAtCapture: var_sensorTempAtCapture,
           capture: var_capture,
         );
-      case 21:
+      case 22:
         var var_nodeId = sse_decode_String(deserializer);
         var var_decisionCounter = sse_decode_u_32(deserializer);
         var var_pickedTargetId = sse_decode_opt_String(deserializer);
@@ -19789,7 +19713,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pickedScore: var_pickedScore,
           scores: var_scores,
         );
-      case 22:
+      case 23:
         var var_targetId = sse_decode_String(deserializer);
         var var_filter = sse_decode_String(deserializer);
         var var_completedSecs = sse_decode_f_64(deserializer);
@@ -19804,7 +19728,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fraction: var_fraction,
           budgetMet: var_budgetMet,
         );
-      case 23:
+      case 24:
         var var_nodeId = sse_decode_String(deserializer);
         var var_adaptedSecs = sse_decode_f_64(deserializer);
         var var_nominalSecs = sse_decode_f_64(deserializer);
@@ -19821,7 +19745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           filter: var_filter,
           reason: var_reason,
         );
-      case 24:
+      case 25:
         var var_nodeId = sse_decode_String(deserializer);
         var var_targetDesignation = sse_decode_String(deserializer);
         var var_referenceStars = sse_decode_list_String(deserializer);
@@ -19856,7 +19780,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           reduceLive: var_reduceLive,
           applyDifferential: var_applyDifferential,
         );
-      case 25:
+      case 26:
         var var_nodeId = sse_decode_String(deserializer);
         var var_frame = sse_decode_u_32(deserializer);
         var var_total = sse_decode_u_32(deserializer);
@@ -19871,7 +19795,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           maxGapSecs: var_maxGapSecs,
           cadenceBreaks: var_cadenceBreaks,
         );
-      case 26:
+      case 27:
         var var_nodeId = sse_decode_String(deserializer);
         var var_targetDesignation = sse_decode_String(deserializer);
         var var_filter = sse_decode_String(deserializer);
@@ -19886,7 +19810,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           cadenceBreaks: var_cadenceBreaks,
           lastRejectReason: var_lastRejectReason,
         );
-      case 27:
+      case 28:
         var var_startedAtIso = sse_decode_String(deserializer);
         var var_causeKind = sse_decode_String(deserializer);
         var var_causeCustomLabel = sse_decode_opt_String(deserializer);
@@ -19909,7 +19833,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: var_phase,
           lastError: var_lastError,
         );
-      case 28:
+      case 29:
         var var_startedAtIso = sse_decode_String(deserializer);
         var var_causeKind = sse_decode_String(deserializer);
         var var_causeCustomLabel = sse_decode_opt_String(deserializer);
@@ -19932,7 +19856,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: var_phase,
           lastError: var_lastError,
         );
-      case 29:
+      case 30:
         var var_startedAtIso = sse_decode_String(deserializer);
         var var_causeKind = sse_decode_String(deserializer);
         var var_causeCustomLabel = sse_decode_opt_String(deserializer);
@@ -19955,7 +19879,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           phase: var_phase,
           lastError: var_lastError,
         );
-      case 30:
+      case 31:
         var var_startedAtIso = sse_decode_String(deserializer);
         var var_causeKind = sse_decode_String(deserializer);
         var var_causeCustomLabel = sse_decode_opt_String(deserializer);
@@ -19980,7 +19904,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           lastError: var_lastError,
           abortedByUser: var_abortedByUser,
         );
-      case 31:
+      case 32:
         var var_nodeId = sse_decode_String(deserializer);
         var var_pluginId = sse_decode_String(deserializer);
         var var_nodeTypeId = sse_decode_String(deserializer);
@@ -19995,7 +19919,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: var_displayName,
           timeoutSecs: var_timeoutSecs,
         );
-      case 32:
+      case 33:
         var var_nodeId = sse_decode_String(deserializer);
         var var_pluginId = sse_decode_String(deserializer);
         var var_nodeTypeId = sse_decode_String(deserializer);
@@ -20006,7 +19930,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           nodeTypeId: var_nodeTypeId,
           detailJson: var_detailJson,
         );
-      case 33:
+      case 34:
         var var_timestampIso = sse_decode_String(deserializer);
         var var_category = sse_decode_String(deserializer);
         var var_summary = sse_decode_String(deserializer);
@@ -20368,21 +20292,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       causedBy: var_causedBy,
       correlationId: var_correlationId,
       deviceId: var_deviceId,
-    );
-  }
-
-  @protected
-  SolveHints sse_decode_solve_hints(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_focalLengthMm = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeUm = sse_decode_opt_box_autoadd_record_f_64_f_64(
-      deserializer,
-    );
-    var var_binning = sse_decode_record_i_32_i_32(deserializer);
-    return SolveHints(
-      focalLengthMm: var_focalLengthMm,
-      pixelSizeUm: var_pixelSizeUm,
-      binning: var_binning,
     );
   }
 
@@ -21256,7 +21165,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.peakAzimuthDeg, serializer);
     sse_encode_i_64(self.peakUnixMs, serializer);
     sse_encode_f_64(self.hoursAboveFloor, serializer);
-    sse_encode_opt_box_autoadd_i_64(self.firstUsableUnixMs, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.aboveFloorFromUnixMs, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.aboveFloorUntilUnixMs, serializer);
     sse_encode_opt_box_autoadd_f_64(self.bestAirmass, serializer);
     sse_encode_f_64(self.moonDistanceDeg, serializer);
   }
@@ -21816,15 +21726,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_polar_alignment_status(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_record_f_64_f_64(
-    (double, double) self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_record_f_64_f_64(self, serializer);
   }
 
   @protected
@@ -24096,19 +23997,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_record_f_64_f_64(
-    (double, double)? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_record_f_64_f_64(self, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -24404,13 +24292,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_64(self.$1, serializer);
     sse_encode_f_64(self.$2, serializer);
-  }
-
-  @protected
-  void sse_encode_record_i_32_i_32((int, int) self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.$1, serializer);
-    sse_encode_i_32(self.$2, serializer);
   }
 
   @protected
@@ -24759,25 +24640,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         instruction: final instruction,
         progressPercent: final progressPercent,
         detail: final detail,
+        detailKind: final detailKind,
+        detailJson: final detailJson,
       ):
         sse_encode_i_32(16, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(instruction, serializer);
         sse_encode_f_64(progressPercent, serializer);
         sse_encode_String(detail, serializer);
-      case SequencerEvent_InstructionProgressStructured(
-        nodeId: final nodeId,
-        instruction: final instruction,
-        progressPercent: final progressPercent,
-        detailKind: final detailKind,
-        detailJson: final detailJson,
-      ):
-        sse_encode_i_32(17, serializer);
-        sse_encode_String(nodeId, serializer);
-        sse_encode_String(instruction, serializer);
-        sse_encode_f_64(progressPercent, serializer);
         sse_encode_String(detailKind, serializer);
         sse_encode_String(detailJson, serializer);
+      case SequencerEvent_DitherPerformed(nodeId: final nodeId):
+        sse_encode_i_32(17, serializer);
+        sse_encode_opt_String(nodeId, serializer);
+      case SequencerEvent_FrameWatchReport(
+        kind: final kind,
+        payloadJson: final payloadJson,
+      ):
+        sse_encode_i_32(18, serializer);
+        sse_encode_String(kind, serializer);
+        sse_encode_String(payloadJson, serializer);
       case SequencerEvent_DepthGoalCompleted(
         nodeId: final nodeId,
         filterName: final filterName,
@@ -24788,7 +24670,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         score: final score,
         threshold: final threshold,
       ):
-        sse_encode_i_32(18, serializer);
+        sse_encode_i_32(19, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(filterName, serializer);
         sse_encode_String(goalId, serializer);
@@ -24809,7 +24691,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         savePath: final savePath,
         capture: final capture,
       ):
-        sse_encode_i_32(19, serializer);
+        sse_encode_i_32(20, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
@@ -24841,7 +24723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sensorTempAtCapture: final sensorTempAtCapture,
         capture: final capture,
       ):
-        sse_encode_i_32(20, serializer);
+        sse_encode_i_32(21, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
@@ -24869,7 +24751,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         pickedScore: final pickedScore,
         scores: final scores,
       ):
-        sse_encode_i_32(21, serializer);
+        sse_encode_i_32(22, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_u_32(decisionCounter, serializer);
         sse_encode_opt_String(pickedTargetId, serializer);
@@ -24884,7 +24766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         fraction: final fraction,
         budgetMet: final budgetMet,
       ):
-        sse_encode_i_32(22, serializer);
+        sse_encode_i_32(23, serializer);
         sse_encode_String(targetId, serializer);
         sse_encode_String(filter, serializer);
         sse_encode_f_64(completedSecs, serializer);
@@ -24899,7 +24781,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         filter: final filter,
         reason: final reason,
       ):
-        sse_encode_i_32(23, serializer);
+        sse_encode_i_32(24, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_f_64(adaptedSecs, serializer);
         sse_encode_f_64(nominalSecs, serializer);
@@ -24924,7 +24806,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         reduceLive: final reduceLive,
         applyDifferential: final applyDifferential,
       ):
-        sse_encode_i_32(24, serializer);
+        sse_encode_i_32(25, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(targetDesignation, serializer);
         sse_encode_list_String(referenceStars, serializer);
@@ -24949,7 +24831,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         maxGapSecs: final maxGapSecs,
         cadenceBreaks: final cadenceBreaks,
       ):
-        sse_encode_i_32(25, serializer);
+        sse_encode_i_32(26, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
@@ -24964,7 +24846,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         cadenceBreaks: final cadenceBreaks,
         lastRejectReason: final lastRejectReason,
       ):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(targetDesignation, serializer);
         sse_encode_String(filter, serializer);
@@ -24972,29 +24854,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_32(cadenceBreaks, serializer);
         sse_encode_opt_String(lastRejectReason, serializer);
       case SequencerEvent_RecoveryStarted(
-        startedAtIso: final startedAtIso,
-        causeKind: final causeKind,
-        causeCustomLabel: final causeCustomLabel,
-        lastAttemptAtIso: final lastAttemptAtIso,
-        attemptCount: final attemptCount,
-        maxAttempts: final maxAttempts,
-        retryIntervalSecs: final retryIntervalSecs,
-        maxDurationSecs: final maxDurationSecs,
-        phase: final phase,
-        lastError: final lastError,
-      ):
-        sse_encode_i_32(27, serializer);
-        sse_encode_String(startedAtIso, serializer);
-        sse_encode_String(causeKind, serializer);
-        sse_encode_opt_String(causeCustomLabel, serializer);
-        sse_encode_opt_String(lastAttemptAtIso, serializer);
-        sse_encode_u_32(attemptCount, serializer);
-        sse_encode_u_32(maxAttempts, serializer);
-        sse_encode_f_64(retryIntervalSecs, serializer);
-        sse_encode_f_64(maxDurationSecs, serializer);
-        sse_encode_String(phase, serializer);
-        sse_encode_opt_String(lastError, serializer);
-      case SequencerEvent_RecoveryProgress(
         startedAtIso: final startedAtIso,
         causeKind: final causeKind,
         causeCustomLabel: final causeCustomLabel,
@@ -25017,7 +24876,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_f_64(maxDurationSecs, serializer);
         sse_encode_String(phase, serializer);
         sse_encode_opt_String(lastError, serializer);
-      case SequencerEvent_RecoveryCompleted(
+      case SequencerEvent_RecoveryProgress(
         startedAtIso: final startedAtIso,
         causeKind: final causeKind,
         causeCustomLabel: final causeCustomLabel,
@@ -25030,6 +24889,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         lastError: final lastError,
       ):
         sse_encode_i_32(29, serializer);
+        sse_encode_String(startedAtIso, serializer);
+        sse_encode_String(causeKind, serializer);
+        sse_encode_opt_String(causeCustomLabel, serializer);
+        sse_encode_opt_String(lastAttemptAtIso, serializer);
+        sse_encode_u_32(attemptCount, serializer);
+        sse_encode_u_32(maxAttempts, serializer);
+        sse_encode_f_64(retryIntervalSecs, serializer);
+        sse_encode_f_64(maxDurationSecs, serializer);
+        sse_encode_String(phase, serializer);
+        sse_encode_opt_String(lastError, serializer);
+      case SequencerEvent_RecoveryCompleted(
+        startedAtIso: final startedAtIso,
+        causeKind: final causeKind,
+        causeCustomLabel: final causeCustomLabel,
+        lastAttemptAtIso: final lastAttemptAtIso,
+        attemptCount: final attemptCount,
+        maxAttempts: final maxAttempts,
+        retryIntervalSecs: final retryIntervalSecs,
+        maxDurationSecs: final maxDurationSecs,
+        phase: final phase,
+        lastError: final lastError,
+      ):
+        sse_encode_i_32(30, serializer);
         sse_encode_String(startedAtIso, serializer);
         sse_encode_String(causeKind, serializer);
         sse_encode_opt_String(causeCustomLabel, serializer);
@@ -25053,7 +24935,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         lastError: final lastError,
         abortedByUser: final abortedByUser,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_String(startedAtIso, serializer);
         sse_encode_String(causeKind, serializer);
         sse_encode_opt_String(causeCustomLabel, serializer);
@@ -25073,7 +24955,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         displayName: final displayName,
         timeoutSecs: final timeoutSecs,
       ):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(pluginId, serializer);
         sse_encode_String(nodeTypeId, serializer);
@@ -25086,7 +24968,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         nodeTypeId: final nodeTypeId,
         detailJson: final detailJson,
       ):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(pluginId, serializer);
         sse_encode_String(nodeTypeId, serializer);
@@ -25101,7 +24983,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         notice: final notice,
         stop: final stop,
       ):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_String(timestampIso, serializer);
         sse_encode_String(category, serializer);
         sse_encode_String(summary, serializer);
@@ -25417,14 +25299,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_64(self.causedBy, serializer);
     sse_encode_opt_String(self.correlationId, serializer);
     sse_encode_opt_String(self.deviceId, serializer);
-  }
-
-  @protected
-  void sse_encode_solve_hints(SolveHints self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_f_64(self.focalLengthMm, serializer);
-    sse_encode_opt_box_autoadd_record_f_64_f_64(self.pixelSizeUm, serializer);
-    sse_encode_record_i_32_i_32(self.binning, serializer);
   }
 
   @protected

@@ -73,11 +73,11 @@ void applyRunEventToNodeExposureTally(
   switch (event) {
     case SequencerEvent_NodeStarted(:final nodeId):
       tally.startNode(nodeId);
-    case SequencerEvent_InstructionProgressStructured(:final nodeId)
+    case SequencerEvent_InstructionProgress(:final nodeId)
         when nodeId.isNotEmpty:
       // The native per-frame callback fires after a frame lands, so `frame` is
       // the number of frames CAPTURED, not the one in flight.
-      if (event.detail case ExposureInstructionProgressDetail(
+      if (event.report case ExposureInstructionProgressDetail(
         :final frame,
         :final total,
       )) {

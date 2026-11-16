@@ -359,10 +359,11 @@ class _TonightSuggestionScorer {
         moonDist: figures.moonDistance,
         moonIllumination: moonIllumination,
         visibility: pass,
-        hoursAboveMin: figures.hoursAboveMinAlt ?? 0,
+        // Night scores always carry their hours above the floor.
+        hoursAboveMin: figures.hoursAboveMinAlt!,
         nightStart: night.start,
         nightEnd: night.end,
-        firstObservableTime: figures.firstUsableTime,
+        firstObservableTime: figures.aboveFloorFrom,
       ),
       visibility: TargetVisibilityInfo(
         currentAltitude: figures.currentAltitude,
@@ -379,7 +380,8 @@ class _TonightSuggestionScorer {
         peakAzimuth: figures.peakAzimuth,
         peakAltitudeTime: figures.peakAltitudeTime,
         hoursAboveMinAlt: figures.hoursAboveMinAlt,
-        firstUsableTime: figures.firstUsableTime,
+        aboveFloorFrom: figures.aboveFloorFrom,
+        aboveFloorUntil: figures.aboveFloorUntil,
         bestAirmass: figures.bestAirmass,
       ),
     );

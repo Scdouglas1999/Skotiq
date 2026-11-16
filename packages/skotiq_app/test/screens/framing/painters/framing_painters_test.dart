@@ -227,6 +227,52 @@ void main() {
       expect(FramingFOVPainter.rotationHandleRadius, greaterThan(0));
       expect(FramingFOVPainter.rotationHitTolerance, greaterThan(0));
     });
+
+    // The rotate gesture is live over both reticles, so both draw the handle
+    // where its hit ring is: 1° tall at 500 px/deg is 250 px above center,
+    // then the handle gap.
+    const handleY = 500 - 250 - FramingFOVPainter.rotationHandleGap;
+
+    test('the camera frame draws the rotation handle', () {
+      final painter = FramingFOVPainter(
+        fovWidth: 1.5,
+        fovHeight: 1.0,
+        zoom: 1.0,
+        plateScale: _plateScale,
+        colors: _colors,
+        showDirections: false,
+      );
+      expect(
+        (Canvas canvas) => painter.paint(canvas, _canvas),
+        paints
+          ..circle(
+            x: 500,
+            y: handleY,
+            radius: FramingFOVPainter.rotationHandleRadius,
+          ),
+      );
+    });
+
+    test('the frame inside a wider preview draws the rotation handle too', () {
+      final painter = FramingEquipmentFOVOverlayPainter(
+        fovWidth: 1.5,
+        fovHeight: 1.0,
+        zoom: 1.0,
+        plateScale: _plateScale,
+        colors: _colors,
+        opacity: 0.5,
+        showDirections: false,
+      );
+      expect(
+        (Canvas canvas) => painter.paint(canvas, _canvas),
+        paints
+          ..circle(
+            x: 500,
+            y: handleY,
+            radius: FramingFOVPainter.rotationHandleRadius,
+          ),
+      );
+    });
   });
 
   group('shouldRepaint reacts to plate scale changes', () {

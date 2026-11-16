@@ -8,6 +8,8 @@
 // ImageThumbnailStrip took an onImageTap callback that no caller in the app
 // ever passed.
 
+import 'dart:typed_data';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/frame_detail_dialog.dart';
 import 'package:skotiq_app/screens/analytics/widgets/image_thumbnail_strip.dart';
+import 'package:skotiq_app/widgets/saved_frame/saved_frame_viewer.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart'
+    show FrameFileDecoder, frameFileDecoderProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -37,7 +43,15 @@ DbCapturedImage _frame(int id) => DbCapturedImage(
       filter: 'L',
     );
 
-Widget _strip(List<DbCapturedImage> images) => ProviderScope(
+Widget _strip(
+  List<DbCapturedImage> images, {
+  FrameFileDecoder? decoder,
+}) =>
+    ProviderScope(
+      overrides: [
+        if (decoder != null)
+          frameFileDecoderProvider.overrideWithValue(decoder),
+      ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
         home: Scaffold(
@@ -109,23 +123,63 @@ void main() {
     );
   });
 
-  testWidgets('tapping a thumbnail opens the frame inspector', (tester) async {
-    await tester.pumpWidget(_strip([_frame(1)]));
-    await tester.pump();
+  testWidgets(
+    'tapping a thumbnail shows the frame at full resolution, with the '
+    'inspector one click away',
+    (tester) async {
+      final decoded = <String>[];
+      await tester.pumpWidget(
+        _strip(
+          [_frame(1)],
+          decoder: (path) async {
+            decoded.add(path);
+            return bridge.FitsReadResult(
+              width: 40,
+              height: 30,
+              bitpix: 16,
+              displayData: Uint8List(40 * 30 * 4),
+              histogram: Uint32List(256),
+              stats: const bridge.ImageStatsResult(
+                min: 0,
+                max: 1,
+                mean: 0,
+                median: 0,
+                stdDev: 0,
+                starCount: 0,
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pump();
 
-    expect(find.byType(FrameDetailDialog), findsNothing);
-    await tester.tap(_thumbnail(tester));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(_thumbnail(tester));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
 
-    expect(
-      find.byType(FrameDetailDialog),
-      findsOneWidget,
-      reason: 'the rail is a gallery; a click on a frame must open it',
-    );
-    // And it reports the frame, not a generic sheet.
-    expect(find.text('frame_1.fits'), findsWidgets);
-  });
+      expect(
+        find.byType(SavedFrameViewer),
+        findsOneWidget,
+        reason: 'the rail is a gallery; a click on a frame must open it',
+      );
+      expect(decoded, ['/tmp/frame_1.fits']);
+      expect(
+        find.textContaining('40 × 30', findRichText: true),
+        findsOneWidget,
+      );
+      // And it reports the frame, not a generic sheet.
+      expect(
+        find.textContaining('frame_1.fits', findRichText: true),
+        findsWidgets,
+      );
+
+      await tester.tap(find.text('Details'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(FrameDetailDialog), findsOneWidget);
+    },
+  );
 
   testWidgets('the wheel notch that moves the rail does not also move the page',
       (tester) async {

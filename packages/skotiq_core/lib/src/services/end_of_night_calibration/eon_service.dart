@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../database/database.dart' show DbCapturedImage;
+import '../../models/calibration/calibration_library_models.dart'
+    show CalibrationMasterRecord;
 import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../calibration/calibration_frame_groups.dart';
+import '../calibration/calibration_reuse.dart';
 import '../calibration_master_builder.dart';
 import '../camera_warmup_controller.dart' show CameraWarmupOutcome;
 import '../frame_header.dart';
@@ -45,6 +48,18 @@ class EonRunResult {
 
   /// `completed`, `stopped`, `paused-stopped` or `failed`.
   final SequenceRunStatus runStatus;
+}
+
+/// The calibration library as the step plans against it.
+class EonLibrary {
+  const EonLibrary({required this.masters, required this.frameGroups});
+
+  /// The local dark and bias masters whose files are on disk.
+  final List<CalibrationMasterRecord> masters;
+
+  /// Dark and bias frames that no master covers yet, grouped by
+  /// [groupCalibrationFrames].
+  final List<CalibrationFrameGroup> frameGroups;
 }
 
 /// Everything the step does to the rig and the app, so the step itself can be
@@ -93,6 +108,8 @@ abstract class EonRig {
   /// How far, in °C, a dark's sensor temperature may be from a light's and
   /// still calibrate it: the dark library's tolerance.
   Future<double> darkTemperatureToleranceC();
+
+  Future<EonLibrary> library();
 
   /// Add a master to the dark library; returns its row id.
   Future<int> registerMaster(
@@ -167,10 +184,13 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   /// Run the step. [reason] says what ended the night. [forceWarmUp] is set
   /// when the run handed its own closing warm-up to this step: the camera is
   /// then warmed however the step ends, even if it takes no frames.
+  /// [retake] takes every set tonight's lights need, also those the library
+  /// already holds.
   Future<EonReport> run({
     required String reason,
     EonSettings? settings,
     bool forceWarmUp = false,
+    bool retake = false,
   }) async {
     if (isRunning) {
       throw const EonBusyException(
@@ -183,7 +203,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final report = EonReport(reason: reason, startedAt: _rig.now());
     _set(EonPhase.preparing, 'Working out the frames tonight needs', report);
     try {
-      await _run(config, report);
+      await _run(config, report, retake: retake);
     } catch (e) {
       report.problems.add('$e');
       _finish(report, EonPhase.failed, 'End-of-night calibration failed: $e');
@@ -244,7 +264,11 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     _set(phase, summary, report);
   }
 
-  Future<void> _run(EonSettings config, EonReport report) async {
+  Future<void> _run(
+    EonSettings config,
+    EonReport report, {
+    required bool retake,
+  }) async {
     final lights = await _rig.lightFramesSince(
       _rig.now().subtract(eonNightWindow),
     );
@@ -252,8 +276,11 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     if (camera == null) {
       throw StateError('no camera is connected');
     }
-    final needs = planFrameNeeds(lights, cameraSetPointC: camera.setPointC);
-    if (needs.isEmpty) {
+    final nightNeeds = planFrameNeeds(
+      lights,
+      cameraSetPointC: camera.setPointC,
+    );
+    if (nightNeeds.isEmpty) {
       _finish(
         report,
         EonPhase.skipped,
@@ -261,6 +288,19 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       );
       await _rig.notify('End-of-night calibration skipped', report.summary);
       return;
+    }
+    final toleranceC = await _rig.darkTemperatureToleranceC();
+    final (needs, libraryGroups) = retake
+        ? (nightNeeds, const <CalibrationFrameGroup>[])
+        : await _againstLibrary(nightNeeds, config, report, toleranceC);
+    if (needs.isEmpty) {
+      return _fromLibraryOnly(
+        config,
+        report,
+        camera,
+        libraryGroups,
+        toleranceC,
+      );
     }
     report.plannedDarks = [
       for (final d in needs.darks)
@@ -298,8 +338,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     );
     final plannedText = [
       ...report.plannedDarks,
-      '${config.biasCount} bias for each of ${needs.bias.length} '
-          'gain/offset settings',
+      if (needs.bias.isNotEmpty)
+        '${config.biasCount} bias for each of ${needs.bias.length} '
+            'gain/offset settings',
+      ...report.reused,
     ].join('; ');
     _set(EonPhase.capturing, 'Taking calibration frames', report);
     await _rig.notify('End-of-night calibration started', plannedText);
@@ -349,7 +391,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       needs,
       config,
       report,
-      toleranceC: await _rig.darkTemperatureToleranceC(),
+      toleranceC: toleranceC,
+      libraryGroups: libraryGroups,
     );
 
     if (_cancelRequested) return _cancelled(report);
@@ -362,6 +405,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
           : 'Built $built of ${report.masters.length} masters from '
                 '${report.framesCaptured} frames into the dark library.',
     );
+    if (report.reused.isNotEmpty) summary.write(' ${_reusedWords(report)}');
     if (report.warmUp != null) summary.write(' ${report.warmUp}.');
     if (report.problems.isNotEmpty) {
       summary.write(' Problems: ${report.problems.join('; ')}.');
@@ -502,15 +546,17 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
 
   /// Build one master per [groupCalibrationFrames] group of the run's darks
   /// and bias: frame type, exposure, gain, offset, binning, read mode and the
-  /// set-point each frame's header states. Frames read off their set-point
-  /// are left out. Every master built and every group left unbuilt is logged
-  /// and reported, with why.
+  /// set-point each frame's header states, and one per [libraryGroups], the
+  /// library's frames that stand in for sets not retaken. Frames read off
+  /// their set-point are left out. Every master built and every group left
+  /// unbuilt is logged and reported, with why.
   Future<void> _buildMasters(
     List<DbCapturedImage> frames,
     EonFrameNeeds needs,
     EonSettings config,
     EonReport report, {
     required double toleranceC,
+    List<CalibrationFrameGroup> libraryGroups = const [],
   }) async {
     final read = <(DbCapturedImage, CalibrationFrameFacts)>[];
     final unread = <String>[];
@@ -534,7 +580,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
                   'of the masters (${unread.first})',
       );
     }
-    final groups = groupCalibrationFrames(read, toleranceC: toleranceC);
+    final groups = [
+      ...groupCalibrationFrames(read, toleranceC: toleranceC),
+      ...libraryGroups,
+    ];
     for (final dark in needs.darks) {
       final taken = groups.any(
         (g) =>
@@ -656,6 +705,191 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     }
   }
 
+  /// [needs] less the sets the library already covers ([libraryCover]),
+  /// and the library frame groups whose masters are built instead of
+  /// retaking them. Each set not retaken is said in the report and the log.
+  /// A library that cannot be read is a problem, and every set is taken.
+  Future<(EonFrameNeeds, List<CalibrationFrameGroup>)> _againstLibrary(
+    EonFrameNeeds needs,
+    EonSettings config,
+    EonReport report,
+    double toleranceC,
+  ) async {
+    final EonLibrary library;
+    try {
+      library = await _rig.library();
+    } catch (e) {
+      _problem(
+        report,
+        'The calibration library could not be read, so every set is taken: $e',
+      );
+      return (needs, const <CalibrationFrameGroup>[]);
+    }
+    final reuse = CalibrationReuse(
+      darkValidFor: Duration(days: config.darkValidDays),
+      toleranceC: toleranceC,
+    );
+    final toBuild = <CalibrationFrameGroup>[];
+    bool take(CalibrationFrameSetting need, int count) {
+      final what = _needWords(need);
+      switch (libraryCover(
+        need,
+        masters: library.masters,
+        frameGroups: library.frameGroups,
+        frameCount: count,
+        reuse: reuse,
+        now: _rig.now(),
+      )) {
+        case CoveredByMaster(:final master):
+          _reused(
+            report,
+            '$what: library master from '
+            '${calibrationDate(master.createdAt)}, not retaken',
+          );
+          return false;
+        case CoveredByFrames(:final group):
+          if (!toBuild.contains(group)) toBuild.add(group);
+          _reused(
+            report,
+            '$what: master built from ${group.frames.length} library frames '
+            'of ${calibrationDate(group.frames.last.capturedAt)}, not retaken',
+          );
+          return false;
+        case NotCovered(:final why):
+          if (why != null) {
+            Log.info(
+              'End-of-night calibration takes the $what: $why',
+              source: _logSource,
+            );
+          }
+          return true;
+      }
+    }
+
+    return (
+      EonFrameNeeds(
+        darks: [
+          for (final d in needs.darks)
+            if (take(
+              CalibrationFrameSetting(
+                type: FrameType.dark,
+                exposureSecs: d.exposureSecs,
+                gain: d.gain,
+                offset: d.offset,
+                binX: d.binX,
+                binY: d.binY,
+                readMode: null,
+                setPointC: d.setPointC,
+              ),
+              config.darkCount,
+            ))
+              d,
+        ],
+        bias: [
+          for (final b in needs.bias)
+            if (take(
+              CalibrationFrameSetting(
+                type: FrameType.bias,
+                exposureSecs: 0,
+                gain: b.gain,
+                offset: b.offset,
+                binX: b.binX,
+                binY: b.binY,
+                readMode: null,
+                setPointC: b.setPointC,
+              ),
+              config.biasCount,
+            ))
+              b,
+        ],
+      ),
+      toBuild,
+    );
+  }
+
+  /// The library covers every set tonight's lights need: nothing is taken,
+  /// the masters of [libraryGroups] are built, and the camera is warmed up
+  /// as after a run.
+  Future<void> _fromLibraryOnly(
+    EonSettings config,
+    EonReport report,
+    EonCameraInfo camera,
+    List<CalibrationFrameGroup> libraryGroups,
+    double toleranceC,
+  ) async {
+    if (libraryGroups.isNotEmpty) {
+      _set(EonPhase.buildingMasters, 'Building masters', report);
+      await _buildMasters(
+        const [],
+        const EonFrameNeeds(darks: [], bias: []),
+        config,
+        report,
+        toleranceC: toleranceC,
+        libraryGroups: libraryGroups,
+      );
+      if (_cancelRequested) return _cancelled(report);
+    }
+    if ((config.warmUp || _forceWarmUp) && camera.canCool) {
+      report.warmUp = await _attempt(
+        report,
+        'Warming the camera up',
+        () async => warmUpWords(await _rig.warmUpCamera()),
+      );
+    }
+    final built = report.masters.where((m) => m.built).length;
+    final summary = StringBuffer(
+      'No frames were taken. ${_reusedWords(report)}',
+    );
+    if (report.masters.isNotEmpty) {
+      summary.write(
+        ' Built $built of ${report.masters.length} masters from library '
+        'frames.',
+      );
+    }
+    if (report.warmUp != null) summary.write(' ${report.warmUp}.');
+    if (report.problems.isNotEmpty) {
+      summary.write(' Problems: ${report.problems.join('; ')}.');
+    }
+    _finish(report, EonPhase.finished, summary.toString());
+    await _rig.notify(
+      'End-of-night calibration finished',
+      [report.summary, ...report.reused].join(' '),
+      problem: report.problems.isNotEmpty,
+    );
+  }
+
+  static String _reusedWords(EonReport report) {
+    final n = report.reused.length;
+    return n == 1
+        ? 'One set tonight\'s lights need was already in the library and was '
+              'not retaken.'
+        : '$n sets tonight\'s lights need were already in the library and '
+              'were not retaken.';
+  }
+
+  /// Record a set not retaken in the report and the log.
+  static void _reused(EonReport report, String line) {
+    report.reused.add(line);
+    Log.info('End-of-night calibration: $line', source: _logSource);
+  }
+
+  /// "Bias at gain 139 / offset 21 / -10 °C", "30 s darks at gain 76 /
+  /// offset 15 / bin 2x2 / -10 °C": one set as a plan line says it.
+  static String _needWords(CalibrationFrameSetting need) {
+    final setPoint = need.setPointC;
+    return [
+      need.type == FrameType.bias
+          ? 'Bias at'
+          : '${_seconds(need.exposureSecs)} s darks at',
+      [
+        need.gain == null ? 'no gain' : 'gain ${need.gain}',
+        need.offset == null ? 'no offset' : 'offset ${need.offset}',
+        if (need.binX != 1 || need.binY != 1) 'bin ${need.binX}x${need.binY}',
+        if (setPoint != null) '${_trimTemp(setPoint)} °C',
+      ].join(' / '),
+    ].join(' ');
+  }
+
   static const _logSource = 'EndOfNightCalibration';
 
   /// Record [problem] in the report and the log.
@@ -680,6 +914,9 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
             : '${_trimTemp(temp)} °C',
     ].join(', ');
   }
+
+  static String _seconds(double value) =>
+      value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';
 
   static String _trimTemp(double value) => value == value.roundToDouble()
       ? value.toStringAsFixed(0)

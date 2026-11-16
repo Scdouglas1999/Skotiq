@@ -3,6 +3,8 @@
 //! planner ranks by. Times cross as Unix milliseconds.
 
 use chrono::{DateTime, Utc};
+
+use crate::error::SkotiqError;
 use skotiq_sequencer::scheduling::{
     score_targets, score_targets_for_night, AltitudeFloor, HorizonProfile, HorizonSample,
     NightObserver, NightScore, NightTarget, ObserverContext, ScoringWeights, TargetInput,
@@ -101,7 +103,10 @@ pub struct ApiNightScore {
     pub peak_azimuth_deg: f64,
     pub peak_unix_ms: i64,
     pub hours_above_floor: f64,
-    pub first_usable_unix_ms: Option<i64>,
+    /// When the target first and last stands above the floor tonight; `None`
+    /// when it never clears it.
+    pub above_floor_from_unix_ms: Option<i64>,
+    pub above_floor_until_unix_ms: Option<i64>,
     /// `None` when the target never clears the floor.
     pub best_airmass: Option<f64>,
     pub moon_distance_deg: f64,
@@ -118,11 +123,11 @@ pub fn api_rank_scheduler_targets(
     targets: Vec<ApiSchedulerTarget>,
     weights: ApiScoringWeights,
     floor: Vec<ApiFloorSample>,
-) -> Vec<ApiTargetScoreNow> {
+) -> Result<Vec<ApiTargetScoreNow>, SkotiqError> {
     let observer = ObserverContext::at_site(
         latitude_deg,
         longitude_deg,
-        instant(now_unix_ms),
+        instant(now_unix_ms)?,
         profile(floor),
     );
     let inputs: Vec<TargetInput> = targets
@@ -139,10 +144,10 @@ pub fn api_rank_scheduler_targets(
             completed: false,
         })
         .collect();
-    score_targets(&inputs, &observer, &weights.into())
+    Ok(score_targets(&inputs, &observer, &weights.into())
         .into_iter()
         .map(ApiTargetScoreNow::from)
-        .collect()
+        .collect())
 }
 
 /// Score catalog positions over one night, in input order, keeping only the
@@ -153,13 +158,13 @@ pub async fn api_score_targets_for_night(
     sky: ApiNightSky,
     targets: Vec<ApiNightTarget>,
     weights: ApiScoringWeights,
-) -> Vec<ApiNightScore> {
+) -> Result<Vec<ApiNightScore>, SkotiqError> {
     let observer = NightObserver {
         latitude_deg: sky.latitude_deg,
         longitude_deg: sky.longitude_deg,
-        now: instant(sky.now_unix_ms),
-        night_start: instant(sky.night_start_unix_ms),
-        night_end: instant(sky.night_end_unix_ms),
+        now: instant(sky.now_unix_ms)?,
+        night_start: instant(sky.night_start_unix_ms)?,
+        night_end: instant(sky.night_end_unix_ms)?,
         moon: sky.moon_ra_deg.zip(sky.moon_dec_deg),
         moon_illumination: sky.moon_illumination_percent,
         floor: profile(sky.floor).map(AltitudeFloor::new),
@@ -172,15 +177,18 @@ pub async fn api_score_targets_for_night(
             dec_deg: t.dec_deg,
         })
         .collect();
-    score_targets_for_night(&targets, &observer, &weights.into())
-        .into_iter()
-        .filter(|score| score.hours_above_floor > 0.0)
-        .map(ApiNightScore::from)
-        .collect()
+    Ok(
+        score_targets_for_night(&targets, &observer, &weights.into())
+            .into_iter()
+            .filter(|score| score.hours_above_floor > 0.0)
+            .map(ApiNightScore::from)
+            .collect(),
+    )
 }
 
-fn instant(unix_ms: i64) -> DateTime<Utc> {
-    DateTime::from_timestamp_millis(unix_ms).unwrap_or_default()
+fn instant(unix_ms: i64) -> Result<DateTime<Utc>, SkotiqError> {
+    DateTime::from_timestamp_millis(unix_ms)
+        .ok_or_else(|| SkotiqError::InvalidParameter(format!("{unix_ms} ms is not a time")))
 }
 
 fn profile(floor: Vec<ApiFloorSample>) -> Option<HorizonProfile> {
@@ -242,7 +250,8 @@ impl From<NightScore> for ApiNightScore {
             peak_azimuth_deg: s.peak_azimuth_deg,
             peak_unix_ms: ms(s.peak_time),
             hours_above_floor: s.hours_above_floor,
-            first_usable_unix_ms: s.first_usable_time.map(ms),
+            above_floor_from_unix_ms: s.above_floor_from.map(ms),
+            above_floor_until_unix_ms: s.above_floor_until.map(ms),
             best_airmass: s.best_airmass.is_finite().then_some(s.best_airmass),
             moon_distance_deg: s.moon_distance_deg,
         }
@@ -283,19 +292,29 @@ mod tests {
     #[test]
     fn the_preview_holds_targets_to_the_floor_it_is_given() {
         let open =
-            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), vec![]);
+            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), vec![])
+                .unwrap();
         assert!(open[0].runnable, "{:?}", open[0]);
         let wall = vec![ApiFloorSample {
             azimuth_deg: 0.0,
             altitude_deg: 80.0,
         }];
         let blocked =
-            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), wall);
+            api_rank_scheduler_targets(40.0, -74.0, JAN_15_0600_MS, vec![m42()], weights(), wall)
+                .unwrap();
         assert!(!blocked[0].runnable);
         assert!(blocked[0]
             .skip_reason
             .as_deref()
             .is_some_and(|r| r.contains("altitude floor")));
+    }
+
+    #[test]
+    fn an_impossible_time_is_refused_not_read_as_1970() {
+        assert!(
+            api_rank_scheduler_targets(40.0, -74.0, i64::MAX, vec![m42()], weights(), vec![])
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -323,14 +342,16 @@ mod tests {
                 dec_deg: -89.0,
             },
         ];
-        let scores = api_score_targets_for_night(sky, targets, weights()).await;
+        let scores = api_score_targets_for_night(sky, targets, weights())
+            .await
+            .unwrap();
         let ids: Vec<&str> = scores.iter().map(|s| s.target_id.as_str()).collect();
         assert_eq!(ids, ["m42"]);
     }
 
     #[test]
     fn the_preview_ranks_as_the_step_does() {
-        let now = instant(JAN_15_0600_MS);
+        let now = instant(JAN_15_0600_MS).unwrap();
         let observer = ObserverContext::at_site(40.0, -74.0, now, None);
         let mut low = m42();
         low.id = "low".into();
@@ -342,7 +363,8 @@ mod tests {
             vec![low.clone(), m42()],
             weights(),
             vec![],
-        );
+        )
+        .unwrap();
         let step = score_targets(
             &[low, m42()]
                 .into_iter()

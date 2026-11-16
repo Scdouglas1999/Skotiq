@@ -76,8 +76,8 @@ pub(crate) struct DeviceRequirement {
 ///
 /// | node type | accessor that fails | site |
 /// |---|---|---|
-/// | `TakeExposure` / `SmartExposure` / `FlatWizard` / `SciencePhotometry` | `camera_id()` | `instructions.rs` `execute_exposure_with_renderer` |
-/// | `TakeExposure` with a filter | `validate_exposure_filter_request` | `instructions.rs` `execute_exposure_with_renderer` |
+/// | `TakeExposure` / `SmartExposure` / `FlatWizard` / `SciencePhotometry` | `camera_id()` | `instructions.rs` `execute_exposure` |
+/// | `TakeExposure` with a filter | `validate_exposure_filter_request` | `instructions.rs` `execute_exposure` |
 /// | `SmartExposure` with any plan | `filterwheel_id()` | `smart_exposure.rs` `run_filter_change` -> `execute_filter_change` |
 /// | `CenterTarget` | `mount_id()` then `camera_id()` | `instructions.rs` `execute_center` |
 /// | `SlewToTarget` / `Park` / `Unpark` / `MeridianFlip` | `mount_id()` | `execute_slew` / `execute_park` / `execute_unpark` / `execute_meridian_flip_with_autofocus` |

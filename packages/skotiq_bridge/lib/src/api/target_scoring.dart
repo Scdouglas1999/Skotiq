@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -77,7 +78,11 @@ class ApiNightScore {
   final double peakAzimuthDeg;
   final PlatformInt64 peakUnixMs;
   final double hoursAboveFloor;
-  final PlatformInt64? firstUsableUnixMs;
+
+  /// When the target first and last stands above the floor tonight; `None`
+  /// when it never clears it.
+  final PlatformInt64? aboveFloorFromUnixMs;
+  final PlatformInt64? aboveFloorUntilUnixMs;
 
   /// `None` when the target never clears the floor.
   final double? bestAirmass;
@@ -97,7 +102,8 @@ class ApiNightScore {
     required this.peakAzimuthDeg,
     required this.peakUnixMs,
     required this.hoursAboveFloor,
-    this.firstUsableUnixMs,
+    this.aboveFloorFromUnixMs,
+    this.aboveFloorUntilUnixMs,
     this.bestAirmass,
     required this.moonDistanceDeg,
   });
@@ -117,7 +123,8 @@ class ApiNightScore {
       peakAzimuthDeg.hashCode ^
       peakUnixMs.hashCode ^
       hoursAboveFloor.hashCode ^
-      firstUsableUnixMs.hashCode ^
+      aboveFloorFromUnixMs.hashCode ^
+      aboveFloorUntilUnixMs.hashCode ^
       bestAirmass.hashCode ^
       moonDistanceDeg.hashCode;
 
@@ -139,7 +146,8 @@ class ApiNightScore {
           peakAzimuthDeg == other.peakAzimuthDeg &&
           peakUnixMs == other.peakUnixMs &&
           hoursAboveFloor == other.hoursAboveFloor &&
-          firstUsableUnixMs == other.firstUsableUnixMs &&
+          aboveFloorFromUnixMs == other.aboveFloorFromUnixMs &&
+          aboveFloorUntilUnixMs == other.aboveFloorUntilUnixMs &&
           bestAirmass == other.bestAirmass &&
           moonDistanceDeg == other.moonDistanceDeg;
 }

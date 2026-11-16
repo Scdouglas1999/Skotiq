@@ -306,13 +306,20 @@ class CenteringService {
       return _failure('Aborted by user', iterations);
     }
     if (!done.centered) return _failure(done.message, iterations);
-
-    final offset = iterations.lastOrNull?.offsetArcsec ?? 0;
+    // A step centers only on a solve, so the last attempt carries the offset.
+    final solved = iterations.lastOrNull;
+    final offset = solved?.offsetArcsec;
+    if (solved == null || offset == null) {
+      return _failure(
+        'Centering reported centered without a solve',
+        iterations,
+      );
+    }
     report(
       CenteringState.completed,
       attempts,
       'Target centered successfully!',
-      solved: iterations.lastOrNull,
+      solved: solved,
     );
     _ref
         .read(smartNotificationServiceProvider)

@@ -20,7 +20,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/framing/framing_hips_layer_wiring.dart';
+import 'package:skotiq_app/screens/framing/widgets/framing_survey_credit.dart';
 import 'package:skotiq_app/widgets/hips/hips_attribution_badge.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -96,7 +96,7 @@ void main() {
             body: SizedBox(
               width: 800,
               height: 600,
-              child: FramingHipsLayerWiring(),
+              child: FramingSurveyCredit(),
             ),
           ),
         ),

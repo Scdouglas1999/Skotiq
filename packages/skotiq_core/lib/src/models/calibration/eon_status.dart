@@ -69,6 +69,9 @@ class EonReport {
   String? filterRestored;
   List<String> plannedDarks = const [];
   int plannedBiasFrames = 0;
+
+  /// The sets the library already held, which were not retaken.
+  final List<String> reused = [];
   int? runId;
   String? runStatus;
   int framesCaptured = 0;
@@ -88,6 +91,7 @@ class EonReport {
     'filterRestored': filterRestored,
     'plannedDarks': plannedDarks,
     'plannedBiasFrames': plannedBiasFrames,
+    'reused': reused,
     'runId': runId,
     'runStatus': runStatus,
     'framesCaptured': framesCaptured,

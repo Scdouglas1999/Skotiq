@@ -203,7 +203,8 @@ TargetScore _nightScore(CelestialObject target, ApiNightScore s) => TargetScore(
     peakAzimuth: s.peakAzimuthDeg,
     peakAltitudeTime: _instant(s.peakUnixMs),
     hoursAboveMinAlt: s.hoursAboveFloor,
-    firstUsableTime: _instant(s.firstUsableUnixMs),
+    aboveFloorFrom: _instant(s.aboveFloorFromUnixMs),
+    aboveFloorUntil: _instant(s.aboveFloorUntilUnixMs),
     bestAirmass: s.bestAirmass,
   ),
 );

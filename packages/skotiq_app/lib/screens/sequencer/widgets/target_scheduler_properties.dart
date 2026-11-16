@@ -759,7 +759,7 @@ class _LiveRankingPreviewState extends ConsumerState<_LiveRankingPreview> {
     }
 
     final tick = ref.watch(tickerProvider(TickerCadence.thirtySeconds));
-    final now = (tick.valueOrNull ?? DateTime.now()).toUtc();
+    final now = (tick.valueOrNull ?? ref.read(clockProvider).instant).toUtc();
     final ownHorizon = node.horizonProfile;
     final siteFloor = ref.watch(altitudeFloorProvider);
     final scorer = ref.watch(targetScorerProvider);

@@ -65,9 +65,12 @@ class TargetVisibilityInfo {
   /// Hours the target is above the altitude floor during the night
   final double? hoursAboveMinAlt;
 
-  /// The first moment of the night the target is above the floor (night
-  /// scores only).
-  final DateTime? firstUsableTime;
+  /// When the target first stands above the site's altitude floor in the
+  /// night's dark window, and when it last does, to the night sampling's
+  /// resolution. Null when it never clears the floor or the night was not
+  /// sampled.
+  final DateTime? aboveFloorFrom;
+  final DateTime? aboveFloorUntil;
 
   /// The lowest airmass the target reaches above the floor during the night;
   /// null when it never clears it (night scores only).
@@ -88,7 +91,8 @@ class TargetVisibilityInfo {
     this.peakAzimuth,
     this.peakAltitudeTime,
     this.hoursAboveMinAlt,
-    this.firstUsableTime,
+    this.aboveFloorFrom,
+    this.aboveFloorUntil,
     this.bestAirmass,
   });
 }

@@ -466,29 +466,21 @@ class _PlannerNightWindow {
     required this.now,
   });
 
-  /// Where [visibility]'s above-horizon span sits on this night, or null when
-  /// the target has no span to draw (never rises, or its rise/set are not
-  /// known and it is not circumpolar).
+  /// Where [visibility]'s span above the site's altitude floor sits on this
+  /// night (the floor the Imageable readout counts hours above), or null when
+  /// the target does not clear the floor tonight.
   CandidateWindow? windowFor(TargetVisibilityInfo visibility) {
-    if (visibility.neverRises) return null;
+    final clears = visibility.aboveFloorFrom;
+    final leaves = visibility.aboveFloorUntil;
+    if (clears == null || leaves == null) return null;
     final span = end.difference(start).inSeconds;
     if (span <= 0) return null;
 
     double fraction(DateTime t) =>
         (t.difference(start).inSeconds / span).clamp(0.0, 1.0);
 
-    final double from;
-    final double to;
-    if (visibility.isCircumpolar) {
-      from = 0;
-      to = 1;
-    } else {
-      final rise = visibility.riseTime;
-      final set = visibility.setTime;
-      if (rise == null && set == null) return null;
-      from = rise == null ? 0 : fraction(rise);
-      to = set == null ? 1 : fraction(set);
-    }
+    final from = fraction(clears);
+    final to = fraction(leaves);
     if (to <= from) return null;
 
     return CandidateWindow(

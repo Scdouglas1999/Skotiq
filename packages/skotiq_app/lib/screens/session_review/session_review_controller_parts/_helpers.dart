@@ -413,10 +413,11 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   /// sit here with Add tonight and Delete beside them.
   Future<List<IntegratedMaster>> _mastersOfTarget(
     List<DbCapturedImage> subs,
-  ) =>
+  ) async =>
       darkroomMastersOfFrames(
         _ref.read(databaseProvider),
         _mastersDao,
+        await installedDsoDesignations(_ref.read(loggingServiceProvider)),
         {for (final s in subs) s.id},
       );
 

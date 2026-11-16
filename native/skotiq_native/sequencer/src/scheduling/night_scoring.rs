@@ -82,8 +82,12 @@ pub struct NightScore {
     pub peak_time: DateTime<Utc>,
     /// Hours of the night the target spends above the floor.
     pub hours_above_floor: f64,
-    /// The first moment of the night the target is above the floor.
-    pub first_usable_time: Option<DateTime<Utc>>,
+    /// When the target first stands above the floor in the night, and when
+    /// it last does, to the sampling's resolution (a sample stands for the
+    /// interval after it, as [`Self::hours_above_floor`] counts). `None` when
+    /// it never clears the floor.
+    pub above_floor_from: Option<DateTime<Utc>>,
+    pub above_floor_until: Option<DateTime<Utc>>,
     /// The lowest airmass the target reaches above the floor (infinite when it
     /// never clears it).
     pub best_airmass: f64,
@@ -158,7 +162,8 @@ fn score_with(
     let mut overall_peak = (-90.0_f64, 0.0_f64, observer.night_start);
     let mut best_airmass = f64::INFINITY;
     let mut usable_samples = 0_u32;
-    let mut first_usable_time = None;
+    let mut above_floor_from = None;
+    let mut last_usable = None;
     for &(at, lst) in &night.times {
         let (alt, az) = alt_az_at_lst(lst);
         if alt > overall_peak.0 {
@@ -167,7 +172,8 @@ fn score_with(
         let floor = observer.floor.as_ref().map_or(0.0, |f| f.at_azimuth(az));
         if alt >= floor {
             usable_samples += 1;
-            first_usable_time.get_or_insert(at);
+            above_floor_from.get_or_insert(at);
+            last_usable = Some(at);
             if usable_peak.is_none_or(|(peak, _, _)| alt > peak) {
                 usable_peak = Some((alt, az, at));
             }
@@ -213,7 +219,8 @@ fn score_with(
         peak_azimuth_deg: peak_az,
         peak_time,
         hours_above_floor,
-        first_usable_time,
+        above_floor_from,
+        above_floor_until: last_usable.map(|at| (at + SAMPLE_STEP).min(observer.night_end)),
         best_airmass,
         moon_distance_deg: moon_distance,
         pass,
@@ -382,7 +389,8 @@ mod tests {
         assert_eq!(score.hours_above_floor, 0.0);
         assert_eq!(score.transit_proximity_score, 0.0);
         assert_eq!(score.airmass_score, 0.0);
-        assert!(score.first_usable_time.is_none());
+        assert!(score.above_floor_from.is_none());
+        assert!(score.above_floor_until.is_none());
     }
 
     #[test]
@@ -439,7 +447,7 @@ mod tests {
             &ScoringWeights::default(),
         );
         let first = score
-            .first_usable_time
+            .above_floor_from
             .expect("clears 30 degrees before dawn");
         assert!(first > night.night_start + Duration::hours(3), "{first}");
         assert!(score.hours_above_floor > 0.0 && score.hours_above_floor < 8.0);
@@ -471,6 +479,54 @@ mod tests {
             "{dark:?} vs {daylight:?}"
         );
         assert!(dark.hours_above_floor > daylight.hours_above_floor);
+    }
+
+    /// The night's span above the floor is what the planner draws as a
+    /// target's window tonight: the same span the hours above the floor
+    /// count, ending when the target sinks below the floor, not the horizon.
+    #[test]
+    fn the_span_above_the_floor_is_the_span_the_hours_count() {
+        let night = january_night(None);
+        let alt_at = |ra_deg: f64, at: DateTime<Utc>| {
+            let (ra, dec) = crate::meridian::target_of_date(ra_deg / 15.0, 30.0, at);
+            calculate_alt_az(ra, dec, night.latitude_deg, night.longitude_deg, at).0
+        };
+        let late = night.night_end - Duration::hours(4);
+        // High at dusk, below 30 degrees but above the horizon by late night.
+        let ra = (0..96)
+            .map(|i| f64::from(i) * 3.75)
+            .find(|&ra| {
+                alt_at(ra, night.night_start) > 60.0
+                    && alt_at(ra, late) < 30.0
+                    && alt_at(ra, late) > 0.0
+            })
+            .expect("a setting target exists");
+        let score_with_floor = |floor: f64| {
+            score_target_for_night(
+                &target("s", ra, 30.0),
+                &january_night(Some(AltitudeFloor::flat(floor))),
+                &ScoringWeights::default(),
+            )
+        };
+
+        let at30 = score_with_floor(30.0);
+        let (from, until) = (
+            at30.above_floor_from.unwrap(),
+            at30.above_floor_until.unwrap(),
+        );
+        assert_eq!(from, night.night_start);
+        assert!(until < night.night_end);
+        assert!(alt_at(ra, until) < 31.0, "{}", alt_at(ra, until));
+        assert!(((until - from).num_minutes() as f64 / 60.0 - at30.hours_above_floor).abs() < 1e-9);
+
+        let at0 = score_with_floor(0.0);
+        assert!(
+            at0.above_floor_until.unwrap() > until,
+            "the span follows the floor"
+        );
+
+        let wall = score_with_floor(89.0);
+        assert!(wall.above_floor_from.is_none() && wall.above_floor_until.is_none());
     }
 
     #[test]
