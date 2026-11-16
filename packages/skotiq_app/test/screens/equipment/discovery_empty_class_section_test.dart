@@ -72,12 +72,12 @@ Finder _iconButton(String tooltip) => find.byWidgetPredicate(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('a scan that found nothing keeps the drawer chrome and a count',
+  testWidgets('a scan that found nothing keeps the drawer chrome and its time',
       (tester) async {
     await _pumpExpandedPanel(tester);
 
-    expect(find.text('DISCOVERED DEVICES'), findsOneWidget);
-    expect(find.textContaining('0 found'), findsOneWidget);
+    expect(find.text('KNOWN DEVICES'), findsOneWidget);
+    expect(find.text('Last scan Aug 4 21:00'), findsOneWidget);
     expect(find.text('No devices found'), findsOneWidget);
   });
 
@@ -100,8 +100,8 @@ void main() {
 
   // The head row is the widest this Row ever gets: the radio icon, the
   // eyebrow, the summary, two scans and the chevron. Measured at 312px it
-  // overflowed by 243px, so below 520 the summary drops and the two scans
-  // become icon buttons.
+  // overflowed by 243px, so below 520 the summary moves under the eyebrow and
+  // the two scans become icon buttons.
   testWidgets('the discovery head row fits a 360dp phone', (tester) async {
     await _pumpExpandedPanel(tester, size: const Size(360, 1600));
 
@@ -110,7 +110,8 @@ void main() {
       isNull,
       reason: 'the discovery head row must not overflow at phone width',
     );
-    expect(find.text('DISCOVERED DEVICES'), findsOneWidget);
+    expect(find.text('KNOWN DEVICES'), findsOneWidget);
+    expect(find.text('Last scan Aug 4 21:00'), findsOneWidget);
     expect(_iconButton('Scan all'), findsOneWidget);
     expect(_iconButton('Rescan'), findsOneWidget);
   });

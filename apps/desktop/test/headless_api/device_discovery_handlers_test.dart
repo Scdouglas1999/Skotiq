@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_discovery_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -26,15 +29,10 @@ class _FakeDeviceBackend implements DeviceBackend {
   /// Types whose discovery should throw, mapped to the error message.
   final Map<DeviceType, String> failures;
 
-  /// Records the order discovery completed so the test can assert that
-  /// fan-out actually overlapped (slowest-first completion ordering).
-  final List<DeviceType> completionOrder = [];
-
-  /// Per-type artificial delay used to prove order-independence of the merge.
+  /// Per-type delay, to hold a scan open.
   final Map<DeviceType, Duration> delays;
 
-  /// Count of `discoverDevices` invocations per type — asserts each type is
-  /// swept exactly once (no duplicate probing).
+  /// Count of `discoverDevices` invocations per type.
   final Map<DeviceType, int> callCounts = {};
 
   /// Number of times `rescanDevices` was invoked — proves the rescan route
@@ -68,7 +66,6 @@ class _FakeDeviceBackend implements DeviceBackend {
     if (delay != null) {
       await Future<void>.delayed(delay);
     }
-    completionOrder.add(deviceType);
     final failure = failures[deviceType];
     if (failure != null) {
       throw StateError(failure);
@@ -86,6 +83,16 @@ class _FakeDeviceBackend implements DeviceBackend {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _MockDeviceService extends Mock implements DeviceService {}
+
+/// A host with no Alpaca or INDI server set, so a scan asks only the
+/// in-process backends.
+class _NoServerSettings extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async =>
+      const AppSettingsState(indiServerHost: '', alpacaServerHost: '');
+}
+
 DeviceInfo _device(String id, DeviceType type) => DeviceInfo(
   id: id,
   name: 'dev-$id',
@@ -101,8 +108,13 @@ void main() {
   // unavailable in a unit test, so we install a hermetic no-FFI LoggingService
   // (matching the established pattern in device_handlers_test.dart).
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => registerFallbackValue(DeviceType.camera));
 
-  group('DeviceDiscoveryHandlers.handleDiscoverDevices', () {
+  // The drawer under Equipment > Devices and GET /api/devices read the last
+  // scan only, so a rig connected from its profile listed "0 found". Both now
+  // read the devices the host knows about, and a scan from the API is the
+  // app's one scan.
+  group('DeviceDiscoveryHandlers scan and known devices', () {
     late Directory loggerTempDir;
     late LoggingService logger;
 
@@ -126,18 +138,180 @@ void main() {
       }
     });
 
-    ProviderContainer containerWith(DeviceBackend backend) => ProviderContainer(
-      overrides: [
-        loggingServiceProvider.overrideWithValue(logger),
-        deviceBackendProvider.overrideWithValue(backend),
-      ],
-    );
+    ProviderContainer containerWith(
+      _FakeDeviceBackend backend, {
+      EquipmentProfileModel? profile,
+    }) {
+      final service = _MockDeviceService();
+      when(() => service.discoverDevices(any())).thenAnswer(
+        (invocation) => backend.discoverDevices(
+          invocation.positionalArguments.single as DeviceType,
+        ),
+      );
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      return ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          loggingServiceProvider.overrideWithValue(logger),
+          deviceBackendProvider.overrideWithValue(backend),
+          deviceServiceProvider.overrideWithValue(service),
+          appSettingsProvider.overrideWith(_NoServerSettings.new),
+          activeEquipmentProfileProvider.overrideWithValue(profile),
+        ],
+      );
+    }
 
-    test('sweeps every device type exactly once and merges results', () async {
+    Future<Map> post(
+      DeviceDiscoveryHandlers handlers, [
+      String query = '',
+    ]) async {
+      final response = await translateHandlerErrors(
+        handlers.handleDiscoverDevices(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/devices/discover$query'),
+          ),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      return jsonDecode(await response.readAsString()) as Map;
+    }
+
+    Future<Map> get(DeviceDiscoveryHandlers handlers) async {
+      final response = await translateHandlerErrors(
+        handlers.handleGetDevices(
+          Request('GET', Uri.parse('http://localhost/api/devices')),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      return jsonDecode(await response.readAsString()) as Map;
+    }
+
+    test('a scan from the API is the scan the host screen shows', () async {
       final backend = _FakeDeviceBackend(
         devicesByType: {
           DeviceType.camera: [_device('cam-1', DeviceType.camera)],
           DeviceType.mount: [_device('mount-1', DeviceType.mount)],
+        },
+      );
+      final container = containerWith(backend);
+      addTearDown(container.dispose);
+
+      final body = await post(DeviceDiscoveryHandlers(container));
+
+      final ids = (body['devices'] as List).cast<Map>().map((d) => d['id']);
+      expect(ids.toSet(), {'cam-1', 'mount-1'});
+      expect(body.containsKey('discoveryErrors'), isFalse);
+      expect(
+        container.read(unifiedDiscoveryProvider).rawDevices.map((d) => d.id),
+        unorderedEquals(['cam-1', 'mount-1']),
+      );
+    });
+
+    test('scans asked for at once share one scan', () async {
+      final backend = _FakeDeviceBackend(
+        devicesByType: {
+          DeviceType.camera: [_device('cam-1', DeviceType.camera)],
+        },
+        delays: {DeviceType.camera: const Duration(milliseconds: 30)},
+      );
+      final container = containerWith(backend);
+      addTearDown(container.dispose);
+      final handlers = DeviceDiscoveryHandlers(container);
+
+      final answers = await Future.wait([post(handlers), post(handlers)]);
+      final sweepsOfOneScan = backend.callCounts[DeviceType.camera];
+      await post(handlers);
+
+      for (final body in answers) {
+        expect((body['devices'] as List).cast<Map>().map((d) => d['id']), [
+          'cam-1',
+        ]);
+      }
+      expect(
+        backend.callCounts[DeviceType.camera],
+        sweepsOfOneScan! * 2,
+        reason: 'two scans at once probed twice; a later one probes again',
+      );
+    });
+
+    test('a backend whose scan failed is named in discoveryErrors, the rest '
+        'are listed', () async {
+      final backend = _FakeDeviceBackend(
+        devicesByType: {
+          DeviceType.camera: [_device('cam-1', DeviceType.camera)],
+        },
+        failures: {DeviceType.filterWheel: 'TouptekSdk DLL missing'},
+      );
+      final container = containerWith(backend);
+      addTearDown(container.dispose);
+
+      final body = await post(DeviceDiscoveryHandlers(container));
+
+      expect((body['devices'] as List).cast<Map>().map((d) => d['id']), [
+        'cam-1',
+      ]);
+      final errors = (body['discoveryErrors'] as Map).cast<String, dynamic>();
+      expect(
+        errors[DriverType.native.name],
+        contains('TouptekSdk DLL missing'),
+      );
+    });
+
+    test('?deviceType= answers only that type', () async {
+      final backend = _FakeDeviceBackend(
+        devicesByType: {
+          DeviceType.camera: [_device('cam-1', DeviceType.camera)],
+          DeviceType.mount: [_device('mount-1', DeviceType.mount)],
+        },
+      );
+      final container = containerWith(backend);
+      addTearDown(container.dispose);
+
+      final body = await post(
+        DeviceDiscoveryHandlers(container),
+        '?deviceType=camera',
+      );
+      expect((body['devices'] as List).cast<Map>().map((d) => d['id']), [
+        'cam-1',
+      ]);
+    });
+
+    test('GET /api/devices lists the connected and profile devices with '
+        'their state, and never scans', () async {
+      final backend = _FakeDeviceBackend();
+      final container = containerWith(
+        backend,
+        profile: const EquipmentProfileModel(
+          id: 1,
+          name: 'Sim Rig',
+          cameraId: 'sim_camera_1',
+          mountId: 'sim_mount_1',
+        ),
+      );
+      addTearDown(container.dispose);
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting('sim_camera_1', 'Simulated Camera')
+        ..setConnected();
+
+      final body = await get(DeviceDiscoveryHandlers(container));
+
+      expect(backend.callCounts, isEmpty, reason: 'a GET scanned');
+      expect(body['lastScanAt'], isNull);
+      final rows = (body['devices'] as List).cast<Map>();
+      expect(rows.map((d) => (d['id'], d['state'], d['inProfile'])), [
+        ('sim_camera_1', 'connected', true),
+        ('sim_mount_1', 'disconnected', true),
+      ]);
+      expect(rows.first['name'], 'Simulated Camera');
+      expect(rows.first['driverType'], 'simulator');
+      resetAllEquipmentStateNotifiers(container);
+    });
+
+    test('GET /api/devices adds what the last scan found and when', () async {
+      final backend = _FakeDeviceBackend(
+        devicesByType: {
           DeviceType.focuser: [_device('focuser-1', DeviceType.focuser)],
         },
       );
@@ -145,181 +319,15 @@ void main() {
       addTearDown(container.dispose);
       final handlers = DeviceDiscoveryHandlers(container);
 
-      final response = await translateHandlerErrors(
-        handlers.handleDiscoverDevices(
-          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
-        ),
-      );
+      await post(handlers);
+      final body = await get(handlers);
 
-      expect(response.statusCode, HttpStatus.ok);
-      final body = jsonDecode(await response.readAsString()) as Map;
-      final devices = (body['devices'] as List).cast<Map>();
-      final ids = devices.map((d) => d['id']).toSet();
-      expect(ids, {'cam-1', 'mount-1', 'focuser-1'});
-      expect(body.containsKey('discoveryErrors'), isFalse);
-
-      // Every supported type swept exactly once — no duplicate vendor probing.
-      for (final type in DeviceType.values) {
-        expect(
-          backend.callCounts[type],
-          1,
-          reason: '${type.name} should be swept exactly once',
-        );
-      }
+      expect(body['lastScanAt'], isA<String>());
+      final row = (body['devices'] as List).cast<Map>().single;
+      expect(row['id'], 'focuser-1');
+      expect(row['foundByScan'], isTrue);
+      expect(row['state'], 'disconnected');
     });
-
-    test(
-      'dedupes a device reported under multiple type sweeps by id',
-      () async {
-        // The same physical device id surfaces under two different type sweeps.
-        // The id-keyed merge must collapse it to a single entry regardless of
-        // which sweep completed first.
-        final shared = _device('shared-1', DeviceType.camera);
-        final backend = _FakeDeviceBackend(
-          devicesByType: {
-            DeviceType.camera: [shared],
-            DeviceType.filterWheel: [shared],
-            DeviceType.mount: [_device('mount-1', DeviceType.mount)],
-          },
-          // Force the second sweep to finish first to prove order-independence.
-          delays: {
-            DeviceType.camera: const Duration(milliseconds: 30),
-            DeviceType.filterWheel: const Duration(milliseconds: 5),
-          },
-        );
-        final container = containerWith(backend);
-        addTearDown(container.dispose);
-        final handlers = DeviceDiscoveryHandlers(container);
-
-        final response = await translateHandlerErrors(
-          handlers.handleDiscoverDevices(
-            Request('POST', Uri.parse('http://localhost/api/devices/discover')),
-          ),
-        );
-
-        expect(response.statusCode, HttpStatus.ok);
-        final body = jsonDecode(await response.readAsString()) as Map;
-        final devices = (body['devices'] as List).cast<Map>();
-        final ids = devices.map((d) => d['id']).toList();
-        expect(
-          ids.where((id) => id == 'shared-1').length,
-          1,
-          reason: 'shared device must appear exactly once after dedupe',
-        );
-        expect(ids.toSet(), {'shared-1', 'mount-1'});
-      },
-    );
-
-    test('runs sweeps concurrently rather than sequentially', () async {
-      // If the sweeps were sequential, the camera (slow) would always complete
-      // before the mount (fast). With Future.wait fan-out the fast type
-      // completes first even though it is iterated later, proving overlap.
-      final backend = _FakeDeviceBackend(
-        devicesByType: {
-          DeviceType.camera: [_device('cam-1', DeviceType.camera)],
-          DeviceType.mount: [_device('mount-1', DeviceType.mount)],
-        },
-        delays: {
-          DeviceType.camera: const Duration(milliseconds: 40),
-          DeviceType.mount: const Duration(milliseconds: 5),
-        },
-      );
-      final container = containerWith(backend);
-      addTearDown(container.dispose);
-      final handlers = DeviceDiscoveryHandlers(container);
-
-      final response = await translateHandlerErrors(
-        handlers.handleDiscoverDevices(
-          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
-        ),
-      );
-
-      expect(response.statusCode, HttpStatus.ok);
-      // Fast type finished before slow type → sweeps overlapped in time.
-      expect(
-        backend.completionOrder.indexOf(DeviceType.mount),
-        lessThan(backend.completionOrder.indexOf(DeviceType.camera)),
-        reason: 'fan-out should let the fast sweep finish before the slow one',
-      );
-    });
-
-    test('per-type failure surfaces in discoveryErrors without dropping '
-        'healthy types', () async {
-      final backend = _FakeDeviceBackend(
-        devicesByType: {
-          DeviceType.camera: [_device('cam-1', DeviceType.camera)],
-        },
-        failures: {
-          DeviceType.filterWheel: 'TouptekSdk DLL missing',
-          DeviceType.dome: 'INDI server unreachable',
-        },
-      );
-      final container = containerWith(backend);
-      addTearDown(container.dispose);
-      final handlers = DeviceDiscoveryHandlers(container);
-
-      final response = await translateHandlerErrors(
-        handlers.handleDiscoverDevices(
-          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
-        ),
-      );
-
-      expect(response.statusCode, HttpStatus.ok);
-      final body = jsonDecode(await response.readAsString()) as Map;
-
-      // Healthy type still discovered.
-      final ids = (body['devices'] as List)
-          .cast<Map>()
-          .map((d) => d['id'])
-          .toSet();
-      expect(ids, {'cam-1'});
-
-      // Both failures surfaced, keyed by type name, with the exact message.
-      final errors = (body['discoveryErrors'] as Map).cast<String, dynamic>();
-      expect(
-        errors[DeviceType.filterWheel.name],
-        contains('TouptekSdk DLL missing'),
-      );
-      expect(errors[DeviceType.dome.name], contains('INDI server unreachable'));
-      expect(errors.length, 2);
-    });
-
-    test(
-      'honors explicit deviceType filter (single type, no fan-out)',
-      () async {
-        final backend = _FakeDeviceBackend(
-          devicesByType: {
-            DeviceType.camera: [_device('cam-1', DeviceType.camera)],
-            DeviceType.mount: [_device('mount-1', DeviceType.mount)],
-          },
-        );
-        final container = containerWith(backend);
-        addTearDown(container.dispose);
-        final handlers = DeviceDiscoveryHandlers(container);
-
-        final response = await translateHandlerErrors(
-          handlers.handleDiscoverDevices(
-            Request(
-              'POST',
-              Uri.parse(
-                'http://localhost/api/devices/discover?deviceType=camera',
-              ),
-            ),
-          ),
-        );
-
-        expect(response.statusCode, HttpStatus.ok);
-        final body = jsonDecode(await response.readAsString()) as Map;
-        final ids = (body['devices'] as List)
-            .cast<Map>()
-            .map((d) => d['id'])
-            .toSet();
-        expect(ids, {'cam-1'});
-        // Only the requested type was swept.
-        expect(backend.callCounts[DeviceType.camera], 1);
-        expect(backend.callCounts[DeviceType.mount], isNull);
-      },
-    );
 
     test(
       'point-source discovery validates host and port before backend use',
@@ -351,53 +359,6 @@ void main() {
             expect(response.statusCode, HttpStatus.badRequest, reason: query);
           }
         }
-      },
-    );
-
-    test(
-      'GET /api/devices lists what the last discover found and never discovers',
-      () async {
-        final backend = _FakeDeviceBackend(
-          devicesByType: {
-            DeviceType.camera: [_device('cam-1', DeviceType.camera)],
-            DeviceType.mount: [_device('mount-1', DeviceType.mount)],
-          },
-        );
-        final container = containerWith(backend);
-        addTearDown(container.dispose);
-        final handlers = DeviceDiscoveryHandlers(container);
-
-        Future<Map> get(String query) async {
-          final response = await translateHandlerErrors(
-            handlers.handleGetDevices(
-              Request('GET', Uri.parse('http://localhost/api/devices$query')),
-            ),
-          );
-          expect(response.statusCode, HttpStatus.ok);
-          return jsonDecode(await response.readAsString()) as Map;
-        }
-
-        final before = await get('');
-        expect(before['devices'], isEmpty);
-        expect(before['discoveredAt'], isNull);
-        expect(backend.callCounts, isEmpty, reason: 'a GET discovered');
-
-        await handlers.handleDiscoverDevices(
-          Request('POST', Uri.parse('http://localhost/api/devices/discover')),
-        );
-        final sweeps = Map.of(backend.callCounts);
-
-        final after = await get('');
-        expect(
-          (after['devices'] as List).cast<Map>().map((d) => d['id']).toSet(),
-          {'cam-1', 'mount-1'},
-        );
-        expect(after['discoveredAt'], isA<String>());
-        final cameras = await get('?deviceType=camera');
-        expect((cameras['devices'] as List).cast<Map>().map((d) => d['id']), [
-          'cam-1',
-        ]);
-        expect(backend.callCounts, sweeps, reason: 'a GET discovered');
       },
     );
   });

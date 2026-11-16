@@ -1310,7 +1310,9 @@ function devicesFetch(answer) {
   const log = [];
   const marks = [];
   const state = {
-    connectedDevices: [{ id: 'sim_camera_1', deviceType: 'camera' }],
+    devices: [{ id: 'sim_camera_1', deviceType: 'camera', state: 'connected' }],
+    connectedDevices: [{ id: 'sim_camera_1', deviceType: 'camera', state: 'connected' }],
+    lastScanAt: null,
     filterWheelDeviceId: null, cameraDeviceId: null, mountDeviceId: null,
     focuserDeviceId: null, rotatorDeviceId: null,
     filterWheelPositions: null, filterWheelPositionsDeviceId: null,
@@ -1328,7 +1330,7 @@ function devicesFetch(answer) {
     [fn('fetchDevices')],
     'fetchDevices',
   )(
-    { getConnectedDevices: async () => {
+    { getDevices: async () => {
       if (answer instanceof Error) throw answer;
       return answer;
     } },
@@ -1346,11 +1348,11 @@ function devicesFetch(answer) {
 test('a content-free devices answer never asserts an empty rig', async () => {
   const h = devicesFetch(new TestApiError(
     'unusable_answer',
-    'GET /api/devices/connected answered 200 with an empty body',
+    'GET /api/devices answered 200 with an empty body',
     { status: 200 },
   ));
   await h.run();
-  assert.deepEqual(h.state.connectedDevices, [{ id: 'sim_camera_1', deviceType: 'camera' }],
+  assert.deepEqual(h.state.connectedDevices, [{ id: 'sim_camera_1', deviceType: 'camera', state: 'connected' }],
     'the last confirmed inventory stands until something replaces it');
   assert.deepEqual(h.marks, ['unconfirmed:devices'],
     'the panel must be marked unconfirmed so its stale line appears');
@@ -1373,6 +1375,23 @@ test('a devices answer that lists zero devices IS rendered as empty', async () =
   assert.deepEqual(h.marks, ['fresh:devices']);
   assert.equal(h.rendered(), 1,
     'a server that lists zero devices has said the rig is empty');
+});
+
+test('the panels address only the devices the host says are connected', async () => {
+  const h = devicesFetch({
+    devices: [
+      { id: 'sim_camera_1', deviceType: 'camera', state: 'connected' },
+      { id: 'sim_mount_1', deviceType: 'mount', state: 'disconnected' },
+    ],
+    lastScanAt: '2026-11-16T02:52:00.000Z',
+  });
+  await h.run();
+  assert.equal(h.state.devices.length, 2, 'every known device is listed');
+  assert.deepEqual(h.state.connectedDevices.map((d) => d.id), ['sim_camera_1']);
+  assert.equal(h.state.cameraDeviceId, 'sim_camera_1');
+  assert.equal(h.state.mountDeviceId, null,
+    'a mount the host knows but has not connected is not addressed');
+  assert.equal(h.state.lastScanAt, '2026-11-16T02:52:00.000Z');
 });
 
 /** refreshGalleryFromServer with a scripted /api/images answer. */

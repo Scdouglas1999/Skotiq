@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
@@ -19,7 +17,6 @@ Future<void> runConnectAllForProfile(
   EquipmentProfileModel profile,
 ) async {
   final deviceService = ref.read(deviceServiceProvider);
-  final discoveryNotifier = ref.read(unifiedDiscoveryProvider.notifier);
 
   if (!profile.hasAssignedDevices) {
     if (context.mounted) {
@@ -33,13 +30,6 @@ Future<void> runConnectAllForProfile(
   if (context.mounted) {
     context.showInfoSnackBar('Connecting devices...');
   }
-  // Connect uses the profile's saved device ids and does not need a fresh
-  // scan, so the device list is refreshed in the background with a long
-  // freshness window instead of holding the connect behind a rescan.
-  unawaited(
-    discoveryNotifier.discoverIfNeeded(maxAge: const Duration(minutes: 10)),
-  );
-
   // Only the profile's devices are connected here. A device that is not in
   // the profile is assigned in Discovery, once, on purpose; reaching past the
   // profile would make two identical presses connect different rigs.

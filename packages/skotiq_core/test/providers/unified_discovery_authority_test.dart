@@ -103,16 +103,15 @@ void main() {
     });
   });
 
-  test('a slower older scan cannot overwrite the latest scan', () async {
+  test('a scan asked for while one runs joins it', () async {
     final service = _MockDeviceService();
-    final oldCameraResult = Completer<List<DeviceInfo>>();
-    final newCameraResult = Completer<List<DeviceInfo>>();
+    final cameraResult = Completer<List<DeviceInfo>>();
     var cameraCalls = 0;
     when(() => service.discoverDevices(any())).thenAnswer((invocation) {
       final type = invocation.positionalArguments.single as DeviceType;
       if (type != DeviceType.camera) return Future.value(const []);
       cameraCalls++;
-      return cameraCalls == 1 ? oldCameraResult.future : newCameraResult.future;
+      return cameraResult.future;
     });
     final container = createContainer(
       backend: _MockNetworkBackend(),
@@ -121,25 +120,22 @@ void main() {
     addTearDown(container.dispose);
     final discovery = container.read(unifiedDiscoveryProvider.notifier);
 
-    final oldScan = discovery.discoverAll();
+    final first = discovery.discoverAll();
     await Future<void>.delayed(Duration.zero);
-    final newScan = discovery.discoverAll();
+    final second = discovery.discoverAll();
     await Future<void>.delayed(Duration.zero);
+    expect(cameraCalls, 1, reason: 'the second scan started its own sweep');
+
+    cameraResult.complete([_device('cam')]);
+    await Future.wait([first, second]);
+    expect(
+      container.read(unifiedDiscoveryProvider).rawDevices.map((d) => d.id),
+      ['cam'],
+    );
+
+    // The next scan after it finishes is a scan of its own.
+    await discovery.discoverAll();
     expect(cameraCalls, 2);
-
-    newCameraResult.complete([_device('new')]);
-    await newScan;
-    expect(
-      container.read(unifiedDiscoveryProvider).rawDevices.map((d) => d.id),
-      ['new'],
-    );
-
-    oldCameraResult.complete([_device('old')]);
-    await oldScan;
-    expect(
-      container.read(unifiedDiscoveryProvider).rawDevices.map((d) => d.id),
-      ['new'],
-    );
   });
 
   test('clear invalidates a scan that is still running', () async {

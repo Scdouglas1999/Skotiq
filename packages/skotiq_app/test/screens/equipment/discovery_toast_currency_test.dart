@@ -18,6 +18,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -101,6 +102,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         inMemoryDatabaseOverride(),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, backend),
+        ),
         cameraStateProvider.overrideWith((ref) => camera),
         deviceServiceProvider.overrideWith(
           (ref) => _FakeDeviceService(ref, backend, camera),
