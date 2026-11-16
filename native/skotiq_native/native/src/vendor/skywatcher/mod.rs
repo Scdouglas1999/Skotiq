@@ -1194,14 +1194,15 @@ pub struct SkyWatcherMountInfo {
     pub baud_rate: u32,
 }
 
-/// Discover Sky-Watcher mounts on serial ports
-/// Tries multiple baud rates to support both older and newer mounts
-pub async fn discover_mounts() -> Result<Vec<SkyWatcherMountInfo>, DriverError> {
-    serial_link::run_serial_scan("Sky-Watcher", scan_serial_ports).await
-}
-
-fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, DriverError> {
-    serial_link::scan_ports(&SCAN_PLAN, identify_mount)
+/// Looks for mounts on every serial port but the ones in `ports_in_use`,
+/// at the baud rates of both older and newer mounts.
+pub async fn discover_mounts(
+    ports_in_use: Vec<String>,
+) -> Result<Vec<SkyWatcherMountInfo>, DriverError> {
+    serial_link::run_serial_scan("Sky-Watcher", move || {
+        serial_link::scan_ports(&SCAN_PLAN, &ports_in_use, identify_mount)
+    })
+    .await
 }
 
 /// The same scan over ports a test supplies.

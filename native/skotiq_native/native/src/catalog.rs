@@ -20,6 +20,8 @@ pub const ID_PREFIX: &str = "native";
 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type DiscoverFn = fn() -> BoxFuture<Result<Vec<Found>, DriverError>>;
+/// Takes the ports to leave alone, as device ids name them.
+type SerialDiscoverFn = fn(Vec<String>) -> BoxFuture<Result<Vec<Found>, DriverError>>;
 
 /// A device as its family's discovery reports it.
 #[derive(Clone)]
@@ -39,8 +41,8 @@ pub struct Found {
 pub enum Discover {
     /// Ask the vendor SDK.
     Sdk(DiscoverFn),
-    /// Probe the serial ports. Skipped while a connected mount owns one.
-    SerialPorts(DiscoverFn),
+    /// Probe the serial ports.
+    SerialPorts(SerialDiscoverFn),
     /// Reported by another family's scan.
     ByAnotherFamily,
     /// The vendor SDK does not exist for this operating system.
@@ -879,9 +881,9 @@ pub static FAMILIES: &[Family] = &[
         subtype_label: None,
         noun: "Sky-Watcher mount",
         sdk_present: None,
-        discover: Discover::SerialPorts(|| {
+        discover: Discover::SerialPorts(|ports_in_use| {
             Box::pin(async {
-                Ok(crate::vendor::skywatcher::discover_mounts()
+                Ok(crate::vendor::skywatcher::discover_mounts(ports_in_use)
                     .await?
                     .into_iter()
                     .map(|d| serial_found(&d.port, d.baud_rate, d.name, d.firmware_version))
@@ -905,9 +907,9 @@ pub static FAMILIES: &[Family] = &[
         subtype_label: None,
         noun: "iOptron mount",
         sdk_present: None,
-        discover: Discover::SerialPorts(|| {
+        discover: Discover::SerialPorts(|ports_in_use| {
             Box::pin(async {
-                Ok(crate::vendor::ioptron::discover_mounts()
+                Ok(crate::vendor::ioptron::discover_mounts(ports_in_use)
                     .await?
                     .into_iter()
                     .map(|d| serial_found(&d.port, d.baud_rate, d.name, d.firmware_version))
@@ -933,9 +935,9 @@ pub static FAMILIES: &[Family] = &[
         sdk_present: None,
         // One scan tells the LX200 dialects apart; each mount is reported
         // under its own family.
-        discover: Discover::SerialPorts(|| {
+        discover: Discover::SerialPorts(|ports_in_use| {
             Box::pin(async {
-                Ok(crate::vendor::lx200::discover_mounts()
+                Ok(crate::vendor::lx200::discover_mounts(ports_in_use)
                     .await?
                     .into_iter()
                     .map(|d| Found {
