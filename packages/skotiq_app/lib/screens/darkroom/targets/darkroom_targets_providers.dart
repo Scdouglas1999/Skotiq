@@ -24,7 +24,10 @@ final darkroomTargetsProvider =
   final mastersDao = ref.watch(integratedMastersDaoProvider);
   final framesByTarget = await loadDarkroomTargets(db);
   final masters = await mastersDao.getAll();
-  final rows = await db.targetsDao.getAllTargets();
+  final rows = await withCatalogObjectTypes(
+    await db.targetsDao.getAllTargets(),
+    ref.read(loggingServiceProvider),
+  );
   final folded = <int, Set<int>>{};
   final used = <int, Set<int>>{};
   final drafts = <int, String>{};

@@ -30,7 +30,7 @@ SkotiqEvent _center(
       timestamp: DateTime.now().millisecondsSinceEpoch,
       severity: EventSeverity.info,
       category: EventCategory.sequencer,
-      eventType: 'InstructionProgressStructured',
+      eventType: 'InstructionProgress',
       data: {
         'node_id': nodeId,
         'instruction': 'Center',

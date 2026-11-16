@@ -191,13 +191,10 @@ class NightFlipTracker extends Notifier<NightFlipState> {
           when triggerId == 'meridian_flip' ||
               action == sk_events.SequencerTriggerAction.meridianFlip:
         _start(at);
-      case sk_events.SequencerEvent_InstructionProgress(:final nodeId)
-          when nodeId == kMeridianFlipProgressNodeId:
-        if (!state.inProgress) _start(at);
-      case final sk_events.SequencerEvent_InstructionProgressStructured step
+      case final sk_events.SequencerEvent_InstructionProgress step
           when step.nodeId == kMeridianFlipProgressNodeId:
         if (!state.inProgress) _start(at);
-        final retry = step.detail;
+        final retry = step.report;
         if (retry is! MeridianFlipRetryProgressDetail) return;
         state = state.copyWith(
           failedAttempts: () => retry.failedAttempt,

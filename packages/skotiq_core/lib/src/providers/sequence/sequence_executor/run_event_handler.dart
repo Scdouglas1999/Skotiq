@@ -123,9 +123,7 @@ class RunEventHandler {
 
     // The one place a dither is counted: native reports each dither once,
     // whoever asked for it. It is a count, not node progress.
-    if (event case SequencerEvent_InstructionProgressStructured(
-      reportsDither: true,
-    )) {
+    if (event is SequencerEvent_DitherPerformed) {
       _stats.update((stats) => stats.recordDither());
       return;
     }
@@ -178,20 +176,14 @@ class RunEventHandler {
         );
       case SequencerEvent_Error():
         _onSequencerError(event, progressNotifier);
-      case SequencerEvent_InstructionProgressStructured(
-        :final frameAssessment?,
-      ):
+      case SequencerEvent_FrameWatchReport(:final frameAssessment?):
         _frames.recordAssessment(frameAssessment);
-      case SequencerEvent_InstructionProgressStructured(
-        :final horizonObstruction?,
-      ):
+      case SequencerEvent_FrameWatchReport(:final horizonObstruction?):
         _onHorizonObstruction(
           horizonObstruction,
           raw.timestamp,
           progressNotifier,
         );
-      case SequencerEvent_InstructionProgressStructured():
-        _onStructuredProgress(event, progressNotifier);
       case SequencerEvent_InstructionProgress():
         _onInstructionProgress(event, progressNotifier);
       case SequencerEvent_MeridianFlipOutcome():
@@ -397,25 +389,6 @@ class RunEventHandler {
     }
   }
 
-  void _onStructuredProgress(
-    SequencerEvent_InstructionProgressStructured event,
-    RunRecordNotifier progressNotifier,
-  ) {
-    // A Change Filter instruction is the only place the running filter is
-    // named when the exposure node itself has none.
-    final filterName = event.changedFilterName;
-    if (filterName != null) {
-      progressNotifier.updateProgress(currentFilter: filterName);
-    }
-    // The run's line is the step's own text, which the plain progress event
-    // carrying the same update sets.
-    progressNotifier.updateNodeStructuredProgress(
-      event.nodeId,
-      event.progressPercent,
-      event.detail,
-    );
-  }
-
   void _onInstructionProgress(
     SequencerEvent_InstructionProgress event,
     RunRecordNotifier progressNotifier,
@@ -425,11 +398,23 @@ class RunEventHandler {
       :instruction,
       :progressPercent,
       :detail,
+      :detailKind,
     ) = event;
     _logger.debug(
       'InstructionProgress: nodeId=$nodeId, instruction=$instruction, '
-      'progress=$progressPercent%, detail=$detail',
+      'progress=$progressPercent%, kind=$detailKind, detail=$detail',
       source: 'SequenceExecutor',
+    );
+    // A Change Filter instruction is the only place the running filter is
+    // named when the exposure node itself has none.
+    final filterName = event.changedFilterName;
+    if (filterName != null) {
+      progressNotifier.updateProgress(currentFilter: filterName);
+    }
+    progressNotifier.updateNodeStructuredProgress(
+      nodeId,
+      progressPercent,
+      event.report,
     );
     progressNotifier.updateNodeProgress(nodeId, progressPercent, detail);
     progressNotifier.updateProgress(message: '$instruction: $detail');

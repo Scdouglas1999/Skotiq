@@ -99,10 +99,11 @@ pub enum ProgressDetail {
 ```
 
 Instructions populate the structured fields directly; the executor's
-progress callback reads them with no parsing. Backwards compatibility is
-preserved via `ProgressUpdate::legacy_message()`, which renders the
-pre-refactor `"Foo: detail (NN%)"` string for the FRB bridge surface.
-**No FRB regen is required.**
+progress callback reads them with no parsing. The bridge publishes each
+update once, as `SequencerEvent::InstructionProgress` with the step's words
+(`ProgressDetail::detail_text`), the variant name and its fields as JSON. A
+new variant needs no FRB regen; the app decodes the kinds it reads in
+`instruction_progress_detail.dart`.
 
 ## How to add a new instruction
 

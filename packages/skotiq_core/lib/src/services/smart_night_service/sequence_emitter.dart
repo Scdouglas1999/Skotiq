@@ -853,10 +853,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     return header;
   }
 
-  /// Build the SmartExposureNode for a target — rotates filters per
-  /// the strategy, applies the AF cadence trigger, optionally toggles
-  /// adaptive exposures, and clamps the total integration to the per-
-  /// target budget.
+  /// The SmartExposureNode for a target. With a motorized wheel
+  /// ([smartNightRotatesFilters], unless [SmartNightSettings.rotateFilters]
+  /// says otherwise) it takes one exposure per filter in turn, and a plan
+  /// filling the window loops the rotation until the window ends; without
+  /// one, each filter's frames are taken together.
   SmartExposureNode _emitSmartExposure({
     required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
@@ -865,36 +866,49 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     required String parentId,
     bool fillWindow = false,
   }) {
-    final plans = planned.filterPlans.map((fp) {
-      final defaults = resolveCameraCaptureDefaults(
-        cameraName: profile.cameraName,
-        filterName: fp.filterName,
-        profileGain: profile.defaultGain,
-        profileOffset: profile.defaultOffset,
-        library: _cameraLibrary,
-      );
-      return FilterPlan(
-        filterName: fp.filterName,
-        count: fp.count,
-        durationSecs: fp.durationSecs,
-        gain: settings.gainOverride ?? defaults.gain,
-        offset: settings.offsetOverride ?? defaults.offset,
-        binning: _binningModeForInt(profile.defaultBinX),
-        ditherEvery: settings.ditherEveryFrames,
-      );
-    }).toList();
+    final rotate = settings.rotateFilters ?? smartNightRotatesFilters(profile);
+    final loop = fillWindow && rotate;
     return SmartExposureNode(
       id: SmartNightService._uuid.v4(),
       name:
           'Smart Exposure: '
           '${planned.filterPlans.map((p) => p.filterName).join("+")}',
-      plans: plans,
-      rotateFilters: true,
+      plans: [
+        for (final fp in planned.filterPlans)
+          _smartExposureRow(profile: profile, plan: fp, settings: settings),
+      ],
+      rotateFilters: rotate,
       ditherOnFilterChange: false,
-      integrationBudgetSecs: fillWindow ? 0 : planned.integrationSecs,
-      loopUntilStopped: fillWindow,
+      integrationBudgetSecs: loop ? 0 : planned.integrationSecs,
+      loopUntilStopped: loop,
       batchSize: 1,
       parentId: parentId,
+    );
+  }
+
+  /// The Smart Exposure row for [plan]: the camera's frame defaults for the
+  /// filter's group (gain and offset), unless [settings] overrides them, the
+  /// profile's binning, and the settings' dither cadence.
+  FilterPlan _smartExposureRow({
+    required EquipmentProfileModel profile,
+    required SmartNightFilterPlan plan,
+    required SmartNightSettings settings,
+  }) {
+    final defaults = resolveCameraCaptureDefaults(
+      cameraName: profile.cameraName,
+      filterName: plan.filterName,
+      profileGain: profile.defaultGain,
+      profileOffset: profile.defaultOffset,
+      library: _cameraLibrary,
+    );
+    return FilterPlan(
+      filterName: plan.filterName,
+      count: plan.count,
+      durationSecs: plan.durationSecs,
+      gain: settings.gainOverride ?? defaults.gain,
+      offset: settings.offsetOverride ?? defaults.offset,
+      binning: _binningModeForInt(profile.defaultBinX),
+      ditherEvery: settings.ditherEveryFrames,
     );
   }
 

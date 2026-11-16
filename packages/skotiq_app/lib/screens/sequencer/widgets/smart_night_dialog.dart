@@ -16,6 +16,7 @@ import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/camera_sensor_specs_dialog.dart';
+import '../../../widgets/filter_set_picker.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import '../../../router/app_routes.dart';
@@ -172,9 +173,14 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
   /// ([SmartNightService.chooseFilters]).
   SmartNightStrategy? _strategy;
 
-  /// Sets the user took for single targets on the preview ("Add Ha"), by
-  /// target id; they win over [_strategy].
-  final Map<int, SmartNightStrategy> _targetStrategies = {};
+  /// Skotiq's filter choice for each planned target, by target id, for the
+  /// preview cards' Filters pickers.
+  final Map<int, SmartNightFilterChoice> _targetChoices = {};
+
+  /// The set each planned target images through, by target id: the one the
+  /// user picked for it ([filterSetPreferencesProvider]), else [_strategy],
+  /// else Skotiq's choice.
+  final Map<int, FilterSet> _targetSets = {};
 
   SmartNightPlan? _preview;
   String? _previewError;
@@ -517,6 +523,31 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         }
       }
 
+      final service = _buildService();
+      final planningFilters =
+          smartNightPlanningFilters(ref.read(effectiveFiltersProvider));
+      final filterPrefs = await ref.read(filterSetPreferencesProvider.future);
+      if (host.isStale) return false;
+      _targetChoices.clear();
+      _targetSets.clear();
+      for (final suggestion in selected) {
+        final choice = service.chooseFilters(
+          suggestion: suggestion,
+          availableFilters: planningFilters,
+          exposureContext: exposureContext,
+        );
+        final sets = choice.sets(saved: filterPrefs.custom);
+        final global = _strategy;
+        final fallback = global == null
+            ? choice.recommended
+            : FilterSet.preset(global, choice.filtersFor(global));
+        _targetChoices[suggestion.targetId] = choice;
+        _targetSets[suggestion.targetId] = filterPrefs.targetChoices
+                .containsKey(filterSetTargetKey(suggestion))
+            ? filterPrefs.setFor(suggestion, sets: sets, recommended: fallback)
+            : fallback;
+      }
+
       // On a remote client the local dark library is the tablet's — empty —
       // not the rig's. Evaluating coverage against it would falsely report
       // every dark as missing and, with auto-schedule enabled, waste rig time
@@ -530,25 +561,13 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       if (exposureContext == null || isRemoteBackend) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();
       } else {
-        final service = _buildService();
-        final planningFilters =
-            smartNightPlanningFilters(ref.read(effectiveFiltersProvider));
-        List<String> targetFilters(TargetSuggestion suggestion) {
-          final choice = service.chooseFilters(
-            suggestion: suggestion,
-            availableFilters: planningFilters,
-            exposureContext: exposureContext,
-          );
-          return choice.filtersFor(_targetStrategies[suggestion.targetId] ??
-              _strategy ??
-              choice.strategy);
-        }
-
         darkLibraryMissing = await SmartNightDarkLibraryCoverage(
           darkLibraryService: ref.read(darkLibraryServiceProvider),
         ).missing(
           profile: activeProfile,
-          filters: {for (final s in selected) ...targetFilters(s)},
+          filters: {
+            for (final s in selected) ..._targetSets[s.targetId]!.filters
+          },
           settings: effectiveSettings,
           exposureContext: exposureContext,
           minCoverage: settings.darkLibraryMinCoverage,
@@ -597,7 +616,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         planTimer: ref.read(planTimerProvider),
         exposureContext: exposureContext,
         integrationGoals: integrationGoals,
-        targetStrategies: _targetStrategies,
+        targetSets: _targetSets,
       );
       final draft = await ref.read(smartNightDraftServiceProvider).savePending(
             profileId: activeProfile.id.toString(),

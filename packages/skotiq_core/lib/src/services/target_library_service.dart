@@ -6,6 +6,7 @@ import '../database/database.dart' as db;
 import '../providers/async_scope.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
+import 'catalog_target_types.dart';
 import '../backend/network_backend.dart';
 import '../providers/logging_service_provider.dart';
 
@@ -156,7 +157,8 @@ class TargetLibraryService {
   }
 
   /// Saved targets matching [query]: the linked host searches its own
-  /// library, this machine its database.
+  /// library, this machine its database. Each reads with the object type
+  /// the catalog gives it ([withCatalogObjectType]).
   Future<List<db.DbTarget>> searchTargets(String query) async {
     _ensureSameHost();
     final host = _hostRecords;
@@ -167,8 +169,12 @@ class TargetLibraryService {
     } else {
       rows = await _ref.read(targetsDaoProvider).searchTargets(query);
     }
+    final typed = await withCatalogObjectTypes(
+      rows,
+      _ref.read(loggingServiceProvider),
+    );
     _ensureSameHost();
-    return rows;
+    return typed;
   }
 
   Future<List<db.DbTarget>> _loadTargets() async {

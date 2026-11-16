@@ -79,6 +79,11 @@ jobs:
           python3 docs/design/overhaul/tools/audit_ui_tokens.py
           python3 -m unittest discover -s docs/design/overhaul/tools -p 'test_audit_ui_tokens.py'
 
+      # The nebula light table's matching rule, its source readers, and that
+      # the shipped table is what the committed sources build.
+      - name: Nebula light table build tests
+        run: python3 tools/catalog_prep/nebula_light/test_build_nebula_light.py
+
       - name: Dependency Hygiene Gate
         run: dart run tools/production/dependency_hygiene.dart
 

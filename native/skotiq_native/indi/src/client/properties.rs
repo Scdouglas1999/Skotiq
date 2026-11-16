@@ -325,6 +325,30 @@ impl IndiClient {
         self.send_command(&cmd).await
     }
 
+    /// Set several elements of one text property in one message, with a
+    /// permission check. A driver that reads a vector's elements together
+    /// (`TIME_UTC`: the time and its offset) needs them in one message.
+    pub async fn set_texts(
+        &mut self,
+        device: &str,
+        property: &str,
+        values: &[(&str, &str)],
+    ) -> IndiResult<()> {
+        if let Some(perm) = self.get_property_permission(device, property).await {
+            self.check_write_permission(perm, property)?;
+        }
+
+        let elements: String = values
+            .iter()
+            .map(|(name, value)| format!("<oneText name=\"{}\">{}</oneText>", name, value))
+            .collect();
+        let cmd = format!(
+            "<newTextVector device=\"{}\" name=\"{}\">{}</newTextVector>",
+            device, property, elements
+        );
+        self.send_command(&cmd).await
+    }
+
     /// Sends CONNECT without waiting for the driver; see
     /// [`Self::connect_and_confirm`].
     pub async fn connect_device(&mut self, device: &str) -> IndiResult<()> {

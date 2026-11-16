@@ -1,14 +1,9 @@
 use crate::event::sequencer::SequencerEvent;
 
-/// dispatch a structured `ProgressDetail` to a typed `SequencerEvent`
-/// variant. Returns `None` when the variant has no first-class typed bridge
-/// payload (the legacy `InstructionProgress` string variant covers those).
-///
-/// This is the single source of truth for the structured → typed
-/// bridge mapping. The Dart dashboard panels consume the typed variants;
-/// the legacy `InstructionProgress` stream is still published in parallel
-/// so any subscriber that hasn't migrated keeps working (trigger
-/// feed, telemetry exporters, etc.).
+/// The typed event of a step report that is a fact of its own (a frame
+/// verdict, a scheduler decision, an integration budget, an adapted exposure,
+/// a plugin payload, a photometry result); `None` for a report that is only
+/// the step's progress.
 #[flutter_rust_bridge::frb(ignore)]
 pub(crate) fn typed_sequencer_event_from_progress_detail(
     node_id: &str,
@@ -179,11 +174,8 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
                 detail_json,
             })
         }
-        // Science / photometry payloads. Mirror the corresponding
-        // `ProgressDetail` field shapes verbatim so the Dart light-curve panel
-        // binds to explicit fields instead of re-parsing the legacy string
-        // `detail`. Emitted alongside `InstructionProgress` (additional, not a
-        // replacement), like the typed progress payloads above.
+        // Science / photometry payloads, mirroring the `ProgressDetail` field
+        // shapes so the light-curve panel binds to explicit fields.
         PD::PhotometryFrame {
             target_designation,
             reference_stars,
@@ -246,25 +238,38 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
             cadence_breaks: *cadence_breaks,
             last_reject_reason: last_reject_reason.clone(),
         }),
-        // Every other variant (Exposure, Filter, Slew, Center, Autofocus,
-        // …) is well-served by the legacy `InstructionProgress` string
-        // channel — adding typed variants for them is future work, not
-        // 's scope.
         _ => None,
     }
 }
 
+/// A step's progress as the one event every step report is published as:
+/// its words, and its report by kind with the kind's fields as JSON.
 #[flutter_rust_bridge::frb(ignore)]
-pub(crate) fn structured_progress_payload_from_progress_detail(
+pub(crate) fn instruction_progress_event(
+    node_id: &str,
+    instruction: &str,
+    progress_percent: f64,
     detail: &skotiq_sequencer::ProgressDetail,
-) -> Option<(String, String)> {
-    let value = serde_json::to_value(detail).ok()?;
-    match value {
-        serde_json::Value::Object(tagged) if tagged.len() == 1 => {
-            let (kind, payload) = tagged.into_iter().next()?;
-            Some((kind, payload.to_string()))
-        }
-        other => Some(("Unknown".to_string(), other.to_string())),
+) -> SequencerEvent {
+    let (detail_kind, detail_json) = match serde_json::to_value(detail) {
+        Ok(serde_json::Value::Object(tagged)) if tagged.len() == 1 => tagged
+            .into_iter()
+            .next()
+            .map(|(kind, payload)| (kind, payload.to_string()))
+            .unwrap_or_default(),
+        Ok(other) => ("Unknown".to_string(), other.to_string()),
+        Err(e) => (
+            "Unknown".to_string(),
+            serde_json::json!({ "raw": e.to_string() }).to_string(),
+        ),
+    };
+    SequencerEvent::InstructionProgress {
+        node_id: node_id.to_string(),
+        instruction: instruction.to_string(),
+        progress_percent,
+        detail: detail.detail_text(),
+        detail_kind,
+        detail_json,
     }
 }
 

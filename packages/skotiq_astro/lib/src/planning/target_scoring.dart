@@ -13,6 +13,8 @@ export 'target_scoring/models.dart';
 part 'target_scoring/axis_scores.dart';
 part 'target_scoring/warnings.dart';
 
+DateTime _earlier(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
+
 /// Service for scoring and analyzing imaging targets
 class TargetScoringService {
   final double latitude;
@@ -222,6 +224,7 @@ class TargetScoringService {
     // to an operator, because it accounts for the minimum altitude and the
     // local skyline, and it can only ever name an instant inside the night.
     DateTime? firstObservableTime;
+    DateTime? lastObservableTime;
 
     var sampleTime = nightStart;
     while (!sampleTime.isAfter(nightEnd)) {
@@ -245,6 +248,7 @@ class TargetScoringService {
       if (alt >= _floorToward(az)) {
         samplesAboveMin++;
         firstObservableTime ??= sampleTime;
+        lastObservableTime = sampleTime;
         if (alt > observablePeakAlt) {
           observablePeakAlt = alt;
           observablePeakAz = az;
@@ -318,6 +322,11 @@ class TargetScoringService {
       peakAzimuth: peakAz,
       peakAltitudeTime: peakTime,
       hoursAboveMinAlt: hoursAboveMin,
+      aboveFloorFrom: firstObservableTime,
+      // A sample stands for the interval after it, as [hoursAboveMin] counts.
+      aboveFloorUntil: lastObservableTime == null
+          ? null
+          : _earlier(lastObservableTime.add(sampleInterval), nightEnd),
     );
 
     // Calculate individual scores based on night conditions

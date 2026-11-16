@@ -432,9 +432,16 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
         secs += ditherCount * overhead.ditherSecs;
       }
     }
-    // One filter change per plan (the estimator cannot tell which ones the
-    // live filter makes free, so it assumes the worst case).
-    secs += node.plans.length * overhead.filterChangeSecs;
+    // A rotating node changes filter at every visit, a draining one once per
+    // plan (the estimator cannot tell which changes the live filter makes
+    // free, so it assumes the worst case).
+    final visits = node.rotateFilters && node.plans.length > 1
+        ? node.plans.fold<int>(
+            0,
+            (sum, p) => sum + (p.count / math.max(1, node.batchSize)).ceil(),
+          )
+        : node.plans.length;
+    secs += visits * overhead.filterChangeSecs;
     // The budget measures integration, not wall-clock, so only the
     // integration part is capped.
     if (node.integrationBudgetSecs > 0 &&

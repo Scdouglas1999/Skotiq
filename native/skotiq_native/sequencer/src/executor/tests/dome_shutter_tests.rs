@@ -92,7 +92,7 @@ async fn start(sequence: SequenceDefinition) -> DomeRun {
         }
         manager.add_trigger(StandardTrigger::DomeShutterNotOpen.build());
     }
-    let events = executor.subscribe();
+    let events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
     DomeRun {
