@@ -65,11 +65,11 @@ pub(crate) const BIAS_MAX_TEMP_DELTA_C: f64 = 10.0;
 
 /// Maximum fractional exposure difference between a master dark and the lights.
 ///
-/// [`skotiq_imaging::calibration::calibrate_frame`] subtracts the dark
-/// as-is — it does **not** scale it by exposure ratio — so a dark of a different
-/// duration over- or under-subtracts dark current in direct proportion. 1 %
-/// absorbs the jitter of a real shutter without absorbing a genuinely different
-/// exposure.
+/// A dark further from the lights' exposure is of another exposure: the light
+/// calibration ([`super::LightCalibration`]) scales it with the bias and
+/// refuses it without one, and the report names the difference either way.
+/// 1 % absorbs the jitter of a real shutter without absorbing a genuinely
+/// different exposure.
 pub(crate) const DARK_MAX_EXPOSURE_FRACTION: f64 = 0.01;
 
 /// Which calibration slot an [`AppliedMaster`] describes.

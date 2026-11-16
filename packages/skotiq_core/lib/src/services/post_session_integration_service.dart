@@ -9,6 +9,7 @@ import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/integration_settings.dart';
 import '../models/calibration/calibration_library_models.dart';
+import 'calibration/calibration_selection.dart';
 import 'calibration_library_service.dart';
 import 'darkroom_pass/pass_log.dart';
 import 'color_calibration_service.dart';

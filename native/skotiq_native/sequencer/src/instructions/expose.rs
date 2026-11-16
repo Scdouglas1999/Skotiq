@@ -1,7 +1,4 @@
-//! `expose.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! Taking exposures: the frame, its grading and its saved file.
 
 use super::*;
 use crate::frame_naming::{FrameSavePathRenderer, FrameToName};
@@ -637,9 +634,8 @@ async fn take_burst(
         // a broken template silently writing to the wrong place would be a
         // data-integrity disaster.
         //
-        // When no renderer is supplied (legacy direct invocations from
-        // tests), we fall back to the pre-Wave-4 hardcoded layout: base
-        // path from `ctx.save_path`, filename `<target>_<filter>_<NNNN>.fits`.
+        // With no renderer (direct invocations from tests) the frame goes
+        // under `ctx.save_path` as `<target>_<filter>_<NNNN>.fits`.
         let (base_path, filename_template) = if let Some(renderer) = path_renderer.as_ref() {
             match renderer(&FrameToName {
                 index_in_burst: frame,
@@ -682,8 +678,6 @@ async fn take_burst(
             let filename = if let Some(name) = filename_template {
                 name
             } else {
-                // Legacy renderer-less fallback retained verbatim from the
-                // pre-Wave-4 contract.
                 let target_label = match ctx.target_name.as_deref() {
                     Some(name) if !name.is_empty() => name.to_string(),
                     _ => {

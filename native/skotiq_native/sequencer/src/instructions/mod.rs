@@ -2,11 +2,8 @@
 //!
 //! These functions implement the actual device control for sequencer instructions.
 //! They use the DeviceOps trait to communicate with real or simulated hardware.
-//!
-//! Release-pass C3: this was one 11.7k-line file. Each instruction now lives
-//! in its own child module below, moved verbatim. The `pub use` globs keep
-//! every existing `crate::instructions::…` path — and `lib.rs`'s
-//! `pub use instructions::*;` — working exactly as before.
+//! Each instruction lives in its own child module; the `pub use` globs give
+//! them all one `crate::instructions::…` path.
 
 use crate::device_ops::{ImageData, SharedDeviceOps};
 use crate::*;

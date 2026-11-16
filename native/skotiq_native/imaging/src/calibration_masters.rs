@@ -29,9 +29,9 @@
 //! for non-negligible flat exposures, dark current). Before combining we
 //! subtract that pedestal — a master bias for snap flats, or a master
 //! *dark-flat* (a dark taken at the flat's exposure/temperature) for longer
-//! flats. The combine then normalises to mean 1.0 so the existing
-//! [`divide_flat`](crate::calibration::divide_flat) step is a pure
-//! illumination correction.
+//! flats. The combine then normalises to mean 1.0 so dividing a light by it
+//! ([`calibrate_frame_f32`](crate::calibration::calibrate_frame_f32)) is a
+//! pure illumination correction.
 //!
 //! ## Cosmetic correction
 //!
