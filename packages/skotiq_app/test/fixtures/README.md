@@ -15,7 +15,7 @@ the Tonight stage, in the Imaging viewer and as the frame-strip thumbnail.
 
 ## `darkroom/`
 
-One sub per filter from the same night (M31 and M1, L, R, G and B, 30 s each,
+One M31 sub per filter from the same night (L, R, G and B, 30 s each,
 gain 76, -10 C), rendered through the same auto-stretch as
 `m31_l_30s_rig.png`, converted to gray and reduced to a quarter (1164 x 880,
 JPEG). The public screenshots register them as the previews of the Darkroom's
