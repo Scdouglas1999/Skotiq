@@ -254,29 +254,29 @@ pub(super) async fn run_recovery_driver(
                 let wait_start = std::time::Instant::now();
                 let wait_duration = std::time::Duration::from_secs_f64(wait_secs);
                 let poll_step = std::time::Duration::from_millis(500);
-                let mut interrupted = false;
+                let mut ended = false;
                 while wait_start.elapsed() < wait_duration {
                     if signals.take_try_now() {
                         tracing::info!("[RECOVERY] TryNow consumed — bypassing wait timer");
-                        interrupted = true;
                         break;
                     }
                     if signals.take_abort() {
-                        // Replant the abort flag so the
-                        // top-of-loop check picks it up
-                        // and exits with the right
-                        // aborted_by_user value.
+                        // Replant the abort flag so the top-of-loop check
+                        // exits with the right aborted_by_user value.
                         signals.request_abort();
+                        ended = true;
                         break;
                     }
                     if is_cancelled.load(Ordering::Relaxed) {
+                        ended = true;
                         break;
                     }
                     tokio::time::sleep(poll_step).await;
                 }
-                if !interrupted && !is_cancelled.load(Ordering::Relaxed) {
-                    // Wait elapsed without a fast-forward;
-                    // fall through to attempt.
+                // A cancelled run or an Abort ends the ladder at the top of the
+                // loop; no further attempt touches the rig.
+                if ended {
+                    continue;
                 }
             }
 
@@ -1452,5 +1452,76 @@ mod tests {
             r.warnings
         );
         assert!(r.errors.is_empty(), "{:?}", r.errors);
+    }
+
+    /// A run cancelled while the ladder waits to retry (a dawn park, a Stop)
+    /// ends the ladder there: no further attempt starts the guider on a rig
+    /// that is being put away.
+    #[tokio::test]
+    async fn a_run_cancelled_during_the_retry_wait_makes_no_further_attempt() {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        ops.guiding.store(false, Ordering::SeqCst);
+        ops.guider_start_fails.store(true, Ordering::SeqCst);
+        let runtime = RunConfig {
+            recovery: RecoveryRuntimeConfig {
+                retry_interval_secs: 30.0,
+                stop_tracking_during_recovery: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let (event_tx, mut event_rx) = broadcast::channel(64);
+        let (request_tx, request_rx) = mpsc::channel(4);
+        let state = RunCell::starting_in(event_tx, ExecutorState::Running);
+        let is_cancelled = Arc::new(AtomicBool::new(false));
+        let mut run = Run::detached(ops.clone(), state.clone());
+        run.control.is_cancelled = is_cancelled.clone();
+        run.config = RunConfigStore::new(runtime);
+        run.rig.mount_id = Some("mount-1".to_string());
+        let current = run.recovery.current.clone();
+        let history = run.recovery.history.clone();
+        let shared = run.instruction_shared(request_tx.clone()).await;
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), shared, request_rx));
+        request_tx.send(RecoveryCause::GuideStarLost).await.unwrap();
+
+        // The first attempt fails; the ladder then waits 30 s to retry.
+        let first_failure = async {
+            loop {
+                match event_rx.recv().await {
+                    Ok(ExecutorEvent::RecoveryProgress { context })
+                        if context.last_error.is_some() =>
+                    {
+                        break
+                    }
+                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => panic!("events closed"),
+                }
+            }
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(10), first_failure)
+            .await
+            .expect("the first attempt never failed");
+        let starts_before_cancel = ops.call_count("guider_start");
+        is_cancelled.store(true, Ordering::Relaxed);
+        drop(request_tx);
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            while current.read().is_some() {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("the ladder never ended");
+        driver.await.unwrap();
+
+        assert_eq!(
+            ops.call_count("guider_start"),
+            starts_before_cancel,
+            "{:?}",
+            ops.calls()
+        );
+        let history = history.read().clone();
+        assert_eq!(history.len(), 1, "{history:?}");
+        assert_eq!(history[0].attempts, 1, "{history:?}");
+        assert!(!history[0].recovered);
     }
 }
