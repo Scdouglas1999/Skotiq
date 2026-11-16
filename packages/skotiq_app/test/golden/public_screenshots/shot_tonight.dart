@@ -672,15 +672,25 @@ NightFocusPanelVm _focus() {
   final runs = _night.autofocusRuns;
   final last = runs.last;
   const step = 60;
+  // A hyperbola through the best focus, measured: each point carries a
+  // little seeing noise, and the fitted minimum sits between two samples.
+  const noise = [0.04, -0.03, 0.05, -0.02, 0.01, 0.03, -0.04, 0.02, 0.06];
+  double hfrAt(int i) =>
+      math.sqrt(last.hfr * last.hfr + math.pow(0.65 * (i - 0.2), 2)) +
+      noise[i + 4];
   final points = <VCurvePoint>[
     for (var i = -4; i <= 4; i++)
       VCurvePoint(
-        position: last.position + i * step,
-        hfr: double.parse(
-          (last.hfr + 0.012 * i * i * 1.0 + 0.004 * i * i * i.abs() * 0.5)
-              .toStringAsFixed(2),
-        ),
+        position: last.position - 12 + i * step,
+        hfr: double.parse(hfrAt(i).toStringAsFixed(2)),
       ),
+  ];
+  final stars = [
+    for (var i = -4; i <= 4; i++)
+      (lastFrame.stars * math.pow(last.hfr / hfrAt(i), 1.6) +
+              (i * 37 % 60) -
+              30)
+          .round(),
   ];
   return NightFocusPanelVm(
     canCommand: true,
@@ -690,13 +700,10 @@ NightFocusPanelVm _focus() {
     point: 9,
     totalPoints: 9,
     points: points,
-    starCounts: [
-      for (var i = -4; i <= 4; i++)
-        (lastFrame.stars * (1 - 0.06 * i.abs())).round(),
-    ],
+    starCounts: stars,
     bestPosition: last.position,
     bestHfr: last.hfr,
-    fitQuality: 0.98,
+    fitQuality: 0.97,
     focuserName: 'EAF',
     position: lastFrame.focuserPosition,
     maxPosition: 60000,
