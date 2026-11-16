@@ -1,19 +1,17 @@
 # Test fixtures
 
-## `ic434_horsehead_uk_schmidt.png`
+## `m31_dss2_gray.png`
 
-IC 434 (the Horsehead Nebula), photographed by the **UK Schmidt Telescope** on
-1990-12-22 through an OG590 filter and digitised by the Digitized Sky Survey.
-The same frame is in the repository as
-`reports/tonight-readiness-*/HorseHead.fits` (891 x 893, 16-bit).
+M31 from the Digitized Sky Survey (the DSS2 color survey, through the CDS HiPS
+service), the same survey pixels as `hips/` (see `hips/README.md` for
+provenance and attribution). It is the center 735 x 491 of
+`hips/goldens/hips_fixture_m31_mosaic.png` (a 3 x 2 degree field), which is the
+field a 6248 x 4176 sensor at 1.41"/px covers, converted to grayscale with a
+light black-point and gamma adjustment.
 
-It is used by `test/golden/public_screenshots_test.dart` as the captured frame
-in the Imaging and Tonight screenshots, so the published screenshots show a
-real astronomical image rather than an empty viewer or a synthetic starfield.
-
-The PNG is the FITS after one offline pass: a robust black point at the 10th
-percentile, white at the 99.9th, an asinh stretch, and a vertical flip for the
-FITS bottom-left origin. Doing it offline keeps a FITS decoder out of the test.
+It is used by `test/golden/public_screenshots_test.dart` as the luminance frame
+on the Tonight stage and in the Imaging viewer, so the published screenshots
+of the M31 run show a real image of M31.
 
 The DSS plates are made available for non-commercial use by the Space Telescope
 Science Institute; the surveys were produced at STScI under U.S. Government

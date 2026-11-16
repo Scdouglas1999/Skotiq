@@ -153,8 +153,12 @@ written only when explicitly asked for:
 # the design-language boards (docs/design/goldens/)
 SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/ # in skotiq_ui / skotiq_app
 
-# the 12 public screenshots (assets/screenshots/)
-SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/public_screenshots_test.dart
+# the public screenshots (assets/screenshots/): the desktop set, then the
+# phone set, which needs the system window frame so it has no window controls
+TZ=America/New_York SKOTIQ_CAPTURE_ASSETS=1 flutter test --tags golden \
+  test/golden/public_screenshots_test.dart
+TZ=America/New_York SKOTIQ_CAPTURE_ASSETS=1 SKOTIQ_SYSTEM_DECORATIONS=1 \
+  flutter test --tags golden test/golden/public_screenshots_test.dart
 ```
 
 Both are rendered by the running app's real screens, so capture them on the

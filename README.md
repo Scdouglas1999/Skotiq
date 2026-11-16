@@ -20,9 +20,9 @@ Plan, capture, calibrate and integrate in one astrophotography workspace.
 
 [**Download 9.0.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v9.0.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/c/SeanDouglas)
 
-<img src="assets/screenshots/live-dashboard.png" width="1000" alt="Skotiq Tonight during an active NGC 891 imaging run: live exposure progress, frame quality, guide history, focus and connected equipment">
+<img src="assets/screenshots/tonight.png" width="1000" alt="Skotiq Tonight during a three-target LRGB run on M31: the plan and its steps, the latest frame, the frame strip, HFR, guiding and focus history, and the connected equipment">
 
-<sub>An actual imaging session on October 26, 2026. The displayed light frame is raw, before calibration.</sub>
+<sub>Rendered from the app over a sample night. The frame is M31 from the Digitized Sky Survey.</sub>
 
 </div>
 
@@ -47,7 +47,7 @@ host can keep the observatory running while clients connect and disconnect.
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshots/plan-tonight.png" width="100%" alt="Skotiq Plan scoring 1446 catalog targets for tonight, each with its transit time, altitude and time above the horizon, beside a detail pane giving IC 356's altitude curve, object type, magnitude, suggested filter and its distance from the Moon">
+<img src="assets/screenshots/plan-best-tonight.png" width="100%" alt="Skotiq Plan ranking the OpenNGC catalog for tonight, each target with its transit time, altitude and time above 30 degrees, beside the top pick's altitude curve, size against the camera field and the reasons it was chosen">
 <p><b>Work out what to shoot.</b> Everything in the catalog, scored for tonight against
 how high it gets, when it transits, how long it stays up, where the Moon is and what your
 horizon blocks. Click one and you get its altitude curve and a suggested exposure.</p>
@@ -61,12 +61,12 @@ Mosaic panels get laid out here too.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq equipment screen on a live rig: a ZWO ASI1600MM-Cool camera reading 7.1°C, a Pegasus NYX-101 mount, a ZWO EAF focuser at position 45459, an eight-slot filter wheel on DARK and PHD2 guiding all connected at once, with the startup auto-connect log reporting five of five devices succeeded">
+<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq Equipment with a ZWO ASI2600MM Pro at -10 °C, a Sky-Watcher EQ6-R Pro tracking, a ZWO EAF focuser, a seven-slot filter wheel and PHD2 guiding all connected, beside the profile's readiness and device health">
 <p><b>Connect once.</b> Save the rig as a profile — camera, mount, focuser, filter wheel,
 guider and the optics in front of them — and it brings the lot back next time.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/sequencer.png" width="100%" alt="Skotiq sequencer with the real NGC 891 plan loaded: acquire target, a smart-exposure loop through L R G and B filters, a meridian flip with watchdog, and the dawn teardown steps, as a table with counts and clock times">
+<img src="assets/screenshots/sequencer.png" width="100%" alt="Skotiq Sequencer with a three-target plan running: NGC 7331, M31 and M1 each acquired, then an LRGB exposure block and a meridian flip watchdog, and the dawn teardown steps, as a table with counts and clock times">
 <p><b>Build the run.</b> Steps you drag together: cool the camera, autofocus, loop through
 filters, dither, flip, park. A twelve-hour run reads as a table with counts and finish
 times rather than a tree you scroll through.</p>
@@ -74,12 +74,12 @@ times rather than a tree you scroll through.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/imaging.png" width="100%" alt="Skotiq imaging on the live rig between sessions: FITS 16-bit capture settings, free disk space and the camera temperature readout, with the frame viewer and session panel waiting for the next run">
+<img src="assets/screenshots/imaging.png" width="100%" alt="Skotiq Imaging showing the latest M31 frame with its HFR and star count, beside the capture settings and the session's frame count and integration">
 <p><b>Watch the frames come in.</b> Star count, HFR and eccentricity measured off each
 frame as it lands, so you find out focus has drifted before you've lost an hour to it.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/guiding.png" width="100%" alt="Skotiq guiding with PHD2 connected to the live rig: the guide trace, RMS and star statistics, and the dither and calibration controls alongside">
+<img src="assets/screenshots/guiding.png" width="100%" alt="Skotiq Guiding with PHD2: the guide star, an RA and Dec trace at 0.66 arcseconds RMS, star statistics, and the dither and calibration controls alongside">
 <p><b>Guide without alt-tabbing.</b> Drive PHD2 from here, or use the built-in multi-star
 guider. Capture waits for the dither to settle either way.</p>
 </td>
@@ -94,13 +94,13 @@ answer about whether it's safe to carry on.</p>
 <td valign="top">
 <img src="assets/screenshots/darkroom-draft.png" width="100%" alt="Skotiq darkroom showing a real L-filter master of NGC 891 from the previous night's run, edge-on galaxy visible, with the processing recipe listing background extraction and denoise stages beside it">
 <p><b>Process what you shot.</b> The Darkroom stacks each filter's frames into masters
-and drafts the color composite for you at dawn — the NGC 891 master above came out of
-the nights pictured throughout this page.</p>
+and drafts the color composite for you at dawn. The NGC 891 master above came out of
+a real run in October 2026.</p>
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top">
-<img src="assets/screenshots/analytics.png" width="100%" alt="Skotiq analytics history on the live rig: the October 21 and 22 NGC 891 sessions listed with elapsed time, frames returned, integration and median HFR, beside a completed ninety-frame darks and bias run">
+<img src="assets/screenshots/analytics-history.png" width="100%" alt="Skotiq Analytics History: totals over every night on record, then each night with its run, status, elapsed time, frames, integration and median HFR">
 <p><b>Look back at it.</b> Every session with its frame count, integration time and
 median HFR, the guiding history, and what the automation decided and why. Frames get
 labeled, never deleted or thrown out for you.</p>

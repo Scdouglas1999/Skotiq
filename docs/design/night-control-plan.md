@@ -305,7 +305,7 @@ Waves: **P0** first → **P1a, P1b, P2, P3** in parallel → **P4, P5, P6, P7** 
 - Add `t/night_control_owner_window_test.dart` (pattern: `test/screens/imaging/imaging_owner_window_layout_test.dart`): the real shell at 1536x864, DPR 1, rail expanded and collapsed, every state on the boards (Ready, Running, autofocus running, each tab), with `takeException()` null and the action bar not overflowing.
 - Add `test/golden/night_control_golden_test.dart`, a **capture golden** (not pixel-diff) writing `docs/design/goldens/night-control-{ready,running,focus,mount,guide,solve,camera}.png` via `surface_golden_harness.dart`.
 
-**Goldens:** regenerate on Linux only, with `SKOTIQ_CAPTURE_ASSETS=1`, for preview. Also regenerate `assets/screenshots/desktop-dashboard.png` through `public_screenshots_test.dart`. Don't commit a regenerated PNG unless the owner asks. The pixel-diff (`matchesGoldenFile`) suites are unaffected.
+**Goldens:** regenerate on Linux only, with `SKOTIQ_CAPTURE_ASSETS=1`, for preview. Also regenerate `assets/screenshots/tonight.png` through `public_screenshots_test.dart`. Don't commit a regenerated PNG unless the owner asks. The pixel-diff (`matchesGoldenFile`) suites are unaffected.
 
 ---
 
