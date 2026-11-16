@@ -3,7 +3,15 @@ part of '../network_backend.dart';
 // Long-running device commands use the shared job transport implemented by
 // _NetworkBackendRemoteOperations.
 
-mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
+mixin _NetworkBackendDeviceOperations on NetworkBackendTransport {
+  @override
+  void invalidateDeviceCache() {
+    Log.info('[NetworkBackend] Cache invalidated', source: 'NetworkBackend');
+    _cachedDevices = null;
+    _cachedDevicesByType = null;
+    _cacheTimestamp = null;
+  }
+
   Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
@@ -141,15 +149,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         ? response['devices']
         : response['available'];
     return _rowsFromJson<Map<String, dynamic>>(source, (row) => row);
-  }
-
-  /// Invalidate device cache (called when "Scan Network" is clicked)
-  @override
-  void invalidateDeviceCache() {
-    Log.info('[NetworkBackend] Cache invalidated', source: 'NetworkBackend');
-    _cachedDevices = null;
-    _cachedDevicesByType = null;
-    _cacheTimestamp = null;
   }
 
   @override
@@ -397,43 +396,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     }
   }
 
-  /// [maxWidth] asks the host for a smaller JPEG; the frame still comes
-  /// back at the sensor's size (see [capturedImageFromRemoteJpegWire]), so
-  /// overlays and zoom keep their geometry. Null is the full frame.
-  @override
-  Future<CapturedImageResult?> cameraGetLastImage(
-    String deviceId, {
-    int? maxWidth,
-  }) async {
-    try {
-      final downloaded = await _downloadBytesWithHeaders(
-        DeviceApi.cameraGetLastImageJpeg,
-        query: {
-          'deviceId': deviceId,
-          if (maxWidth != null) 'maxWidth': '$maxWidth',
-        },
-      );
-      final metaHeader = _headerValue(downloaded.headers, 'x-image-meta');
-      if (metaHeader == null || metaHeader.isEmpty) {
-        throw const dart_error.SkotiqError(
-          category: dart_error.BackendErrorCategory.validation,
-          message:
-              'GET /api/camera/last-image/jpeg missing x-image-meta header',
-        );
-      }
-      return await decodeRemoteJpegWire(
-        jpegBytes: downloaded.bytes,
-        metaHeaderBase64: metaHeader,
-      );
-    } on ServerError catch (e) {
-      // No image cached yet.
-      if (e.httpStatus == 404 || e.code == 'no_image') {
-        return null;
-      }
-      rethrow;
-    }
-  }
-
   String? _headerValue(Map<String, String> headers, String name) {
     final lower = name.toLowerCase();
     for (final entry in headers.entries) {
@@ -442,32 +404,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       }
     }
     return null;
-  }
-
-  /// Remote-only: start the gradual camera warm-up on the host, which runs
-  /// the ramp next to the camera. Returns the host's outcome name (see
-  /// `CameraWarmupOutcome`).
-  Future<String> cameraStartHostWarmUp({double ratePerMin = 2.0}) async {
-    final response = await _post(
-      DeviceApi.cameraStartWarmUp,
-      body: {'ratePerMin': ratePerMin},
-    );
-    return response['outcome'] as String? ?? 'started';
-  }
-
-  /// Remote-only: stop the host's warm-up. With [restorePriorSetting] the
-  /// cooler goes back to the set-point it held before the warm-up.
-  Future<void> cameraCancelHostWarmUp({bool restorePriorSetting = true}) async {
-    await _post(
-      DeviceApi.cameraCancelWarmUp,
-      body: {'restorePriorSetting': restorePriorSetting},
-    );
-  }
-
-  /// Remote-only: whether the host is warming the camera.
-  Future<bool> cameraHostIsWarming() async {
-    final response = await _get(DeviceApi.cameraGetWarmUp);
-    return response['warming'] == true;
   }
 
   @override
@@ -974,5 +910,42 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       DeviceApi.rotatorSync,
       body: {'deviceId': deviceId, 'positionAngle': pa},
     );
+  }
+
+  /// [maxWidth] asks the host for a smaller JPEG; the frame still comes
+  /// back at the sensor's size (see [capturedImageFromRemoteJpegWire]), so
+  /// overlays and zoom keep their geometry. Null is the full frame.
+  @override
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async {
+    try {
+      final downloaded = await _downloadBytesWithHeaders(
+        DeviceApi.cameraGetLastImageJpeg,
+        query: {
+          'deviceId': deviceId,
+          if (maxWidth != null) 'maxWidth': '$maxWidth',
+        },
+      );
+      final metaHeader = _headerValue(downloaded.headers, 'x-image-meta');
+      if (metaHeader == null || metaHeader.isEmpty) {
+        throw const dart_error.SkotiqError(
+          category: dart_error.BackendErrorCategory.validation,
+          message:
+              'GET /api/camera/last-image/jpeg missing x-image-meta header',
+        );
+      }
+      return await decodeRemoteJpegWire(
+        jpegBytes: downloaded.bytes,
+        metaHeaderBase64: metaHeader,
+      );
+    } on ServerError catch (e) {
+      // No image cached yet.
+      if (e.httpStatus == 404 || e.code == 'no_image') {
+        return null;
+      }
+      rethrow;
+    }
   }
 }

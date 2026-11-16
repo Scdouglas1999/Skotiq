@@ -41,7 +41,7 @@ import 'package:skotiq_core/src/providers/scheduler_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/session_optimizer_provider.dart'
     show dismissedSessionInsightsProvider;
-import 'package:skotiq_core/src/services/home_assistant/home_assistant_discovery_config.dart';
+import 'package:skotiq_core/src/models/notification/home_assistant_discovery_config.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart'
     show PushNotificationConfig;
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';

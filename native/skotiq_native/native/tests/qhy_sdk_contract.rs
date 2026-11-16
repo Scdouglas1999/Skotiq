@@ -254,7 +254,10 @@ mod sdk_contract {
             (10, 6, 20, 12)
         );
         assert_eq!(frame.metadata.exposure_time, 0.01);
-        assert_eq!((frame.metadata.gain, frame.metadata.offset), (55, 9));
+        assert_eq!(
+            (frame.metadata.gain, frame.metadata.offset),
+            (Some(55), Some(9))
+        );
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_GAIN), 55.0);
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_OFFSET), 9.0);
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_US), 10_000.0);
@@ -524,7 +527,10 @@ mod sdk_contract {
         )
         .await;
         assert_eq!(frame.bits_per_pixel, 16);
-        assert_eq!((frame.metadata.gain, frame.metadata.offset), (55, 9));
+        assert_eq!(
+            (frame.metadata.gain, frame.metadata.offset),
+            (Some(55), Some(9))
+        );
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_GAIN), 55.0);
         assert_eq!(fake.get(COLOR_CMOS, key::STARTED_OFFSET), 9.0);
         cam.disconnect().await.unwrap();

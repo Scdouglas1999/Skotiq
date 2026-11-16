@@ -7,17 +7,15 @@
 
 use super::{no_preview, Camera, ExposureAborts};
 use crate::device::DriverType;
-use crate::device_capabilities::driver::camera_capabilities;
-use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
-use crate::device_manager::ops::camera::camera_setting_or_unknown;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{
-    CameraDriver, DriverError, ExposureAbort, ExposureParams, ImageData, SubFrame,
+    CameraDescription, CameraDriver, DriverError, ExposureAbort, ExposureParams, ImageData,
+    SubFrame,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -278,43 +276,7 @@ impl Camera for DriverCamera {
     async fn status(&self) -> Result<crate::device::CameraStatus, DeviceOpError> {
         let camera = self.driver.read().await.ok_or_else(|| self.gone())?;
         let report = camera.report().await.map_err(DeviceOpError::from)?;
-        let (status, sensor) = (report.status, report.sensor);
-        Ok(crate::device::CameraStatus {
-            connected: camera.is_connected(),
-            state: match status.state {
-                skotiq_device::CameraState::Idle => crate::device::CameraState::Idle,
-                skotiq_device::CameraState::Waiting => crate::device::CameraState::Waiting,
-                skotiq_device::CameraState::Exposing => crate::device::CameraState::Exposing,
-                skotiq_device::CameraState::Reading => crate::device::CameraState::Reading,
-                skotiq_device::CameraState::Downloading => crate::device::CameraState::Download,
-                skotiq_device::CameraState::Error => crate::device::CameraState::Error,
-            },
-            sensor_temp: status.sensor_temp,
-            cooler_power: status.cooler_power,
-            target_temp: status.target_temp,
-            cooler_on: status.cooler_on,
-            gain: camera_setting_or_unknown(status.gain),
-            offset: camera_setting_or_unknown(status.offset),
-            bin_x: status.bin_x,
-            bin_y: status.bin_y,
-            sensor_width: sensor.width,
-            sensor_height: sensor.height,
-            pixel_size_x: sensor.pixel_size_x,
-            pixel_size_y: sensor.pixel_size_y,
-            // The driver owns this value: it is the largest value in the
-            // delivered pixels, not `2^bit_depth - 1` (see
-            // `skotiq_device::SensorInfo`). 0 is a driver that never filled
-            // it in; 65535 is the container's ceiling.
-            max_adu: if sensor.max_adu == 0 {
-                65535
-            } else {
-                sensor.max_adu
-            },
-            saturation_adu: sensor.saturation_adu,
-            can_cool: report.can_cool,
-            can_set_gain: report.can_set_gain,
-            can_set_offset: report.can_set_offset,
-        })
+        Ok(super::camera_status(report, camera.is_connected()))
     }
 
     async fn recommended_settings(
@@ -379,17 +341,13 @@ impl Camera for DriverCamera {
 
     /// A snapshot: a read the driver refuses mid-transition leaves its field
     /// absent, and the equipment view re-reads on its timer.
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    async fn describe(&self, device_id: &str) -> Result<CameraDescription, SkotiqError> {
         let camera = self.driver.read().await.ok_or_else(|| {
             SkotiqError::hardware_error(
                 device_id,
                 format!("{} camera not connected", self.protocol.name),
             )
         })?;
-        let status = camera.get_status().await.ok();
-        Ok(DeviceCapabilities::Camera(camera_capabilities(
-            camera.describe().await,
-            status.as_ref(),
-        )))
+        Ok(camera.describe().await)
     }
 }

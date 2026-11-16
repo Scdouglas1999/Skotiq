@@ -44,7 +44,7 @@ import '../../database/daos/mosaic_projects_dao.dart';
 import '../../models/imaging/mosaic_project.dart' show MosaicProject;
 import '../constellation/constellation_models.dart'
     show CollabMosaic, ConstellationException;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'collaborative_mosaic_service.dart';
 import 'mosaic_upload_consent.dart';
 

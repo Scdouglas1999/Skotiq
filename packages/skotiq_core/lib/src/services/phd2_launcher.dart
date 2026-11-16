@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../providers/ui_notification_provider.dart';
-import 'phd2_status_poll.dart';
+import '../backend/phd2_status_poll.dart';
 
 /// Auto-launches PHD2 on the local machine and waits for its socket to
 /// come up.

@@ -17,7 +17,7 @@ import 'shell_help_popover.dart';
 import 'window_chrome_stub.dart'
     if (dart.library.io) 'window_chrome_desktop.dart' as window_impl;
 import '../../../router/app_routes.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// The host window's maximize and full-screen flags, as the shell last heard
 /// them. The resize edges and the app-drawn hairline gate on this: an

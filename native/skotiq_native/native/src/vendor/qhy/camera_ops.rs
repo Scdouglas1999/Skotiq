@@ -1,7 +1,7 @@
 //! `DeviceDriver` / `CameraDriver` implementations for `QhyCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, Frame, SampleLayout, SdkHandle};
+use crate::camera_core::{unpack_samples, SampleLayout, SdkHandle};
 
 /// `ControlQHYCCDShutter` states (qhyccdstruct.h). Lights and flats leave the
 /// shutter to the camera ("free"), as INDI does.
@@ -330,26 +330,24 @@ impl CameraDriver for QhyCamera {
             bpp,
             self.camera_id
         );
-        Ok(Frame {
-            temperature,
-            vendor_data,
-            ..self.core.frame(
-                width,
-                height,
-                data,
-                bpp,
-                frame_bayer(
-                    self.core
-                        .sensor_info
-                        .bayer_pattern
-                        .and_then(|cfa| cfa.bayer()),
-                    self.core.bin_x,
-                    self.core.subframe.as_ref(),
-                )
-                .map(Into::into),
+        let mut image = self.core.frame(
+            width,
+            height,
+            data,
+            bpp,
+            frame_bayer(
+                self.core
+                    .sensor_info
+                    .bayer_pattern
+                    .and_then(|cfa| cfa.bayer()),
+                self.core.bin_x,
+                self.core.subframe.as_ref(),
             )
-        }
-        .into_image())
+            .map(Into::into),
+        );
+        image.metadata.temperature = temperature;
+        image.metadata.vendor_data = vendor_data;
+        Ok(image)
     }
 
     async fn set_cooler(

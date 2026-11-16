@@ -15,12 +15,13 @@ import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
-import 'optical_train_limits.dart';
-import '../backend/roles/host_data/host_profiles.dart';
+import '../models/optical_train_limits.dart';
+import '../backend/network_backend.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/async_scope.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
+import '../database/rows/equipment_profile_rows.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -160,7 +161,7 @@ class ProfileService {
       exportData = profiles
           .map(
             (p) => ProfileExportData.fromModel(
-              EquipmentProfileModel.fromRemoteProfile(p),
+              equipmentProfileFromRemote(p),
             ),
           )
           .toList();

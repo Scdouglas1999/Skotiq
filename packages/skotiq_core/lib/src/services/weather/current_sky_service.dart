@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../models/weather/cloud_cover_forecast.dart';
 import '../../models/weather/current_sky.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'providers/metar_station_provider.dart';
 import 'providers/metno_cloud_provider.dart';
 import 'transient_http_retry.dart';

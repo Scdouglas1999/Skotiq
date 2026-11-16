@@ -5,8 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_desktop/headless_api/response_helpers.dart';
+import 'package:skotiq_core/errors.dart';
 
 void main() {
   group('jsonError', () {

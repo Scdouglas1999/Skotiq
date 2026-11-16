@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/disk_space_service.dart';
+import 'package:skotiq_core/src/models/disk_space.dart';
 
 /// Observed on the desktop dashboard 2026-08-10: the Readiness panel read
 /// "Disk query failed" for a capture folder that simply was not on this

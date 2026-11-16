@@ -754,7 +754,7 @@ async fn capture_secondary_frame(
         telescope_aperture_mm: config.telescope_aperture_mm,
         ..Default::default()
     };
-    let filter_name = config.filter_name.clone().or_else(|| image.filter.clone());
+    let filter_name = config.filter_name.clone();
     let mut ctx = crate::instructions::sample_frame_context(
         device_ops.as_ref(),
         &crate::instructions::CaptureFacts {
@@ -767,7 +767,6 @@ async fn capture_secondary_frame(
             filter: (filter_name.as_deref(), None),
             target_name: meta.target_name.as_deref(),
             set_temp_c: config.target_temp_c,
-            bayer_pattern: None,
         },
         &image,
     )
@@ -785,7 +784,7 @@ async fn capture_secondary_frame(
         index_in_burst: frame_index,
         burst_total: config.frame_count.unwrap_or(0),
         started_at: exposure_started_at,
-        sensor_temp_c: image.temperature,
+        sensor_temp_c: image.metadata.temperature,
     })?;
     let path_str = dir.join(&file_name).to_string_lossy().to_string();
 

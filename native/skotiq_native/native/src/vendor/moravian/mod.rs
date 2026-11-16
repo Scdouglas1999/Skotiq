@@ -8,7 +8,7 @@
 //! Reference drivers: INDI `indi-mi/mi_ccd.cpp` (libgxccd, maintained by
 //! Moravian) and NINA `MoravianCamera.cs` (the Windows DLLs).
 
-use crate::camera_core::{CameraCore, Frame, SdkHandle};
+use crate::camera_core::{CameraCore, SdkHandle};
 use async_trait::async_trait;
 use skotiq_cfa::BayerPattern;
 use skotiq_device::camera::{

@@ -17,6 +17,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart';
 
 class _MockBackupService extends Mock implements BackupService {}
 

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-import 'package:skotiq_plugins/src/plugin_registration.dart';
 
 /// A minimal [SequencePlugin] that captures its context and can emit an
 /// arbitrary event through the host event bus on demand, so tests can drive

@@ -6,7 +6,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'watch_complication_service.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// bridges Riverpod sequence + weather state to the Apple Watch
 /// complication.

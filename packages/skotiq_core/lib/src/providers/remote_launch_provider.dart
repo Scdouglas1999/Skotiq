@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show RemotePairingClient;
 
-import '../models/errors/server_error.dart';
-import '../models/errors/skotiq_error.dart';
+import '../errors/server_error.dart';
+import '../errors/skotiq_error.dart';
 import 'backend_provider.dart';
 import 'profiles_provider.dart' show equipmentProfilesProvider;
 import 'settings_provider.dart' show appSettingsProvider;

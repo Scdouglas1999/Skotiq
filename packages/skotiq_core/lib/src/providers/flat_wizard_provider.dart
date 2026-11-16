@@ -17,7 +17,7 @@ import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/imaging/imaging_models.dart' show ExposureSettings, FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
-import '../services/flat_exposure_calculator.dart';
+import '../models/flat_wizard/flat_exposure_calculator.dart';
 import '../services/calibration_backlog_service.dart';
 import '../services/flat_exposure_follower.dart';
 import '../services/frame_identity.dart';
@@ -36,7 +36,7 @@ import '../models/backend/backend_types.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'calibration_backlog_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';

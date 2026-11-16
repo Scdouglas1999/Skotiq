@@ -15,6 +15,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/atlas_handlers.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Minimal [SkyAtlasSeam] — never invoked on the region-not-found path (which
 /// only touches the DAO), but required to construct the service.

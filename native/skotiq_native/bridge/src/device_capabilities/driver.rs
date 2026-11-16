@@ -1,10 +1,12 @@
 //! A camera's or mount's description, as the driver gives it, in the shapes
-//! the application reads. The same for every protocol.
+//! the application reads. The same for every protocol and the simulator.
 
+use crate::device::CameraStatus;
 use crate::device_capabilities::types::{CameraCapabilities, MountCapabilities};
 use crate::device_manager::DeviceManager;
-use skotiq_device::{CameraDescription, CameraStatus, MountDescription};
+use skotiq_device::{CameraDescription, MountDescription};
 
+/// The one shape every camera's description reaches the application in.
 /// `status` adds the cooler's readings; a camera reports cooler power when
 /// its status has a reading of it.
 pub(crate) fn camera_capabilities(
@@ -53,7 +55,7 @@ pub(crate) fn camera_capabilities(
         pixel_size_x: pixel_size(sensor.pixel_size_x),
         pixel_size_y: pixel_size(sensor.pixel_size_y),
         is_color: sensor.color,
-        bayer_pattern: sensor.bayer_pattern.map(|pattern| format!("{:?}", pattern)),
+        bayer_pattern: sensor.bayer_pattern.map(|pattern| pattern.letters()),
         sensor_type,
         has_fast_readout: false,
         readout_modes: readout_modes.into_iter().map(|mode| mode.name).collect(),

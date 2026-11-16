@@ -7,7 +7,7 @@ import '../database/database.dart';
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/site/altitude_floor.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
 ///

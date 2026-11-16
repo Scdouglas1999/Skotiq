@@ -210,10 +210,10 @@ structured_detail) emitted; executor advances to the next node
 | Bridge | `bridge/src/event.rs::SequencerEvent::PluginNodeRequested` | Typed FRB event |
 | Bridge | `bridge/src/event.rs::SequencerEvent::PluginNodeProgress` | Typed FRB event |
 | Bridge | `bridge/src/api/sequencer.rs::api_sequencer_plugin_node_finished` | Reply FRB API |
-| Dart | `skotiq_core/lib/src/providers/plugin_node_dispatcher.dart` | Dispatcher abstraction + provider |
+| Dart | `skotiq_core/lib/src/providers/plugin_node_dispatcher.dart` | Dispatcher provider: runs the node through `PluginNodeExecutor` |
 | Dart | `skotiq_core/lib/src/providers/sequence/sequence_executor.dart::_dispatchPluginNode` | Event → dispatcher → reply |
-| Dart | `skotiq_plugins/lib/src/plugin_node_executor.dart` | Concrete dispatcher implementation |
-| Dart | `skotiq_app/lib/services/plugin_node_dispatcher_wiring.dart` | Riverpod override that plugs `PluginNodeExecutor` into the dispatcher provider |
+| Dart | `skotiq_plugins/lib/src/plugin_node_executor.dart` | Resolves the registration and runs the plugin's node |
+| Dart | `skotiq_core/lib/src/providers/sequence/node_palette.dart::pluginNodeBlueprintsProvider` | Plugin nodes in the Builder's palette |
 
 ### Timeouts
 
@@ -384,9 +384,9 @@ The v2 (Rust dispatch) layer was verified by:
   * `sequence_executor_plugin_dispatch_test.dart` — proves the typed
     `PluginNodeRequested` event routes through the dispatcher provider
     and posts the verdict via `backend.sequencerPluginNodeFinished`.
-* `flutter test packages/skotiq_app/test/services/plugin_node_dispatcher_wiring_test.dart`
-  — proves `pluginNodeDispatcherOverride()` plugs `PluginNodeExecutor`
-  into the dispatcher provider end-to-end: a registered test plugin
+* `flutter test packages/skotiq_core/test/providers/plugin_node_dispatcher_test.dart`
+  — proves `pluginNodeDispatcherProvider` runs `PluginNodeExecutor`
+  end-to-end: a registered test plugin
   receives the parsed `config_json` params, runs `execute()`, and the
   verdict flows back as a `PluginNodeDispatchResult`.
 * `flutter test packages/skotiq_plugins` — still 45/45 pass.

@@ -26,7 +26,7 @@ import '../models/backend/event_types.dart' as core_events;
 import '../services/usb_disconnect_log.dart';
 import 'backend_provider.dart';
 import 'logging_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Singleton log per provider container.
 ///

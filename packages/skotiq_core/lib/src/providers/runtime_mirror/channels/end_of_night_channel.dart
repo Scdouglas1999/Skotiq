@@ -1,8 +1,8 @@
 import '../../end_of_night_calibration/eon_providers.dart';
-import '../../../services/end_of_night_calibration/eon_service.dart';
 import '../../host_end_of_night_provider.dart';
 import '../../ui_notification_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../../../models/calibration/eon_status.dart';
 
 /// Where the host's end-of-night calibration stands: its phase, what it is
 /// doing, and while it waits for a cap, when the darks are skipped. The

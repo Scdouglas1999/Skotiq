@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/collaboration_handlers.dart';
 import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

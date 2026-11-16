@@ -5,7 +5,7 @@ import 'package:skotiq_core/utils.dart' show ExportTarget, chooseExportTarget;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Result of a "download this remote file to the device" flow.
 ///

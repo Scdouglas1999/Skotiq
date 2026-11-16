@@ -12,6 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'depthlock_test_doubles.dart';
+import 'package:skotiq_core/errors.dart';
 
 Future<void> _openEditor(
   WidgetTester tester, {

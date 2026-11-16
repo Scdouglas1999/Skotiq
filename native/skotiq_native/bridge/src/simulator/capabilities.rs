@@ -1,191 +1,117 @@
-use crate::device::DeviceType;
-use crate::device_capabilities::types::{
-    CameraCapabilities, DeviceCapabilities, MountCapabilities,
-};
-use crate::device_id::{ConnectionInfo, ParsedDeviceId};
-use crate::error::SkotiqError;
+//! What the simulated camera and mount say they can do.
 
-/// Resolve the device-type token carried by a parsed simulator id.
-///
-/// `ParsedDeviceId::parse` splits the legacy `sim_<type>_<instance>` form on
-/// underscores, so a multi-word type arrives truncated to its first word
-/// (`sim_safety_monitor_1` yields `safety`, `sim_cover_calibrator_1` yields
-/// `cover`); the canonical `simulator:<type>` form carries the whole word.
-/// Both spellings must resolve to the same type — matching on substrings of
-/// the raw id instead let `sim_safety_monitor_1` and `sim_cover_calibrator_1`
-/// miss every branch and be reported to the app as a default camera.
-fn simulator_device_type(token: &str) -> Option<DeviceType> {
-    match token {
-        "camera" => Some(DeviceType::Camera),
-        "mount" | "telescope" => Some(DeviceType::Mount),
-        "focuser" => Some(DeviceType::Focuser),
-        "filter" | "filterwheel" => Some(DeviceType::FilterWheel),
-        "guider" => Some(DeviceType::Guider),
-        "rotator" => Some(DeviceType::Rotator),
-        "dome" => Some(DeviceType::Dome),
-        "cover" | "covercalibrator" | "flatpanel" => Some(DeviceType::CoverCalibrator),
-        "weather" | "observingconditions" => Some(DeviceType::Weather),
-        "safety" | "safetymonitor" => Some(DeviceType::SafetyMonitor),
-        "switch" => Some(DeviceType::Switch),
-        _ => None,
+use crate::device_capabilities::types::MountCapabilities;
+use skotiq_device::{CameraCapabilities, CameraDescription, SensorInfo};
+
+/// The simulated camera `device_id` names: the guide camera, a DSLR that
+/// shoots at ISO speeds, or the imaging camera with the traits it was given.
+pub(crate) fn camera_description(device_id: &str) -> CameraDescription {
+    use crate::simulator::camera::{
+        is_sim_guide_camera, sim_camera_iso_speeds, sim_imaging_camera_traits, SIM_GUIDE_PIXEL_UM,
+        SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W,
+    };
+    use crate::simulator::frame::{SIM_H, SIM_MAX_ADU, SIM_W};
+    let sensor = |width: u32, height: u32, pixel_um: f64, bit_depth: u32| SensorInfo {
+        width,
+        height,
+        pixel_size_x: pixel_um,
+        pixel_size_y: pixel_um,
+        max_adu: u32::from(SIM_MAX_ADU),
+        bit_depth,
+        ..Default::default()
+    };
+    if is_sim_guide_camera(device_id) {
+        return CameraDescription {
+            capabilities: CameraCapabilities {
+                can_set_gain: true,
+                can_set_offset: true,
+                can_set_binning: true,
+                can_subframe: true,
+                max_bin_x: 2,
+                max_bin_y: 2,
+                ..Default::default()
+            },
+            sensor: sensor(
+                SIM_GUIDE_SENSOR_W,
+                SIM_GUIDE_SENSOR_H,
+                SIM_GUIDE_PIXEL_UM,
+                16,
+            ),
+            gain_range: Some((0, 100)),
+            offset_range: Some((0, 255)),
+            exposure_range: Some((0.001, 60.0)),
+            can_abort_exposure: true,
+            can_stop_exposure: true,
+            ..Default::default()
+        };
+    }
+    let iso_speeds = sim_camera_iso_speeds(device_id).to_vec();
+    if !iso_speeds.is_empty() {
+        return CameraDescription {
+            capabilities: CameraCapabilities {
+                can_set_gain: true,
+                has_shutter: true,
+                ..Default::default()
+            },
+            sensor: sensor(SIM_W as u32, SIM_H as u32, 3.76, 14),
+            gain_range: iso_speeds
+                .first()
+                .zip(iso_speeds.last())
+                .map(|(&lo, &hi)| (lo, hi)),
+            iso_speeds,
+            exposure_range: Some((0.001, 3600.0)),
+            can_abort_exposure: true,
+            ..Default::default()
+        };
+    }
+    let traits = sim_imaging_camera_traits();
+    let cooled = !traits.no_cooler;
+    let gain = !traits.no_gain;
+    CameraDescription {
+        capabilities: CameraCapabilities {
+            can_cool: cooled,
+            can_set_gain: gain,
+            can_set_offset: gain,
+            can_set_binning: true,
+            can_subframe: true,
+            has_shutter: true,
+            max_bin_x: 4,
+            max_bin_y: 4,
+            ..Default::default()
+        },
+        sensor: sensor(SIM_W as u32, SIM_H as u32, 3.76, 16),
+        gain_range: gain.then_some((0, 600)),
+        offset_range: gain.then_some((0, 255)),
+        // A representative regulated-cooling range, so the setpoint UI and
+        // its clamping path are exercised end to end.
+        cooler_temp_range: cooled.then_some((-40.0, 40.0)),
+        exposure_range: Some((0.001, 3600.0)),
+        can_abort_exposure: true,
+        can_stop_exposure: true,
+        ..Default::default()
     }
 }
 
-/// Get capabilities for a simulated camera or mount.
-///
-/// Dispatches on the device type the id parses to. A type this module does not
-/// model is an error rather than a default: handing the app a camera stub for
-/// a safety monitor gates the UI on the wrong capabilities and hides the
-/// missing coverage.
-pub(crate) async fn get_simulator_capabilities(
-    parsed: &ParsedDeviceId,
-) -> Result<DeviceCapabilities, SkotiqError> {
-    let ConnectionInfo::Simulator {
-        device_type: token, ..
-    } = &parsed.connection_info
-    else {
-        return Err(SkotiqError::invalid_device_id(
-            &parsed.raw_id,
-            "simulator capabilities requested for a non-simulator device id",
-        ));
-    };
-
-    let device_type = simulator_device_type(token).ok_or_else(|| {
-        SkotiqError::invalid_device_id(
-            &parsed.raw_id,
-            format!("unrecognised simulator device type '{token}'"),
-        )
-    })?;
-
-    let capabilities = match device_type {
-        DeviceType::Camera if crate::simulator::camera::is_sim_guide_camera(&parsed.raw_id) => {
-            use crate::simulator::camera::{
-                SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W,
-            };
-            DeviceCapabilities::Camera(CameraCapabilities {
-                max_width: SIM_GUIDE_SENSOR_W,
-                max_height: SIM_GUIDE_SENSOR_H,
-                bit_depth: 16,
-                has_shutter: false,
-                can_bin: true,
-                max_bin_x: 2,
-                max_bin_y: 2,
-                can_set_gain: true,
-                gain_min: Some(0),
-                gain_max: Some(100),
-                can_set_offset: true,
-                offset_min: Some(0),
-                offset_max: Some(255),
-                can_abort_exposure: true,
-                can_stop_exposure: true,
-                can_subframe: true,
-                pixel_size_x: Some(SIM_GUIDE_PIXEL_UM),
-                pixel_size_y: Some(SIM_GUIDE_PIXEL_UM),
-                is_color: false,
-                exposure_min: Some(0.001),
-                exposure_max: Some(60.0),
-                ..Default::default()
-            })
-        }
-        DeviceType::Camera
-            if !crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id).is_empty() =>
-        {
-            let iso_speeds =
-                crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id).to_vec();
-            DeviceCapabilities::Camera(CameraCapabilities {
-                max_width: crate::simulator::frame::SIM_W as u32,
-                max_height: crate::simulator::frame::SIM_H as u32,
-                bit_depth: 14,
-                has_shutter: true,
-                can_set_gain: true,
-                gain_min: iso_speeds.first().copied(),
-                gain_max: iso_speeds.last().copied(),
-                iso_speeds,
-                can_abort_exposure: true,
-                pixel_size_x: Some(3.76),
-                pixel_size_y: Some(3.76),
-                is_color: false,
-                exposure_min: Some(0.001),
-                exposure_max: Some(3600.0),
-                ..Default::default()
-            })
-        }
-        DeviceType::Camera => {
-            let traits = crate::simulator::camera::sim_imaging_camera_traits();
-            let cooled = !traits.no_cooler;
-            let gain = !traits.no_gain;
-            DeviceCapabilities::Camera(CameraCapabilities {
-                max_width: crate::simulator::frame::SIM_W as u32,
-                max_height: crate::simulator::frame::SIM_H as u32,
-                bit_depth: 16,
-                has_shutter: true,
-                can_set_ccd_temperature: cooled,
-                can_set_cooler: cooled,
-                can_get_cooler_power: cooled,
-                can_bin: true,
-                max_bin_x: 4,
-                max_bin_y: 4,
-                can_asymmetric_bin: false,
-                can_set_gain: gain,
-                gain_min: gain.then_some(0),
-                gain_max: gain.then_some(600),
-                can_set_offset: gain,
-                offset_min: gain.then_some(0),
-                offset_max: gain.then_some(255),
-                can_abort_exposure: true,
-                can_stop_exposure: true,
-                can_subframe: true,
-                pixel_size_x: Some(3.76),
-                pixel_size_y: Some(3.76),
-                is_color: false,
-                exposure_min: Some(0.001),
-                exposure_max: Some(3600.0),
-                // Simulator advertises a representative regulated-cooling range so
-                // the setpoint UI and its clamping path are exercised end-to-end.
-                cooler_min_temp_c: cooled.then_some(-40.0),
-                cooler_max_temp_c: cooled.then_some(40.0),
-                ..Default::default()
-            })
-        }
-        DeviceType::Mount => DeviceCapabilities::Mount(MountCapabilities {
-            can_slew: true,
-            can_slew_async: true,
-            can_sync: true,
-            can_park: true,
-            can_unpark: true,
-            can_set_park: true,
-            can_pulse_guide: true,
-            can_set_tracking: true,
-            is_equatorial: true,
-            can_find_home: true,
-            can_abort_slew: true,
-            axis_count: 2,
-            // Simulator advertises a representative pulse-guide duration range
-            // (1 ms minimum tick to 8 s, the common INDI TIMED_GUIDE ceiling) so
-            // the guide-pulse UI and its range validation are exercised.
-            min_pulse_guide_ms: Some(1.0),
-            max_pulse_guide_ms: Some(8000.0),
-            ..Default::default()
-        }),
-        // These have a handle and answer through it once connected
-        // (`read_capabilities`); an id that reaches here was never registered.
-        DeviceType::Focuser
-        | DeviceType::FilterWheel
-        | DeviceType::Rotator
-        | DeviceType::Dome
-        | DeviceType::CoverCalibrator
-        | DeviceType::Weather
-        | DeviceType::SafetyMonitor
-        | DeviceType::Switch => return Err(SkotiqError::DeviceNotFound(parsed.raw_id.clone())),
-        // No `DeviceCapabilities` variant models a guider; say so rather than
-        // answer with another device's capability set.
-        DeviceType::Guider => {
-            return Err(SkotiqError::not_supported(
-                &parsed.raw_id,
-                "capability reporting for simulated guiders",
-            ))
-        }
-    };
-
-    Ok(capabilities)
+/// The simulated mount.
+pub(crate) fn mount_capabilities() -> MountCapabilities {
+    MountCapabilities {
+        can_slew: true,
+        can_slew_async: true,
+        can_sync: true,
+        can_park: true,
+        can_unpark: true,
+        can_set_park: true,
+        can_pulse_guide: true,
+        can_set_tracking: true,
+        is_equatorial: true,
+        can_find_home: true,
+        can_abort_slew: true,
+        axis_count: 2,
+        // Simulator advertises a representative pulse-guide duration range
+        // (1 ms minimum tick to 8 s, the common INDI TIMED_GUIDE ceiling) so
+        // the guide-pulse UI and its range validation are exercised.
+        min_pulse_guide_ms: Some(1.0),
+        max_pulse_guide_ms: Some(8000.0),
+        ..Default::default()
+    }
 }

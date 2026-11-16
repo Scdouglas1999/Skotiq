@@ -4,7 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 import 'package:skotiq_core/src/models/imaging/sip_terms.dart';
 
 /// v51 wiring: the full anisotropic WCS (four `solved_cd*` scalars + the

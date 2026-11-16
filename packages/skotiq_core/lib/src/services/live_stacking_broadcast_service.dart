@@ -31,7 +31,7 @@ import '../models/sequence/interpolation_catalog.dart'
     show InterpolationVariable, InterpolationVariableGroup;
 import '../models/sequence/sequence_models.dart'
     show LiveStackingMethod, LiveStackingMode, LiveStackingNode;
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'share_card_renderer.dart';
 import '../providers/logging_service_provider.dart';
 

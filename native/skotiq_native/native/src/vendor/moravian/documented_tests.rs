@@ -616,7 +616,7 @@ fn gain_is_a_register_from_zero_to_the_reported_maximum() {
     p.gain = Some(2750);
     let image = expose(&mut camera, &api, &p);
     assert_eq!(api.st().gain, Some(2750));
-    assert_eq!(image.metadata.gain, 2750);
+    assert_eq!(image.metadata.gain, Some(2750));
     p.gain = Some(4031);
     assert!(matches!(
         camera.begin(&api, &p),

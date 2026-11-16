@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/startup/plugin_node_palette_wiring.dart';
 import 'package:skotiq_app/startup/plugin_runtime_bootstrap.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
@@ -12,10 +11,7 @@ void main() {
   test('startup bootstrap registers bundled nodes without opening settings',
       () async {
     final container = ProviderContainer(
-      overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodePaletteBlueprintsOverride()
-      ],
+      overrides: [inMemoryDatabaseOverride()],
     );
     addTearDown(container.dispose);
 

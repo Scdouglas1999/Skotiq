@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/startup_timeline.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _RecordingLogger extends LoggingService {
   final List<(String, Map<String, Object?>?)> infos = [];

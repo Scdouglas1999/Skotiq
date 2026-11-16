@@ -93,12 +93,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
         final remoteProfiles = await host.getProfiles();
         final activeRemote = await host.getActiveProfile();
         final profiles =
-            remoteProfiles.map(EquipmentProfileModel.fromRemoteProfile).toList()
+            remoteProfiles.map(equipmentProfileFromRemote).toList()
               ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
         EquipmentProfileModel? active;
         if (activeRemote != null) {
-          active = EquipmentProfileModel.fromRemoteProfile(activeRemote);
+          active = equipmentProfileFromRemote(activeRemote);
         } else {
           for (final profile in profiles) {
             if (profile.isActive) {
@@ -131,11 +131,11 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     final databaseActive = await activeFuture;
 
     final profiles = databaseProfiles
-        .map((profile) => EquipmentProfileModel.fromDatabase(profile))
+        .map((profile) => profile.toModel())
         .toList();
     final active = databaseActive == null
         ? null
-        : EquipmentProfileModel.fromDatabase(databaseActive);
+        : databaseActive.toModel();
 
     return EquipmentProfilesState(profiles: profiles, activeProfile: active);
   }
@@ -255,7 +255,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
         id,
         _changedColumns(
           dao.equipmentProfiles,
-          loaded ?? EquipmentProfileModel.fromDatabase(stored),
+          loaded ?? stored.toModel(),
           profile,
         ),
       );

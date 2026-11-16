@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
+import 'package:skotiq_core/utils.dart';
 
 /// Contract coverage for [ProfileService.autoConnectOnStartup] — the single
 /// core the `equipment auto-connect` host start-up step (`hostAutoConnect`)

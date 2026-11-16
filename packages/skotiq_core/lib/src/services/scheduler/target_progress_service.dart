@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';

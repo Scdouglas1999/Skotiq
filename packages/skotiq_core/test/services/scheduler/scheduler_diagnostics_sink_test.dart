@@ -13,7 +13,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 import 'package:skotiq_core/src/services/scheduler/scheduler_engine.dart';
 import 'package:skotiq_core/src/services/scheduler/scheduler_log.dart';
 

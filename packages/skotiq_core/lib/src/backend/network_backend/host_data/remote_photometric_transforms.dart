@@ -1,5 +1,5 @@
 import '../../../models/science/science_models.dart';
-import '../../roles/host_data/host_science.dart';
+import '../../network_backend.dart';
 import '../../roles/host_data/photometric_transforms.dart';
 
 /// Transform fits made and stored by a linked host.

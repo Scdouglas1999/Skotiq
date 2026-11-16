@@ -15,7 +15,7 @@ import 'sidebar_shared_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;

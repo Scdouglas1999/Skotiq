@@ -12,7 +12,7 @@ import '../backend_provider.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
 import '../logging_service_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 const _logSource = 'ClientRuntimeMirror';
 
