@@ -1,12 +1,7 @@
 {
   "_about": "Sites that existed when tools/production/architecture_rules_audit.dart was added (2026-11-11). Counts per key; only a count above these fails. --sync-baseline lowers counts and drops fixed entries; it never adds. Add an entry by hand only with a reason.",
   "backendClass": {
-    "allowed": {
-      "file_paths.dart::_ImagingServiceFilePaths._nextKeeperFrameNumber": {
-        "count": 1,
-        "reason": "Downcast to reach the host's file listing for keeper numbering; belongs on a HostFiles role member. Existing when the gate was added."
-      }
-    }
+    "allowed": {}
   },
   "nodeDispatch": {
     "allowed": {
@@ -58,14 +53,7 @@
   },
   "srcImport": {
     "note": "Existing imports of another package's src/ files. Fix by importing the public library (export the name there if needed), then run --sync-baseline.",
-    "allowed": {
-      "skotiq_app -> package:skotiq_core/src/backend/skotiq_exception.dart": 1,
-      "skotiq_app -> package:skotiq_plugins/src/plugin_host.dart": 1,
-      "skotiq_app -> package:skotiq_plugins/src/plugin_registration.dart": 5,
-      "skotiq_core -> package:skotiq_plugins/src/plugin_host.dart": 1,
-      "skotiq_core -> package:skotiq_plugins/src/plugin_registration.dart": 2,
-      "skotiq_core -> package:skotiq_remote_protocol/src/push/lan_push_broadcaster.dart": 1
-    }
+    "allowed": {}
   },
   "coreLayers": {
     "allowed": {

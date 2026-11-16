@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import 'live_activity_service.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// bridges the running sequence state to an iOS Live Activity.
 ///

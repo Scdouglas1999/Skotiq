@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../backend/device_capabilities.dart' show TrackingRate;
 import '../../errors/error_text.dart';
 import '../../errors/error_text_kind.dart';
-import '../errors/skotiq_error.dart';
+import '../../errors/skotiq_error.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
 export '../backend/device_capabilities.dart' show TrackingRate;

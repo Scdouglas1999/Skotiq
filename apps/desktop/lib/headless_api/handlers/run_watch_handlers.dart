@@ -40,7 +40,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../display_buffer_jpeg.dart';
@@ -50,6 +49,7 @@ import 'frame_measurement_headers.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Handlers for the Run-Watch web monitoring surface.
 ///

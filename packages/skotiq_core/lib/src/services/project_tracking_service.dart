@@ -1,6 +1,6 @@
 import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
 
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import '../database/database.dart' as db;
 import '../models/equipment/filter_names.dart';
 import '../models/scheduler/integration_goal.dart';

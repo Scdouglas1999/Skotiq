@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
@@ -10,7 +10,7 @@ import '../../database/daos/sky_atlas_dao.dart';
 import '../../database/database.dart';
 import '../../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../../settings/store_settings.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
 import '../wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import 'sky_atlas_models.dart';

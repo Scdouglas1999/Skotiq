@@ -19,6 +19,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/models.dart';
 
 const int _sessionId = 7;
 

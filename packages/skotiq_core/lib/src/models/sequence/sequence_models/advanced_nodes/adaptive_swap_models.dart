@@ -201,6 +201,23 @@ abstract class AdaptiveSwapSnapshot with _$AdaptiveSwapSnapshot {
 
   factory AdaptiveSwapSnapshot.fromJson(Map<String, dynamic> json) =>
       _$AdaptiveSwapSnapshotFromJson(json);
+
+  /// The snapshot in [raw], the JSON text
+  /// `api_sequencer_get_adaptive_swap_json` returns; null when there is none
+  /// or it does not parse, so a malformed snapshot does not stop the
+  /// dashboard's timer.
+  static AdaptiveSwapSnapshot? decodeSnapshotJson(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return AdaptiveSwapSnapshot.fromJson(decoded);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 /// Container node that picks the highest-scoring runnable [TargetHeaderNode]

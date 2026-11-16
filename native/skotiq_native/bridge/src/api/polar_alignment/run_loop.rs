@@ -909,11 +909,10 @@ pub(crate) fn adjustment_solve_hint(
 /// to sweep for the field of view on all three measurement frames plus every
 /// frame of the adjustment loop.
 pub(crate) async fn write_polar_solve_frame(
-    frame: crate::last_frame::RawFrame,
+    frame: skotiq_device::ImageData,
     path: &str,
     hints: &SolveHints,
 ) -> Result<(), SkotiqError> {
-    let frame = frame.into_image_data();
     let header = hints.solve_frame_header(&frame);
     crate::frame_header::write_capture_frame(
         path.to_string(),

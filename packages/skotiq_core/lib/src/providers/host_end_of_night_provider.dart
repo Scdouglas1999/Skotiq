@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/end_of_night_calibration/eon_service.dart';
+import '../models/calibration/eon_status.dart';
 
 /// On a remote client: the imaging host's end-of-night calibration status, or
 /// null before the host has reported one.

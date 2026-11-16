@@ -39,53 +39,15 @@ import '../models/science/science_models.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/sequencer/host_scheduled_start.dart';
 import '../models/site/location_settings.dart';
-import '../services/adaptive_swap_service.dart';
-import '../services/backup_service.dart' show RestoreMode;
-import '../services/disk_space_service.dart';
-import '../services/science/period_analysis_service.dart' show PeriodFinding;
-import '../services/end_of_night_calibration/eon_service.dart';
-import '../services/home_assistant/home_assistant_discovery_config.dart';
-import '../services/home_assistant/home_assistant_host_settings.dart';
-import '../services/live_stacking_service.dart';
-import '../services/logging_service.dart';
-import '../services/phd2_probe.dart';
-import '../services/scheduler/horizon_profile.dart';
+import '../models/backup/restore_mode.dart';
+import '../models/notification/home_assistant_discovery_config.dart';
+import '../models/notification/home_assistant_host_settings.dart';
+import '../utils/logging_service.dart';
+import 'phd2_probe.dart';
+import '../models/site/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
-import '../services/sync/sync_service.dart';
-import 'roles/host_data/host_backups.dart';
-import 'target_scoring.dart';
-import 'roles/host_data/host_calibration_frames.dart';
-import 'roles/host_data/host_calibration_tools.dart';
-import 'roles/host_data/host_catalogs.dart';
-import 'roles/host_data/host_cloud_sync.dart';
-import 'roles/host_data/host_control_session.dart';
-import 'roles/host_data/host_device_control.dart';
-import 'roles/host_data/host_files.dart';
-import 'roles/host_data/host_focus_models.dart';
-import 'roles/host_data/host_history.dart';
-import 'roles/host_data/host_imaging_records.dart';
-import 'roles/host_data/host_jobs.dart';
 import 'roles/host_data/host_link.dart';
-import 'roles/host_data/host_live_stack.dart';
-import 'roles/host_data/host_logs.dart';
-import 'roles/host_data/host_night_control.dart';
-import 'roles/host_data/host_notes.dart';
-import 'roles/host_data/host_notifications.dart';
-import 'roles/host_data/host_planning_data.dart';
-import 'roles/host_data/host_pointing.dart';
-import 'roles/host_data/host_post_session.dart';
-import 'roles/host_data/host_profiles.dart';
-import 'roles/host_data/host_replay_debug.dart';
-import 'roles/host_data/host_rig_settings.dart';
-import 'roles/host_data/host_run_state.dart';
-import 'roles/host_data/host_runtime_mirror.dart';
-import 'roles/host_data/host_science.dart';
-import 'roles/host_data/host_secondary_rig.dart';
-import 'roles/host_data/host_sequence_library.dart';
-import 'roles/host_data/host_sky_atlas.dart';
-import 'roles/host_data/host_transients.dart';
-import 'roles/host_data/host_updates.dart';
-import 'roles/host_data/host_weather.dart';
+import 'target_scoring.dart';
 import 'skotiq_backend.dart';
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
@@ -102,9 +64,9 @@ import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
-import '../models/errors/skotiq_error.dart' as dart_error;
+import '../errors/skotiq_error.dart' as dart_error;
 import 'remote_display_jpeg.dart';
-import 'skotiq_exception.dart'
+import '../errors/skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
@@ -115,10 +77,16 @@ import '../models/imaging/session_status.dart';
 import '../models/backend/remote_stacked_result.dart';
 import '../models/backend/remote_update_models.dart';
 import '../models/backend/backend_connection_state.dart';
+import '../models/science/period_analysis_models.dart';
+import '../models/imaging/live_stacking_models.dart';
+import '../models/calibration/eon_status.dart';
+import '../models/sync/sync_models.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';
 
+import '../models/disk_space.dart';
+import '../errors/server_error.dart';
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';
@@ -127,29 +95,55 @@ part 'network_backend/remote_live_view_operations.dart';
 part 'network_backend/domain_operations.dart';
 part 'network_backend/session_science_operations.dart';
 part 'network_backend/planning_accessory_operations.dart';
-part 'network_backend/planning_data_operations.dart';
 part 'network_backend/observing_list_operations.dart';
 part 'network_backend/device_operations.dart';
 part 'network_backend/guiding_operations.dart';
 part 'network_backend/sequencer_operations.dart';
-part 'network_backend/replay_debug_operations.dart';
 part 'network_backend/stacking_operations.dart';
-part 'network_backend/post_session_operations.dart';
 part 'network_backend/depthlock_operations.dart';
 part 'network_backend/mount_guard_operations.dart';
-part 'network_backend/runtime_mirror_operations.dart';
 part 'network_backend/imaging_profile_operations.dart';
 part 'network_backend/webrtc_subscription.dart';
 part 'network_backend/connection_lifecycle.dart';
 part 'network_backend/event_tracking.dart';
 part 'network_backend/http_transport.dart';
 part 'network_backend/wire_decoding.dart';
+part 'network_backend/host_weather.dart';
+part 'network_backend/host_replay_debug.dart';
+part 'network_backend/host_calibration_frames.dart';
+part 'network_backend/host_run_state.dart';
+part 'network_backend/host_notes.dart';
+part 'network_backend/host_history.dart';
+part 'network_backend/host_rig_settings.dart';
+part 'network_backend/host_pointing.dart';
+part 'network_backend/host_secondary_rig.dart';
+part 'network_backend/host_runtime_mirror.dart';
+part 'network_backend/host_sequence_library.dart';
+part 'network_backend/host_post_session.dart';
+part 'network_backend/host_planning_data.dart';
+part 'network_backend/host_live_stack.dart';
+part 'network_backend/host_night_control.dart';
+part 'network_backend/host_control_session.dart';
+part 'network_backend/host_sky_atlas.dart';
+part 'network_backend/host_transients.dart';
+part 'network_backend/host_science.dart';
+part 'network_backend/host_updates.dart';
+part 'network_backend/host_notifications.dart';
+part 'network_backend/host_logs.dart';
+part 'network_backend/host_cloud_sync.dart';
+part 'network_backend/host_catalogs.dart';
+part 'network_backend/host_backups.dart';
+part 'network_backend/host_profiles.dart';
+part 'network_backend/host_focus_models.dart';
+part 'network_backend/host_files.dart';
+part 'network_backend/host_device_control.dart';
+part 'network_backend/host_imaging_records.dart';
+part 'network_backend/host_calibration_tools.dart';
 
-/// Network backend implementation that communicates with a headless server
-///
-/// This backend uses HTTP REST API and WebSocket for real-time events
-/// and is used by the Mobile app to control a remote Desktop/Headless instance.
-abstract class _NetworkBackendTransport {
+/// The link to an imaging host on another machine: its address, the HTTP and
+/// WebSocket connection, authentication and the event stream. The host roles
+/// (`network_backend/host_*.dart`) and [NetworkBackend] are built on it.
+abstract class NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';
 
   final String serverHost;
@@ -356,7 +350,7 @@ abstract class _NetworkBackendTransport {
   static const Duration _lanRequestTimeout = Duration(seconds: 30);
   static const Duration _remoteRequestTimeout = Duration(seconds: 60);
 
-  _NetworkBackendTransport({
+  NetworkBackendTransport({
     required this.serverHost,
     this.serverPort = kDefaultHeadlessPort,
     // WebSocket is on same port as HTTP
@@ -568,7 +562,9 @@ abstract class _NetworkBackendTransport {
       _pushNotificationController.stream;
 }
 
-class NetworkBackend extends _NetworkBackendTransport
+/// The backend of a linked client: every [SkotiqBackend] role and every host
+/// role, served by the imaging host over the link.
+class NetworkBackend extends NetworkBackendTransport
     with
         _NetworkBackendRemoteOperations,
         _NetworkBackendRemoteCalibrationCatalogOperations,
@@ -581,55 +577,50 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendDeviceOperations,
         _NetworkBackendGuidingOperations,
         _NetworkBackendSequencerOperations,
-        _NetworkBackendReplayDebugOperations,
         _NetworkBackendStackingOperations,
-        _NetworkBackendPostSessionOperations,
         _NetworkBackendImagingProfileOperations,
-        _NetworkBackendPlanningDataOperations,
         _NetworkBackendObservingListOperations,
         _NetworkBackendDepthLockOperations,
-        _NetworkBackendRuntimeMirrorOperations,
-        _NetworkBackendMountGuardOperations
+        _NetworkBackendMountGuardOperations,
+        HostBackups,
+        HostCalibrationFrames,
+        HostCalibrationTools,
+        HostCatalogs,
+        HostCloudSync,
+        HostControlSession,
+        HostDeviceControl,
+        HostFiles,
+        HostFocusModels,
+        HostHistory,
+        HostImagingRecords,
+        HostLiveStack,
+        HostLogs,
+        HostNightControl,
+        HostNotes,
+        HostNotifications,
+        HostPlanningData,
+        HostPointing,
+        HostPostSession,
+        HostProfiles,
+        HostReplayDebug,
+        HostRigSettings,
+        HostRunState,
+        HostRuntimeMirror,
+        HostScience,
+        HostSecondaryRig,
+        HostSequenceLibrary,
+        HostSkyAtlas,
+        HostTransients,
+        HostUpdates,
+        HostWeather
     implements
         SkotiqBackend,
         HostLink,
-        HostNightControl,
-        HostControlSession,
-        HostSkyAtlas,
-        HostTransients,
-        HostScience,
-        HostUpdates,
-        HostJobs,
-        HostNotifications,
-        HostLogs,
-        HostCloudSync,
-        HostCatalogs,
-        HostBackups,
-        HostProfiles,
-        HostFocusModels,
-        HostFiles,
-        HostDeviceControl,
-        HostCalibrationTools,
-        HostImagingRecords,
-        HostLiveStack,
-        HostPlanningData,
-        HostPostSession,
-        HostSequenceLibrary,
         EnvironmentalStatusBackend,
         DomeStatusBackend,
         DeviceQuirksBackend,
-        MountGuardBackend,
-        HostWeather,
-        HostReplayDebug,
-        HostCalibrationFrames,
-        HostRunState,
-        HostNotes,
-        HostHistory,
-        HostRigSettings,
-        HostPointing,
-        HostSecondaryRig,
-        HostRuntimeMirror {
-  static const _requestIdHeader = _NetworkBackendTransport._requestIdHeader;
+        MountGuardBackend {
+  static const _requestIdHeader = NetworkBackendTransport._requestIdHeader;
 
   NetworkBackend({
     required super.serverHost,

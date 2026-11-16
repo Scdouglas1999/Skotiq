@@ -684,16 +684,11 @@ mod tests {
             height,
             data,
             bits_per_pixel: 16,
-            exposure_secs: 1.0,
-            gain: None,
-            offset: None,
-            temperature: None,
-            filter: None,
-            timestamp: 0,
-            sensor_type: Some("Monochrome".to_string()),
-            color_filter: None,
-            camera_file: None,
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: 1.0,
+                ..Default::default()
+            },
+            ..Default::default()
         }
     }
 

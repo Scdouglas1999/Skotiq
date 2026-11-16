@@ -1,4 +1,4 @@
-import '../backend/roles/host_data/host_sequence_library.dart';
+import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'sequence_file_service.dart';
 import 'sequence_repository.dart';

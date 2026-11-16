@@ -7,7 +7,7 @@ import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
-import '../backend/roles/host_data/host_post_session.dart';
+import '../backend/network_backend.dart';
 import '../models/backend/backend_types.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions

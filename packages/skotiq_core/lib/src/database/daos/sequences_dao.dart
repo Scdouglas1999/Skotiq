@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../backend/roles/host_data/host_records.dart';
+import '../stores/host_records.dart';
 import '../database.dart';
 import '../tables/sequences.dart';
 import '../tables/targets.dart';

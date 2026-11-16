@@ -67,6 +67,9 @@ class ShotFilterPlan {
   final Map<String, int> goalFrames;
 
   int get framesPerNight => frames.values.fold(0, (a, b) => a + b);
+
+  /// The filter set's short name, as the run's step is named.
+  String get setName => frames.containsKey('Ha') ? 'SHO' : 'LRGB';
 }
 
 /// One target's slot on one night.
@@ -157,9 +160,11 @@ class ShotNightRun {
         names.every(ShotNight.targets.contains)) {
       return ShotNight.sequenceName;
     }
-    final narrowband = names.first.plan.frames.containsKey('Ha');
-    return '${names.map((t) => t.name).join(' + ')} '
-        '${narrowband ? 'SHO' : 'LRGB'}';
+    final sets = {for (final t in names) t.plan.setName};
+    if (sets.length == 1) {
+      return '${names.map((t) => t.name).join(' + ')} ${sets.single}';
+    }
+    return names.map((t) => '${t.name} ${t.plan.setName}').join(' + ');
   }
 
   DateTime get end => frames.last.capturedAt;
@@ -237,6 +242,7 @@ abstract final class ShotNight {
   static const int offset = 15;
   static const double setpoint = -10;
   static const List<String> filters = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
+  static const List<String> lrgb = ['L', 'R', 'G', 'B'];
 
   /// Image scale in arcseconds per pixel.
   static double get pixelScale => 206.265 * pixelSizeUm / focalLength;
@@ -286,9 +292,9 @@ abstract final class ShotNight {
     constellation: 'Tau',
     sizeArcmin: 6,
     plan: ShotFilterPlan(
-      exposureSecs: 30,
-      frames: {'L': 150, 'R': 50, 'G': 50, 'B': 50},
-      goalFrames: {'L': 1200, 'R': 400, 'G': 400, 'B': 400},
+      exposureSecs: 300,
+      frames: {'Ha': 12, 'OIII': 12, 'SII': 12},
+      goalFrames: {'Ha': 60, 'OIII': 60, 'SII': 60},
     ),
   );
 
@@ -547,7 +553,7 @@ abstract final class ShotNight {
     var position = _focusPosition(temp);
     focus.add(ShotAutofocus(t, position, 2.08 + random.nextDouble() * 0.08,
         double.parse(temp.toStringAsFixed(1))));
-    t = (planned ? plannedStart('$key-lrgb') : null) ??
+    t = (planned ? plannedStart('$key-exposures') : null) ??
         t.add(const Duration(minutes: 3));
     var number = 0;
     for (final filter in order) {

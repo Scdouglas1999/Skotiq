@@ -1,21 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
+
 import '../../models/sequence/sequence_models.dart';
+import '../../utils/logging_service.dart';
 import '../profiles_provider.dart';
 import '../session_optimizer_provider.dart';
 import '../settings_provider.dart';
 import 'sequencer_defaults.dart';
 
-/// Descriptor used by the palette to render a plugin-contributed
-/// sequence node WITHOUT depending on the `skotiq_plugins` package
-/// (`skotiq_plugins` already imports nothing of `skotiq_core`, so
-/// adding a reverse dependency would risk a cycle).
-///
-/// The app layer (`skotiq_app`) reads the live `PluginNodeRegistry` from
-/// `skotiq_plugins`, converts each registration into a
-/// [PluginNodeBlueprint], and overrides [pluginNodeBlueprintsProvider]. The
-/// palette merges the blueprints into a top-level "Plugins" category so the
-/// user can drag/double-click them into a sequence the same way they handle
-/// built-in nodes.
+/// A plugin-contributed sequence node as the palette shows it, in a top-level
+/// "Plugins" category the user drags or double-clicks from like a built-in
+/// node.
 class PluginNodeBlueprint {
   /// Stable plugin id (mirrors `SkotiqPlugin.id`).
   final String pluginId;
@@ -43,8 +38,7 @@ class PluginNodeBlueprint {
   final String iconHint;
 
   /// Default opaque JSON config the palette stamps onto a freshly-dropped
-  /// node. Must be parseable by `jsonDecode`; the app-layer adapter validates
-  /// this when building the blueprint so malformed defaults are filtered out.
+  /// node.
   final String defaultConfigJson;
 
   const PluginNodeBlueprint({
@@ -62,18 +56,50 @@ class PluginNodeBlueprint {
   String get registrationKey => '$pluginId::$nodeTypeId';
 }
 
-/// Plugin sequence nodes the palette should surface. The default
-/// implementation returns an empty list — `skotiq_core` does not depend
-/// on `skotiq_plugins`, so the wiring lives in `skotiq_app` (see
-/// `pluginNodeBlueprintsOverride()` in skotiq_app/lib/services/...).
-///
-/// The app override returns a *snapshot* of the current registrations; it
-/// re-reads `pluginNodeRegistrationsStreamProvider` so the palette is fully
-/// reactive — plugins loaded post-startup show up the moment the registry
-/// emits a change.
-final pluginNodeBlueprintsProvider = Provider<List<PluginNodeBlueprint>>(
-  (ref) => const <PluginNodeBlueprint>[],
-);
+/// The sequence nodes of the registered, enabled plugins, updated as plugins
+/// load, unload or are switched on and off.
+final pluginNodeBlueprintsProvider = Provider<List<PluginNodeBlueprint>>((ref) {
+  final registrations = ref
+      .watch(pluginNodeRegistrationsStreamProvider)
+      .maybeWhen(
+        data: (data) => data,
+        orElse: () => ref.read(pluginNodeRegistryProvider).registrations,
+      );
+  return pluginNodeBlueprints(registrations);
+});
+
+/// The palette entries for [registrations]. A registration without a plugin
+/// id, node id or name is a broken plugin: it is logged and left out.
+List<PluginNodeBlueprint> pluginNodeBlueprints(
+  List<PluginNodeRegistration> registrations,
+) {
+  final out = <PluginNodeBlueprint>[];
+  for (final reg in registrations) {
+    final definition = reg.definition;
+    if (reg.pluginId.isEmpty ||
+        definition.id.isEmpty ||
+        definition.name.isEmpty) {
+      Log.warning(
+        'Skipping malformed plugin sequence node registration: '
+        'pluginId=${reg.pluginId}, nodeTypeId=${definition.id}, '
+        'name=${definition.name}',
+        source: 'PluginNodePalette',
+      );
+      continue;
+    }
+    out.add(
+      PluginNodeBlueprint(
+        pluginId: reg.pluginId,
+        nodeTypeId: definition.id,
+        pluginName: reg.pluginName,
+        name: definition.name,
+        description: definition.description,
+        category: definition.category,
+      ),
+    );
+  }
+  return List<PluginNodeBlueprint>.unmodifiable(out);
+}
 
 /// Map a profile's integer binning (1..4) to the [BinningMode] enum used by the
 /// palette's default factories. Falls back to 1x1 for any unexpected value
@@ -104,11 +130,6 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
   // floor + hysteresis. Falls back to the constructor defaults when
   // settings haven't loaded yet so the palette is never empty.
   final appSettings = ref.watch(appSettingsProvider).valueOrNull;
-  // Plugin-contributed sequence nodes. The default
-  // provider value is an empty list; the app layer overrides
-  // `pluginNodeBlueprintsProvider` with a live view of the plugin host's
-  // node registry, so the palette updates the moment a plugin
-  // registers or unregisters at runtime.
   final pluginBlueprints = ref.watch(pluginNodeBlueprintsProvider);
 
   final effectiveGain = defaults.exposureGain ?? profile?.defaultGain;

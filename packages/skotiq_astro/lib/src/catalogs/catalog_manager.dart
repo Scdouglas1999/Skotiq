@@ -5,6 +5,7 @@ import '../celestial_object.dart';
 import '../coordinate_system.dart';
 import 'catalog_installer.dart';
 import 'catalog_name_search.dart';
+import 'nebula_light.dart';
 import 'open_ngc_catalog.dart';
 import 'sky_catalog.dart';
 import 'star_catalog.dart';
@@ -20,6 +21,7 @@ class CatalogManager extends CatalogInstaller {
 
   HygStarCatalog? _stars;
   OpenNgcDsoCatalog? _dsos;
+  Map<String, NebulaLight> _nebulaLight = const {};
   final _changes = StreamController<SkyCatalog>.broadcast();
 
   /// Fires after a catalog's file was installed, replaced or removed. The
@@ -31,19 +33,38 @@ class CatalogManager extends CatalogInstaller {
       _stars ??= HygStarCatalog(_pathOrNone(SkyCatalog.stars));
 
   /// The deep-sky catalog reader for the installed file.
-  OpenNgcDsoCatalog get dsos =>
-      _dsos ??= OpenNgcDsoCatalog(_pathOrNone(SkyCatalog.dso));
+  OpenNgcDsoCatalog get dsos => _dsos ??= OpenNgcDsoCatalog(
+    _pathOrNone(SkyCatalog.dso),
+    nebulaLight: _nebulaLight,
+  );
 
   /// Empty before [initialize]: loading from a reader with no path throws,
   /// without touching the disk.
   String _pathOrNone(SkyCatalog catalog) =>
       isInitialized ? pathOf(catalog) : '';
 
+  /// [nebulaLight] reads the nebula light table ([parseNebulaLightTable])
+  /// that refines the OpenNGC types of nebulae. Without it, or when it cannot
+  /// be read (logged), nebulae keep their OpenNGC types.
   @override
   Future<void> initialize(
     String catalogDirectory, {
     Map<SkyCatalog, Future<List<int>> Function()> builtIn = const {},
+    Future<String> Function()? nebulaLight,
   }) async {
+    _nebulaLight = const {};
+    if (nebulaLight != null) {
+      try {
+        _nebulaLight = parseNebulaLightTable(await nebulaLight());
+      } catch (e) {
+        developer.log(
+          '[Catalog] the nebula light table could not be read, so nebulae '
+          'keep their OpenNGC types: $e',
+          name: 'CatalogManager',
+          level: 1000,
+        );
+      }
+    }
     await super.initialize(catalogDirectory, builtIn: builtIn);
     SkyCatalog.values.forEach(catalogChanged);
     // Parse both catalogs now, off this isolate, so the first search or sky

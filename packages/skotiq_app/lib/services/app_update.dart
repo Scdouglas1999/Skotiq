@@ -10,7 +10,7 @@ import 'package:skotiq_core/providers.dart'
         sequencerBackendProvider;
 import 'package:skotiq_core/utils.dart' show resolveSkotiqDataDirectory;
 import 'package:skotiq_updater/skotiq_updater.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 // The updater package knows nothing about the rig. This file is where the app
 // gives it the three things it needs from the host: the running version, the

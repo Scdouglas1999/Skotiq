@@ -258,25 +258,25 @@ impl SolveHints {
     /// pointing; a caller that trusts a position sets `ra`/`dec`.
     pub(crate) fn solve_frame_header(
         &self,
-        frame: &skotiq_sequencer::ImageData,
+        frame: &skotiq_device::ImageData,
     ) -> crate::frame_header::FrameHeader {
-        let started_at =
-            chrono::DateTime::from_timestamp(frame.timestamp, 0).unwrap_or_else(chrono::Utc::now);
+        let metadata = &frame.metadata;
         crate::frame_header::FrameHeader {
             object_name: Some("Plate Solve".to_string()),
-            exposure_time: frame.exposure_secs,
-            capture_timestamp: started_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            exposure_time: metadata.exposure_time,
+            capture_timestamp: metadata
+                .timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
             frame_type: "Light".to_string(),
-            filter: frame.filter.clone(),
-            gain: frame.gain,
-            offset: frame.offset,
-            ccd_temp: frame.temperature,
+            gain: metadata.gain,
+            offset: metadata.offset,
+            ccd_temp: metadata.temperature,
             bin_x: self.binning.0,
             bin_y: self.binning.1,
             focal_length: self.focal_length_mm,
             pixel_size_x: self.pixel_size_um.map(|(x, _)| x),
             pixel_size_y: self.pixel_size_um.map(|(_, y)| y),
-            bayer_pattern: frame.color_filter.as_ref().map(|p| p.letters()),
+            bayer_pattern: frame.bayer_pattern.as_ref().map(|p| p.letters()),
             ..Default::default()
         }
     }
@@ -1576,16 +1576,12 @@ mod solve_hint_tests {
             height: 2,
             data: vec![0; 4],
             bits_per_pixel: 16,
-            exposure_secs: 2.0,
-            gain: None,
-            offset: None,
-            temperature: None,
-            filter: None,
-            timestamp: 1_789_000_000,
-            sensor_type: None,
-            color_filter: None,
-            camera_file: None,
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: 2.0,
+                timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
+                ..Default::default()
+            },
+            ..Default::default()
         }
     }
 

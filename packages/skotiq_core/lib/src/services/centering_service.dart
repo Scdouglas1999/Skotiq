@@ -46,15 +46,14 @@ final class NativeCenteringRunner implements CenteringRunner {
 /// The linked host's centering: the host runs its Center step and answers
 /// with the attempts it solved and how it ended.
 final class HostCenteringRunner implements CenteringRunner {
-  HostCenteringRunner(this._pointing, this._jobs);
+  HostCenteringRunner(this._host);
 
-  final HostPointing _pointing;
-  final HostJobs _jobs;
+  final HostPointing _host;
   String? _jobId;
 
   @override
   Stream<ApiCenteringStep> center(ApiCenteringRequest request) async* {
-    final jobId = await _pointing.startCentering(
+    final jobId = await _host.startCentering(
       raHours: request.raHours,
       decDegrees: request.decDegrees,
       maxAttempts: request.maxAttempts,
@@ -64,7 +63,7 @@ final class HostCenteringRunner implements CenteringRunner {
     );
     _jobId = jobId;
     try {
-      final job = await _jobs.awaitJobCompletion(
+      final job = await _host.awaitJobCompletion(
         jobId,
         timeout: const Duration(minutes: 10),
         pollInterval: const Duration(seconds: 1),
@@ -107,7 +106,7 @@ final class HostCenteringRunner implements CenteringRunner {
   @override
   Future<void> cancel() async {
     final jobId = _jobId;
-    if (jobId != null) await _jobs.cancelJob(jobId);
+    if (jobId != null) await _host.cancelJob(jobId);
   }
 }
 

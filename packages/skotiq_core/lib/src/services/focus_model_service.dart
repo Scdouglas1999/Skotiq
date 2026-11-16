@@ -8,7 +8,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
 import 'focus_temperature_fit.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// User-configurable thresholds that gate the focus regression model.
 ///

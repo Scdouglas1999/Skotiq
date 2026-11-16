@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart' show typedEventFromWire;
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 
 void main() {

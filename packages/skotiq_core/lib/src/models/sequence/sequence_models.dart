@@ -13,6 +13,8 @@
 // freezed's own generated output silences the identical false positive with
 // this exact directive.
 // ignore_for_file: invalid_annotation_target
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:skotiq_astro/format.dart';
@@ -26,7 +28,7 @@ import '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
-import '../../services/scheduler/horizon_profile.dart'
+import '../site/horizon_profile.dart'
     show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';

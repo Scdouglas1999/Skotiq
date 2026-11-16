@@ -113,9 +113,14 @@ fn a_float_flat_with_a_bias_calibrates_an_integer_light() {
     let light = ImageData::from_u16(2, 2, 1, &[1300, 1300, 1300, 1300]);
     let bias = ImageData::from_u16(2, 2, 1, &[300; 4]);
     let flat = ImageData::from_f32(2, 2, 1, &[1.0; 4]);
-    let out = skotiq_imaging::calibration::calibrate_frame(&light, None, Some(&flat), Some(&bias))
+    let cal = skotiq_imaging::calibration::FloatCalibration {
+        bias: Some(&bias),
+        flat: Some(&flat),
+        ..Default::default()
+    };
+    let out = skotiq_imaging::calibration::calibrate_frame_f32(&light, &cal)
         .expect("a float flat and a bias calibrate together");
-    assert_eq!(out.as_u16().unwrap(), vec![1000; 4]);
+    assert_eq!(out.as_f32().unwrap(), vec![1000.0; 4]);
 }
 
 fn flat_header(exposure: f64, kind: &str) -> FitsHeader {

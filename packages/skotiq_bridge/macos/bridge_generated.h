@@ -33,7 +33,7 @@ typedef struct _Dart_Handle* Dart_Handle;
  * Simulated sensor dimensions.
  *
  * This is THE sensor. `SimulatedCamera::default` and
- * `device_capabilities::get_simulator_capabilities` declare these same numbers,
+ * `simulator::capabilities::camera_description` declare these same numbers,
  * so the frame a caller receives matches the geometry the camera advertised and
  * a measurement taken through one capture path is comparable with the other.
  */

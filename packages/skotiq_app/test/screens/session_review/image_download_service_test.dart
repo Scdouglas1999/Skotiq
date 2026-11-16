@@ -4,14 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/session_review/image_download_service.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart';
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/utils.dart';
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
 
-/// Mirrors the `userMessage` surface of the core's SkotiqException /
-/// IoException (which aren't exported from the barrel) so the service's
-/// duck-typed message extraction can be exercised.
 void main() {
   late Directory tmp;
   late _MockImagingBackend backend;

@@ -1212,10 +1212,6 @@ async fn camera_wire_transcript() {
             })
         },
         "get_status" [par] => |d| d.get_status(),
-        "get_capabilities" [par] => |d| d.get_capabilities(),
-        "get_sensor_info" [par] => |d| d.get_sensor_info(),
-        "get_subframe" [par] => |d| d.get_subframe(),
-        "get_full_status" [par] => |d| d.get_full_status(),
     ];
     let actual = transcript("camera", AlpacaCamera::from_server, members).await;
     check_golden("camera", &actual);

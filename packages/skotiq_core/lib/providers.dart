@@ -42,9 +42,6 @@ export 'src/providers/sequence/session_report_presentation.dart';
 export 'src/providers/sequence/node_exposure_tally.dart';
 // Thumbnail — inline frame thumbnails in the sequence tree.
 export 'src/providers/sequence/exposure_node_thumbnails_provider.dart';
-// Plugin-node dispatcher abstraction. The app entry
-// point overrides this provider with the real PluginNodeExecutor
-// (from skotiq_plugins) via `pluginNodeDispatcherOverride()`.
 export 'src/providers/plugin_node_dispatcher.dart';
 export 'src/providers/session_report_provider.dart';
 export 'src/providers/secondary_rig_provider.dart';

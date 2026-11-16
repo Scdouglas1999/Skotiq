@@ -20,6 +20,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         ApiScoringWeights,
         ApiTargetScoreNow;
 import 'package:skotiq_core/backend.dart' show TargetScoring;
+import 'package:skotiq_core/utils.dart';
 
 class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
   @override

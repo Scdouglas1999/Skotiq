@@ -5,9 +5,7 @@
 use super::{no_preview, Camera, ExposureAborts};
 use crate::ascom_wrapper::camera::{AscomCameraWrapper, CameraConnectionHealth};
 use crate::device::DriverType;
-use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
-use crate::device_manager::ops::camera::camera_setting_or_unknown;
 use crate::device_manager::rig::{Exclusive, RigDriver};
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
@@ -152,48 +150,19 @@ impl Camera for ComCamera {
         })
     }
 
+    /// What the camera is does not change while it is connected, so the
+    /// report takes the sensor and controls from what connect recorded: a
+    /// status poll asks the driver only for what can change, and one member
+    /// the driver refuses mid-exposure cannot fail it.
     async fn status(&self) -> Result<crate::device::CameraStatus, DeviceOpError> {
-        let camera = &self.camera;
-        let camera_guard = camera.read().await;
-        let native_status = camera_guard
-            .get_status()
+        let report = self
+            .camera
+            .read()
+            .await
+            .report()
             .await
             .map_err(DeviceOpError::from)?;
-        // What the camera is does not change while it is connected, so it is
-        // read from what connect recorded: a status poll asks the driver only
-        // for what can change, and one member the driver refuses mid-exposure
-        // cannot fail it.
-        let sensor = camera_guard.get_sensor_info();
-        let described = camera_guard.capabilities();
-
-        Ok(crate::device::CameraStatus {
-            connected: true,
-            state: match native_status.state {
-                skotiq_device::CameraState::Idle => crate::device::CameraState::Idle,
-                skotiq_device::CameraState::Waiting => crate::device::CameraState::Waiting,
-                skotiq_device::CameraState::Exposing => crate::device::CameraState::Exposing,
-                skotiq_device::CameraState::Reading => crate::device::CameraState::Reading,
-                skotiq_device::CameraState::Downloading => crate::device::CameraState::Download,
-                skotiq_device::CameraState::Error => crate::device::CameraState::Error,
-            },
-            sensor_temp: native_status.sensor_temp,
-            cooler_power: native_status.cooler_power,
-            target_temp: native_status.target_temp,
-            cooler_on: native_status.cooler_on,
-            gain: camera_setting_or_unknown(native_status.gain),
-            offset: camera_setting_or_unknown(native_status.offset),
-            bin_x: native_status.bin_x,
-            bin_y: native_status.bin_y,
-            sensor_width: sensor.width,
-            sensor_height: sensor.height,
-            pixel_size_x: sensor.pixel_size_x,
-            pixel_size_y: sensor.pixel_size_y,
-            max_adu: sensor.max_adu,
-            saturation_adu: None,
-            can_cool: described.can_cool,
-            can_set_gain: described.can_set_gain,
-            can_set_offset: described.can_set_offset,
-        })
+        Ok(super::camera_status(report, true))
     }
 
     async fn recommended_settings(
@@ -260,7 +229,10 @@ impl Camera for ComCamera {
         Err(no_preview(DriverType::Ascom, &self.device_id))
     }
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    async fn describe(
+        &self,
+        device_id: &str,
+    ) -> Result<skotiq_device::CameraDescription, SkotiqError> {
         let ascom_caps = self
             .camera
             .read()
@@ -268,8 +240,6 @@ impl Camera for ComCamera {
             .get_capabilities()
             .await
             .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
-        Ok(DeviceCapabilities::Camera(
-            crate::device_capabilities::ascom::camera_capabilities_from_ascom(ascom_caps),
-        ))
+        Ok(crate::ascom_wrapper::camera::AscomCameraWrapper::description(&ascom_caps))
     }
 }

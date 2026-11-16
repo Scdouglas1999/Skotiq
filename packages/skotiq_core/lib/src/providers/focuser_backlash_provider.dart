@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/focuser_backlash_calibration.dart';
 import '../services/focuser_backlash/effective_focuser_backlash.dart';

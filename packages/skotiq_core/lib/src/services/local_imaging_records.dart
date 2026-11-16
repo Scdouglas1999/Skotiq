@@ -1,5 +1,5 @@
 import '../models/imaging/session_status.dart';
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -18,19 +18,19 @@ import '../providers/notification_router_provider.dart'
     show notificationRouterProvider;
 import '../providers/sky_atlas_provider.dart';
 import '../providers/transient_detections_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show SkyAtlasService;
 import '../services/transients/transient_candidate.dart';
 import 'package:skotiq_astro/format.dart';
-import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
+import '../models/imaging/gnomonic_projection.dart' show SolvedWcs;
 import 'frame_header.dart';
 import 'wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import '../backend/network_backend/host_data/remote_imaging_records.dart';
 import '../backend/roles/host_data/imaging_records.dart';
 import '../providers/host_role.dart';
 import '../providers/thumbnail_sidecar_provider.dart';
-import 'thumbnail_sidecar_service.dart';
+import '../backend/thumbnail_sidecar_service.dart';
 import '../providers/logging_service_provider.dart';
 part 'local_imaging_records_solved_frame_hooks.dart';
 

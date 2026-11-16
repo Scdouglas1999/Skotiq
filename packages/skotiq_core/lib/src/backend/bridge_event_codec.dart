@@ -2,7 +2,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// The two forms an event takes: the typed union the native side sends
 /// ([bridge.SkotiqEvent]) and the event type plus data map that travels

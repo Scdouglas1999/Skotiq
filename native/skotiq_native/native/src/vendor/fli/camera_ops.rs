@@ -1,7 +1,7 @@
 //! `CameraDriver` implementation for `FliCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, Frame, SampleLayout};
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 /// The set-point that stands for "cooler off": libfli has no off switch and
 /// takes -55 to 45 C (libfli.c FLISetTemperature). NINA parks it at 40 C;
@@ -232,17 +232,15 @@ impl CameraDriver for FliCamera {
 
         self.core.state = CameraState::Idle;
 
-        Ok(Frame {
-            temperature,
-            ..self.core.frame(
-                area.width,
-                area.height,
-                data,
-                self.core.sensor_info.bit_depth,
-                self.core.sensor_info.bayer_pattern,
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            area.width,
+            area.height,
+            data,
+            self.core.sensor_info.bit_depth,
+            self.core.sensor_info.bayer_pattern,
+        );
+        image.metadata.temperature = temperature;
+        Ok(image)
     }
 
     async fn set_cooler(

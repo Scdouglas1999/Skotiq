@@ -1,5 +1,5 @@
 import '../../models/imaging/integrated_master.dart';
-import 'gnomonic_projection.dart';
+import '../../models/imaging/gnomonic_projection.dart';
 
 extension IntegratedMasterWcs on IntegratedMaster {
   /// The master's plate-solved WCS, or null when it was never solved. A row

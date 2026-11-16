@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +9,7 @@ import '../../models/notification/notification_categories.dart';
 import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
-import '../end_of_night_calibration/eon_service.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../notification_service.dart';
 import 'night_end_run.dart';
 import 'night_end_settings.dart';
@@ -21,6 +20,7 @@ import '../../providers/darkroom_build_service_provider.dart';
 import '../../providers/darkroom_state_store_provider.dart';
 import '../../providers/logging_service_provider.dart';
 import '../../providers/notification_service_provider.dart';
+import '../../models/calibration/eon_status.dart';
 
 /// Where the night-end runs are saved.
 const String nightEndRunsStateKey = 'night_end_runs.v1';

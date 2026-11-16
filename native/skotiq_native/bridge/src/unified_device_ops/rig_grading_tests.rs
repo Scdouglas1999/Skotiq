@@ -65,16 +65,11 @@ fn load(path: &Path) -> ImageData {
         height: image.height,
         data: image.as_u16().expect("16-bit frame"),
         bits_per_pixel: 16,
-        exposure_secs: 0.0,
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: None,
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 0.0,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 

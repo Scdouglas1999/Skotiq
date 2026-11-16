@@ -491,8 +491,8 @@ fn native_fujifilm_serial_id() {
 fn native_gphoto2_5part() {
     // gPhoto2 ID: `native:gphoto2:{idx}:{port_hex}:{model}`.
     // Default branch collapses everything after the vendor into
-    // `device_id` — `bridge/src/devices.rs` re-splits it for
-    // its own dispatch.
+    // `device_id`; the gPhoto2 family in `skotiq_native::catalog`
+    // splits it again when it opens the camera.
     let raw = "native:gphoto2:0:7573623a3030312c303034:Canon EOS R6";
     let parsed = ParsedDeviceId::parse(raw).unwrap();
     assert_eq!(parsed.native_vendor(), Some("gphoto2"));

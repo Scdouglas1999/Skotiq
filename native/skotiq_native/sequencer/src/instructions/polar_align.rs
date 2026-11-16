@@ -1,7 +1,4 @@
-//! `polar_align.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! The polar alignment instruction.
 
 use super::*;
 

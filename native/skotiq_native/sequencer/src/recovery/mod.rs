@@ -5,9 +5,7 @@
 //! transitions `Running` -> `Recovering` and drives a retry loop here. The
 //! whole reason for promoting recovery to first-class status is user
 //! visibility: SGP's killer feature is that an unattended user can see at a
-//! glance the rig is *recovering* rather than dead or running fine. Pre-Wave-4
-//! Skotiq had only `RecoveryAction` variants and a buried per-action
-//! retry — none of it surfaced to the UI.
+//! glance the rig is *recovering* rather than dead or running fine.
 //!
 //! # Lifecycle
 //!

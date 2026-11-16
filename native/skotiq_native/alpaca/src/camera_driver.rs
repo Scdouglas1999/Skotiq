@@ -405,23 +405,23 @@ impl CameraDriver for AlpacaCameraDriver {
         // in place of the one the exposure was configured with.
         let controls = camera.controls().await;
         let gain = match camera.gain().await {
-            Ok(wire) => controls.gain.from_wire(wire),
+            Ok(wire) => Some(controls.gain.from_wire(wire)),
             Err(e) => {
                 tracing::warn!(
                     "Failed to read camera gain for {id}: {e}. Recording it as unknown so the \
                      configured gain is used instead."
                 );
-                UNKNOWN_CAMERA_SETTING
+                None
             }
         };
         let offset = match camera.offset().await {
-            Ok(wire) => controls.offset.from_wire(wire),
+            Ok(wire) => Some(controls.offset.from_wire(wire)),
             Err(e) => {
                 tracing::warn!(
                     "Failed to read camera offset for {id}: {e}. Recording it as unknown so the \
                      configured offset is used instead."
                 );
-                UNKNOWN_CAMERA_SETTING
+                None
             }
         };
         let bin_x = self.bin_or_commanded("BinX", camera.bin_x().await, |bin| bin.0);
@@ -486,11 +486,8 @@ impl CameraDriver for AlpacaCameraDriver {
                 bin_x,
                 bin_y,
                 temperature,
-                timestamp: chrono::Utc::now(),
-                subframe: None,
                 readout_mode,
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }

@@ -19,8 +19,9 @@
 //! — never a silent partial result.
 
 use crate::output::ensure_parent_dir;
+use crate::post_session::args::CalibrationArgs;
+use crate::post_session::{LightCalibration, CALIBRATION_PEDESTAL};
 use serde::{Deserialize, Serialize};
-use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::drizzle::{
     self, bayer_drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame, DrizzleKernel,
 };
@@ -52,51 +53,6 @@ struct DrizzleFrameArgs {
     weight: f64,
 }
 
-/// Calibration master paths applied to every (raw) sub **before** its drops are
-/// deposited onto the drizzle grid.
-///
-/// This is the **same shape** `integrate_session`'s `CalibrationArgs` uses
-/// (see [`crate::post_session`]). The DRIZZLE CALIBRATION CONTRACT requires
-/// the drizzle to consume the *same resolved calibration* the standard integrate
-/// pass did, so a drizzled master is calibrated identically to the standard
-/// master it replaces — never a raw, uncalibrated deposit. `defect_map` is
-/// accepted for shape-compatibility with the shared calibration block (it is
-/// resolved Dart-side); the per-frame correction we apply here is the same
-/// dark/flat/bias + self-derived cosmetic repair `integrate_session` runs.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-struct CalibrationArgs {
-    /// Master dark FITS path, or `None`/empty to skip.
-    dark: Option<String>,
-    /// Master flat (unit-mean) path, or `None`/empty to skip.
-    flat: Option<String>,
-    /// Master bias path, or `None`/empty to skip.
-    bias: Option<String>,
-    /// Resolved defect-map path (shape-compatible with the shared calibration
-    /// block; defect repair is applied Dart-side / at capture time).
-    defect_map: Option<String>,
-    /// Apply self-derived cosmetic (hot/cold transient) correction per sub.
-    cosmetic_correction: bool,
-}
-
-impl CalibrationArgs {
-    /// `true` when this block requests at least one calibration step that the
-    /// drizzle path itself performs (dark/flat/bias subtraction-division or the
-    /// per-sub cosmetic repair). When `false`, sub loading skips the (cloning)
-    /// calibrate pass entirely and deposits the raw pixels as before.
-    fn is_active(&self) -> bool {
-        non_empty(&self.dark)
-            || non_empty(&self.flat)
-            || non_empty(&self.bias)
-            || self.cosmetic_correction
-    }
-}
-
-/// `true` when an optional path is `Some` and non-blank.
-fn non_empty(path: &Option<String>) -> bool {
-    matches!(path, Some(p) if !p.trim().is_empty())
-}
-
 /// Drizzle tunables (subset of [`DrizzleConfig`]). Each unset field falls back
 /// to the [`DrizzleConfig::default`] (2× drizzle, `pixfrac = 0.9`, square
 /// kernel).
@@ -121,11 +77,10 @@ struct DrizzleIntegrateArgs {
     ref_w: u32,
     /// Reference-grid height in pixels.
     ref_h: u32,
-    /// Optional calibration block applied to every (raw) sub before its drops
-    /// are deposited. Defaults to "no calibration" (every field unset) — the
-    /// historical raw-deposit behaviour — so omitting it is a no-op. The
-    /// caller is expected to pass the **same** resolved calibration the standard
-    /// integrate pass used so the drizzled master is calibrated identically.
+    /// The calibration applied to every (raw) sub before its drops are
+    /// deposited: the one the standard integration of the same subs used, so
+    /// both masters are calibrated alike. Absent, the subs are deposited as
+    /// they are.
     calibration: CalibrationArgs,
     /// Drizzle tunables (optional; defaults applied per field).
     config: DrizzleConfigArgs,
@@ -192,18 +147,9 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
 
     let cfg = build_drizzle_config(&args.config)?;
 
-    // Load calibration masters once (shared across all subs).
-    //
-    // The drizzle calibrates each sub with the same dark/flat/bias, by the same
-    // rule, as the standard integrate pass: the drizzled FITS `_runDrizzle`
-    // keeps as the master must not be an uncalibrated deposit. Calibration runs
-    // on the raw (Bayer or mono) sub, before any debayer or warp.
-    let calibrate = args.calibration.is_active();
-    let masters = crate::post_session::LightCalibration::load(
-        &args.calibration.dark,
-        &args.calibration.flat,
-        &args.calibration.bias,
-    )?;
+    // Each raw (Bayer or mono) sub is calibrated by the rule the standard
+    // integration uses, before any debayer or warp.
+    let calibration = LightCalibration::for_lights(&args.calibration)?;
 
     // The native `DrizzleFrame`/`BayerDrizzleFrame` borrow their pixel buffer
     // and transform by reference (`&'a [f64]`, `&'a TransformModel`). We must
@@ -220,7 +166,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         if fa.fits_path.trim().is_empty() {
             return Err("a drizzle frame has an empty fitsPath".to_string());
         }
-        let (mut image, header) = read_frame(Path::new(&fa.fits_path))
+        let (image, header) = read_frame(Path::new(&fa.fits_path))
             .map_err(|e| format!("failed to read '{}': {e:?}", fa.fits_path))?;
         let transform = transform_from_row_major(&fa.transform)
             .map_err(|e| format!("frame '{}': {e}", fa.fits_path))?;
@@ -252,21 +198,17 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             }
         }
 
-        // Calibrate the raw sub, then the per-sub cosmetic repair, before
-        // depositing its drops, as `integrate_session` does.
-        if calibrate {
-            if !masters.is_empty() {
-                image = masters
-                    .apply(&image)
-                    .map_err(|e| format!("calibration of '{}' failed: {e}", fa.fits_path))?;
-            }
-            if args.calibration.cosmetic_correction {
-                // Operates per-channel in place; the report is advisory.
-                let _ = cosmetic_correct_transient(&mut image, CosmeticConfig::default());
-            }
+        if !calibration.is_empty() {
+            let calibrated = calibration
+                .apply(&image, header.get_float("EXPTIME"))
+                .map_err(|e| format!("'{}': {e}", fa.fits_path))?;
+            let pedestal = f64::from(CALIBRATION_PEDESTAL);
+            let mut pixels = calibrated.image.samples_f64();
+            pixels.iter_mut().for_each(|v| *v -= pedestal);
+            buffers.push(pixels);
+        } else {
+            buffers.push(decode_image_f64(&image, &fa.fits_path)?);
         }
-
-        buffers.push(decode_image_f64(&image, &fa.fits_path)?);
         dims.push((image.width, image.height, image.channels));
         transforms.push(transform);
     }

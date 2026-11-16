@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
-import 'package:skotiq_core/services.dart' show LoggingService;
 import 'package:skotiq_core/utils.dart';
 
 /// File names the native `CheckpointManager` writes in the checkpoint

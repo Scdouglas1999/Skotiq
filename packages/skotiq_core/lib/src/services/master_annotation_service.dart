@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/annotation.dart';
-import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 
 /// A DSO cone search over the deep-sky catalog: the OpenNGC rows within
 /// [radiusDegrees] of ([ra], [dec]) in degrees, optionally magnitude-limited.
@@ -190,7 +190,9 @@ class MasterAnnotationService {
     DsoType.association => AnnotationKind.star,
     DsoType.openCluster || DsoType.globularCluster => AnnotationKind.cluster,
     // A cluster in nebulosity is drawn as the nebula it sits in.
-    DsoType.clusterWithNebulosity => AnnotationKind.nebula,
+    DsoType.clusterWithNebulosity ||
+    DsoType.clusterWithEmissionNebula ||
+    DsoType.clusterWithReflectionNebula => AnnotationKind.nebula,
     _ when type.isGalaxy => AnnotationKind.galaxy,
     _ when type.isNebula => AnnotationKind.nebula,
     _ => AnnotationKind.other,

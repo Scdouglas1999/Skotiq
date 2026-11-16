@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../services/device_service.dart';
 import '../backend/backend_types.dart';
 
 /// Priority order for driver backends (lower = higher priority)
@@ -268,6 +267,14 @@ class UnifiedDevice extends Equatable {
 }
 
 extension DriverTypeDescription on DriverType {
+  String get displayName => switch (this) {
+    DriverType.ascom => 'ASCOM',
+    DriverType.alpaca => 'Alpaca',
+    DriverType.indi => 'INDI',
+    DriverType.native => 'Native',
+    DriverType.simulator => 'Simulator',
+  };
+
   /// Get a description of this backend for tooltips
   String get description {
     switch (this) {

@@ -9,12 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show ApiCenteringRequest, ApiCenteringStep;
-import 'package:skotiq_core/backend.dart' show HostJobs, HostPointing;
+import 'package:skotiq_core/backend.dart' show HostPointing;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart' show RemoteJob;
 
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A Center step that plays [steps] and records what it was asked.
 class _ScriptedRunner implements CenteringRunner {
@@ -47,8 +48,13 @@ class _ScriptedRunner implements CenteringRunner {
   }
 }
 
-class _HostPointing implements HostPointing {
+/// A linked host whose centering job starts and then ends as [ending].
+class _Host implements HostPointing {
+  _Host(this.ending);
+
+  final RemoteJob ending;
   final starts = <Map<String, Object>>[];
+  final cancelled = <String>[];
 
   @override
   Future<String> startCentering({
@@ -64,16 +70,6 @@ class _HostPointing implements HostPointing {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _HostJobs implements HostJobs {
-  _HostJobs(this.ending);
-
-  final RemoteJob ending;
-  final cancelled = <String>[];
-
-  @override
   Future<RemoteJob> awaitJobCompletion(
     String jobId, {
     Duration timeout = const Duration(minutes: 10),
@@ -82,6 +78,9 @@ class _HostJobs implements HostJobs {
 
   @override
   Future<void> cancelJob(String jobId) async => cancelled.add(jobId);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -294,35 +293,31 @@ void main() {
   group('on a linked client the host centers', () {
     test('a host job that converged reads as its solved attempts and a '
         'success', () async {
-      final pointing = _HostPointing();
-      final runner = HostCenteringRunner(
-        pointing,
-        _HostJobs(
-          const RemoteJob(
-            jobId: 'job-1',
-            operation: 'framing.center-on-target',
-            state: 'succeeded',
-            result: {
-              'success': true,
-              'iterationHistory': [
-                {
-                  'iterationNumber': 1,
-                  'solvedRa': 10.0,
-                  'solvedDec': 45.1,
-                  'offsetArcsec': 360.0,
-                },
-                {
-                  'iterationNumber': 2,
-                  'solvedRa': 10.0,
-                  'solvedDec': 45.0,
-                  'offsetArcsec': 4.0,
-                },
-              ],
-            },
-          ),
+      final host = _Host(
+        const RemoteJob(
+          jobId: 'job-1',
+          operation: 'framing.center-on-target',
+          state: 'succeeded',
+          result: {
+            'success': true,
+            'iterationHistory': [
+              {
+                'iterationNumber': 1,
+                'solvedRa': 10.0,
+                'solvedDec': 45.1,
+                'offsetArcsec': 360.0,
+              },
+              {
+                'iterationNumber': 2,
+                'solvedRa': 10.0,
+                'solvedDec': 45.0,
+                'offsetArcsec': 4.0,
+              },
+            ],
+          },
         ),
       );
-      final result = await containerFor(runner)
+      final result = await containerFor(HostCenteringRunner(host))
           .read(centeringServiceProvider)
           .centerOnTarget(
             targetRa: 10,
@@ -330,7 +325,7 @@ void main() {
             config: const CenteringConfig(syncMount: false),
           );
 
-      expect(pointing.starts.single, {'ra': 10.0, 'dec': 45.0, 'sync': false});
+      expect(host.starts.single, {'ra': 10.0, 'dec': 45.0, 'sync': false});
       expect(result.success, isTrue);
       expect(result.iterations, 2);
       expect(result.finalOffsetArcsec, 4);
@@ -338,8 +333,7 @@ void main() {
 
     test('a host job that failed carries the host\'s reason', () async {
       final runner = HostCenteringRunner(
-        _HostPointing(),
-        _HostJobs(
+        _Host(
           const RemoteJob(
             jobId: 'job-1',
             operation: 'framing.center-on-target',

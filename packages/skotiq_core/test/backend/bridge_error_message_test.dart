@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/src/backend/bridge_error_message.dart';
+import 'package:skotiq_core/src/errors/bridge_error_message.dart';
 
 void main() {
   group('bridgeErrorMessage', () {

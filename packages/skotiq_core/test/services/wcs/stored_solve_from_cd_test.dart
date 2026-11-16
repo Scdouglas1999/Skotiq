@@ -1,7 +1,7 @@
 // A solve posted with a CD matrix but no scalar rotation or pixel scale is
 // still a solve: the atlas, First Light and overlays read it from the matrix.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 import 'package:skotiq_core/src/services/wcs/plate_solve_data_from_result.dart';
 
 void main() {

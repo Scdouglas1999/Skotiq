@@ -27,6 +27,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/preview_transform.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'catalog_overlay_widget/details_panel.dart';
 
@@ -487,6 +488,8 @@ class CatalogOverlayPainter extends CustomPainter {
         canvas.drawCircle(centre, size / 6, paint);
         break;
       case DsoType.clusterWithNebulosity:
+      case DsoType.clusterWithEmissionNebula:
+      case DsoType.clusterWithReflectionNebula:
       case DsoType.nebula:
       case DsoType.emissionNebula:
       case DsoType.reflectionNebula:

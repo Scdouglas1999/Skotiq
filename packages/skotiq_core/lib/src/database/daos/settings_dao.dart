@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/science_products.dart' show SettingRows;
+import '../stores/science_products.dart' show SettingRows;
 import '../../models/focuser_backlash_calibration.dart';
 import '../../settings/setting.dart';
 import '../database.dart';
@@ -83,139 +83,6 @@ class RememberedSensorSpec {
   @override
   int get hashCode =>
       Object.hash(sensorWidth, sensorHeight, pixelSizeX, pixelSizeY);
-}
-
-/// A focuser backlash figure this app measured, with the conditions it was
-/// measured in.
-///
-/// Backlash varies along the travel — the owner's ZWO EAF measured 105 steps
-/// near position 6600 and 83 near 2500 — so the position and temperature are
-/// part of the record, not decoration. A bare number would claim more than the
-/// measurement supports.
-class FocuserBacklashCalibrationRecord {
-  const FocuserBacklashCalibrationRecord({
-    required this.steps,
-    required this.measurable,
-    required this.resolutionLimitSteps,
-    required this.measuredAtPosition,
-    required this.temperatureCelsius,
-    required this.measuredAt,
-    required this.confidence,
-    required this.confidenceReason,
-    required this.appVersion,
-  });
-
-  /// Backlash in focuser steps. 0 means the two scans agreed to within their
-  /// own resolution: no backlash worth compensating, which is a result rather
-  /// than a missing value.
-  final int steps;
-
-  /// False when [steps] is 0 because nothing larger than
-  /// [resolutionLimitSteps] was detectable.
-  final bool measurable;
-
-  /// The smallest difference the scans behind this record could have told
-  /// apart.
-  final double resolutionLimitSteps;
-
-  /// Where in the travel this was measured.
-  final int measuredAtPosition;
-
-  /// Focuser temperature at the time, when the driver reported one.
-  final double? temperatureCelsius;
-
-  final DateTime measuredAt;
-
-  final FocuserBacklashConfidence confidence;
-
-  /// Native's plain-language grounds for [confidence], displayed verbatim.
-  final String confidenceReason;
-
-  /// The build that took the measurement.
-  final String appVersion;
-
-  /// Whether this record can be acted on. Anything else is treated as "never
-  /// measured" rather than applied to a focuser: a bad figure here silently
-  /// moves the drawtube on every future autofocus.
-  bool get isUsable =>
-      steps >= 0 &&
-      measuredAtPosition >= 0 &&
-      resolutionLimitSteps.isFinite &&
-      resolutionLimitSteps >= 0 &&
-      // A measurable backlash of zero steps is a contradiction, and so is an
-      // unmeasurable one with a figure attached.
-      measurable == (steps > 0) &&
-      (temperatureCelsius == null || temperatureCelsius!.isFinite);
-
-  Map<String, dynamic> toJson() => {
-    's': steps,
-    'm': measurable,
-    'rl': resolutionLimitSteps,
-    'p': measuredAtPosition,
-    if (temperatureCelsius != null) 't': temperatureCelsius,
-    'at': measuredAt.toUtc().toIso8601String(),
-    'c': confidence.wireValue,
-    'cr': confidenceReason,
-    'v': appVersion,
-  };
-
-  static FocuserBacklashCalibrationRecord? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final steps = json['s'];
-    final measurable = json['m'];
-    final resolutionLimit = json['rl'];
-    final position = json['p'];
-    final temperature = json['t'];
-    final confidence = FocuserBacklashConfidence.fromWire(json['c']);
-    if (steps is! num ||
-        measurable is! bool ||
-        resolutionLimit is! num ||
-        position is! num ||
-        confidence == null ||
-        (temperature != null && temperature is! num)) {
-      return null;
-    }
-    final record = FocuserBacklashCalibrationRecord(
-      steps: steps.toInt(),
-      measurable: measurable,
-      resolutionLimitSteps: resolutionLimit.toDouble(),
-      measuredAtPosition: position.toInt(),
-      temperatureCelsius: (temperature as num?)?.toDouble(),
-      measuredAt:
-          DateTime.tryParse(json['at'] as String? ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-      confidence: confidence,
-      confidenceReason: json['cr'] as String? ?? '',
-      appVersion: json['v'] as String? ?? '',
-    );
-    return record.isUsable ? record : null;
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      other is FocuserBacklashCalibrationRecord &&
-      other.steps == steps &&
-      other.measurable == measurable &&
-      other.resolutionLimitSteps == resolutionLimitSteps &&
-      other.measuredAtPosition == measuredAtPosition &&
-      other.temperatureCelsius == temperatureCelsius &&
-      other.measuredAt == measuredAt &&
-      other.confidence == confidence &&
-      other.confidenceReason == confidenceReason &&
-      other.appVersion == appVersion;
-
-  @override
-  int get hashCode => Object.hash(
-    steps,
-    measurable,
-    resolutionLimitSteps,
-    measuredAtPosition,
-    temperatureCelsius,
-    measuredAt,
-    confidence,
-    confidenceReason,
-    appVersion,
-  );
 }
 
 @DriftAccessor(tables: [AppSettings])

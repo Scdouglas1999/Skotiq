@@ -74,6 +74,8 @@ use focus::*;
 use live_view::LiveViewDemand;
 
 #[cfg(target_os = "windows")]
+use crate::camera_core::CameraCore;
+#[cfg(target_os = "windows")]
 use async_trait::async_trait;
 #[cfg(target_os = "windows")]
 pub use camera::*;

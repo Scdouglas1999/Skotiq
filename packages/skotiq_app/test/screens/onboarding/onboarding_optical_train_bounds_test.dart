@@ -18,9 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/optical_train_step.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Field order in the step: focal length, aperture, reducer, pixel size.
 const _focalLength = 0;

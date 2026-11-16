@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/diagnostic_dump_service.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 
 /// The diagnostic dump advertises "recent log files" but LoggingService.exportLogs
 /// concatenated EVERY file in the log directory with no time bound, and the

@@ -1,7 +1,7 @@
 part of '../network_backend.dart';
 
 /// The host's mount motion guard over REST (`/api/mount/guard*`).
-mixin _NetworkBackendMountGuardOperations on _NetworkBackendTransport
+mixin _NetworkBackendMountGuardOperations on NetworkBackendTransport
     implements MountGuardBackend {
   @override
   Future<List<MountGuardEntry>> mountGuardState() async {

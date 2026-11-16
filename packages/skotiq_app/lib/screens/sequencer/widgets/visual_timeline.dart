@@ -10,9 +10,6 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../night_control/data/plan/night_plan_inputs.dart'
-    show planStartProvider;
-
 final timelineVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Timer-free twilight lookup for sequencer pre-session simulation.

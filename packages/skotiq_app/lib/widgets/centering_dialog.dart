@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/authority_bound_dialog.dart';
 import 'plate_solver_required_banner.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'centering_dialog/image_canvas.dart';
 part 'centering_dialog/presentation.dart';

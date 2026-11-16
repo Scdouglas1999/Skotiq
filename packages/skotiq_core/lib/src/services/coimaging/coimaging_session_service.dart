@@ -22,7 +22,7 @@ import '../../database/daos/constellation_contributions_dao.dart';
 import '../constellation/constellation_client.dart';
 import '../constellation/constellation_models.dart';
 import '../constellation/constellation_service.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../constellation/constellation_hub_key.dart';
 part 'coimaging_session_service/coimaging_types.dart';

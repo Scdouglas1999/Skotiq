@@ -1,42 +1,11 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
+mixin _NetworkBackendPlanningAccessoryOperations on NetworkBackendTransport {
   Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
   });
-
-  Future<void> slewToTarget(double ra, double dec) async {
-    await _post(FramingApi.slewToTarget, body: {'ra': ra, 'dec': dec});
-  }
-
-  /// POST /api/framing/center-on-target
-  Future<String> startCentering({
-    required double raHours,
-    required double decDegrees,
-    required int maxAttempts,
-    required double accuracyArcsec,
-    required double exposureSecs,
-    required bool syncMount,
-  }) async {
-    final start = await _post(
-      FramingApi.centerOnTarget,
-      body: {
-        'ra': raHours,
-        'dec': decDegrees,
-        'maxIterations': maxAttempts,
-        'toleranceArcsec': accuracyArcsec,
-        'exposureTime': exposureSecs,
-        'syncMount': syncMount,
-      },
-    );
-    final jobId = start['jobId'];
-    if (jobId is! String || jobId.isEmpty) {
-      throw const FormatException('The host did not start a centering job');
-    }
-    return jobId;
-  }
 
   Future<void> syncMountToCoordinates(double ra, double dec) async {
     await _post(FramingApi.syncMount, body: {'ra': ra, 'dec': dec});
@@ -49,18 +18,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
 
   Future<void> abortSlew() async {
     await _post(FramingApi.abortSlew);
-  }
-
-  /// Push a framing target to the imaging host (Plan Tonight handoff).
-  Future<void> framingSetTarget({
-    required double ra,
-    required double dec,
-    required String name,
-  }) async {
-    await _post(
-      FramingApi.setTarget,
-      body: {'ra': ra, 'dec': dec, 'name': name},
-    );
   }
 
   // The headless endpoints require an explicit deviceId. Keep it on every
@@ -154,23 +111,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     }
   }
 
-  Future<DomeCapabilities?> getDomeCapabilities(String deviceId) async {
-    final json = await _get(
-      DomeApi.capabilities,
-      query: {'deviceId': deviceId},
-    );
-    return DomeCapabilities.fromJson(json);
-  }
-
-  // Safety monitor
-
-  Future<Map<String, dynamic>> getSafetyStatus({String? deviceId}) async {
-    return await _get(
-      SafetyMonitorApi.safetyStatus,
-      query: deviceId != null ? {'deviceId': deviceId} : null,
-    );
-  }
-
   @override
   Future<HardwareWeatherConditions> getHardwareWeatherConditions(
     String deviceId,
@@ -211,57 +151,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     await _post(SafetyMonitorApi.updateSafetySettings, body: settings);
   }
 
-  Future<void> acknowledgeSafetyCondition({
-    required String reason,
-    int? durationMinutes,
-  }) async {
-    await _post(
-      SafetyMonitorApi.acknowledgeUnsafe,
-      body: {
-        'reason': reason,
-        if (durationMinutes != null) 'durationMinutes': durationMinutes,
-      },
-    );
-  }
-
-  /// Cancel a previously acknowledged/snoozed unsafe condition on the host.
-  Future<void> cancelSafetyAcknowledgement() async {
-    await _post(SafetyMonitorApi.cancelAcknowledgement);
-  }
-
-  /// Get switch states.
-  ///
-  /// Pass [deviceId] to scope to a single device — that returns the
-  /// `{switchCount, switches:[...]}` single-device shape the per-channel UI
-  /// consumes. Omit it for the all-devices summary
-  /// (`{devicesConnected, devices:[...]}`).
-  Future<Map<String, dynamic>> getSwitchStatus({String? deviceId}) async {
-    return await _get(
-      AuxiliaryApi.switchStatus,
-      query: {
-        if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
-      },
-    );
-  }
-
-  /// Set a switch value. [deviceId] is required by the server
-  /// (`POST /api/switch/set`); [value] is a `bool` for boolean switches or a
-  /// `num` for analog ones.
-  Future<void> setSwitch({
-    required String deviceId,
-    required int switchId,
-    required dynamic value,
-  }) async {
-    await _post(
-      AuxiliaryApi.switchSet,
-      body: {'deviceId': deviceId, 'switchId': switchId, 'value': value},
-    );
-  }
-
-  Future<Map<String, dynamic>> getCoverStatus(String deviceId) async {
-    return await _get(AuxiliaryApi.coverStatus, query: {'deviceId': deviceId});
-  }
-
   // The headless endpoints validate the addressed connected device. Preserve
   // [deviceId] on every remote command just as the local FFI backend does.
 
@@ -288,58 +177,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     await _post(AuxiliaryApi.calibratorOff, body: {'deviceId': deviceId});
   }
 
-  /// Get the imaging host's complete unattended-scheduler state.
-  Future<Map<String, dynamic>> getSchedulerState() async {
-    return _get(SchedulerApi.getState);
-  }
-
-  /// Run a lifecycle command against the imaging host's scheduler engine.
-  Future<Map<String, dynamic>> controlScheduler(
-    String action, {
-    bool confirmWarnings = false,
-  }) async {
-    return _post(
-      SchedulerApi.control,
-      body: {'action': action, if (confirmWarnings) 'confirmWarnings': true},
-    );
-  }
-
-  /// Persist and apply scheduler scoring configuration on the imaging host.
-  Future<Map<String, dynamic>> updateSchedulerConfig(
-    Map<String, dynamic> config,
-  ) async {
-    return _post(SchedulerApi.updateConfig, body: config);
-  }
-
-  Future<Map<String, dynamic>> getFocusModelData() async {
-    return await _get(FocusModelApi.getFocusData);
-  }
-
-  Future<void> addFocusDataPoint({
-    required double temperature,
-    required int position,
-    double? hfr,
-    String? filter,
-  }) async {
-    await _post(
-      FocusModelApi.addFocusPoint,
-      body: {
-        'temperature': temperature,
-        'position': position,
-        if (hfr != null) 'hfr': hfr,
-        if (filter != null) 'filter': filter,
-      },
-    );
-  }
-
-  Future<void> clearFocusModelData() async {
-    await _delete(FocusModelApi.clearFocusData);
-  }
-
-  Future<Map<String, dynamic>> getFocusModel() async {
-    return await _get(FocusModelApi.getFocusModel);
-  }
-
   /// Predict focus position for temperature
   Future<Map<String, dynamic>> predictFocusPosition({
     required double temperature,
@@ -348,20 +185,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     return await _get(
       FocusModelApi.predictFocus,
       query: {'temperature': temperature, if (filter != null) 'filter': filter},
-    );
-  }
-
-  Future<Map<String, dynamic>> getFilterFocusOffsets() async {
-    return await _get(FocusModelApi.getFilterOffsets);
-  }
-
-  Future<void> setFilterFocusOffsets({
-    required String referenceFilter,
-    required Map<String, int> offsets,
-  }) async {
-    await _post(
-      FocusModelApi.setFilterOffsets,
-      body: {'referenceFilter': referenceFilter, 'offsets': offsets},
     );
   }
 
@@ -381,39 +204,12 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     );
   }
 
-  Future<Map<String, dynamic>> exportFocusModel() async {
-    return await _get(FocusModelApi.exportFocusData);
-  }
+  // Safety monitor
 
-  Future<void> importFocusModel(Map<String, dynamic> data) async {
-    await _post(FocusModelApi.importFocusData, body: data);
-  }
-
-  /// Get the real per-filter predictive-AF config and models used by the host.
-  Future<Map<String, dynamic>> getPredictiveAfSettings() async {
-    return _get(FocusModelApi.getPredictiveSettings);
-  }
-
-  Future<void> updatePredictiveAfConfig(Map<String, dynamic> config) async {
-    await _post(FocusModelApi.updatePredictiveConfig, body: config);
-  }
-
-  Future<void> clearPredictiveAfSamples(String filterName) async {
-    await _post(
-      FocusModelApi.clearPredictiveSamples,
-      body: {'filter': filterName},
+  Future<Map<String, dynamic>> getSafetyStatus({String? deviceId}) async {
+    return await _get(
+      SafetyMonitorApi.safetyStatus,
+      query: deviceId != null ? {'deviceId': deviceId} : null,
     );
-  }
-
-  Future<String?> exportPredictiveAfModel(String filterName) async {
-    final response = await _get(
-      FocusModelApi.exportPredictiveModel,
-      query: {'filter': filterName},
-    );
-    return response['json'] as String?;
-  }
-
-  Future<Map<String, dynamic>> planetariumCatalogSearch(String query) async {
-    return await _get(PlanetariumApi.catalogSearch, query: {'query': query});
   }
 }

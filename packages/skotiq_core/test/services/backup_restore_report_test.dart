@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('a merge outcome reads the same on the host and over the wire', () {

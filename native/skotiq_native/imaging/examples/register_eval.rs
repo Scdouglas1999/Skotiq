@@ -12,17 +12,26 @@
 //! `--dark` subtracts a master dark from every frame first, as the
 //! accumulating master does; `--frame-dark` gives the frames their own.
 
-use skotiq_imaging::calibration::calibrate_frame;
+use skotiq_imaging::calibration::{calibrate_frame_f32, FloatCalibration};
 use skotiq_imaging::registration::{solve_registration, RegistrationConfig};
-use skotiq_imaging::{read_fits, ImageData};
+use skotiq_imaging::{read_fits, ImageData, PixelType, SampleRange};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 fn load(path: &Path, dark: Option<&ImageData>) -> ImageData {
     let (image, _) = read_fits(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     match dark {
-        Some(d) => calibrate_frame(&image, Some(d), None, None)
-            .unwrap_or_else(|e| panic!("{}: {e}", path.display())),
+        Some(d) => calibrate_frame_f32(
+            &image,
+            &FloatCalibration {
+                dark: Some(d),
+                output_pedestal: 100.0,
+                ..Default::default()
+            },
+        )
+        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+        .converted_to(PixelType::U16, SampleRange::ADU)
+        .into_owned(),
         None => image,
     }
 }

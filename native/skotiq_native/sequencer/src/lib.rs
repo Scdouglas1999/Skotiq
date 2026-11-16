@@ -1371,8 +1371,8 @@ pub struct TargetHeaderConfig {
     // wait. `end_when` is a stop condition: as soon as it becomes true,
     // remaining children are Skipped and the target returns Success.
     //
-    // Both are optional and serialise with `#[serde(default)]` so
-    // pre-Wave-4 sequences (which don't carry these fields) load identically.
+    // Both are optional and serialise with `#[serde(default)]`: a sequence
+    // that does not carry them has neither condition.
     //
     // When BOTH the new fields and the legacy `min_altitude`/`start_after`
     // / `max_altitude`/`end_before` fields are present, the explicit

@@ -137,12 +137,6 @@ fn main() {
         }),
     );
     line(
-        "calibrate_frame (dark+flat, u16)",
-        best_of(5, || {
-            calibrate_frame(&frame, Some(&dark), Some(&flat), None).unwrap()
-        }),
-    );
-    line(
         "calibrate_frame_f32 (dark+flat)",
         best_of(5, || {
             calibrate_frame_f32(

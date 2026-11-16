@@ -5,6 +5,7 @@ import 'package:skotiq_core/services.dart';
 import '../fakes/fake_target_scoring.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, TargetVisibilityInfo;
+import 'package:skotiq_core/utils.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}
 

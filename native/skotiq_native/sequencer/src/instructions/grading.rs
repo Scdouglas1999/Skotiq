@@ -1,7 +1,5 @@
-//! `grading.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! What grading a captured frame needs around it: the defect map, the raw
+//! copy, the reject folder and the environment recorded with the grade.
 
 use super::*;
 
@@ -151,10 +149,9 @@ pub(crate) async fn apply_defect_map_if_configured(
     let pixels_slice = image_data.data.as_mut_slice();
     let width = image_data.width;
     let height = image_data.height;
-    // The sequencer's ImageData is mono u16 (camera output before
-    // debayering). channels = 1 is enforced by the capture-side
-    // contract; if a driver ever returns a multi-channel buffer we
-    // skip correction rather than slice into the wrong storage.
+    // A camera frame is one plane of u16 samples (the mosaic before
+    // debayering); a buffer of another length is left uncorrected rather
+    // than sliced into the wrong storage.
     let channels = 1u32;
     let expected_len = (width as usize) * (height as usize) * (channels as usize);
     if pixels_slice.len() != expected_len {

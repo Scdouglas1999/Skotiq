@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../models/annotation_data.dart';
 import '../sesame_name_resolver.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 class SimbadProvider {
   static const String _baseUrl =

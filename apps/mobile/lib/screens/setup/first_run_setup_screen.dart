@@ -24,7 +24,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/mobile_preferences.dart';
 import '../../utils/error_snackbar.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// What the linked host is missing for a first night.
 class FirstRunSetupNeeds {

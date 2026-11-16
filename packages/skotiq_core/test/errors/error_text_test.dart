@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/errors.dart';
-import 'package:skotiq_core/models.dart';
 
 /// How the operating system words a refused connection; the error text passes
 /// the system's own words through.

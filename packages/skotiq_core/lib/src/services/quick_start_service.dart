@@ -20,7 +20,8 @@ import '../providers/profiles_provider.dart';
 import '../providers/session_provider.dart' show sequenceCheckpointsDaoProvider;
 import '../utils/json_validation.dart';
 import '../models/backend/backend_types.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
+import '../database/rows/imaging_session_status.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 
