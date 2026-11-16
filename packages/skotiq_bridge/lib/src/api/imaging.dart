@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`, `write_rgba`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `thumbnail_generation_gate`, `write_rgba`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -147,7 +147,10 @@ Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .api
     .crateApiImagingApiCameraCancelExposure(deviceId: deviceId);
 
-/// Read a FITS file from disk
+/// A frame file decoded for the screen at full resolution: its pixels through
+/// the app's display stretch, with its histogram, statistics and header facts.
+/// The decode runs on the blocking pool, so a 16-megapixel read and stretch
+/// holds no async worker and no Dart isolate.
 Future<FitsReadResult> apiReadFitsFile({required String filePath}) =>
     RustLib.instance.api.crateApiImagingApiReadFitsFile(filePath: filePath);
 
@@ -188,7 +191,7 @@ Future<QualityMapsResultApi> apiComputeFitsQualityMaps({
   highClipAdu: highClipAdu,
 );
 
-/// Detect stars in a FITS file
+/// Detect stars in a frame file, on the blocking pool.
 Future<StarDetectionResultApi> apiDetectStarsInFile({
   required String filePath,
   StarDetectionConfigApi? config,
