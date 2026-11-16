@@ -487,6 +487,8 @@ class CatalogOverlayPainter extends CustomPainter {
         canvas.drawCircle(centre, size / 6, paint);
         break;
       case DsoType.clusterWithNebulosity:
+      case DsoType.clusterWithEmissionNebula:
+      case DsoType.clusterWithReflectionNebula:
       case DsoType.nebula:
       case DsoType.emissionNebula:
       case DsoType.reflectionNebula:

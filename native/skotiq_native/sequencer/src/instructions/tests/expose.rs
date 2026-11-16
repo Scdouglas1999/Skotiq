@@ -1,6 +1,4 @@
-//! `expose` tests — moved verbatim out of the former single `instructions::tests`
-//! module (release-pass C3 mechanical split). Shared fixtures stay in the parent
-//! `tests` module and reach here through `use super::*;`.
+//! Tests of the expose instructions; the shared fixtures are in the parent module.
 
 use super::*;
 

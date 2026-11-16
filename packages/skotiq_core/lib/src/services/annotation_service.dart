@@ -311,7 +311,9 @@ class AnnotationService {
     DsoType.planetaryNebula => ObjectType.planetaryNebula,
     DsoType.openCluster ||
     DsoType.globularCluster ||
-    DsoType.clusterWithNebulosity => ObjectType.starCluster,
+    DsoType.clusterWithNebulosity ||
+    DsoType.clusterWithEmissionNebula ||
+    DsoType.clusterWithReflectionNebula => ObjectType.starCluster,
     DsoType.doubleStar => ObjectType.doubleStar,
     DsoType.association => ObjectType.asterism,
     DsoType.supernova ||

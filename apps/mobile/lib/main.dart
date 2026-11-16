@@ -104,6 +104,7 @@ void main() async {
     await CatalogManager.instance.initialize(
       appDir.path,
       builtIn: builtInCatalogs,
+      nebulaLight: builtInNebulaLight,
     );
   } catch (e) {
     Log.error('Failed to initialize CatalogManager: $e', source: 'Main');

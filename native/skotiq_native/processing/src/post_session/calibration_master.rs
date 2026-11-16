@@ -139,7 +139,7 @@ mod tests {
     }
 
     /// Builds a master from a folder of real frames:
-    /// `SKOTIQ_REAL_CAL_DIR=<dir> SKOTIQ_REAL_CAL_KIND=dark cargo test -p skotiq_bridge
+    /// `SKOTIQ_REAL_CAL_DIR=<dir> SKOTIQ_REAL_CAL_KIND=dark cargo test -p skotiq_processing
     /// real_calibration_master -- --ignored --nocapture`.
     #[test]
     #[ignore = "needs a folder of real calibration frames"]

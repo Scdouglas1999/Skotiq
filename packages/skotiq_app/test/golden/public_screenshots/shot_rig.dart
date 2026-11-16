@@ -429,7 +429,7 @@ final screenshotSequence = () {
       '$k-center',
       '$k-guide',
       '$k-focus',
-      '$k-lrgb',
+      '$k-exposures',
       '$k-flip'
     ];
     nodes['$k-slew'] = SlewNode(id: '$k-slew', parentId: header, orderIndex: 0);
@@ -455,9 +455,9 @@ final screenshotSequence = () {
       parentId: header,
       orderIndex: 3,
     );
-    nodes['$k-lrgb'] = SmartExposureNode(
-      id: '$k-lrgb',
-      name: 'LRGB',
+    nodes['$k-exposures'] = SmartExposureNode(
+      id: '$k-exposures',
+      name: t.plan.setName,
       plans: [
         for (final e in t.plan.frames.entries)
           FilterPlan(
@@ -511,9 +511,10 @@ final screenshotSequence = () {
     childIds: rootChildren,
   );
   return Sequence(
-    id: 'autumn-lrgb',
+    id: 'autumn-exposures',
     name: ShotNight.sequenceName,
-    description: 'NGC 7331, M31 and M1 in LRGB, each across the meridian.',
+    description: 'NGC 7331 and M31 in LRGB, M1 in SHO, each across the '
+        'meridian.',
     createdAt: ShotNight.at(-9, 17, 30),
     modifiedAt: ShotNight.at(-1, 17, 40),
     rootNodeId: 'root',
@@ -542,8 +543,8 @@ class _Run extends RunRecordNotifier {
       perFilter[f.filter] = (perFilter[f.filter] ?? 0) + 1;
     }
     updateProgress(
-      currentNodeId: '$k-lrgb',
-      currentNodeName: 'LRGB',
+      currentNodeId: '$k-exposures',
+      currentNodeName: current.plan.setName,
       currentNodeStatus: NodeStatus.running,
       completedExposures: frames.length,
       completedIntegrationSecs: _tonight.integrationSecs,
@@ -568,7 +569,7 @@ class _Run extends RunRecordNotifier {
         );
       }
       updateNodeStatus(
-        '$tk-lrgb',
+        '$tk-exposures',
         isCurrent
             ? NodeStatus.running
             : done
@@ -582,7 +583,7 @@ class _Run extends RunRecordNotifier {
       if (isCurrent) {
         final plan = t.plan.frames;
         updateNodeProgress(
-          '$tk-lrgb',
+          '$tk-exposures',
           currentTargetFrames.length / t.plan.framesPerNight,
           [
             for (final f in plan.keys) '$f ${perFilter[f] ?? 0}/${plan[f]}',
@@ -604,7 +605,7 @@ class _Run extends RunRecordNotifier {
 /// step is still running.
 class _NightEvents extends EventHistoryNotifier {
   _NightEvents() {
-    final current = '${_key(lastFrame.target)}-lrgb';
+    final current = '${_key(lastFrame.target)}-exposures';
     final events = <sk.SkotiqEvent>[];
     void add(DateTime at, sk.SequencerEvent event) => events.add(
           sk.SkotiqEvent(
@@ -678,7 +679,7 @@ List<Override> rigOverrides() => <Override>[
           .overrideWith((ref) => screenshotProfile.id),
       currentSequenceProvider.overrideWith((ref) => _Sequence()),
       selectedNodeIdProvider
-          .overrideWith((ref) => '${_key(lastFrame.target)}-lrgb'),
+          .overrideWith((ref) => '${_key(lastFrame.target)}-exposures'),
       runRecordProvider.overrideWith((ref) => _Run()),
       plateSolverDetectionProvider.overrideWith((ref) async => _solver),
       plateSolverPreferenceProvider.overrideWith(
@@ -796,15 +797,28 @@ Future<void> planTonightFromApp() async {
 String _calibrationName(String kind, String setting) =>
     'D:\\Astro\\Skotiq\\Calibration\\master_${kind}_$setting.xisf';
 
-/// The calibration library: master darks for both sub lengths the run uses
-/// and a master bias (built three weeks ago), and this morning's LRGB master
-/// flats from the flat panel (the Flat wizard shot).
+/// The sub lengths tonight's run uses, shortest first.
+List<int> get _subLengths => {
+      for (final t in ShotNight.targets) t.plan.exposureSecs.round(),
+    }.toList()
+      ..sort();
+
+/// The filters of the run that this morning's flat batch did not cover.
+const _narrowband = ['Ha', 'OIII', 'SII'];
+
+String _darkName(int secs) =>
+    _calibrationName('dark', '${secs}s_-10C_g${ShotNight.gain}');
+String _flatName(String filter) =>
+    _calibrationName('flat', '${filter}_g${ShotNight.gain}');
+
+/// The calibration library: a master dark for every sub length the run uses
+/// and a master bias (built three weeks ago), this morning's LRGB master
+/// flats from the flat panel (the Flat wizard shot), and the narrowband master
+/// flats from the panel before M1's first SHO night.
 List<String> calibrationPaths() => [
-      for (final secs in [30, 60])
-        _calibrationName('dark', '${secs}s_-10C_g${ShotNight.gain}'),
+      for (final secs in _subLengths) _darkName(secs),
       _calibrationName('bias', '-10C_g${ShotNight.gain}'),
-      for (final f in ['L', 'R', 'G', 'B'])
-        _calibrationName('flat', '${f}_g${ShotNight.gain}'),
+      for (final f in [...ShotNight.lrgb, ..._narrowband]) _flatName(f),
     ];
 
 /// The calibration library ([calibrationPaths]) and the operator's last
@@ -812,29 +826,34 @@ List<String> calibrationPaths() => [
 /// safety stays off, as on the owner's rig: it has no weather device or safety
 /// monitor, and the app does not let a forecast alone hold a fail-closed run.
 Future<void> seedCalibration(SkotiqDatabase db) async {
-  final paths = calibrationPaths();
   final built = ShotNight.at(-21, 14, 0);
-  for (final (i, secs) in [30.0, 60.0, 0.0].indexed) {
+  for (final secs in [..._subLengths, 0]) {
+    final path = secs == 0
+        ? _calibrationName('bias', '-10C_g${ShotNight.gain}')
+        : _darkName(secs);
     await db.into(db.darkLibrary).insert(
           DarkLibraryCompanion.insert(
-            filePath: paths[i],
+            filePath: path,
             frameType: Value(secs == 0 ? 'bias' : 'dark'),
-            exposureTime: secs,
+            exposureTime: secs.toDouble(),
             temperature: const Value(-10),
             gain: const Value(ShotNight.gain),
             offset: const Value(ShotNight.offset),
             width: const Value(ShotNight.sensorWidth),
             height: const Value(ShotNight.sensorHeight),
-            masterDarkPath: Value(paths[i]),
+            masterDarkPath: Value(path),
             masterFrameCount: Value(secs == 0 ? 100 : 40),
             createdAt: Value(built),
           ),
         );
   }
-  for (final (i, filter) in ['L', 'R', 'G', 'B'].indexed) {
+  for (final filter in [...ShotNight.lrgb, ..._narrowband]) {
+    final takenAt = _narrowband.contains(filter)
+        ? ShotNight.at(-19, 16, 10)
+        : ShotNight.at(-1, 6, 40);
     await db.into(db.flatLibrary).insert(
           FlatLibraryCompanion.insert(
-            filePath: paths[3 + i],
+            filePath: _flatName(filter),
             filter: Value(filter),
             temperature: const Value(-10),
             gain: const Value(ShotNight.gain),
@@ -843,7 +862,7 @@ Future<void> seedCalibration(SkotiqDatabase db) async {
             height: const Value(ShotNight.sensorHeight),
             flatKind: const Value('panel'),
             masterFrameCount: const Value(30),
-            createdAt: ShotNight.at(-1, 6, 40).millisecondsSinceEpoch ~/ 1000,
+            createdAt: takenAt.millisecondsSinceEpoch ~/ 1000,
           ),
         );
   }

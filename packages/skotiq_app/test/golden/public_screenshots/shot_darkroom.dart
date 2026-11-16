@@ -1,5 +1,5 @@
-// The Darkroom's registered masters: each target's L, R, G and B masters,
-// built this morning from every night before tonight. The frames each master
+// The Darkroom's registered masters: a master per filter of each target's
+// plan, built this morning from every night before tonight. The frames each master
 // folded are the seeded frames, so the counts agree with History and Plan.
 import 'dart:convert';
 import 'dart:io';

@@ -1,6 +1,6 @@
 // The deep-sky catalog that ships in the app: it is the pinned OpenNGC file,
-// and a fresh install resolves deep-sky names with no network and nothing
-// downloaded.
+// a fresh install resolves deep-sky names with no network and nothing
+// downloaded, and nebulae carry the class the nebula light table gives.
 
 import 'dart:convert';
 import 'dart:io';
@@ -63,6 +63,42 @@ void main() {
     expect(text, contains('Mattia Verga'));
     expect(text, contains('https://github.com/mattiaverga/OpenNGC'));
     expect(text, contains('creativecommons.org/licenses/by-sa/4.0'));
+    expect(text, contains('Sharpless'));
+    expect(text, contains('Magakian'));
+  });
+
+  test('the nebula light table was built from the shipped OpenNGC file', () {
+    final table = File(
+      p.join(packageRoot, 'assets', 'catalogs', 'nebula_light.csv'),
+    ).readAsStringSync();
+    expect(
+      table,
+      contains('# OpenNGC NGC.csv sha256 ${SkyCatalog.dso.sha256}\n'),
+    );
+    final names = File(
+      p.join(packageRoot, 'assets', 'catalogs', 'NGC.csv'),
+    ).readAsLinesSync().map((line) => line.split(';').first).toSet();
+    expect(
+      parseNebulaLightTable(table).keys.toSet().difference(names),
+      isEmpty,
+    );
+  });
+
+  test('a fresh install types nebulae by the nebula light table', () async {
+    final manager = CatalogManager.instance;
+    await manager.initialize(
+      catalogDir.path,
+      builtIn: builtInCatalogs,
+      nebulaLight: builtInNebulaLight,
+    );
+
+    Future<String> typeOf(String name) async =>
+        (await manager.search(name)).first.type;
+    expect(await typeOf('NGC 7023'), 'Reflection Nebula');
+    expect(await typeOf('NGC 1333'), 'Cluster + Reflection Nebula');
+    expect(await typeOf('M42'), 'Cluster + Emission Nebula');
+    expect(await typeOf('M8'), 'Emission Nebula');
+    expect(await typeOf('M78'), 'Reflection Nebula');
   });
 
   test('a fresh install finds Messier, NGC and IC objects by name', () async {
