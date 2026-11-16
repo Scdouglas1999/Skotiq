@@ -494,11 +494,13 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     });
   }
 
-  /// Start a new live stacking session from raw pixel data.
+  /// Start a new live stacking session from raw pixel data carrying
+  /// [pedestal] ADU (0 for none).
   Future<void> startFromData({
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     LiveStackingConfig? config,
   }) {
     return _trackStart(
@@ -506,6 +508,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         width: width,
         height: height,
         data: data,
+        pedestal: pedestal,
         config: config,
       ),
     );
@@ -515,6 +518,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     LiveStackingConfig? config,
   }) async {
     final stopping = _stopInFlight;
@@ -540,6 +544,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         width: width,
         height: height,
         data: data,
+        pedestal: pedestal,
         config: effectiveConfig,
       );
 
@@ -611,11 +616,12 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
-  /// Add a frame to the stack from raw pixel data.
+  /// Add a frame to the stack from raw pixel data carrying [pedestal] ADU.
   Future<void> addFrameFromData({
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   }) async {
     if (state.status != LiveStackingStatus.running) return;
     final generation = _sessionGeneration;
@@ -628,6 +634,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         width: width,
         height: height,
         data: data,
+        pedestal: pedestal,
       );
 
       if (!_isCurrentSession(generation, authority) ||

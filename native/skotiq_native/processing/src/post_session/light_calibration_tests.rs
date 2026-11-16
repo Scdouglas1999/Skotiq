@@ -3,7 +3,8 @@
 //! point, where `k` scales a dark of another exposure, a master flat is used
 //! as it is and only a raw flat has the bias taken out first.
 
-use super::{LightCalibration, CALIBRATION_PEDESTAL};
+use super::LightCalibration;
+use skotiq_imaging::calibration::{automatic_pedestal, AUTO_PEDESTAL_LIMIT, INSIGNIFICANT_ADU};
 use skotiq_imaging::{write_fits, FitsHeader, ImageData};
 use std::path::{Path, PathBuf};
 
@@ -51,16 +52,13 @@ fn light() -> ImageData {
     }))
 }
 
-/// The calibrated samples with the pedestal taken out.
+/// The calibrated samples, zero-based.
 fn signal(calibration: &LightCalibration, light: &ImageData, exposure: Option<f64>) -> Vec<f64> {
     calibration
         .apply(light, exposure)
         .expect("calibrated")
         .image
         .samples_f64()
-        .iter()
-        .map(|v| v - f64::from(CALIBRATION_PEDESTAL))
-        .collect()
 }
 
 fn calibrated(dir: &Dir, flat: Option<String>) -> Vec<f64> {
@@ -118,14 +116,74 @@ fn noise_below_the_dark_is_kept() {
     let light = u16_frame([1030.0, 1070.0, 1040.0, 1060.0]);
     let out = signal(&calibration, &light, None);
     assert_eq!(out, vec![-20.0, 20.0, -10.0, 10.0]);
-    let sixteen_bit = calibration
-        .apply(&light, None)
-        .expect("calibrated")
-        .sixteen_bit;
+    let calibrated = calibration.apply(&light, None).expect("calibrated");
     assert_eq!(
-        sixteen_bit.as_u16().expect("16-bit copy"),
-        vec![80, 120, 90, 110],
+        calibrated.pedestal, 21.0,
+        "the smallest that lifts -20 off zero"
+    );
+    assert_eq!(
+        calibrated.sixteen_bit.as_u16().expect("16-bit copy"),
+        vec![1, 41, 11, 31],
         "the 16-bit copy keeps the samples below the dark through the pedestal"
+    );
+    assert_eq!(
+        calibrated.with_pedestal().as_f32().expect("F32"),
+        vec![1.0, 41.0, 11.0, 31.0]
+    );
+}
+
+/// PixInsight's automatic pedestal: a sky well above the dark needs none.
+#[test]
+fn a_sky_above_the_dark_gets_no_pedestal() {
+    let d = dir("no-pedestal");
+    let dark = write(&d.0, "dark.fits", &u16_frame(DARK.map(f64::from)), &[]);
+    let bias = write(&d.0, "bias.fits", &u16_frame([f64::from(BIAS); 4]), &[]);
+    let calibration = LightCalibration::load(&dark, &None, &bias).expect("masters read");
+    let calibrated = calibration.apply(&light(), None).expect("calibrated");
+    assert_eq!(calibrated.pedestal, 0.0);
+    assert_eq!(
+        calibrated.sixteen_bit.as_u16().expect("16-bit copy"),
+        vec![800, 1000, 1200, 1000]
+    );
+}
+
+/// The automatic pedestal is the smallest whole ADU that leaves no more than
+/// the limit's fraction of samples at or below zero.
+#[test]
+fn the_automatic_pedestal_truncates_at_most_the_limit() {
+    // A faint narrowband sky: 15 ADU over the dark, about 14 ADU of noise.
+    let mut state = 0x2545_f491_4f6c_dd1d_u64;
+    let samples: Vec<f32> = (0..200_000)
+        .map(|_| {
+            let mut sum = 0.0;
+            for _ in 0..12 {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                sum += (state >> 11) as f64 / (1u64 << 53) as f64;
+            }
+            (15.0 + 14.0 * (sum - 6.0)) as f32
+        })
+        .collect();
+    let image = ImageData::from_f32(400, 500, 1, &samples);
+    let pedestal = automatic_pedestal(&image.samples_f64());
+    let truncated = |p: f64| {
+        samples
+            .iter()
+            .filter(|&&v| f64::from(v) + p <= INSIGNIFICANT_ADU)
+            .count()
+    };
+    let allowed = (AUTO_PEDESTAL_LIMIT * samples.len() as f64) as usize;
+    assert!(pedestal > 0.0 && pedestal.fract() == 0.0, "{pedestal}");
+    assert!(
+        truncated(pedestal) <= allowed,
+        "{pedestal}: {}",
+        truncated(pedestal)
+    );
+    assert!(
+        truncated(pedestal - 1.0) > allowed,
+        "{} ADU less would also have kept the frame positive",
+        pedestal
     );
 }
 

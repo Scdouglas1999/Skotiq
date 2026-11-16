@@ -1,8 +1,9 @@
 part of '../network_backend.dart';
 
 /// Device actions that only a linked imaging host can take for its client:
-/// the camera warm-up it runs next to the camera, its switch channels, and
-/// the dome and cover readings a local process takes from the bridge.
+/// the camera warm-up it runs next to the camera, its switch channels, the
+/// dome and cover readings a local process takes from the bridge, and the
+/// list of devices the host knows about.
 mixin HostDeviceControl on NetworkBackendTransport {
   /// Remote-only: start the gradual camera warm-up on the host, which runs
   /// the ramp next to the camera. Returns the host's outcome name (see
@@ -70,4 +71,8 @@ mixin HostDeviceControl on NetworkBackendTransport {
   Future<Map<String, dynamic>> getCoverStatus(String deviceId) async {
     return await _get(AuxiliaryApi.coverStatus, query: {'deviceId': deviceId});
   }
+
+  /// `GET /api/devices`: the devices the host knows about.
+  Future<KnownDevices> knownDevices() async =>
+      KnownDevices.fromJson(await _get(DeviceDiscoveryApi.getDevices));
 }

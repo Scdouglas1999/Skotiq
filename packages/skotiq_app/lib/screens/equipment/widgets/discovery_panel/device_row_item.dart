@@ -1,15 +1,13 @@
 part of '../discovery_panel.dart';
 
 class _DeviceRowItem extends ConsumerStatefulWidget {
-  final UnifiedDevice device;
-  final DeviceType deviceType;
+  final KnownDevice known;
   final Future<void> Function() onConnect;
   final Future<void> Function() onDisconnect;
   final ValueChanged<(DeviceInfo, int)>? onAssignDevice;
 
   const _DeviceRowItem({
-    required this.device,
-    required this.deviceType,
+    required this.known,
     required this.onConnect,
     required this.onDisconnect,
     this.onAssignDevice,
@@ -26,33 +24,18 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
   /// The assignment in progress; a newer one or a host change drops it.
   late final _assignments = ref.backendScopes(alive: () => mounted);
 
-  bool _isDeviceConnected() {
-    final slot = ref.read(widget.deviceType.slot.state);
-    return slot.connectionState == DeviceConnectionState.connected &&
-        _deviceIdsMatch(slot.deviceId, widget.device.activeDeviceId);
-  }
-
-  bool _deviceIdsMatch(String? connectedId, String discoveredId) {
-    if (connectedId == null) return false;
-    final c = connectedId.trim().toLowerCase();
-    final d = discoveredId.trim().toLowerCase();
-    if (c == d) return true;
-    final normC = c.replaceAll(RegExp(r'[^a-z0-9]'), '');
-    final normD = d.replaceAll(RegExp(r'[^a-z0-9]'), '');
-    if (normC == normD) return true;
-    if (normC.contains(normD) || normD.contains(normC)) return true;
-    return false;
-  }
+  DeviceType get _type => widget.known.type;
 
   Future<void> _handleConnect() async {
-    if (_isConnecting) return;
     // A click that lands after the connect completes but before the row
-    // repaints as "Disconnect" issued a SECOND connect to a device that was
-    // already connected — two `Connecting to Camera device: sim_camera_1`
-    // 190 ms apart with no disconnect between them, each starting its own
-    // heartbeat monitor.
-    if (_isDeviceConnected()) return;
-
+    // repaints as "Disconnect" would issue a second connect to a device that
+    // is already connected.
+    final state = widget.known.state;
+    if (_isConnecting ||
+        state == DeviceConnectionState.connected ||
+        state == DeviceConnectionState.connecting) {
+      return;
+    }
     setState(() => _isConnecting = true);
     try {
       await widget.onConnect();
@@ -75,13 +58,13 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     if (profile == null) {
       if (mounted) {
         context.showErrorSnackBar(
-          'Cannot assign ${widget.device.displayName}: the selected profile '
+          'Cannot assign ${widget.known.name}: the selected profile '
           'no longer exists.',
         );
       }
       return;
     }
-    final device = widget.device;
+    final device = widget.known.device;
     final assignment = _assignments.beginLatest();
     setState(() => _isAssigning = true);
     try {
@@ -113,7 +96,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
 
   /// Make a profile that starts with this device in it, and select it.
   Future<void> _assignToNewProfile(List<EquipmentProfileModel> profiles) async {
-    final device = widget.device;
+    final device = widget.known.device;
     final assignment = _assignments.beginLatest();
     setState(() => _isAssigning = true);
     try {
@@ -125,7 +108,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
           .read(equipmentProfilesProvider.notifier)
           .saveProfile(EquipmentProfileModel(name: name));
       await ref.read(profileServiceProvider).updateProfileDevices(profileId, {
-        widget.deviceType: device.activeDeviceId,
+        _type: device.activeDeviceId,
       });
       if (!mounted || assignment.isStale) return;
       ref.read(profileMutationEpochProvider.notifier).state++;
@@ -155,11 +138,11 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     for (final profile in profiles) {
       if (profile.id == null) continue;
 
-      final slotStatus = _getSlotStatus(profile, widget.deviceType);
+      final slotStatus = _getSlotStatus(profile, _type);
       items.add(PopupMenuItem<AssignAction>(
         value: AssignAction(
           profileId: profile.id!,
-          deviceType: widget.deviceType,
+          deviceType: _type,
         ),
         child: Row(
           children: [
@@ -186,7 +169,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     items.add(PopupMenuItem<AssignAction>(
       value: AssignAction(
         profileId: AssignAction.newProfile,
-        deviceType: widget.deviceType,
+        deviceType: _type,
       ),
       child: Row(
         children: [
@@ -211,94 +194,111 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       if (_isAssigning) setState(() => _isAssigning = false);
     });
     final colors = SkotiqColors.of(context);
-
-    ref.watch(cameraStateProvider);
-    ref.watch(mountStateProvider);
-    ref.watch(focuserStateProvider);
-    ref.watch(filterWheelStateProvider);
-    ref.watch(guiderStateProvider);
-    ref.watch(rotatorStateProvider);
-    ref.watch(domeStateProvider);
-    ref.watch(weatherStateProvider);
-    ref.watch(safetyMonitorStateProvider);
-    ref.watch(switchStateProvider);
-    ref.watch(coverCalibratorStateProvider);
-
-    final isConnected = _isDeviceConnected();
-    final activeBackend = widget.device.activeBackend;
-
     return LayoutBuilder(
-      builder: (context, constraints) =>
-          _row(colors, constraints, isConnected, activeBackend: activeBackend),
+      builder: (context, constraints) => _row(colors, constraints),
     );
   }
 
-  /// The row proper. Below [_discoveryRowCompactWidth] the Connect / Disconnect
-  /// button drops its label and becomes an icon: a device NAME truncated to
-  /// "Simulated Filter W…" costs the operator the one thing the row exists to
-  /// tell them, and a verb they already know does not.
-  Widget _row(
-    SkotiqColors colors,
-    BoxConstraints constraints,
-    bool isConnected, {
-    required DriverType activeBackend,
-  }) {
+  /// [child] with the failure as its tooltip, when there is one.
+  static Widget _withErrorTooltip(String? error, Widget child) =>
+      error == null || error.isEmpty
+          ? child
+          : Tooltip(message: error, child: child);
+
+  /// What the row says about the device's state, and in which color.
+  (String, Color) _stateText(SkotiqColors colors) =>
+      switch (widget.known.state) {
+        DeviceConnectionState.connected => ('Connected', colors.success),
+        DeviceConnectionState.connecting => ('Connecting', colors.warning),
+        DeviceConnectionState.error => ('Failed to connect', colors.error),
+        DeviceConnectionState.disconnected => (
+            'Not connected',
+            colors.textMuted,
+          ),
+      };
+
+  /// The row proper: name over a muted line with the state, the protocol and
+  /// whether the active profile names the device. Below
+  /// [_discoveryRowCompactWidth] Connect / Disconnect drops its label and
+  /// becomes an icon, so the device name keeps the width.
+  Widget _row(SkotiqColors colors, BoxConstraints constraints) {
+    final known = widget.known;
     final compact = constraints.hasBoundedWidth &&
         constraints.maxWidth < _discoveryRowCompactWidth;
+    final isConnected = known.isConnected;
+    final busy =
+        _isConnecting || known.state == DeviceConnectionState.connecting;
+    final (stateLabel, stateColor) = _stateText(colors);
+    final secondary = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: SkotiqTokens.spaceSm,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: colors.border)),
       ),
       child: Row(
         children: [
           Icon(
-            widget.deviceType.icon,
+            _type.icon,
             size: _discoveryRowIconSize,
             color: isConnected ? colors.success : colors.textMuted,
           ),
-          const SizedBox(width: 10),
-          // Expanded, not Flexible-beside-a-Spacer: sharing the row's slack
-          // with a Spacer gave the name half of it and truncated
-          // "Simulated Filter Wheel" to "Simulated Filter W…". The name is the
-          // one thing the row exists to say, so it takes ALL the slack and the
-          // actions sit at the end.
+          const SizedBox(width: SkotiqTokens.spaceMd),
+          // The name takes all the slack and the actions sit at the end: the
+          // name is the one thing the row exists to say.
           Expanded(
-            child: Text(
-              widget.device.displayName,
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textPrimary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: SkotiqTokens.spaceSm),
-          // The protocol, as a quiet mono tag: "sim", "ascom", "indi".
-          Text(
-            activeBackend.shortLabel.toLowerCase(),
-            style: SkotiqTypography.monoCaption.copyWith(
-              color: colors.textMuted,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  known.name,
+                  style: SkotiqTypography.bodyStrong.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                _withErrorTooltip(
+                  known.error,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: stateLabel,
+                          style: secondary.copyWith(color: stateColor),
+                        ),
+                        TextSpan(
+                          text: ' · ${known.device.activeBackend.shortLabel}'
+                              '${known.inProfile ? ' · In profile' : ''}',
+                        ),
+                      ],
+                    ),
+                    style: secondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: SkotiqTokens.spaceMd),
           // "Add to profile" persists the device; "Connect" does not — it is a
-          // session-only connection that is silently gone after a restart. The
-          // two sat side by side with nothing saying so, so the difference is
-          // spelled out in the tooltip here and marked on the resulting panel.
+          // session-only connection that is gone after a restart unless the
+          // profile names the device.
           Tooltip(
             message: isConnected
                 ? 'Disconnect this device now.'
-                : 'Connect for this session only. It is NOT saved to a '
-                    'profile and will not reconnect on the next launch. Use '
-                    '"Add to profile" for that.',
+                : known.inProfile
+                    ? 'Connect this device now.'
+                    : 'Connect for this session only. It is NOT saved to a '
+                        'profile and will not reconnect on the next launch. '
+                        'Use "Add to profile" for that.',
             child: compact
                 ? SkotiqIconButton(
                     icon: isConnected ? LucideIcons.unplug : LucideIcons.plug,
                     tooltip: isConnected ? 'Disconnect' : 'Connect',
                     size: IconButtonSize.sm,
-                    onPressed: _isConnecting
+                    onPressed: busy
                         ? null
                         : (isConnected ? widget.onDisconnect : _handleConnect),
                   )
@@ -306,8 +306,8 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
                     label: isConnected ? 'Disconnect' : 'Connect',
                     variant: ButtonVariant.ghost,
                     size: ButtonSize.small,
-                    isLoading: _isConnecting,
-                    onPressed: _isConnecting
+                    isLoading: busy,
+                    onPressed: busy
                         ? null
                         : (isConnected ? widget.onDisconnect : _handleConnect),
                   ),

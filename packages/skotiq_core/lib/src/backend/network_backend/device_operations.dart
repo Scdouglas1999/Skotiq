@@ -84,7 +84,7 @@ mixin _NetworkBackendDeviceOperations on NetworkBackendTransport {
       final typeValue = device['deviceType'] ?? device['type'];
       if (typeValue is! String) {
         throw FormatException(
-          'GET /api/devices returned device row $index without a valid '
+          'POST /api/devices/discover returned device row $index without a valid '
           '`deviceType`',
         );
       }
@@ -97,17 +97,17 @@ mixin _NetworkBackendDeviceOperations on NetworkBackendTransport {
       final driverType = device['driverType'];
       if (id is! String || id.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device row $index without a valid `id`',
+          'POST /api/devices/discover returned device row $index without a valid `id`',
         );
       }
       if (name is! String || name.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device $id without a valid `name`',
+          'POST /api/devices/discover returned device $id without a valid `name`',
         );
       }
       if (driverType is! String || driverType.trim().isEmpty) {
         throw FormatException(
-          'GET /api/devices returned device $id without a valid `driverType`',
+          'POST /api/devices/discover returned device $id without a valid `driverType`',
         );
       }
       byType[deviceType]!.add(

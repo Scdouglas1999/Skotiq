@@ -302,11 +302,13 @@ pub fn api_stacking_start(
 }
 
 /// Start live stacking from a single-plane u16 reference frame in memory.
-/// Such a frame has no header, so a color session needs `bayer_pattern`.
+/// Such a frame has no header, so a color session needs `bayer_pattern`, and
+/// `pedestal` states the output pedestal its samples carry (ADU, 0 for none).
 pub fn api_stacking_start_from_data(
     width: u32,
     height: u32,
     data: Vec<u16>,
+    pedestal: f64,
     config: ApiLiveStackingConfig,
 ) -> Result<ApiLiveStackingStats, SkotiqError> {
     tracing::info!(
@@ -323,7 +325,11 @@ pub fn api_stacking_start_from_data(
          BAYERPAT header — set bayer_pattern in the config)",
     )?;
     let reference = ingest(ImageData::from_u16(width, height, 1, &data), color)?;
-    let stacker = LiveStacker::new(&reference, native)
+    let provenance = FrameProvenance {
+        pedestal,
+        ..FrameProvenance::unknown()
+    };
+    let stacker = LiveStacker::new_with_provenance(&reference, native, &provenance)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to initialize stacker: {}", e)))?;
     Ok(install(stacker, color))
 }
@@ -348,11 +354,13 @@ pub fn api_stacking_add_frame(image_path: String) -> Result<ApiLiveStackingResul
     session.result(&stacked)
 }
 
-/// Add a single-plane u16 frame in memory to the stack.
+/// Add a single-plane u16 frame in memory to the stack; `pedestal` is the
+/// output pedestal its samples carry (ADU, 0 for none).
 pub fn api_stacking_add_frame_from_data(
     width: u32,
     height: u32,
     data: Vec<u16>,
+    pedestal: f64,
 ) -> Result<ApiLiveStackingResult, SkotiqError> {
     tracing::debug!("Adding frame from data to stack: {}x{}", width, height);
     let mut guard = acquire_stacker();
@@ -364,7 +372,7 @@ pub fn api_stacking_add_frame_from_data(
     let frame = ingest(ImageData::from_u16(width, height, 1, &data), session.color)?;
     let stacked = session
         .stacker
-        .add_frame(&frame)
+        .add_frame(&frame, pedestal)
         .map_err(SkotiqError::ImageError)?;
     session.result(&stacked)
 }
@@ -399,8 +407,14 @@ fn save_master_fits(file_path: String) -> Result<ApiLiveStackingMaster, SkotiqEr
         ));
     }
     let image = session.stacker.get_current_stack();
-    write_stack_master(std::path::Path::new(&file_path), &image, provenance)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to write stacked master: {:?}", e)))?;
+    let pedestal = session.stacker.output_pedestal();
+    write_stack_master(
+        std::path::Path::new(&file_path),
+        &image,
+        provenance,
+        pedestal,
+    )
+    .map_err(|e| SkotiqError::ImageError(format!("Failed to write stacked master: {:?}", e)))?;
     tracing::info!(
         "Stacked master saved: {} ({} frames, {:.1} s integration)",
         file_path,

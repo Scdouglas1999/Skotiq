@@ -165,6 +165,19 @@ pub(crate) fn choose_reference(
     ))
 }
 
+/// [`aligned_quality`] of a 16-bit copy that carries `pedestal` ADU, its
+/// background stated without the pedestal.
+pub(crate) fn pedestal_free_quality(
+    image: &ImageData,
+    pedestal: f64,
+    cfg: &FrameQualityConfig,
+) -> Option<FrameQuality> {
+    aligned_quality(image, cfg).map(|q| FrameQuality {
+        background: q.background - pedestal,
+        ..q
+    })
+}
+
 /// Measure [`FrameQuality`] on an image, deriving a luminance plane for RGB so
 /// the metric is channel-agnostic (the weighting + reference math expects a
 /// single plane).

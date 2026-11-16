@@ -382,7 +382,7 @@ fn pin_live_stack(pins: &mut Pins) {
         .into_iter()
         .enumerate()
     {
-        let outcome = stacker.add_frame(frame);
+        let outcome = stacker.add_frame(frame, 0.0);
         pins.add(
             &format!("live_stack/mono.add{i}"),
             match &outcome {
@@ -401,7 +401,7 @@ fn pin_live_stack(pins: &mut Pins) {
     let mut rgb = LiveStacker::new(&as_rgb(&reference, gains), LiveStackConfig::default())
         .expect("rgb stacker");
     for (i, frame) in [&second, &third].into_iter().enumerate() {
-        let outcome = rgb.add_frame(&as_rgb(frame, gains));
+        let outcome = rgb.add_frame(&as_rgb(frame, gains), 0.0);
         pins.add(
             &format!("live_stack/rgb.add{i}"),
             match &outcome {
@@ -429,7 +429,6 @@ fn pin_calibration(pins: &mut Pins) {
         dark_scale: 1.5,
         flat: Some(&flat),
         flat_pedestal: FlatPedestal::Included,
-        output_pedestal: 100.0,
     };
     let calibrated = calibrate_frame_f32(&light, &float_cal).expect("calibrates");
     pins.add("calibration/f32.full", image_digest(&calibrated));

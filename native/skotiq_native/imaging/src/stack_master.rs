@@ -40,6 +40,9 @@ pub struct FrameProvenance {
     pub date_obs: Option<String>,
     /// The frame's `FILTER`, verbatim; `None` for a frame taken through none.
     pub filter: Option<String>,
+    /// The output pedestal its samples carry, in ADU; 0 for none. It leaves
+    /// them before they are stacked.
+    pub pedestal: f64,
 }
 
 impl FrameProvenance {
@@ -66,6 +69,7 @@ impl FrameProvenance {
             exposure_secs,
             date_obs: text("DATE-OBS"),
             filter: text("FILTER"),
+            pedestal: crate::calibration::stated_pedestal(header),
         }
     }
 }
@@ -91,6 +95,8 @@ pub struct StackProvenance {
     /// parseable one — a stamp in an unrecognised form is still closer to the
     /// truth than the stack's start time.
     first_unparsed_date_obs: Option<String>,
+    /// Whether a stacked frame's output pedestal was taken out.
+    pedestal_removed: bool,
 }
 
 impl Default for StackProvenance {
@@ -109,12 +115,14 @@ impl StackProvenance {
             total_integration_secs: 0.0,
             earliest_date_obs: None,
             first_unparsed_date_obs: None,
+            pedestal_removed: false,
         }
     }
 
     /// Fold one accepted frame's provenance into the running totals.
     pub fn fold(&mut self, frame: &FrameProvenance) {
         self.stacked_frames = self.stacked_frames.saturating_add(1);
+        self.pedestal_removed |= frame.pedestal != 0.0;
 
         if let Some(exposure) = frame.exposure_secs {
             if exposure.is_finite() && exposure > 0.0 {
@@ -178,6 +186,9 @@ impl StackProvenance {
             "Live stack of {} frames; EXPTIME summed from {} frame headers",
             self.stacked_frames, self.frames_with_exposure
         ));
+        if self.pedestal_removed {
+            header.add_history(crate::calibration::PEDESTAL_REMOVED_HISTORY);
+        }
         header
     }
 
@@ -227,18 +238,22 @@ fn parse_date_obs(text: &str) -> Option<DateTime<Utc>> {
 }
 
 /// Write the stacked master to `path` as FITS, with the header
-/// [`StackProvenance::to_fits_header`] synthesizes.
+/// [`StackProvenance::to_fits_header`] synthesizes and a `PEDESTAL` card for
+/// the output `pedestal` (ADU) its samples carry, when they carry one.
 pub fn write_stack_master(
     path: &Path,
     image: &ImageData,
     provenance: &StackProvenance,
+    pedestal: f64,
 ) -> Result<(), FitsError> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
         }
     }
-    write_fits(path, image, &provenance.to_fits_header())
+    let mut header = provenance.to_fits_header();
+    crate::calibration::state_pedestal(&mut header, pedestal);
+    write_fits(path, image, &header)
 }
 
 #[cfg(test)]
@@ -258,6 +273,7 @@ mod tests {
             exposure_secs: Some(30.0),
             date_obs: None,
             filter: None,
+            pedestal: 0.0,
         });
 
         assert_eq!(provenance.total_integration_secs(), 30.0);
@@ -271,11 +287,13 @@ mod tests {
             exposure_secs: Some(f64::NAN),
             date_obs: None,
             filter: None,
+            pedestal: 0.0,
         });
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(-5.0),
             date_obs: None,
             filter: None,
+            pedestal: 0.0,
         });
 
         assert_eq!(provenance.total_integration_secs(), 0.0);
@@ -294,11 +312,13 @@ mod tests {
             exposure_secs: None,
             date_obs: Some("2026-08-14T04:00:00".to_string()),
             filter: None,
+            pedestal: 0.0,
         });
         provenance.fold(&FrameProvenance {
             exposure_secs: None,
             date_obs: Some("2026-08-14T05:30:00+02:00".to_string()),
             filter: None,
+            pedestal: 0.0,
         });
 
         let header = provenance.to_fits_header();
@@ -319,6 +339,7 @@ mod tests {
             exposure_secs: None,
             date_obs: Some("14/08/26 04:00:00".to_string()),
             filter: None,
+            pedestal: 0.0,
         });
 
         let header = provenance.to_fits_header();

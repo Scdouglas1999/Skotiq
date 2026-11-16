@@ -32,6 +32,7 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
   final Ref _ref;
   bool _cancelled = false;
   int _operationGeneration = 0;
+  Future<void>? _scan;
 
   UnifiedDiscoveryNotifier(this._ref) : super(const UnifiedDiscoveryState()) {
     _ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
@@ -42,20 +43,31 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     });
   }
 
-  /// Discover devices from all available backends in parallel
+  /// Scan every backend available on this platform, in parallel, and
+  /// replace the found devices with what it finds.
   ///
-  /// This will:
-  /// 1. Start discovery on all available backends simultaneously
-  /// 2. Track progress per-backend
-  /// 3. Group discovered devices using fuzzy matching
-  /// 4. Update state as results come in
+  /// One scan runs at a time: a scan asked for while one runs (the header's
+  /// Scan, a linked client's, the API's) joins it.
   Future<void> discoverAll({
     bool includeIndi = true,
     bool includeAlpaca = true,
+  }) {
+    final running = _scan;
+    if (running != null) return running;
+    late final Future<void> scan;
+    scan = _discoverAll(includeIndi: includeIndi, includeAlpaca: includeAlpaca)
+        .whenComplete(() {
+          if (identical(_scan, scan)) _scan = null;
+        });
+    return _scan = scan;
+  }
+
+  Future<void> _discoverAll({
+    required bool includeIndi,
+    required bool includeAlpaca,
   }) async {
     final generation = _startDiscovery();
 
-    // Get backends that are available on this platform
     final backends = discoveryBackendsForPolicy(
       _getAvailableBackends(),
       includeIndi: includeIndi,
@@ -66,13 +78,9 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // partial scan never leaves yesterday's devices on screen.
     state = _discoveringStateForBackends(backends);
 
-    // Discover from all backends in parallel
-    final futures = <Future<_BackendResult>>[];
-    for (final backend in backends) {
-      futures.add(_discoverBackend(backend));
-    }
-
-    final results = await Future.wait(futures);
+    final results = await Future.wait([
+      for (final backend in backends) _discoverBackend(backend),
+    ]);
 
     if (!_canPublish(generation)) return;
 
@@ -93,7 +101,6 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       allDevices.addAll(result.devices);
     }
 
-    // Group devices using fuzzy matching
     final matchingService = _ref.read(deviceMatchingServiceProvider);
     final groupedDevices = matchingService.groupDevices(allDevices);
 
@@ -102,135 +109,6 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       rawDevices: allDevices,
       groupedDevices: groupedDevices,
     );
-  }
-
-  /// Discover from a specific backend only
-  ///
-  /// Useful for adding servers manually (INDI/Alpaca)
-  Future<void> discoverBackend(
-    DriverType backend, {
-    String? host,
-    int? port,
-  }) async {
-    final generation = _startDiscovery();
-
-    // Drop this backend's stale devices as soon as rescan starts.
-    state = _discoveringStateForBackends([backend], mergeWithExisting: true);
-
-    final result = await _discoverBackend(backend, host: host, port: port);
-
-    if (!_canPublish(generation)) return;
-
-    final updatedStates = Map<DriverType, BackendDiscoveryState>.from(
-      state.backendStates,
-    );
-    updatedStates[backend] = BackendDiscoveryState(
-      backend: backend,
-      status: result.error != null
-          ? DiscoveryStatus.error
-          : DiscoveryStatus.completed,
-      error: result.error,
-      devices: result.devices,
-      completedAt: DateTime.now(),
-    );
-
-    final allDevices = <DeviceInfo>[];
-    for (final backendState in updatedStates.values) {
-      allDevices.addAll(backendState.devices);
-    }
-
-    final matchingService = _ref.read(deviceMatchingServiceProvider);
-    final groupedDevices = matchingService.groupDevices(allDevices);
-
-    state = state.copyWith(
-      backendStates: updatedStates,
-      rawDevices: allDevices,
-      groupedDevices: groupedDevices,
-    );
-  }
-
-  /// Discover devices only if results are missing or stale.
-  ///
-  /// Backends whose last successful discovery completed within [maxAge] are
-  /// skipped.  Backends that have never completed or whose results are older
-  /// than [maxAge] are rediscovered.  If *all* backends are fresh, this method
-  /// returns immediately without any network I/O.
-  Future<void> discoverIfNeeded({
-    Duration maxAge = const Duration(seconds: 30),
-  }) async {
-    final now = DateTime.now();
-    final backends = _getAvailableBackends();
-
-    final staleBackends = <DriverType>[];
-    for (final backend in backends) {
-      final bs = state.backendStates[backend];
-      if (bs == null ||
-          !bs.isSuccess ||
-          bs.completedAt == null ||
-          now.difference(bs.completedAt!) > maxAge) {
-        staleBackends.add(backend);
-      }
-    }
-
-    if (staleBackends.isEmpty) return;
-
-    // If all backends are stale, just do a full discovery
-    if (staleBackends.length == backends.length) {
-      await discoverAll();
-      return;
-    }
-
-    // Otherwise, selectively rediscover only the stale backends
-    final generation = _startDiscovery();
-
-    // Clear stale devices for backends being rescanned.
-    state = _discoveringStateForBackends(
-      staleBackends,
-      mergeWithExisting: true,
-    );
-
-    // Discover stale backends in parallel
-    final futures = <Future<_BackendResult>>[];
-    for (final backend in staleBackends) {
-      futures.add(_discoverBackend(backend));
-    }
-    final results = await Future.wait(futures);
-
-    if (!_canPublish(generation)) return;
-
-    // Merge results into existing state
-    final updatedStates = Map<DriverType, BackendDiscoveryState>.from(
-      state.backendStates,
-    );
-    for (final result in results) {
-      updatedStates[result.backend] = BackendDiscoveryState(
-        backend: result.backend,
-        status: result.error != null
-            ? DiscoveryStatus.error
-            : DiscoveryStatus.completed,
-        error: result.error,
-        devices: result.devices,
-        completedAt: DateTime.now(),
-      );
-    }
-
-    final allDevices = <DeviceInfo>[];
-    for (final backendState in updatedStates.values) {
-      allDevices.addAll(backendState.devices);
-    }
-
-    final matchingService = _ref.read(deviceMatchingServiceProvider);
-    final groupedDevices = matchingService.groupDevices(allDevices);
-
-    state = state.copyWith(
-      backendStates: updatedStates,
-      rawDevices: allDevices,
-      groupedDevices: groupedDevices,
-    );
-  }
-
-  Future<void> refresh() async {
-    await discoverAll();
   }
 
   void cancel() {
@@ -254,44 +132,21 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
   void _invalidateInFlightDiscovery() {
     _cancelled = true;
     _operationGeneration++;
+    _scan = null;
   }
 
-  /// Build state with [backends] marked discovering and their device lists cleared.
-  ///
-  /// When [mergeWithExisting] is true, backends not in [backends] keep their
-  /// prior results (used by selective `discoverIfNeeded` refresh).
+  /// [backends] marked discovering, and no devices.
   UnifiedDiscoveryState _discoveringStateForBackends(
-    List<DriverType> backends, {
-    bool mergeWithExisting = false,
-  }) {
-    final updatedStates = mergeWithExisting
-        ? Map<DriverType, BackendDiscoveryState>.from(state.backendStates)
-        : <DriverType, BackendDiscoveryState>{};
-
-    for (final backend in backends) {
-      updatedStates[backend] = BackendDiscoveryState(
-        backend: backend,
-        status: DiscoveryStatus.discovering,
-        devices: const [],
-      );
-    }
-
-    final allDevices = <DeviceInfo>[];
-    for (final backendState in updatedStates.values) {
-      if (backendState.status != DiscoveryStatus.discovering) {
-        allDevices.addAll(backendState.devices);
-      }
-    }
-
-    final matchingService = _ref.read(deviceMatchingServiceProvider);
-    final groupedDevices = matchingService.groupDevices(allDevices);
-
-    return UnifiedDiscoveryState(
-      backendStates: updatedStates,
-      rawDevices: allDevices,
-      groupedDevices: groupedDevices,
-    );
-  }
+    List<DriverType> backends,
+  ) => UnifiedDiscoveryState(
+    backendStates: {
+      for (final backend in backends)
+        backend: BackendDiscoveryState(
+          backend: backend,
+          status: DiscoveryStatus.discovering,
+        ),
+    },
+  );
 
   /// Get list of backends available on this platform
   List<DriverType> _getAvailableBackends() {
@@ -326,11 +181,7 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     return backends;
   }
 
-  Future<_BackendResult> _discoverBackend(
-    DriverType backend, {
-    String? host,
-    int? port,
-  }) async {
+  Future<_BackendResult> _discoverBackend(DriverType backend) async {
     try {
       final deviceService = _ref.read(deviceServiceProvider);
       final settings = await _ref.read(appSettingsProvider.future);
@@ -376,8 +227,8 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           break;
 
         case DriverType.indi:
-          final indiHost = host ?? settings.indiServerHost;
-          final indiPort = port ?? settings.indiServerPort;
+          final indiHost = settings.indiServerHost;
+          final indiPort = settings.indiServerPort;
           if (indiHost.isNotEmpty) {
             try {
               devices = await deviceService
@@ -394,8 +245,8 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           break;
 
         case DriverType.alpaca:
-          final alpacaHost = host ?? settings.alpacaServerHost;
-          final alpacaPort = port ?? settings.alpacaServerPort;
+          final alpacaHost = settings.alpacaServerHost;
+          final alpacaPort = settings.alpacaServerPort;
           if (alpacaHost.isNotEmpty) {
             try {
               devices = await deviceService

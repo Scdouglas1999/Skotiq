@@ -370,9 +370,11 @@ impl LiveStacker {
 
         // Initialize accumulators from reference frame pixel data
         let ref_pixels = reference_frame.samples_f64();
+        let ref_pedestal = reference_provenance.pedestal;
         let accumulators: Vec<PixelAccumulator> = ref_pixels
             .par_iter()
-            .map(|&val| PixelAccumulator {
+            .map(|&val| val - ref_pedestal)
+            .map(|val| PixelAccumulator {
                 sum: val,
                 sum_sq: val * val,
                 count: 1,
@@ -409,9 +411,16 @@ impl LiveStacker {
     /// 5. Accumulate aligned pixels with optional sigma-clipping rejection
     ///
     /// A frame handed over without a header says nothing about its filter, so
-    /// it is not judged on it.
-    pub fn add_frame(&mut self, frame: &ImageData) -> Result<ImageData, String> {
-        self.stack_frame(frame, &FrameProvenance::unknown())
+    /// it is not judged on it; `pedestal` is the output pedestal its samples
+    /// carry, in ADU (0 for none).
+    pub fn add_frame(&mut self, frame: &ImageData, pedestal: f64) -> Result<ImageData, String> {
+        self.stack_frame(
+            frame,
+            &FrameProvenance {
+                pedestal,
+                ..FrameProvenance::unknown()
+            },
+        )
     }
 
     /// Add a frame that arrived with a header of its own. Only frames that are
@@ -563,8 +572,13 @@ impl LiveStacker {
             transform.sin_theta.atan2(transform.cos_theta).to_degrees()
         );
 
-        // Step 4: Extract frame pixels and apply transform
-        let frame_pixels = frame.samples_f64();
+        // Step 4: Extract frame pixels without their pedestal and apply transform
+        let mut frame_pixels = frame.samples_f64();
+        if provenance.pedestal != 0.0 {
+            frame_pixels
+                .par_iter_mut()
+                .for_each(|v| *v -= provenance.pedestal);
+        }
         let aligned_pixels = apply_transform_bilinear(
             &frame_pixels,
             self.width as usize,
@@ -663,22 +677,42 @@ impl LiveStacker {
         rejected
     }
 
-    /// Get the current stacked result as an ImageData.
-    /// Returns the mean of all accumulated pixel values.
-    pub fn get_current_stack(&self) -> ImageData {
-        let pixel_count = (self.width as usize) * (self.height as usize) * (self.channels as usize);
-        let mut result_u16 = vec![0u16; pixel_count];
-
-        result_u16
-            .par_iter_mut()
-            .zip(self.accumulators.par_iter())
-            .for_each(|(out, acc)| {
+    /// The zero-based mean of each accumulated sample; `NaN` where no frame
+    /// contributed.
+    fn means(&self) -> Vec<f64> {
+        self.accumulators
+            .par_iter()
+            .map(|acc| {
                 if acc.count > 0 {
-                    let mean = acc.sum / acc.count as f64;
-                    *out = mean.round().clamp(0.0, 65535.0) as u16;
+                    acc.sum / acc.count as f64
+                } else {
+                    f64::NAN
                 }
-            });
+            })
+            .collect()
+    }
 
+    /// The automatic output pedestal (ADU) the 16-bit stack carries so that
+    /// sky the frames' pedestals no longer hold up is not clipped at zero.
+    pub fn output_pedestal(&self) -> f64 {
+        crate::calibration::automatic_pedestal(&self.means())
+    }
+
+    /// The current stack in 16 bits: the mean of the accumulated samples plus
+    /// [`Self::output_pedestal`]; 0 where no frame contributed.
+    pub fn get_current_stack(&self) -> ImageData {
+        let means = self.means();
+        let pedestal = crate::calibration::automatic_pedestal(&means);
+        let result_u16: Vec<u16> = means
+            .par_iter()
+            .map(|&mean| {
+                if mean.is_finite() {
+                    (mean + pedestal).round().clamp(0.0, 65535.0) as u16
+                } else {
+                    0
+                }
+            })
+            .collect();
         ImageData::from_u16(self.width, self.height, self.channels, &result_u16)
     }
 
@@ -2637,6 +2671,7 @@ mod tests {
             exposure_secs: Some(60.0),
             date_obs: None,
             filter: filter.map(str::to_string),
+            pedestal: 0.0,
         };
 
         let mut stacker =
@@ -2670,7 +2705,7 @@ mod tests {
             .add_frame_with_provenance(&shifted, &through(Some(" l ")))
             .expect("the same filter, however it is spelled, stacks");
         stacker
-            .add_frame(&shifted)
+            .add_frame(&shifted, 0.0)
             .expect("a frame without a header is not judged on its filter");
         assert_eq!(stacker.get_stats().stacked_frame_count, 3);
     }
@@ -2711,7 +2746,7 @@ mod tests {
         )
         .expect("reference accepted");
         assert!(
-            permissive.add_frame(&frame).is_ok(),
+            permissive.add_frame(&frame, 0.0).is_ok(),
             "with the gate disabled the frame should still stack"
         );
 
@@ -2725,7 +2760,7 @@ mod tests {
         )
         .expect("reference accepted");
         let err = strict
-            .add_frame(&frame)
+            .add_frame(&frame, 0.0)
             .expect_err("high-residual frame must be rejected");
         assert!(err.contains("residual"), "unexpected error: {err}");
         assert_eq!(
@@ -2756,6 +2791,7 @@ mod tests {
                 exposure_secs: Some(90.0),
                 date_obs: Some("2026-08-14T03:22:30".to_string()),
                 filter: None,
+                pedestal: 0.0,
             },
         )
         .expect("reference accepted");
@@ -2767,6 +2803,7 @@ mod tests {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:21:00".to_string()),
                     filter: None,
+                    pedestal: 0.0,
                 },
             )
             .expect("shifted frame stacked");
@@ -2777,6 +2814,7 @@ mod tests {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:19:30".to_string()),
                     filter: None,
+                    pedestal: 0.0,
                 },
             )
             .expect_err("a starless frame cannot align");
@@ -2811,12 +2849,12 @@ mod tests {
         };
 
         let mut sixteen = LiveStacker::new(&reference, osc_test_config()).unwrap();
-        let expected = sixteen.add_frame(&shifted).unwrap().as_u16().unwrap();
+        let expected = sixteen.add_frame(&shifted, 0.0).unwrap().as_u16().unwrap();
 
         let mut float = LiveStacker::new(&unit(&reference), osc_test_config())
             .expect("a float reference is accepted");
         let stacked = float
-            .add_frame(&unit(&shifted))
+            .add_frame(&unit(&shifted), 0.0)
             .expect("a float frame is stacked");
         assert_eq!(stacked.pixel_type, PixelType::U16);
         assert_eq!(float.frame_count(), 2);
@@ -2833,7 +2871,11 @@ mod tests {
         );
 
         let mut mixed = LiveStacker::new(&reference, osc_test_config()).unwrap();
-        let got = mixed.add_frame(&unit(&shifted)).unwrap().as_u16().unwrap();
+        let got = mixed
+            .add_frame(&unit(&shifted), 0.0)
+            .unwrap()
+            .as_u16()
+            .unwrap();
         let worst = got
             .iter()
             .zip(&expected)
@@ -2841,6 +2883,85 @@ mod tests {
             .max()
             .unwrap();
         assert!(worst <= 1, "the mixed stack differs by {worst} ADU");
+    }
+
+    /// Frames that carry an output pedestal stack at their zero-based level,
+    /// as PixInsight's integration of lights subtracts each frame's pedestal,
+    /// and the master says so in its header.
+    #[test]
+    fn each_frame_pedestal_leaves_before_stacking() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let lifted = |image: &ImageData, by: u16| {
+            let data: Vec<u16> = image.as_u16().unwrap().iter().map(|v| v + by).collect();
+            ImageData::from_u16(image.width, image.height, 1, &data)
+        };
+
+        let mut plain = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        let expected = plain.add_frame(&shifted, 0.0).unwrap().as_u16().unwrap();
+        assert!(!plain
+            .provenance()
+            .to_fits_header()
+            .history
+            .iter()
+            .any(|h| h == crate::calibration::PEDESTAL_REMOVED_HISTORY));
+
+        let mut carried = LiveStacker::new_with_provenance(
+            &lifted(&reference, 120),
+            osc_test_config(),
+            &FrameProvenance {
+                pedestal: 120.0,
+                ..FrameProvenance::unknown()
+            },
+        )
+        .unwrap();
+        let got = carried
+            .add_frame(&lifted(&shifted, 37), 37.0)
+            .unwrap()
+            .as_u16()
+            .unwrap();
+        assert_eq!(carried.output_pedestal(), 0.0, "a bright sky needs none");
+        let worst = expected
+            .iter()
+            .zip(&got)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(worst <= 1, "the pedestal stack differs by {worst} ADU");
+        assert!(carried
+            .provenance()
+            .to_fits_header()
+            .history
+            .iter()
+            .any(|h| h == crate::calibration::PEDESTAL_REMOVED_HISTORY));
+    }
+
+    /// A stack whose sky sits at zero once the frames' pedestals are out
+    /// carries its own automatic pedestal in 16 bits instead of clipping.
+    #[test]
+    fn a_faint_stack_carries_its_own_pedestal() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        // The test background is 1000 ADU: stated as the frame's pedestal,
+        // the zero-based sky is noise around zero.
+        let stacker = LiveStacker::new_with_provenance(
+            &reference,
+            osc_test_config(),
+            &FrameProvenance {
+                pedestal: 1000.0,
+                ..FrameProvenance::unknown()
+            },
+        )
+        .unwrap();
+        let pedestal = stacker.output_pedestal();
+        assert!(pedestal > 0.0, "{pedestal}");
+        let stack = stacker.get_current_stack().as_u16().unwrap();
+        let zeros = stack.iter().filter(|&&v| v == 0).count();
+        assert!(
+            zeros as f64 <= crate::calibration::AUTO_PEDESTAL_LIMIT * stack.len() as f64,
+            "{zeros} samples clipped at zero"
+        );
     }
 
     /// The mono two-frame stack is pinned byte-for-byte.
@@ -2859,7 +2980,9 @@ mod tests {
 
         let mut stacker =
             LiveStacker::new(&reference, osc_test_config()).expect("mono reference accepted");
-        let result = stacker.add_frame(&shifted).expect("mono frame stacked");
+        let result = stacker
+            .add_frame(&shifted, 0.0)
+            .expect("mono frame stacked");
 
         assert_eq!(result.channels, 1, "mono stack must stay single-channel");
         assert_eq!(result.pixel_type, PixelType::U16);
@@ -3137,7 +3260,7 @@ mod tests {
 
         let mut stacker =
             LiveStacker::new(&reference, osc_test_config()).expect("rgb reference accepted");
-        let result = stacker.add_frame(&shifted).expect("rgb frame stacked");
+        let result = stacker.add_frame(&shifted, 0.0).expect("rgb frame stacked");
 
         assert_eq!(result.channels, 3, "color stack must stay 3-channel");
         assert_eq!(result.pixel_type, PixelType::U16);
@@ -3302,7 +3425,7 @@ mod tests {
 
         let mut stacker =
             LiveStacker::new(&reference, config).expect("reference field is detectable");
-        let outcome = stacker.add_frame(&frame);
+        let outcome = stacker.add_frame(&frame, 0.0);
         assert!(
             outcome.is_ok(),
             "a rigid 2px shift must register despite mis-paired stars, got {:?}",
@@ -3502,7 +3625,7 @@ mod tests {
 
         let mut stacker =
             LiveStacker::new(&reference, config).expect("reference field is detectable");
-        let outcome = stacker.add_frame(&frame);
+        let outcome = stacker.add_frame(&frame, 0.0);
         assert!(
             outcome.is_ok(),
             "a rigid 2px shift of a dense field must register, got {:?}",

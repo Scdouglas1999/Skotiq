@@ -111,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw);
 
   @protected
+  ApiCalibratedFrame dco_decode_api_calibrated_frame(dynamic raw);
+
+  @protected
   ApiCenteringRequest dco_decode_api_centering_request(dynamic raw);
 
   @protected
@@ -1037,6 +1040,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiAcquisitionSettings sse_decode_api_acquisition_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiCalibratedFrame sse_decode_api_calibrated_frame(
     SseDeserializer deserializer,
   );
 
@@ -3505,6 +3513,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.bin_x = cst_encode_i_32(apiObj.binX);
     wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.ccd_temp_c = cst_encode_opt_box_autoadd_f_64(apiObj.ccdTempC);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_calibrated_frame(
+    ApiCalibratedFrame apiObj,
+    wire_cst_api_calibrated_frame wireObj,
+  ) {
+    wireObj.data = cst_encode_list_prim_u_16_strict(apiObj.data);
+    wireObj.pedestal = cst_encode_f_64(apiObj.pedestal);
   }
 
   @protected
@@ -7789,6 +7806,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_acquisition_settings(
     ApiAcquisitionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_calibrated_frame(
+    ApiCalibratedFrame self,
     SseSerializer serializer,
   );
 
@@ -15894,12 +15917,14 @@ class RustLibWire implements BaseWire {
     int width,
     int height,
     ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
+    double pedestal,
   ) {
     return _wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
       port_,
       width,
       height,
       data,
+      pedestal,
     );
   }
 
@@ -15911,6 +15936,7 @@ class RustLibWire implements BaseWire {
             ffi.Uint32,
             ffi.Uint32,
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            ffi.Double,
           )
         >
       >(
@@ -15924,6 +15950,7 @@ class RustLibWire implements BaseWire {
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+              double,
             )
           >();
 
@@ -16055,6 +16082,7 @@ class RustLibWire implements BaseWire {
     int width,
     int height,
     ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
+    double pedestal,
     ffi.Pointer<wire_cst_api_live_stacking_config> config,
   ) {
     return _wire__crate__api__live_stacking__api_stacking_start_from_data(
@@ -16062,6 +16090,7 @@ class RustLibWire implements BaseWire {
       width,
       height,
       data,
+      pedestal,
       config,
     );
   }
@@ -16074,6 +16103,7 @@ class RustLibWire implements BaseWire {
             ffi.Uint32,
             ffi.Uint32,
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            ffi.Double,
             ffi.Pointer<wire_cst_api_live_stacking_config>,
           )
         >
@@ -16088,6 +16118,7 @@ class RustLibWire implements BaseWire {
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+              double,
               ffi.Pointer<wire_cst_api_live_stacking_config>,
             )
           >();
@@ -21698,6 +21729,13 @@ final class wire_cst_list_tracked_guide_star extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
+}
+
+final class wire_cst_api_calibrated_frame extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_16_strict> data;
+
+  @ffi.Double()
+  external double pedestal;
 }
 
 final class wire_cst_ApiCenteringStep_Capturing extends ffi.Struct {

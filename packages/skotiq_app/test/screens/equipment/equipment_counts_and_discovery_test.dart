@@ -1,15 +1,19 @@
 // qa-pair QP-23: the "Add rotator, dome, flat panel, weather" tile kept
-// offering a rotator with one connected, and a linked client's Discovered
-// devices read "0 found · Never scanned" beside a host that had found 11.
+// offering a rotator with one connected. The drawer under Equipment > Devices
+// read "DISCOVERED DEVICES 0 found · Never scanned" beside five connected
+// devices: it listed only the last scan, and a rig that connects from its
+// profile never scans.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
 import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 import 'package:flutter/widgets.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
@@ -32,6 +36,51 @@ class _CountingDiscovery extends UnifiedDiscoveryNotifier {
     bool includeAlpaca = true,
   }) async =>
       scans++;
+
+  void found(List<DeviceInfo> devices, DateTime at) {
+    state = UnifiedDiscoveryState(
+      backendStates: {
+        DriverType.simulator: BackendDiscoveryState(
+          backend: DriverType.simulator,
+          status: DiscoveryStatus.completed,
+          devices: devices,
+          completedAt: at,
+        ),
+      },
+      rawDevices: devices,
+      groupedDevices: [
+        for (final device in devices)
+          UnifiedDevice(
+            canonicalName: device.id,
+            displayName: device.name,
+            type: device.deviceType,
+            availableBackends: {device.driverType: device},
+          ),
+      ],
+    );
+  }
+}
+
+const _simRig = EquipmentProfileModel(
+  id: 1,
+  name: 'Sim Rig',
+  cameraId: 'sim_camera_1',
+  mountId: 'sim_mount_1',
+  focuserId: 'sim_focuser_1',
+  filterWheelId: 'sim_filterwheel_1',
+  guiderId: 'native:builtin_guider:multi_star',
+);
+
+/// `SkotiqIconButton` carries its tooltip through `Semantics`, so
+/// `find.byTooltip` misses it.
+Finder _iconButton(String tooltip) => find.byWidgetPredicate(
+      (w) => w is SkotiqIconButton && w.tooltip == tooltip,
+    );
+
+Future<void> _expand(WidgetTester tester) async {
+  await tester.tap(_iconButton('Expand'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 void main() {
@@ -67,17 +116,128 @@ void main() {
     );
   });
 
-  testWidgets('a linked client reads the host discovery once on open',
+  testWidgets(
+      'a rig connected from its profile lists its devices without a '
+      'scan', (tester) async {
+    late _CountingDiscovery discovery;
+    final handle = await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: DiscoveryPanel()),
+      size: const Size(1600, 1200),
+      settle: false,
+      extraOverrides: [
+        activeEquipmentProfileProvider.overrideWithValue(_simRig),
+        unifiedDiscoveryProvider.overrideWith(
+          (ref) => discovery = _CountingDiscovery(ref),
+        ),
+      ],
+    );
+    for (final type in DeviceType.values) {
+      final id = _simRig.deviceIdFor(type);
+      if (id == null) continue;
+      handle.container.read(type.slot.notifier)
+        ..setConnecting(id)
+        ..setConnected();
+    }
+    await tester.pump();
+    await _expand(tester);
+
+    expect(find.text('KNOWN DEVICES'), findsOneWidget);
+    expect(find.text('5 devices'), findsOneWidget);
+    expect(find.textContaining('found'), findsNothing);
+    expect(find.textContaining('Never scanned'), findsNothing);
+    expect(find.text('Simulated Mount'), findsOneWidget);
+    expect(
+        find.textContaining('Connected · Sim · In profile'), findsNWidgets(4));
+    expect(discovery.scans, 0, reason: 'listing the rig must not scan');
+
+    // After a disconnect the mount is still a device the app knows.
+    handle.container.read(mountStateProvider.notifier).setDisconnected();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('5 devices'), findsOneWidget);
+    expect(find.text('Simulated Mount'), findsOneWidget);
+    expect(find.textContaining('Not connected · Sim · In profile'),
+        findsOneWidget);
+
+    resetAllEquipmentStateNotifiers(handle.container);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('after a scan the drawer adds what it found and when it ran',
       (tester) async {
     late _CountingDiscovery discovery;
     await pumpAppScreen(
       tester,
-      const DiscoveryPanel(),
+      const SingleChildScrollView(child: DiscoveryPanel()),
+      size: const Size(1600, 1200),
       settle: false,
       extraOverrides: [
-        backendProvider.overrideWith(
-          (ref) => _BackendNotifier(ref, _MockNetworkBackend()),
+        unifiedDiscoveryProvider.overrideWith(
+          (ref) => discovery = _CountingDiscovery(ref),
         ),
+      ],
+    );
+    await tester.pump();
+    final at = DateTime.now();
+    discovery.found(const [
+      DeviceInfo(
+        id: 'sim_rotator_1',
+        name: 'Simulated Rotator',
+        deviceType: DeviceType.rotator,
+        driverType: DriverType.simulator,
+        description: '',
+        driverVersion: '',
+      ),
+    ], at);
+    await tester.pump();
+    await _expand(tester);
+
+    expect(
+      find.text('1 device · Last scan ${ClockFormat.hm(at)}'),
+      findsOneWidget,
+    );
+    expect(find.text('Simulated Rotator'), findsOneWidget);
+  });
+
+  testWidgets("a linked client lists the host's devices without scanning",
+      (tester) async {
+    final host = _MockNetworkBackend();
+    final lastScanAt = DateTime.now();
+    when(() => host.knownDevices()).thenAnswer(
+      (_) async => KnownDevices.fromJson({
+        'devices': const [
+          {
+            'id': 'sim_camera_1',
+            'name': 'Simulated Camera',
+            'deviceType': 'camera',
+            'driverType': 'simulator',
+            'state': 'connected',
+            'inProfile': true,
+            'foundByScan': false,
+          },
+          {
+            'id': 'sim_mount_1',
+            'name': 'Simulated Mount',
+            'deviceType': 'mount',
+            'driverType': 'simulator',
+            'state': 'disconnected',
+            'inProfile': true,
+            'foundByScan': true,
+          },
+        ],
+        'lastScanAt': lastScanAt.toUtc().toIso8601String(),
+      }),
+    );
+    late _CountingDiscovery discovery;
+    await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: DiscoveryPanel()),
+      size: const Size(1600, 1200),
+      settle: false,
+      extraOverrides: [
+        backendProvider.overrideWith((ref) => _BackendNotifier(ref, host)),
         unifiedDiscoveryProvider.overrideWith((ref) {
           return discovery = _CountingDiscovery(ref);
         }),
@@ -85,11 +245,18 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(discovery.scans, 1);
+    await _expand(tester);
+
+    expect(
+      find.text('2 devices · Last scan ${ClockFormat.hm(lastScanAt)}'),
+      findsOneWidget,
+    );
+    expect(find.text('Simulated Mount'), findsOneWidget);
+    expect(discovery.scans, 0,
+        reason: 'opening the list must not scan the host');
   });
 
-  testWidgets('before any scan the drawer states no count and no scan time',
-      (tester) async {
+  testWidgets('before any scan the drawer states no scan time', (tester) async {
     await pumpAppScreen(
       tester,
       const DiscoveryPanel(),
@@ -99,9 +266,9 @@ void main() {
       ],
     );
     await tester.pump();
-    expect(find.textContaining(' found · '), findsNothing);
+    expect(find.textContaining('Last scan'), findsNothing);
     expect(find.textContaining('Never scanned'), findsNothing);
-    expect(find.text('DISCOVERED DEVICES'), findsOneWidget);
+    expect(find.text('KNOWN DEVICES'), findsOneWidget);
   });
 
   // The rail's rig card listed no rotator, so with one connected it read one

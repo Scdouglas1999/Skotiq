@@ -18,8 +18,11 @@
   // =========================================================================
 
   const state = {
+    // Every device the host knows about (GET /api/devices), and the
+    // connected ones the panels address.
+    devices: [],
     connectedDevices: [],
-    allDevices: [],
+    lastScanAt: null,
     serverInfo: null,
     cameraDeviceId: '',
     mountDeviceId: '',
@@ -1758,9 +1761,11 @@
 
   async function fetchDevices() {
     try {
-      const result = await api.getConnectedDevices();
-      state.connectedDevices = requireWireList(
-        result, 'devices', 'Connected devices');
+      const result = await api.getDevices();
+      state.devices = requireWireList(result, 'devices', 'Devices');
+      state.connectedDevices = state.devices.filter(
+        (dev) => dev.state === 'connected');
+      state.lastScanAt = result.lastScanAt || null;
       const previousFilterWheelId = state.filterWheelDeviceId;
 
       // Rebuild the selection from the authoritative inventory. Keeping an
@@ -1774,14 +1779,6 @@
       state.filterWheelDeviceId = null;
       state.rotatorDeviceId = null;
       state.ops.domeDeviceId = null;
-
-      // connected-devices may carry discoveryErrors. Surface them once per
-      // call in the log so a driver failure is never silent.
-      if (result.discoveryErrors && typeof result.discoveryErrors === 'object') {
-        for (const [dt, err] of Object.entries(result.discoveryErrors)) {
-          addLogEntry('error', 'Discovery error (' + dt + '): ' + err);
-        }
-      }
 
       renderDevicesPanel();
       markPanelFresh('devices');
@@ -3530,19 +3527,29 @@
   // Rendering: Devices Panel
   // =========================================================================
 
+  /// What a device row says about its state, and the dot's class.
+  const DEVICE_STATE_TEXT = {
+    connected: ['Connected', 'connected'],
+    connecting: ['Connecting', 'connecting'],
+    error: ['Failed to connect', 'error'],
+    disconnected: ['Not connected', 'disconnected'],
+  };
+
+  /// Every device the host knows about: connected, named by its profile, or
+  /// found by its last scan, with each one's state.
   function renderDevicesPanel() {
     const container = document.getElementById('devices-list');
     if (!container) return;
 
     clearElement(container);
-    if (state.connectedDevices.length === 0) {
-      container.appendChild(createEmptyState('No devices connected'));
-      return;
+    if (state.devices.length === 0) {
+      container.appendChild(createEmptyState(
+        'No devices yet. Scan for devices or connect a profile in the app.'));
     }
 
     // Group by device type
     const groups = {};
-    for (const dev of state.connectedDevices) {
+    for (const dev of state.devices) {
       const type = dev.deviceType || 'unknown';
       if (!groups[type]) groups[type] = [];
       groups[type].push(dev);
@@ -3571,25 +3578,36 @@
       groupEl.appendChild(labelEl);
 
       for (const dev of devices) {
+        const [stateText, stateClass] =
+          DEVICE_STATE_TEXT[dev.state] || DEVICE_STATE_TEXT.disconnected;
         const itemEl = document.createElement('div');
         itemEl.className = 'device-item';
+        if (dev.error) itemEl.title = dev.error;
         const nameEl = document.createElement('span');
         nameEl.className = 'device-name';
         const statusIconEl = document.createElement('span');
-        statusIconEl.className = 'device-status-icon connected';
+        statusIconEl.className = 'device-status-icon ' + stateClass;
         statusIconEl.setAttribute('aria-hidden', 'true');
         nameEl.appendChild(statusIconEl);
         nameEl.appendChild(document.createTextNode(' ' + (dev.name || dev.id || 'Unknown device')));
 
-        const badgeEl = document.createElement('span');
-        badgeEl.className = 'badge badge-running';
-        badgeEl.textContent = dev.driverType || '';
+        const detailEl = document.createElement('span');
+        detailEl.className = 'device-state';
+        detailEl.textContent = stateText + (dev.driverType ? ' · ' + dev.driverType : '');
 
         itemEl.appendChild(nameEl);
-        itemEl.appendChild(badgeEl);
+        itemEl.appendChild(detailEl);
         groupEl.appendChild(itemEl);
       }
       container.appendChild(groupEl);
+    }
+
+    if (state.lastScanAt) {
+      const scanEl = document.createElement('div');
+      scanEl.className = 'device-last-scan';
+      scanEl.textContent = 'Last scan ' + new Date(state.lastScanAt)
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      container.appendChild(scanEl);
     }
   }
 

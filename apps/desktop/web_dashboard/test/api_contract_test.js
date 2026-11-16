@@ -284,7 +284,7 @@ function answeringClient(body, status) {
 test('a 200 with an empty body is refused, never read as an empty payload', async () => {
   const client = answeringClient('');
   await assert.rejects(
-    () => client.getConnectedDevices(),
+    () => client.getDevices(),
     (e) => {
       assert.equal(e.kind, 'unusable_answer');
       assert.match(e.message, /empty body/);
@@ -316,7 +316,7 @@ test('the other falsy JSON scalars are refused by the same rule', async () => {
 test('a body that says empty IS an answer, and is delivered as one', async () => {
   const client = answeringClient('{"devices":[]}');
   assert.deepEqual(
-    JSON.parse(JSON.stringify(await client.getConnectedDevices())),
+    JSON.parse(JSON.stringify(await client.getDevices())),
     { devices: [] },
     'a server that lists zero devices has told the dashboard something',
   );
@@ -361,7 +361,7 @@ test('an empty JSON list is refused too — a list is not an object',
   async () => {
     const client = answeringClient('[]');
     await assert.rejects(
-      () => client.getConnectedDevices(),
+      () => client.getDevices(),
       (e) => e.kind === 'unusable_answer' && /body is a list/.test(e.message),
       'an empty list has no "devices" field and must not stand in for one',
     );

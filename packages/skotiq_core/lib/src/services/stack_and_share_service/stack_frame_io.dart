@@ -42,7 +42,12 @@ extension _StackFrameIo on StackAndShareService {
     );
     _ensureSameHost();
 
-    return _RawFrame(width: raw.width, height: raw.height, data: calibrated);
+    return _RawFrame(
+      width: raw.width,
+      height: raw.height,
+      data: calibrated.data,
+      pedestal: calibrated.pedestal,
+    );
   }
 
   /// The run's shared calibration inputs: the dark-match tolerances and the

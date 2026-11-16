@@ -6,10 +6,11 @@ use crate::post_session::calibration_report::{
 };
 use crate::post_session::cancel::{check_stage, RUNS};
 use crate::post_session::helpers::{
-    aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
-    exposures_per_light, extract_channel, image_to_f64, load_optional_master, write_channel,
+    build_normalization_config, build_registration_config, build_weight_formula,
+    exposures_per_light, extract_channel, image_to_f64, load_optional_master,
+    pedestal_free_quality, write_channel,
 };
-use crate::post_session::light_calibration::LightCalibration;
+use crate::post_session::light_calibration::{LightCalibration, FLOAT_CALIBRATION_HISTORY};
 use crate::post_session::multi_night::{calibrate_for_fold, OnGrid};
 use crate::run_cancel::CancelToken;
 use serde::{Deserialize, Serialize};
@@ -472,6 +473,7 @@ fn fold_into(
                 geom.channels
             ));
         }
+        let pedestal = calibrated.pedestal;
         let mut on_grid = OnGrid::new(
             &calibrated.image,
             (geom.width, geom.height),
@@ -491,8 +493,9 @@ fn fold_into(
                 write_channel(&mut on_grid.pixels, locations, chan, ch, &plane);
             }
         }
-        let quality = aligned_quality(
-            &on_grid.detection(geom.width, geom.height, geom.channels),
+        let quality = pedestal_free_quality(
+            &on_grid.detection(geom.width, geom.height, geom.channels, pedestal),
+            f64::from(pedestal),
             &q_cfg,
         )
         .ok_or_else(|| format!("could not measure quality of '{path}'"))?;
@@ -703,6 +706,7 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
         master.metadata.total_frames,
         master.metadata.folds.len()
     ));
+    header.add_history(FLOAT_CALIBRATION_HISTORY);
     let record = match calibration_log.as_ref() {
         Ok(Some(log)) => FoldCalibrationRecord::Present(log),
         Ok(None) => FoldCalibrationRecord::Missing,

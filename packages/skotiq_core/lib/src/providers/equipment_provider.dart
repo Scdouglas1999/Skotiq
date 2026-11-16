@@ -21,6 +21,7 @@ export 'equipment/guider_silent_move.dart';
 export 'equipment/mount_state_provider.dart';
 export 'equipment/device_read_health_provider.dart';
 export 'equipment/profile_connection_status_provider.dart';
+export 'equipment/known_devices_provider.dart';
 export 'equipment/profile_scan_check_provider.dart';
 export 'equipment/rotator_state_provider.dart';
 export 'equipment/safety_monitor_state_provider.dart';

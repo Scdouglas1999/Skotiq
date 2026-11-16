@@ -648,6 +648,26 @@ body {
   background: var(--text-muted);
 }
 
+.device-status-icon.connecting {
+  background: var(--accent-orange);
+}
+
+.device-status-icon.error {
+  background: var(--accent-red);
+}
+
+.device-state {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.device-last-scan {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px 6px 0;
+}
+
 /* ====== Buttons (SkotiqButton semantics) ====== */
 .btn {
   display: inline-flex;

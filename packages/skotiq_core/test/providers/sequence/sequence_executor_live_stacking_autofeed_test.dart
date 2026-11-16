@@ -112,6 +112,7 @@ class _FakeLiveStackingService implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
     _frames = 1;
@@ -130,6 +131,7 @@ class _FakeLiveStackingService implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   }) async {
     _frames += 1;
     return _result;

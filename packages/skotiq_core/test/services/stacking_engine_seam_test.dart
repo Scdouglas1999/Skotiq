@@ -77,6 +77,7 @@ void main() {
           width: 4,
           height: 4,
           data: const [0, 0, 0, 0],
+          pedestal: 0,
           config: config,
         );
 
@@ -132,6 +133,7 @@ class _CapturingSeam implements StackingEngineSeam {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   }) async {
     lastConfig = config;

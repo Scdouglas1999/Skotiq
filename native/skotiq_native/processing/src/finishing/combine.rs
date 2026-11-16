@@ -20,7 +20,7 @@
 
 use crate::output::ensure_parent_dir;
 use crate::post_session::args::CalibrationArgs;
-use crate::post_session::{LightCalibration, CALIBRATION_PEDESTAL};
+use crate::post_session::LightCalibration;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::drizzle::{
     self, bayer_drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame, DrizzleKernel,
@@ -161,6 +161,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     let mut transforms: Vec<TransformModel> = Vec::with_capacity(args.frames.len());
     let mut dims: Vec<(u32, u32, u32)> = Vec::with_capacity(args.frames.len());
     let mut patterns: Vec<skotiq_imaging::BayerPattern> = Vec::with_capacity(args.frames.len());
+    let mut pedestal_removed = false;
 
     for fa in &args.frames {
         if fa.fits_path.trim().is_empty() {
@@ -202,12 +203,15 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             let calibrated = calibration
                 .apply(&image, header.get_float("EXPTIME"))
                 .map_err(|e| format!("'{}': {e}", fa.fits_path))?;
-            let pedestal = f64::from(CALIBRATION_PEDESTAL);
-            let mut pixels = calibrated.image.samples_f64();
-            pixels.iter_mut().for_each(|v| *v -= pedestal);
-            buffers.push(pixels);
+            buffers.push(calibrated.image.samples_f64());
         } else {
-            buffers.push(decode_image_f64(&image, &fa.fits_path)?);
+            let mut pixels = decode_image_f64(&image, &fa.fits_path)?;
+            let pedestal = skotiq_imaging::calibration::stated_pedestal(&header);
+            if pedestal != 0.0 {
+                pixels.iter_mut().for_each(|v| *v -= pedestal);
+                pedestal_removed = true;
+            }
+            buffers.push(pixels);
         }
         dims.push((image.width, image.height, image.channels));
         transforms.push(transform);
@@ -276,6 +280,11 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         "No astrometry carried: output grid is {:.3}x the reference grid",
         cfg.scale
     ));
+    if !calibration.is_empty() {
+        header.add_history(crate::post_session::FLOAT_CALIBRATION_HISTORY);
+    } else if pedestal_removed {
+        header.add_history(skotiq_imaging::calibration::PEDESTAL_REMOVED_HISTORY);
+    }
     write_fits(master_path, &output.master, &header)
         .map_err(|e| format!("failed to write drizzle master: {e:?}"))?;
 

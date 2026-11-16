@@ -26,11 +26,11 @@ calibration/combine.dark.median.f32 98da6ac5261fae91
 calibration/combine.flat.sigma.u16 0ac891628b6b0599
 calibration/cosmetic.u16 661da0871275c8fb
 calibration/defect_map_from_dark 29a8cbedd85c12ea
-calibration/f32.full dd4e306ba648ac79
+calibration/f32.full 6616aab8088737d3
 calibration/master_flat.default dbaa9b57d42a6060
 calibration/master_flat.median_u16 7cda08c12fcc61dd
 calibration/normalize_raw_flat 12139d5346155969
-calibration/samples_f64 71165966470d629c
+calibration/samples_f64 2152f3a65116300a
 dark_240s.fits/detect_stars 09612b07b5ecb5a5
 dark_240s.fits/detect_stars_for_selection 09612b07b5ecb5a5
 dark_240s.fits/detect_stars_with_stats 399713daea0d9a84

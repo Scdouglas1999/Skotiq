@@ -1,8 +1,72 @@
 //! Light-frame calibration in floating point: bias, scaled dark and flat, as
 //! PixInsight's ImageCalibration applies them ([`calibrate_frame_f32`]).
 
-use crate::ImageData;
+use crate::{FitsHeader, ImageData};
 use rayon::prelude::*;
+
+/// The FITS keyword stating the constant, in ADU, added to every sample of a
+/// calibrated frame to keep it positive.
+pub const PEDESTAL_KEYWORD: &str = "PEDESTAL";
+
+/// The pedestal `header` states, in ADU; 0 when it states none. Read as its
+/// absolute value, as PixInsight reads it: some software writes the value
+/// negative, but a stated pedestal has always been added to the samples.
+pub fn stated_pedestal(header: &FitsHeader) -> f64 {
+    header
+        .get(PEDESTAL_KEYWORD)
+        .and_then(|v| {
+            v.as_f64()
+                .or_else(|| v.to_header_string().trim().parse().ok())
+        })
+        .filter(|v| v.is_finite())
+        .map_or(0.0, f64::abs)
+}
+
+/// The largest fraction of a calibrated frame's samples that may sit at or
+/// below zero before an output pedestal is added: PixInsight's automatic
+/// output pedestal limit, which WBPP applies to lights by default.
+pub const AUTO_PEDESTAL_LIMIT: f64 = 0.0001;
+
+/// A sample this close to zero, in ADU, counts as zero: PixInsight's machine
+/// epsilon on its [0, 1] scale, expressed on the 16-bit scale.
+pub const INSIGNIFICANT_ADU: f64 = f32::EPSILON as f64 * 65535.0;
+
+/// PixInsight's automatic output pedestal for zero-based `samples` (ADU), in
+/// whole ADU: none when at most [`AUTO_PEDESTAL_LIMIT`] of the finite samples
+/// are at or below zero, otherwise the smallest that leaves no more than that
+/// fraction there. A frame or stack written where negative samples cannot be
+/// held carries it.
+pub fn automatic_pedestal(samples: &[f64]) -> f64 {
+    let mut finite: Vec<f64> = samples.iter().copied().filter(|v| v.is_finite()).collect();
+    let allowed = (AUTO_PEDESTAL_LIMIT * finite.len() as f64).floor() as usize;
+    let at_or_below = finite.iter().filter(|&&v| v <= INSIGNIFICANT_ADU).count();
+    if at_or_below <= allowed {
+        return 0.0;
+    }
+    let (_, kept_lowest, _) = finite.select_nth_unstable_by(allowed, f64::total_cmp);
+    (INSIGNIFICANT_ADU - *kept_lowest).floor() + 1.0
+}
+
+/// The HISTORY line of a master or stack whose frames carried output
+/// pedestals: each is taken out before integration (PixInsight's
+/// `subtractPedestals`, WBPP's default for lights). A `PEDESTAL` card states
+/// any pedestal the product itself carries.
+pub const PEDESTAL_REMOVED_HISTORY: &str =
+    "Each frame's output pedestal removed before integration";
+
+/// State `pedestal` (ADU) in `header`: a `PEDESTAL` card when the frame
+/// carries one, and no card when it carries none.
+pub fn state_pedestal(header: &mut FitsHeader, pedestal: f64) {
+    if pedestal == 0.0 {
+        header.remove(PEDESTAL_KEYWORD);
+    } else {
+        header.set_float(PEDESTAL_KEYWORD, pedestal);
+        header.set_comment(
+            PEDESTAL_KEYWORD,
+            "ADU added to every sample to keep it positive",
+        );
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum CalibrationError {
@@ -155,9 +219,6 @@ pub struct FloatCalibration<'a> {
     pub dark_scale: f64,
     pub flat: Option<&'a ImageData>,
     pub flat_pedestal: FlatPedestal,
-    /// Constant added to every calibrated sample so that sky pixels pulled
-    /// below zero by noise keep their value instead of being clipped.
-    pub output_pedestal: f32,
 }
 
 impl Default for FloatCalibration<'_> {
@@ -168,19 +229,15 @@ impl Default for FloatCalibration<'_> {
             dark_scale: 1.0,
             flat: None,
             flat_pedestal: FlatPedestal::Removed,
-            output_pedestal: 0.0,
         }
     }
 }
 
-/// Calibrate `light` in floating point and return an `F32` frame:
-/// `(light - bias - k·(dark - bias)) / flat + pedestal`, never clamped.
-///
-/// Integer arithmetic clamps every sample that noise pulls below the bias to
-/// zero, which biases faint sky upward and leaves isolated zero samples; the
-/// float result keeps the full noise distribution as PixInsight's
-/// ImageCalibration does. The flat is normalized to unit mean per channel; flat
-/// samples at or below zero yield the pedestal.
+/// Calibrate `light` in floating point and return a zero-based `F32` frame:
+/// `(light - bias - k·(dark - bias)) / flat`, never clamped, so sky that noise
+/// pulls below the bias keeps its negative samples. An output pedestal is the
+/// caller's choice for a copy that cannot hold them. The flat is normalized to
+/// unit mean per channel; flat samples at or below zero yield 0.
 pub fn calibrate_frame_f32(
     light: &ImageData,
     cal: &FloatCalibration<'_>,
@@ -249,8 +306,7 @@ pub fn calibrate_frame_f32(
             };
         });
     }
-    let pedestal = f64::from(cal.output_pedestal);
-    let data: Vec<f32> = out.par_iter().map(|&v| (v + pedestal) as f32).collect();
+    let data: Vec<f32> = out.par_iter().map(|&v| v as f32).collect();
     Ok(ImageData::from_f32(
         light.width,
         light.height,
@@ -290,8 +346,8 @@ mod tests {
     use super::*;
 
     /// Float calibration keeps samples below the bias, scales the dark's
-    /// thermal part by the exposure ratio, adds the pedestal, and only
-    /// subtracts the bias from a flat that still carries it.
+    /// thermal part by the exposure ratio, and only subtracts the bias from a
+    /// flat that still carries it.
     #[test]
     fn float_calibration_scales_darks_and_keeps_negative_sky() {
         let light = ImageData::from_u16(2, 1, 1, &[295, 1300]);
@@ -301,14 +357,10 @@ mod tests {
             bias: Some(&bias),
             dark: Some(&dark),
             dark_scale: 2.0,
-            output_pedestal: 100.0,
             ..Default::default()
         };
         let out = calibrate_frame_f32(&light, &cal).unwrap().as_f32().unwrap();
-        assert_eq!(
-            out,
-            vec![295.0 - 300.0 - 20.0 + 100.0, 1300.0 - 300.0 - 20.0 + 100.0]
-        );
+        assert_eq!(out, vec![295.0 - 300.0 - 20.0, 1300.0 - 300.0 - 20.0]);
 
         let raw_flat = ImageData::from_u16(2, 1, 1, &[2300, 4300]);
         let cal = FloatCalibration {
@@ -350,19 +402,31 @@ mod tests {
         }
     }
 
-    /// A flat sample at or below zero yields the pedestal instead of a
-    /// division by zero.
+    /// A flat sample at or below zero yields 0 instead of a division by zero.
     #[test]
-    fn a_dead_flat_pixel_yields_the_pedestal() {
+    fn a_dead_flat_pixel_yields_zero() {
         let light = ImageData::from_u16(2, 1, 1, &[1000, 1000]);
         let flat = ImageData::from_f32(2, 1, 1, &[0.0, 2.0]);
         let cal = FloatCalibration {
             flat: Some(&flat),
-            output_pedestal: 100.0,
             ..Default::default()
         };
         let out = calibrate_frame_f32(&light, &cal).unwrap().as_f32().unwrap();
-        assert_eq!(out, vec![100.0, 600.0]);
+        assert_eq!(out, vec![0.0, 500.0]);
+    }
+
+    /// A frame states its pedestal only when it carries one, and a pedestal
+    /// written negative by other software reads as the amount added.
+    #[test]
+    fn a_pedestal_is_stated_only_when_carried() {
+        let mut header = FitsHeader::new();
+        state_pedestal(&mut header, 37.0);
+        assert_eq!(stated_pedestal(&header), 37.0);
+        state_pedestal(&mut header, 0.0);
+        assert!(header.get(PEDESTAL_KEYWORD).is_none());
+        assert_eq!(stated_pedestal(&header), 0.0);
+        header.set_float(PEDESTAL_KEYWORD, -100.0);
+        assert_eq!(stated_pedestal(&header), 100.0);
     }
 
     #[test]

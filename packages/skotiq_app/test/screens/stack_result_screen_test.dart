@@ -60,6 +60,7 @@ class _RecordingStretchSeam implements StackingEngineSeam {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   }) async =>
       const LiveStackingStats();
