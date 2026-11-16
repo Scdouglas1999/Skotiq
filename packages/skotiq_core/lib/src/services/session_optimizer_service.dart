@@ -5,7 +5,6 @@ import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
 import '../models/equipment/filter_names.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
@@ -451,9 +450,6 @@ class SessionOptimizerService {
     final filterChoice = chooseSmartNightFilters(
       target: primary,
       availableFilters: effectiveContext.availableFilterNames,
-      moonIlluminationPercent: AstronomyCalculations.moonIllumination(
-        primary.visibility.peakAltitudeTime ?? planGeneratedAt,
-      ),
       oneShotColor: effectiveContext.oneShotColor,
     );
     final exposurePlan = _recommendExposure(

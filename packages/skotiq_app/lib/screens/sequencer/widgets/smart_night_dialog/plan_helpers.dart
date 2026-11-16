@@ -212,6 +212,31 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     return true;
   }
 
+  /// Takes the set offered beside [target]'s filters ("Add Ha") as the
+  /// user's choice for that target, and plans the night again with it.
+  Future<void> _takeTargetSuggestion(TargetSuggestion target) async {
+    final exposureContext =
+        await ref.read(smartNightExposureContextProvider.future);
+    final offered = _buildService()
+        .chooseFilters(
+          suggestion: target,
+          availableFilters:
+              smartNightPlanningFilters(ref.read(effectiveFiltersProvider)),
+          exposureContext: exposureContext,
+        )
+        .suggested;
+    if (offered == null || !mounted) return;
+    setState(() {
+      _targetStrategies[target.targetId] = offered;
+      _isBuildingPreview = true;
+    });
+    try {
+      await _buildPreview();
+    } finally {
+      if (mounted) setState(() => _isBuildingPreview = false);
+    }
+  }
+
   /// Whether the rig's wheel ([filters], `effectiveFiltersProvider`) has
   /// what [strategy] needs; choosing per target always fits.
   bool _strategyFits(SmartNightStrategy? strategy, List<String> filters) =>

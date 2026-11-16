@@ -24,6 +24,10 @@ class SmartNightPlannedTarget {
   /// ([SmartNightFilterChoice.reason]).
   final String filterReason;
 
+  /// A set offered beside the planned one
+  /// ([SmartNightFilterChoice.suggestion]); null when there is none.
+  final String? filterSuggestion;
+
   /// True when this target plans a single unfiltered row — the rig has no
   /// filter wheel, so the emitted sub-tree captures with no filter selection
   /// instead of rotating one.
@@ -38,6 +42,7 @@ class SmartNightPlannedTarget {
     required this.integrationSecs,
     required this.rationale,
     required this.filterReason,
+    this.filterSuggestion,
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +53,7 @@ class SmartNightPlannedTarget {
     'integrationSecs': integrationSecs,
     'rationale': rationale,
     'filterReason': filterReason,
+    'filterSuggestion': filterSuggestion,
   };
 
   factory SmartNightPlannedTarget.fromJson(Map<String, dynamic> json) {
@@ -67,6 +73,7 @@ class SmartNightPlannedTarget {
       integrationSecs: _jsonDouble(json['integrationSecs'], 0.0),
       rationale: json['rationale'] as String? ?? '',
       filterReason: json['filterReason'] as String? ?? '',
+      filterSuggestion: json['filterSuggestion'] as String?,
     );
   }
 }
@@ -142,12 +149,19 @@ class TargetIntegrationPreview {
   /// ([SmartNightFilterChoice.reason]).
   final String filterReason;
 
+  /// A set offered beside the estimated one, and the set itself
+  /// ([SmartNightFilterChoice.suggestion], [SmartNightFilterChoice.suggested]).
+  final String? filterSuggestion;
+  final SmartNightStrategy? suggestedStrategy;
+
   const TargetIntegrationPreview({
     required this.estimatedIntegrationHours,
     required this.usableWindowHours,
     required this.subExposureSecs,
     required this.filterNames,
     required this.filterReason,
+    this.filterSuggestion,
+    this.suggestedStrategy,
   });
 }
 

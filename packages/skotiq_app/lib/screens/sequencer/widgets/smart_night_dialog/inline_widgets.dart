@@ -708,10 +708,14 @@ class _PlannedTargetCard extends StatelessWidget {
   final SkotiqColors colors;
   final void Function(int filterIndex, int delta) onCountChanged;
 
+  /// Takes the set [SmartNightPlannedTarget.filterSuggestion] offers.
+  final VoidCallback? onTakeSuggestion;
+
   const _PlannedTargetCard({
     required this.planned,
     required this.colors,
     required this.onCountChanged,
+    required this.onTakeSuggestion,
   });
 
   @override
@@ -755,6 +759,28 @@ class _PlannedTargetCard extends StatelessWidget {
                 style: TextStyle(
                     color: colors.textSecondary,
                     fontSize: SkotiqTypography.fontSize11),
+              ),
+            ],
+            if (planned.filterSuggestion case final offer?) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      offer,
+                      style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: SkotiqTypography.fontSize11),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SkotiqButton(
+                    label: 'Add Ha',
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    onPressed: onTakeSuggestion,
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 8),

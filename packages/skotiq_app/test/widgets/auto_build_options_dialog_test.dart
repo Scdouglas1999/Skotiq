@@ -27,8 +27,12 @@ const _target = TargetSuggestion(
         moonDistance: 90,
         hoursAboveMinAlt: 6));
 
-SmartNightFilterChoice _choice(List<String> filters) => chooseSmartNightFilters(
-    target: _target, availableFilters: filters, moonIlluminationPercent: 10);
+SmartNightFilterChoice _choice(List<String> filters,
+        {TargetSuggestion target = _target, int emissionRegions = 0}) =>
+    chooseSmartNightFilters(
+        target: target,
+        availableFilters: filters,
+        catalogedEmissionRegions: emissionRegions);
 
 void main() {
   testWidgets('switching filter groups restores each camera recipe and edits',
@@ -231,5 +235,101 @@ void main() {
     await tester.tap(find.text('Build sequence'));
     await tester.pumpAndSettle();
     expect(saves.last['strategies'] as Map, isNot(contains('NGC7380')));
+  });
+
+  testWidgets(
+      'a galaxy with emission regions opens on LRGB with Ha offered; Add Ha '
+      'builds LRGB + Ha as the '
+      'user\'s choice and is remembered', (tester) async {
+    const m33 = TargetSuggestion(
+        targetId: 33,
+        targetName: 'M33',
+        raHours: 1.56,
+        decDegrees: 30.66,
+        objectType: 'Galaxy',
+        totalScore: 80,
+        visibility: TargetVisibilityInfo(
+            currentAltitude: 40,
+            currentAzimuth: 160,
+            airmass: 1.5,
+            moonDistance: 90,
+            hoursAboveMinAlt: 5));
+    AutoBuildOptions? result;
+    Map<String, dynamic>? saved;
+    await tester.pumpWidget(MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    child: const Text('Open'),
+                    onPressed: () async {
+                      result = await showDialog<AutoBuildOptions>(
+                          context: context,
+                          builder: (_) => AutoBuildOptionsDialog(
+                              profile: _profile,
+                              filters: _filters,
+                              filterChoice: _choice(_filters,
+                                  target: m33, emissionRegions: 9),
+                              target: m33,
+                              saved: const {},
+                              onSave: (value) async => saved = value));
+                    })))));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('LRGB · more luminance'), findsOneWidget);
+    expect(find.text('LRGB: M33 is a galaxy.'), findsOneWidget);
+    expect(
+        find.text('M33 holds 9 emission regions in the catalog, and you have '
+            'an Ha filter: add Ha to this plan or a later night.'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Add Ha'));
+    await tester.pumpAndSettle();
+    expect(find.text('LRGB + Ha · starlight and emission'), findsOneWidget);
+    expect(find.text('Add Ha'), findsNothing);
+    expect(find.textContaining('Your choice.'), findsOneWidget);
+    await tester.tap(find.text('Build sequence'));
+    await tester.pumpAndSettle();
+    expect(result!.strategy, SmartNightStrategy.haLrgb);
+    expect((saved!['strategies'] as Map)['M33'], 'haLrgb');
+  });
+
+  testWidgets('a galaxy on a wheel without Ha says nothing about Ha',
+      (tester) async {
+    const m33 = TargetSuggestion(
+        targetId: 33,
+        targetName: 'M33',
+        raHours: 1.56,
+        decDegrees: 30.66,
+        objectType: 'Galaxy',
+        totalScore: 80,
+        visibility: TargetVisibilityInfo(
+            currentAltitude: 40,
+            currentAzimuth: 160,
+            airmass: 1.5,
+            moonDistance: 90,
+            hoursAboveMinAlt: 5));
+    const filters = ['L', 'R', 'G', 'B', 'OIII'];
+    await tester.pumpWidget(MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    child: const Text('Open'),
+                    onPressed: () => showDialog<AutoBuildOptions>(
+                        context: context,
+                        builder: (_) => AutoBuildOptionsDialog(
+                            profile: _profile,
+                            filters: filters,
+                            filterChoice: _choice(filters,
+                                target: m33, emissionRegions: 9),
+                            target: m33,
+                            saved: const {},
+                            onSave: (_) async {})))))));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('LRGB: M33 is a galaxy.'), findsOneWidget);
+    expect(find.text('Add Ha'), findsNothing);
+    expect(find.textContaining('Ha filter'), findsNothing);
   });
 }

@@ -427,7 +427,7 @@ void main() {
       );
     });
 
-    test('a nebula the catalog does not classify follows the moon', () {
+    test('a nebula the catalog does not classify is narrowband', () {
       const context = SmartNightExposureContext(
         camera: CameraExposureSpec(
           readNoiseE: 1.5,
@@ -464,13 +464,9 @@ void main() {
             exposureContext: context,
           );
 
-      // New moon on 2026-08-12, full moon on 2026-08-28.
-      final dark = planAt(DateTime.utc(2026, 8, 12, 4));
-      expect(dark.recommendedFilterNames, equals(['L', 'Ha']));
-      expect(dark.recommendedFilterName, equals('L'));
-      final bright = planAt(DateTime.utc(2026, 8, 28, 4));
-      expect(bright.recommendedFilterNames, equals(['Ha', 'OIII']));
-      expect(bright.recommendedFilterName, equals('Ha'));
+      final plan = planAt(DateTime.utc(2026, 8, 12, 4));
+      expect(plan.recommendedFilterNames, equals(['Ha', 'OIII']));
+      expect(plan.recommendedFilterName, equals('Ha'));
     });
 
     test(

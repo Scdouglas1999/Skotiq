@@ -778,6 +778,9 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             _PlannedTargetCard(
               planned: p,
               colors: colors,
+              onTakeSuggestion: _isBuildingPreview
+                  ? null
+                  : () => _takeTargetSuggestion(p.suggestion),
               onCountChanged: (filterIndex, delta) {
                 _adjustFilterCount(p, filterIndex, delta);
               },

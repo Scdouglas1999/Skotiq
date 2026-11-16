@@ -30,7 +30,27 @@ final smartNightServiceProvider = Provider<SmartNightService>((ref) {
     logging: ref.watch(loggingServiceProvider),
     floor: ref.watch(altitudeFloorProvider),
     cameraLibrary: ref.watch(hardwarePresetsServiceProvider),
+    emissionObjects:
+        ref.watch(catalogEmissionObjectsProvider).valueOrNull ?? const [],
   );
+});
+
+/// The installed deep-sky catalog's emission objects ([TargetLight.emission]
+/// by their catalog type), every magnitude: a galaxy's HII regions are
+/// fainter than the targets themselves. Empty with no catalog installed.
+final catalogEmissionObjectsProvider = FutureProvider<List<DeepSkyObject>>((
+  ref,
+) async {
+  final manager = CatalogManager.instance;
+  if (!manager.isInitialized ||
+      !(await manager.status(SkyCatalog.dso)).isInstalled) {
+    return const [];
+  }
+  final objects = await manager.dsos.load();
+  return [
+    for (final object in objects)
+      if (targetLight(object.type.displayName) == TargetLight.emission) object,
+  ];
 });
 
 /// Provider for target suggestion configuration.

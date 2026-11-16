@@ -45,11 +45,15 @@ class AutoBuildOptions {
 }
 
 /// A single recipe review shared by Plan and Framing. Does not run equipment.
+///
+/// [strategy] opens the recipe on a set the user already took (the planner's
+/// "Add Ha"), counted as their choice.
 Future<AutoBuildOptions?> showAutoBuildOptions(
   BuildContext context,
   WidgetRef ref,
   TargetSuggestion target, {
   Map<String, double> suggestedSeconds = const {},
+  SmartNightStrategy? strategy,
 }) async {
   final profile = ref.read(activeEquipmentProfileProvider);
   if (profile == null) {
@@ -88,6 +92,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       cameraPreset: preset,
       filters: filters,
       filterChoice: filterChoice,
+      strategy: strategy,
       target: target,
       saved: saved,
       suggestedSeconds: suggestedSeconds,
@@ -103,29 +108,20 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   return result;
 }
 
-/// The filter set Skotiq would pick for [target] tonight, the same choice
-/// the builder makes when the recipe keeps it.
+/// The filter set Skotiq would pick for [target], the same choice the
+/// builder makes when the recipe keeps it.
 Future<SmartNightFilterChoice> _tonightFilterChoice(
   WidgetRef ref,
   TargetSuggestion target,
   List<String> filters,
 ) async {
-  final settings = await readHeld(ref, appSettingsProvider);
   final exposureContext =
       await readHeld(ref, smartNightExposureContextProvider);
-  final service = ref.read(smartNightServiceProvider);
-  final window = service.calculateWindow(
-    latitudeDeg: settings.latitude,
-    longitudeDeg: settings.longitude,
-    now: ref.read(clockProvider).instant,
-  );
-  return service.chooseFilters(
-    suggestion: target,
-    availableFilters: smartNightPlanningFilters(filters),
-    exposureContext: exposureContext,
-    windowStart: window.start,
-    windowEnd: window.end,
-  );
+  return ref.read(smartNightServiceProvider).chooseFilters(
+        suggestion: target,
+        availableFilters: smartNightPlanningFilters(filters),
+        exposureContext: exposureContext,
+      );
 }
 
 class AutoBuildOptionsDialog extends StatefulWidget {
@@ -137,6 +133,9 @@ class AutoBuildOptionsDialog extends StatefulWidget {
   /// The filter set Skotiq picks for [target] on this rig; the dialog opens
   /// on it unless the user picked another for this target before.
   final SmartNightFilterChoice filterChoice;
+
+  /// A set the user already took for this recipe; opens on it.
+  final SmartNightStrategy? strategy;
   final TargetSuggestion target;
   final Map<String, dynamic> saved;
   final Future<void> Function(Map<String, dynamic>) onSave;
@@ -153,6 +152,7 @@ class AutoBuildOptionsDialog extends StatefulWidget {
       this.cameraPreset,
       required this.filters,
       required this.filterChoice,
+      this.strategy,
       required this.target,
       required this.saved,
       this.suggestedSeconds = const {},
@@ -181,9 +181,11 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     super.initState();
     final strategyName =
         (widget.saved['strategies'] as Map<String, dynamic>?)?[_targetKey];
-    _strategy = widget.filterChoice.capturable.firstWhere(
-        (s) => s.name == strategyName,
-        orElse: () => widget.filterChoice.strategy);
+    final capturable = widget.filterChoice.capturable;
+    _strategy = capturable.contains(widget.strategy)
+        ? widget.strategy!
+        : capturable.firstWhere((s) => s.name == strategyName,
+            orElse: () => widget.filterChoice.strategy);
     _end = AutoBuildEnd.values.firstWhere((e) => e.name == widget.saved['end'],
         orElse: () => AutoBuildEnd.astronomical);
     _calculator = widget.saved['calculator'] == true;
@@ -222,6 +224,17 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   String get _targetKey => widget.target.catalogId ?? widget.target.targetName;
 
   List<String> get _filters => widget.filterChoice.filtersFor(_strategy);
+
+  /// The offer of another set beside Skotiq's choice, while it is kept.
+  String? get _suggestion => widget.filterChoice.suggestionFor(_strategy);
+
+  void _choose(SmartNightStrategy set) {
+    _rememberCaptureSettings();
+    setState(() {
+      _strategy = set;
+      _loadCaptureSettings();
+    });
+  }
 
   /// Why these filters, in one line.
   String get _filterReason => _strategy == widget.filterChoice.strategy
@@ -293,6 +306,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                         '${CoordinateFormat.decReadout(widget.target.decDegrees)}'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<SmartNightStrategy>(
+                      // Rebuilt when "Add Ha" changes the set.
+                      key: ValueKey(_strategy),
                       isExpanded: true,
                       initialValue: _strategy,
                       decoration: const InputDecoration(
@@ -321,17 +336,24 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                               })))
                           .toList(),
                       onChanged: (v) {
-                        if (v != null) {
-                          _rememberCaptureSettings();
-                          setState(() {
-                            _strategy = v;
-                            _loadCaptureSettings();
-                          });
-                        }
+                        if (v != null) _choose(v);
                       },
                     ),
                     const SizedBox(height: 12),
                     Text(_filterReason),
+                    if (_suggestion case final offer?) ...[
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: Text(offer)),
+                        const SizedBox(width: 12),
+                        SkotiqButton(
+                            label: 'Add Ha',
+                            variant: ButtonVariant.secondary,
+                            size: ButtonSize.small,
+                            onPressed: () =>
+                                _choose(widget.filterChoice.suggested!)),
+                      ]),
+                    ],
                     const SizedBox(height: 16),
                     SwitchListTile(
                         contentPadding: EdgeInsets.zero,

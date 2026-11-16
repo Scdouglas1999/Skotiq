@@ -172,6 +172,10 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
   /// ([SmartNightService.chooseFilters]).
   SmartNightStrategy? _strategy;
 
+  /// Sets the user took for single targets on the preview ("Add Ha"), by
+  /// target id; they win over [_strategy].
+  final Map<int, SmartNightStrategy> _targetStrategies = {};
+
   SmartNightPlan? _preview;
   String? _previewError;
   String? _previewDraftId;
@@ -534,10 +538,10 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
             suggestion: suggestion,
             availableFilters: planningFilters,
             exposureContext: exposureContext,
-            windowStart: _windowStart!,
-            windowEnd: _windowEnd!,
           );
-          return choice.filtersFor(_strategy ?? choice.strategy);
+          return choice.filtersFor(_targetStrategies[suggestion.targetId] ??
+              _strategy ??
+              choice.strategy);
         }
 
         darkLibraryMissing = await SmartNightDarkLibraryCoverage(
@@ -593,6 +597,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         planTimer: ref.read(planTimerProvider),
         exposureContext: exposureContext,
         integrationGoals: integrationGoals,
+        targetStrategies: _targetStrategies,
       );
       final draft = await ref.read(smartNightDraftServiceProvider).savePending(
             profileId: activeProfile.id.toString(),
