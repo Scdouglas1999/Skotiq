@@ -356,6 +356,14 @@ void main() {
 
     final chip = find.byType(SkotiqMenuChip<int>);
     expect(chip, findsOneWidget);
+    final section = find.byWidgetPredicate(
+      (w) => w is FramingPanelSection && w.title == 'Camera',
+    );
+    expect(
+      tester.getRect(section).right - tester.getRect(chip).right,
+      lessThan(SkotiqTokens.space2xl),
+      reason: 'the profile sits at the end of the title row, as notes do',
+    );
     await tap(tester, chip);
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Backyard 80ED'), findsOneWidget);
