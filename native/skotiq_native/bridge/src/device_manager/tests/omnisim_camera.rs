@@ -116,6 +116,7 @@ async fn capabilities_report_the_cameras_own_controls() {
     );
     assert!(caps.can_set_ccd_temperature && caps.can_set_cooler && caps.can_get_cooler_power);
     assert!(caps.is_color);
+    assert_eq!(caps.bayer_pattern.as_deref(), Some("GRBG"));
     assert_eq!((caps.max_width, caps.max_height), (1200, 800));
 }
 

@@ -55,7 +55,7 @@ pub(crate) fn camera_capabilities(
         pixel_size_x: pixel_size(sensor.pixel_size_x),
         pixel_size_y: pixel_size(sensor.pixel_size_y),
         is_color: sensor.color,
-        bayer_pattern: sensor.bayer_pattern.map(|pattern| format!("{:?}", pattern)),
+        bayer_pattern: sensor.bayer_pattern.map(|pattern| pattern.letters()),
         sensor_type,
         has_fast_readout: false,
         readout_modes: readout_modes.into_iter().map(|mode| mode.name).collect(),
