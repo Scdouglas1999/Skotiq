@@ -6215,26 +6215,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_instruction = cst_encode_String(apiObj.instruction);
       var pre_progress_percent = cst_encode_f_64(apiObj.progressPercent);
       var pre_detail = cst_encode_String(apiObj.detail);
+      var pre_detail_kind = cst_encode_String(apiObj.detailKind);
+      var pre_detail_json = cst_encode_String(apiObj.detailJson);
       wireObj.tag = 16;
       wireObj.kind.InstructionProgress.node_id = pre_node_id;
       wireObj.kind.InstructionProgress.instruction = pre_instruction;
       wireObj.kind.InstructionProgress.progress_percent = pre_progress_percent;
       wireObj.kind.InstructionProgress.detail = pre_detail;
+      wireObj.kind.InstructionProgress.detail_kind = pre_detail_kind;
+      wireObj.kind.InstructionProgress.detail_json = pre_detail_json;
       return;
     }
-    if (apiObj is SequencerEvent_InstructionProgressStructured) {
-      var pre_node_id = cst_encode_String(apiObj.nodeId);
-      var pre_instruction = cst_encode_String(apiObj.instruction);
-      var pre_progress_percent = cst_encode_f_64(apiObj.progressPercent);
-      var pre_detail_kind = cst_encode_String(apiObj.detailKind);
-      var pre_detail_json = cst_encode_String(apiObj.detailJson);
+    if (apiObj is SequencerEvent_DitherPerformed) {
+      var pre_node_id = cst_encode_opt_String(apiObj.nodeId);
       wireObj.tag = 17;
-      wireObj.kind.InstructionProgressStructured.node_id = pre_node_id;
-      wireObj.kind.InstructionProgressStructured.instruction = pre_instruction;
-      wireObj.kind.InstructionProgressStructured.progress_percent =
-          pre_progress_percent;
-      wireObj.kind.InstructionProgressStructured.detail_kind = pre_detail_kind;
-      wireObj.kind.InstructionProgressStructured.detail_json = pre_detail_json;
+      wireObj.kind.DitherPerformed.node_id = pre_node_id;
+      return;
+    }
+    if (apiObj is SequencerEvent_FrameWatchReport) {
+      var pre_kind = cst_encode_String(apiObj.kind);
+      var pre_payload_json = cst_encode_String(apiObj.payloadJson);
+      wireObj.tag = 18;
+      wireObj.kind.FrameWatchReport.kind = pre_kind;
+      wireObj.kind.FrameWatchReport.payload_json = pre_payload_json;
       return;
     }
     if (apiObj is SequencerEvent_DepthGoalCompleted) {
@@ -6246,7 +6249,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_confirmation_frames = cst_encode_u_32(apiObj.confirmationFrames);
       var pre_score = cst_encode_f_64(apiObj.score);
       var pre_threshold = cst_encode_f_64(apiObj.threshold);
-      wireObj.tag = 18;
+      wireObj.tag = 19;
       wireObj.kind.DepthGoalCompleted.node_id = pre_node_id;
       wireObj.kind.DepthGoalCompleted.filter_name = pre_filter_name;
       wireObj.kind.DepthGoalCompleted.goal_id = pre_goal_id;
@@ -6273,7 +6276,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_capture = cst_encode_box_autoadd_frame_capture_metadata(
         apiObj.capture,
       );
-      wireObj.tag = 19;
+      wireObj.tag = 20;
       wireObj.kind.FrameAccepted.node_id = pre_node_id;
       wireObj.kind.FrameAccepted.frame = pre_frame;
       wireObj.kind.FrameAccepted.total = pre_total;
@@ -6322,7 +6325,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_capture = cst_encode_box_autoadd_frame_capture_metadata(
         apiObj.capture,
       );
-      wireObj.tag = 20;
+      wireObj.tag = 21;
       wireObj.kind.FrameRejected.node_id = pre_node_id;
       wireObj.kind.FrameRejected.frame = pre_frame;
       wireObj.kind.FrameRejected.total = pre_total;
@@ -6359,7 +6362,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.pickedScore,
       );
       var pre_scores = cst_encode_list_scheduler_score_entry(apiObj.scores);
-      wireObj.tag = 21;
+      wireObj.tag = 22;
       wireObj.kind.SchedulerDecision.node_id = pre_node_id;
       wireObj.kind.SchedulerDecision.decision_counter = pre_decision_counter;
       wireObj.kind.SchedulerDecision.picked_target_id = pre_picked_target_id;
@@ -6376,7 +6379,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_budget_secs = cst_encode_f_64(apiObj.budgetSecs);
       var pre_fraction = cst_encode_f_64(apiObj.fraction);
       var pre_budget_met = cst_encode_bool(apiObj.budgetMet);
-      wireObj.tag = 22;
+      wireObj.tag = 23;
       wireObj.kind.IntegrationBudget.target_id = pre_target_id;
       wireObj.kind.IntegrationBudget.filter = pre_filter;
       wireObj.kind.IntegrationBudget.completed_secs = pre_completed_secs;
@@ -6394,7 +6397,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       );
       var pre_filter = cst_encode_opt_String(apiObj.filter);
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 23;
+      wireObj.tag = 24;
       wireObj.kind.ExposureAdjusted.node_id = pre_node_id;
       wireObj.kind.ExposureAdjusted.adapted_secs = pre_adapted_secs;
       wireObj.kind.ExposureAdjusted.nominal_secs = pre_nominal_secs;
@@ -6420,7 +6423,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_reject_reason = cst_encode_opt_String(apiObj.rejectReason);
       var pre_reduce_live = cst_encode_bool(apiObj.reduceLive);
       var pre_apply_differential = cst_encode_bool(apiObj.applyDifferential);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.PhotometryFrame.node_id = pre_node_id;
       wireObj.kind.PhotometryFrame.target_designation = pre_target_designation;
       wireObj.kind.PhotometryFrame.reference_stars = pre_reference_stars;
@@ -6446,7 +6449,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_gap_secs = cst_encode_f_64(apiObj.gapSecs);
       var pre_max_gap_secs = cst_encode_f_64(apiObj.maxGapSecs);
       var pre_cadence_breaks = cst_encode_u_32(apiObj.cadenceBreaks);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.PhotometryCadenceBroken.node_id = pre_node_id;
       wireObj.kind.PhotometryCadenceBroken.frame = pre_frame;
       wireObj.kind.PhotometryCadenceBroken.total = pre_total;
@@ -6464,7 +6467,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_last_reject_reason = cst_encode_opt_String(
         apiObj.lastRejectReason,
       );
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.PhotometrySummary.node_id = pre_node_id;
       wireObj.kind.PhotometrySummary.target_designation =
           pre_target_designation;
@@ -6490,7 +6493,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.RecoveryStarted.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryStarted.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryStarted.cause_custom_label = pre_cause_custom_label;
@@ -6520,7 +6523,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.RecoveryProgress.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryProgress.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryProgress.cause_custom_label = pre_cause_custom_label;
@@ -6550,7 +6553,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.RecoveryCompleted.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryCompleted.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryCompleted.cause_custom_label =
@@ -6582,7 +6585,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
       var pre_aborted_by_user = cst_encode_bool(apiObj.abortedByUser);
-      wireObj.tag = 30;
+      wireObj.tag = 31;
       wireObj.kind.RecoveryGaveUp.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryGaveUp.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryGaveUp.cause_custom_label = pre_cause_custom_label;
@@ -6603,7 +6606,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_config_json = cst_encode_String(apiObj.configJson);
       var pre_display_name = cst_encode_opt_String(apiObj.displayName);
       var pre_timeout_secs = cst_encode_u_32(apiObj.timeoutSecs);
-      wireObj.tag = 31;
+      wireObj.tag = 32;
       wireObj.kind.PluginNodeRequested.node_id = pre_node_id;
       wireObj.kind.PluginNodeRequested.plugin_id = pre_plugin_id;
       wireObj.kind.PluginNodeRequested.node_type_id = pre_node_type_id;
@@ -6617,7 +6620,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_plugin_id = cst_encode_String(apiObj.pluginId);
       var pre_node_type_id = cst_encode_String(apiObj.nodeTypeId);
       var pre_detail_json = cst_encode_String(apiObj.detailJson);
-      wireObj.tag = 32;
+      wireObj.tag = 33;
       wireObj.kind.PluginNodeProgress.node_id = pre_node_id;
       wireObj.kind.PluginNodeProgress.plugin_id = pre_plugin_id;
       wireObj.kind.PluginNodeProgress.node_type_id = pre_node_type_id;
@@ -6637,7 +6640,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.notice,
       );
       var pre_stop = cst_encode_opt_box_autoadd_sequencer_stop(apiObj.stop);
-      wireObj.tag = 33;
+      wireObj.tag = 34;
       wireObj.kind.DecisionLogged.timestamp_iso = pre_timestamp_iso;
       wireObj.kind.DecisionLogged.category = pre_category;
       wireObj.kind.DecisionLogged.summary = pre_summary;
@@ -19664,20 +19667,20 @@ final class wire_cst_SequencerEvent_InstructionProgress extends ffi.Struct {
   external double progress_percent;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail;
-}
-
-final class wire_cst_SequencerEvent_InstructionProgressStructured
-    extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction;
-
-  @ffi.Double()
-  external double progress_percent;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail_kind;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail_json;
+}
+
+final class wire_cst_SequencerEvent_DitherPerformed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_id;
+}
+
+final class wire_cst_SequencerEvent_FrameWatchReport extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> payload_json;
 }
 
 final class wire_cst_SequencerEvent_DepthGoalCompleted extends ffi.Struct {
@@ -20123,8 +20126,9 @@ final class SequencerEventKind extends ffi.Union {
 
   external wire_cst_SequencerEvent_InstructionProgress InstructionProgress;
 
-  external wire_cst_SequencerEvent_InstructionProgressStructured
-  InstructionProgressStructured;
+  external wire_cst_SequencerEvent_DitherPerformed DitherPerformed;
+
+  external wire_cst_SequencerEvent_FrameWatchReport FrameWatchReport;
 
   external wire_cst_SequencerEvent_DepthGoalCompleted DepthGoalCompleted;
 

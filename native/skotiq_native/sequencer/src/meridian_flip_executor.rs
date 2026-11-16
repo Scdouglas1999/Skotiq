@@ -2321,8 +2321,7 @@ impl MeridianFlipExecutor {
                     } else {
                         0.0
                     },
-                    detail: retry.detail_text(),
-                    structured_detail: Some(Box::new(retry)),
+                    detail: Box::new(retry),
                 });
             }
         }
@@ -4435,19 +4434,18 @@ mod tests {
                 node_id,
                 instruction,
                 detail,
-                structured_detail,
                 ..
             } => {
                 assert_eq!(node_id, MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID);
                 assert_eq!(instruction, "MeridianFlip");
-                assert_eq!(detail, "attempt 2/4 failed, retrying in 60s");
+                assert_eq!(detail.detail_text(), "attempt 2/4 failed, retrying in 60s");
                 assert!(matches!(
-                    structured_detail.as_deref(),
-                    Some(crate::node::ProgressDetail::MeridianFlipRetry {
+                    *detail,
+                    crate::node::ProgressDetail::MeridianFlipRetry {
                         failed_attempt: 2,
                         max_attempts: 4,
                         retry_in_secs,
-                    }) if *retry_in_secs == 60.0
+                    } if retry_in_secs == 60.0
                 ));
             }
             other => panic!("expected NodeProgress, got {other:?}"),

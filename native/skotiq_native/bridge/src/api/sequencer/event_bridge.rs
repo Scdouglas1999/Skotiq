@@ -1,8 +1,7 @@
 use super::get_sequence_executor;
 use crate::api::sequencer::event_translation::{
-    recovery_event_completed, recovery_event_gave_up, recovery_event_progress,
-    recovery_event_started, structured_progress_payload_from_progress_detail,
-    typed_sequencer_event_from_progress_detail,
+    instruction_progress_event, recovery_event_completed, recovery_event_gave_up,
+    recovery_event_progress, recovery_event_started, typed_sequencer_event_from_progress_detail,
 };
 use crate::error::SkotiqError;
 use crate::event::bus::EventPayload;
@@ -28,10 +27,6 @@ use skotiq_sequencer::{ExecutorEvent, ExecutorState, NodeStatus};
 /// `SequenceExecutor::new()` and never replaced — the loops can only see
 /// `Closed` at process teardown, and the supervisor's restart-on-panic keeps
 /// them alive through anything short of that.
-/// `detail_kind` of the structured-progress event that reports one dither
-/// the run performed (`ExecutorEvent::DitherPerformed`).
-pub(crate) const DITHER_PERFORMED_DETAIL_KIND: &str = "DitherPerformed";
-
 pub(crate) static SEQUENCER_EVENT_BRIDGES_STARTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
@@ -231,32 +226,19 @@ pub(crate) async fn run_sequencer_event_loop(
                         threshold: completion.threshold,
                     }),
                 )),
-                // Rides the structured-progress variant under its own kind,
-                // so the run's dither count needs no new wire type. The
-                // Dart executor counts it and does not treat it as node
-                // progress.
                 ExecutorEvent::DitherPerformed { node_id } => Some(create_event_auto_id(
                     EventSeverity::Info,
                     EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::InstructionProgressStructured {
-                        node_id: node_id.clone().unwrap_or_default(),
-                        instruction: "Dither".to_string(),
-                        progress_percent: 100.0,
-                        detail_kind: DITHER_PERFORMED_DETAIL_KIND.to_string(),
-                        detail_json: "{}".to_string(),
+                    EventPayload::Sequencer(SequencerEvent::DitherPerformed {
+                        node_id: node_id.clone(),
                     }),
                 )),
-                // Frame-watch measurements and obstruction reports ride the
-                // structured-progress variant under their own kinds.
                 ExecutorEvent::FrameWatch(event) => Some(create_event_auto_id(
                     EventSeverity::Info,
                     EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::InstructionProgressStructured {
-                        node_id: String::new(),
-                        instruction: "Frame watch".to_string(),
-                        progress_percent: 100.0,
-                        detail_kind: event.kind().to_string(),
-                        detail_json: event.payload_json(),
+                    EventPayload::Sequencer(SequencerEvent::FrameWatchReport {
+                        kind: event.kind().to_string(),
+                        payload_json: event.payload_json(),
                     }),
                 )),
                 ExecutorEvent::NodeStarted { id, name } => Some(create_event_auto_id(
@@ -376,72 +358,35 @@ pub(crate) async fn run_sequencer_event_loop(
                     instruction,
                     progress_percent,
                     detail,
-                    structured_detail,
                 } => {
-                    tracing::info!(
-                        "[EVENT_SUB] NodeProgress received: node={}, instruction={}, progress={}%",
-                        node_id,
-                        instruction,
-                        progress_percent
-                    );
-
-                    // when the executor sent a structured payload
-                    // (image grading + scheduler + budget paths do
-                    // this), publish the typed `SequencerEvent` variant
-                    // FIRST so the dashboard panels can consume it
-                    // directly. Then fall through to also emit the legacy
-                    // `InstructionProgress` for back-compat with subscribers
-                    // that haven't migrated.
-                    if let Some(detail_box) = structured_detail.as_deref() {
-                        // DepthLock ingestion rides the same single
-                        // executor subscription: a cheap try_send per saved
-                        // light, never a second receiver on the broadcast.
-                        if let skotiq_sequencer::ProgressDetail::FrameAccepted {
-                            save_path: Some(path),
-                            capture,
-                            ..
-                        } = detail_box
-                        {
-                            crate::depthlock_service::notify_frame_saved(path, &capture.frame_type);
-                        }
-                        if let Some((detail_kind, detail_json)) =
-                            structured_progress_payload_from_progress_detail(detail_box)
-                        {
-                            state.publish_event(create_event_auto_id(
-                                EventSeverity::Info,
-                                EventCategory::Sequencer,
-                                EventPayload::Sequencer(
-                                    SequencerEvent::InstructionProgressStructured {
-                                        node_id: node_id.clone(),
-                                        instruction: instruction.clone(),
-                                        progress_percent: *progress_percent,
-                                        detail_kind,
-                                        detail_json,
-                                    },
-                                ),
-                            ));
-                        }
-
-                        if let Some(typed) =
-                            typed_sequencer_event_from_progress_detail(node_id, detail_box)
-                        {
-                            state.publish_event(create_event_auto_id(
-                                EventSeverity::Info,
-                                EventCategory::Sequencer,
-                                EventPayload::Sequencer(typed),
-                            ));
-                        }
+                    // DepthLock ingestion rides the same single executor
+                    // subscription: a cheap try_send per saved light, never a
+                    // second receiver on the broadcast.
+                    if let skotiq_sequencer::ProgressDetail::FrameAccepted {
+                        save_path: Some(path),
+                        capture,
+                        ..
+                    } = detail.as_ref()
+                    {
+                        crate::depthlock_service::notify_frame_saved(path, &capture.frame_type);
                     }
-
+                    if let Some(fact) = typed_sequencer_event_from_progress_detail(node_id, detail)
+                    {
+                        state.publish_event(create_event_auto_id(
+                            EventSeverity::Info,
+                            EventCategory::Sequencer,
+                            EventPayload::Sequencer(fact),
+                        ));
+                    }
                     Some(create_event_auto_id(
                         EventSeverity::Info,
                         EventCategory::Sequencer,
-                        EventPayload::Sequencer(SequencerEvent::InstructionProgress {
-                            node_id: node_id.clone(),
-                            instruction: instruction.clone(),
-                            progress_percent: *progress_percent,
-                            detail: detail.clone(),
-                        }),
+                        EventPayload::Sequencer(instruction_progress_event(
+                            node_id,
+                            instruction,
+                            *progress_percent,
+                            detail,
+                        )),
                     ))
                 }
                 ExecutorEvent::Error { message } => Some(run_error_event(
@@ -706,6 +651,62 @@ fn run_error_event(
             notice,
         }),
     )
+}
+
+#[cfg(test)]
+mod instruction_progress_tests {
+    use crate::api::sequencer::event_translation::instruction_progress_event;
+    use crate::event::sequencer::SequencerEvent;
+    use skotiq_sequencer::ProgressDetail;
+
+    /// A step's progress is one event carrying its words and its report.
+    #[test]
+    fn a_step_report_is_one_event_with_its_words_and_its_fields() {
+        let detail = ProgressDetail::Center {
+            attempt: 2,
+            max_attempts: 3,
+            last_separation_arcsec: Some(41.5),
+            solved_ra_hours: Some(5.5),
+            solved_dec_degrees: Some(-5.25),
+        };
+        let SequencerEvent::InstructionProgress {
+            node_id,
+            instruction,
+            progress_percent,
+            detail: words,
+            detail_kind,
+            detail_json,
+        } = instruction_progress_event("center-1", "Center", 66.0, &detail)
+        else {
+            panic!("a step report is an InstructionProgress");
+        };
+        assert_eq!((node_id.as_str(), instruction.as_str()), ("center-1", "Center"));
+        assert_eq!(progress_percent, 66.0);
+        assert_eq!(words, detail.detail_text());
+        assert_eq!(detail_kind, "Center");
+        let fields: serde_json::Value = serde_json::from_str(&detail_json).expect("JSON");
+        assert_eq!(fields["attempt"], 2);
+        assert_eq!(fields["solved_dec_degrees"], -5.25);
+    }
+
+    /// A step that reports only in words is the `Generic` kind with its words
+    /// as the payload.
+    #[test]
+    fn words_alone_are_the_generic_kind() {
+        let detail = ProgressDetail::Generic("Waiting for dark".to_string());
+        let SequencerEvent::InstructionProgress {
+            detail: words,
+            detail_kind,
+            detail_json,
+            ..
+        } = instruction_progress_event("wait", "Wait", 0.0, &detail)
+        else {
+            panic!("a step report is an InstructionProgress");
+        };
+        assert_eq!(words, "Waiting for dark");
+        assert_eq!(detail_kind, "Generic");
+        assert_eq!(detail_json, "\"Waiting for dark\"");
+    }
 }
 
 #[cfg(test)]

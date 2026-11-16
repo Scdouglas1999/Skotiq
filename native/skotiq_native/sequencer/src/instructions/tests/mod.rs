@@ -1543,11 +1543,7 @@ fn drain_frame_captures(
 ) -> Vec<crate::scheduling::FrameCaptureMetadata> {
     let mut out = Vec::new();
     while let Ok(event) = rx.try_recv() {
-        if let crate::executor::ExecutorEvent::NodeProgress {
-            structured_detail: Some(detail),
-            ..
-        } = event
-        {
+        if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
             match *detail {
                 crate::node::ProgressDetail::FrameAccepted { capture, .. }
                 | crate::node::ProgressDetail::FrameRejected { capture, .. } => out.push(capture),

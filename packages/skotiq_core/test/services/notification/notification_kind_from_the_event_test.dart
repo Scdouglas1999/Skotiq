@@ -133,6 +133,8 @@ void main() {
             instruction: 'Meridian flip',
             progressPercent: 40,
             detail: 'Meridian flip attempt 2/4 failed, retrying',
+            detailKind: 'Generic',
+            detailJson: '""',
           ),
         ),
         EventCategory.sequencer,

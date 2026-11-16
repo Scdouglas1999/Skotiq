@@ -584,7 +584,7 @@ void main() {
                 'timestamp': 1700000000001,
                 'severity': 'info',
                 'category': 'sequencer',
-                'eventType': 'InstructionProgressStructured',
+                'eventType': 'InstructionProgress',
                 'data': {
                   'node_id': 'exp-1',
                   'instruction': 'Take Exposure',
@@ -616,7 +616,7 @@ void main() {
         );
         final eventFuture = backend.eventStream
             .firstWhere(
-              (event) => event.eventType == 'InstructionProgressStructured',
+              (event) => event.eventType == 'InstructionProgress',
             )
             .timeout(const Duration(seconds: 2));
 

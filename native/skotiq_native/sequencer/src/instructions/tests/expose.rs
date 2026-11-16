@@ -312,11 +312,7 @@ mod light_frame_grading {
 
         let mut verdict = None;
         while let Ok(event) = event_rx.try_recv() {
-            if let crate::executor::ExecutorEvent::NodeProgress {
-                structured_detail: Some(detail),
-                ..
-            } = event
-            {
+            if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
                 match *detail {
                     crate::node::ProgressDetail::FrameAccepted { .. } => verdict = Some(Ok(())),
                     crate::node::ProgressDetail::FrameRejected {
@@ -470,11 +466,7 @@ mod light_frame_grading {
                 assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
                 let mut rejects = Vec::new();
                 while let Ok(event) = event_rx.try_recv() {
-                    if let crate::executor::ExecutorEvent::NodeProgress {
-                        structured_detail: Some(detail),
-                        ..
-                    } = event
-                    {
+                    if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
                         if let crate::node::ProgressDetail::FrameRejected { reason, .. } = *detail {
                             rejects.push(reason);
                         }

@@ -1211,15 +1211,18 @@ typedef struct wire_cst_SequencerEvent_InstructionProgress {
   struct wire_cst_list_prim_u_8_strict *instruction;
   double progress_percent;
   struct wire_cst_list_prim_u_8_strict *detail;
-} wire_cst_SequencerEvent_InstructionProgress;
-
-typedef struct wire_cst_SequencerEvent_InstructionProgressStructured {
-  struct wire_cst_list_prim_u_8_strict *node_id;
-  struct wire_cst_list_prim_u_8_strict *instruction;
-  double progress_percent;
   struct wire_cst_list_prim_u_8_strict *detail_kind;
   struct wire_cst_list_prim_u_8_strict *detail_json;
-} wire_cst_SequencerEvent_InstructionProgressStructured;
+} wire_cst_SequencerEvent_InstructionProgress;
+
+typedef struct wire_cst_SequencerEvent_DitherPerformed {
+  struct wire_cst_list_prim_u_8_strict *node_id;
+} wire_cst_SequencerEvent_DitherPerformed;
+
+typedef struct wire_cst_SequencerEvent_FrameWatchReport {
+  struct wire_cst_list_prim_u_8_strict *kind;
+  struct wire_cst_list_prim_u_8_strict *payload_json;
+} wire_cst_SequencerEvent_FrameWatchReport;
 
 typedef struct wire_cst_SequencerEvent_DepthGoalCompleted {
   struct wire_cst_list_prim_u_8_strict *node_id;
@@ -1458,7 +1461,8 @@ typedef union SequencerEventKind {
   struct wire_cst_SequencerEvent_MeridianFlipOutcome MeridianFlipOutcome;
   struct wire_cst_SequencerEvent_TriggerFired TriggerFired;
   struct wire_cst_SequencerEvent_InstructionProgress InstructionProgress;
-  struct wire_cst_SequencerEvent_InstructionProgressStructured InstructionProgressStructured;
+  struct wire_cst_SequencerEvent_DitherPerformed DitherPerformed;
+  struct wire_cst_SequencerEvent_FrameWatchReport FrameWatchReport;
   struct wire_cst_SequencerEvent_DepthGoalCompleted DepthGoalCompleted;
   struct wire_cst_SequencerEvent_FrameAccepted FrameAccepted;
   struct wire_cst_SequencerEvent_FrameRejected FrameRejected;

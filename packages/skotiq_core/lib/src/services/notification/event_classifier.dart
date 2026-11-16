@@ -409,7 +409,8 @@ class NotificationEventClassifier {
           typed.SequencerEvent_ExposureStarted() ||
           typed.SequencerEvent_ExposureCompleted() ||
           typed.SequencerEvent_InstructionProgress() ||
-          typed.SequencerEvent_InstructionProgressStructured() ||
+          typed.SequencerEvent_DitherPerformed() ||
+          typed.SequencerEvent_FrameWatchReport() ||
           typed.SequencerEvent_DepthGoalCompleted() ||
           typed.SequencerEvent_FrameAccepted() ||
           typed.SequencerEvent_SchedulerDecision() ||

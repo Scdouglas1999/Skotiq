@@ -193,7 +193,7 @@ void main() {
         sequencerEvent('NodeStarted', {'node_id': 'expo1'}),
       );
       executor.handleSequencerEventForTest(
-        sequencerEvent('InstructionProgressStructured', {
+        sequencerEvent('InstructionProgress', {
           'node_id': 'expo1',
           'detail_kind': 'Filter',
           'detail_json': '{"name":"Ha"}',
@@ -432,14 +432,8 @@ void main() {
   });
 
   group('the run record counts dithers', () {
-    backend_events.SkotiqEvent ditherPerformed({String nodeId = ''}) =>
-        sequencerEvent('InstructionProgressStructured', {
-          'node_id': nodeId,
-          'instruction': 'Dither',
-          'progress_percent': 100.0,
-          'detail_kind': ditherPerformedDetailKind,
-          'detail_json': '{}',
-        });
+    backend_events.SkotiqEvent ditherPerformed({String? nodeId}) =>
+        sequencerEvent('DitherPerformed', {'node_id': nodeId});
 
     test('a dither the run performed is counted', () async {
       final (container, executor) = build(sequence: exposureSequence());

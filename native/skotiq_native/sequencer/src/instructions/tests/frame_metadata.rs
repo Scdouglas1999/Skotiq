@@ -52,11 +52,7 @@ async fn frame_event_carries_the_fits_writers_own_capture_context() {
 
     let mut emitted = None;
     while let Ok(event) = event_rx.try_recv() {
-        if let crate::executor::ExecutorEvent::NodeProgress {
-            structured_detail: Some(detail),
-            ..
-        } = event
-        {
+        if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
             if let crate::node::ProgressDetail::FrameAccepted { capture, .. } = *detail {
                 emitted = Some(capture);
             }
