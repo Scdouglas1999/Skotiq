@@ -161,7 +161,7 @@ class _CoordinateLookupSectionState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Coordinates not set — this target still points at the '
+                      'Coordinates not set: this target still points at the '
                       '0h/+0° default. Look them up or enter RA/Dec above.',
                       style: TextStyle(
                         fontSize: Responsive.fontSize(context, 12),
@@ -207,7 +207,7 @@ class _CoordinateLookupSectionState
             return _message(
               context,
               'No match for "$query" in your target library or installed '
-              'catalogs. Install a catalog from Settings → Catalogs, or '
+              'catalogs. Install a catalog from Settings > Catalogs, or '
               'enter RA/Dec above.',
               isProblem: true,
             );

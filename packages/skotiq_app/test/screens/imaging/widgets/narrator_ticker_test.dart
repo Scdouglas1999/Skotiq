@@ -175,7 +175,7 @@ void main() {
       events: [
         _event(
           id: 2,
-          headline: 'Best seeing of the night — FWHM 1.8"',
+          headline: 'Best seeing of the night. FWHM 1.8"',
           age: const Duration(seconds: 5),
         ),
         _event(
@@ -187,7 +187,7 @@ void main() {
     );
 
     expect(
-      find.text('Best seeing of the night — FWHM 1.8"'),
+      find.text('Best seeing of the night. FWHM 1.8"'),
       findsOneWidget,
     );
   });

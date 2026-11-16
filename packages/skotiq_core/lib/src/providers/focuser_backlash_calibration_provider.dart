@@ -264,7 +264,7 @@ class FocuserBacklashCalibrationNotifier
         // error to leave on screen: back to idle with a line saying so.
         state = FocuserBacklashCalibrationState(
           status:
-              'Calibration stopped at your request — the focuser is back '
+              'Calibration stopped at your request. The focuser is back '
               'where you left it',
           plan: state.plan,
         );
@@ -300,7 +300,7 @@ class FocuserBacklashCalibrationNotifier
     } catch (error) {
       if (!mounted) return;
       state = state.copyWith(
-        status: 'Cancellation failed — the calibration continues',
+        status: 'Cancellation failed: the calibration continues',
         errorMessage: userFacingError(error),
       );
     }

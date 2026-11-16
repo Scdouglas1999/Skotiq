@@ -299,7 +299,7 @@ class _UnreadableDestinationRowState
       title: 'Delete ${widget.row.label}?',
       message: 'This destination cannot be read, so it delivers nothing. '
           'Deleting removes the row and its delivery journal. Files already '
-          'delivered there are left alone — delivery copies, it never moves.',
+          'delivered there are left alone. Delivery copies, it never moves.',
       confirmLabel: 'Delete',
       isDestructive: true,
     );
@@ -479,7 +479,7 @@ class _StatusLine extends StatelessWidget {
 /// the peer id only picks which destination's file list is served.
 const String _peerPullAuthSentence =
     'These files are served to any client holding this rig\'s access token '
-    'that asks as this peer id — the pairing list does not gate the pull.';
+    'that asks as this peer id. The pairing list does not gate the pull.';
 
 /// Whether a paired desktop is registered under this peer destination's id.
 ///

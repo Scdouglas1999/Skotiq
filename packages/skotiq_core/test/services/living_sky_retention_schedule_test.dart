@@ -72,7 +72,7 @@ void main() {
   });
 
   test(
-    'the production wiring supplies the sweep — without it both reclaimers are '
+    'the production wiring supplies the sweep. Without it both reclaimers are '
     'unreachable code and the disk grows without bound',
     () {
       final container = ProviderContainer(

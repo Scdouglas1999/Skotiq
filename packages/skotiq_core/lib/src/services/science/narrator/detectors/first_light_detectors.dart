@@ -178,7 +178,7 @@ class MoverDetector extends NarratorDetector {
               'Moving streak in the difference at '
               '${CoordinateFormat.raCompactFromDegrees(c.ra)} ${CoordinateFormat.decCompact(c.dec)}',
           body:
-              'An elongated residual appeared against your template — likely an '
+              'An elongated residual appeared against your template. Likely an '
               'asteroid, comet, or satellite. Review it on the transients tab '
               'and export the astrometry to the MPC.',
           evidence: _streakEvidence(c),

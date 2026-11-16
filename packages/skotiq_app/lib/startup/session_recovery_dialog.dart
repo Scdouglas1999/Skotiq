@@ -48,7 +48,7 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
           Icon(LucideIcons.alertCircle,
               color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
-          const Text('Incomplete Sessions Found'),
+          const Text('Incomplete sessions found'),
         ],
       ),
       content: ConstrainedBox(

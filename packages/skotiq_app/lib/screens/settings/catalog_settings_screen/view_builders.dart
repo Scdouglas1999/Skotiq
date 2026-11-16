@@ -44,7 +44,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
         // Star catalog card
         _buildCatalogCard(
           context: context,
-          title: 'HYG Star Database',
+          title: 'HYG star database',
           description:
               'Combined Hipparcos, Yale, and Gliese star catalogs with ~120000 stars',
           sourceUrl: 'github.com/astronexus/HYG-Database',
@@ -375,7 +375,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Labels faint galaxies on solved images. Optional — only needed '
+                  'Labels faint galaxies on solved images. Optional: only needed '
                   'for deep-field annotation, not for capture or plate solving.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary.withValues(alpha: 0.9),

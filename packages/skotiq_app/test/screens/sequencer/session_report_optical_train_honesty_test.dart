@@ -228,7 +228,7 @@ void main() {
         reason: 'nothing measured this train, so nothing may vouch for it',
       );
       expect(find.text('Optical Train Drifted During Session'), findsNothing);
-      expect(find.text('Optical Train Drift Not Measured'), findsOneWidget);
+      expect(find.text('Optical train drift not measured'), findsOneWidget);
       expect(
         find.textContaining('Field tilt and collimation were not measured'),
         findsOneWidget,
@@ -254,11 +254,11 @@ void main() {
       );
 
       expect(find.text('Optical Train Held Steady'), findsNothing);
-      expect(find.text('Optical Train Drift Not Measured'), findsOneWidget);
+      expect(find.text('Optical train drift not measured'), findsOneWidget);
       expect(
         find.textContaining('Collimation was not measured'),
         findsOneWidget,
-        reason: 'tilt WAS measured — only collimation may be called missing',
+        reason: 'tilt WAS measured: only collimation may be called missing',
       );
       expect(
         find.textContaining('Field tilt'),
@@ -284,7 +284,7 @@ void main() {
 
       expect(find.text('Optical Train Held Steady'), findsNothing);
       expect(find.text('Optical Train Drifted During Session'), findsNothing);
-      expect(find.text('Optical Train Drift Not Measured'), findsOneWidget);
+      expect(find.text('Optical train drift not measured'), findsOneWidget);
     },
   );
 
@@ -300,7 +300,7 @@ void main() {
       );
 
       expect(find.text('Optical Train Held Steady'), findsOneWidget);
-      expect(find.text('Optical Train Drift Not Measured'), findsNothing);
+      expect(find.text('Optical train drift not measured'), findsNothing);
     },
   );
 }

@@ -246,7 +246,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
               ? const SizedBox.shrink()
               : MergeSemantics(
                   child: Semantics(
-                    label: '$what — ${_darkroomNumberReading(value)}',
+                    label: '$what: ${_darkroomNumberReading(value)}',
                     value: _darkroomNumberReading(value),
                     child: SkotiqSlider(
                       key: ValueKey('darkroom_mix_${channel}_$role'),

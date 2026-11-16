@@ -174,7 +174,7 @@ class SharedCalibrationClient {
     final body = response.body.trim();
     throw ConstellationException(
       '$operation failed (HTTP $status)'
-      '${body.isEmpty ? '' : ' — $body'}',
+      '${body.isEmpty ? '' : ': $body'}',
       kind: kind,
       statusCode: status,
     );

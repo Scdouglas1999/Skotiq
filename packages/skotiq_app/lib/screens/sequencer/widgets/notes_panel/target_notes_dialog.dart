@@ -129,7 +129,7 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Notes — ${widget.targetId}',
+                  'Notes: ${widget.targetId}',
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize18,
                     fontWeight: FontWeight.w700,

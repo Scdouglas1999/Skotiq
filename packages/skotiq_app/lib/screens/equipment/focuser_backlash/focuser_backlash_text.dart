@@ -40,7 +40,7 @@ String backlashRecordSubLine(FocuserBacklashCalibrationRecord record) {
 /// The one sentence that matters most about this number: it is local to the
 /// place it was taken.
 const String backlashVariesNotice =
-    'Backlash varies along the travel — this figure belongs to the part of '
+    'Backlash varies along the travel. This figure belongs to the part of '
     'the range it was measured in. Measure again if you move a long way from '
     'there, or change the gear train.';
 

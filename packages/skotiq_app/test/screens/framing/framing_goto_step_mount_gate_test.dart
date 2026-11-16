@@ -122,7 +122,7 @@ void main() {
       find.text('Connect the mount in Equipment to enable slewing.'),
       findsNothing,
     );
-    expect(find.text('Slew & Center'), findsOneWidget);
+    expect(find.text('Slew & center'), findsOneWidget);
     expect(find.text('Ready'), findsOneWidget);
   });
 
@@ -151,7 +151,7 @@ void main() {
       solverReady: false,
     );
 
-    expect(find.text('Slew & Center'), findsNothing);
+    expect(find.text('Slew & center'), findsNothing);
     expect(find.text('Slew'), findsOneWidget);
     expect(find.textContaining('Plate solver not configured.'), findsOneWidget);
     expect(find.textContaining('Centering it'), findsOneWidget);

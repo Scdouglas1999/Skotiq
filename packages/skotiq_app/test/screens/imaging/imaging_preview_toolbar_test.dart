@@ -160,7 +160,7 @@ void main() {
 
     expect(handle.container.read(catalogOverlayEnabledProvider), isTrue,
         reason: 'Selecting the Catalog overlay row must flip '
-            'catalogOverlayEnabledProvider true — proving the new menu drives '
+            'catalogOverlayEnabledProvider true. Proving the new menu drives '
             'the same provider as the retired loose icon.');
   });
 
@@ -197,7 +197,7 @@ void main() {
     final oneLineHeight = tester.getSize(find.text('Crosshair')).height;
     expect(tester.getSize(find.text('Readouts')).height,
         closeTo(oneLineHeight, 0.5),
-        reason: 'The control name must occupy exactly one line — two lines is '
+        reason: 'The control name must occupy exactly one line. Two lines is '
             'the "Rea" / "dou" break.');
 
     final paragraph =
@@ -263,8 +263,8 @@ void main() {
     // clampPanelWidth(1600 * 0.3, min: 200, max: 240) = 240. The defect
     // rendered it at exactly SkotiqTokens.iconButtonSizeSm (28).
     expect(tester.getSize(popover).width, closeTo(240.0, 0.5),
-        reason: 'The popover must render at its intended 200–240 px width — '
-            'a 28 px answer means the menu inherited the icon button box.');
+        reason: 'The popover must render at its intended 200–240 px width. '
+            'A 28 px answer means the menu inherited the icon button box.');
 
     // The trigger keeps its 28 px footprint — the button's own size, set on
     // the IconButton, not the menu's constraints.
@@ -272,8 +272,8 @@ void main() {
         tester.getSize(_catalogSettingsButton(tester)),
         equals(const Size(
             SkotiqTokens.iconButtonSizeSm, SkotiqTokens.iconButtonSizeSm)),
-        reason: 'The settings trigger must stay a 28 px icon button — '
-            'sizing the menu never sized the button.');
+        reason: 'The settings trigger must stay a 28 px icon button. '
+            'Sizing the menu never sized the button.');
 
     // Anchored under the button: the popover's top edge sits below the
     // trigger's bottom edge.
@@ -389,7 +389,7 @@ void main() {
         reason: 'The popover keeps its 200 px floor on a narrow window.');
     expect(rect.left, greaterThanOrEqualTo(0.0));
     expect(rect.right, lessThanOrEqualTo(420.0),
-        reason: 'The menu must clamp inside the screen edge — a popover '
+        reason: 'The menu must clamp inside the screen edge. A popover '
             'hanging past the window edge is clipped off-screen.');
   });
 }
@@ -405,8 +405,8 @@ Finder _catalogSettingsButton(WidgetTester tester) => find.descendant(
 Future<void> _openCatalogSettings(WidgetTester tester) async {
   final button = _catalogSettingsButton(tester);
   expect(button, findsOneWidget,
-      reason: 'The toolbar must expose exactly one PopupMenuButton<String> — '
-          'the catalog-overlay settings trigger.');
+      reason: 'The toolbar must expose exactly one PopupMenuButton<String>. '
+          'The catalog-overlay settings trigger.');
   await tester.tap(button);
   await _drainAsyncFrames(tester);
 }

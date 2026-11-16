@@ -382,7 +382,7 @@ void main() {
           final createdAt = DateTime.utc(2026, 6, 8, 6);
           final reportId = await dao.insertReport(
             score: 82,
-            headline: 'Solid night — one focus wobble near meridian',
+            headline: 'Solid night: one focus wobble near meridian',
             findings: const [
               NightFinding(
                 id: 'focus_drift',
@@ -403,7 +403,7 @@ void main() {
           expect(loaded!.score, 82);
           expect(
             loaded.headline,
-            'Solid night — one focus wobble near meridian',
+            'Solid night: one focus wobble near meridian',
           );
           expect(loaded.createdAt, createdAt);
           expect(loaded.findings, hasLength(1));

@@ -414,7 +414,7 @@ class _AnnotationObjectsPanelState
           ),
           const SizedBox(width: 8),
           Text(
-            'Detected Objects',
+            'Detected objects',
             style: SkotiqTypography.labelStrong
                 .copyWith(color: widget.colors.textPrimary),
           ),

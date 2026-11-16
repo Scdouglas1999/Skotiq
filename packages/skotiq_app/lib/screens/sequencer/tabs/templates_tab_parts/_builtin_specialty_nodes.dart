@@ -158,7 +158,7 @@ Map<String, SequenceNode> _createSolarNodes() {
     notifyId: NotificationNode(
       id: notifyId,
       name: 'Session Complete',
-      title: 'Solar Session Complete',
+      title: 'Solar session complete',
       message: 'Solar Ha imaging session has finished capturing 100 frames.',
       level: NotificationLevel.success,
       parentId: rootId,
@@ -230,7 +230,7 @@ Map<String, SequenceNode> _createLunarNodes() {
     notifyId: NotificationNode(
       id: notifyId,
       name: 'Capture Complete',
-      title: 'Lunar Capture Complete',
+      title: 'Lunar capture complete',
       message:
           'Lunar surface imaging session has finished with 5 video bursts.',
       level: NotificationLevel.success,

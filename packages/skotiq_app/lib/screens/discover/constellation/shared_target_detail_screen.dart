@@ -181,8 +181,8 @@ class _SharedTargetDetailScreenState
       if (sharing == null) return;
       messenger.showInfoSnackBar(
         sharing
-            ? 'Started a live co-imaging session on ${session.targetName} — '
-                'your subs co-add into the combined stack.'
+            ? 'Started a live co-imaging session on ${session.targetName}. '
+                'Your subs co-add into the combined stack.'
             : 'Started a live co-imaging session on ${session.targetName}. '
                 'Enable unattended contribution to add your subs to the '
                 'combined stack.',
@@ -268,7 +268,7 @@ class _SharedTargetDetailScreenState
     if (!mounted) return;
     if (region == null) {
       messenger.showInfoSnackBar(
-        'Open Your Sky to scrub the blended depth — name this field as a '
+        'Open Your Sky to scrub the blended depth. Name this field as a '
         'region to track it night over night.',
       );
       return;
@@ -614,7 +614,7 @@ class _BlendCard extends StatelessWidget {
             Text(
               blendedCount > 0
                   ? 'The swarm co-add is cached locally and blended into Your Sky '
-                      'for this field — see the depth gained below.'
+                      'for this field. See the depth gained below.'
                   : 'Download the swarm\'s combined co-add for this field and blend '
                       'it into Your Sky alongside your own integration.',
               style: SkotiqTypography.caption.copyWith(
@@ -804,7 +804,7 @@ class _ContributionsCard extends ConsumerWidget {
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
                   'You only shared additive co-add sums, so retracting a tile '
-                  'subtracts your contribution exactly — the shared depth returns '
+                  'subtracts your contribution exactly. The shared depth returns '
                   'to what it was before.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary,

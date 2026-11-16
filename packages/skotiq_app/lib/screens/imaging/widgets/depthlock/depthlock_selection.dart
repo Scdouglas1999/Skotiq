@@ -87,7 +87,7 @@ final depthLockSelectionProvider = Provider<DepthLockSelection>((ref) {
           // calibration of its own, so it can never be a goal's reference.
           // Its reference sub can, and that is a file the operator can open.
           : 'A live stack is running on ${p.basename(stackReference)}. Open '
-              'that sub in the viewer to mark a region on it — the stack '
+              'that sub in the viewer to mark a region on it. The stack '
               'itself is not a calibrated light and cannot anchor a goal.',
     );
   }

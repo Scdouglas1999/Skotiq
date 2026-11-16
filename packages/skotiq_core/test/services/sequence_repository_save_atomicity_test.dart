@@ -84,7 +84,7 @@ void main() {
         {for (final n in persisted) n.nodeId: n.name},
         {'a': 'A', 'b': 'B', 'c': 'C'},
         reason:
-            'the whole node diff must apply as one unit — a partial apply leaves '
+            'the whole node diff must apply as one unit. A partial apply leaves '
             'a tree no later load can repair',
       );
     },

@@ -187,7 +187,7 @@ class AllSkyTargetReticle extends StatelessWidget {
             !measured
                 ? 'Not measured'
                 : withinThreshold
-                    ? 'Within acceptance — hold steady'
+                    ? 'Within acceptance: hold steady'
                     : 'Az ${_formatSigned(az)}   '
                         'Alt ${_formatSigned(alt)}',
             style: TextStyle(

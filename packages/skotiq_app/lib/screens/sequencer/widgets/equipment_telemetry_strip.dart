@@ -463,7 +463,7 @@ class _VerticalLayout extends StatelessWidget {
             if (guider.isGuiding && guider.rmsTotal != null)
               _TelemetryRow(
                 colors: colors,
-                label: 'RMS Tot',
+                label: 'RMS tot',
                 value: _guideRms(guider.rmsTotal!, guider),
                 valueColor: _guidingRmsColor(guider, colors),
               ),

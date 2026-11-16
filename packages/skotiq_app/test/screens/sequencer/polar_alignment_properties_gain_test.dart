@@ -65,11 +65,11 @@ void main() {
     await _pumpPanel(tester, container);
 
     expect(
-      find.text('Unset — the camera keeps its current gain'),
+      find.text('Unset: the camera keeps its current gain'),
       findsOneWidget,
     );
     expect(
-      find.text('Unset — the camera keeps its current offset'),
+      find.text('Unset: the camera keeps its current offset'),
       findsOneWidget,
     );
     // Drain live validation's 500 ms debounce so the binding does not fail
@@ -84,11 +84,11 @@ void main() {
 
     // Zero is a legal, deliberate gain — the field must not then read as unset.
     expect(
-      find.text('Unset — the camera keeps its current gain'),
+      find.text('Unset: the camera keeps its current gain'),
       findsNothing,
     );
     expect(
-      find.text('Unset — the camera keeps its current offset'),
+      find.text('Unset: the camera keeps its current offset'),
       findsNothing,
     );
     // Drain live validation's 500 ms debounce so the binding does not fail

@@ -129,8 +129,8 @@ extension _LogViewerActions on _LogViewerState {
                 option(
                   title: 'Full history',
                   subtitle: historyBytes == null
-                      ? 'Every retained log file — size could not be read'
-                      : 'Every retained log file — about '
+                      ? 'Every retained log file. Size could not be read'
+                      : 'Every retained log file. About '
                           '${ByteFormat.size(historyBytes)}',
                   scope: LogExportScope.fullHistory,
                 ),

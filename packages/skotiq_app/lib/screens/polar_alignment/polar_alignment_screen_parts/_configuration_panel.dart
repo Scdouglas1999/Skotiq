@@ -106,7 +106,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Settings are locked while aligning — press Stop to change them.',
+              'Settings are locked while aligning. Press Stop to change them.',
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize11,
                 color: colors.info,

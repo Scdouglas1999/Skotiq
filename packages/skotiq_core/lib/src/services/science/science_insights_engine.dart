@@ -125,7 +125,7 @@ class ScienceInsightsEngine {
             severity: ScienceInsightSeverity.warning,
             headline: 'No frames have been plate-solved this session',
             body:
-                'Most science products need a WCS. Configure a plate solver in Settings → Plate Solving.',
+                'Most science products need a WCS. Configure a plate solver in Settings > Plate solving.',
           ),
         );
       } else if (input.solveRate < poorSolveRate) {
@@ -244,7 +244,7 @@ class ScienceInsightsEngine {
           headline:
               'Photometric fit RMS is ${calibration.calibrationRms.toStringAsFixed(2)} mag',
           body:
-              'Verify focus and plate-solve inputs — a noisy fit reduces limiting-magnitude accuracy.',
+              'Verify focus and plate-solve inputs. A noisy fit reduces limiting-magnitude accuracy.',
         ),
       );
     }

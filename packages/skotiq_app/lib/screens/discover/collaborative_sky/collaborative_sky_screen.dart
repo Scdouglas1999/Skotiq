@@ -349,7 +349,7 @@ class _CoImagingSectionState extends ConsumerState<_CoImagingSection> {
       if (sharing == null) return;
       messenger.showInfoSnackBar(
         sharing
-            ? 'Started ${session.targetName} — your subs co-add into the '
+            ? 'Started ${session.targetName}: your subs co-add into the '
                 'combined stack.'
             : 'Started ${session.targetName}. Sharing is off, so your subs '
                 'will not be added to the combined stack until you enable '
@@ -473,7 +473,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
       messenger.showInfoSnackBar(
         sharing
             ? 'Joined ${widget.session.targetName} at framing slot '
-                '${participant.framingOffsetIndex} — your subs co-add into '
+                '${participant.framingOffsetIndex}. Your subs co-add into '
                 'the combined stack.'
             : 'Joined ${widget.session.targetName} at framing slot '
                 '${participant.framingOffsetIndex}. Sharing is off, so your '
@@ -549,7 +549,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
         content: Text(
           'Closing ${widget.session.targetName} shuts the live pool for every '
           'rig, so no more subs can co-add. The combined stack you have built '
-          'together stays on the hub — only the live session ends.',
+          'together stays on the hub. Only the live session ends.',
         ),
         actions: [
           TextButton(

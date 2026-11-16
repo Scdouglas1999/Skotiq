@@ -72,7 +72,7 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
           Text(
             reached || threshold == null
                 ? 'Final error: ${formatPolarError(state.currentError!.totalError)}'
-                : 'Still ${formatPolarError(state.currentError!.totalError)} off — '
+                : 'Still ${formatPolarError(state.currentError!.totalError)} off: '
                     'the ${formatPolarError(threshold)} target was not reached',
             textAlign: TextAlign.center,
             style: TextStyle(

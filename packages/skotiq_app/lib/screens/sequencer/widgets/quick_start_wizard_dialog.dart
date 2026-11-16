@@ -612,7 +612,7 @@ class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
       final errorRecoveryId = const Uuid().v4();
       nodes[errorRecoveryId] = RecoveryNode(
         id: errorRecoveryId,
-        name: 'Park on Error',
+        name: 'Park on error',
         triggerType: TriggerType.mountTrackingLost,
         recoveryAction: RecoveryActionType.parkAndAbort,
         maxRetries: 1,
@@ -750,7 +750,7 @@ class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
   Widget build(BuildContext context) {
     if (_initializing) {
       return const SkotiqDialog(
-        title: 'Quick-Start Sequence Wizard',
+        title: 'Quick-start sequence wizard',
         icon: LucideIcons.wand2,
         width: 520,
         child: SizedBox(
@@ -764,7 +764,7 @@ class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
     final error = _initializationError;
     if (error != null) {
       return SkotiqDialog(
-        title: 'Quick-Start Sequence Wizard',
+        title: 'Quick-start sequence wizard',
         icon: LucideIcons.wand2,
         width: 520,
         child: EmptyState(

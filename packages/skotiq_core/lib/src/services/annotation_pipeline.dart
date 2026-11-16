@@ -257,7 +257,7 @@ extension AnnotationPipeline on AnnotationService {
             .read(annotationStateProvider.notifier)
             .state = const AnnotationState.plateSolveFailed(
           'Solver returned no field size and none could be derived from '
-          'the frame — nothing can be matched against a field of zero '
+          'the frame. Nothing can be matched against a field of zero '
           'size',
         );
         return;

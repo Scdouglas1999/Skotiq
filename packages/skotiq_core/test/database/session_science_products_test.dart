@@ -49,7 +49,7 @@ void main() {
       await db.imagesDao.getLatestSessionIdWithLightFrames(),
       session,
       reason:
-          'it does hold lights — which is exactly why that query is the '
+          'it does hold lights. Which is exactly why that query is the '
           'wrong one to pick the Science tab default with',
     );
   });

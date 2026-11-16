@@ -149,7 +149,7 @@ void main() {
     return container;
   }
 
-  group('Pillar A (Your Sky) — slave reads host atlas, not empty local state', () {
+  group('Pillar A (Your Sky): slave reads host atlas, not empty local state', () {
     test('skyAtlasCoverageProvider returns the host coverage tiles', () async {
       final backend = slaveBackend();
       when(() => backend.getAtlasCoverage()).thenAnswer(
@@ -374,7 +374,7 @@ void main() {
   });
 
   group(
-    'Pillar B (First Light) — slave reads host candidates, not empty DB',
+    'Pillar B (First Light): slave reads host candidates, not empty DB',
     () {
       test('firstLightCandidatesProvider returns the host feed', () async {
         final backend = slaveBackend();

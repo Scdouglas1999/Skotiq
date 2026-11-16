@@ -11,7 +11,7 @@ void main() {
 
     test('collapses runs of invalid characters to single underscores', () {
       expect(haSlugify('My  Roll-Off Roof!'), 'my_roll_off_roof');
-      expect(haSlugify('Obs — North (2)'), 'obs_north_2');
+      expect(haSlugify('Obs: North (2)'), 'obs_north_2');
     });
 
     test('strips leading and trailing underscores', () {

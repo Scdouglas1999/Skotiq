@@ -140,7 +140,7 @@ void main() {
       find.textContaining('requires an active profile with a guide focal '
           'length'),
       findsOneWidget,
-      reason: 'one refusal, one card — a trailing full stop is not a second '
+      reason: 'one refusal, one card. A trailing full stop is not a second '
           'thing that happened',
     );
     expect(find.text('Guider Error (x2)'), findsOneWidget);

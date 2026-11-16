@@ -116,7 +116,7 @@ class CatalogOverlayWidget extends ConsumerWidget {
           return const CatalogOverlayBanner(
             icon: LucideIcons.download,
             title: 'No catalog installed',
-            message: 'Install the planetarium catalog in Settings → Catalogs.',
+            message: 'Install the planetarium catalog in Settings > Catalogs.',
           );
         }
         final missingRequestedSource =
@@ -182,7 +182,7 @@ CatalogOverlayBanner unsolvedFrameBanner(FrameSolveVm? solve) {
       return const CatalogOverlayBanner(
         icon: LucideIcons.settings,
         title: 'No plate solver set up',
-        message: 'Set up ASTAP or astrometry.net in Settings > Plate Solving '
+        message: 'Set up ASTAP or astrometry.net in Settings > Plate solving '
             'to label frames.',
       );
     case FrameSolveStatus.solved:

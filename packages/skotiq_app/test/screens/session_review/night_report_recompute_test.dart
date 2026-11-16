@@ -11,7 +11,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../harness/mock_database.dart';
 
-const _staleHeadline = 'A clean night — no problems detected (stale)';
+const _staleHeadline = 'A clean night: no problems detected (stale)';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

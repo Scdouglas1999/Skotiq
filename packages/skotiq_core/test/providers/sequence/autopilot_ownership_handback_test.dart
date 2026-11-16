@@ -103,8 +103,8 @@ void main() {
       ActivePlanOwner.manual,
       reason:
           'the operator built this plan; leaving the slot marked "autopilot" '
-          'makes every ownership question — including the pre-flight warning '
-          'and the run-dashboard banner — answer for the wrong owner',
+          'makes every ownership question. Including the pre-flight warning '
+          'and the run-dashboard banner. Answer for the wrong owner',
     );
     expect(container.read(activePlanOwnerProvider), ActivePlanOwner.manual);
   });
@@ -144,8 +144,8 @@ void main() {
         issues.map((i) => i.title),
         contains('Unattended Autopilot is engaged'),
         reason:
-            'the scheduler is Running and this is the operator\'s own plan — '
-            'the one case where the warning matters most',
+            'the scheduler is Running and this is the operator\'s own plan. '
+            'The one case where the warning matters most',
       );
     },
   );

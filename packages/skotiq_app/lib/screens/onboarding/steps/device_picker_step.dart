@@ -464,7 +464,7 @@ class _BackendStatusRow extends StatelessWidget {
             icon = SkotiqIcons.warning;
             tone = ChipTone.warning;
             label = '${driver.shortLabel} (0)';
-            description = '${driver.shortLabel}: nothing answered — '
+            description = '${driver.shortLabel}: nothing answered: '
                 '${describeBackendFailure(state.error)}';
             notes.add((driver: driver, text: description, problem: true));
             break;

@@ -7,7 +7,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
         Icon(LucideIcons.sparkles, size: 22, color: colors.primary),
         const SizedBox(width: 10),
         Text(
-          'Smart Night — Plan Tonight',
+          'Smart Night',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize18,
             fontWeight: FontWeight.w600,
@@ -384,7 +384,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             Padding(
               padding: const EdgeInsets.only(left: 14, top: 6),
               child: Text(
-                'A cover calibrator is bound to this profile — toggle '
+                'A cover calibrator is bound to this profile. Toggle '
                 'this on to schedule auto-flats at session end.',
                 style: TextStyle(
                   color: colors.textSecondary,
@@ -823,7 +823,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     if (plan == null) {
       return Center(
         child: Text(
-          'No plan to load — please re-run preview.',
+          'No plan to load. Please re-run preview.',
           style: TextStyle(color: colors.textSecondary),
         ),
       );

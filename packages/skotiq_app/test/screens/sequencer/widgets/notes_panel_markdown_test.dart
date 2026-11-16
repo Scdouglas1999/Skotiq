@@ -93,7 +93,7 @@ void main() {
           w.data ==
               'Polar alignment **was rough** at first. Then `dither` settled.'),
       findsNothing,
-      reason: 'The plain Text(note.body) call must be gone — the body '
+      reason: 'The plain Text(note.body) call must be gone. The body '
           'string now flows through MarkdownBody.',
     );
   });

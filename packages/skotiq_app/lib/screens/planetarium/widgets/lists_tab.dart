@@ -95,7 +95,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Observing Lists',
+                'Observing lists',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: widget.colors.textPrimary),
               ),
@@ -287,7 +287,7 @@ class _CreateListButton extends ConsumerWidget {
             Icon(SkotiqIcons.add, size: 14, color: colors.primary),
             const SizedBox(width: 6),
             Text(
-              'Create List',
+              'Create list',
               style: SkotiqTypography.h6.copyWith(color: colors.primary),
             ),
           ],
@@ -375,7 +375,7 @@ class _CreateObservingListDialogState
     return PopScope(
       canPop: !_saving,
       child: AlertDialog(
-        title: const Text('Create Observing List'),
+        title: const Text('Create observing list'),
         content: ConstrainedBox(
           constraints: AdaptiveDialogConstraints.hybrid(
             context,
@@ -387,7 +387,7 @@ class _CreateObservingListDialogState
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'List Name',
+                  labelText: 'List name',
                   hintText: 'e.g., Winter Galaxies',
                   errorText: _nameError,
                 ),

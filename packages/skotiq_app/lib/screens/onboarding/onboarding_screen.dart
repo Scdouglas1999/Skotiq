@@ -299,7 +299,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         message: step == OnboardingStep.nextSteps
             ? 'Your equipment profile is saved. You can revisit these next '
                 'steps any time from Equipment.'
-            : 'Your progress is kept — you can pick setup back up from the '
+            : 'Your progress is kept. You can pick setup back up from the '
                 'Equipment screen whenever you like.',
         confirmLabel: 'Leave setup',
         cancelLabel: 'Keep setting up',

@@ -66,7 +66,7 @@ void main() {
   });
 
   group('track rung', () {
-    test('never locked — a star can be picked before anything else', () {
+    test('never locked: a star can be picked before anything else', () {
       expect(_eval().states[ScienceRung.track], RungState.ready);
     });
 

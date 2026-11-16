@@ -130,7 +130,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder nameField() => find.widgetWithText(TextField, 'Target Name');
+  Finder nameField() => find.widgetWithText(TextField, 'Target name');
 
   Future<void> typeName(WidgetTester tester, String text) async {
     await tester.enterText(nameField(), text);
@@ -190,7 +190,7 @@ void main() {
     expect(find.textContaining('Selected: M42'), findsOneWidget);
     expect(sesame.asked, isEmpty, reason: 'the catalog named it exactly');
     final ra = tester.widget<TextField>(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
     );
     expect(ra.controller!.text, startsWith('05h 35m'));
   });
@@ -228,7 +228,7 @@ void main() {
     await typeName(tester, 'M31');
     expect(find.textContaining('Selected:'), findsNothing);
     final ra = tester.widget<TextField>(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
     );
     expect(ra.controller!.text, isEmpty);
   });

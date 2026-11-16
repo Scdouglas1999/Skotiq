@@ -80,7 +80,7 @@ void main() {
       reached,
       isTrue,
       reason: 'focus never landed on a settings section entry in 24 tab '
-          'presses — the navigator is mouse-only',
+          'presses. The navigator is mouse-only',
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

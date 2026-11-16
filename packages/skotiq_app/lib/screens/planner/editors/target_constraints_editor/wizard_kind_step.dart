@@ -10,13 +10,13 @@ class _WizardHeader extends StatelessWidget {
     String label;
     switch (step) {
       case 1:
-        label = 'Step 1 of 3 — Choose constraint type';
+        label = 'Step 1 of 3. Choose constraint type';
         break;
       case 2:
-        label = 'Step 2 of 3 — Set parameters';
+        label = 'Step 2 of 3. Set parameters';
         break;
       case 3:
-        label = 'Step 3 of 3 — Review';
+        label = 'Step 3 of 3. Review';
         break;
       default:
         label = '';

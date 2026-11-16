@@ -59,7 +59,7 @@ class EffectiveBacklashReadout extends ConsumerWidget {
         if (effective.origin == FocuserBacklashOrigin.measured) ...[
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
-            'Backlash varies along the travel — measure again if you move a '
+            'Backlash varies along the travel. Measure again if you move a '
             'long way from that position.',
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),

@@ -246,7 +246,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
           return SkotiqPanel(
               padding: SkotiqTokens.cardPadding,
               child: Text(
-                'No targets in your library yet — switch to Custom to enter a '
+                'No targets in your library yet. Switch to Custom to enter a '
                 'sky position by hand.',
                 style:
                     SkotiqTypography.caption.copyWith(color: colors.textMuted),
@@ -363,7 +363,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
       builder: (context, _) {
         final centre = _parsedCentre();
         final text = centre == null
-            ? 'Enter a position in either convention — sexagesimal or decimal.'
+            ? 'Enter a position in either convention. Sexagesimal or decimal.'
             : 'Reads as ${CoordinateFormat.raReadout(centre.raDeg / 15.0)} '
                 '${CoordinateFormat.decReadout(centre.decDeg)} '
                 '(${centre.raDeg.toStringAsFixed(3)}°, '

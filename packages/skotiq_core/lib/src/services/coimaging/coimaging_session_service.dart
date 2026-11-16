@@ -510,7 +510,7 @@ class CoImagingSessionService {
     final session = await getSession(sessionId);
     if (!session.isActive) {
       throw const ConstellationException(
-        'Co-imaging session is closed — no further subs can be contributed.',
+        'Co-imaging session is closed. No further subs can be contributed.',
         kind: ConstellationErrorKind.conflict,
       );
     }

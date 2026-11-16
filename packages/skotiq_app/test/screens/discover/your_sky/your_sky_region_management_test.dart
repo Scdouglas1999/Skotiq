@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(_surface(_MockNetworkBackend()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your sky is dark — for now'), findsOneWidget);
+    expect(find.text('Your sky is dark. For now'), findsOneWidget);
     expect(find.text('Name a region'), findsOneWidget);
   });
 
@@ -51,7 +51,7 @@ void main() {
     await tester.pumpWidget(_surface(DisconnectedBackend()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your sky is dark — for now'), findsOneWidget);
+    expect(find.text('Your sky is dark. For now'), findsOneWidget);
     expect(find.text('Name a region'), findsNothing);
   });
 }

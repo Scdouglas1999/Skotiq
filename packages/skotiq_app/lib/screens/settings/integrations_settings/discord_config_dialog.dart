@@ -176,7 +176,7 @@ class _DiscordConfigDialogState extends State<_DiscordConfigDialog> {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     return SkotiqDialog(
-      title: 'Configure Discord Webhook',
+      title: 'Configure Discord webhook',
       icon: LucideIcons.messageSquare,
       width: 520,
       closeEnabled: !_saving && !_testing,

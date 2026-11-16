@@ -45,7 +45,7 @@ void main() {
           copy.body.length,
           lessThanOrEqualTo(maxBodyLength),
           reason: '$id body is ${copy.body.length} chars '
-              '(budget $maxBodyLength) — tighten it',
+              '(budget $maxBodyLength): tighten it',
         );
       });
     });

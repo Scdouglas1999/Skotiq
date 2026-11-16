@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:skotiq_core/providers.dart';
@@ -10,37 +9,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../router/app_routes.dart';
-import '../../router/settings_sections.dart';
 import '../../utils/snackbar_helper.dart';
 import 'widgets/settings_widgets.dart';
 
-part 'pairing_screen_parts/_notifier.dart';
-part 'pairing_screen_parts/_dialogs_and_banners.dart';
-
-/// The old `/pairing` page. Pairing lives in Settings > Remote access; this
-/// sends a link that still points here on to it.
-class PairingScreen extends StatefulWidget {
-  const PairingScreen({super.key});
-
-  @override
-  State<PairingScreen> createState() => _PairingScreenState();
-}
-
-class _PairingScreenState extends State<PairingScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      GoRouter.maybeOf(context)
-          ?.go(AppRoutes.settings(SettingsSectionId.remoteAccess));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
-}
+part 'paired_devices_parts/_notifier.dart';
+part 'paired_devices_parts/_dialogs_and_banners.dart';
 
 /// Settings > Remote access, "Pair a device" and "Paired devices": the code
 /// that lets a phone, tablet or browser in, and the devices already let in.
@@ -809,7 +782,7 @@ class _CopyCodeButtonState extends State<_CopyCodeButton> {
         if (!mounted) return;
         setState(() => _copied = false);
         context.showErrorSnackBar(
-          'Could not copy the code — read it off the screen instead.',
+          'Could not copy the code. Read it off the screen instead.',
         );
       }),
     );

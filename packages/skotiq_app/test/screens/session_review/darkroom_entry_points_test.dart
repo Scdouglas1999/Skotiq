@@ -296,7 +296,7 @@ void main() {
       expect(
         publishedNames(tester),
         contains(
-          allOf(startsWith('Darkroom — '), contains('no linear FITS')),
+          allOf(startsWith('Darkroom: '), contains('no linear FITS')),
         ),
         reason: 'the master\'s own gate is read the same way the host gate is',
       );

@@ -57,7 +57,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(preset.displayName), findsOneWidget);
-    expect(find.text('${preset.displayName} — edited'), findsNothing);
+    expect(find.text('${preset.displayName}: edited'), findsNothing);
   });
 
   testWidgets('an edited library scope keeps its "edited" marker to the end',
@@ -75,7 +75,7 @@ void main() {
       findsNothing,
       reason: 'the rig no longer has that scope’s focal length',
     );
-    expect(find.text('${preset.displayName} — edited'), findsOneWidget);
+    expect(find.text('${preset.displayName}: edited'), findsOneWidget);
   });
 
   testWidgets('a hand-entered rig still reports its focal length',

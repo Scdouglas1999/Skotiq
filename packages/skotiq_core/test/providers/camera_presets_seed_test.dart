@@ -128,7 +128,7 @@ void main() {
         const CameraRecommendedSettings(
           unityGain: null,
           defaultOffset: 64,
-          notes: 'ASCOM camera — no unity gain published',
+          notes: 'ASCOM camera: no unity gain published',
         ),
         gainMin: 0,
         gainMax: 600,
@@ -167,7 +167,7 @@ void main() {
       const CameraRecommendedSettings(
         unityGain: 139,
         defaultOffset: 30,
-        notes: 'recommendation should be ignored — preset is customized',
+        notes: 'recommendation should be ignored. Preset is customized',
       ),
       gainMin: 0,
       gainMax: 600,

@@ -126,7 +126,7 @@ void main() {
         report.isCovered,
         isTrue,
         reason:
-            'a 60.0s dark MUST match a 60.0s request — this was the '
+            'a 60.0s dark MUST match a 60.0s request. This was the '
             ' failure mode',
       );
     });

@@ -524,7 +524,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Current Position',
+          'Current position',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,

@@ -146,7 +146,7 @@ class QuickStartDialog extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Continue Session',
+                'Continue session',
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -422,7 +422,7 @@ class QuickStartDialog extends ConsumerWidget {
           ),
         ] else if (_hasRestorableSetup)
           SkotiqButton(
-            label: 'Load Previous Setup',
+            label: 'Load previous setup',
             icon: LucideIcons.history,
             variant: ButtonVariant.primary,
             size: ButtonSize.large,
@@ -430,7 +430,7 @@ class QuickStartDialog extends ConsumerWidget {
           )
         else ...[
           const SkotiqButton(
-            label: 'Load Previous Setup',
+            label: 'Load previous setup',
             icon: LucideIcons.history,
             variant: ButtonVariant.primary,
             size: ButtonSize.large,

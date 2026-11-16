@@ -203,7 +203,7 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
       // would change the tree shape silently.
       context.showInfoSnackBar(
         'Drag within the same group only. Cross-group moves are not '
-        'supported on phone yet — tap to edit instead.',
+        'supported on phone yet. Tap to edit instead.',
       );
       return;
     }

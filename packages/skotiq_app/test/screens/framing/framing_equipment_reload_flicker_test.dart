@@ -138,7 +138,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Loading…'), findsOneWidget,
-        reason: 'With nothing resolved yet the badge must say so — an empty '
+        reason: 'With nothing resolved yet the badge must say so. An empty '
             'SizedBox made a stuck first load indistinguishable from a state '
             'that simply has no badge.');
   });

@@ -745,7 +745,7 @@ void main() {
           isFalse,
           reason:
               'isRemoteModeProvider must report false after a failed '
-              'connect — otherwise file paths resolve against a server that '
+              'connect. Otherwise file paths resolve against a server that '
               'was never reached.',
         );
       },

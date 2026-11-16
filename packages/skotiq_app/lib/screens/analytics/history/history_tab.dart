@@ -20,7 +20,6 @@ import '../analytics_providers.dart';
 import '../quick_capture_selection.dart';
 import '../session_elapsed.dart';
 import '../widgets/analytics_empty_state.dart';
-import 'filter_menu_chip.dart';
 import 'night_entry.dart';
 
 /// Below this width a History row stacks its figures under the name.
@@ -333,30 +332,33 @@ class _HistoryToolbar extends StatelessWidget {
     );
     final status = filter.status;
     final chips = <Widget>[
-      FilterMenuChip<SequenceRunStatus?>(
+      SkotiqMenuChip<SequenceRunStatus?>(
         label: status == null ? 'Status: any' : runStatusLabel(status),
         name: 'Status filter',
         roomy: compact,
         entries: [
-          (null, 'Any status'),
-          for (final status in _statuses) (status, runStatusLabel(status)),
+          SkotiqMenuChoice(null, 'Any status', checked: status == null),
+          for (final s in _statuses)
+            SkotiqMenuChoice(s, runStatusLabel(s), checked: s == status),
         ],
-        selected: status,
         onSelected: (value) => onChanged(filter.copyWith(status: () => value)),
       ),
       if (targetNames.isNotEmpty)
-        FilterMenuChip<String?>(
-          label: filter.untargeted
-              ? _untargeted
-              : filter.target ?? 'Target: any',
+        SkotiqMenuChip<String?>(
+          label:
+              filter.untargeted ? _untargeted : filter.target ?? 'Target: any',
           name: 'Target filter',
           roomy: compact,
           entries: [
-            (null, 'Any target'),
-            for (final name in targetNames) (name, name),
-            if (offerUntargeted) (_untargeted, _untargeted),
+            SkotiqMenuChoice(null, 'Any target',
+                checked: !filter.untargeted && filter.target == null),
+            for (final name in targetNames)
+              SkotiqMenuChoice(name, name,
+                  checked: !filter.untargeted && filter.target == name),
+            if (offerUntargeted)
+              SkotiqMenuChoice(_untargeted, _untargeted,
+                  checked: filter.untargeted),
           ],
-          selected: filter.untargeted ? _untargeted : filter.target,
           onSelected: (value) => onChanged(
             filter.copyWith(
               target: () => value == _untargeted ? null : value,
@@ -364,14 +366,15 @@ class _HistoryToolbar extends StatelessWidget {
             ),
           ),
         ),
-      FilterMenuChip<HistoryPeriod>(
+      SkotiqMenuChip<HistoryPeriod>(
         label: filter.period.label,
         name: 'Period filter',
         roomy: compact,
         entries: [
-          for (final period in HistoryPeriod.values) (period, period.label),
+          for (final period in HistoryPeriod.values)
+            SkotiqMenuChoice(period, period.label,
+                checked: period == filter.period),
         ],
-        selected: filter.period,
         onSelected: (value) => onChanged(filter.copyWith(period: value)),
       ),
       if (filter.sequenceId != null)

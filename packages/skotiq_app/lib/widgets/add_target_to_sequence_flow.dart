@@ -416,7 +416,7 @@ class _DestinationPickerDialogState extends State<_DestinationPickerDialog> {
         children: [
           Text(
             _isMosaic
-                ? 'Insert the drawn mosaic as $panelCount target groups — one '
+                ? 'Insert the drawn mosaic as $panelCount target groups. One '
                     'per panel, each at its own coordinates. You add the '
                     'imaging instructions under them in the Sequencer.'
                 : 'Insert "${widget.targetName}" as a new target group. You add '

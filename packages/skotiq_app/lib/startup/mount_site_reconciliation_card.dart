@@ -289,7 +289,7 @@ class _MountSiteReconciliationCardState
           if (_c.timeDiffers) ...[
             const SizedBox(height: 8),
             Text(
-              "Taking the mount's values changes the site only — this app will "
+              "Taking the mount's values changes the site only. This app will "
               'not set your computer’s clock.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

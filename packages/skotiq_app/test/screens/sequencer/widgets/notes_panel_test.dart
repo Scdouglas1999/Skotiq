@@ -109,7 +109,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Sequence Diff'), findsOneWidget);
+      expect(find.text('Sequence diff'), findsOneWidget);
       expect(find.textContaining('No structural changes'), findsOneWidget);
     });
 

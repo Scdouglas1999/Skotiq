@@ -223,12 +223,12 @@ class _LivePreviewCard extends StatelessWidget {
     switch (strictness) {
       case PreflightStrictness.lax:
         lines.addAll([
-          'Sequence start will proceed with $checks — those become info notes.',
+          'Sequence start will proceed with $checks. Those become info notes.',
           'Only critical equipment failures (camera not connected, mount in error state, weather unsafe) block the run.',
           // TimeSyncRule refuses to degrade this one under Lax: a >30 s skew
           // falsifies DATE-OBS, so promising it becomes an info note would be
           // a promise the executor breaks.
-          'Clock drift over ${TimeSyncRule.errorThresholdSecs.toStringAsFixed(0)}s still blocks the run in every mode — it would falsify FITS timestamps.',
+          'Clock drift over ${TimeSyncRule.errorThresholdSecs.toStringAsFixed(0)}s still blocks the run in every mode. It would falsify FITS timestamps.',
         ]);
         break;
       case PreflightStrictness.normal:

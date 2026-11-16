@@ -237,7 +237,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Science Data Export',
+                      'Science data export',
                       style: SkotiqTypography.sectionTitle.copyWith(
                         color: colors.textPrimary,
                       ),
@@ -322,7 +322,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.frameQuality],
                       colors: colors,
-                      title: 'Frame Quality Metrics',
+                      title: 'Frame quality metrics',
                       description:
                           'Per-frame statistics: SNR, background, noise, clipping, uniformity, gradients',
                       icon: LucideIcons.barChart2,
@@ -352,7 +352,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.psfTiles],
                       colors: colors,
-                      title: 'PSF Field Tiles',
+                      title: 'PSF field tiles',
                       description:
                           'Per-tile FWHM, HFR, eccentricity, roundness, star count across field',
                       icon: LucideIcons.grid,
@@ -397,7 +397,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.movingObjects],
                       colors: colors,
-                      title: 'Moving Object Candidates',
+                      title: 'Moving object candidates',
                       description:
                           'Detected movers: RA/Dec, motion rate, confidence, known object matches',
                       icon: LucideIcons.orbit,
@@ -415,7 +415,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.mpcReport],
                       colors: colors,
-                      title: 'MPC Astrometry Report',
+                      title: 'MPC astrometry report',
                       description: mpcCandidates.isEmpty
                           ? mpcCandidatesAsync.isLoading
                               ? 'Loading moving-object candidates...'
@@ -437,7 +437,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.transientReport],
                       colors: colors,
-                      title: 'Transient Discovery Report',
+                      title: 'Transient discovery report',
                       description: transientDetections.isEmpty
                           ? transientDetectionsAsync.isLoading
                               ? 'Loading First Light transient detections...'

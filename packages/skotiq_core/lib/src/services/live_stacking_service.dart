@@ -593,7 +593,7 @@ class LiveStackingService {
           requested,
           reason:
               'the stack is accumulating on the imaging host, so only the '
-              'host can write its FITS master — this client has the pixels but '
+              'host can write its FITS master. This client has the pixels but '
               'not the stack',
         );
       }

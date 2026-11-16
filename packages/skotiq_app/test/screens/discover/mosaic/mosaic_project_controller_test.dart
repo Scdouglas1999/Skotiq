@@ -254,7 +254,7 @@ void main() {
     c.dispose();
   });
 
-  test('stitchProject is GATED on < 2 masters — service is not called',
+  test('stitchProject is GATED on < 2 masters. Service is not called',
       () async {
     final projectId = await seedProject(cols: 3);
     // Link only ONE panel: below the >= 2 stitch threshold.

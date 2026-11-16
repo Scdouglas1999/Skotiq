@@ -12,7 +12,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../router/app_routes.dart';
-import '../../analytics/history/filter_menu_chip.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../sequence_mutator_helper.dart';
@@ -20,7 +19,6 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../widgets/save_sequence.dart';
-import '../widgets/more_menu_button.dart';
 
 part 'sequence_library_tab/library_toolbar.dart';
 part 'sequence_library_tab/sequence_row.dart';

@@ -163,7 +163,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     expect(
       find.bySemanticsLabel(
-        RegExp('^Build masters in the Darkroom — The Darkroom works on the '
+        RegExp('^Build masters in the Darkroom. The Darkroom works on the '
             'imaging host'),
       ),
       findsOneWidget,

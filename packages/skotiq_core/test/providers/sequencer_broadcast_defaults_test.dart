@@ -67,7 +67,7 @@ void main() {
       await notifier.updateLiveStackingDefaults(
         publicByDefault: true,
         defaultStackMethod: LiveStackingMethod.medianRej,
-        defaultWatermark: r'M31 — L ${integration.hms}',
+        defaultWatermark: r'M31: L ${integration.hms}',
         defaultThumbnailSize: LiveStackingThumbnailSize.large,
         disableEverywhere: true,
       );
@@ -78,7 +78,7 @@ void main() {
         after.livestackingDefaultStackMethod,
         LiveStackingMethod.medianRej,
       );
-      expect(after.livestackingDefaultWatermark, r'M31 — L ${integration.hms}');
+      expect(after.livestackingDefaultWatermark, r'M31: L ${integration.hms}');
       expect(
         after.livestackingDefaultThumbnailSize,
         LiveStackingThumbnailSize.large,
@@ -94,7 +94,7 @@ void main() {
       );
       expect(
         await dao.getSetting('livestacking_default_watermark'),
-        r'M31 — L ${integration.hms}',
+        r'M31: L ${integration.hms}',
       );
       expect(
         await dao.getSetting('livestacking_default_thumbnail_size'),

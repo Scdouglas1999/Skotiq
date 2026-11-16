@@ -513,10 +513,10 @@ void main() {
       controller();
       await waitUntilLoaded();
 
-      // The library still lists it (target-less masters are library-wide), but
-      // it must not be the master this session claims as its result — the hero
-      // image and every finishing action read reviewedMaster.
-      expect(state().masters, isNotEmpty);
+      // Another target's master is neither listed nor the master this session
+      // claims as its result: the hero image and every finishing action read
+      // reviewedMaster, and the list offers Add tonight and Delete.
+      expect(state().masters, isEmpty);
       expect(state().reviewedMaster, isNull);
     });
 

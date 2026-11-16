@@ -161,7 +161,7 @@ void main() {
         container.read(recentSessionFramesProvider),
         isEmpty,
         reason:
-            'no active session on the host — an empty strip is the truth here, '
+            'no active session on the host. An empty strip is the truth here, '
             'and last night\'s frames must not be replayed as "this session"',
       );
     },

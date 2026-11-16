@@ -87,7 +87,7 @@ void main() {
       'Nebula',
       'Cluster',
       'Planetary',
-      'Supernova Remnant',
+      'Supernova remnant',
       'Comet',
       'Asteroid',
     ];

@@ -213,7 +213,7 @@ void main() {
     });
 
     test('endSession retains the active session on a durable-write failure '
-        '(retryable — not cleared in a finally)', () async {
+        '(retryable: not cleared in a finally)', () async {
       final sessionId = await sessionService.startSession(name: 'Test Session');
       await sessionService.updateSessionProgress(
         SessionStats(completedExposures: 3, lastUpdated: DateTime.now()),

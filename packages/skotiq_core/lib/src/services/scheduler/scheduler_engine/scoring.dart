@@ -35,7 +35,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
     if (sunAlt > _config.maxSunAltitudeDegrees) {
       rejections.add(
-        'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}° — too bright to image',
+        'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}°: too bright to image',
       );
     }
 

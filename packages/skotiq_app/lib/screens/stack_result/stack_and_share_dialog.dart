@@ -52,15 +52,16 @@ StackShareFailure describeStackShareFailure(String raw) {
         'suspect, re-run with "Apply calibration" off.';
   } else if (lower.contains('alignment residual too high')) {
     nextStep = 'The reference frame could not be aligned tightly enough. Cull '
-        'the trailed or badly guided subs in Session Review, or pick a session '
-        'whose subs share one pointing, then run again.';
+        'the trailed or badly guided subs on the night\'s Workbench in '
+        'Analytics > History, or pick a session whose subs share one '
+        'pointing, then run again.';
   } else if (lower.contains('follower frames was rejected')) {
     nextStep = 'Only the reference survived, so there is nothing to integrate. '
-        'Address the reason above — usually culling the bad subs in Session '
-        'Review — and run again.';
+        'Address the reason above (usually by rejecting the bad subs on the '
+        'night\'s Workbench) and run again.';
   } else if (lower.contains('no lights') || lower.contains('no light frames')) {
-    nextStep = 'Accept at least one light frame for this session (Session '
-        'Review → Workbench) and run again.';
+    nextStep = 'Accept at least one light frame for this session (Analytics > '
+        'History, the night\'s Workbench) and run again.';
   }
 
   final trimmedRaw = raw.trim();
@@ -451,7 +452,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     final oscEnabled = _sensorMode.toLowerCase() != 'mono';
 
     final toggle = SkotiqSwitchRow(
-      label: 'OSC / Color',
+      label: 'OSC / color',
       subtitle: 'Demosaic Bayer frames to RGB',
       value: oscEnabled,
       onChanged: running

@@ -450,10 +450,10 @@ void main() {
   group('expandWatermarkTokens', () {
     test('substitutes known tokens from the map', () {
       final out = expandWatermarkTokens(
-        r'${target} — ${integration.hms} (${frames})',
+        r'${target}: ${integration.hms} (${frames})',
         {'target': 'M42', 'integration.hms': '2h12m', 'frames': '132'},
       );
-      expect(out, 'M42 — 2h12m (132)');
+      expect(out, 'M42: 2h12m (132)');
     });
 
     test('passes unknown tokens through unmodified', () {

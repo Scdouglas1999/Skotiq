@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../router/app_routes.dart';
 import '../router/analytics_route.dart';
+import '../router/darkroom_route.dart';
 import '../router/equipment_route.dart';
 import '../router/planner_route.dart';
 import '../router/sequencer_route.dart';
@@ -23,7 +24,6 @@ enum TourTarget {
   navGuiding,
   navPlanner,
   navEquipment,
-  navFlatWizard,
   navWeather,
   navDarkroom,
   navAnalytics,
@@ -110,6 +110,9 @@ enum TourTarget {
   analyticsGuidingChart,
   analyticsThumbnails,
 
+  // Darkroom > Calibration
+  darkroomTakeFlats,
+
   // Flat wizard
   flatModeTabs,
   flatFilterSelect,
@@ -162,7 +165,6 @@ enum TourTarget {
         AppRoute.guiding => navGuiding,
         AppRoute.planner => navPlanner,
         AppRoute.equipment => navEquipment,
-        AppRoute.flatWizard => navFlatWizard,
         AppRoute.weather => navWeather,
         AppRoute.darkroom => navDarkroom,
         AppRoute.analytics => navAnalytics,
@@ -178,7 +180,6 @@ enum TourTarget {
         navGuiding ||
         navPlanner ||
         navEquipment ||
-        navFlatWizard ||
         navWeather ||
         navDarkroom ||
         navAnalytics =>
@@ -195,7 +196,6 @@ enum TourTarget {
         navGuiding ||
         navPlanner ||
         navEquipment ||
-        navFlatWizard ||
         navWeather ||
         navDarkroom ||
         navAnalytics ||
@@ -270,6 +270,8 @@ enum TourTarget {
         analyticsGuidingChart ||
         analyticsThumbnails =>
           AppRoutes.analytics(tab: AnalyticsTab.session),
+        darkroomTakeFlats =>
+          AppRoutes.darkroom(const DarkroomRoute(tab: DarkroomTab.calibration)),
         flatModeTabs ||
         flatFilterSelect ||
         flatTargetAdu ||

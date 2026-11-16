@@ -74,7 +74,7 @@ void main() {
         _makeNode(
           method: LiveStackingMethod.sigma,
           token: 'secret',
-          watermark: r'M42 — ${integration.hms}',
+          watermark: r'M42: ${integration.hms}',
         ),
       );
       final s = svc.state;
@@ -82,7 +82,7 @@ void main() {
       expect(s.stackMethod, LiveStackingMethod.sigma);
       expect(s.authToken, 'secret');
       expect(s.isPublic, isFalse);
-      expect(s.watermarkText, r'M42 — ${integration.hms}');
+      expect(s.watermarkText, r'M42: ${integration.hms}');
       expect(s.activatedAt, isNotNull);
     });
 
@@ -186,7 +186,7 @@ void main() {
       addTearDown(c.dispose);
       final svc = c.read(liveStackingBroadcastServiceProvider);
       svc.activate(
-        _makeNode(watermark: r'M42 — ${integration.hms} (${frames} frames)'),
+        _makeNode(watermark: r'M42: ${integration.hms} (${frames} frames)'),
       );
       svc.updateCurrentTarget('M42');
       svc.publishFrame(

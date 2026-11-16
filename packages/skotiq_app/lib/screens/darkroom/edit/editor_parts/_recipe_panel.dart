@@ -466,7 +466,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
               tooltip:
                   'Who composed the step list as it stands. A drafted stack is '
                   'the operation registry\'s first interpretation of these '
-                  'pixels — measured, not decided — and every step in it is '
+                  'pixels (measured, not decided) and every step in it is '
                   'yours to change. "Written by you" means every step in the '
                   'stack was your own choice.',
             ),
@@ -474,7 +474,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
               const _DarkroomTag(
                 label: 'Linear',
                 tooltip: 'Every step is switched off, so the viewport is the '
-                    'master\'s own pixels. Nothing was destroyed — each step '
+                    'master\'s own pixels. Nothing was destroyed: each step '
                     'and its parameters are intact.',
               ),
           ],

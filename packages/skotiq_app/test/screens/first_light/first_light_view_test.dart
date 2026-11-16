@@ -273,7 +273,7 @@ void main() {
         eventType: 'first_light.transient',
         category: NarratorCategory.discovery,
         severity: NarratorSeverity.celebrate,
-        headline: 'Possible transient — a new source at 08h02m',
+        headline: 'Possible transient: a new source at 08h02m',
         body: 'Re-image to confirm.',
         evidence: null,
         dedupeKey: 'first_light.transient:42',
@@ -285,7 +285,7 @@ void main() {
 
       expect(find.text("Tonight's highlight"), findsOneWidget);
       expect(
-        find.text('Possible transient — a new source at 08h02m'),
+        find.text('Possible transient: a new source at 08h02m'),
         findsOneWidget,
       );
     });

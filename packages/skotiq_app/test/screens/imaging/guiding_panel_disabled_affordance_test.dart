@@ -75,8 +75,8 @@ void main() {
       expect(
         _borderColorOf(tester, label),
         isNot(SkotiqColors.dark.textMuted),
-        reason: '$label is disabled, so a full-strength textMuted border — the '
-            'same border an enabled secondary control gets — is a lie.',
+        reason: '$label is disabled, so a full-strength textMuted border. The '
+            'same border an enabled secondary control gets. Is a lie.',
       );
       expect(
         _borderColorOf(tester, label).a,
@@ -116,7 +116,7 @@ void main() {
       _borderColorOf(tester, 'Dither'),
       SkotiqColors.dark.primary,
       reason: 'An enabled outline button keeps the full-strength primary '
-          'border — dimming everything would just move the confusion.',
+          'border. Dimming everything would just move the confusion.',
     );
   });
 }

@@ -1853,7 +1853,7 @@ void main() {
       });
 
       test('post-slew poll: single transient failure recovers, does not '
-          'escalate (regression — must not be over-aggressive)', () async {
+          'escalate (regression: must not be over-aggressive)', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
         const solverConfig = PlateSolverConfig();
@@ -2040,8 +2040,8 @@ void main() {
           isTrue,
           reason:
               'Counter must reset on a successful poll. After 5 fails '
-              'followed by a success, the next poll starts fresh — '
-              'centering must complete normally (no escalation).',
+              'followed by a success, the next poll starts fresh. '
+              'Centering must complete normally (no escalation).',
         );
         // Sanity: confirm we actually exercised the failure path.
         expect(
@@ -2049,7 +2049,7 @@ void main() {
           greaterThanOrEqualTo(5),
           reason:
               'Mock must have been hit at least through the 5 fail '
-              'sequence — otherwise the test is not exercising the '
+              'sequence. Otherwise the test is not exercising the '
               'counter-reset branch.',
         );
       });

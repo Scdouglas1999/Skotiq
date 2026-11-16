@@ -40,8 +40,8 @@ class MovingObjectDetector extends NarratorDetector {
       final name = candidate.objectName;
       final motionText = '${motion.toStringAsFixed(1)}″/min';
       final headline = name != null
-          ? 'Moving object detected — $name at $motionText'
-          : 'Moving object detected — $motionText '
+          ? 'Moving object detected: $name at $motionText'
+          : 'Moving object detected: $motionText '
                 '(${(candidate.confidence * 100).round()}% confidence)';
       out.add(
         NarratorEventDraft(
@@ -51,7 +51,7 @@ class MovingObjectDetector extends NarratorDetector {
           headline: headline,
           body:
               'A source moved between frames. Review it on the Analytics '
-              'science tab — it may be an asteroid, comet, or satellite.',
+              'science tab. It may be an asteroid, comet, or satellite.',
           evidence: NarratorEvidence.scalar(
             value: motion,
             unit: '″/min',
@@ -189,9 +189,9 @@ class LightCurveEventDetector extends NarratorDetector {
     final faded = allUp;
     final magDelta = (tail.last.differentialMagnitude - baseline).abs();
     final headline = faded
-        ? 'Your target faded ${magDelta.toStringAsFixed(2)} mag — possible '
+        ? 'Your target faded ${magDelta.toStringAsFixed(2)} mag: possible '
               'eclipse/transit ingress'
-        : 'Your target brightened ${magDelta.toStringAsFixed(2)} mag — '
+        : 'Your target brightened ${magDelta.toStringAsFixed(2)} mag: '
               'possible outburst or flare';
     return [
       NarratorEventDraft(

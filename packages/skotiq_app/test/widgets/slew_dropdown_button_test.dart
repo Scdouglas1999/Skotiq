@@ -145,7 +145,7 @@ void main() {
     await tester.tap(find.byType(PopupMenuButton<SlewMode>));
     await tester.pumpAndSettle();
 
-    expect(find.text('Slew & Center'), findsOneWidget);
+    expect(find.text('Slew & center'), findsOneWidget);
   });
 
   testWidgets('the primary half slews on ONE click, with no menu',
@@ -170,7 +170,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(service.calls, 1);
-    expect(find.text('Slew & Center'), findsNothing,
+    expect(find.text('Slew & center'), findsNothing,
         reason: 'the primary half must act, not open the alternatives');
 
     service.result.complete(CommandActionResult.ok);
@@ -192,7 +192,7 @@ void main() {
             .overrideWith((ref) => service = _ControlledMountService(ref)),
       ],
     );
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew & Center'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew & center'));
     await tester.pumpAndSettle();
     expect(find.text('Connect an imaging camera before using Slew & Center.'),
         findsOneWidget);
@@ -455,7 +455,7 @@ void main() {
 
       await tester.tap(find.byType(PopupMenuButton<SlewMode>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Slew & Center'));
+      await tester.tap(find.text('Slew & center'));
       await tester.pumpAndSettle();
 
       expect(find.text('Target is below the horizon'), findsOneWidget);
@@ -520,7 +520,7 @@ void main() {
       ],
     );
 
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew & Center'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew & center'));
     await tester.pump();
     mount.result.complete(CommandActionResult.ok);
     await tester.pumpAndSettle();
@@ -544,7 +544,7 @@ void main() {
         reason: 'the dialog stays open on the result');
     expect(find.widgetWithText(SkotiqButton, 'Working...'), findsNothing);
     final idle = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Slew & Center'),
+      find.widgetWithText(SkotiqButton, 'Slew & center'),
     );
     expect(idle.onPressed, isNotNull,
         reason: 'a finished run must not leave the slew disabled');
@@ -597,7 +597,7 @@ void main() {
     await tester.tap(find.text('Start centering'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Target Centering'), findsOneWidget);
+    expect(find.text('Target centering'), findsOneWidget);
 
     // The old host answers in the same turn as the switch, before the closed
     // dialog has left the tree.
@@ -609,7 +609,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Target Centering'), findsNothing);
+    expect(find.text('Target centering'), findsNothing);
     expect(
       find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'),
       findsOneWidget,

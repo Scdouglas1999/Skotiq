@@ -585,7 +585,7 @@ class DawnReportPending {
     note:
         'This copy left the rig while delivery was in progress, so it carries '
         'no delivery or notification outcome; the copy on the rig carries '
-        'both. Everything else here is final — these are the masters the pass '
+        'both. Everything else here is final. These are the masters the pass '
         'integrated and the drafts it rendered, and finishedAt is when that '
         'drafting finished.',
   );
@@ -790,7 +790,7 @@ class DawnJobReport {
   String get headline {
     final target = primaryTargetName;
     if (draftsRendered == 0) {
-      return '${target ?? 'Your night'} — no draft was rendered; '
+      return '${target ?? 'Your night'}: no draft was rendered; '
           '${DurationFormat.seconds(integrationSeconds, style: DurationStyle.coarse, roundToMinute: true)} integrated';
     }
     final time = DurationFormat.seconds(
@@ -808,10 +808,10 @@ class DawnJobReport {
         : ', ${color.join(' and ')} color draft';
     final lead = target == null
         ? (draftsRendered == 1
-              ? 'Your draft is ready — $time integrated$colorClause'
-              : 'Your $draftsRendered drafts are ready — $time integrated'
+              ? 'Your draft is ready. $time integrated$colorClause'
+              : 'Your $draftsRendered drafts are ready. $time integrated'
                     '$colorClause')
-        : '$target — $time integrated$colorClause';
+        : '$target: $time integrated$colorClause';
     return '$lead$_undraftedClause';
   }
 
@@ -868,7 +868,7 @@ class DawnJobReport {
     }
     final deliveryReport = delivery;
     if (deliveryReport != null) {
-      lines.add('Delivery — ${deliveryReport.summary}.');
+      lines.add('Delivery: ${deliveryReport.summary}.');
     }
     // Outside the `delivery != null` arm: the problems that matter most are the
     // ones raised when nothing could be handed to a destination at all, and

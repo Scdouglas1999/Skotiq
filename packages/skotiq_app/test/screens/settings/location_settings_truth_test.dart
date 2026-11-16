@@ -695,7 +695,7 @@ void main() {
       expect(
         candidates.any(
           (hhmm) => find
-              .textContaining('UTC+05:00 — now $hhmm')
+              .textContaining('UTC+05:00. Now $hhmm')
               .evaluate()
               .isNotEmpty,
         ),

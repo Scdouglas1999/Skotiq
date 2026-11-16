@@ -91,7 +91,7 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Keyboard Shortcuts',
+                        'Keyboard shortcuts',
                         style: TextStyle(
                           fontSize: SkotiqTypography.fontSize18,
                           fontWeight: FontWeight.bold,

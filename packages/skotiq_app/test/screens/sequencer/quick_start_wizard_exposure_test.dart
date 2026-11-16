@@ -94,7 +94,7 @@ void main() {
     await tester.tap(find.text('Open wizard'));
     await tester.pumpAndSettle();
 
-    final targetField = find.widgetWithText(TextField, 'Target Name');
+    final targetField = find.widgetWithText(TextField, 'Target name');
     await tester.tap(targetField);
     tester.view.viewInsets = const FakeViewPadding(bottom: 230);
     await tester.pumpAndSettle();
@@ -165,9 +165,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Target Name'), 'M42');
+        find.widgetWithText(TextField, 'Target name'), 'M42');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Right Ascension'), '5.5');
+        find.widgetWithText(TextField, 'Right ascension'), '5.5');
     await tester.enterText(
         find.widgetWithText(TextField, 'Declination'), '-5.4');
     await tester.pump();
@@ -218,11 +218,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Target Name'),
+      find.widgetWithText(TextField, 'Target name'),
       'X',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
       '5.5',
     );
     await tester.enterText(
@@ -289,11 +289,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Target Name'),
+      find.widgetWithText(TextField, 'Target name'),
       'Manual target',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
       '12:99:00',
     );
     await tester.enterText(
@@ -306,7 +306,7 @@ void main() {
     expect(find.text('Step 1 of 5: Choose Your Target'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
       '05H 30M 00S',
     );
     await tester.enterText(
@@ -359,9 +359,9 @@ void main() {
       // Drive the wizard from Step 1 -> Step 4 (Safety) where the
       // cooling-temperature input is rendered.
       await tester.enterText(
-          find.widgetWithText(TextField, 'Target Name'), 'M42');
+          find.widgetWithText(TextField, 'Target name'), 'M42');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Right Ascension'), '5.5');
+          find.widgetWithText(TextField, 'Right ascension'), '5.5');
       await tester.enterText(
           find.widgetWithText(TextField, 'Declination'), '-5.4');
       await tester.pump();
@@ -411,7 +411,7 @@ void main() {
     expect(find.text('Could not load wizard defaults'), findsOneWidget);
     expect(find.textContaining('profile store unavailable'), findsOneWidget);
     expect(find.widgetWithText(SkotiqButton, 'Retry'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Target Name'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Target name'), findsNothing);
     expect(attempts, 1);
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'Retry'));
@@ -453,11 +453,11 @@ void main() {
       await tester.tap(find.text('Open wizard'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Target Name'),
+        find.widgetWithText(TextField, 'Target name'),
         'M',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Right Ascension'),
+        find.widgetWithText(TextField, 'Right ascension'),
         '5.5',
       );
       await tester.enterText(
@@ -486,7 +486,7 @@ void main() {
       await tester.tap(createButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Quick-Start Sequence Wizard'), findsNothing);
+      expect(find.text('Quick-start sequence wizard'), findsNothing);
       expect(editor.state?.name, 'M Sequence');
       expect(
         find.textContaining(
@@ -526,11 +526,11 @@ void main() {
     await tester.tap(find.text('Open wizard'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Target Name'),
+      find.widgetWithText(TextField, 'Target name'),
       'M34',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
       '2.7',
     );
     await tester.enterText(
@@ -591,11 +591,11 @@ void main() {
     await tester.tap(find.text('Open wizard'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Target Name'),
+      find.widgetWithText(TextField, 'Target name'),
       'M31',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Right Ascension'),
+      find.widgetWithText(TextField, 'Right ascension'),
       '5.5',
     );
     await tester.enterText(
@@ -635,7 +635,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Quick-Start Sequence Wizard'), findsOneWidget);
+    expect(find.text('Quick-start sequence wizard'), findsOneWidget);
     expect(editor.state?.name, 'Manual draft');
     expect(editor.isDirty, isTrue);
 
@@ -644,7 +644,7 @@ void main() {
     await tester.tap(find.text('Discard and create'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick-Start Sequence Wizard'), findsNothing);
+    expect(find.text('Quick-start sequence wizard'), findsNothing);
     expect(editor.state?.name, 'M31 Sequence');
     expect(editor.isDirty, isFalse);
 

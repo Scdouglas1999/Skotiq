@@ -89,8 +89,8 @@ String interruptedSessionNote({
   final at = found.toUtc().toIso8601String();
   return 'This night was still open when $cause, so it is recorded as '
       'interrupted rather than completed (found at $at UTC). Its end time is '
-      'the last frame it captured, or its start time when it captured none — '
-      'not the moment it was found, which would have counted the whole '
+      'the last frame it captured, or its start time when it captured none. '
+      'Not the moment it was found, which would have counted the whole '
       'downtime as imaging.';
 }
 

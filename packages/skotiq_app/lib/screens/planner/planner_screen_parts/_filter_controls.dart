@@ -86,12 +86,8 @@ class _ObjectTypeMultiSelect extends ConsumerWidget {
     );
   }
 
-  static String _displayLabel(String key) {
-    return key
-        .split(' ')
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
+  static String _displayLabel(String key) =>
+      key.isEmpty ? key : '${key[0].toUpperCase()}${key.substring(1)}';
 }
 
 /// Object-type multi-select sheet.
@@ -108,53 +104,43 @@ Future<Set<String>?> _showObjectTypeDialog({
       final draft = Set<String>.of(selected);
       return StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
-          return AlertDialog(
-            backgroundColor: colors.surface,
-            title: Text(
-              'Object types',
-              style: SkotiqTypography.bodyStrong.copyWith(
-                color: colors.textPrimary,
-              ),
-            ),
-            content: SizedBox(
-              width: dialogMaxWidth(context, 380),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _ObjectTypeMultiSelect._options
-                    .map((opt) => FilterChip(
-                          label: Text(
-                            _ObjectTypeMultiSelect._displayLabel(opt),
-                          ),
-                          selected: draft.contains(opt),
-                          showCheckmark: false,
-                          onSelected: (on) {
-                            setDialogState(() {
-                              if (on) {
-                                draft.add(opt);
-                              } else {
-                                draft.remove(opt);
-                              }
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
-            ),
+          return SkotiqDialog(
+            title: 'Object types',
+            width: SkotiqDialog.widthConfirm,
             actions: [
               SkotiqButton(
                 label: 'Clear',
                 variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
                 onPressed: () => setDialogState(draft.clear),
               ),
               SkotiqButton(
                 label: 'Apply',
                 variant: ButtonVariant.primary,
-                size: ButtonSize.small,
                 onPressed: () => Navigator.of(dialogCtx).pop(draft),
               ),
             ],
+            child: Wrap(
+              spacing: SkotiqTokens.spaceSm,
+              runSpacing: SkotiqTokens.spaceSm,
+              children: _ObjectTypeMultiSelect._options
+                  .map((opt) => FilterChip(
+                        label: Text(
+                          _ObjectTypeMultiSelect._displayLabel(opt),
+                        ),
+                        selected: draft.contains(opt),
+                        showCheckmark: false,
+                        onSelected: (on) {
+                          setDialogState(() {
+                            if (on) {
+                              draft.add(opt);
+                            } else {
+                              draft.remove(opt);
+                            }
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
           );
         },
       );
@@ -297,14 +283,19 @@ class _ConstellationPickerDialogState
                 e.$1.toLowerCase().contains(q))
             .toList();
 
-    return AlertDialog(
-      backgroundColor: colors.surface,
-      title: Text(
-        'Constellation',
-        style: SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
-      ),
-      content: SizedBox(
-        width: dialogMaxWidth(context, 380),
+    return SkotiqDialog(
+      title: 'Constellation',
+      width: SkotiqDialog.widthConfirm,
+      actions: [
+        SkotiqButton(
+          label: 'Any constellation',
+          variant: ButtonVariant.ghost,
+          // Empty string, not null: null is what a barrier dismiss returns and
+          // must stay distinguishable from "clear the filter".
+          onPressed: () => Navigator.of(context).pop(''),
+        ),
+      ],
+      child: SizedBox(
         height: 380,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -319,7 +310,7 @@ class _ConstellationPickerDialogState
             Text(
               '${entries.length} constellation'
               '${entries.length == 1 ? '' : 's'} in tonight’s candidates',
-              style: SkotiqTypography.caption.copyWith(
+              style: SkotiqTypography.bodySm.copyWith(
                 color: colors.textMuted,
               ),
             ),
@@ -339,17 +330,10 @@ class _ConstellationPickerDialogState
                       itemBuilder: (context, i) {
                         final (abbr, name) = matches[i];
                         final isSelected = widget.selected == abbr;
-                        return ListTile(
-                          dense: true,
+                        return ListRow(
+                          title: '$name ($abbr)',
                           selected: isSelected,
-                          title: Text(
-                            '$name ($abbr)',
-                            style: SkotiqTypography.bodySm.copyWith(
-                              color: isSelected
-                                  ? colors.primary
-                                  : colors.textPrimary,
-                            ),
-                          ),
+                          showDivider: i < matches.length - 1,
                           onTap: () => Navigator.of(context).pop(abbr),
                         );
                       },
@@ -358,16 +342,6 @@ class _ConstellationPickerDialogState
           ],
         ),
       ),
-      actions: [
-        SkotiqButton(
-          label: 'Any constellation',
-          variant: ButtonVariant.ghost,
-          size: ButtonSize.small,
-          // Empty string, not null: null is what a barrier dismiss returns and
-          // must stay distinguishable from "clear the filter".
-          onPressed: () => Navigator.of(context).pop(''),
-        ),
-      ],
     );
   }
 }

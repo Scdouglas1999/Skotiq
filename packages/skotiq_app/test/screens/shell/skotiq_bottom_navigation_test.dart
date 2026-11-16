@@ -70,12 +70,16 @@ void main() {
     // the bar silent on a screen it can reach.
     expect(await _selectedLabels(tester, '/settings'), ['More']);
     expect(await _selectedLabels(tester, '/settings/plate-solving'), ['More']);
+    // The rail's hosts hold on a phone too: the Flat wizard is a Darkroom
+    // tool and Polar alignment an Equipment one, both behind More.
     expect(await _selectedLabels(tester, '/flat-wizard'), ['More']);
+    expect(await _selectedLabels(tester, '/polar-alignment'), ['More']);
+    expect(await _selectedLabels(tester, '/stack-result?id=3'), ['More']);
   });
 
   testWidgets('a route nothing owns lights nothing', (tester) async {
     expect(await _selectedLabels(tester, '/unknown-route'), isEmpty);
-    expect(await _selectedLabels(tester, '/polar-alignment'), isEmpty);
+    expect(await _selectedLabels(tester, '/onboarding'), isEmpty);
   });
 
   // The bar is the rail's phone-width replacement, so it owes assistive tech

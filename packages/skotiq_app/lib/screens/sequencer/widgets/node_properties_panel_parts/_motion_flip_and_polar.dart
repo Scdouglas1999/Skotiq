@@ -110,7 +110,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Flip is triggered when the mount reports it has reached '
-                      'its tracking / meridian limit — no threshold needed.',
+                      'its tracking / meridian limit. No threshold needed.',
                       style: TextStyle(
                         fontSize: Responsive.fontSize(context, 12),
                         color: colors.info,
@@ -388,7 +388,7 @@ class _PolarAlignmentProperties extends ConsumerWidget {
                   min: 0,
                   max: 1000,
                   helperText: node.gain == null
-                      ? 'Unset — the camera keeps its current gain'
+                      ? 'Unset: the camera keeps its current gain'
                       : null,
                   onChanged: (value) {
                     ref.read(currentSequenceProvider.notifier).updateNode(
@@ -410,7 +410,7 @@ class _PolarAlignmentProperties extends ConsumerWidget {
                   min: 0,
                   max: 1000,
                   helperText: node.offset == null
-                      ? 'Unset — the camera keeps its current offset'
+                      ? 'Unset: the camera keeps its current offset'
                       : null,
                   onChanged: (value) {
                     ref.read(currentSequenceProvider.notifier).updateNode(

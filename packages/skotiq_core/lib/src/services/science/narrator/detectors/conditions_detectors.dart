@@ -92,9 +92,9 @@ class TransparencyTrendDetector extends NarratorDetector {
             ? NarratorSeverity.success
             : NarratorSeverity.warning,
         headline: improving
-            ? 'Transparency improving — up ${change.abs().toStringAsFixed(0)} '
+            ? 'Transparency improving: up ${change.abs().toStringAsFixed(0)} '
                   'points over the last ${spanMinutes.round()} min$extinctionNote'
-            : 'Transparency dropping — down ${change.abs().toStringAsFixed(0)} '
+            : 'Transparency dropping: down ${change.abs().toStringAsFixed(0)} '
                   'points over the last ${spanMinutes.round()} min$extinctionNote',
         body: improving
             ? 'The sky is clearing. A good time to push fainter targets or '
@@ -185,11 +185,11 @@ class SkyDarknessDetector extends NarratorDetector {
           category: NarratorCategory.conditions,
           severity: NarratorSeverity.success,
           headline:
-              'Sky darkened ${change.toStringAsFixed(1)} mag — '
+              'Sky darkened ${change.toStringAsFixed(1)} mag: '
               'fainter targets now in reach',
           body:
               'The measured sky background has fallen as twilight cleared or '
-              'the Moon set — a relative drop, not an absolute SQM reading. '
+              'the Moon set. A relative drop, not an absolute SQM reading. '
               'Great window for low-surface-brightness objects.',
           evidence: NarratorEvidence.scalar(
             value: change,
@@ -209,10 +209,10 @@ class SkyDarknessDetector extends NarratorDetector {
           category: NarratorCategory.conditions,
           severity: NarratorSeverity.warning,
           headline:
-              'Sky brightened ${change.abs().toStringAsFixed(1)} mag — '
+              'Sky brightened ${change.abs().toStringAsFixed(1)} mag: '
               'dawn or the Moon is encroaching',
           body:
-              'The measured sky background is rising — a relative change, not '
+              'The measured sky background is rising. A relative change, not '
               'an absolute SQM reading. Faint targets will start to struggle; '
               'favour brighter ones.',
           evidence: NarratorEvidence.scalar(
@@ -359,7 +359,7 @@ class CloudsVsFocusDetector extends NarratorDetector {
         draft(
           'clouds',
           'Star count collapsed $dropPct%$filterLabel with '
-              '${cloudy ? 'clouds reported' : 'transparency falling'} — '
+              '${cloudy ? 'clouds reported' : 'transparency falling'}: '
               'clouds, not focus',
           'The thinning is atmospheric. Keep the rig as-is; frames will '
               'recover when the cloud passes.',
@@ -372,7 +372,7 @@ class CloudsVsFocusDetector extends NarratorDetector {
         draft(
           'blocked',
           'Star count down $dropPct% and sky background down $bgPct%'
-              '$filterLabel — something may be blocking the view',
+              '$filterLabel. Something may be blocking the view',
           'Fewer stars on a darker sky usually means part of the beam is '
               'blocked: trees or a building as the target sinks, a roof, or '
               'dew on the optics. Refocusing will not help.',
@@ -384,7 +384,7 @@ class CloudsVsFocusDetector extends NarratorDetector {
         draft(
           'focus',
           'Star count dropped $dropPct%$filterLabel with transparency steady '
-              'and HFR up — looks like focus drift, not clouds',
+              'and HFR up. Looks like focus drift, not clouds',
           'Measured transparency held but the stars softened. Run an '
               'autofocus before more frames blur.',
         ),

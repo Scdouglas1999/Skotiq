@@ -1,5 +1,5 @@
 // Rename dialog, access badge, paired confirmation and error banner.
-part of '../pairing_screen.dart';
+part of '../paired_devices.dart';
 
 /// Renames one paired device.
 ///

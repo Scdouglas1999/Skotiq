@@ -164,7 +164,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       message:
                           'The 0° / 0° / 0 m below are placeholders, not your '
                           'location. Skotiq will not compute twilight, '
-                          'altitude or a plan from them — enter your '
+                          'altitude or a plan from them. Enter your '
                           'coordinates, search for a place, or use Detect '
                           'location, to set a site.',
                     ),
@@ -467,7 +467,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     // which of the two it is decides whether a target inside
                     // an obstructed sector is refused or allowed.
                     '${horizonProfile.sampleCount >= 2 ? 'An imported survey of '
-                        '${horizonProfile.sampleCount} samples is in use — the '
+                        '${horizonProfile.sampleCount} samples is in use. The '
                         'planner and sky chart interpolate it. These eight '
                         'fields summarize it by sector; editing any of them '
                         'replaces the survey with your eight values.' : 'These '
@@ -602,8 +602,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     final elev = hit.elevation;
     context.showSuccessSnackBar(
       elev == null
-          ? 'Coordinates set to ${hit.label}. Elevation cleared to 0 m — '
-              'enter the elevation for this site.'
+          ? 'Coordinates set to ${hit.label}. Elevation cleared to 0 m. '
+              'Enter the elevation for this site.'
           : 'Coordinates set to ${hit.label}. Elevation ${elev.round()} m.',
     );
   }
@@ -660,7 +660,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
             '${detection.fix.explanation} '
             '${detection.keptElevation ? 'Elevation kept at '
                 '${elevation.toStringAsFixed(0)} m.' : 'Elevation cleared to '
-                '0 m — enter the elevation for this site.'} '
+                '0 m. Enter the elevation for this site.'} '
             '${_refinementNudge(detection.attempt)}',
           );
       }
@@ -691,7 +691,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     if (stored == null || !mounted) return;
     context.showSuccessSnackBar(
       'Coordinates set to ${stored.where}. '
-      '${stored.keptElevation ? '' : 'Elevation cleared to 0 m — enter the '
+      '${stored.keptElevation ? '' : 'Elevation cleared to 0 m. Enter the '
           'elevation for this site.'}',
     );
   }
@@ -751,7 +751,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       }
 
       context.showSuccessSnackBar(
-        'Horizon imported from ${file.name} — $sampleCount '
+        'Horizon imported from ${file.name}. $sampleCount '
         '${sampleCount == 1 ? 'sample' : 'samples'} stored; the eight fields '
         'below summarize them by sector.',
       );
@@ -962,18 +962,18 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   /// picker that changes no displayed time with no claim to falsify.
   String _timezoneSubtitle(AppSettingsState settings) {
     if (settings.useSystemTime) {
-      return 'Ignored while "Use system time" is on — times follow this '
+      return 'Ignored while "Use system time" is on. Times follow this '
           "computer's clock";
     }
     final clock = ref.watch(clockProvider);
     if (clock is! FixedOffsetClock) {
       return 'Skotiq cannot apply "${settings.timezone}", so times follow '
-          "this computer's clock — choose a UTC offset";
+          "this computer's clock. Choose a UTC offset";
     }
     final now = clock.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
-    return 'Capture timestamps and scheduling use ${clock.label} — now '
+    return 'Capture timestamps and scheduling use ${clock.label}. Now '
         '$hh:$mm (fixed offset, no daylight saving)';
   }
 

@@ -23,7 +23,7 @@ const List<TourStep> _firstNight = [
         'right screen. Before we start, make sure you have at least a '
         'camera, a mount, a focuser, and a filter wheel ready (a filter '
         'wheel is optional for one-shot color cameras). You can skip any '
-        'step or close the wizard at any time — your progress is saved, so '
+        'step or close the wizard at any time. Your progress is saved, so '
         'you can pick up where you left off on the next launch.',
   ),
   TourStep(
@@ -36,16 +36,16 @@ const List<TourStep> _firstNight = [
     // exist, that driver choice (ASCOM vs INDI vs native) matters, and
     // that nothing else will work until devices are green.
     description:
-        'Open the Equipment screen and pick or create a profile — a profile '
+        'Open the Equipment screen and pick or create a profile. A profile '
         'is just a saved bundle of "which camera, which mount, which '
         'focuser" that you can reuse every night. For each device, pick a '
         'driver: ASCOM works on Windows, INDI works on Linux/macOS, and '
         'Alpaca works over a network. Native vendor paths (ZWO, QHY, '
         'PlayerOne, Touptek, …) cut out the driver layer, but only work '
-        'where that vendor\'s own library is installed — Skotiq does not '
+        'where that vendor\'s own library is installed. Skotiq does not '
         'ship it. Click Connect on every device until '
         'the status dots are all green. If a device fails to connect, the '
-        'error message in the side panel will tell you why — usually it\'s '
+        'error message in the side panel will tell you why. Usually it\'s '
         'a USB cable, a driver not installed, or the device powered off. '
         'Nothing else in this wizard works until everything here is green.',
   ),
@@ -60,7 +60,7 @@ const List<TourStep> _firstNight = [
     // when "good enough" really is good enough.
     description: 'Polar alignment lines up the mount\'s rotation axis with the '
         'celestial pole. Without it, stars trail in long exposures and the '
-        'frame slowly rotates around the guide star — guiding can\'t fix '
+        'frame slowly rotates around the guide star. Guiding can\'t fix '
         'either. Skotiq ships two methods. Drift alignment is the most '
         'accurate but slow: it watches a star drift over minutes and tells '
         'you which knob to turn. Plate-solve alignment is fast: it takes '
@@ -82,7 +82,7 @@ const List<TourStep> _firstNight = [
     description:
         'A cooled camera has dramatically lower thermal noise, which is the '
         'difference between a clean star field and a grainy mess. Set your '
-        'target sensor temperature in the Imaging screen — most cooled '
+        'target sensor temperature in the Imaging screen. Most cooled '
         'astro cameras hit -10 °C year-round; in summer aim for whatever '
         'is reliably 30 °C below ambient. Wait for the cooler to settle '
         '(power should drop below ~80 %) before you focus, because the '
@@ -103,7 +103,7 @@ const List<TourStep> _firstNight = [
         'The Framing screen overlays your camera\'s field of view on a '
         'survey image of the sky so you can preview exactly what each '
         'exposure will look like before you slew. Pick a beginner-friendly '
-        'target — the Orion Nebula (M42), the Andromeda Galaxy (M31), or '
+        'target. The Orion Nebula (M42), the Andromeda Galaxy (M31), or '
         'the Pleiades (M45) are bright, large, and forgiving of imperfect '
         'tracking. Drag the FOV rectangle to center your target, rotate it '
         'to a pleasing composition, and click "Slew & Center". Skotiq '
@@ -146,7 +146,7 @@ const List<TourStep> _firstNight = [
     description: 'A sequence is the script that tells Skotiq what to capture, '
         'when to dither, when to refocus, and when to flip across the '
         'meridian. The Sequencer screen builds these as a tree of '
-        'instruction, trigger, and logic nodes — but for tonight, open the '
+        'instruction, trigger, and logic nodes, but for tonight, open the '
         'Templates tab and load a ready-made one ("Basic LRGB Sequence" and '
         '"Narrowband (SHO)" both come with autofocus and dithering already '
         'wired in), set the target, and '

@@ -463,8 +463,8 @@ class _OnboardingCaptureDirStepState
         // frame lands directly in the chosen folder. Subfolders are real (a `/`
         // in the pattern creates directories) but are not the default.
         Text(
-          'Every capture is saved here. File names — and any subfolders — come '
-          'from the naming pattern in Settings → Imaging.',
+          'Every capture is saved here. File names (and any subfolders) come '
+          'from the naming pattern in Settings > Imaging.',
           style: SkotiqTypography.bodySm.copyWith(
             color: colors.textSecondary,
           ),

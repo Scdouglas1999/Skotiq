@@ -123,7 +123,7 @@ void main() {
     expect(
       find.byType(DisconnectedBackendBanner),
       findsOneWidget,
-      reason: 'the shell is the production call site — the banner is only '
+      reason: 'the shell is the production call site. The banner is only '
           'useful if it is actually mounted there',
     );
     expect(find.text('Error: not connected to server'), findsOneWidget);

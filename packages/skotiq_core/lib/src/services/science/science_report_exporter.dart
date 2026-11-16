@@ -86,7 +86,7 @@ class ScienceReportExporter {
     final photometry = await _scienceDao.getPhotometryForSession(sessionId);
 
     final b = StringBuffer();
-    b.writeln('# Skotiq Science Report — Session #$sessionId');
+    b.writeln('# Skotiq Science Report. Session #$sessionId');
     b.writeln();
     b.writeln(_sessionHeader(session, target));
     b.writeln();
@@ -174,9 +174,9 @@ class ScienceReportExporter {
         '| Frame type | Total | Accepted | Plate-solved |\n'
         '| --- | ---: | ---: | ---: |\n'
         '| Light | ${lights.length} | $accepted | $solved |\n'
-        '| Dark | ${_countOf(images, FrameType.dark)} | — | — |\n'
-        '| Flat | ${_countOf(images, FrameType.flat)} | — | — |\n'
-        '| Bias | ${_countOf(images, FrameType.bias)} | — | — |\n'
+        '| Dark | ${_countOf(images, FrameType.dark)} |: |: |\n'
+        '| Flat | ${_countOf(images, FrameType.flat)} |: |: |\n'
+        '| Bias | ${_countOf(images, FrameType.bias)} |: |: |\n'
         '\n'
         '**Accepted integration time:** ${DurationFormat.of(Duration(seconds: integrationSeconds.round()))}.';
   }
@@ -294,7 +294,7 @@ class ScienceReportExporter {
     final cycles = period.observedCycles.toStringAsFixed(1);
     final constrained = period.isPeriodConstrained
         ? '$cycles cycles observed'
-        : 'UNCONSTRAINED — only $cycles cycles '
+        : 'UNCONSTRAINED: only $cycles cycles '
               'fit in the baseline, so this is a lower bound, not a measurement';
     return '## Period analysis\n'
         '- **Lomb-Scargle best period:** '
@@ -316,7 +316,7 @@ class ScienceReportExporter {
     if (samples.isEmpty) {
       return '## Transparency\n'
           'No transparency samples produced. A transparency estimate needs '
-          'at least 5 calibrated frames to stabilize — likely few frames '
+          'at least 5 calibrated frames to stabilize. Likely few frames '
           'reached calibration tonight.';
     }
     final values = samples

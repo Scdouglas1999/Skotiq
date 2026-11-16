@@ -68,7 +68,7 @@ class TiltDetector extends NarratorDetector {
       category: NarratorCategory.equipment,
       severity: severity,
       headline:
-          'Stars toward $dirLabel are noticeably softer — tilt score '
+          'Stars toward $dirLabel are noticeably softer. Tilt score '
           '${score.round()} ($bandLabel)',
       body:
           'The PSF map is asymmetric across the field (tilt score '
@@ -219,8 +219,8 @@ class FocusDriftDetector extends NarratorDetector {
         category: NarratorCategory.equipment,
         severity: NarratorSeverity.warning,
         headline:
-            'HFR up $risePct% since the last autofocus$tempNote — '
-            'likely focus drift; refocus soon',
+            'HFR up $risePct% since the last autofocus$tempNote. '
+            'Likely focus drift; refocus soon',
         body:
             'Frames have measured ≥${(riseFraction * 100).round()}% softer '
             'than the same filter right after the autofocus for '
@@ -298,7 +298,7 @@ class GradientDetector extends NarratorDetector {
         category: NarratorCategory.equipment,
         severity: NarratorSeverity.warning,
         headline:
-            'Persistent $edge gradient — check for stray light or a light-'
+            'Persistent $edge gradient: check for stray light or a light-'
             'pollution dome',
         body:
             'A background gradient has held for $consecutive frames. Flats, a '

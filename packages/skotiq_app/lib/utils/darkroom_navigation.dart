@@ -89,7 +89,7 @@ String? darkroomHostOnlyRefusal(WidgetRef ref) =>
 /// same job (`Compare — <reason>`, `Move Crop up — it is already first in the
 /// stack (1 of 4)`), so the whole app states a refusal one way.
 String unavailableControlName(String label, String reason) =>
-    '$label — $reason';
+    '$label: $reason';
 
 /// [darkroomHostOnlyRefusal] for a control that is being BUILT rather than
 /// pressed: the same answer, watched so the control follows the role.
@@ -235,7 +235,7 @@ String? watchDarkroomSessionRefusal(WidgetRef ref, int sessionId) {
 /// What a session-scoped Darkroom control reads while its masters are being
 /// read.
 const String kDarkroomMastersReadingReason =
-    'Reading this night\'s masters — the Darkroom opens as soon as they '
+    'Reading this night\'s masters. The Darkroom opens as soon as they '
     'answer.';
 
 /// The one resolution both entry points run.

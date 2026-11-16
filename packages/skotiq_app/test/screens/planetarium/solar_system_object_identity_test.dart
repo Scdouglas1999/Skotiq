@@ -127,7 +127,7 @@ void main() {
     expect(logs.single.objectName, 'Jupiter');
     expect(logs.single.objectType, 'planet',
         reason: 'an observing log that says "star" for Jupiter is wrong '
-            'forever — it is exported and filtered on');
+            'forever. It is exported and filtered on');
     expect(logs.single.catalogId, isNull,
         reason: 'PLANET_Jupiter is an internal key, not a catalog id');
   });

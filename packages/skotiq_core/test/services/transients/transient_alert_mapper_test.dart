@@ -96,7 +96,7 @@ void main() {
     test('a detection with no measured delta keeps a plain classification', () {
       final alert = transientAlertFromDetection(_detection(deltaMag: null));
       expect(alert.magnitude, isNull);
-      expect(alert.classification, 'Unconfirmed — possible new transient');
+      expect(alert.classification, 'Unconfirmed: possible new transient');
       expect(alert.classification, isNot(contains('Δ')));
     });
 

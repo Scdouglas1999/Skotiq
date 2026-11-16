@@ -186,7 +186,7 @@ void main() {
           final separation = math.sqrt(dx * dx + dy * dy);
           expect(separation, lessThan(1.0),
               reason: 'Adjacent tiles ${a.id.npix}/${b.id.npix} leave a '
-                  '${separation.toStringAsFixed(3)}px gutter at zoom $zoom — a '
+                  '${separation.toStringAsFixed(3)}px gutter at zoom $zoom. A '
                   'visible seam. Neighbor footprints must touch or overlap.');
         }
       }

@@ -37,7 +37,7 @@ String fileSystemReason(FileSystemException error) {
   if (osError == null) return error.message;
   final reason = osError.message.trim();
   if (reason.isEmpty) return error.message;
-  return '${error.message} — $reason (errno ${osError.errorCode})';
+  return '${error.message}: $reason (errno ${osError.errorCode})';
 }
 
 /// The mechanism that stopped a delivery.

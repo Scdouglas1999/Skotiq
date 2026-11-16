@@ -400,7 +400,7 @@ void main() {
           reason:
               'Tile npix=${tile.id.npix} (ancestor row $expRow): the painter '
               'sampled Allsky-Y $sampledY but square-cell geometry requires '
-              '$expectedSampledY. A mismatch is the non-square-grid bug — the '
+              '$expectedSampledY. A mismatch is the non-square-grid bug. The '
               'Allsky cell height was derived from the grid WIDTH instead of the '
               'true row count, drifting the coarse base off the registered tiles.');
       checked++;
@@ -506,7 +506,7 @@ void main() {
     final recorder = _RecordingCanvas();
     expect(() => painter.paint(recorder, _canvasSize), returnsNormally,
         reason: 'A tile whose image is not resident must be skipped, not '
-            'throw — the lower layer shows through that region.');
+            'throw. The lower layer shows through that region.');
     expect(recorder.drawVerticesCount, 0,
         reason: 'No image → no mesh drawn for that tile.');
   });

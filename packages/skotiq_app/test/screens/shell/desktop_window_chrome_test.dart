@@ -109,7 +109,7 @@ void main() {
     expect(
       find.byType(WindowControls),
       findsOneWidget,
-      reason: 'the OS draws no decorations — this bar is the only way to '
+      reason: 'the OS draws no decorations. This bar is the only way to '
           'close, minimize or maximize the window',
     );
     expect(

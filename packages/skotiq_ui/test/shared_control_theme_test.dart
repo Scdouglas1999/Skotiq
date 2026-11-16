@@ -123,7 +123,7 @@ void main() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Shared controls — $mode', style: SkotiqTypography.h2),
+                Text('Shared controls: $mode', style: SkotiqTypography.h2),
                 const SizedBox(height: 24),
                 Wrap(
                   spacing: 12,

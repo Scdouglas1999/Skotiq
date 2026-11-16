@@ -112,12 +112,12 @@ Future<DeliveryFailure> destinationReadFailure({
 /// since removed.
 String _removedAtDestination(File file) {
   if (file.path.endsWith(kStagedDeliverySuffix)) {
-    return 'the staged copy was removed while this delivery was writing it — '
-        'something on the destination side is deleting '
+    return 'the staged copy was removed while this delivery was writing it. '
+        'Something on the destination side is deleting '
         '$kStagedDeliverySuffix files';
   }
   return 'the file already at that name was removed between being found and '
-      'being read — something on the destination side is deleting what '
+      'being read. Something on the destination side is deleting what '
       'delivery has written';
 }
 

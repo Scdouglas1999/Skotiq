@@ -2006,8 +2006,8 @@ void main() {
   // Size and mtime are what a restoring writer puts back; only the bytes
   // answer.
   test(
-    'a master SUBSTITUTED after it is drafted — same size, same mtime, '
-    'different bytes — is withheld and the report names the contents',
+    'a master SUBSTITUTED after it is drafted. Same size, same mtime, '
+    'different bytes. Is withheld and the report names the contents',
     () async {
       final delivered = <String>[];
       await DeliveryTargetsDao(db).create(
@@ -2076,7 +2076,7 @@ void main() {
       expect(
         substituted.withheldFromDelivery,
         contains('its contents now hash to'),
-        reason: 'the sentence names what differs — the contents, not the size',
+        reason: 'the sentence names what differs. The contents, not the size',
       );
       expect(
         substituted.withheldFromDelivery,

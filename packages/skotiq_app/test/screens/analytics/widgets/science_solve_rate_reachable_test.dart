@@ -99,7 +99,7 @@ void main() {
     expect(
       find.textContaining('until a solver is reachable'),
       findsNothing,
-      reason: 'ASTAP is installed with a catalog — it is running and failing',
+      reason: 'ASTAP is installed with a catalog. It is running and failing',
     );
     expect(find.textContaining('is installed'), findsOneWidget);
     expect(find.textContaining('focal length'), findsOneWidget);

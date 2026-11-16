@@ -57,7 +57,7 @@ const List<AboutLink> kAboutLinks = [
   ),
   AboutLink(
     icon: LucideIcons.bug,
-    label: 'Report an Issue',
+    label: 'Report an issue',
     compactLabel: 'Issues',
     url: '$kSkotiqRepositoryUrl/issues',
   ),

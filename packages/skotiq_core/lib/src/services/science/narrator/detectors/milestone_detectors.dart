@@ -71,7 +71,7 @@ class LimitingMagDetector extends NarratorDetector {
           category: NarratorCategory.milestone,
           severity: NarratorSeverity.success,
           headline:
-              'New $label depth record — magnitude ${mag.toStringAsFixed(1)} stars (5σ)',
+              'New $label depth record. Magnitude ${mag.toStringAsFixed(1)} stars (5σ)',
           body:
               'The measured 5σ limit in $label is at least '
               '${beatBy.toStringAsFixed(1)} mag deeper than its previous record this session. '
@@ -129,7 +129,7 @@ class CalibrationLockedDetector extends NarratorDetector {
         headline:
             'Photometric calibration locked: ZP stable to ±${std.toStringAsFixed(2)}',
         body:
-            'The zero point has settled across the last $window frames — your '
+            'The zero point has settled across the last $window frames. Your '
             'magnitudes are now trustworthy for science.',
         evidence: NarratorEvidence.scalar(
           value: std,
@@ -190,7 +190,7 @@ class BestSeeingDetector extends NarratorDetector {
         category: NarratorCategory.milestone,
         severity: NarratorSeverity.success,
         headline:
-            'Best seeing of the night — FWHM ${latest.toStringAsFixed(1)} px',
+            'Best seeing of the night. FWHM ${latest.toStringAsFixed(1)} px',
         body:
             'This frame is in the sharpest ${(bestFraction * 100).round()}% of '
             'the session. A great moment for your most detailed targets.',

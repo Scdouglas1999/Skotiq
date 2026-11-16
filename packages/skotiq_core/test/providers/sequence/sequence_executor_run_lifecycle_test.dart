@@ -1118,7 +1118,7 @@ void main() {
 
     test(
       'a native executor that reports itself still running is NOT treated as '
-      'confirmation — the honest stopFailed is preserved',
+      'confirmation. The honest stopFailed is preserved',
       () async {
         final container = buildContainer();
         final executor = await startRunning(container);
@@ -2210,7 +2210,7 @@ void main() {
         ['completed', 'completed'],
         reason:
             'the second night ended on the wire, so its session row must be '
-            'closed too — an open row is a night nothing will ever integrate',
+            'closed too. An open row is a night nothing will ever integrate',
       );
     });
 

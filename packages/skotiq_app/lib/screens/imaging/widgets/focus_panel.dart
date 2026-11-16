@@ -631,7 +631,7 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
         if (_submitting && !_halting) _halt();
       },
       child: AlertDialog(
-        title: const Text('Go To Position'),
+        title: const Text('Go to position'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

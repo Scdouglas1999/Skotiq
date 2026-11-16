@@ -196,7 +196,7 @@ void main() {
         source,
         contains('case SequencerEvent_Error('),
         reason:
-            '$path no longer handles the sequencer Error event — if the '
+            '$path no longer handles the sequencer Error event. If the '
             'handler moved, move this pin with it.',
       );
       expect(

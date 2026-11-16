@@ -97,7 +97,7 @@ Widget _panel({required Widget child, EdgeInsets? padding}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('surface — sequencer node palette', (tester) async {
+  testWidgets('surface: sequencer node palette', (tester) async {
     // The palette's node-defaults provider transitively reaches the settings
     // DAO + active-profile stream, which open the real database. Use the full
     // app harness (in-memory DB + mock backend) so that whole graph resolves
@@ -149,7 +149,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('surface — imaging live-view overlay HUD', (tester) async {
+  testWidgets('surface: imaging live-view overlay HUD', (tester) async {
     await pumpAndCapture(
       tester,
       fileName: 'surface-imaging-overlay-hud.png',
@@ -219,7 +219,7 @@ void main() {
     );
   });
 
-  testWidgets('surface — settings appearance section', (tester) async {
+  testWidgets('surface: settings appearance section', (tester) async {
     // The settings page reads appSettingsProvider (an AsyncNotifier backed by
     // the DB), so pump through the full app harness which wires an in-memory
     // database + mock backend. Capture the boundary the harness mounts.

@@ -56,7 +56,7 @@ class SmartExposureNegativeCountRule implements SequenceValidator {
               category: ValidationCategory.exposures,
               title: 'SmartExposure plan never runs',
               description:
-                  'Smart Exposure "${node.name}": plan ${i + 1} ("${p.filterName}") has count ${p.count} — no frames will be taken for this filter.',
+                  'Smart Exposure "${node.name}": plan ${i + 1} ("${p.filterName}") has count ${p.count}. No frames will be taken for this filter.',
               affectedNodeId: node.id,
               resolutionHint:
                   'Set count to a positive number, or remove the row entirely.',
@@ -100,7 +100,7 @@ class SmartExposureNegativeCountRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'SmartExposure has duplicate filter rows',
             description:
-                'Smart Exposure "${node.name}" has two or more rows for the same filter — usually a mistake. SmartExposure tracks per-filter completed counts by name, so duplicate rows compete for the same counter.',
+                'Smart Exposure "${node.name}" has two or more rows for the same filter. Usually a mistake. SmartExposure tracks per-filter completed counts by name, so duplicate rows compete for the same counter.',
             affectedNodeId: node.id,
             resolutionHint:
                 'Merge duplicate filter rows, or rename one to a different filter.',

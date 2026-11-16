@@ -182,7 +182,7 @@ void main() {
       ]);
       await _pumpSection(tester, plan);
 
-      expect(find.text('Safety & Watchdogs'), findsOneWidget);
+      expect(find.text('Safety & watchdogs'), findsOneWidget);
       expect(find.byIcon(LucideIcons.shieldAlert), findsOneWidget);
 
       // The callout copy must state the parallel / by-condition behaviour.
@@ -213,7 +213,7 @@ void main() {
       ]);
       await _pumpSection(tester, plan);
 
-      expect(find.text('Safety & Watchdogs'), findsNothing);
+      expect(find.text('Safety & watchdogs'), findsNothing);
       expect(find.byIcon(LucideIcons.shieldAlert), findsNothing);
     });
   });

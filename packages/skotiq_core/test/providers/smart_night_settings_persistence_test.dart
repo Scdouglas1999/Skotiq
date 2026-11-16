@@ -93,7 +93,7 @@ void main() {
       isNull,
       reason:
           'A cleared cap must round-trip as null, not as a numeric '
-          'fallback — otherwise the wizard would silently re-cap.',
+          'fallback. Otherwise the wizard would silently re-cap.',
     );
   });
 
@@ -110,7 +110,7 @@ void main() {
       6.0,
       reason:
           'Omitting smartNightMaxSessionHours from copyWith must '
-          'leave it alone — otherwise downstream mutators would '
+          'leave it alone. Otherwise downstream mutators would '
           'unintentionally clear it on every change.',
     );
     expect(mutated.theme, 'light');

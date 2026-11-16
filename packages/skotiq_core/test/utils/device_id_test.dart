@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
 
 void main() {
-  group('DeviceId.parse — classification', () {
+  group('DeviceId.parse: classification', () {
     test('classifies every known driver prefix', () {
       expect(
         DeviceId.parse('ascom:ASCOM.Camera.Simulator').kind,
@@ -55,7 +55,7 @@ void main() {
     });
   });
 
-  group('DeviceId — segments', () {
+  group('DeviceId: segments', () {
     test(
       'native multi-segment forms split into trimmed lowercase segments',
       () {
@@ -149,7 +149,7 @@ void main() {
     });
   });
 
-  group('matches — PHD2 cross-variant', () {
+  group('matches: PHD2 cross-variant', () {
     test('every PHD2 representation matches every other', () {
       const variants = [
         'phd2',
@@ -182,7 +182,7 @@ void main() {
     });
   });
 
-  group('matches — canonical equality', () {
+  group('matches: canonical equality', () {
     test('identical ids match (case / whitespace insensitive)', () {
       expect(DeviceId.parse('native:zwo:0').matchesRaw('native:zwo:0'), isTrue);
       expect(
@@ -192,7 +192,7 @@ void main() {
     });
   });
 
-  group('matches — legacy fuzzy fallback (preserved semantics)', () {
+  group('matches: legacy fuzzy fallback (preserved semantics)', () {
     test('ZWO EAF model match across id formats', () {
       // "ZWO EAF" display name vs the composite native id — the historical
       // case the fuzzy "one contains the other" branch was built for.

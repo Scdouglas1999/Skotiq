@@ -229,7 +229,7 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
         // it stays available on any rotator.
         if (canMoveAbsolute) ...[
           PanelSection(
-            title: 'Go To Angle',
+            title: 'Go to angle',
             colors: colors,
             child: _buildGoToSection(colors, minAngle, maxAngle),
           ),
@@ -248,7 +248,7 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
         // control.
         if (canSync) ...[
           PanelSection(
-            title: 'Sync Sky PA',
+            title: 'Sync sky PA',
             colors: colors,
             child: _buildSyncSection(colors, canSync: canSync),
           ),

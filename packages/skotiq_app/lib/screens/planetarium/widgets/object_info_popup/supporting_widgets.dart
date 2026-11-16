@@ -63,7 +63,7 @@ class _SlewPopupMenuButtonState extends State<SlewPopupMenuButton> {
               Icon(SkotiqIcons.target,
                   size: 16, color: widget.colors.textPrimary),
               const SizedBox(width: 8),
-              Text('Slew & Center',
+              Text('Slew & center',
                   style: TextStyle(color: widget.colors.textPrimary)),
             ],
           ),
@@ -399,7 +399,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
                   TextButton.icon(
                     onPressed: () => setState(() => _creatingNew = true),
                     icon: const Icon(SkotiqIcons.add, size: 16),
-                    label: const Text('Create New List'),
+                    label: const Text('Create new list'),
                   ),
               ],
             );
@@ -420,7 +420,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
         if (_creatingNew)
           FilledButton(
             onPressed: _createAndAdd,
-            child: const Text('Create & Add'),
+            child: const Text('Create & add'),
           ),
       ],
     );
@@ -430,7 +430,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
     return TextField(
       controller: _newListNameController,
       decoration: const InputDecoration(
-        labelText: 'New List Name',
+        labelText: 'New list name',
         hintText: 'e.g., Winter Galaxies',
       ),
       autofocus: true,

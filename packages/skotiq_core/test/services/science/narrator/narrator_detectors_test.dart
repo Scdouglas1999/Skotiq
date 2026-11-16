@@ -1318,7 +1318,7 @@ void main() {
     test('headline reports the tilt score, not a fabricated % softer', () {
       final d = TiltDetector();
       final fired = d.evaluate(ctx(32.0));
-      expect(fired.single.headline, contains('tilt score 32'));
+      expect(fired.single.headline, contains('Tilt score 32'));
       expect(fired.single.headline, contains('(critical)'));
       // Tilt score is not a percentage: no "% softer" phrasing.
       expect(fired.single.headline, isNot(contains('% softer')));

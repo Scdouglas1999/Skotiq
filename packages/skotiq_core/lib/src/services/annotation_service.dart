@@ -403,10 +403,10 @@ class AnnotationService {
   /// empty for a reason that has nothing to do with what is up there.
   String? _unusableSolveGeometry(PlateSolveResult result) {
     if (!result.ra.isFinite || !result.dec.isFinite) {
-      return 'Solver returned no field center — the frame was not solved';
+      return 'Solver returned no field center. The frame was not solved';
     }
     if (!result.pixelScale.isFinite || result.pixelScale <= 0) {
-      return 'Solver returned no field scale — the frame was not solved; '
+      return 'Solver returned no field scale. The frame was not solved; '
           'set the telescope focal length on the equipment profile so the '
           'solver is told the scale';
     }

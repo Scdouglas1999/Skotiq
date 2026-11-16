@@ -29,7 +29,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
               ),
               const SizedBox(width: 12),
               Text(
-                'Create Template',
+                'Create template',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize18,
                   fontWeight: FontWeight.w600,
@@ -321,7 +321,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
             ),
             const SizedBox(width: 12),
             Text(
-              'Delete Template',
+              'Delete template',
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize18,
                 fontWeight: FontWeight.w600,

@@ -435,7 +435,7 @@ void main() {
       // Three switch rows: calibration, auto-stretch, and OSC / Color.
       expect(find.text('Apply calibration'), findsOneWidget);
       expect(find.text('Auto-stretch'), findsOneWidget);
-      expect(find.text('OSC / Color'), findsOneWidget);
+      expect(find.text('OSC / color'), findsOneWidget);
       expect(find.byType(SkotiqSwitchRow), findsNWidgets(3));
 
       // Quality-gate field.

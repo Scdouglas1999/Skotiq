@@ -270,7 +270,7 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
     void logFallback(String reason) {
       final msg =
           '[NetworkBackend] live-view: falling back from WebRTC to '
-          'WS — $reason';
+          'WS. $reason';
       Log.info(msg, source: 'NetworkBackend');
       if (onFallback != null) onFallback(msg);
     }

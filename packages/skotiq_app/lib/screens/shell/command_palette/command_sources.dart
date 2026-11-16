@@ -23,10 +23,11 @@ import 'command_entry.dart';
 /// Every rail destination, every Settings section, and the screens that own a
 /// route but no rail slot.
 ///
-/// That last set is the point of the group: Polar alignment, Session review,
-/// Mosaic, Pairing and Diagnostics are reachable from inside other screens and
-/// from deep links, and the rail deliberately does not carry them. The palette
-/// is how an operator who knows the screen exists gets to it.
+/// That last set is the point of the group: Polar alignment, the Flat wizard,
+/// Best tonight, Targets, History, Mosaic and Diagnostics are reachable from
+/// inside other screens and from deep links, and the rail deliberately does
+/// not carry them. The palette is how an operator who knows the screen exists
+/// gets to it.
 List<CommandEntry> buildScreenEntries(BuildContext context) {
   final l10n = context.l10n;
   final entries = <CommandEntry>[

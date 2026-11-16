@@ -67,14 +67,14 @@ class Phd2Launcher {
       final exe = File(configuredPath);
       if (!await exe.exists()) {
         throw FileSystemException(
-          'PHD2 executable not found. Update Settings → PHD2 Guiding → '
+          'PHD2 executable not found. Update Settings > PHD2 guiding Guiding → '
           'PHD2 executable path or clear it to use automatic discovery.',
           configuredPath,
         );
       }
 
       notifications.showInfo(
-        'PHD2 not running — launching $configuredPath...',
+        'PHD2 not running: launching $configuredPath...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),
       );
@@ -96,7 +96,7 @@ class Phd2Launcher {
       }
     } else {
       notifications.showInfo(
-        'PHD2 not running — searching for installed PHD2...',
+        'PHD2 not running: searching for installed PHD2...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),
       );
@@ -106,7 +106,7 @@ class Phd2Launcher {
       } catch (_) {
         throw StateError(
           'PHD2 is not running and could not be launched automatically. '
-          'Install PHD2 or set Settings → PHD2 Guiding → PHD2 executable '
+          'Install PHD2 or set Settings > PHD2 guiding Guiding → PHD2 executable '
           'path.',
         );
       }

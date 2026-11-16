@@ -132,7 +132,7 @@ void main() {
       find.textContaining('photometric zeropoint'),
       findsOneWidget,
       reason: 'the frame has no zeropoint, so an observer code alone will not '
-          'enable AAVSO — say so before sending the operator to Settings',
+          'enable AAVSO. Say so before sending the operator to Settings',
     );
     expect(
       find.textContaining('observer code'),

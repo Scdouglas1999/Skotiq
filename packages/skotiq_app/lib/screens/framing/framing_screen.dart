@@ -415,12 +415,12 @@ class _FramingViewState extends ConsumerState<FramingView> {
     final target = framingState.target;
 
     if (target == null) {
-      context.showInfoSnackBar('No target framed — pick a target first.');
+      context.showInfoSnackBar('No target framed: pick a target first.');
       return;
     }
     if (bytes == null || bytes.isEmpty) {
       context.showInfoSnackBar(
-        'No survey image loaded yet — wait for the preview to finish loading.',
+        'No survey image loaded yet. Wait for the preview to finish loading.',
       );
       return;
     }

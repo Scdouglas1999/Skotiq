@@ -200,7 +200,7 @@ class DawnDraftNote {
   };
 
   @override
-  String toString() => '$opId: $outcome — $reason';
+  String toString() => '$opId: $outcome: $reason';
 }
 
 /// A composed first draft: the steps, and the account of how they got there.

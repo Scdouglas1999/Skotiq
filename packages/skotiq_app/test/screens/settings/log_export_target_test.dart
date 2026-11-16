@@ -141,7 +141,7 @@ void main() {
     expect(find.text('Entries on screen'), findsOneWidget);
     expect(find.text('2 entries, exactly as filtered'), findsOneWidget);
     expect(
-      find.textContaining('Every retained log file — about 4.0 KiB'),
+      find.textContaining('Every retained log file. About 4.0 KiB'),
       findsOneWidget,
       reason: 'the full-history size must be stated before it is written',
     );
@@ -157,7 +157,7 @@ void main() {
 
     expect(find.text('Export logs'), findsOneWidget);
     expect(
-      find.textContaining('Every retained log file — size could not be read'),
+      find.textContaining('Every retained log file. Size could not be read'),
       findsOneWidget,
     );
     expect(find.textContaining('about 0'), findsNothing);

@@ -57,7 +57,7 @@ class _ShareSessionDialog extends ConsumerWidget {
           Icon(SkotiqIcons.share, size: 20, color: colors.primary),
           const SizedBox(width: 10),
           Text(
-            'Remote Access',
+            'Remote access',
             style: TextStyle(
               color: colors.textPrimary,
               fontSize: SkotiqTypography.fontSize18,

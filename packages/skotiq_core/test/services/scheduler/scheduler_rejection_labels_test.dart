@@ -87,7 +87,7 @@ void main() {
       expect(
         rejection.primaryReason.toLowerCase(),
         isNot(contains('below horizon')),
-        reason: 'the target is up — it is merely too low to image',
+        reason: 'the target is up. It is merely too low to image',
       );
       expect(rejection.primaryReason, contains('site minimum'));
     },

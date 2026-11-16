@@ -123,7 +123,7 @@ void main() {
       expect(
         await integrationMarkerFile(tempDir).exists(),
         isFalse,
-        reason: 'reported once — the marker is consumed after the report lands',
+        reason: 'reported once: the marker is consumed after the report lands',
       );
     },
   );
@@ -298,7 +298,7 @@ void main() {
         expect(notes, contains('no master row records it'));
         final deleteSentence = notes
             .split('. ')
-            .firstWhere((s) => s.contains('delete them before re-running'));
+            .firstWhere((s) => s.contains('Delete them before re-running'));
         expect(deleteSentence, contains(half.path));
         expect(deleteSentence, isNot(contains(whole.path)));
       },
@@ -335,7 +335,7 @@ void main() {
 
       final notes = (await reopenAndRead(sessionId)).notes!;
       expect(notes, contains('the master library already holds a row for it'));
-      expect(notes, isNot(contains('delete them before re-running')));
+      expect(notes, isNot(contains('Delete them before re-running')));
     });
 
     test(
@@ -359,7 +359,7 @@ void main() {
         );
 
         final notes = (await reopenAndRead(sessionId)).notes!;
-        expect(notes, contains('delete them before re-running'));
+        expect(notes, contains('Delete them before re-running'));
         expect(notes, contains('stops 2880 bytes short'));
       },
     );

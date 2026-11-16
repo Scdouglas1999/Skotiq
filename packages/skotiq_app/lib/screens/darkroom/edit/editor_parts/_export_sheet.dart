@@ -389,14 +389,14 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         setState(
           () => _dismissRefused =
               'The save chooser is open and nothing has been sent to the '
-                  'engine yet. Answer it, or cancel it — canceling the chooser '
+                  'engine yet. Answer it, or cancel it. Canceling the chooser '
                   'cancels the export and leaves this sheet exactly as it is.',
         );
       case _DarkroomExportPhase.rendering:
         setState(
           () => _dismissRefused = _cancelRequested
               ? 'The export has been asked to stop and has not answered yet. '
-                  'This sheet stays up until it does — it is the only thing '
+                  'This sheet stays up until it does. It is the only thing '
                   'left to report the outcome to.'
               : 'An export is inside the engine. Stop it first, or wait for it '
                   'to finish: closing now would leave the render running with '
@@ -521,7 +521,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
               // still up and the engine had been asked for nothing at all.
               label: switch (phase) {
                 _DarkroomExportPhase.choosingFile =>
-                  'Waiting for the save chooser — nothing has been sent to the '
+                  'Waiting for the save chooser. Nothing has been sent to the '
                       'engine yet.',
                 _DarkroomExportPhase.rendering => _cancelRequested
                     ? 'Stopping at the next step boundary…'
@@ -555,7 +555,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       container: true,
       button: true,
       enabled: false,
-      label: 'Export — $blocked',
+      label: 'Export: $blocked',
       child: ExcludeSemantics(child: button),
     );
   }
@@ -610,7 +610,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       button: true,
       enabled: enabled,
       selected: selected,
-      label: '$label — $reason',
+      label: '$label. $reason',
       onTap: enabled ? onTap : null,
       child: ExcludeSemantics(
         child: _boundedTooltip(message: reason, child: chip),
@@ -823,7 +823,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
             subtitle:
                 'Uses the engine\'s own auto stretch to give these pixels a '
                 'display mapping. The recipe is not changed and the reply '
-                'names the transfer that was applied — a FITS export of the '
+                'names the transfer that was applied. A FITS export of the '
                 'same stage still carries whatever the pixels are.',
             value: _screenTransfer,
             onChanged: _exporting
@@ -948,7 +948,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
               'at full resolution.';
         }
         return 'The $enabled enabled step${enabled == 1 ? '' : 's'} of '
-            '$total, at the master\'s full resolution — not the pyramid level '
+            '$total, at the master\'s full resolution. Not the pyramid level '
             'the viewport renders from.';
     }
   }
@@ -1402,7 +1402,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         final quality = entry['quality'];
         lines.add(
           '${format ?? 'file'}: ${path ?? outputPath}'
-          '${width != null && height != null ? ' — $width×$height' : ''}'
+          '${width != null && height != null ? ': $width×$height' : ''}'
           '${bytes is int ? ', ${ByteFormat.size(bytes)}' : ''}'
           '${quality != null ? ', quality $quality' : ''}'
           '${clamped is int && clamped > 0 ? ', $clamped samples clamped' : ''}',

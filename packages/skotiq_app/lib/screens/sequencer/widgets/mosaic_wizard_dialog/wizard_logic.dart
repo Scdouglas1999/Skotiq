@@ -486,7 +486,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       builder: (context) {
         final colors = SkotiqColors.of(context);
         return AlertDialog(
-          title: const Text('Invalid Mosaic Configuration'),
+          title: const Text('Invalid mosaic configuration'),
           content: ConstrainedBox(
             constraints: AdaptiveDialogConstraints.hybrid(
               context,

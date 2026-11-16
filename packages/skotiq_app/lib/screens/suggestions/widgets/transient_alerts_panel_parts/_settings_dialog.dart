@@ -27,7 +27,7 @@ class _TransientSettingsDialogState
     return AlertDialog(
       backgroundColor: colors.surface,
       title: Text(
-        'Transient Alert Settings',
+        'Transient alert settings',
         style: TextStyle(color: colors.textPrimary),
       ),
       content: SizedBox(
@@ -38,7 +38,7 @@ class _TransientSettingsDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Alert Sources',
+                'Alert sources',
                 style: SkotiqTypography.labelStrong.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -67,7 +67,7 @@ class _TransientSettingsDialogState
                     // and then report "No active alerts" from a feed nobody
                     // ever asked.
                     _ when !kFetchableTransientSources.contains(source) => Text(
-                        'Not polled — this build has no live feed for it; '
+                        'Not polled: this build has no live feed for it; '
                         'alerts from it can still be entered by hand',
                         style: TextStyle(
                           fontSize: SkotiqTypography.fontSize11,
@@ -86,7 +86,7 @@ class _TransientSettingsDialogState
               const SizedBox(height: 16),
 
               Text(
-                'Magnitude Threshold',
+                'Magnitude threshold',
                 style: SkotiqTypography.labelStrong.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -137,7 +137,7 @@ class _TransientSettingsDialogState
               const SizedBox(height: 16),
 
               Text(
-                'Types to Monitor',
+                'Types to monitor',
                 style: SkotiqTypography.labelStrong.copyWith(
                   color: colors.textSecondary,
                 ),

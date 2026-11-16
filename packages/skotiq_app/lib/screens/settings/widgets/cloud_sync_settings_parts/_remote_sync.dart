@@ -224,7 +224,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
               if (!status.configured) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Open Settings → Backup & Sync on the desktop imaging host '
+                  'Open Settings > Backup & restore on the desktop imaging host '
                   'to choose a provider and enter its credentials.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary,

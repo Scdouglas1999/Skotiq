@@ -57,7 +57,7 @@ class SecondaryRigCard extends ConsumerWidget {
               children: [
                 const Icon(Icons.camera_alt_outlined, size: 20),
                 const SizedBox(width: 8),
-                Text('Secondary Rig', style: theme.textTheme.titleMedium),
+                Text('Secondary rig', style: theme.textTheme.titleMedium),
                 const Spacer(),
                 if (operationInProgress)
                   SizedBox.square(

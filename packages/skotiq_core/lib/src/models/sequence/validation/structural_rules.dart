@@ -147,7 +147,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
                     '"${target.targetName}".'
               : 'Target "${target.targetName}" is still at the RA 0h / Dec +0° '
                     'placeholder. Nothing enabled under it points there yet, so '
-                    'the run is not affected — but the target does not know '
+                    'the run is not affected, but the target does not know '
                     'where it is.',
           affectedNodeId: target.id,
           code: kTargetCoordinatesUnsetCode,

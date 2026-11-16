@@ -15,7 +15,7 @@ extension _PhotometricWizardSaveNavigation
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Save Calibration',
+          'Save calibration',
           style: SkotiqTypography.button.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 12),

@@ -515,7 +515,7 @@ class FinderChartService {
         pw.Divider(thickness: 0.5, color: PdfColors.grey300),
         pw.SizedBox(height: 16),
         pw.Text(
-          'Observation Context',
+          'Observation context',
           style: pw.TextStyle(
             fontSize: 12,
             fontWeight: pw.FontWeight.bold,
@@ -524,7 +524,7 @@ class FinderChartService {
         pw.SizedBox(height: 8),
         _detailRow('Date/Time', dateStr),
         _detailRow('Location', '$latStr, $lonStr'),
-        _detailRow('Right Ascension', raStr),
+        _detailRow('Right ascension', raStr),
         _detailRow('Declination', decStr),
         _detailRow('Altitude', '${alt.toStringAsFixed(1)}\u00b0'),
         _detailRow('Azimuth', '${az.toStringAsFixed(1)}\u00b0'),

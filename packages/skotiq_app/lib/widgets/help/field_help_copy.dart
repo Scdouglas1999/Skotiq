@@ -94,14 +94,14 @@ const Map<FieldHelpId, FieldHelpCopy> kFieldHelpCopy =
     body:
         'Sensor amplification applied before the analog-to-digital conversion. '
         'Higher gain lowers read noise but reduces dynamic range and full-well '
-        "depth — use your camera's unity or manufacturer-recommended gain "
+        "depth. Use your camera's unity or manufacturer-recommended gain "
         'unless you have a specific reason not to.',
   ),
   FieldHelpId.cameraOffset: FieldHelpCopy(
     title: 'Offset',
     body: 'A constant black-level pedestal added to every pixel so the noise '
         'floor never clips to zero. Set it just high enough that the left edge '
-        "of your bias histogram clears zero — your camera's recommended offset "
+        "of your bias histogram clears zero. Your camera's recommended offset "
         'for the chosen gain is almost always correct.',
   ),
   FieldHelpId.cameraReadoutMode: FieldHelpCopy(
@@ -141,7 +141,7 @@ const Map<FieldHelpId, FieldHelpCopy> kFieldHelpCopy =
     body:
         'The maximum guide error, in pixels, that counts as "settled" after a '
         'dither or slew before the next exposure may start. Tighter values '
-        'protect sharpness but can stall on a shaky mount — 1-2 pixels suits '
+        'protect sharpness but can stall on a shaky mount. 1-2 pixels suits '
         'most rigs.',
   ),
   FieldHelpId.settleTime: FieldHelpCopy(
@@ -155,7 +155,7 @@ const Map<FieldHelpId, FieldHelpCopy> kFieldHelpCopy =
     body: 'The shortest guide pulse, in milliseconds, the built-in guider will '
         'issue; corrections that would need a briefer pulse are skipped because '
         'the mount cannot act on them reliably. Keep it within the range your '
-        'mount reports — raise it if tiny pulses make guiding jittery, lower it '
+        'mount reports. Raise it if tiny pulses make guiding jittery, lower it '
         'only if guiding responds too slowly.',
   ),
   FieldHelpId.meridianFlipTrigger: FieldHelpCopy(
@@ -167,8 +167,8 @@ const Map<FieldHelpId, FieldHelpCopy> kFieldHelpCopy =
   ),
   FieldHelpId.darkLibraryMatching: FieldHelpCopy(
     title: 'Dark matching',
-    body: 'The tolerances used to pick a stored dark for a light frame — '
-        'exposure, gain, offset, binning, and sensor temperature must all fall '
+    body: 'The tolerances used to pick a stored dark for a light frame. '
+        'Exposure, gain, offset, binning, and sensor temperature must all fall '
         'within range. Keep them tight (especially temperature and exposure) so '
         'a mismatched dark never over- or under-subtracts.',
   ),

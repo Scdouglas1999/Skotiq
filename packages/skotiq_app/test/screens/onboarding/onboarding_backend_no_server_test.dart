@@ -87,7 +87,7 @@ void main() {
     final note = find.text('No INDI server at localhost:7624.');
     expect(note, findsOneWidget);
     expect(tester.widget<Text>(note).style?.color, colors.textMuted);
-    expect(find.textContaining('nothing answered — nothing is listening'),
+    expect(find.textContaining('nothing answered: nothing is listening'),
         findsNothing);
 
     final indiChip = tester.widget<SkotiqChip>(

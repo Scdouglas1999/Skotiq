@@ -38,7 +38,7 @@ void main() {
     'LIVE: real client gets realtime events while controlling hardware',
     () async {
       if (!await _applianceReachable()) {
-        markTestSkipped('no appliance on 127.0.0.1:8080 — live probe skipped');
+        markTestSkipped('no appliance on 127.0.0.1:8080. Live probe skipped');
         return;
       }
       final backend = NetworkBackend(serverHost: '127.0.0.1', serverPort: 8080);
@@ -80,7 +80,7 @@ void main() {
         mounts,
         isNotEmpty,
         reason:
-            'No mount connected on the appliance — connect the INDI sim mount first',
+            'No mount connected on the appliance. Connect the INDI sim mount first',
       );
       final mountId = mounts.first.id;
 
@@ -107,7 +107,7 @@ void main() {
         distinctRa,
         greaterThan(1),
         reason:
-            'Polled mount status never changed across a slew — live position is stale',
+            'Polled mount status never changed across a slew. Live position is stale',
       );
 
       // 3b. DISCRETE EVENTS = WS push. A settings mutation publishes a
@@ -132,8 +132,8 @@ void main() {
         pushed,
         isNotEmpty,
         reason:
-            'The WS /events channel pushed nothing on a host mutation — '
-            'discrete live updates (sequencer/narrator/safety) would not reach the tablet',
+            'The WS /events channel pushed nothing on a host mutation. '
+            'Discrete live updates (sequencer/narrator/safety) would not reach the tablet',
       );
 
       await evSub.cancel();
@@ -147,7 +147,7 @@ void main() {
     'LIVE: remote client authors, runs, and monitors a sequence server-side',
     () async {
       if (!await _applianceReachable()) {
-        markTestSkipped('no appliance on 127.0.0.1:8080 — live probe skipped');
+        markTestSkipped('no appliance on 127.0.0.1:8080. Live probe skipped');
         return;
       }
       final backend = NetworkBackend(serverHost: '127.0.0.1', serverPort: 8080);
@@ -281,7 +281,7 @@ void main() {
         isTrue,
         reason:
             'The server-side sequencer never started an exposure or streamed '
-            'progress — remote run did not execute on the appliance',
+            'progress. Remote run did not execute on the appliance',
       );
       // ignore: avoid_print
       print(

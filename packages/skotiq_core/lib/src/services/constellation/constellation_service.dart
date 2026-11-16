@@ -131,7 +131,7 @@ class ConstellationService {
       if (info.healpixOrder != _order) {
         throw ConstellationException(
           'Hub "${info.name}" tiles at order ${info.healpixOrder}, but this '
-          'atlas federates at order $_order — incompatible tiling.',
+          'atlas federates at order $_order. Incompatible tiling.',
           kind: ConstellationErrorKind.geometryMismatch,
         );
       }
@@ -541,7 +541,7 @@ class ConstellationService {
       final info = await client.info();
       if (!info.acceptsRawSubs) {
         throw ConstellationException(
-          'Hub "${info.name}" does not accept raw subframes — only additive '
+          'Hub "${info.name}" does not accept raw subframes. Only additive '
           'co-add sums can be contributed here.',
           kind: ConstellationErrorKind.conflict,
         );

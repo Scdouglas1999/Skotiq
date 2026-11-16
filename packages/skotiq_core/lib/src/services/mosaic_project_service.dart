@@ -412,7 +412,7 @@ class MosaicProjectService {
             panelIndex: panel.panelIndex,
             integratedMasterId: masterId,
             reason:
-                'panel master FITS missing on disk — skipped so it does not '
+                'panel master FITS missing on disk. Skipped so it does not '
                 'abort the whole mosaic',
           ),
         );
@@ -435,7 +435,7 @@ class MosaicProjectService {
               integratedMasterId: masterId,
               reason:
                   'panel master has no WCS (no persisted CD-matrix and no '
-                  'WCS in the FITS header) — skipped so it does not abort the '
+                  'WCS in the FITS header). Skipped so it does not abort the '
                   'whole mosaic',
             ),
           );

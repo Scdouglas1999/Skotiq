@@ -38,7 +38,7 @@ class LayersPanel extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 16),
             children: [
               _Group(
-                title: 'Stars & Deep Sky',
+                title: 'Stars & deep sky',
                 colors: colors,
                 children: [
                   _LayerSwitch(
@@ -111,7 +111,7 @@ class LayersPanel extends ConsumerWidget {
                 ],
               ),
               _Group(
-                title: 'Grids & Lines',
+                title: 'Grids & lines',
                 colors: colors,
                 children: [
                   // 'Coordinate grid' is the master switch; the two frame
@@ -199,7 +199,7 @@ class LayersPanel extends ConsumerWidget {
                 ],
               ),
               _Group(
-                title: 'Ground & Site',
+                title: 'Ground & site',
                 colors: colors,
                 children: [
                   _LayerSwitch(

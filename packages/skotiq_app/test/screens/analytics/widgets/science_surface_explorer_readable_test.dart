@@ -194,7 +194,7 @@ void main() {
     expect(
       canvas.textAt,
       hasLength(4),
-      reason: 'one tag per grid corner — r0·c0, r0·c4, r4·c0, r4·c4',
+      reason: 'one tag per grid corner: r0·c0, r0·c4, r4·c0, r4·c4',
     );
 
     // Each tag sits on the corner it names, wherever the surface is orbited to.

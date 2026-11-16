@@ -190,7 +190,7 @@ void main() {
       expect(clipped, 0,
           reason:
               'At zoom $zoom the clipped survey background bled $clipped px '
-              'past the ${canvasW}x$canvasH canvas — the ClipRect must contain '
+              'past the ${canvasW}x$canvasH canvas. The ClipRect must contain '
               'it so it never paints behind the sidebar.');
 
       if (zoom > 1.0) {

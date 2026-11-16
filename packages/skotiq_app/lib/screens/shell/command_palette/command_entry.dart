@@ -113,16 +113,26 @@ class CommandEntry {
 /// across every group, the first in display order among equals. The groups
 /// keep their fixed order for scanning, but a target whose name only begins
 /// with what was typed must not win Enter from a screen named by it ("polar"
-/// opened Framing on Polaris, not Polar alignment).
+/// opened Framing on Polaris, not Polar alignment), and a screen whose name
+/// begins with what was typed beats every target and setting ("pl" opens
+/// Plan, not the Pleiades).
 int bestCommandIndex(List<CommandEntry> entries, String query) {
   var best = 0;
   var bestRank = 1 << 30;
   for (var i = 0; i < entries.length; i++) {
-    final rank = entries[i].rank(query);
+    final rank = _enterRank(entries[i], query);
     if (rank < bestRank) {
       best = i;
       bestRank = rank;
     }
   }
   return best;
+}
+
+int _enterRank(CommandEntry entry, String query) {
+  final rank = entry.rank(query);
+  const screenNamePrefix = 1;
+  return entry.group == CommandGroup.screens && rank <= screenNamePrefix
+      ? rank - screenNamePrefix - 1
+      : rank;
 }

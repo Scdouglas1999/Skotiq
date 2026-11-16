@@ -223,14 +223,12 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
           description:
               'No matching darks found for ${missing.length} exposure combination'
               '${missing.length == 1 ? "" : "s"}:\n$lines$tempSource',
-          // Name the destination the navigation actually has. There is no
-          // "Calibration" entry anywhere in the app: the dark library lives at
-          // Settings > Equipment > Dark Library, and a hint that names a screen
-          // the user cannot find is worse than no hint.
+          // Name the destination the navigation actually has: a hint that
+          // names a screen the user cannot find is worse than no hint.
           resolutionHint:
-              'Capture darks for the missing combinations. Open Settings → '
-              'Equipment → Dark Library to schedule them, or run the '
-              '"Capture missing darks" action from the pre-flight dialog.',
+              'Capture darks for the missing combinations in Darkroom > '
+              'Calibration, or run the "Capture missing darks" action from '
+              'the pre-flight dialog.',
         ),
       );
     }
@@ -239,20 +237,20 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
       final lines = underCovered.entries
           .map(
             (e) =>
-                '  • ${e.key.describe()} — ${e.value} of ${settings.darkLibraryMinCoverage} frames',
+                '  • ${e.key.describe()}: ${e.value} of ${settings.darkLibraryMinCoverage} frames',
           )
           .join('\n');
       issues.add(
         ValidationIssue(
           severity: severity,
           category: ValidationCategory.darkLibrary,
-          title: 'Low Dark Library Coverage',
+          title: 'Low dark library coverage',
           description:
               'Some combinations have fewer than ${settings.darkLibraryMinCoverage} '
               'darks (below the configured quorum):\n$lines$tempSource',
           resolutionHint:
-              'Capture additional darks to reach the quorum, then create a '
-              'master dark from Settings → Equipment → Dark Library.',
+              'Capture additional darks to reach the quorum, then build a '
+              'master dark in Darkroom > Calibration.',
         ),
       );
     }
@@ -751,7 +749,7 @@ class PolarAlignmentFreshnessRule implements RefAwareSequenceValidator {
             'Final error was ${entry.finalTotalError.toStringAsFixed(1)} arcmin.',
         resolutionHint:
             'Re-run polar alignment from the Equipment screen or Sequencer '
-            'toolbar, or raise the freshness threshold in Settings → Pre-Flight.',
+            'toolbar, or raise the freshness threshold in Settings > Pre-flight checks.',
       ),
     ];
   }
@@ -888,7 +886,7 @@ class CoolerDeltaRule implements RefAwareSequenceValidator {
         title: 'Cooler May Not Reach Setpoint',
         description:
             'Ambient/sensor is ${formatCelsius(ambient)}, target '
-            'is ${formatCelsius(cam.targetTemp)} — '
+            'is ${formatCelsius(cam.targetTemp)}: '
             '${formatCelsius(delta, decimals: 0)} below ambient exceeds typical '
             'TEC headroom (~${formatCelsius(maxRealisticDeltaC, decimals: 0)}).',
         resolutionHint:
@@ -1011,7 +1009,7 @@ class OpticalTrainPreflightRule implements RefAwareSequenceValidator {
             'collimation Δ ${dColl.toStringAsFixed(1)}.',
         resolutionHint:
             'Recheck spacers, tilter, and focuser backfocus before a long '
-            'run — or accept the baseline shift in Analytics → Optical Train.',
+            'run, or accept the baseline shift in Analytics → Optical Train.',
       ),
     ];
   }

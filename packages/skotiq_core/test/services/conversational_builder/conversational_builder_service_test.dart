@@ -60,7 +60,7 @@ void main() {
       );
     });
 
-    test('happy path — valid sequence on round 1', () async {
+    test('happy path: valid sequence on round 1', () async {
       final provider = _FakeLlmProvider(replies: [_stockValidSequence]);
       final service = ConversationalBuilderService(
         provider: provider,
@@ -79,7 +79,7 @@ void main() {
     });
 
     test(
-      'self-correction — invalid JSON on round 1, valid on round 2',
+      'self-correction: invalid JSON on round 1, valid on round 2',
       () async {
         final provider = _FakeLlmProvider(
           replies: ['Sorry, no JSON for you.', _stockValidSequence],

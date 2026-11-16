@@ -18,7 +18,7 @@ import 'surface_golden_harness.dart';
 void main() {
   setUpAll(SurfaceGoldenHarness.ensureFonts);
 
-  testWidgets('morning report — master overlay view (dark)', (tester) async {
+  testWidgets('morning report: master overlay view (dark)', (tester) async {
     tester.view.physicalSize = const Size(700, 620);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

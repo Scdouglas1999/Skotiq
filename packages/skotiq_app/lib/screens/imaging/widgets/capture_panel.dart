@@ -442,7 +442,7 @@ class CapturePanel extends ConsumerWidget {
               children: [
                 Icon(SkotiqIcons.stopCircle, color: colors.warning),
                 const SizedBox(width: 12),
-                const Text('End Session'),
+                const Text('End session'),
               ],
             ),
             content: Column(

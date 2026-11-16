@@ -94,7 +94,7 @@ void main() {
       test('the headline of an info finding reads as a sentence', () {
         expect(
           svc.analyze(night(null)).headline,
-          'Good night — sky background rose through the night.',
+          'Good night: sky background rose through the night.',
         );
       });
 

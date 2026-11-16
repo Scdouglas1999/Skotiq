@@ -198,7 +198,7 @@ extension _CalibrationLibrarySharing on CalibrationLibraryService {
     }
     reasons.add(buffer.toString());
     warnings.add(
-      'This is a SHARED master you did not capture — review its provenance '
+      'This is a SHARED master you did not capture. Review its provenance '
       'before trusting your calibration to it.',
     );
   }

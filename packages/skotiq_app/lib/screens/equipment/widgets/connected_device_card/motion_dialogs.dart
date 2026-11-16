@@ -244,7 +244,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
               }
             },
             child: SkotiqDialog(
-              title: 'Rotate To Angle',
+              title: 'Rotate to angle',
               icon: LucideIcons.rotateCcw,
               width: 400,
               actions: [
@@ -379,7 +379,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
           return PopScope(
             canPop: !isSending,
             child: SkotiqDialog(
-              title: 'Slew Dome To Azimuth',
+              title: 'Slew dome to azimuth',
               icon: LucideIcons.navigation,
               width: 400,
               actions: [

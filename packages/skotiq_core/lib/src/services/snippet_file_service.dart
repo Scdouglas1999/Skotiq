@@ -258,7 +258,7 @@ class SnippetFileService {
           field: 'kind',
           message:
               'Expected "$snippetFileKind", got "$kind". '
-              'This may be a Skotiq sequence file (.skeq.json) — '
+              'This may be a Skotiq sequence file (.skeq.json): '
               'open it from the sequence editor instead.',
         ),
       );

@@ -74,7 +74,7 @@ class ImagingSidePanel extends ConsumerWidget {
       // The strip is glyphs only, and a target reticle says nothing about
       // what DepthLock is. The tooltip is the only place the section can
       // introduce itself.
-      tooltip: 'DepthLock — goals for faint detail',
+      tooltip: 'DepthLock: goals for faint detail',
     ),
   ];
 

@@ -70,7 +70,7 @@ void main() {
     expect(_applyEnabled(tester), isTrue);
     expect(find.byKey(_pendingKey), findsOneWidget);
     expect(
-      find.text('Not applied yet — press Apply to send these to the guider.'),
+      find.text('Not applied yet: press Apply to send these to the guider.'),
       findsOneWidget,
     );
   });

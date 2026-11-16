@@ -53,8 +53,8 @@ void main() {
           match,
           isNotNull,
           reason:
-              'the 60.0s dark MUST be returned for a 60.0s request — '
-              'this is the failure mode the audit identified',
+              'the 60.0s dark MUST be returned for a 60.0s request. '
+              'This is the failure mode the audit identified',
         );
         expect(match!.filePath, '/tmp/dark_60s.fits');
       },

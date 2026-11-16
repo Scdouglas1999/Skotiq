@@ -63,7 +63,7 @@ void main() {
     );
     expect(
       find.bySemanticsLabel(
-        RegExp(r'Alpaca: nothing answered — No Alpaca server answered'),
+        RegExp(r'Alpaca: nothing answered: No Alpaca server answered'),
       ),
       findsWidgets,
     );

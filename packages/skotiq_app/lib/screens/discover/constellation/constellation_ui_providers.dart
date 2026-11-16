@@ -38,8 +38,8 @@ extension ConstellationPrivacyText on ConstellationPrivacy {
       : 'Share raw subframes';
 
   String get blurb => this == ConstellationPrivacy.sums
-      ? 'Only the additive stack your atlas already keeps leaves this device — '
-          'never your individual exposures. Others cannot recover your subs.'
+      ? 'Only the additive stack your atlas already keeps leaves this device. '
+          'Never your individual exposures. Others cannot recover your subs.'
       : 'Every calibrated subframe is uploaded so the hub can re-grade and '
           'reject centrally. Larger, slower, and more revealing of your rig.';
 }

@@ -259,7 +259,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       throw const ServerError(
         code: ApiErrorBody.invalidToken,
         message:
-            'Access denied: Invalid authentication token (not retried — '
+            'Access denied: Invalid authentication token (not retried: '
             'the host rejected this token)',
         httpStatus: HttpStatus.forbidden,
       );

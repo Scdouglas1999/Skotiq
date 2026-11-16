@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/utils/driver_error_pretty.dart';
 
 void main() {
-  group('PrettyError.format — null / empty handling', () {
+  group('PrettyError.format: null / empty handling', () {
     test('null source falls back to "(no message)" and is not recognized', () {
       final pretty = PrettyError.format(null);
       expect(pretty.full, '(no message)');
@@ -25,7 +25,7 @@ void main() {
     });
   });
 
-  group('PrettyError.format — ASCOM HRESULT recognition', () {
+  group('PrettyError.format: ASCOM HRESULT recognition', () {
     test('prepends the canonical name for a known ASCOM HRESULT', () {
       final pretty = PrettyError.format(
         'Slew refused: ASCOM error 0x80040403 - device offline',
@@ -77,7 +77,7 @@ void main() {
     });
   });
 
-  group('PrettyError.format — Alpaca recognition', () {
+  group('PrettyError.format: Alpaca recognition', () {
     test('Alpaca HTTP 500 gets the canonical reason phrase', () {
       final pretty = PrettyError.format(
         'Alpaca returned HTTP 500: InvalidValue',
@@ -111,7 +111,7 @@ void main() {
     });
   });
 
-  group('PrettyError.format — INDI recognition', () {
+  group('PrettyError.format: INDI recognition', () {
     test('INDI property + Alert state gets a structured label', () {
       final pretty = PrettyError.format(
         'INDI property CCD_EXPOSURE state Alert: hardware fault',
@@ -129,7 +129,7 @@ void main() {
     });
   });
 
-  group('PrettyError.format — unknown / vendor messages pass through', () {
+  group('PrettyError.format: unknown / vendor messages pass through', () {
     test('native vendor errors are not modified', () {
       // ZWO ASI / QHY / Touptek vendor messages are typically already
       // human-readable. We must not prepend anything.
@@ -148,7 +148,7 @@ void main() {
     });
   });
 
-  group('PrettyError.format — truncation', () {
+  group('PrettyError.format: truncation', () {
     test('short field never exceeds maxShortChars', () {
       // Build a 200-char raw message.
       final raw = 'X' * 200;

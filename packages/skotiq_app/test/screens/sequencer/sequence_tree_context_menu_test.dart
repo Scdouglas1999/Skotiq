@@ -375,8 +375,8 @@ void main() {
     );
 
     await _openMenu(tester, find.text('row'));
-    expect(find.text('Move Up'), findsOneWidget);
-    await tester.tap(find.text('Move Up'));
+    expect(find.text('Move up'), findsOneWidget);
+    await tester.tap(find.text('Move up'));
     await tester.pumpAndSettle();
 
     final parent =
@@ -401,7 +401,7 @@ void main() {
     );
 
     await _openMenu(tester, find.text('row'));
-    await tester.tap(find.text('Move Down'));
+    await tester.tap(find.text('Move down'));
     await tester.pumpAndSettle();
 
     final parent =
@@ -427,7 +427,7 @@ void main() {
 
     await _openMenu(tester, find.text('row'));
     // Flutter swallows taps on disabled PopupMenuItems — order must hold.
-    await tester.tap(find.text('Move Up'));
+    await tester.tap(find.text('Move up'));
     await tester.pumpAndSettle();
 
     final parent =

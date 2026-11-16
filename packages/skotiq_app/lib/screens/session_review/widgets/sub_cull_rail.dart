@@ -237,7 +237,7 @@ class _SubCullRailState extends ConsumerState<SubCullRail> {
         break;
       case CullOutcome.staleCurve:
         message =
-            'Curve is out of date — re-integrate to refresh before culling';
+            'Curve is out of date. Re-integrate to refresh before culling';
         break;
     }
     context.showInfoSnackBar(message);

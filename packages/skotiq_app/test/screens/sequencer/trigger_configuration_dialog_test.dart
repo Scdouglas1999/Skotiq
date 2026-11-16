@@ -32,7 +32,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // ExposureTriggerConfig round-trip.
-  group('ExposureTriggerConfig — drift RA/Dec round-trip', () {
+  group('ExposureTriggerConfig: drift RA/Dec round-trip', () {
     test('drift triggers serialize RA and Dec independently', () {
       final cfg = ExposureTriggerConfig(
         condition: TriggerConditionType.drift,
@@ -93,7 +93,7 @@ void main() {
   });
 
   // Switching condition type resets threshold to the new default.
-  group('TriggerConfigurationDialog — type-switch resets threshold', () {
+  group('TriggerConfigurationDialog: type-switch resets threshold', () {
     Future<void> openEditForFirstTrigger(WidgetTester tester) async {
       // Open the edit dialog by tapping the edit icon on the first row.
       await tester.tap(find.byTooltip('Edit'));
@@ -180,7 +180,7 @@ void main() {
   });
 
   // TextEditingController stability — typing must not drop chars.
-  group('TriggerConfigurationDialog — controller stability', () {
+  group('TriggerConfigurationDialog: controller stability', () {
     testWidgets(
       'the threshold field controller is reused across rebuilds; fast typing '
       'is not eaten',
@@ -239,7 +239,7 @@ void main() {
         expect(
           tester.widget<TextField>(fieldFinder).controller,
           same(initialController),
-          reason: 'controller must persist across rebuilds — a fresh '
+          reason: 'controller must persist across rebuilds. A fresh '
               'controller per build drops characters during fast typing.',
         );
         // While the field is still focused, the text must equal exactly
@@ -262,7 +262,7 @@ void main() {
   // Owner decision 2026-10-06: an image-quality judgment never stops a run by
   // itself. A trigger the operator adds tells them and keeps imaging until they
   // pick a stopping action.
-  group('TriggerConfigurationDialog — new triggers notify', () {
+  group('TriggerConfigurationDialog: new triggers notify', () {
     testWidgets('Add trigger gives a trigger that notifies and keeps imaging',
         (tester) async {
       List<ExposureTriggerConfig>? saved;

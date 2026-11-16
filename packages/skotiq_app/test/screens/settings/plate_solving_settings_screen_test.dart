@@ -223,7 +223,7 @@ void main() {
       );
 
       expect(
-        find.text('Astrometry.net ready — Auto fallback active'),
+        find.text('Astrometry.net ready: Auto fallback active'),
         findsOneWidget,
       );
       expect(find.textContaining('catalog missing'), findsNothing);

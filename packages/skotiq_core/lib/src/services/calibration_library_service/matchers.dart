@@ -38,7 +38,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
           : null;
       score -= 25;
       warnings.add(
-        'No dark at ${_fmtSecs(ctx.exposureSeconds)} — nearest is '
+        'No dark at ${_fmtSecs(ctx.exposureSeconds)}: nearest is '
         '${_fmtSecs(darkExp ?? 0)}; the dark will be scaled'
         '${scaleFactor != null ? ' by ${scaleFactor.toStringAsFixed(2)}x' : ''}.'
         ' Capture a matching-exposure dark for best results.',
@@ -64,8 +64,8 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     if (!best.isMaster) {
       score -= 15;
       warnings.add(
-        'Matched a raw dark frame, not a stacked master — '
-        'stack your darks to reduce injected noise.',
+        'Matched a raw dark frame, not a stacked master. '
+        'Stack your darks to reduce injected noise.',
       );
     } else if (best.frameCount != null) {
       reasons.add('Stacked master of ${best.frameCount} frames');
@@ -169,7 +169,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
         best.opticalTrainId == null) {
       score -= 10;
       warnings.add(
-        'Flat has no optical-train tag — verify it was shot with '
+        'Flat has no optical-train tag. Verify it was shot with '
         'the current optical configuration ($wantTrain).',
       );
     }
@@ -215,7 +215,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
         score -= math.min(20.0, 2.0 * delta);
         warnings.add(
           'Defect map was built ${formatCelsius(delta)} from '
-          'the current sensor temperature — hot-pixel sets shift with '
+          'the current sensor temperature. Hot-pixel sets shift with '
           'cooling setpoint.',
         );
       }
@@ -286,14 +286,14 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
         warnings.add(
           'These light frames were taken with a DSLR before Skotiq recorded '
           'ISO speeds, so their ISO is unknown and the $label was matched '
-          'without comparing it — confirm the $label was shot at the same ISO.',
+          'without comparing it. Confirm the $label was shot at the same ISO.',
         );
         continue;
       }
       reasons.add('$dimension UNVERIFIED (the lights record none)');
       warnings.add(
         'The light frames record no $dimension, so the $label was matched '
-        'without comparing it — confirm the $label was shot at the same '
+        'without comparing it. Confirm the $label was shot at the same '
         '$dimension.',
       );
     }

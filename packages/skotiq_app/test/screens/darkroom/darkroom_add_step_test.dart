@@ -1023,7 +1023,7 @@ void main() {
 
       // And each operation keeps the node it always had.
       expect(
-        find.bySemanticsLabel(RegExp('^Add Denoise v1 — Linear stage')),
+        find.bySemanticsLabel(RegExp('^Add Denoise v1: Linear stage')),
         findsOneWidget,
       );
 
@@ -1130,7 +1130,7 @@ void main() {
       // And the one node that IS the control carries every sentence its card
       // shows, so nothing was silenced to stop the repetition.
       final denoise =
-          _dataLabelStartingWith(tester, RegExp('^Add Denoise v1 — '));
+          _dataLabelStartingWith(tester, RegExp('^Add Denoise v1: '));
       expect(denoise, isNotNull);
       expect(denoise!.label, contains(summary));
       expect(denoise.label, contains(placement));

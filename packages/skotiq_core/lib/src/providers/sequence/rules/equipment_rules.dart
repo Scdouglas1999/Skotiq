@@ -246,7 +246,7 @@ class DitherWithoutGuiderRule implements RefAwareSequenceValidator {
 String _guiderResolutionHint(GuiderState gs) {
   final id = gs.deviceId;
   if (id == null) {
-    return 'Connect a guider in the Equipment panel — the built-in '
+    return 'Connect a guider in the Equipment panel. The built-in '
         'multi-star guider, or PHD2.';
   }
   if (isPhd2DeviceId(id)) return 'Connect to PHD2 in the Guiding panel.';

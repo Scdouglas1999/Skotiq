@@ -165,7 +165,7 @@ void main() {
   );
 
   test(
-    'SUBS with no resolver (a slave) is refused — only host pixels share',
+    'SUBS with no resolver (a slave) is refused. Only host pixels share',
     () async {
       final service = serviceWith(
         MockClient((_) async => infoResp(acceptsRawSubs: true)),

@@ -128,7 +128,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         : widget.label ??
             switch (mainMode) {
               SlewMode.slew => 'Slew',
-              SlewMode.slewAndCenter => 'Slew & Center',
+              SlewMode.slewAndCenter => 'Slew & center',
               SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
             };
 
@@ -179,7 +179,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                 colors,
                 mode: SlewMode.slewAndCenter,
                 icon: LucideIcons.target,
-                label: 'Slew & Center',
+                label: 'Slew & center',
                 solverMissing: solverMissing,
               ),
               if (showRotateOption)
@@ -425,10 +425,10 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         context: context,
         title: 'Target is below the horizon',
         message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
-            'horizon right now ($where) — it is under the ground. Slewing '
+            'horizon right now ($where): it is under the ground. Slewing '
             'there can drive the telescope into the pier, a tripod leg or the '
             'ground. Check the coordinates, and check your site in '
-            'Settings → Location.',
+            'Settings > Location.',
         confirmLabel: 'Slew anyway',
         isDestructive: true,
       );
@@ -439,7 +439,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       title: 'Target is below your horizon limit',
       message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
           'horizon ($where), under the site\'s ${floorDeg.toStringAsFixed(0)}° '
-          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings → Location)' : 'minimum altitude'}. '
+          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings > Location)' : 'minimum altitude'}. '
           'It may be behind trees or a roof, and it will be looking through '
           'a lot of air.',
       confirmLabel: 'Slew anyway',

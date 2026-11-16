@@ -314,7 +314,7 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
             Expanded(
               child: Text(
                 'No filter wheel connected and no filters on the active '
-                'profile — adaptive applies to every capture (mono camera '
+                'profile. Adaptive applies to every capture (mono camera '
                 'assumption).',
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,

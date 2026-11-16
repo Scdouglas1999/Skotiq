@@ -81,7 +81,7 @@ extension _WizardShell on _QuickStartWizardDialogState {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Quick-Start Sequence Wizard',
+                  'Quick-start sequence wizard',
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: SkotiqTypography.fontSize18,

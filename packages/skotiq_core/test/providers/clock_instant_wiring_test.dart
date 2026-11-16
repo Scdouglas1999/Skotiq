@@ -95,7 +95,7 @@ void main() {
         rebased.difference(truth).abs(),
         greaterThan(const Duration(minutes: 1)),
         reason:
-            'now().toUtc() is expected to be wrong — that is precisely why '
+            'now().toUtc() is expected to be wrong. That is precisely why '
             'nowUtc() exists. If this ever passes, Dart grew offset-aware '
             'DateTimes and the whole seam can be simplified.',
       );

@@ -79,7 +79,7 @@ class RemediationStep {
   @override
   String toString() => detail == null
       ? 'RemediationStep($instruction)'
-      : 'RemediationStep($instruction — $detail)';
+      : 'RemediationStep($instruction: $detail)';
 }
 
 /// The result of diagnosing a connection failure: a category, a short
@@ -389,7 +389,7 @@ String _plainLanguageFor(
     case DiagnosticCategory.usb:
       return 'Skotiq never saw your $device. This is almost always a '
           'physical connection or driver-install problem rather than a '
-          'software bug — the $device has to enumerate on the computer before '
+          'software bug. The $device has to enumerate on the computer before '
           'we can talk to it.';
     case DiagnosticCategory.driver:
       return 'Skotiq reached the $driver driver layer, but the driver '
@@ -407,7 +407,7 @@ String _plainLanguageFor(
           'connection.';
     case DiagnosticCategory.configuration:
       if (_containsAny(error, _firstPartySetupMarkers)) {
-        return "Skotiq's built-in guider is software — it reuses your "
+        return "Skotiq's built-in guider is software. It reuses your "
             'imaging camera and mount, so there is no cable or power to '
             'check. It stopped before connecting because a value it needs '
             'from your equipment profile is missing or zero. The raw message '
@@ -569,7 +569,7 @@ List<RemediationStep> _driverSteps({
         instruction: 'Re-run ASCOM Diagnostics to confirm the driver loads',
         detail:
             'A "class not registered" error means the driver is not '
-            'installed correctly — reinstall it from the manufacturer.',
+            'installed correctly. Reinstall it from the manufacturer.',
       ),
     );
   } else if (_isNetworkDriver(driverType)) {
@@ -670,7 +670,7 @@ List<RemediationStep> _networkSteps({
       instruction: 'Verify the host address and port',
       detail:
           'Double-check the IP/hostname matches the server machine and '
-          'that the port is correct — $defaultPortHint.',
+          'that the port is correct. $defaultPortHint.',
     ),
     RemediationStep(
       instruction: 'Check the firewall allows the connection',
@@ -714,7 +714,7 @@ List<RemediationStep>? _firstPartySetupSteps(String error) {
       RemediationStep(
         instruction: 'Save the profile, then connect the guider again',
         detail:
-            'No restart is needed — the guider re-reads the profile on '
+            'No restart is needed. The guider re-reads the profile on '
             'each connect.',
       ),
     ];
@@ -749,7 +749,7 @@ List<RemediationStep>? _firstPartySetupSteps(String error) {
     RemediationStep(
       instruction: 'Assign and connect a camera and a mount in this profile',
       detail:
-          'The built-in guider has no hardware of its own — it guides using '
+          'The built-in guider has no hardware of its own. It guides using '
           'the imaging camera and pulses the mount, so both have to be '
           'assigned in the active profile and connected first.',
     ),
@@ -792,7 +792,7 @@ List<RemediationStep> _configurationSteps({
       RemediationStep(
         instruction: 'Review the $device parameters on the $driver server',
         detail:
-            'Check the server-side device configuration — an unset or '
+            'Check the server-side device configuration. An unset or '
             'out-of-range parameter will be rejected when Skotiq '
             'connects.',
       ),
@@ -839,7 +839,7 @@ List<RemediationStep> _unknownSteps({
     const RemediationStep(
       instruction: 'Read the raw error below for the specific cause',
       detail:
-          'The original driver message is shown verbatim — it often names '
+          'The original driver message is shown verbatim. It often names '
           'the exact problem, and is what to share with support if you get '
           'stuck.',
     ),

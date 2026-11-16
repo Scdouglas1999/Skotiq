@@ -161,7 +161,7 @@ void main() {
         isNot(before),
         reason:
             'the indeterminate sweep must actually move once the bar is back '
-            'on screen — a running ticker elsewhere in the tree is not proof '
+            'on screen. A running ticker elsewhere in the tree is not proof '
             'that this animation resumed',
       );
     });
@@ -252,7 +252,7 @@ Future<void> expectIdlesAtRest(WidgetTester tester, String what) async {
   const explanation =
       'This means a widget is animating at rest. A running Ticker schedules a '
       'frame on every vsync, so the app never idles and EVERY screen renders '
-      'at a degraded framerate — find the running Ticker and gate it on real '
+      'at a degraded framerate. Find the running Ticker and gate it on real '
       'state (see OnScreenAnimationGate in skotiq_ui).';
 
   try {

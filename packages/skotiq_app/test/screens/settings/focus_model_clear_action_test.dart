@@ -56,7 +56,7 @@ Future<_SwappableBackendNotifier> _pump(
 }
 
 Future<void> _confirmClear(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(SkotiqButton, 'Clear Model Data'));
+  await tester.tap(find.widgetWithText(SkotiqButton, 'Clear model data'));
   await tester.pump();
   await tester.tap(find.widgetWithText(SkotiqButton, 'Clear'));
   await tester.pump();
@@ -78,7 +78,7 @@ void main() {
     await _confirmClear(tester);
     verify(() => hostA.clearFocusModelData()).called(1);
     final clearingButton = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Clear Model Data'),
+      find.widgetWithText(SkotiqButton, 'Clear model data'),
     );
     expect(clearingButton.onPressed, isNull);
     expect(clearingButton.isLoading, isTrue);
@@ -95,7 +95,7 @@ void main() {
     expect(find.text('Focus model data cleared'), findsNothing);
     expect(find.text('Host B model'), findsOneWidget);
     final hostBButton = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Clear Model Data'),
+      find.widgetWithText(SkotiqButton, 'Clear model data'),
     );
     expect(hostBButton.onPressed, isNotNull);
     expect(hostBButton.isLoading, isFalse);
@@ -116,7 +116,7 @@ void main() {
     expect(find.textContaining('Clear failed'), findsOneWidget);
     expect(find.textContaining('database busy'), findsOneWidget);
     final button = tester.widget<SkotiqButton>(
-      find.widgetWithText(SkotiqButton, 'Clear Model Data'),
+      find.widgetWithText(SkotiqButton, 'Clear model data'),
     );
     expect(button.onPressed, isNotNull);
     expect(button.isLoading, isFalse);

@@ -151,8 +151,8 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
         _statusMessage = n > 0
             ? 'Connected. Found $n device${n == 1 ? '' : 's'}.'
             : 'No INDI devices at ${inputs.host}:${inputs.port}. If '
-                'indiserver is running there, it has no drivers loaded — '
-                'otherwise check the host and port.';
+                'indiserver is running there, it has no drivers loaded. '
+                'Otherwise check the host and port.';
       });
     } catch (e) {
       if (!mounted) return;

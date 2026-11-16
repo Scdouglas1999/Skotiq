@@ -152,7 +152,7 @@ Future<void> _tapTab(WidgetTester tester, String label) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('PlannerTab.fromQuery — consolidated Projects + Schedule wiring', () {
+  group('PlannerTab.fromQuery: consolidated Projects + Schedule wiring', () {
     test('maps Projects + the folded Progress aliases', () {
       // Projects now absorbs the former standalone Progress tab, so its legacy
       // deep-links resolve onto Projects (the all-targets scope).

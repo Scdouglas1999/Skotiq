@@ -61,17 +61,17 @@ String runStatusMeaning(SequenceRunStatus status) => switch (status) {
       SequenceRunStatus.running => 'Under way right now.',
       SequenceRunStatus.paused => 'Under way, held at the operator\'s request.',
       SequenceRunStatus.failed =>
-        'Did not finish — the sequencer hit an error it could not recover '
+        'Did not finish: the sequencer hit an error it could not recover '
             'from.',
       SequenceRunStatus.aborted =>
-        'Did not finish — a safety rule or a trigger ended it.',
+        'Did not finish: a safety rule or a trigger ended it.',
       SequenceRunStatus.stopped =>
-        'Did not finish — you stopped it, and no checkpoint was kept.',
+        'Did not finish: you stopped it, and no checkpoint was kept.',
       SequenceRunStatus.stoppedResumable =>
-        'Did not finish — you stopped it, and the checkpoint was kept so it '
+        'Did not finish: you stopped it, and the checkpoint was kept so it '
             'can be resumed.',
       SequenceRunStatus.interrupted =>
-        'Did not finish — the app or the machine went down mid-run; this was '
+        'Did not finish: the app or the machine went down mid-run; this was '
             'reconciled at the next start.',
     };
 

@@ -17,7 +17,7 @@ class CompassCalibrationDialog extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Compass Calibration',
+              'Compass calibration',
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize18,
                 fontWeight: FontWeight.bold,
@@ -88,7 +88,7 @@ class CompassCalibrationDialog extends StatelessWidget {
         ),
         SkotiqButton(
           onPressed: () => Navigator.of(context).pop(true),
-          label: 'Enable Sky Aiming',
+          label: 'Enable sky aiming',
         ),
       ],
     );

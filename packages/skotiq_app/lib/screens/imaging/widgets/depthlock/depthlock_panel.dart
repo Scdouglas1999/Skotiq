@@ -129,7 +129,7 @@ class _GoalList extends ConsumerWidget {
           if (status != null && status.available && status.dropped > 0) ...[
             SkotiqInlineBanner(
               message: '${status.dropped} frames were not analyzed because the '
-                  'analysis queue was full. They are still on disk — offer '
+                  'analysis queue was full. They are still on disk. Offer '
                   'them to a goal with "Add frames".',
               severity: SkotiqAlertSeverity.warning,
             ),

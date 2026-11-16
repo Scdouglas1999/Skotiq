@@ -305,7 +305,7 @@ void main() {
 
   testWidgets(
       'Activity shows last-known values after the run clears the '
-      'maps — seeded while the Settings tab was shown', (tester) async {
+      'maps. Seeded while the Settings tab was shown', (tester) async {
     final handle = await pumpPanel(tester);
     final node = ExposureNode(name: 'L 60s', count: 4, durationSecs: 60);
     loadAndSelect(handle, singleNodeSequence(node), node.id);
@@ -341,7 +341,7 @@ void main() {
   });
 
   testWidgets(
-      'a NEW run clears last-known activity — run #2 does not show '
+      'a NEW run clears last-known activity. Run #2 does not show '
       'run #1\'s finished frames', (tester) async {
     final handle = await pumpPanel(tester);
     final node = ExposureNode(name: 'L 60s', count: 4, durationSecs: 60);
@@ -373,7 +373,7 @@ void main() {
     expect(
       find.text('Nothing has run for this node yet.'),
       findsOneWidget,
-      reason: 'run #2 has not reached this node — run #1\'s 4/4 must be gone',
+      reason: 'run #2 has not reached this node. Run #1\'s 4/4 must be gone',
     );
     await tester.pump(const Duration(seconds: 1));
   });

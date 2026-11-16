@@ -396,7 +396,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
           SliverToBoxAdapter(
             child: _SectionSentence(
               colors: colors,
-              text: 'Targets you queue from the Planetarium or Plan Tonight '
+              text: 'Targets you queue from the Planetarium or Plan '
                   'appear here, ready to drag into the sequence.',
             ),
           )

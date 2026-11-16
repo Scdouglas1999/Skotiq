@@ -204,7 +204,7 @@ class _MissingLocationCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'No observer location set — open Settings → Location and '
+              'No observer location set. Open Settings > Location and '
               'enter your latitude / longitude. Smart Night needs them to '
               'compute the dark window.',
               style: TextStyle(
@@ -502,7 +502,7 @@ class _StrategyTile extends StatelessWidget {
       case SmartNightStrategy.narrowbandHoo:
         return (
           title: 'Narrowband HOO',
-          subtitle: 'Ha + OIII bicolor — emission nebulae, bright-moon nights.',
+          subtitle: 'Ha + OIII bicolor. Emission nebulae, bright-moon nights.',
         );
       case SmartNightStrategy.narrowbandSho:
         return (
@@ -511,8 +511,8 @@ class _StrategyTile extends StatelessWidget {
         );
       case SmartNightStrategy.oscOneShot:
         return (
-          title: 'OSC One-Shot',
-          subtitle: 'Single light filter — Bayer cameras and L-eXtreme.',
+          title: 'OSC one-shot',
+          subtitle: 'Single light filter: Bayer cameras and L-eXtreme.',
         );
     }
   }

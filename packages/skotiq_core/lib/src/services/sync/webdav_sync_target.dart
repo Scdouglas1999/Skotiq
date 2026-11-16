@@ -108,7 +108,7 @@ class WebDavSyncTarget implements SyncTarget {
     };
     final detail = switch (kind) {
       SyncTargetErrorKind.auth =>
-        'authentication failed — check username/password',
+        'authentication failed: check username/password',
       SyncTargetErrorKind.notFound => 'remote path not found',
       SyncTargetErrorKind.conflict => 'remote state conflict',
       SyncTargetErrorKind.server => 'server error',

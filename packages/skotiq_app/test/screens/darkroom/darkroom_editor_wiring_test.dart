@@ -427,7 +427,7 @@ void main() {
     // Printed, the operation is named the way its step card names it.
     expect(
       darkroomDraftNoteSentence(notes.first),
-      startsWith('Color calibrate — omitted:'),
+      startsWith('Color calibrate: omitted:'),
     );
   });
 
@@ -500,8 +500,8 @@ void main() {
       findsOneWidget,
     );
     // Named the way the step cards name operations, not as the wire id.
-    expect(find.textContaining('Color calibrate — omitted:'), findsOneWidget);
-    expect(find.textContaining('color_calibrate —'), findsNothing);
+    expect(find.textContaining('Color calibrate: omitted:'), findsOneWidget);
+    expect(find.textContaining('color_calibrate:'), findsNothing);
     // The registry composed these steps, so the tag says drafted rather than
     // crediting the operator with a stack they did not choose.
     expect(find.text('Drafted at your request'), findsOneWidget);
@@ -602,11 +602,11 @@ void main() {
     // the controller clamps an out-of-range destination back onto the step's
     // own index, so an enabled control there would do nothing.
     expect(
-      find.bySemanticsLabel(RegExp('^Move Crop up — it is already first')),
+      find.bySemanticsLabel(RegExp('^Move Crop up: it is already first')),
       findsOneWidget,
     );
     expect(
-      find.bySemanticsLabel(RegExp('^Move Stretch down — it is already last')),
+      find.bySemanticsLabel(RegExp('^Move Stretch down: it is already last')),
       findsOneWidget,
     );
     semantics.dispose();
@@ -635,10 +635,10 @@ void main() {
     expect(find.bySemanticsLabel('Move Stretch up'), findsNothing);
 
     for (final name in [
-      RegExp('^Move Denoise down — the stage rule refuses that order: '
+      RegExp('^Move Denoise down: the stage rule refuses that order: '
           r'step 3 \(Denoise\) would be a linear-stage operation running '
           r'after step 2 \(Stretch\)'),
-      RegExp('^Move Stretch up — the stage rule refuses that order: '
+      RegExp('^Move Stretch up: the stage rule refuses that order: '
           r'step 3 \(Denoise\) would be a linear-stage operation running '
           r'after step 2 \(Stretch\)'),
     ]) {
@@ -786,7 +786,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     // Before: `button: FITS`, and the sentence lived only in a tooltip — which
     // is nothing at all from a keyboard, a screen reader or a touch screen.
-    final fits = find.bySemanticsLabel(RegExp('^FITS — '));
+    final fits = find.bySemanticsLabel(RegExp(r'^FITS\. '));
     expect(fits, findsOneWidget);
     expect(
       tester.getSemantics(fits).label,
@@ -860,7 +860,7 @@ void main() {
     // The master with no recipe is named too, and says so rather than being
     // dropped from a list the operator would then read as complete.
     expect(
-      find.textContaining('Master · G — no recipe yet'),
+      find.textContaining('Master · G: no recipe yet'),
       findsWidgets,
     );
     await drain(tester);

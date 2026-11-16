@@ -185,14 +185,14 @@ class _ConstellationContributeSheetState
           if (!subsSelected)
             const SkotiqBanner(
                 title: 'You only share additive co-add sums, so a contribution '
-                    'can be subtracted exactly hub-side — the shared depth returns '
+                    'can be subtracted exactly hub-side. The shared depth returns '
                     'to what it was before.',
                 tone: BannerTone.info)
           else
             const SkotiqBanner(
                 title:
                     'Raw subframes reveal your exact pixels and pointing and '
-                    'cannot be subtracted as cleanly as sums — anyone with read '
+                    'cannot be subtracted as cleanly as sums. Anyone with read '
                     'access can download them. Removing one later is a file '
                     'delete, not a clean subtraction.',
                 tone: BannerTone.warning),
@@ -357,15 +357,15 @@ const List<ContributionLicense> _shareableLicenses = <ContributionLicense>[
 String _licenseLabel(ContributionLicense license) {
   switch (license) {
     case ContributionLicense.cc0:
-      return 'CC0 — public domain (no attribution required)';
+      return 'CC0: public domain (no attribution required)';
     case ContributionLicense.ccBy:
-      return 'CC BY — credit required, any use';
+      return 'CC BY: credit required, any use';
     case ContributionLicense.ccBySa:
-      return 'CC BY-SA — credit + share-alike';
+      return 'CC BY-SA: credit + share-alike';
     case ContributionLicense.ccByNc:
-      return 'CC BY-NC — credit, non-commercial only';
+      return 'CC BY-NC: credit, non-commercial only';
     case ContributionLicense.private:
-      return 'Private — not shared';
+      return 'Private: not shared';
   }
 }
 

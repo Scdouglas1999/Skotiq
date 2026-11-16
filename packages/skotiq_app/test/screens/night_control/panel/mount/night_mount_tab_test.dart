@@ -79,7 +79,7 @@ void main() {
           timeToFlip: Duration.zero,
           isAutomaticWatchdog: true,
           isSequencerOwned: false,
-          disabledReason: 'Already past meridian — flip imminent',
+          disabledReason: 'Already past meridian: flip imminent',
           method: MeridianTriggerMethod.minutesPastMeridian,
           hourAngleHours: 4.75,
           sideOfPier: null,

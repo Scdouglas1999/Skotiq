@@ -337,7 +337,7 @@ const List<InterpolationVariable> interpolationCatalog = [
   InterpolationVariable(
     name: 'exposure.total',
     description:
-        'Total burst integration time (minutes — duration_secs × count / 60)',
+        'Total burst integration time (minutes: duration_secs × count / 60)',
     group: InterpolationVariableGroup.exposure,
     example: '30',
     supportsFormat: true,

@@ -424,7 +424,7 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
     final label = name.trim();
     if (label.isEmpty) {
       state = state.copyWith(
-        actionError: 'A branch name cannot be empty — the bar would have '
+        actionError: 'A branch name cannot be empty. The bar would have '
             'nothing to label it with.',
       );
       return false;

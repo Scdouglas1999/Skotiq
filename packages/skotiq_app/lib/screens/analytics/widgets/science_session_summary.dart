@@ -141,7 +141,7 @@ class ScienceSessionSummary extends ConsumerWidget {
                       color: colors.textSecondary,
                     ),
                     label: Text(
-                      'Target campaign',
+                      'Target history',
                       style: SkotiqTypography.caption.copyWith(
                           color: colors.textSecondary,
                           fontWeight: FontWeight.w600),
@@ -241,7 +241,7 @@ class ScienceSessionSummary extends ConsumerWidget {
                             ? colors.warning
                             : colors.success,
                     tooltip:
-                        'Coefficient of variation of background brightness across the frame. Lower is flatter — values above 0.28 suggest gradients.',
+                        'Coefficient of variation of background brightness across the frame. Lower is flatter: values above 0.28 suggest gradients.',
                   ),
                 ),
               ],

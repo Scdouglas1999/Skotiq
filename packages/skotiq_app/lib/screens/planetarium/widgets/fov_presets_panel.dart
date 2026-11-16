@@ -46,7 +46,7 @@ class FovPresetsPanel extends ConsumerWidget {
     final notifier = ref.read(fovPresetsProvider.notifier);
 
     return InfoCard(
-      title: 'FOV Framing',
+      title: 'FOV framing',
       icon: SkotiqIcons.frame,
       color: colors.accent,
       colors: colors,
@@ -385,7 +385,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
 
     return AlertDialog(
       backgroundColor: colors.surface,
-      title: Text('Add FOV Rig', style: TextStyle(color: colors.textPrimary)),
+      title: Text('Add FOV rig', style: TextStyle(color: colors.textPrimary)),
       content: ConstrainedBox(
         constraints: AdaptiveDialogConstraints.hybrid(
           context,
@@ -406,7 +406,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
                     DropdownMenuItem(
                       value: t,
                       child: Text(
-                        '${_isFromProfile(t) ? 'My rig — ' : ''}${t.name} · '
+                        '${_isFromProfile(t) ? 'My rig: ' : ''}${t.name} · '
                         '${t.focalLengthMm.toStringAsFixed(0)}mm'
                         '${t.apertureMm > 0 ? ' f/${t.focalRatio.toStringAsFixed(1)}' : ''}',
                         overflow: TextOverflow.ellipsis,
@@ -427,7 +427,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
                     DropdownMenuItem(
                       value: c,
                       child: Text(
-                        '${_isFromProfile(c) ? 'My rig — ' : ''}${c.name} · '
+                        '${_isFromProfile(c) ? 'My rig: ' : ''}${c.name} · '
                         '${c.widthMm.toStringAsFixed(1)}×'
                         '${c.heightMm.toStringAsFixed(1)}mm',
                         overflow: TextOverflow.ellipsis,

@@ -153,8 +153,8 @@ void main() {
     expect(
       find.text('Capture an image to see detected objects'),
       findsOneWidget,
-      reason: 'Before the first frame, "go capture something" IS the blocker — '
-          'the fix must not invert into never saying it.',
+      reason: 'Before the first frame, "go capture something" IS the blocker. '
+          'The fix must not invert into never saying it.',
     );
   });
 

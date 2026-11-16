@@ -263,7 +263,7 @@ class _RunDashboardRecoveryBannerState
           ' · budget left ${DurationFormat.seconds(remainingBudgetSecs, style: DurationStyle.short)}';
     }
     if (ctx.isRecovered) {
-      return '$attempts · recovered — resuming sequence';
+      return '$attempts · recovered: resuming sequence';
     }
     if (ctx.isGaveUp) {
       return '$attempts · loop ended';

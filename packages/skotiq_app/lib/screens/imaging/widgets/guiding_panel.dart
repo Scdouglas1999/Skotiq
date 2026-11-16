@@ -264,7 +264,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
           // counterparts instead of stretching across the full row.
           Row(
             children: [
-              GuideStat(label: 'RA Peak', value: peakRa, colors: widget.colors),
+              GuideStat(label: 'RA peak', value: peakRa, colors: widget.colors),
               GuideStat(
                 label: 'Dec peak',
                 value: peakDec,

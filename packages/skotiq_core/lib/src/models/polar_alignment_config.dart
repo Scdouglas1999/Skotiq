@@ -65,7 +65,7 @@ extension PolarAlignmentModeExtension on PolarAlignmentMode {
             'the mount rotation axis. Requires the pole region to be clear.';
       case PolarAlignmentMode.allSky:
         return 'Plate-solve one frame anywhere in the sky, then track drift '
-            'every few seconds. Works from any direction — no view of the '
+            'every few seconds. Works from any direction. No view of the '
             'pole required. Requires a plate solver (ASTAP).';
     }
   }

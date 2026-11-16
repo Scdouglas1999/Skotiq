@@ -107,7 +107,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
             _reviewRow(colors, 'Cool Camera',
                 _coolCamera ? '${_coolingTemp.round()}C' : 'Disabled'),
             _reviewRow(
-                colors, 'Park on Error', _parkOnError ? 'Enabled' : 'Disabled'),
+                colors, 'Park on error', _parkOnError ? 'Enabled' : 'Disabled'),
             _reviewRow(colors, 'Weather Abort',
                 _weatherAbort ? 'Enabled' : 'Disabled'),
             _reviewRow(colors, 'Dawn Shutdown',
@@ -132,7 +132,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Estimated Duration',
+                    'Estimated duration',
                     style: SkotiqTypography.h6.copyWith(color: colors.primary),
                   ),
                   Text(
@@ -321,7 +321,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
       treeLines.add(_TreeLine('Weather Safety', LucideIcons.cloudRain, 1));
     }
     if (_parkOnError) {
-      treeLines.add(_TreeLine('Park on Error', LucideIcons.parkingCircle, 1));
+      treeLines.add(_TreeLine('Park on error', LucideIcons.parkingCircle, 1));
     }
 
     return Container(
@@ -335,7 +335,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Sequence Tree Preview',
+            'Sequence tree preview',
             style: SkotiqTypography.labelStrongSm
                 .copyWith(color: colors.textSecondary),
           ),

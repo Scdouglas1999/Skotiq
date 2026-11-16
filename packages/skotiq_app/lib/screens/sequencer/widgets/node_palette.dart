@@ -97,7 +97,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Add Node',
+                    'Add node',
                     style: SkotiqTypography.sectionTitle.copyWith(
                       color: widget.colors.textPrimary,
                     ),
@@ -231,7 +231,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                       SizedBox(width: Responsive.spacing(context, 8)),
                       Expanded(
                         child: Text(
-                          'Node Palette',
+                          'Node palette',
                           style: SkotiqTypography.sectionTitle.copyWith(
                             color: widget.colors.textPrimary,
                           ),

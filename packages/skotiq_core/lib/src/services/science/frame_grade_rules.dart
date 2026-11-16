@@ -49,7 +49,7 @@ class FrameGradeRules {
   /// are unavailable. `null` remains distinct and means no detector ran. Keep
   /// this text aligned with the native grader's persisted reason.
   static const _unmeasurableFrameReason =
-      'no stars detected — frame quality is unmeasurable '
+      'no stars detected: frame quality is unmeasurable '
       '(clouds, trailing, off-target slew, or an obstructed aperture)';
 
   FrameGradeRules copyWith({

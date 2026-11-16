@@ -66,7 +66,7 @@ void main() {
         reason: 'A published frame must mount the image display widget.');
     final size = tester.getSize(finder);
     expect(size.width, greaterThan(1),
-        reason: 'The preview collapsed to zero width — captured frames render '
+        reason: 'The preview collapsed to zero width. Captured frames render '
             'blank. The preview column must stretch its children so the '
             'inner (Positioned-only) Stack gets a tight width.');
     expect(size.height, greaterThan(1),

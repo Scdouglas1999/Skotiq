@@ -116,7 +116,7 @@ class RecipeDraftNote {
   }
 
   @override
-  String toString() => '$opId: $outcome — $reason';
+  String toString() => '$opId: $outcome: $reason';
 }
 
 /// Reads and writes for `recipes`: the non-destructive operation stack

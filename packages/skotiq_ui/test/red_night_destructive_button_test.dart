@@ -53,7 +53,7 @@ void main() {
     expect(
       destructive.color!.a,
       0.0,
-      reason: 'the destructive face is hollow — that absence is the channel',
+      reason: 'the destructive face is hollow. That absence is the channel',
     );
     expect(
       primary.color,

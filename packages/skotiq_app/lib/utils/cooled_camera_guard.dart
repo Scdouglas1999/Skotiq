@@ -36,7 +36,7 @@ Future<bool> confirmDisconnectCooledCamera(
         ? 'The camera is still warming up$tempNote. Disconnecting now cuts '
             'cooler power before the ramp finishes.'
         : 'The camera cooler is still running$tempNote. Disconnecting cuts '
-            'cooler power abruptly — use Warm Up first for a gentle ramp '
+            'cooler power abruptly. Use Warm Up first for a gentle ramp '
             'to ambient.',
     confirmLabel: 'Disconnect anyway',
     isDestructive: true,

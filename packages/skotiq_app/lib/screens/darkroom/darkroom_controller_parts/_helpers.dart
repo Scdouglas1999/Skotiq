@@ -346,7 +346,7 @@ List<RecipeDraftNote> darkroomComposedAccount(
 /// extract", not `background_extract` — so a note and the stack it is about do
 /// not read as two different vocabularies.
 String darkroomDraftNoteSentence(RecipeDraftNote note) =>
-    '${darkroomOpTitle(note.opId)} — ${note.outcome}: ${note.reason}';
+    '${darkroomOpTitle(note.opId)}: ${note.outcome}: ${note.reason}';
 
 /// What the operator can do about a failure that is about the base master
 /// itself, or null when the failure is about something else.
@@ -370,8 +370,8 @@ String darkroomDraftNoteSentence(RecipeDraftNote note) =>
 String? darkroomMasterFailureNextStep(String message, String masterPath) {
   if (masterPath.isEmpty || !message.contains("'$masterPath'")) return null;
   return 'The Darkroom only ever reads that file, so nothing here can put it '
-      'back: restore the master at that path, or re-integrate this night in '
-      'Session Review to write it again.';
+      'back: restore the master at that path, or integrate this night again '
+      'on its Workbench in Analytics > History.';
 }
 
 /// A `.skrecipe` file the operator chose, and what it holds.

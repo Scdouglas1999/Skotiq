@@ -51,14 +51,14 @@ enum DepthLockPreset {
   /// square, for the *weakest quarter* of the marked area.
   String get description => switch (this) {
         DepthLockPreset.faint =>
-          'Faint: 10″ squares, signal-to-noise 5 — the weakest quarter of the '
+          'Faint: 10″ squares, signal-to-noise 5. The weakest quarter of the '
               'area reaches five times its noise. Wisps you can already glimpse '
               'in a stretched sub become clearly present.',
         DepthLockPreset.veryFaint =>
-          'Very faint: 20″ squares, signal-to-noise 4 — bigger squares gather '
+          'Very faint: 20″ squares, signal-to-noise 4. Bigger squares gather '
               'more light. Structure that is only hinted at becomes believable.',
         DepthLockPreset.extreme =>
-          'Extreme: 40″ squares, signal-to-noise 3 — the coarsest look, for '
+          'Extreme: 40″ squares, signal-to-noise 3. The coarsest look, for '
               'integrated light that takes many nights. Three is "there is '
               'something there", not a finished picture.',
       };

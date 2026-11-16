@@ -106,7 +106,7 @@ Future<_RecordingConfigNotifier> _pumpAndExpand(
   }
 
   // The config section is collapsed by default; expand it to reveal the form.
-  await tester.tap(find.text('Guider Configuration'));
+  await tester.tap(find.text('Guider configuration'));
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 25));
   }

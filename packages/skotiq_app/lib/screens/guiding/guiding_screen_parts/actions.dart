@@ -219,7 +219,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         'Auto Select: the guider reported no guide star',
         source: 'Guiding',
       );
-      return 'Auto Select found no guide star — try a longer guide exposure '
+      return 'Auto Select found no guide star. Try a longer guide exposure '
           'or a different part of the sky.';
     }
     final where =

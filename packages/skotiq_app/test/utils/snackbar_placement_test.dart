@@ -72,7 +72,7 @@ void main() {
 
     final context = await _pumpHost(tester);
     context
-        .showInfoSnackBar('Glance mode on — session readouts use large type.');
+        .showInfoSnackBar('Glance mode on: session readouts use large type.');
     await tester.pumpAndSettle();
 
     final bar = _barRect(tester);
@@ -125,7 +125,7 @@ void main() {
 
     final context = await _pumpHost(tester);
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showWarningSnackBar('Undo expired — the host changed.');
+    messenger.showWarningSnackBar('Undo expired: the host changed.');
     await tester.pumpAndSettle();
 
     final bar = _barRect(tester);
