@@ -669,33 +669,24 @@ void main() {
       expect(payload['backlashOut'], 30);
     });
 
-    test('center on target returns the queued job result envelope', () async {
+    test('a centering started on the host answers its job', () async {
       fake.setResponse(
         '/api/framing/center-on-target',
         method: 'POST',
         body: '{"jobId":"center-1","status":"queued"}',
       );
-      fake.setResponse(
-        '/api/jobs/center-1',
-        method: 'GET',
-        body: jsonEncode({
-          'jobId': 'center-1',
-          'operation': 'framing.center-on-target',
-          'state': 'succeeded',
-          'result': {
-            'success': true,
-            'iterations': 2,
-            'finalOffsetArcsec': 4.2,
-            'iterationHistory': <Object>[],
-          },
-        }),
-      );
       backend = _buildBackend(fake);
 
-      final result = await backend.centerOnTarget(ra: 10, dec: 20);
+      final jobId = await backend.startCentering(
+        raHours: 10,
+        decDegrees: 20,
+        maxAttempts: 4,
+        accuracyArcsec: 15,
+        exposureSecs: 3,
+        syncMount: false,
+      );
 
-      expect(result['success'], isTrue);
-      expect(result['iterations'], 2);
+      expect(jobId, 'center-1');
     });
 
     test('webSocketPort defaults to serverPort when explicitly set', () {

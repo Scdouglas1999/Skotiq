@@ -7,37 +7,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on NetworkBackendTransport {
     required Duration timeout,
   });
 
-  /// Center on target with plate solving
-  Future<Map<String, dynamic>> centerOnTarget({
-    required double ra,
-    required double dec,
-    int? maxIterations,
-    double? toleranceArcsec,
-    double? exposureTime,
-    int? binning,
-    int? gain,
-    bool? syncMount,
-  }) async {
-    final start = await _post(
-      FramingApi.centerOnTarget,
-      body: {
-        'ra': ra,
-        'dec': dec,
-        if (maxIterations != null) 'maxIterations': maxIterations,
-        if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
-        if (exposureTime != null) 'exposureTime': exposureTime,
-        if (binning != null) 'binning': binning,
-        if (gain != null) 'gain': gain,
-        if (syncMount != null) 'syncMount': syncMount,
-      },
-    );
-    return awaitOperationResult(
-      start,
-      operation: 'center on target',
-      timeout: const Duration(minutes: 10),
-    );
-  }
-
   Future<void> syncMountToCoordinates(double ra, double dec) async {
     await _post(FramingApi.syncMount, body: {'ra': ra, 'dec': dec});
   }

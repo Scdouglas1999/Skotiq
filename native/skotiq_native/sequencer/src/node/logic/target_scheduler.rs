@@ -122,27 +122,17 @@ pub async fn execute_target_scheduler(
 
         // Build TargetInputs from the live children.
         let now = context.clock.now_utc();
-        // feed the scheduler a real moon position + illumination and a
-        // twilight bracket. These drive ~40% of the scoring weight (moon
-        // avoidance + darkness).
-        let observer = ObserverContext {
-            latitude_deg: lat,
-            longitude_deg: lon,
+        // A floor the step carries wins over the run's.
+        let observer = ObserverContext::at_site(
+            lat,
+            lon,
             now,
-            moon: Some(crate::scheduling::ephemeris::moon_equatorial(&now)),
-            moon_illumination: crate::scheduling::ephemeris::moon_illumination_percent(&now),
-            twilight: Some(crate::scheduling::ephemeris::twilight_bracket(
-                &now, lat, lon,
-            )),
-            // Per-azimuth horizon mask: consulted by `score_target`'s
-            // runnable gate so a target behind the local tree-line / roof
-            // is filtered out even when it clears the flat altitude floor.
-            horizon: config.horizon_profile.clone().or_else(|| {
+            config.horizon_profile.clone().or_else(|| {
                 context
                     .altitude_floor()
                     .map(|floor| floor.profile().clone())
             }),
-        };
+        );
 
         // Collect inputs + a parallel index so we can resolve back to the
         // RuntimeNode child after picking.

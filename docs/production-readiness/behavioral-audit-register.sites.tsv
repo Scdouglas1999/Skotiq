@@ -260,15 +260,15 @@ native/skotiq_native/ascom/src/windows/variant.rs	extract_safearray_string	rust_
 native/skotiq_native/ascom/src/windows/variant.rs	owned_variant_image_array_loop_does_not_leak	rust_let_underscore	1	V0046	let _ = SafeArrayUnaccessData(psa);
 native/skotiq_native/bridge/src/api/depthlock.rs	new_goal_id	unwrap_or_literal	1	V0751	.unwrap_or(0);
 native/skotiq_native/bridge/src/api/devices/mount.rs	a_tracking_stop_from_the_app_during_a_run_is_the_operators	simulated_runtime_path	1	R9-010	skotiq_sequencer::device_ops::NullDeviceOps,
-native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	unwrap_or_default	1	V0047	let config = config.unwrap_or_default();
+native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_default	1	V0047	let config = config.unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging.rs	-	unwrap_or_literal	1	V0047	// 3. **Optional config defaults** — `config.min_hfr.unwrap_or(1.0)`,
 native/skotiq_native/bridge/src/api/imaging.rs	-	unwrap_or_literal	1	V0047	// 4. **`min().unwrap_or(0)` / `max().unwrap_or(0)`** — empty image stripe
 native/skotiq_native/bridge/src/api/imaging.rs	-	unwrap_or_literal	1	V0047	// `BITPIX.unwrap_or(16)`, `extension().unwrap_or("fits")`. These are the
 native/skotiq_native/bridge/src/api/imaging.rs	-	unwrap_or_literal	1	V0047	// `config.min_snr.unwrap_or(5.0)`, `config.max_sharpness.unwrap_or(0.95)`,
-native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	unwrap_or_literal	1	V0047	max_sharpness: config.max_sharpness.unwrap_or(0.95),
-native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	unwrap_or_literal	1	V0047	min_hfr: config.min_hfr.unwrap_or(1.0),
-native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	unwrap_or_literal	1	V0047	min_snr: config.min_snr.unwrap_or(5.0),
 native/skotiq_native/bridge/src/api/imaging.rs	api_run_autofocus	unwrap_or_literal	1	V0047	.unwrap_or(0);
+native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_literal	1	V0047	max_sharpness: config.max_sharpness.unwrap_or(0.95),
+native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_literal	1	V0047	min_hfr: config.min_hfr.unwrap_or(1.0),
+native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_literal	1	V0047	min_snr: config.min_snr.unwrap_or(5.0),
 native/skotiq_native/bridge/src/api/imaging/calibrate_header_carry_over_tests.rs	a_calibrated_copy_named_as_camera_raw_is_refused	rust_let_underscore	1	R9-011	let _ = std::fs::remove_file(&out);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	file_and_memory_calibration_use_a_master_flat_as_it_is	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	sky_below_the_bias_is_kept_and_the_pedestal_stated	rust_let_underscore	1	V0779	let _ = std::fs::remove_dir_all(&dir);
@@ -291,12 +291,6 @@ native/skotiq_native/bridge/src/api/live_stacking/tests.rs	osc_start_from_data_w
 native/skotiq_native/bridge/src/api/live_stacking/tests.rs	saved_master_sums_the_integration_of_the_frames_it_stacked	rust_let_underscore	2	R9-012	let _ = api_stacking_stop();
 native/skotiq_native/bridge/src/api/live_stacking/tests.rs	saved_master_sums_the_integration_of_the_frames_it_stacked	rust_let_underscore	1	V0047	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/live_stacking/tests.rs	saving_a_master_without_a_stacker_is_an_error	rust_let_underscore	1	R9-012	let _ = api_stacking_stop();
-native/skotiq_native/bridge/src/api/plate_solve.rs	-	rust_let_underscore	1	V0674	let _ = tx.send(Arc::new(result.clone().map_err(|e| e.to_string())));
-native/skotiq_native/bridge/src/api/plate_solve.rs	a_finished_solve_releases_its_frame	rust_let_underscore	2	V0779	let _ = coalesced_solve(path, "near", SolvePreference::Hinted, || {
-native/skotiq_native/bridge/src/api/plate_solve.rs	a_follower_receives_the_escalated_result_not_the_first_rung	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
-native/skotiq_native/bridge/src/api/plate_solve.rs	a_frame_with_no_solver_installed_names_no_search	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
-native/skotiq_native/bridge/src/api/plate_solve.rs	two_frames_still_get_two_solves	rust_let_underscore	2	V0779	let _ = coalesced_solve(
-native/skotiq_native/bridge/src/api/plate_solve.rs	frame	unwrap_or_default	1	V0779	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
 native/skotiq_native/bridge/src/api/polar_alignment/polar_run_control_tests.rs	generation_admission_and_release_no_overlap	rust_let_underscore	1	V0657	let _ = polar_generation().load(PolarOrdering::Relaxed);
 native/skotiq_native/bridge/src/api/polar_alignment/polar_run_control_tests.rs	polar_solve_frame_carries_the_field_scale_hints	rust_let_underscore	1	V0657	let _ = std::fs::remove_file(&path);
 native/skotiq_native/bridge/src/api/polar_alignment/polar_run_control_tests.rs	polar_solve_frame_is_the_cameras_own_samples	rust_let_underscore	1	R9-013	let _ = std::fs::remove_file(&path);
@@ -593,6 +587,12 @@ native/skotiq_native/bridge/src/simulator/mod.rs	-	simulated_runtime_path	1	R9-0
 native/skotiq_native/bridge/src/simulator/sky.rs	astap_dir	unwrap_or_default	1	V0708	let home = std::env::var("HOME").unwrap_or_default();
 native/skotiq_native/bridge/src/simulator/sky.rs	choose_prefix	unwrap_or_literal	1	V0706	let bytes = path.metadata().map(|meta| meta.len()).unwrap_or(0);
 native/skotiq_native/bridge/src/simulator/sky.rs	synth_area	unwrap_or_literal	1	V0707	.unwrap_or(0);
+native/skotiq_native/bridge/src/solver/admission.rs	-	rust_let_underscore	1	V0674	let _ = tx.send(Arc::new(result.clone().map_err(|e| e.to_string())));
+native/skotiq_native/bridge/src/solver/admission.rs	a_finished_solve_releases_its_frame	rust_let_underscore	2	V0779	let _ = coalesced_solve(path, "near", SolvePreference::Hinted, || {
+native/skotiq_native/bridge/src/solver/admission.rs	two_frames_still_get_two_solves	rust_let_underscore	2	V0779	let _ = coalesced_solve(
+native/skotiq_native/bridge/src/solver/ladder.rs	a_follower_receives_the_escalated_result_not_the_first_rung	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
+native/skotiq_native/bridge/src/solver/ladder.rs	a_frame_with_no_solver_installed_names_no_search	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
+native/skotiq_native/bridge/src/solver/scale.rs	frame	unwrap_or_default	1	V0779	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
 native/skotiq_native/bridge/src/state.rs	AppState	comment_best_effort	1	V0052	/// placeholder triple silently defeats guards that exist precisely to stop
 native/skotiq_native/bridge/src/unified_device_ops/camera.rs	camera_start_exposure	rust_let_underscore	1	V0711	let _ = mgr.camera_abort_exposure(camera_id).await;
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	disconnect_fixed_camera	rust_let_underscore	1	U2-17	let _ = crate::api::imaging::api_clear_device_image(device_id.to_string()).await;
@@ -3542,7 +3542,7 @@ packages/skotiq_core/lib/src/services/target_library_service.dart	_targetFromRem
 packages/skotiq_core/lib/src/services/target_library_service.dart	_targetFromRemoteJson	literal_null_coalesce	1	V0253	isFavorite: json['isFavorite'] as bool? ?? false,
 packages/skotiq_core/lib/src/services/target_library_service.dart	_targetFromRemoteJson	literal_null_coalesce	1	V0253	totalPlannedSubs: (json['totalPlannedSubs'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/target_suggestion_service.dart	getSuggestionsForTonight	guessed_now_timestamp	1	V0033	observationTime: observationTime ?? DateTime.now(),
-packages/skotiq_core/lib/src/services/target_suggestion_service.dart	score	literal_null_coalesce	1	V0033	final objectType = target.objectType?.toLowerCase() ?? '';
+packages/skotiq_core/lib/src/services/target_suggestion_service.dart	build	literal_null_coalesce	1	V0033	final objectType = target.objectType?.toLowerCase() ?? '';
 packages/skotiq_core/lib/src/services/target_suggestion_service.dart	score	literal_null_coalesce	1	O7-07	if ((score.visibility.hoursAboveMinAlt ?? 0.0) <= 0.0) {
 packages/skotiq_core/lib/src/services/transient_alert_service.dart	_fetchSignature	literal_null_coalesce	1	V0034	'${settings.tnsApiKey?.trim() ?? ''}';
 packages/skotiq_core/lib/src/services/transient_alert_service.dart	_fetchSignature	literal_null_coalesce	1	V0034	'${tnsBotName?.trim() ?? ''}|$tnsUseSandbox|'

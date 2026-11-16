@@ -3,6 +3,7 @@
 /// surface the package exports.
 library;
 
+export 'api/centering.dart';
 export 'api/connection.dart';
 export 'api/darkroom/entrypoints.dart';
 export 'api/defect_map.dart';
@@ -47,3 +48,4 @@ export 'api/sky_atlas.dart';
 export 'api/sky_atlas/frames.dart';
 export 'api/sky_atlas/regions.dart';
 export 'api/storage.dart';
+export 'api/target_scoring.dart';

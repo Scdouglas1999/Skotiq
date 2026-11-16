@@ -216,6 +216,19 @@ void main() {
         if (backupExcludedTables.containsKey(t) || t == 'app_settings') {
           continue;
         }
+        // A table born after the fixture was written comes back empty.
+        if (t != 'equipment_profiles' &&
+            !(fixture['tables'] as Map).containsKey(t)) {
+          final count = 'SELECT COUNT(*) AS n FROM "$t"';
+          for (final db in [replaced, merged]) {
+            expect(
+              (await db.customSelect(count).getSingle()).read<int>('n'),
+              0,
+              reason: t,
+            );
+          }
+          continue;
+        }
         final expected = await rows(source, t);
         expect(await rows(replaced, t), expected, reason: 'replace: $t');
         if (!backupMergeKeepsYours.containsKey(t)) {

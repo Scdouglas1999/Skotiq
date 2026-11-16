@@ -817,7 +817,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     final calculatedL = SmartNightService(
-      suggestionService: TargetSuggestionService(loggingService: _MockLogger()),
+      suggestionService: TargetSuggestionService(
+        loggingService: _MockLogger(),
+        // Never asked: the rows are built from the profile alone.
+        scorer: const TargetScorer(NativeTargetScoring()),
+      ),
       logging: _MockLogger(),
       floor: const AltitudeFloor(horizon: null, minimumDeg: 0),
     )

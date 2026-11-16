@@ -39,6 +39,7 @@ import 'tables/sequence_versions.dart';
 import 'tables/session_diagnostics.dart';
 import 'tables/defect_map_table.dart';
 import 'tables/focus_models.dart';
+import 'tables/focus_history.dart';
 import 'tables/guide_rms_history.dart';
 import 'tables/narrator_events.dart';
 import 'tables/sky_atlas_tables.dart';
@@ -65,6 +66,7 @@ import 'daos/sequence_runs_dao.dart';
 import 'daos/sequence_versions_dao.dart';
 import 'daos/session_diagnostics_dao.dart';
 import 'daos/guide_rms_history_dao.dart';
+import 'daos/focus_history_dao.dart';
 import 'daos/narrator_events_dao.dart';
 import 'daos/sky_atlas_dao.dart';
 import 'daos/constellation_contributions_dao.dart';
@@ -161,6 +163,9 @@ part 'database/connection.dart';
     SessionDiagnostics,
     DefectMaps,
     FocusModels,
+    FocusHistoryPoints,
+    FocusProfileModels,
+    FocusFilterOffsets,
     GuideRmsHistory,
     NarratorEvents,
     SkyTiles,
@@ -191,6 +196,7 @@ part 'database/connection.dart';
     SequenceVersionsDao,
     SessionDiagnosticsDao,
     GuideRmsHistoryDao,
+    FocusHistoryDao,
     NarratorEventsDao,
     SkyAtlasDao,
     ConstellationContributionsDao,
@@ -219,7 +225,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
       );
 
   @override
-  int get schemaVersion => 72;
+  int get schemaVersion => 73;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();

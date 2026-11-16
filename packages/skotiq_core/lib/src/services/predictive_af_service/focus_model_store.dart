@@ -200,63 +200,23 @@ extension _PredictiveAfFocusModelStore on PredictiveAfService {
     );
   }
 
-  /// Linear regression on the persisted sample window. Identical math to
-  /// Rust's [`PersistedFocusModel::refit`] so both sides agree.
   _RegressionFit? _fitRegression(List<FocusTrainingSample> samples) {
-    if (samples.length < 3) return null;
-
-    // Bucket by 1°C, pick lowest-HFR sample in each bucket.
-    final buckets = <int, List<FocusTrainingSample>>{};
-    for (final s in samples) {
-      final bucket = s.temperatureCelsius.round();
-      buckets.putIfAbsent(bucket, () => []).add(s);
-    }
-    final best = <FocusTrainingSample>[];
-    for (final entry in buckets.entries) {
-      entry.value.sort((a, b) => a.hfr.compareTo(b.hfr));
-      best.add(entry.value.first);
-    }
-    if (best.length < 3) return null;
-
-    final n = best.length;
-    double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    for (final p in best) {
-      final x = p.temperatureCelsius;
-      final y = p.focusPosition.toDouble();
-      sumX += x;
-      sumY += y;
-      sumXY += x * y;
-      sumX2 += x * x;
-    }
-    final denom = n * sumX2 - sumX * sumX;
-    if (denom.abs() < 1e-10) return null;
-
-    final slope = (n * sumXY - sumX * sumY) / denom;
-    final refTemp = sumX / n;
-    // Why we store the intercept at refTemp (= mean of x) rather than at
-    // 0°C: the regression line passes through (mean_x, mean_y) by
-    // construction, so intercept_at_refTemp = mean_y. Storing this triple
-    // (slope, refTemp, mean_y) is numerically more stable than the
-    // 0°C-centered (slope, intercept) when temperatures span -10..+30 °C
-    // — predictions never accumulate intercept * slope error away from
-    // the data cluster.
-    final interceptAtRef = sumY / n;
-
-    final meanY = sumY / n;
-    double ssTot = 0, ssRes = 0;
-    for (final p in best) {
-      final predicted =
-          interceptAtRef + slope * (p.temperatureCelsius - refTemp);
-      ssTot += math.pow(p.focusPosition - meanY, 2).toDouble();
-      ssRes += math.pow(p.focusPosition - predicted, 2).toDouble();
-    }
-    final rSquared = ssTot > 0 ? (1.0 - ssRes / ssTot).clamp(0.0, 1.0) : 0.0;
-
+    final line = fitFocusTemperatureLine([
+      for (final s in samples)
+        (
+          temperatureCelsius: s.temperatureCelsius,
+          focusPosition: s.focusPosition,
+          hfr: s.hfr,
+        ),
+    ]);
+    if (line == null) return null;
+    // Stored at the mean temperature, where the line passes through the mean
+    // position: predictions near the data carry no intercept error.
     return _RegressionFit(
-      slope: slope,
-      intercept: interceptAtRef,
-      referenceTemp: refTemp,
-      rSquared: rSquared,
+      slope: line.slope,
+      intercept: line.meanPosition,
+      referenceTemp: line.meanTemperatureCelsius,
+      rSquared: line.rSquared,
     );
   }
 

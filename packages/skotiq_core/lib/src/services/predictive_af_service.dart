@@ -1,21 +1,10 @@
 // Predictive autofocus that learns per-filter slope across sessions.
 //
-// This service is the Dart side of the persisted predictive-AF subsystem.
-// It mirrors the Rust [`PersistedFocusModel`] schema/math (in
-// `native/skotiq_native/sequencer/src/focus_prediction.rs`) so the model
-// can be evaluated synchronously on the hot path without hopping over FRB,
-// while still letting Rust drive in-process predictions inside the sequencer.
-//
-// Storage: a single `focus_models` row per (equipment_profile_id, filter_name).
-// The `training_samples_json` blob holds the rolling N-sample regression
-// window. Confidence (R²) gates whether a caller can skip a real AF sweep.
-//
-// File ownership: this service does not touch the existing
-// [FocusModelService] (which keeps its JSON-file storage for backwards
-// compat). The two coexist: [FocusModelService] is the *legacy*, profile-
-// scoped, in-app working set used by the equipment screen scatter plot;
-// [PredictiveAfService] is the *persisted, per-filter* model that drives
-// cross-session learning, drift detection, and confidence gating.
+// Storage: a single `focus_models` row per (equipment_profile_id, filter_name)
+// in the database, beside the profile focus history, temperature line and
+// filter offsets of [FocusModelService]. The `training_samples_json` blob
+// holds the rolling N-sample regression window. Confidence (R²) gates whether
+// a caller can skip a real AF sweep.
 
 import 'dart:async';
 import 'dart:convert';
@@ -28,6 +17,7 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as db;
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
+import 'focus_temperature_fit.dart';
 import '../utils/logging_service.dart';
 part 'predictive_af_service/predictive_af_models.dart';
 part 'predictive_af_service/settings_controller.dart';

@@ -1,17 +1,6 @@
-// Dart<->Rust CONTRACT parity for the in-sequence TargetScheduler weights.
-//
-// STEP-3 boundary pin (NO runtime rewrite): the in-sequence TargetSchedulerNode
-// preview now consumes the SAME shared planetarium `ScoringWeights` contract
-// the planner uses (via `TargetSchedulerNode.scoringWeights`). The actual
-// in-sequence scoring runtime is the Rust `scheduling::scoring::ScoringWeights`
-// /  `TargetSchedulerConfig`. This test pins the cross-language WIRE CONTRACT —
-// field set, defaults, and factor ORDERING — so the Dart node, the shared
-// planetarium ScoringWeights, and the Rust serde struct cannot silently drift.
-//
-// It does NOT exercise the Rust runtime (that needs the native build + on-sky
-// validation). It asserts the Dart side matches the values the Rust source
-// declares, and parses the Rust source as the source-of-truth for the defaults
-// so a future edit to either side trips this canary.
+// The TargetScheduler step's weights as the app writes them and as the run
+// reads them: the node's defaults are the Rust `TargetSchedulerConfig`
+// defaults, read from the Rust source.
 
 import 'dart:io';
 
@@ -54,27 +43,6 @@ void main() {
       expect(node.transitProximityWeight, planetarium.transitProximityWeight);
       expect(node.darknessWeight, planetarium.darknessWeight);
       expect(node.airmassWeight, planetarium.airmassWeight);
-    });
-
-    test('factor ORDER is pinned (alt, moon, transit, darkness, airmass)', () {
-      const w = ScoringWeights();
-      final names = w
-          .factors(
-            altitudeScore: 0,
-            moonDistanceScore: 0,
-            transitProximityScore: 0,
-            darknessScore: 0,
-            airmassScore: 0,
-          )
-          .map((f) => f.name)
-          .toList();
-      expect(names, [
-        'altitude',
-        'moonDistance',
-        'transitProximity',
-        'darkness',
-        'airmass',
-      ]);
     });
 
     test('Rust source declares the SAME defaults + field set (canary)', () {

@@ -44621,6 +44621,1584 @@ class FocusModelsCompanion extends UpdateCompanion<FocusModelEntry> {
   }
 }
 
+class $FocusHistoryPointsTable extends FocusHistoryPoints
+    with TableInfo<$FocusHistoryPointsTable, FocusHistoryEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FocusHistoryPointsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recordedAtMeta = const VerificationMeta(
+    'recordedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recordedAt = GeneratedColumn<DateTime>(
+    'recorded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _temperatureCelsiusMeta =
+      const VerificationMeta('temperatureCelsius');
+  @override
+  late final GeneratedColumn<double> temperatureCelsius =
+      GeneratedColumn<double>(
+        'temperature_celsius',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _focusPositionMeta = const VerificationMeta(
+    'focusPosition',
+  );
+  @override
+  late final GeneratedColumn<int> focusPosition = GeneratedColumn<int>(
+    'focus_position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hfrMeta = const VerificationMeta('hfr');
+  @override
+  late final GeneratedColumn<double> hfr = GeneratedColumn<double>(
+    'hfr',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _filterNameMeta = const VerificationMeta(
+    'filterName',
+  );
+  @override
+  late final GeneratedColumn<String> filterName = GeneratedColumn<String>(
+    'filter_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    recordedAt,
+    temperatureCelsius,
+    focusPosition,
+    hfr,
+    filterName,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'focus_history_points';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FocusHistoryEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('recorded_at')) {
+      context.handle(
+        _recordedAtMeta,
+        recordedAt.isAcceptableOrUnknown(data['recorded_at']!, _recordedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordedAtMeta);
+    }
+    if (data.containsKey('temperature_celsius')) {
+      context.handle(
+        _temperatureCelsiusMeta,
+        temperatureCelsius.isAcceptableOrUnknown(
+          data['temperature_celsius']!,
+          _temperatureCelsiusMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_temperatureCelsiusMeta);
+    }
+    if (data.containsKey('focus_position')) {
+      context.handle(
+        _focusPositionMeta,
+        focusPosition.isAcceptableOrUnknown(
+          data['focus_position']!,
+          _focusPositionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_focusPositionMeta);
+    }
+    if (data.containsKey('hfr')) {
+      context.handle(
+        _hfrMeta,
+        hfr.isAcceptableOrUnknown(data['hfr']!, _hfrMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hfrMeta);
+    }
+    if (data.containsKey('filter_name')) {
+      context.handle(
+        _filterNameMeta,
+        filterName.isAcceptableOrUnknown(data['filter_name']!, _filterNameMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FocusHistoryEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FocusHistoryEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      recordedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recorded_at'],
+      )!,
+      temperatureCelsius: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}temperature_celsius'],
+      )!,
+      focusPosition: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}focus_position'],
+      )!,
+      hfr: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}hfr'],
+      )!,
+      filterName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter_name'],
+      ),
+    );
+  }
+
+  @override
+  $FocusHistoryPointsTable createAlias(String alias) {
+    return $FocusHistoryPointsTable(attachedDatabase, alias);
+  }
+}
+
+class FocusHistoryEntry extends DataClass
+    implements Insertable<FocusHistoryEntry> {
+  final int id;
+
+  /// The equipment profile's id as the focus screens and the host API name it.
+  final String profileId;
+  final DateTime recordedAt;
+  final double temperatureCelsius;
+  final int focusPosition;
+  final double hfr;
+  final String? filterName;
+  const FocusHistoryEntry({
+    required this.id,
+    required this.profileId,
+    required this.recordedAt,
+    required this.temperatureCelsius,
+    required this.focusPosition,
+    required this.hfr,
+    this.filterName,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['recorded_at'] = Variable<DateTime>(recordedAt);
+    map['temperature_celsius'] = Variable<double>(temperatureCelsius);
+    map['focus_position'] = Variable<int>(focusPosition);
+    map['hfr'] = Variable<double>(hfr);
+    if (!nullToAbsent || filterName != null) {
+      map['filter_name'] = Variable<String>(filterName);
+    }
+    return map;
+  }
+
+  FocusHistoryPointsCompanion toCompanion(bool nullToAbsent) {
+    return FocusHistoryPointsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      recordedAt: Value(recordedAt),
+      temperatureCelsius: Value(temperatureCelsius),
+      focusPosition: Value(focusPosition),
+      hfr: Value(hfr),
+      filterName: filterName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filterName),
+    );
+  }
+
+  factory FocusHistoryEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FocusHistoryEntry(
+      id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      recordedAt: serializer.fromJson<DateTime>(json['recordedAt']),
+      temperatureCelsius: serializer.fromJson<double>(
+        json['temperatureCelsius'],
+      ),
+      focusPosition: serializer.fromJson<int>(json['focusPosition']),
+      hfr: serializer.fromJson<double>(json['hfr']),
+      filterName: serializer.fromJson<String?>(json['filterName']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'recordedAt': serializer.toJson<DateTime>(recordedAt),
+      'temperatureCelsius': serializer.toJson<double>(temperatureCelsius),
+      'focusPosition': serializer.toJson<int>(focusPosition),
+      'hfr': serializer.toJson<double>(hfr),
+      'filterName': serializer.toJson<String?>(filterName),
+    };
+  }
+
+  FocusHistoryEntry copyWith({
+    int? id,
+    String? profileId,
+    DateTime? recordedAt,
+    double? temperatureCelsius,
+    int? focusPosition,
+    double? hfr,
+    Value<String?> filterName = const Value.absent(),
+  }) => FocusHistoryEntry(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    recordedAt: recordedAt ?? this.recordedAt,
+    temperatureCelsius: temperatureCelsius ?? this.temperatureCelsius,
+    focusPosition: focusPosition ?? this.focusPosition,
+    hfr: hfr ?? this.hfr,
+    filterName: filterName.present ? filterName.value : this.filterName,
+  );
+  FocusHistoryEntry copyWithCompanion(FocusHistoryPointsCompanion data) {
+    return FocusHistoryEntry(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      recordedAt: data.recordedAt.present
+          ? data.recordedAt.value
+          : this.recordedAt,
+      temperatureCelsius: data.temperatureCelsius.present
+          ? data.temperatureCelsius.value
+          : this.temperatureCelsius,
+      focusPosition: data.focusPosition.present
+          ? data.focusPosition.value
+          : this.focusPosition,
+      hfr: data.hfr.present ? data.hfr.value : this.hfr,
+      filterName: data.filterName.present
+          ? data.filterName.value
+          : this.filterName,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusHistoryEntry(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('recordedAt: $recordedAt, ')
+          ..write('temperatureCelsius: $temperatureCelsius, ')
+          ..write('focusPosition: $focusPosition, ')
+          ..write('hfr: $hfr, ')
+          ..write('filterName: $filterName')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    recordedAt,
+    temperatureCelsius,
+    focusPosition,
+    hfr,
+    filterName,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FocusHistoryEntry &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.recordedAt == this.recordedAt &&
+          other.temperatureCelsius == this.temperatureCelsius &&
+          other.focusPosition == this.focusPosition &&
+          other.hfr == this.hfr &&
+          other.filterName == this.filterName);
+}
+
+class FocusHistoryPointsCompanion extends UpdateCompanion<FocusHistoryEntry> {
+  final Value<int> id;
+  final Value<String> profileId;
+  final Value<DateTime> recordedAt;
+  final Value<double> temperatureCelsius;
+  final Value<int> focusPosition;
+  final Value<double> hfr;
+  final Value<String?> filterName;
+  const FocusHistoryPointsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.recordedAt = const Value.absent(),
+    this.temperatureCelsius = const Value.absent(),
+    this.focusPosition = const Value.absent(),
+    this.hfr = const Value.absent(),
+    this.filterName = const Value.absent(),
+  });
+  FocusHistoryPointsCompanion.insert({
+    this.id = const Value.absent(),
+    required String profileId,
+    required DateTime recordedAt,
+    required double temperatureCelsius,
+    required int focusPosition,
+    required double hfr,
+    this.filterName = const Value.absent(),
+  }) : profileId = Value(profileId),
+       recordedAt = Value(recordedAt),
+       temperatureCelsius = Value(temperatureCelsius),
+       focusPosition = Value(focusPosition),
+       hfr = Value(hfr);
+  static Insertable<FocusHistoryEntry> custom({
+    Expression<int>? id,
+    Expression<String>? profileId,
+    Expression<DateTime>? recordedAt,
+    Expression<double>? temperatureCelsius,
+    Expression<int>? focusPosition,
+    Expression<double>? hfr,
+    Expression<String>? filterName,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (recordedAt != null) 'recorded_at': recordedAt,
+      if (temperatureCelsius != null) 'temperature_celsius': temperatureCelsius,
+      if (focusPosition != null) 'focus_position': focusPosition,
+      if (hfr != null) 'hfr': hfr,
+      if (filterName != null) 'filter_name': filterName,
+    });
+  }
+
+  FocusHistoryPointsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? profileId,
+    Value<DateTime>? recordedAt,
+    Value<double>? temperatureCelsius,
+    Value<int>? focusPosition,
+    Value<double>? hfr,
+    Value<String?>? filterName,
+  }) {
+    return FocusHistoryPointsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      recordedAt: recordedAt ?? this.recordedAt,
+      temperatureCelsius: temperatureCelsius ?? this.temperatureCelsius,
+      focusPosition: focusPosition ?? this.focusPosition,
+      hfr: hfr ?? this.hfr,
+      filterName: filterName ?? this.filterName,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (recordedAt.present) {
+      map['recorded_at'] = Variable<DateTime>(recordedAt.value);
+    }
+    if (temperatureCelsius.present) {
+      map['temperature_celsius'] = Variable<double>(temperatureCelsius.value);
+    }
+    if (focusPosition.present) {
+      map['focus_position'] = Variable<int>(focusPosition.value);
+    }
+    if (hfr.present) {
+      map['hfr'] = Variable<double>(hfr.value);
+    }
+    if (filterName.present) {
+      map['filter_name'] = Variable<String>(filterName.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusHistoryPointsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('recordedAt: $recordedAt, ')
+          ..write('temperatureCelsius: $temperatureCelsius, ')
+          ..write('focusPosition: $focusPosition, ')
+          ..write('hfr: $hfr, ')
+          ..write('filterName: $filterName')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FocusProfileModelsTable extends FocusProfileModels
+    with TableInfo<$FocusProfileModelsTable, FocusProfileModelEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FocusProfileModelsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceFilterMeta = const VerificationMeta(
+    'referenceFilter',
+  );
+  @override
+  late final GeneratedColumn<String> referenceFilter = GeneratedColumn<String>(
+    'reference_filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _slopeMeta = const VerificationMeta('slope');
+  @override
+  late final GeneratedColumn<double> slope = GeneratedColumn<double>(
+    'slope',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _interceptMeta = const VerificationMeta(
+    'intercept',
+  );
+  @override
+  late final GeneratedColumn<double> intercept = GeneratedColumn<double>(
+    'intercept',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rSquaredMeta = const VerificationMeta(
+    'rSquared',
+  );
+  @override
+  late final GeneratedColumn<double> rSquared = GeneratedColumn<double>(
+    'r_squared',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pointCountMeta = const VerificationMeta(
+    'pointCount',
+  );
+  @override
+  late final GeneratedColumn<int> pointCount = GeneratedColumn<int>(
+    'point_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelUpdatedAtMeta = const VerificationMeta(
+    'modelUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> modelUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'model_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    profileId,
+    referenceFilter,
+    slope,
+    intercept,
+    rSquared,
+    pointCount,
+    modelUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'focus_profile_models';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FocusProfileModelEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('reference_filter')) {
+      context.handle(
+        _referenceFilterMeta,
+        referenceFilter.isAcceptableOrUnknown(
+          data['reference_filter']!,
+          _referenceFilterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('slope')) {
+      context.handle(
+        _slopeMeta,
+        slope.isAcceptableOrUnknown(data['slope']!, _slopeMeta),
+      );
+    }
+    if (data.containsKey('intercept')) {
+      context.handle(
+        _interceptMeta,
+        intercept.isAcceptableOrUnknown(data['intercept']!, _interceptMeta),
+      );
+    }
+    if (data.containsKey('r_squared')) {
+      context.handle(
+        _rSquaredMeta,
+        rSquared.isAcceptableOrUnknown(data['r_squared']!, _rSquaredMeta),
+      );
+    }
+    if (data.containsKey('point_count')) {
+      context.handle(
+        _pointCountMeta,
+        pointCount.isAcceptableOrUnknown(data['point_count']!, _pointCountMeta),
+      );
+    }
+    if (data.containsKey('model_updated_at')) {
+      context.handle(
+        _modelUpdatedAtMeta,
+        modelUpdatedAt.isAcceptableOrUnknown(
+          data['model_updated_at']!,
+          _modelUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {profileId};
+  @override
+  FocusProfileModelEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FocusProfileModelEntry(
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      referenceFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_filter'],
+      ),
+      slope: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}slope'],
+      ),
+      intercept: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}intercept'],
+      ),
+      rSquared: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}r_squared'],
+      ),
+      pointCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}point_count'],
+      ),
+      modelUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}model_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $FocusProfileModelsTable createAlias(String alias) {
+    return $FocusProfileModelsTable(attachedDatabase, alias);
+  }
+}
+
+class FocusProfileModelEntry extends DataClass
+    implements Insertable<FocusProfileModelEntry> {
+  final String profileId;
+  final String? referenceFilter;
+
+  /// Steps per degree Celsius.
+  final double? slope;
+
+  /// Position at 0 °C.
+  final double? intercept;
+  final double? rSquared;
+  final int? pointCount;
+  final DateTime? modelUpdatedAt;
+  const FocusProfileModelEntry({
+    required this.profileId,
+    this.referenceFilter,
+    this.slope,
+    this.intercept,
+    this.rSquared,
+    this.pointCount,
+    this.modelUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['profile_id'] = Variable<String>(profileId);
+    if (!nullToAbsent || referenceFilter != null) {
+      map['reference_filter'] = Variable<String>(referenceFilter);
+    }
+    if (!nullToAbsent || slope != null) {
+      map['slope'] = Variable<double>(slope);
+    }
+    if (!nullToAbsent || intercept != null) {
+      map['intercept'] = Variable<double>(intercept);
+    }
+    if (!nullToAbsent || rSquared != null) {
+      map['r_squared'] = Variable<double>(rSquared);
+    }
+    if (!nullToAbsent || pointCount != null) {
+      map['point_count'] = Variable<int>(pointCount);
+    }
+    if (!nullToAbsent || modelUpdatedAt != null) {
+      map['model_updated_at'] = Variable<DateTime>(modelUpdatedAt);
+    }
+    return map;
+  }
+
+  FocusProfileModelsCompanion toCompanion(bool nullToAbsent) {
+    return FocusProfileModelsCompanion(
+      profileId: Value(profileId),
+      referenceFilter: referenceFilter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceFilter),
+      slope: slope == null && nullToAbsent
+          ? const Value.absent()
+          : Value(slope),
+      intercept: intercept == null && nullToAbsent
+          ? const Value.absent()
+          : Value(intercept),
+      rSquared: rSquared == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rSquared),
+      pointCount: pointCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pointCount),
+      modelUpdatedAt: modelUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(modelUpdatedAt),
+    );
+  }
+
+  factory FocusProfileModelEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FocusProfileModelEntry(
+      profileId: serializer.fromJson<String>(json['profileId']),
+      referenceFilter: serializer.fromJson<String?>(json['referenceFilter']),
+      slope: serializer.fromJson<double?>(json['slope']),
+      intercept: serializer.fromJson<double?>(json['intercept']),
+      rSquared: serializer.fromJson<double?>(json['rSquared']),
+      pointCount: serializer.fromJson<int?>(json['pointCount']),
+      modelUpdatedAt: serializer.fromJson<DateTime?>(json['modelUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'profileId': serializer.toJson<String>(profileId),
+      'referenceFilter': serializer.toJson<String?>(referenceFilter),
+      'slope': serializer.toJson<double?>(slope),
+      'intercept': serializer.toJson<double?>(intercept),
+      'rSquared': serializer.toJson<double?>(rSquared),
+      'pointCount': serializer.toJson<int?>(pointCount),
+      'modelUpdatedAt': serializer.toJson<DateTime?>(modelUpdatedAt),
+    };
+  }
+
+  FocusProfileModelEntry copyWith({
+    String? profileId,
+    Value<String?> referenceFilter = const Value.absent(),
+    Value<double?> slope = const Value.absent(),
+    Value<double?> intercept = const Value.absent(),
+    Value<double?> rSquared = const Value.absent(),
+    Value<int?> pointCount = const Value.absent(),
+    Value<DateTime?> modelUpdatedAt = const Value.absent(),
+  }) => FocusProfileModelEntry(
+    profileId: profileId ?? this.profileId,
+    referenceFilter: referenceFilter.present
+        ? referenceFilter.value
+        : this.referenceFilter,
+    slope: slope.present ? slope.value : this.slope,
+    intercept: intercept.present ? intercept.value : this.intercept,
+    rSquared: rSquared.present ? rSquared.value : this.rSquared,
+    pointCount: pointCount.present ? pointCount.value : this.pointCount,
+    modelUpdatedAt: modelUpdatedAt.present
+        ? modelUpdatedAt.value
+        : this.modelUpdatedAt,
+  );
+  FocusProfileModelEntry copyWithCompanion(FocusProfileModelsCompanion data) {
+    return FocusProfileModelEntry(
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      referenceFilter: data.referenceFilter.present
+          ? data.referenceFilter.value
+          : this.referenceFilter,
+      slope: data.slope.present ? data.slope.value : this.slope,
+      intercept: data.intercept.present ? data.intercept.value : this.intercept,
+      rSquared: data.rSquared.present ? data.rSquared.value : this.rSquared,
+      pointCount: data.pointCount.present
+          ? data.pointCount.value
+          : this.pointCount,
+      modelUpdatedAt: data.modelUpdatedAt.present
+          ? data.modelUpdatedAt.value
+          : this.modelUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusProfileModelEntry(')
+          ..write('profileId: $profileId, ')
+          ..write('referenceFilter: $referenceFilter, ')
+          ..write('slope: $slope, ')
+          ..write('intercept: $intercept, ')
+          ..write('rSquared: $rSquared, ')
+          ..write('pointCount: $pointCount, ')
+          ..write('modelUpdatedAt: $modelUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    profileId,
+    referenceFilter,
+    slope,
+    intercept,
+    rSquared,
+    pointCount,
+    modelUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FocusProfileModelEntry &&
+          other.profileId == this.profileId &&
+          other.referenceFilter == this.referenceFilter &&
+          other.slope == this.slope &&
+          other.intercept == this.intercept &&
+          other.rSquared == this.rSquared &&
+          other.pointCount == this.pointCount &&
+          other.modelUpdatedAt == this.modelUpdatedAt);
+}
+
+class FocusProfileModelsCompanion
+    extends UpdateCompanion<FocusProfileModelEntry> {
+  final Value<String> profileId;
+  final Value<String?> referenceFilter;
+  final Value<double?> slope;
+  final Value<double?> intercept;
+  final Value<double?> rSquared;
+  final Value<int?> pointCount;
+  final Value<DateTime?> modelUpdatedAt;
+  final Value<int> rowid;
+  const FocusProfileModelsCompanion({
+    this.profileId = const Value.absent(),
+    this.referenceFilter = const Value.absent(),
+    this.slope = const Value.absent(),
+    this.intercept = const Value.absent(),
+    this.rSquared = const Value.absent(),
+    this.pointCount = const Value.absent(),
+    this.modelUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FocusProfileModelsCompanion.insert({
+    required String profileId,
+    this.referenceFilter = const Value.absent(),
+    this.slope = const Value.absent(),
+    this.intercept = const Value.absent(),
+    this.rSquared = const Value.absent(),
+    this.pointCount = const Value.absent(),
+    this.modelUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : profileId = Value(profileId);
+  static Insertable<FocusProfileModelEntry> custom({
+    Expression<String>? profileId,
+    Expression<String>? referenceFilter,
+    Expression<double>? slope,
+    Expression<double>? intercept,
+    Expression<double>? rSquared,
+    Expression<int>? pointCount,
+    Expression<DateTime>? modelUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (profileId != null) 'profile_id': profileId,
+      if (referenceFilter != null) 'reference_filter': referenceFilter,
+      if (slope != null) 'slope': slope,
+      if (intercept != null) 'intercept': intercept,
+      if (rSquared != null) 'r_squared': rSquared,
+      if (pointCount != null) 'point_count': pointCount,
+      if (modelUpdatedAt != null) 'model_updated_at': modelUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FocusProfileModelsCompanion copyWith({
+    Value<String>? profileId,
+    Value<String?>? referenceFilter,
+    Value<double?>? slope,
+    Value<double?>? intercept,
+    Value<double?>? rSquared,
+    Value<int?>? pointCount,
+    Value<DateTime?>? modelUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return FocusProfileModelsCompanion(
+      profileId: profileId ?? this.profileId,
+      referenceFilter: referenceFilter ?? this.referenceFilter,
+      slope: slope ?? this.slope,
+      intercept: intercept ?? this.intercept,
+      rSquared: rSquared ?? this.rSquared,
+      pointCount: pointCount ?? this.pointCount,
+      modelUpdatedAt: modelUpdatedAt ?? this.modelUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (referenceFilter.present) {
+      map['reference_filter'] = Variable<String>(referenceFilter.value);
+    }
+    if (slope.present) {
+      map['slope'] = Variable<double>(slope.value);
+    }
+    if (intercept.present) {
+      map['intercept'] = Variable<double>(intercept.value);
+    }
+    if (rSquared.present) {
+      map['r_squared'] = Variable<double>(rSquared.value);
+    }
+    if (pointCount.present) {
+      map['point_count'] = Variable<int>(pointCount.value);
+    }
+    if (modelUpdatedAt.present) {
+      map['model_updated_at'] = Variable<DateTime>(modelUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusProfileModelsCompanion(')
+          ..write('profileId: $profileId, ')
+          ..write('referenceFilter: $referenceFilter, ')
+          ..write('slope: $slope, ')
+          ..write('intercept: $intercept, ')
+          ..write('rSquared: $rSquared, ')
+          ..write('pointCount: $pointCount, ')
+          ..write('modelUpdatedAt: $modelUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FocusFilterOffsetsTable extends FocusFilterOffsets
+    with TableInfo<$FocusFilterOffsetsTable, FocusFilterOffsetEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FocusFilterOffsetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _filterNameMeta = const VerificationMeta(
+    'filterName',
+  );
+  @override
+  late final GeneratedColumn<String> filterName = GeneratedColumn<String>(
+    'filter_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceFilterMeta = const VerificationMeta(
+    'referenceFilter',
+  );
+  @override
+  late final GeneratedColumn<String> referenceFilter = GeneratedColumn<String>(
+    'reference_filter',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _offsetStepsMeta = const VerificationMeta(
+    'offsetSteps',
+  );
+  @override
+  late final GeneratedColumn<int> offsetSteps = GeneratedColumn<int>(
+    'offset_steps',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _measurementCountMeta = const VerificationMeta(
+    'measurementCount',
+  );
+  @override
+  late final GeneratedColumn<int> measurementCount = GeneratedColumn<int>(
+    'measurement_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _confidenceMeta = const VerificationMeta(
+    'confidence',
+  );
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+    'confidence',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _confidenceBandMeta = const VerificationMeta(
+    'confidenceBand',
+  );
+  @override
+  late final GeneratedColumn<String> confidenceBand = GeneratedColumn<String>(
+    'confidence_band',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _confidenceReasonMeta = const VerificationMeta(
+    'confidenceReason',
+  );
+  @override
+  late final GeneratedColumn<String> confidenceReason = GeneratedColumn<String>(
+    'confidence_reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _temperatureCorrectedMeta =
+      const VerificationMeta('temperatureCorrected');
+  @override
+  late final GeneratedColumn<bool> temperatureCorrected = GeneratedColumn<bool>(
+    'temperature_corrected',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("temperature_corrected" IN (0, 1))',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    profileId,
+    filterName,
+    referenceFilter,
+    offsetSteps,
+    measurementCount,
+    confidence,
+    confidenceBand,
+    confidenceReason,
+    temperatureCorrected,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'focus_filter_offsets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FocusFilterOffsetEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('filter_name')) {
+      context.handle(
+        _filterNameMeta,
+        filterName.isAcceptableOrUnknown(data['filter_name']!, _filterNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filterNameMeta);
+    }
+    if (data.containsKey('reference_filter')) {
+      context.handle(
+        _referenceFilterMeta,
+        referenceFilter.isAcceptableOrUnknown(
+          data['reference_filter']!,
+          _referenceFilterMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_referenceFilterMeta);
+    }
+    if (data.containsKey('offset_steps')) {
+      context.handle(
+        _offsetStepsMeta,
+        offsetSteps.isAcceptableOrUnknown(
+          data['offset_steps']!,
+          _offsetStepsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_offsetStepsMeta);
+    }
+    if (data.containsKey('measurement_count')) {
+      context.handle(
+        _measurementCountMeta,
+        measurementCount.isAcceptableOrUnknown(
+          data['measurement_count']!,
+          _measurementCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_measurementCountMeta);
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+        _confidenceMeta,
+        confidence.isAcceptableOrUnknown(data['confidence']!, _confidenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_confidenceMeta);
+    }
+    if (data.containsKey('confidence_band')) {
+      context.handle(
+        _confidenceBandMeta,
+        confidenceBand.isAcceptableOrUnknown(
+          data['confidence_band']!,
+          _confidenceBandMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_confidenceBandMeta);
+    }
+    if (data.containsKey('confidence_reason')) {
+      context.handle(
+        _confidenceReasonMeta,
+        confidenceReason.isAcceptableOrUnknown(
+          data['confidence_reason']!,
+          _confidenceReasonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_confidenceReasonMeta);
+    }
+    if (data.containsKey('temperature_corrected')) {
+      context.handle(
+        _temperatureCorrectedMeta,
+        temperatureCorrected.isAcceptableOrUnknown(
+          data['temperature_corrected']!,
+          _temperatureCorrectedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_temperatureCorrectedMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {profileId, filterName};
+  @override
+  FocusFilterOffsetEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FocusFilterOffsetEntry(
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      filterName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter_name'],
+      )!,
+      referenceFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_filter'],
+      )!,
+      offsetSteps: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}offset_steps'],
+      )!,
+      measurementCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}measurement_count'],
+      )!,
+      confidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}confidence'],
+      )!,
+      confidenceBand: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}confidence_band'],
+      )!,
+      confidenceReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}confidence_reason'],
+      )!,
+      temperatureCorrected: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}temperature_corrected'],
+      )!,
+    );
+  }
+
+  @override
+  $FocusFilterOffsetsTable createAlias(String alias) {
+    return $FocusFilterOffsetsTable(attachedDatabase, alias);
+  }
+}
+
+class FocusFilterOffsetEntry extends DataClass
+    implements Insertable<FocusFilterOffsetEntry> {
+  final String profileId;
+  final String filterName;
+  final String referenceFilter;
+  final int offsetSteps;
+  final int measurementCount;
+
+  /// 0..1.
+  final double confidence;
+
+  /// `high`, `medium` or `low` (`FilterOffsetConfidence`).
+  final String confidenceBand;
+  final String confidenceReason;
+  final bool temperatureCorrected;
+  const FocusFilterOffsetEntry({
+    required this.profileId,
+    required this.filterName,
+    required this.referenceFilter,
+    required this.offsetSteps,
+    required this.measurementCount,
+    required this.confidence,
+    required this.confidenceBand,
+    required this.confidenceReason,
+    required this.temperatureCorrected,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['profile_id'] = Variable<String>(profileId);
+    map['filter_name'] = Variable<String>(filterName);
+    map['reference_filter'] = Variable<String>(referenceFilter);
+    map['offset_steps'] = Variable<int>(offsetSteps);
+    map['measurement_count'] = Variable<int>(measurementCount);
+    map['confidence'] = Variable<double>(confidence);
+    map['confidence_band'] = Variable<String>(confidenceBand);
+    map['confidence_reason'] = Variable<String>(confidenceReason);
+    map['temperature_corrected'] = Variable<bool>(temperatureCorrected);
+    return map;
+  }
+
+  FocusFilterOffsetsCompanion toCompanion(bool nullToAbsent) {
+    return FocusFilterOffsetsCompanion(
+      profileId: Value(profileId),
+      filterName: Value(filterName),
+      referenceFilter: Value(referenceFilter),
+      offsetSteps: Value(offsetSteps),
+      measurementCount: Value(measurementCount),
+      confidence: Value(confidence),
+      confidenceBand: Value(confidenceBand),
+      confidenceReason: Value(confidenceReason),
+      temperatureCorrected: Value(temperatureCorrected),
+    );
+  }
+
+  factory FocusFilterOffsetEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FocusFilterOffsetEntry(
+      profileId: serializer.fromJson<String>(json['profileId']),
+      filterName: serializer.fromJson<String>(json['filterName']),
+      referenceFilter: serializer.fromJson<String>(json['referenceFilter']),
+      offsetSteps: serializer.fromJson<int>(json['offsetSteps']),
+      measurementCount: serializer.fromJson<int>(json['measurementCount']),
+      confidence: serializer.fromJson<double>(json['confidence']),
+      confidenceBand: serializer.fromJson<String>(json['confidenceBand']),
+      confidenceReason: serializer.fromJson<String>(json['confidenceReason']),
+      temperatureCorrected: serializer.fromJson<bool>(
+        json['temperatureCorrected'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'profileId': serializer.toJson<String>(profileId),
+      'filterName': serializer.toJson<String>(filterName),
+      'referenceFilter': serializer.toJson<String>(referenceFilter),
+      'offsetSteps': serializer.toJson<int>(offsetSteps),
+      'measurementCount': serializer.toJson<int>(measurementCount),
+      'confidence': serializer.toJson<double>(confidence),
+      'confidenceBand': serializer.toJson<String>(confidenceBand),
+      'confidenceReason': serializer.toJson<String>(confidenceReason),
+      'temperatureCorrected': serializer.toJson<bool>(temperatureCorrected),
+    };
+  }
+
+  FocusFilterOffsetEntry copyWith({
+    String? profileId,
+    String? filterName,
+    String? referenceFilter,
+    int? offsetSteps,
+    int? measurementCount,
+    double? confidence,
+    String? confidenceBand,
+    String? confidenceReason,
+    bool? temperatureCorrected,
+  }) => FocusFilterOffsetEntry(
+    profileId: profileId ?? this.profileId,
+    filterName: filterName ?? this.filterName,
+    referenceFilter: referenceFilter ?? this.referenceFilter,
+    offsetSteps: offsetSteps ?? this.offsetSteps,
+    measurementCount: measurementCount ?? this.measurementCount,
+    confidence: confidence ?? this.confidence,
+    confidenceBand: confidenceBand ?? this.confidenceBand,
+    confidenceReason: confidenceReason ?? this.confidenceReason,
+    temperatureCorrected: temperatureCorrected ?? this.temperatureCorrected,
+  );
+  FocusFilterOffsetEntry copyWithCompanion(FocusFilterOffsetsCompanion data) {
+    return FocusFilterOffsetEntry(
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      filterName: data.filterName.present
+          ? data.filterName.value
+          : this.filterName,
+      referenceFilter: data.referenceFilter.present
+          ? data.referenceFilter.value
+          : this.referenceFilter,
+      offsetSteps: data.offsetSteps.present
+          ? data.offsetSteps.value
+          : this.offsetSteps,
+      measurementCount: data.measurementCount.present
+          ? data.measurementCount.value
+          : this.measurementCount,
+      confidence: data.confidence.present
+          ? data.confidence.value
+          : this.confidence,
+      confidenceBand: data.confidenceBand.present
+          ? data.confidenceBand.value
+          : this.confidenceBand,
+      confidenceReason: data.confidenceReason.present
+          ? data.confidenceReason.value
+          : this.confidenceReason,
+      temperatureCorrected: data.temperatureCorrected.present
+          ? data.temperatureCorrected.value
+          : this.temperatureCorrected,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusFilterOffsetEntry(')
+          ..write('profileId: $profileId, ')
+          ..write('filterName: $filterName, ')
+          ..write('referenceFilter: $referenceFilter, ')
+          ..write('offsetSteps: $offsetSteps, ')
+          ..write('measurementCount: $measurementCount, ')
+          ..write('confidence: $confidence, ')
+          ..write('confidenceBand: $confidenceBand, ')
+          ..write('confidenceReason: $confidenceReason, ')
+          ..write('temperatureCorrected: $temperatureCorrected')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    profileId,
+    filterName,
+    referenceFilter,
+    offsetSteps,
+    measurementCount,
+    confidence,
+    confidenceBand,
+    confidenceReason,
+    temperatureCorrected,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FocusFilterOffsetEntry &&
+          other.profileId == this.profileId &&
+          other.filterName == this.filterName &&
+          other.referenceFilter == this.referenceFilter &&
+          other.offsetSteps == this.offsetSteps &&
+          other.measurementCount == this.measurementCount &&
+          other.confidence == this.confidence &&
+          other.confidenceBand == this.confidenceBand &&
+          other.confidenceReason == this.confidenceReason &&
+          other.temperatureCorrected == this.temperatureCorrected);
+}
+
+class FocusFilterOffsetsCompanion
+    extends UpdateCompanion<FocusFilterOffsetEntry> {
+  final Value<String> profileId;
+  final Value<String> filterName;
+  final Value<String> referenceFilter;
+  final Value<int> offsetSteps;
+  final Value<int> measurementCount;
+  final Value<double> confidence;
+  final Value<String> confidenceBand;
+  final Value<String> confidenceReason;
+  final Value<bool> temperatureCorrected;
+  final Value<int> rowid;
+  const FocusFilterOffsetsCompanion({
+    this.profileId = const Value.absent(),
+    this.filterName = const Value.absent(),
+    this.referenceFilter = const Value.absent(),
+    this.offsetSteps = const Value.absent(),
+    this.measurementCount = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.confidenceBand = const Value.absent(),
+    this.confidenceReason = const Value.absent(),
+    this.temperatureCorrected = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FocusFilterOffsetsCompanion.insert({
+    required String profileId,
+    required String filterName,
+    required String referenceFilter,
+    required int offsetSteps,
+    required int measurementCount,
+    required double confidence,
+    required String confidenceBand,
+    required String confidenceReason,
+    required bool temperatureCorrected,
+    this.rowid = const Value.absent(),
+  }) : profileId = Value(profileId),
+       filterName = Value(filterName),
+       referenceFilter = Value(referenceFilter),
+       offsetSteps = Value(offsetSteps),
+       measurementCount = Value(measurementCount),
+       confidence = Value(confidence),
+       confidenceBand = Value(confidenceBand),
+       confidenceReason = Value(confidenceReason),
+       temperatureCorrected = Value(temperatureCorrected);
+  static Insertable<FocusFilterOffsetEntry> custom({
+    Expression<String>? profileId,
+    Expression<String>? filterName,
+    Expression<String>? referenceFilter,
+    Expression<int>? offsetSteps,
+    Expression<int>? measurementCount,
+    Expression<double>? confidence,
+    Expression<String>? confidenceBand,
+    Expression<String>? confidenceReason,
+    Expression<bool>? temperatureCorrected,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (profileId != null) 'profile_id': profileId,
+      if (filterName != null) 'filter_name': filterName,
+      if (referenceFilter != null) 'reference_filter': referenceFilter,
+      if (offsetSteps != null) 'offset_steps': offsetSteps,
+      if (measurementCount != null) 'measurement_count': measurementCount,
+      if (confidence != null) 'confidence': confidence,
+      if (confidenceBand != null) 'confidence_band': confidenceBand,
+      if (confidenceReason != null) 'confidence_reason': confidenceReason,
+      if (temperatureCorrected != null)
+        'temperature_corrected': temperatureCorrected,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FocusFilterOffsetsCompanion copyWith({
+    Value<String>? profileId,
+    Value<String>? filterName,
+    Value<String>? referenceFilter,
+    Value<int>? offsetSteps,
+    Value<int>? measurementCount,
+    Value<double>? confidence,
+    Value<String>? confidenceBand,
+    Value<String>? confidenceReason,
+    Value<bool>? temperatureCorrected,
+    Value<int>? rowid,
+  }) {
+    return FocusFilterOffsetsCompanion(
+      profileId: profileId ?? this.profileId,
+      filterName: filterName ?? this.filterName,
+      referenceFilter: referenceFilter ?? this.referenceFilter,
+      offsetSteps: offsetSteps ?? this.offsetSteps,
+      measurementCount: measurementCount ?? this.measurementCount,
+      confidence: confidence ?? this.confidence,
+      confidenceBand: confidenceBand ?? this.confidenceBand,
+      confidenceReason: confidenceReason ?? this.confidenceReason,
+      temperatureCorrected: temperatureCorrected ?? this.temperatureCorrected,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (filterName.present) {
+      map['filter_name'] = Variable<String>(filterName.value);
+    }
+    if (referenceFilter.present) {
+      map['reference_filter'] = Variable<String>(referenceFilter.value);
+    }
+    if (offsetSteps.present) {
+      map['offset_steps'] = Variable<int>(offsetSteps.value);
+    }
+    if (measurementCount.present) {
+      map['measurement_count'] = Variable<int>(measurementCount.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (confidenceBand.present) {
+      map['confidence_band'] = Variable<String>(confidenceBand.value);
+    }
+    if (confidenceReason.present) {
+      map['confidence_reason'] = Variable<String>(confidenceReason.value);
+    }
+    if (temperatureCorrected.present) {
+      map['temperature_corrected'] = Variable<bool>(temperatureCorrected.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FocusFilterOffsetsCompanion(')
+          ..write('profileId: $profileId, ')
+          ..write('filterName: $filterName, ')
+          ..write('referenceFilter: $referenceFilter, ')
+          ..write('offsetSteps: $offsetSteps, ')
+          ..write('measurementCount: $measurementCount, ')
+          ..write('confidence: $confidence, ')
+          ..write('confidenceBand: $confidenceBand, ')
+          ..write('confidenceReason: $confidenceReason, ')
+          ..write('temperatureCorrected: $temperatureCorrected, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $GuideRmsHistoryTable extends GuideRmsHistory
     with TableInfo<$GuideRmsHistoryTable, GuideRmsHistoryEntry> {
   @override
@@ -52249,6 +53827,12 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
       $SessionDiagnosticsTable(this);
   late final $DefectMapsTable defectMaps = $DefectMapsTable(this);
   late final $FocusModelsTable focusModels = $FocusModelsTable(this);
+  late final $FocusHistoryPointsTable focusHistoryPoints =
+      $FocusHistoryPointsTable(this);
+  late final $FocusProfileModelsTable focusProfileModels =
+      $FocusProfileModelsTable(this);
+  late final $FocusFilterOffsetsTable focusFilterOffsets =
+      $FocusFilterOffsetsTable(this);
   late final $GuideRmsHistoryTable guideRmsHistory = $GuideRmsHistoryTable(
     this,
   );
@@ -52522,6 +54106,10 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
     'idx_focus_models_last_used',
     'CREATE INDEX idx_focus_models_last_used ON focus_models (last_used_at)',
   );
+  late final Index idxFocusHistoryPointsProfile = Index(
+    'idx_focus_history_points_profile',
+    'CREATE INDEX idx_focus_history_points_profile ON focus_history_points (profile_id, recorded_at)',
+  );
   late final Index idxGuideRmsMountRecent = Index(
     'idx_guide_rms_mount_recent',
     'CREATE INDEX idx_guide_rms_mount_recent ON guide_rms_history (mount_id, recorded_at DESC)',
@@ -52642,6 +54230,9 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
   late final SessionDiagnosticsDao sessionDiagnosticsDao =
       SessionDiagnosticsDao(this as SkotiqDatabase);
   late final GuideRmsHistoryDao guideRmsHistoryDao = GuideRmsHistoryDao(
+    this as SkotiqDatabase,
+  );
+  late final FocusHistoryDao focusHistoryDao = FocusHistoryDao(
     this as SkotiqDatabase,
   );
   late final NarratorEventsDao narratorEventsDao = NarratorEventsDao(
@@ -52821,6 +54412,9 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
     sessionDiagnostics,
     defectMaps,
     focusModels,
+    focusHistoryPoints,
+    focusProfileModels,
+    focusFilterOffsets,
     guideRmsHistory,
     narratorEvents,
     skyAtlasRegions,
@@ -52894,6 +54488,7 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
     idxFocusModelsProfile,
     idxFocusModelsProfileFilter,
     idxFocusModelsLastUsed,
+    idxFocusHistoryPointsProfile,
     idxGuideRmsMountRecent,
     idxNarratorEventsSession,
     idxNarratorEventsImage,
@@ -88296,6 +89891,821 @@ typedef $$FocusModelsTableProcessedTableManager =
       FocusModelEntry,
       PrefetchHooks Function({bool equipmentProfileId})
     >;
+typedef $$FocusHistoryPointsTableCreateCompanionBuilder =
+    FocusHistoryPointsCompanion Function({
+      Value<int> id,
+      required String profileId,
+      required DateTime recordedAt,
+      required double temperatureCelsius,
+      required int focusPosition,
+      required double hfr,
+      Value<String?> filterName,
+    });
+typedef $$FocusHistoryPointsTableUpdateCompanionBuilder =
+    FocusHistoryPointsCompanion Function({
+      Value<int> id,
+      Value<String> profileId,
+      Value<DateTime> recordedAt,
+      Value<double> temperatureCelsius,
+      Value<int> focusPosition,
+      Value<double> hfr,
+      Value<String?> filterName,
+    });
+
+class $$FocusHistoryPointsTableFilterComposer
+    extends Composer<_$SkotiqDatabase, $FocusHistoryPointsTable> {
+  $$FocusHistoryPointsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get temperatureCelsius => $composableBuilder(
+    column: $table.temperatureCelsius,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get focusPosition => $composableBuilder(
+    column: $table.focusPosition,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get hfr => $composableBuilder(
+    column: $table.hfr,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FocusHistoryPointsTableOrderingComposer
+    extends Composer<_$SkotiqDatabase, $FocusHistoryPointsTable> {
+  $$FocusHistoryPointsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get temperatureCelsius => $composableBuilder(
+    column: $table.temperatureCelsius,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get focusPosition => $composableBuilder(
+    column: $table.focusPosition,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get hfr => $composableBuilder(
+    column: $table.hfr,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FocusHistoryPointsTableAnnotationComposer
+    extends Composer<_$SkotiqDatabase, $FocusHistoryPointsTable> {
+  $$FocusHistoryPointsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get temperatureCelsius => $composableBuilder(
+    column: $table.temperatureCelsius,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get focusPosition => $composableBuilder(
+    column: $table.focusPosition,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get hfr =>
+      $composableBuilder(column: $table.hfr, builder: (column) => column);
+
+  GeneratedColumn<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => column,
+  );
+}
+
+class $$FocusHistoryPointsTableTableManager
+    extends
+        RootTableManager<
+          _$SkotiqDatabase,
+          $FocusHistoryPointsTable,
+          FocusHistoryEntry,
+          $$FocusHistoryPointsTableFilterComposer,
+          $$FocusHistoryPointsTableOrderingComposer,
+          $$FocusHistoryPointsTableAnnotationComposer,
+          $$FocusHistoryPointsTableCreateCompanionBuilder,
+          $$FocusHistoryPointsTableUpdateCompanionBuilder,
+          (
+            FocusHistoryEntry,
+            BaseReferences<
+              _$SkotiqDatabase,
+              $FocusHistoryPointsTable,
+              FocusHistoryEntry
+            >,
+          ),
+          FocusHistoryEntry,
+          PrefetchHooks Function()
+        > {
+  $$FocusHistoryPointsTableTableManager(
+    _$SkotiqDatabase db,
+    $FocusHistoryPointsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FocusHistoryPointsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FocusHistoryPointsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FocusHistoryPointsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<DateTime> recordedAt = const Value.absent(),
+                Value<double> temperatureCelsius = const Value.absent(),
+                Value<int> focusPosition = const Value.absent(),
+                Value<double> hfr = const Value.absent(),
+                Value<String?> filterName = const Value.absent(),
+              }) => FocusHistoryPointsCompanion(
+                id: id,
+                profileId: profileId,
+                recordedAt: recordedAt,
+                temperatureCelsius: temperatureCelsius,
+                focusPosition: focusPosition,
+                hfr: hfr,
+                filterName: filterName,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String profileId,
+                required DateTime recordedAt,
+                required double temperatureCelsius,
+                required int focusPosition,
+                required double hfr,
+                Value<String?> filterName = const Value.absent(),
+              }) => FocusHistoryPointsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                recordedAt: recordedAt,
+                temperatureCelsius: temperatureCelsius,
+                focusPosition: focusPosition,
+                hfr: hfr,
+                filterName: filterName,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FocusHistoryPointsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SkotiqDatabase,
+      $FocusHistoryPointsTable,
+      FocusHistoryEntry,
+      $$FocusHistoryPointsTableFilterComposer,
+      $$FocusHistoryPointsTableOrderingComposer,
+      $$FocusHistoryPointsTableAnnotationComposer,
+      $$FocusHistoryPointsTableCreateCompanionBuilder,
+      $$FocusHistoryPointsTableUpdateCompanionBuilder,
+      (
+        FocusHistoryEntry,
+        BaseReferences<
+          _$SkotiqDatabase,
+          $FocusHistoryPointsTable,
+          FocusHistoryEntry
+        >,
+      ),
+      FocusHistoryEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$FocusProfileModelsTableCreateCompanionBuilder =
+    FocusProfileModelsCompanion Function({
+      required String profileId,
+      Value<String?> referenceFilter,
+      Value<double?> slope,
+      Value<double?> intercept,
+      Value<double?> rSquared,
+      Value<int?> pointCount,
+      Value<DateTime?> modelUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$FocusProfileModelsTableUpdateCompanionBuilder =
+    FocusProfileModelsCompanion Function({
+      Value<String> profileId,
+      Value<String?> referenceFilter,
+      Value<double?> slope,
+      Value<double?> intercept,
+      Value<double?> rSquared,
+      Value<int?> pointCount,
+      Value<DateTime?> modelUpdatedAt,
+      Value<int> rowid,
+    });
+
+class $$FocusProfileModelsTableFilterComposer
+    extends Composer<_$SkotiqDatabase, $FocusProfileModelsTable> {
+  $$FocusProfileModelsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get slope => $composableBuilder(
+    column: $table.slope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get intercept => $composableBuilder(
+    column: $table.intercept,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get rSquared => $composableBuilder(
+    column: $table.rSquared,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pointCount => $composableBuilder(
+    column: $table.pointCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get modelUpdatedAt => $composableBuilder(
+    column: $table.modelUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FocusProfileModelsTableOrderingComposer
+    extends Composer<_$SkotiqDatabase, $FocusProfileModelsTable> {
+  $$FocusProfileModelsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get slope => $composableBuilder(
+    column: $table.slope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get intercept => $composableBuilder(
+    column: $table.intercept,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get rSquared => $composableBuilder(
+    column: $table.rSquared,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pointCount => $composableBuilder(
+    column: $table.pointCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get modelUpdatedAt => $composableBuilder(
+    column: $table.modelUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FocusProfileModelsTableAnnotationComposer
+    extends Composer<_$SkotiqDatabase, $FocusProfileModelsTable> {
+  $$FocusProfileModelsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get slope =>
+      $composableBuilder(column: $table.slope, builder: (column) => column);
+
+  GeneratedColumn<double> get intercept =>
+      $composableBuilder(column: $table.intercept, builder: (column) => column);
+
+  GeneratedColumn<double> get rSquared =>
+      $composableBuilder(column: $table.rSquared, builder: (column) => column);
+
+  GeneratedColumn<int> get pointCount => $composableBuilder(
+    column: $table.pointCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get modelUpdatedAt => $composableBuilder(
+    column: $table.modelUpdatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$FocusProfileModelsTableTableManager
+    extends
+        RootTableManager<
+          _$SkotiqDatabase,
+          $FocusProfileModelsTable,
+          FocusProfileModelEntry,
+          $$FocusProfileModelsTableFilterComposer,
+          $$FocusProfileModelsTableOrderingComposer,
+          $$FocusProfileModelsTableAnnotationComposer,
+          $$FocusProfileModelsTableCreateCompanionBuilder,
+          $$FocusProfileModelsTableUpdateCompanionBuilder,
+          (
+            FocusProfileModelEntry,
+            BaseReferences<
+              _$SkotiqDatabase,
+              $FocusProfileModelsTable,
+              FocusProfileModelEntry
+            >,
+          ),
+          FocusProfileModelEntry,
+          PrefetchHooks Function()
+        > {
+  $$FocusProfileModelsTableTableManager(
+    _$SkotiqDatabase db,
+    $FocusProfileModelsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FocusProfileModelsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FocusProfileModelsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FocusProfileModelsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> profileId = const Value.absent(),
+                Value<String?> referenceFilter = const Value.absent(),
+                Value<double?> slope = const Value.absent(),
+                Value<double?> intercept = const Value.absent(),
+                Value<double?> rSquared = const Value.absent(),
+                Value<int?> pointCount = const Value.absent(),
+                Value<DateTime?> modelUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FocusProfileModelsCompanion(
+                profileId: profileId,
+                referenceFilter: referenceFilter,
+                slope: slope,
+                intercept: intercept,
+                rSquared: rSquared,
+                pointCount: pointCount,
+                modelUpdatedAt: modelUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String profileId,
+                Value<String?> referenceFilter = const Value.absent(),
+                Value<double?> slope = const Value.absent(),
+                Value<double?> intercept = const Value.absent(),
+                Value<double?> rSquared = const Value.absent(),
+                Value<int?> pointCount = const Value.absent(),
+                Value<DateTime?> modelUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FocusProfileModelsCompanion.insert(
+                profileId: profileId,
+                referenceFilter: referenceFilter,
+                slope: slope,
+                intercept: intercept,
+                rSquared: rSquared,
+                pointCount: pointCount,
+                modelUpdatedAt: modelUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FocusProfileModelsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SkotiqDatabase,
+      $FocusProfileModelsTable,
+      FocusProfileModelEntry,
+      $$FocusProfileModelsTableFilterComposer,
+      $$FocusProfileModelsTableOrderingComposer,
+      $$FocusProfileModelsTableAnnotationComposer,
+      $$FocusProfileModelsTableCreateCompanionBuilder,
+      $$FocusProfileModelsTableUpdateCompanionBuilder,
+      (
+        FocusProfileModelEntry,
+        BaseReferences<
+          _$SkotiqDatabase,
+          $FocusProfileModelsTable,
+          FocusProfileModelEntry
+        >,
+      ),
+      FocusProfileModelEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$FocusFilterOffsetsTableCreateCompanionBuilder =
+    FocusFilterOffsetsCompanion Function({
+      required String profileId,
+      required String filterName,
+      required String referenceFilter,
+      required int offsetSteps,
+      required int measurementCount,
+      required double confidence,
+      required String confidenceBand,
+      required String confidenceReason,
+      required bool temperatureCorrected,
+      Value<int> rowid,
+    });
+typedef $$FocusFilterOffsetsTableUpdateCompanionBuilder =
+    FocusFilterOffsetsCompanion Function({
+      Value<String> profileId,
+      Value<String> filterName,
+      Value<String> referenceFilter,
+      Value<int> offsetSteps,
+      Value<int> measurementCount,
+      Value<double> confidence,
+      Value<String> confidenceBand,
+      Value<String> confidenceReason,
+      Value<bool> temperatureCorrected,
+      Value<int> rowid,
+    });
+
+class $$FocusFilterOffsetsTableFilterComposer
+    extends Composer<_$SkotiqDatabase, $FocusFilterOffsetsTable> {
+  $$FocusFilterOffsetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get offsetSteps => $composableBuilder(
+    column: $table.offsetSteps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get measurementCount => $composableBuilder(
+    column: $table.measurementCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get confidenceBand => $composableBuilder(
+    column: $table.confidenceBand,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get confidenceReason => $composableBuilder(
+    column: $table.confidenceReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get temperatureCorrected => $composableBuilder(
+    column: $table.temperatureCorrected,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FocusFilterOffsetsTableOrderingComposer
+    extends Composer<_$SkotiqDatabase, $FocusFilterOffsetsTable> {
+  $$FocusFilterOffsetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get offsetSteps => $composableBuilder(
+    column: $table.offsetSteps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get measurementCount => $composableBuilder(
+    column: $table.measurementCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get confidenceBand => $composableBuilder(
+    column: $table.confidenceBand,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get confidenceReason => $composableBuilder(
+    column: $table.confidenceReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get temperatureCorrected => $composableBuilder(
+    column: $table.temperatureCorrected,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FocusFilterOffsetsTableAnnotationComposer
+    extends Composer<_$SkotiqDatabase, $FocusFilterOffsetsTable> {
+  $$FocusFilterOffsetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<String> get filterName => $composableBuilder(
+    column: $table.filterName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get referenceFilter => $composableBuilder(
+    column: $table.referenceFilter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get offsetSteps => $composableBuilder(
+    column: $table.offsetSteps,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get measurementCount => $composableBuilder(
+    column: $table.measurementCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get confidenceBand => $composableBuilder(
+    column: $table.confidenceBand,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get confidenceReason => $composableBuilder(
+    column: $table.confidenceReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get temperatureCorrected => $composableBuilder(
+    column: $table.temperatureCorrected,
+    builder: (column) => column,
+  );
+}
+
+class $$FocusFilterOffsetsTableTableManager
+    extends
+        RootTableManager<
+          _$SkotiqDatabase,
+          $FocusFilterOffsetsTable,
+          FocusFilterOffsetEntry,
+          $$FocusFilterOffsetsTableFilterComposer,
+          $$FocusFilterOffsetsTableOrderingComposer,
+          $$FocusFilterOffsetsTableAnnotationComposer,
+          $$FocusFilterOffsetsTableCreateCompanionBuilder,
+          $$FocusFilterOffsetsTableUpdateCompanionBuilder,
+          (
+            FocusFilterOffsetEntry,
+            BaseReferences<
+              _$SkotiqDatabase,
+              $FocusFilterOffsetsTable,
+              FocusFilterOffsetEntry
+            >,
+          ),
+          FocusFilterOffsetEntry,
+          PrefetchHooks Function()
+        > {
+  $$FocusFilterOffsetsTableTableManager(
+    _$SkotiqDatabase db,
+    $FocusFilterOffsetsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FocusFilterOffsetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FocusFilterOffsetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FocusFilterOffsetsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> profileId = const Value.absent(),
+                Value<String> filterName = const Value.absent(),
+                Value<String> referenceFilter = const Value.absent(),
+                Value<int> offsetSteps = const Value.absent(),
+                Value<int> measurementCount = const Value.absent(),
+                Value<double> confidence = const Value.absent(),
+                Value<String> confidenceBand = const Value.absent(),
+                Value<String> confidenceReason = const Value.absent(),
+                Value<bool> temperatureCorrected = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FocusFilterOffsetsCompanion(
+                profileId: profileId,
+                filterName: filterName,
+                referenceFilter: referenceFilter,
+                offsetSteps: offsetSteps,
+                measurementCount: measurementCount,
+                confidence: confidence,
+                confidenceBand: confidenceBand,
+                confidenceReason: confidenceReason,
+                temperatureCorrected: temperatureCorrected,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String profileId,
+                required String filterName,
+                required String referenceFilter,
+                required int offsetSteps,
+                required int measurementCount,
+                required double confidence,
+                required String confidenceBand,
+                required String confidenceReason,
+                required bool temperatureCorrected,
+                Value<int> rowid = const Value.absent(),
+              }) => FocusFilterOffsetsCompanion.insert(
+                profileId: profileId,
+                filterName: filterName,
+                referenceFilter: referenceFilter,
+                offsetSteps: offsetSteps,
+                measurementCount: measurementCount,
+                confidence: confidence,
+                confidenceBand: confidenceBand,
+                confidenceReason: confidenceReason,
+                temperatureCorrected: temperatureCorrected,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FocusFilterOffsetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SkotiqDatabase,
+      $FocusFilterOffsetsTable,
+      FocusFilterOffsetEntry,
+      $$FocusFilterOffsetsTableFilterComposer,
+      $$FocusFilterOffsetsTableOrderingComposer,
+      $$FocusFilterOffsetsTableAnnotationComposer,
+      $$FocusFilterOffsetsTableCreateCompanionBuilder,
+      $$FocusFilterOffsetsTableUpdateCompanionBuilder,
+      (
+        FocusFilterOffsetEntry,
+        BaseReferences<
+          _$SkotiqDatabase,
+          $FocusFilterOffsetsTable,
+          FocusFilterOffsetEntry
+        >,
+      ),
+      FocusFilterOffsetEntry,
+      PrefetchHooks Function()
+    >;
 typedef $$GuideRmsHistoryTableCreateCompanionBuilder =
     GuideRmsHistoryCompanion Function({
       Value<int> id,
@@ -92729,6 +95139,12 @@ class $SkotiqDatabaseManager {
       $$DefectMapsTableTableManager(_db, _db.defectMaps);
   $$FocusModelsTableTableManager get focusModels =>
       $$FocusModelsTableTableManager(_db, _db.focusModels);
+  $$FocusHistoryPointsTableTableManager get focusHistoryPoints =>
+      $$FocusHistoryPointsTableTableManager(_db, _db.focusHistoryPoints);
+  $$FocusProfileModelsTableTableManager get focusProfileModels =>
+      $$FocusProfileModelsTableTableManager(_db, _db.focusProfileModels);
+  $$FocusFilterOffsetsTableTableManager get focusFilterOffsets =>
+      $$FocusFilterOffsetsTableTableManager(_db, _db.focusFilterOffsets);
   $$GuideRmsHistoryTableTableManager get guideRmsHistory =>
       $$GuideRmsHistoryTableTableManager(_db, _db.guideRmsHistory);
   $$NarratorEventsTableTableManager get narratorEvents =>

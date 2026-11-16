@@ -209,14 +209,9 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           detail: 'forced-window boost',
         ),
     ];
-    // Fold the soft factors into a total via the shared aggregation contract.
-    // The engine uses ADDITIVE mode (Σ of weighted factors, NOT divided by the
-    // weight-sum), deliberately different from the planner/node NORMALIZED
-    // model; only the aggregation primitive is shared.
-    final total = WeightedScore.total([
-      for (final f in factors)
-        WeightedFactor(name: f.name, value: f.value, weight: f.weight),
-    ], mode: WeightedScoreMode.additive);
+    // The sum of the weighted factors, not divided by the weight sum: a
+    // heavier weight set gives a larger total.
+    final total = factors.fold<double>(0, (sum, f) => sum + f.weighted);
 
     return TargetScore(
       targetId: c.targetId,

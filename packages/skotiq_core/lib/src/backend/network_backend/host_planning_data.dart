@@ -1,8 +1,8 @@
 part of '../network_backend.dart';
 
 /// Projects, integration goals, target constraints and the scheduler queue
-/// kept in a linked imaging host's database.
-mixin HostPlanningData on NetworkBackendTransport {
+/// kept in a linked imaging host's database, and the host's target scorer.
+mixin HostPlanningData on NetworkBackendTransport implements TargetScoring {
   /// GET /api/projects/progress?projectId= — the server-computed
   /// accrued-vs-remaining campaign roll-up (derived from the host's
   /// `captured_images` + goals, never a slave-side recompute).
@@ -270,6 +270,52 @@ mixin HostPlanningData on NetworkBackendTransport {
       query: params.isEmpty ? null : params,
     );
     return response;
+  }
+
+  /// POST /api/suggestions/score-now
+  @override
+  Future<List<ApiTargetScoreNow>> rankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required int nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) async {
+    final response = await _post(
+      SuggestionApi.scoreTargetsNow,
+      body: TargetScoringWire.rankRequest(
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+        nowUnixMs: nowUnixMs,
+        targets: targets,
+        weights: weights,
+        floor: floor,
+      ),
+    );
+    return TargetScoringWire.readRankResponse(
+      response['scores'] as List<dynamic>,
+    );
+  }
+
+  /// POST /api/suggestions/score-night
+  @override
+  Future<List<ApiNightScore>> scoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) async {
+    final response = await _post(
+      SuggestionApi.scoreTargetsForNight,
+      body: TargetScoringWire.nightRequest(
+        sky: sky,
+        targets: targets,
+        weights: weights,
+      ),
+    );
+    return TargetScoringWire.readNightResponse(
+      response['scores'] as List<dynamic>,
+    );
   }
 }
 

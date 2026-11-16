@@ -15,6 +15,29 @@ enum SuggestionApi implements ApiEndpoint {
       '/api/suggestions/score/<targetId>',
       resource: ApiResource.system,
     ),
+  ),
+
+  /// A TargetScheduler step's targets ranked now by the host's scorer.
+  scoreTargetsNow(
+    ApiRoute.post(
+      '/api/suggestions/score-now',
+      resource: ApiResource.system,
+      scope: ApiScope.view,
+      timeout: ApiTimeout.read,
+      bucket: ApiBucket.read,
+    ),
+  ),
+
+  /// Catalog positions scored over a night by the host's scorer.
+  scoreTargetsForNight(
+    ApiRoute.post(
+      '/api/suggestions/score-night',
+      resource: ApiResource.system,
+      scope: ApiScope.view,
+      timeout: ApiTimeout.read,
+      bucket: ApiBucket.read,
+      maxBodyBytes: ApiBodyLimit.scoring,
+    ),
   );
 
   const SuggestionApi(this.route);

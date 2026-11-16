@@ -30,18 +30,6 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
       const AppSettingsState(latitude: _latitude, longitude: _longitude);
 }
 
-class _Fixture implements CelestialObject {
-  @override
-  String get id => 'm92';
-  @override
-  String get name => 'M92';
-  @override
-  CelestialCoordinate get coordinates =>
-      const CelestialCoordinate(ra: _raHours, dec: _decDegrees);
-  @override
-  double? get magnitude => null;
-}
-
 /// The text of the chip whose label is [label], e.g. 'Rise: ' -> '12:01'.
 String? chipValue(WidgetTester tester, String label) {
   final texts = tester
@@ -65,21 +53,23 @@ void main() {
       // sides of local noon.
       final now = DateTime(2026, 8, 2, 3, 0);
 
-      // What the planner's warnings and the Night Outlook chips are computed
-      // from: the real scorer, over the night that contains `now`.
+      // What the planner shows for the night that contains `now`: rise and
+      // set nearest the middle of its darkness.
       final twilight = AstronomyCalculations.calculateTwilightTimes(
         date: AstronomyCalculations.nightDateOf(now),
         latitudeDeg: _latitude,
         longitudeDeg: _longitude,
       );
-      final scored = TargetScoringService(
-        latitude: _latitude,
-        longitude: _longitude,
-        observationTime: now,
-      ).scoreTargetForNight(
-        target: _Fixture(),
-        nightStart: twilight.astronomicalDusk!,
-        nightEnd: twilight.astronomicalDawn!,
+      final dusk = twilight.astronomicalDusk!;
+      final dawn = twilight.astronomicalDawn!;
+      final scored = (
+        visibility: AstronomyCalculations.calculateObjectVisibilityAround(
+          raDeg: _raHours * 15,
+          decDeg: _decDegrees,
+          center: dusk.add(dawn.difference(dusk) ~/ 2),
+          latitudeDeg: _latitude,
+          longitudeDeg: _longitude,
+        ),
       );
       final expectedRise = scored.visibility.riseTime;
       expect(expectedRise, isNotNull);

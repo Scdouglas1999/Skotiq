@@ -11,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../widgets/filter_set_picker_test_support.dart';
+import 'package:skotiq_core/backend.dart' show NativeTargetScoring;
 
 const _ownerWheel = ['L', 'R', 'G', 'B', 'Ha', 'SII', 'OIII', 'DARK'];
 const _profile = EquipmentProfileModel(
@@ -90,6 +91,8 @@ void main() {
           SmartNightService(
             suggestionService: TargetSuggestionService(
               loggingService: LoggingService(),
+              // Never asked: these plans are built from suggestions given here.
+              scorer: const TargetScorer(NativeTargetScoring()),
             ),
             logging: LoggingService(),
             floor: const AltitudeFloor(horizon: null, minimumDeg: 0),

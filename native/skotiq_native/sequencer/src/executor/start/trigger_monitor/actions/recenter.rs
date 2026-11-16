@@ -68,6 +68,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         max_attempts: 3,
         exposure_duration: 5.0,
         filter: None,
+        sync_mount: true,
     };
     let result = crate::instructions::execute_center(&center_config, &recenter_ctx, None).await;
     // The solve exposures are done; the capture loop may go on.

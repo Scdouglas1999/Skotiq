@@ -1,54 +1,7 @@
 part of '../astronomy_calculations.dart';
 
-/// Shares the time grid and sidereal times when evaluating a fixed-object
-/// catalog for one observing site and date. Each object's crossings and transit
-/// are still refined independently with the original visibility calculation.
-///
-/// [windowStart], when given, opens the 24-hour window there instead of at
-/// the host's local noon of [date]; see
-/// [AstronomyCalculations.calculateObjectVisibilityAround].
-class FixedObjectVisibilityCalculator {
-  final DateTime date;
-  final double latitudeDeg;
-  final double longitudeDeg;
-  final DateTime? windowStart;
-  final List<(DateTime, double)> _siderealSamples;
-
-  FixedObjectVisibilityCalculator({
-    required this.date,
-    required this.latitudeDeg,
-    required this.longitudeDeg,
-    this.windowStart,
-  }) : _siderealSamples = _visibilitySiderealSamples(
-         windowStart ?? _localNoonOf(date),
-         longitudeDeg,
-       );
-
-  ObjectVisibility calculate({required double raDeg, required double decDeg}) =>
-      _calculateObjectVisibility(
-        raDeg: raDeg,
-        decDeg: decDeg,
-        date: date,
-        latitudeDeg: latitudeDeg,
-        longitudeDeg: longitudeDeg,
-        siderealSamples: _siderealSamples,
-        windowStart: windowStart,
-      );
-}
-
 DateTime _localNoonOf(DateTime date) =>
     DateTime(date.year, date.month, date.day, 12);
-
-List<(DateTime, double)> _visibilitySiderealSamples(
-  DateTime start,
-  double longitude,
-) {
-  final end = start.add(const Duration(hours: 24));
-  return [
-    for (var t = start; !t.isAfter(end); t = t.add(const Duration(minutes: 5)))
-      (t, _localSiderealTime(t, longitude)),
-  ];
-}
 
 /// Apparent altitude (degrees, including refraction) of a body at [dt].
 ///
@@ -171,7 +124,6 @@ ObjectVisibility _calculateObjectVisibility({
   double minAltitude = 0,
   double? standardAltitude,
   EquatorialPositionAt? positionAt,
-  List<(DateTime, double)>? siderealSamples,
   DateTime? windowStart,
 }) {
   final localNoon = windowStart ?? _localNoonOf(date);
@@ -186,23 +138,8 @@ ObjectVisibility _calculateObjectVisibility({
   // skip a crossing, while keeping the loop cheap.
   const step = Duration(minutes: 5);
   final samples = <(DateTime, double)>[];
-  if (siderealSamples == null) {
-    for (var t = localNoon; !t.isAfter(windowEnd); t = t.add(step)) {
-      samples.add((
-        t,
-        _apparentAltitudeOf(t, posAt, latitudeDeg, longitudeDeg),
-      ));
-    }
-  } else {
-    for (final (time, lst) in siderealSamples) {
-      final (altitude, _) = _equatorialToHorizontal(
-        raDeg: raDeg,
-        decDeg: decDeg,
-        latitudeDeg: latitudeDeg,
-        lstHours: lst,
-      );
-      samples.add((time, _trueToApparentAltitude(altitude)));
-    }
+  for (var t = localNoon; !t.isAfter(windowEnd); t = t.add(step)) {
+    samples.add((t, _apparentAltitudeOf(t, posAt, latitudeDeg, longitudeDeg)));
   }
 
   DateTime? riseTime;
