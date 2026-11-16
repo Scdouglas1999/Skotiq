@@ -1,9 +1,11 @@
-// End-to-end coverage for the provider and its isolate ranking entry point.
+// Best Targets Tonight end to end: the provider, the app's scorer it is
+// handed, and the ranking.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_astro/testing.dart';
 
 const _lat = 40.0;
 const _lon = -105.0;
@@ -58,10 +60,16 @@ void main() {
     magnitude: 11.0,
   );
 
-  ProviderContainer createContainer(List<DeepSkyObject> dsos) {
+  ProviderContainer createContainer(
+    List<DeepSkyObject> dsos, {
+    ScriptedNightScorer? scorer,
+  }) {
     final container = ProviderContainer(
       overrides: [
         loadedDsosProvider.overrideWith((ref) async => dsos),
+        planetariumNightScorerProvider.overrideWith(
+          (ref) => (scorer ?? ScriptedNightScorer()).call,
+        ),
         // The site's floor as the app pumps it: no horizon, 30 degrees.
         planetariumAltitudeFloorProvider.overrideWith(
           (ref) => AltitudeFloorSamples.flat(30),
@@ -76,25 +84,33 @@ void main() {
     return container;
   }
 
-  test(
-    'the card itself, not just the ranker, refuses a daylight culmination',
-    () async {
-      final container = createContainer([zenithAtBreakfast, usableInDarkness]);
+  test('the card lists what the app\'s scorer finds usable tonight', () async {
+    // The scorer leaves the zenith-at-breakfast decoy out: it has no dark time.
+    final scorer = ScriptedNightScorer(byIndex: {0: null});
+    final container = createContainer([
+      zenithAtBreakfast,
+      usableInDarkness,
+    ], scorer: scorer);
 
-      final best = (await container.read(bestTargetsProvider.future))!;
+    final best = (await container.read(bestTargetsProvider.future))!;
 
-      expect(best, isNotEmpty);
-      expect(
-        best.first.object.id,
-        'REAL-TARGET',
-        reason:
-            'the provider must rank on usable dark hours, not on the '
-            'transit altitude of an object that peaks at 10:00',
-      );
-      // Not merely reordered: an object with no dark time at all is dropped.
-      expect(best.map((t) => t.object.id), isNot(contains('DECOY-ZENITH')));
-    },
-  );
+    expect(best.map((t) => t.object.id), ['REAL-TARGET']);
+    expect(scorer.requests.single.targets, hasLength(2));
+  });
+
+  test('without the app\'s scorer the card is not ranked yet', () async {
+    final container = ProviderContainer(
+      overrides: [
+        loadedDsosProvider.overrideWith((ref) async => [usableInDarkness]),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(observerLocationProvider.notifier)
+        .setLocation(latitude: _lat, longitude: _lon);
+
+    expect(await container.read(bestTargetsProvider.future), isNull);
+  });
 
   test('every target the card offers has dark hours and a dark peak', () async {
     final container = createContainer([zenithAtBreakfast, usableInDarkness]);
@@ -109,7 +125,7 @@ void main() {
     }
   });
 
-  test('active equipment FOV reaches the isolate ranking inputs', () async {
+  test('active equipment FOV reaches the ranking', () async {
     final ra = _raHoursTransitingAt(darkMid);
     final objects = [
       DeepSkyObject(

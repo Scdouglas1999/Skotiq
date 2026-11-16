@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:drift/native.dart';
+import 'package:skotiq_core/database.dart' show SkotiqDatabase;
 
 void main() {
   test('combines remote focus history and fitted model responses', () {
@@ -106,6 +108,9 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 class _DelayedFocusModelService extends FocusModelService {
+  _DelayedFocusModelService()
+    : super(SkotiqDatabase.forTesting(NativeDatabase.memory()).focusHistoryDao);
+
   final Completer<void> _hydrated = Completer<void>();
   int initializeCalls = 0;
   bool _ready = false;

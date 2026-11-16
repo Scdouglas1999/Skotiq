@@ -371,6 +371,12 @@ final List<AlwaysOnService> alwaysOnServices = [
     _everyRole,
     "the planetarium's rise and set times using the site's altitude floor",
   ),
+  AlwaysOnService(
+    'planetarium target scorer',
+    planetariumNightScorerSyncProvider,
+    _everyRole,
+    "the planetarium's Best Targets ranked by the app's one target scorer",
+  ),
 ];
 
 /// The always-on services running in one container.

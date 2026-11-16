@@ -10,7 +10,8 @@ class FilterSet {
     required this.label,
     required this.filters,
     this.preset,
-  });
+    Map<String, double> shares = const {},
+  }) : _shares = shares;
 
   /// [preset] through [filters], its wheel slots on this rig.
   FilterSet.preset(SmartNightStrategy preset, List<String> filters)
@@ -33,11 +34,15 @@ class FilterSet {
         filters: List.unmodifiable([filter]),
       );
 
-  FilterSet._custom(String name, List<String> filters)
-    : this._(
+  FilterSet._custom(
+    String name,
+    List<String> filters,
+    Map<String, double> shares,
+  ) : this._(
         key: '$_customPrefix$name',
         label: name,
         filters: List.unmodifiable(filters),
+        shares: Map.unmodifiable(shares),
       );
 
   static const _singlePrefix = 'filter:';
@@ -59,14 +64,31 @@ class FilterSet {
   /// Whether the user saved this set.
   bool get isCustom => key.startsWith(_customPrefix);
 
-  /// Share of the planned time each filter gets, by filter identity
-  /// (`filterIdentity`); a filter not listed gets 1. LRGB gives luminance
-  /// twice a color's time; a saved set gives every filter the same time.
-  Map<String, double> get timeShares => switch (preset) {
-    SmartNightStrategy.autoLrgb ||
-    SmartNightStrategy.haLrgb => const {'L': 2.0},
-    _ => const {},
+  final Map<String, double> _shares;
+
+  /// Each filter's share of the planned time, by wheel slot: the weights
+  /// the user gave, else the same for every filter. Every automatic plan
+  /// splits its time by this.
+  Map<String, double> get shares => {
+    for (final filter in filters) filter: _shares[filter] ?? 1.0,
   };
+
+  /// Whether every filter gets the same time.
+  bool get evenShares => shares.values.toSet().length <= 1;
+
+  /// This set with [shares] (weights by wheel slot; a filter left out gets
+  /// 1). A share that is not a positive number counts as 1.
+  FilterSet withShares(Map<String, double> shares) => FilterSet._(
+    key: key,
+    label: label,
+    filters: filters,
+    preset: preset,
+    shares: Map.unmodifiable({
+      for (final filter in filters)
+        if (shares[filter] case final share? when share.isFinite && share > 0)
+          filter: share,
+    }),
+  );
 
   /// The set's line in a plan's name or summary: its label, and its filters
   /// when the label does not already say them ("My HaRGB: Ha, R, G, B").
@@ -76,10 +98,15 @@ class FilterSet {
   bool operator ==(Object other) =>
       other is FilterSet &&
       other.key == key &&
-      _sameList(other.filters, filters);
+      _sameList(other.filters, filters) &&
+      _sameList(
+        [for (final share in other.shares.values) '$share'],
+        [for (final share in shares.values) '$share'],
+      );
 
   @override
-  int get hashCode => Object.hash(key, Object.hashAll(filters));
+  int get hashCode =>
+      Object.hash(key, Object.hashAll(filters), Object.hashAll(shares.values));
 }
 
 bool _sameList(List<String> a, List<String> b) {
@@ -93,7 +120,6 @@ bool _sameList(List<String> a, List<String> b) {
 /// What the Filters picker calls [preset].
 String filterSetPresetLabel(SmartNightStrategy preset) => switch (preset) {
   SmartNightStrategy.autoLrgb => 'LRGB',
-  SmartNightStrategy.monoLrgb => 'LRGB, equal time',
   SmartNightStrategy.haLrgb => 'LRGB + Ha',
   SmartNightStrategy.rgb => 'RGB',
   SmartNightStrategy.luminance => 'L',
@@ -110,10 +136,18 @@ String filterSetPresetLabel(SmartNightStrategy preset) => switch (preset) {
 /// user ticked them; they are matched to the wheel by the filter-name rule
 /// each time, so "Ha" still finds a slot renamed "Ha 7nm".
 class CustomFilterSet {
-  const CustomFilterSet({required this.name, required this.filters});
+  const CustomFilterSet({
+    required this.name,
+    required this.filters,
+    this.shares = const {},
+  });
 
   final String name;
   final List<String> filters;
+
+  /// Each filter's share of the planned time, by its name in [filters]; a
+  /// filter not listed gets 1.
+  final Map<String, double> shares;
 
   /// This set on a wheel holding [availableFilters]; null unless every
   /// filter is on it.
@@ -123,15 +157,27 @@ class CustomFilterSet {
         matchingFilterName(filter, availableFilters),
     ];
     if (slots.isEmpty || slots.contains(null)) return null;
-    return FilterSet._custom(name, slots.cast<String>());
+    final resolved = slots.cast<String>();
+    return FilterSet._custom(name, resolved, {
+      for (var i = 0; i < filters.length; i++)
+        if (shares[filters[i]] case final share?) resolved[i]: share,
+    });
   }
 
-  Map<String, dynamic> toJson() => {'name': name, 'filters': filters};
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'filters': filters,
+    if (shares.isNotEmpty) 'shares': shares,
+  };
 
   factory CustomFilterSet.fromJson(Map<String, dynamic> json) =>
       CustomFilterSet(
         name: json['name'] as String,
         filters: [for (final f in json['filters'] as List) f as String],
+        shares: {
+          for (final entry in (json['shares'] as Map? ?? const {}).entries)
+            entry.key as String: (entry.value as num).toDouble(),
+        },
       );
 }
 

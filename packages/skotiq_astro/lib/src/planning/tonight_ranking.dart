@@ -10,13 +10,13 @@ import 'target_scoring.dart';
 const int kTonightRankingLimit = 20;
 
 /// Share of the ranking key taken by tonight's OBSERVING CONDITIONS, i.e. the
-/// app's own [TargetScoringService] night score.
+/// app's own night score ([NightScorer]).
 const double kTonightConditionsWeight = 0.7;
 
 /// Share of the ranking key taken by how well the object suits the rig
 /// (catalog brightness, apparent size against the active FOV, object type).
 ///
-/// This axis is NOT part of [TargetScoringService], so the ranking here is
+/// This axis is NOT part of the night score, so the ranking here is
 /// deliberately not identical to the planner's ordering. Anything shown to an
 /// operator has to say so — see [kTonightRankingTooltip].
 const double kTonightCatalogFitWeight = 1 - kTonightConditionsWeight;
@@ -118,7 +118,7 @@ class TonightRanking {
   /// When that peak happens. Always an instant inside the darkness window.
   final DateTime? peakTime;
 
-  /// The ranking key (0-100): the app's own [TargetScoringService] night score
+  /// The ranking key (0-100): the app's own night score
   /// at [kTonightConditionsWeight], blended with a catalog-fit term
   /// (brightness / size against the FOV / type) at [kTonightCatalogFitWeight].
   ///
@@ -138,23 +138,24 @@ class TonightRanking {
 /// Rank catalog positions for the night of [nightDate] at the given site.
 ///
 /// Only targets above [floor] (the site's altitude floor, by azimuth) during
-/// the darkness window are returned. They are
-/// scored by altitude, moon separation, timing, usable hours, and airmass.
-/// Primitive coordinate arrays keep this function isolate-safe.
-List<TonightRanking> rankTonightTargets({
+/// the darkness window are returned. [scorer] scores them by altitude, moon
+/// separation, timing, usable hours and airmass; the catalog fit is blended
+/// in here.
+Future<List<TonightRanking>> rankTonightTargets({
   required List<double> raDeg,
   required List<double> decDeg,
   required double latitudeDeg,
   required double longitudeDeg,
   required DateTime nightDate,
   required AltitudeFloorSamples floor,
+  required NightScorer scorer,
   int limit = kTonightRankingLimit,
   List<double?>? magnitudes,
   List<double?>? sizesArcMin,
   List<int?>? objectTypes,
   double? fovWidthDeg,
   double? fovHeightDeg,
-}) {
+}) async {
   final twilight = AstronomyCalculations.calculateTwilightTimes(
     date: nightDate,
     latitudeDeg: latitudeDeg,
@@ -178,14 +179,29 @@ List<TonightRanking> rankTonightTargets({
     dt: mid,
   );
 
-  final scorer = TargetScoringService(
-    latitude: latitudeDeg,
-    longitude: longitudeDeg,
-    observationTime: mid,
-    moonPosition: (moonRa, moonDec),
-    moonIllumination: AstronomyCalculations.moonIllumination(mid),
-    twilight: twilight,
-    floorAt: floor.at,
+  final scores = await scorer(
+    NightScoringRequest(
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+      now: mid,
+      nightStart: window.start,
+      nightEnd: window.end,
+      moon: (moonRa, moonDec),
+      moonIlluminationPercent: AstronomyCalculations.moonIllumination(mid),
+      floor: floor,
+      targets: [
+        for (var i = 0; i < raDeg.length; i++)
+          DeepSkyObject(
+            id: '$i',
+            name: '$i',
+            coordinates: CelestialCoordinate.fromDegrees(
+              raDegrees: raDeg[i],
+              decDegrees: decDeg[i],
+            ),
+            type: DsoType.other,
+          ),
+      ],
+    ),
   );
 
   final scored =
@@ -198,30 +214,11 @@ List<TonightRanking> rankTonightTargets({
           DateTime? peakTime,
         })
       >[];
-  for (var i = 0; i < raDeg.length; i++) {
-    final score = scorer.scoreTargetForNight(
-      target: DeepSkyObject(
-        id: '$i',
-        name: '$i',
-        coordinates: CelestialCoordinate.fromDegrees(
-          raDegrees: raDeg[i],
-          decDegrees: decDeg[i],
-        ),
-        type: DsoType.other,
-      ),
-      nightStart: window.start,
-      nightEnd: window.end,
-    );
+  for (final score in scores) {
+    final i = int.parse(score.target.id);
     final hours = score.visibility.hoursAboveMinAlt;
     final peak = score.visibility.peakAltitude;
-    // Nothing that is never usable during darkness belongs on a list headed
-    // "Best Targets Tonight", however high it climbs at lunchtime.
-    if (score.visibility.neverRises ||
-        hours == null ||
-        hours <= 0 ||
-        peak == null) {
-      continue;
-    }
+    if (hours == null || hours <= 0 || peak == null) continue;
     final catalogQuality = _catalogQualityScore(
       magnitude: _at(magnitudes, i),
       sizeArcMin: _at(sizesArcMin, i),

@@ -1,55 +1,5 @@
 part of '../centering_service.dart';
 
-/// Thrown when the mount status query fails for too many consecutive ticks
-/// during the post-slew settle poll. Distinguishes a sustained
-/// disconnect/hang from a single transient blip that the poll loop can ride
-/// out.
-///
-/// Typed rather than a wait-out of the 60 s wall-clock cap, so callers and
-/// tests see the actual failure mode instead of "centering timed out".
-class CenteringMountUnresponsiveException implements Exception {
-  /// Number of consecutive failed `getMountStatus` calls before giving up.
-  final int consecutiveFailures;
-
-  /// Total wall-clock duration spanned by [consecutiveFailures] at the
-  /// poll-tick rate.
-  final Duration elapsed;
-
-  /// The underlying error from the most recent failed mount status query.
-  final Object cause;
-
-  const CenteringMountUnresponsiveException({
-    required this.consecutiveFailures,
-    required this.elapsed,
-    required this.cause,
-  });
-
-  @override
-  String toString() {
-    final seconds = elapsed.inMilliseconds / 1000.0;
-    return 'Mount status query failed $consecutiveFailures times '
-        'consecutively over ${seconds.toStringAsFixed(1)}s '
-        '— aborting centering. The mount may be disconnected or '
-        'unresponsive. Last error: $cause';
-  }
-}
-
-/// Thrown when the mount keeps reporting that it is slewing for the full
-/// post-slew settle budget.
-class CenteringSlewTimeoutException implements Exception {
-  final Duration elapsed;
-
-  const CenteringSlewTimeoutException({required this.elapsed});
-
-  @override
-  String toString() {
-    final seconds = elapsed.inMilliseconds / 1000.0;
-    return 'Mount was still slewing after ${seconds.toStringAsFixed(1)}s. '
-        'Centering stopped instead of taking another exposure while the mount '
-        'was moving.';
-  }
-}
-
 class CenteringResult {
   final bool success;
   final double? finalOffsetArcsec;
@@ -120,6 +70,9 @@ class CenteringIteration {
   });
 }
 
+/// How a manual centering runs. The frames are taken at full resolution with
+/// the camera's stated gain and offset, and solved near the target, as the
+/// sequence's Center step does.
 class CenteringConfig {
   final int maxIterations;
 
@@ -129,23 +82,9 @@ class CenteringConfig {
   /// Exposure time for centering images in seconds
   final double exposureTime;
 
-  final int binning;
-
-  /// Gain to use for centering images. When omitted, the current imaging gain
-  /// is preserved.
-  final int? gain;
-
-  /// Offset to use for centering images. When omitted, the current imaging
-  /// offset is preserved.
-  final int? offset;
-
-  /// Whether to sync the mount to the solved position before re-slewing.
-  ///
-  /// Defaults ON: with it off the correction slew is the SAME slew that
-  /// produced the mis-pointed frame, so the measured offset is bit-identical
-  /// on every iteration and the run can only end on max iterations. Off is for
-  /// mounts that build a pointing model from syncs, where the operator wants
-  /// the model left alone.
+  /// Whether to sync the mount to each solve before re-slewing. Off, each
+  /// correction is an offset slew by the measured error, for mounts that build
+  /// a pointing model from syncs.
   final bool syncMount;
 
   /// Maximum wall-clock time for the full centering operation
@@ -155,9 +94,6 @@ class CenteringConfig {
     this.maxIterations = 5,
     this.toleranceArcsec = 30.0,
     this.exposureTime = 3.0,
-    this.binning = 2,
-    this.gain,
-    this.offset,
     this.syncMount = true,
     this.overallTimeout = const Duration(minutes: 10),
   });

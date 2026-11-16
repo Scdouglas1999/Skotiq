@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -52255907;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1685998195;
 
 // Section: executor
 
@@ -700,6 +700,24 @@ fn wire__crate__api__imaging__api_cancel_autofocus_impl(
         },
     )
 }
+fn wire__crate__api__centering__api_cancel_centering_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_cancel_centering",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::centering::api_cancel_centering();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -715,6 +733,39 @@ fn wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(
                     (move || async move {
                         let output_ok =
                             crate::api::imaging::api_cancel_focuser_backlash_calibration().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__centering__api_center_on_target_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    request: impl CstDecode<crate::api::centering::ApiCenteringRequest>,
+    sink: impl CstDecode<
+        StreamSink<
+            crate::api::centering::ApiCenteringStep,
+            flutter_rust_bridge::for_generated::DcoCodec,
+        >,
+    >,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_center_on_target",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_request = request.cst_decode();
+            let api_sink = sink.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::centering::api_center_on_target(api_request, api_sink)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -4599,6 +4650,41 @@ fn wire__crate__api__post_session__entrypoints__api_post_session_cancel_impl(
         },
     )
 }
+fn wire__crate__api__target_scoring__api_rank_scheduler_targets_impl(
+    latitude_deg: impl CstDecode<f64>,
+    longitude_deg: impl CstDecode<f64>,
+    now_unix_ms: impl CstDecode<i64>,
+    targets: impl CstDecode<Vec<crate::api::target_scoring::ApiSchedulerTarget>>,
+    weights: impl CstDecode<crate::api::target_scoring::ApiScoringWeights>,
+    floor: impl CstDecode<Vec<crate::api::target_scoring::ApiFloorSample>>,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_rank_scheduler_targets",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let api_latitude_deg = latitude_deg.cst_decode();
+            let api_longitude_deg = longitude_deg.cst_decode();
+            let api_now_unix_ms = now_unix_ms.cst_decode();
+            let api_targets = targets.cst_decode();
+            let api_weights = weights.cst_decode();
+            let api_floor = floor.cst_decode();
+            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                let output_ok = crate::api::target_scoring::api_rank_scheduler_targets(
+                    api_latitude_deg,
+                    api_longitude_deg,
+                    api_now_unix_ms,
+                    api_targets,
+                    api_weights,
+                    api_floor,
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__imaging__api_read_fits_file_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     file_path: impl CstDecode<String>,
@@ -5144,6 +5230,39 @@ fn wire__crate__api__imaging__api_save_rgba_png_file_impl(
                             api_width,
                             api_height,
                             api_rgba,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__target_scoring__api_score_targets_for_night_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    sky: impl CstDecode<crate::api::target_scoring::ApiNightSky>,
+    targets: impl CstDecode<Vec<crate::api::target_scoring::ApiNightTarget>>,
+    weights: impl CstDecode<crate::api::target_scoring::ApiScoringWeights>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_score_targets_for_night",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_sky = sky.cst_decode();
+            let api_targets = targets.cst_decode();
+            let api_weights = weights.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::target_scoring::api_score_targets_for_night(
+                            api_sky,
+                            api_targets,
+                            api_weights,
                         )
                         .await?;
                         Ok(output_ok)
@@ -7556,6 +7675,19 @@ impl SseDecode for std::collections::HashMap<String, u32> {
 }
 
 impl SseDecode
+    for StreamSink<
+        crate::api::centering::ApiCenteringStep,
+        flutter_rust_bridge::for_generated::DcoCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -7610,6 +7742,80 @@ impl SseDecode for crate::api::imaging::ApiCalibratedPixels {
             data: var_data,
             pedestal: var_pedestal,
         };
+    }
+}
+
+impl SseDecode for crate::api::centering::ApiCenteringRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_mountId = <String>::sse_decode(deserializer);
+        let mut var_cameraId = <String>::sse_decode(deserializer);
+        let mut var_filterWheelId = <Option<String>>::sse_decode(deserializer);
+        let mut var_raHours = <f64>::sse_decode(deserializer);
+        let mut var_decDegrees = <f64>::sse_decode(deserializer);
+        let mut var_accuracyArcsec = <f64>::sse_decode(deserializer);
+        let mut var_maxAttempts = <u32>::sse_decode(deserializer);
+        let mut var_exposureSecs = <f64>::sse_decode(deserializer);
+        let mut var_filter = <Option<String>>::sse_decode(deserializer);
+        let mut var_syncMount = <bool>::sse_decode(deserializer);
+        return crate::api::centering::ApiCenteringRequest {
+            mount_id: var_mountId,
+            camera_id: var_cameraId,
+            filter_wheel_id: var_filterWheelId,
+            ra_hours: var_raHours,
+            dec_degrees: var_decDegrees,
+            accuracy_arcsec: var_accuracyArcsec,
+            max_attempts: var_maxAttempts,
+            exposure_secs: var_exposureSecs,
+            filter: var_filter,
+            sync_mount: var_syncMount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::centering::ApiCenteringStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Capturing {
+                    attempt: var_attempt,
+                };
+            }
+            1 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                let mut var_raHours = <f64>::sse_decode(deserializer);
+                let mut var_decDegrees = <f64>::sse_decode(deserializer);
+                let mut var_separationArcsec = <f64>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Solved {
+                    attempt: var_attempt,
+                    ra_hours: var_raHours,
+                    dec_degrees: var_decDegrees,
+                    separation_arcsec: var_separationArcsec,
+                };
+            }
+            2 => {
+                let mut var_attempt = <u32>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Correcting {
+                    attempt: var_attempt,
+                };
+            }
+            3 => {
+                let mut var_centered = <bool>::sse_decode(deserializer);
+                let mut var_cancelled = <bool>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::centering::ApiCenteringStep::Finished {
+                    centered: var_centered,
+                    cancelled: var_cancelled,
+                    message: var_message,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -7889,6 +8095,18 @@ impl SseDecode for crate::api::depthlock::ApiDepthReport {
     }
 }
 
+impl SseDecode for crate::api::target_scoring::ApiFloorSample {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_azimuthDeg = <f64>::sse_decode(deserializer);
+        let mut var_altitudeDeg = <f64>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiFloorSample {
+            azimuth_deg: var_azimuthDeg,
+            altitude_deg: var_altitudeDeg,
+        };
+    }
+}
+
 impl SseDecode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7976,6 +8194,89 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingStats {
     }
 }
 
+impl SseDecode for crate::api::target_scoring::ApiNightScore {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_targetId = <String>::sse_decode(deserializer);
+        let mut var_totalScore = <f64>::sse_decode(deserializer);
+        let mut var_altitudeScore = <f64>::sse_decode(deserializer);
+        let mut var_moonDistanceScore = <f64>::sse_decode(deserializer);
+        let mut var_transitProximityScore = <f64>::sse_decode(deserializer);
+        let mut var_darknessScore = <f64>::sse_decode(deserializer);
+        let mut var_airmassScore = <f64>::sse_decode(deserializer);
+        let mut var_currentAltitudeDeg = <f64>::sse_decode(deserializer);
+        let mut var_currentAzimuthDeg = <f64>::sse_decode(deserializer);
+        let mut var_peakAltitudeDeg = <f64>::sse_decode(deserializer);
+        let mut var_peakAzimuthDeg = <f64>::sse_decode(deserializer);
+        let mut var_peakUnixMs = <i64>::sse_decode(deserializer);
+        let mut var_hoursAboveFloor = <f64>::sse_decode(deserializer);
+        let mut var_aboveFloorFromUnixMs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_aboveFloorUntilUnixMs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_bestAirmass = <Option<f64>>::sse_decode(deserializer);
+        let mut var_moonDistanceDeg = <f64>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiNightScore {
+            target_id: var_targetId,
+            total_score: var_totalScore,
+            altitude_score: var_altitudeScore,
+            moon_distance_score: var_moonDistanceScore,
+            transit_proximity_score: var_transitProximityScore,
+            darkness_score: var_darknessScore,
+            airmass_score: var_airmassScore,
+            current_altitude_deg: var_currentAltitudeDeg,
+            current_azimuth_deg: var_currentAzimuthDeg,
+            peak_altitude_deg: var_peakAltitudeDeg,
+            peak_azimuth_deg: var_peakAzimuthDeg,
+            peak_unix_ms: var_peakUnixMs,
+            hours_above_floor: var_hoursAboveFloor,
+            above_floor_from_unix_ms: var_aboveFloorFromUnixMs,
+            above_floor_until_unix_ms: var_aboveFloorUntilUnixMs,
+            best_airmass: var_bestAirmass,
+            moon_distance_deg: var_moonDistanceDeg,
+        };
+    }
+}
+
+impl SseDecode for crate::api::target_scoring::ApiNightSky {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_latitudeDeg = <f64>::sse_decode(deserializer);
+        let mut var_longitudeDeg = <f64>::sse_decode(deserializer);
+        let mut var_nowUnixMs = <i64>::sse_decode(deserializer);
+        let mut var_nightStartUnixMs = <i64>::sse_decode(deserializer);
+        let mut var_nightEndUnixMs = <i64>::sse_decode(deserializer);
+        let mut var_moonRaDeg = <Option<f64>>::sse_decode(deserializer);
+        let mut var_moonDecDeg = <Option<f64>>::sse_decode(deserializer);
+        let mut var_moonIlluminationPercent = <f64>::sse_decode(deserializer);
+        let mut var_floor =
+            <Vec<crate::api::target_scoring::ApiFloorSample>>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiNightSky {
+            latitude_deg: var_latitudeDeg,
+            longitude_deg: var_longitudeDeg,
+            now_unix_ms: var_nowUnixMs,
+            night_start_unix_ms: var_nightStartUnixMs,
+            night_end_unix_ms: var_nightEndUnixMs,
+            moon_ra_deg: var_moonRaDeg,
+            moon_dec_deg: var_moonDecDeg,
+            moon_illumination_percent: var_moonIlluminationPercent,
+            floor: var_floor,
+        };
+    }
+}
+
+impl SseDecode for crate::api::target_scoring::ApiNightTarget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_raDeg = <f64>::sse_decode(deserializer);
+        let mut var_decDeg = <f64>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiNightTarget {
+            id: var_id,
+            ra_deg: var_raDeg,
+            dec_deg: var_decDeg,
+        };
+    }
+}
+
 impl SseDecode for crate::api::depthlock::ApiReferenceGeometry {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8004,6 +8305,50 @@ impl SseDecode for crate::api::depthlock::ApiReferenceGeometry {
     }
 }
 
+impl SseDecode for crate::api::target_scoring::ApiSchedulerTarget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_raHours = <f64>::sse_decode(deserializer);
+        let mut var_decDegrees = <f64>::sse_decode(deserializer);
+        let mut var_minAltitudeDeg = <Option<f64>>::sse_decode(deserializer);
+        let mut var_startAfterUnixSecs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_endBeforeUnixSecs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_priority = <i32>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiSchedulerTarget {
+            id: var_id,
+            name: var_name,
+            ra_hours: var_raHours,
+            dec_degrees: var_decDegrees,
+            min_altitude_deg: var_minAltitudeDeg,
+            start_after_unix_secs: var_startAfterUnixSecs,
+            end_before_unix_secs: var_endBeforeUnixSecs,
+            priority: var_priority,
+        };
+    }
+}
+
+impl SseDecode for crate::api::target_scoring::ApiScoringWeights {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_altitude = <f64>::sse_decode(deserializer);
+        let mut var_moonDistance = <f64>::sse_decode(deserializer);
+        let mut var_transitProximity = <f64>::sse_decode(deserializer);
+        let mut var_darkness = <f64>::sse_decode(deserializer);
+        let mut var_airmass = <f64>::sse_decode(deserializer);
+        let mut var_minMoonSeparationDeg = <Option<f64>>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiScoringWeights {
+            altitude: var_altitude,
+            moon_distance: var_moonDistance,
+            transit_proximity: var_transitProximity,
+            darkness: var_darkness,
+            airmass: var_airmass,
+            min_moon_separation_deg: var_minMoonSeparationDeg,
+        };
+    }
+}
+
 impl SseDecode for crate::api::depthlock::ApiSkyRectangle {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8018,6 +8363,40 @@ impl SseDecode for crate::api::depthlock::ApiSkyRectangle {
             width_arcsec: var_widthArcsec,
             height_arcsec: var_heightArcsec,
             rotation_deg: var_rotationDeg,
+        };
+    }
+}
+
+impl SseDecode for crate::api::target_scoring::ApiTargetScoreNow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_targetId = <String>::sse_decode(deserializer);
+        let mut var_totalScore = <f64>::sse_decode(deserializer);
+        let mut var_altitudeScore = <f64>::sse_decode(deserializer);
+        let mut var_moonDistanceScore = <f64>::sse_decode(deserializer);
+        let mut var_transitProximityScore = <f64>::sse_decode(deserializer);
+        let mut var_darknessScore = <f64>::sse_decode(deserializer);
+        let mut var_airmassScore = <f64>::sse_decode(deserializer);
+        let mut var_altitudeDeg = <f64>::sse_decode(deserializer);
+        let mut var_azimuthDeg = <f64>::sse_decode(deserializer);
+        let mut var_airmass = <f64>::sse_decode(deserializer);
+        let mut var_moonDistanceDeg = <f64>::sse_decode(deserializer);
+        let mut var_runnable = <bool>::sse_decode(deserializer);
+        let mut var_skipReason = <Option<String>>::sse_decode(deserializer);
+        return crate::api::target_scoring::ApiTargetScoreNow {
+            target_id: var_targetId,
+            total_score: var_totalScore,
+            altitude_score: var_altitudeScore,
+            moon_distance_score: var_moonDistanceScore,
+            transit_proximity_score: var_transitProximityScore,
+            darkness_score: var_darknessScore,
+            airmass_score: var_airmassScore,
+            altitude_deg: var_altitudeDeg,
+            azimuth_deg: var_azimuthDeg,
+            airmass: var_airmass,
+            moon_distance_deg: var_moonDistanceDeg,
+            runnable: var_runnable,
+            skip_reason: var_skipReason,
         };
     }
 }
@@ -10001,6 +10380,74 @@ impl SseDecode for Vec<crate::api::depthlock::ApiDepthGoal> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::api::depthlock::ApiDepthGoal>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::target_scoring::ApiFloorSample> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::target_scoring::ApiFloorSample>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::target_scoring::ApiNightScore> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::target_scoring::ApiNightScore>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::target_scoring::ApiNightTarget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::target_scoring::ApiNightTarget>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::target_scoring::ApiSchedulerTarget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::target_scoring::ApiSchedulerTarget>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::target_scoring::ApiTargetScoreNow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::target_scoring::ApiTargetScoreNow>::sse_decode(
                 deserializer,
             ));
         }
@@ -12939,6 +13386,86 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiCalibratedPixels>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::centering::ApiCenteringRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.mount_id.into_into_dart().into_dart(),
+            self.camera_id.into_into_dart().into_dart(),
+            self.filter_wheel_id.into_into_dart().into_dart(),
+            self.ra_hours.into_into_dart().into_dart(),
+            self.dec_degrees.into_into_dart().into_dart(),
+            self.accuracy_arcsec.into_into_dart().into_dart(),
+            self.max_attempts.into_into_dart().into_dart(),
+            self.exposure_secs.into_into_dart().into_dart(),
+            self.filter.into_into_dart().into_dart(),
+            self.sync_mount.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::centering::ApiCenteringRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::centering::ApiCenteringRequest>
+    for crate::api::centering::ApiCenteringRequest
+{
+    fn into_into_dart(self) -> crate::api::centering::ApiCenteringRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::centering::ApiCenteringStep {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::centering::ApiCenteringStep::Capturing { attempt } => {
+                [0.into_dart(), attempt.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::centering::ApiCenteringStep::Solved {
+                attempt,
+                ra_hours,
+                dec_degrees,
+                separation_arcsec,
+            } => [
+                1.into_dart(),
+                attempt.into_into_dart().into_dart(),
+                ra_hours.into_into_dart().into_dart(),
+                dec_degrees.into_into_dart().into_dart(),
+                separation_arcsec.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::centering::ApiCenteringStep::Correcting { attempt } => {
+                [2.into_dart(), attempt.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::centering::ApiCenteringStep::Finished {
+                centered,
+                cancelled,
+                message,
+            } => [
+                3.into_dart(),
+                centered.into_into_dart().into_dart(),
+                cancelled.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::centering::ApiCenteringStep
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::centering::ApiCenteringStep>
+    for crate::api::centering::ApiCenteringStep
+{
+    fn into_into_dart(self) -> crate::api::centering::ApiCenteringStep {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::defect_map::ApiDefectMapStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13240,6 +13767,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiDepthReport>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiFloorSample {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.azimuth_deg.into_into_dart().into_dart(),
+            self.altitude_deg.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiFloorSample
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiFloorSample>
+    for crate::api::target_scoring::ApiFloorSample
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiFloorSample {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13347,6 +13895,92 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackin
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiNightScore {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.target_id.into_into_dart().into_dart(),
+            self.total_score.into_into_dart().into_dart(),
+            self.altitude_score.into_into_dart().into_dart(),
+            self.moon_distance_score.into_into_dart().into_dart(),
+            self.transit_proximity_score.into_into_dart().into_dart(),
+            self.darkness_score.into_into_dart().into_dart(),
+            self.airmass_score.into_into_dart().into_dart(),
+            self.current_altitude_deg.into_into_dart().into_dart(),
+            self.current_azimuth_deg.into_into_dart().into_dart(),
+            self.peak_altitude_deg.into_into_dart().into_dart(),
+            self.peak_azimuth_deg.into_into_dart().into_dart(),
+            self.peak_unix_ms.into_into_dart().into_dart(),
+            self.hours_above_floor.into_into_dart().into_dart(),
+            self.above_floor_from_unix_ms.into_into_dart().into_dart(),
+            self.above_floor_until_unix_ms.into_into_dart().into_dart(),
+            self.best_airmass.into_into_dart().into_dart(),
+            self.moon_distance_deg.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiNightScore
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiNightScore>
+    for crate::api::target_scoring::ApiNightScore
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiNightScore {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiNightSky {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.latitude_deg.into_into_dart().into_dart(),
+            self.longitude_deg.into_into_dart().into_dart(),
+            self.now_unix_ms.into_into_dart().into_dart(),
+            self.night_start_unix_ms.into_into_dart().into_dart(),
+            self.night_end_unix_ms.into_into_dart().into_dart(),
+            self.moon_ra_deg.into_into_dart().into_dart(),
+            self.moon_dec_deg.into_into_dart().into_dart(),
+            self.moon_illumination_percent.into_into_dart().into_dart(),
+            self.floor.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiNightSky
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiNightSky>
+    for crate::api::target_scoring::ApiNightSky
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiNightSky {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiNightTarget {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.ra_deg.into_into_dart().into_dart(),
+            self.dec_deg.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiNightTarget
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiNightTarget>
+    for crate::api::target_scoring::ApiNightTarget
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiNightTarget {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::depthlock::ApiReferenceGeometry {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13376,6 +14010,58 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiReferenceGeomet
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiSchedulerTarget {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.ra_hours.into_into_dart().into_dart(),
+            self.dec_degrees.into_into_dart().into_dart(),
+            self.min_altitude_deg.into_into_dart().into_dart(),
+            self.start_after_unix_secs.into_into_dart().into_dart(),
+            self.end_before_unix_secs.into_into_dart().into_dart(),
+            self.priority.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiSchedulerTarget
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiSchedulerTarget>
+    for crate::api::target_scoring::ApiSchedulerTarget
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiSchedulerTarget {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiScoringWeights {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.altitude.into_into_dart().into_dart(),
+            self.moon_distance.into_into_dart().into_dart(),
+            self.transit_proximity.into_into_dart().into_dart(),
+            self.darkness.into_into_dart().into_dart(),
+            self.airmass.into_into_dart().into_dart(),
+            self.min_moon_separation_deg.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiScoringWeights
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiScoringWeights>
+    for crate::api::target_scoring::ApiScoringWeights
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiScoringWeights {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::depthlock::ApiSkyRectangle {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13396,6 +14082,38 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiSkyRectangle>
     for crate::api::depthlock::ApiSkyRectangle
 {
     fn into_into_dart(self) -> crate::api::depthlock::ApiSkyRectangle {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::target_scoring::ApiTargetScoreNow {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.target_id.into_into_dart().into_dart(),
+            self.total_score.into_into_dart().into_dart(),
+            self.altitude_score.into_into_dart().into_dart(),
+            self.moon_distance_score.into_into_dart().into_dart(),
+            self.transit_proximity_score.into_into_dart().into_dart(),
+            self.darkness_score.into_into_dart().into_dart(),
+            self.airmass_score.into_into_dart().into_dart(),
+            self.altitude_deg.into_into_dart().into_dart(),
+            self.azimuth_deg.into_into_dart().into_dart(),
+            self.airmass.into_into_dart().into_dart(),
+            self.moon_distance_deg.into_into_dart().into_dart(),
+            self.runnable.into_into_dart().into_dart(),
+            self.skip_reason.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::target_scoring::ApiTargetScoreNow
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiTargetScoreNow>
+    for crate::api::target_scoring::ApiTargetScoreNow
+{
+    fn into_into_dart(self) -> crate::api::target_scoring::ApiTargetScoreNow {
         self
     }
 }
@@ -17612,6 +18330,18 @@ impl SseEncode for std::collections::HashMap<String, u32> {
 }
 
 impl SseEncode
+    for StreamSink<
+        crate::api::centering::ApiCenteringStep,
+        flutter_rust_bridge::for_generated::DcoCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -17648,6 +18378,63 @@ impl SseEncode for crate::api::imaging::ApiCalibratedPixels {
         <u32>::sse_encode(self.height, serializer);
         <Vec<u16>>::sse_encode(self.data, serializer);
         <f64>::sse_encode(self.pedestal, serializer);
+    }
+}
+
+impl SseEncode for crate::api::centering::ApiCenteringRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.mount_id, serializer);
+        <String>::sse_encode(self.camera_id, serializer);
+        <Option<String>>::sse_encode(self.filter_wheel_id, serializer);
+        <f64>::sse_encode(self.ra_hours, serializer);
+        <f64>::sse_encode(self.dec_degrees, serializer);
+        <f64>::sse_encode(self.accuracy_arcsec, serializer);
+        <u32>::sse_encode(self.max_attempts, serializer);
+        <f64>::sse_encode(self.exposure_secs, serializer);
+        <Option<String>>::sse_encode(self.filter, serializer);
+        <bool>::sse_encode(self.sync_mount, serializer);
+    }
+}
+
+impl SseEncode for crate::api::centering::ApiCenteringStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::centering::ApiCenteringStep::Capturing { attempt } => {
+                <i32>::sse_encode(0, serializer);
+                <u32>::sse_encode(attempt, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Solved {
+                attempt,
+                ra_hours,
+                dec_degrees,
+                separation_arcsec,
+            } => {
+                <i32>::sse_encode(1, serializer);
+                <u32>::sse_encode(attempt, serializer);
+                <f64>::sse_encode(ra_hours, serializer);
+                <f64>::sse_encode(dec_degrees, serializer);
+                <f64>::sse_encode(separation_arcsec, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Correcting { attempt } => {
+                <i32>::sse_encode(2, serializer);
+                <u32>::sse_encode(attempt, serializer);
+            }
+            crate::api::centering::ApiCenteringStep::Finished {
+                centered,
+                cancelled,
+                message,
+            } => {
+                <i32>::sse_encode(3, serializer);
+                <bool>::sse_encode(centered, serializer);
+                <bool>::sse_encode(cancelled, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -17813,6 +18600,14 @@ impl SseEncode for crate::api::depthlock::ApiDepthReport {
     }
 }
 
+impl SseEncode for crate::api::target_scoring::ApiFloorSample {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.azimuth_deg, serializer);
+        <f64>::sse_encode(self.altitude_deg, serializer);
+    }
+}
+
 impl SseEncode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17864,6 +18659,53 @@ impl SseEncode for crate::api::live_stacking::ApiLiveStackingStats {
     }
 }
 
+impl SseEncode for crate::api::target_scoring::ApiNightScore {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.target_id, serializer);
+        <f64>::sse_encode(self.total_score, serializer);
+        <f64>::sse_encode(self.altitude_score, serializer);
+        <f64>::sse_encode(self.moon_distance_score, serializer);
+        <f64>::sse_encode(self.transit_proximity_score, serializer);
+        <f64>::sse_encode(self.darkness_score, serializer);
+        <f64>::sse_encode(self.airmass_score, serializer);
+        <f64>::sse_encode(self.current_altitude_deg, serializer);
+        <f64>::sse_encode(self.current_azimuth_deg, serializer);
+        <f64>::sse_encode(self.peak_altitude_deg, serializer);
+        <f64>::sse_encode(self.peak_azimuth_deg, serializer);
+        <i64>::sse_encode(self.peak_unix_ms, serializer);
+        <f64>::sse_encode(self.hours_above_floor, serializer);
+        <Option<i64>>::sse_encode(self.above_floor_from_unix_ms, serializer);
+        <Option<i64>>::sse_encode(self.above_floor_until_unix_ms, serializer);
+        <Option<f64>>::sse_encode(self.best_airmass, serializer);
+        <f64>::sse_encode(self.moon_distance_deg, serializer);
+    }
+}
+
+impl SseEncode for crate::api::target_scoring::ApiNightSky {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.latitude_deg, serializer);
+        <f64>::sse_encode(self.longitude_deg, serializer);
+        <i64>::sse_encode(self.now_unix_ms, serializer);
+        <i64>::sse_encode(self.night_start_unix_ms, serializer);
+        <i64>::sse_encode(self.night_end_unix_ms, serializer);
+        <Option<f64>>::sse_encode(self.moon_ra_deg, serializer);
+        <Option<f64>>::sse_encode(self.moon_dec_deg, serializer);
+        <f64>::sse_encode(self.moon_illumination_percent, serializer);
+        <Vec<crate::api::target_scoring::ApiFloorSample>>::sse_encode(self.floor, serializer);
+    }
+}
+
+impl SseEncode for crate::api::target_scoring::ApiNightTarget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <f64>::sse_encode(self.ra_deg, serializer);
+        <f64>::sse_encode(self.dec_deg, serializer);
+    }
+}
+
 impl SseEncode for crate::api::depthlock::ApiReferenceGeometry {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17880,6 +18722,32 @@ impl SseEncode for crate::api::depthlock::ApiReferenceGeometry {
     }
 }
 
+impl SseEncode for crate::api::target_scoring::ApiSchedulerTarget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <f64>::sse_encode(self.ra_hours, serializer);
+        <f64>::sse_encode(self.dec_degrees, serializer);
+        <Option<f64>>::sse_encode(self.min_altitude_deg, serializer);
+        <Option<i64>>::sse_encode(self.start_after_unix_secs, serializer);
+        <Option<i64>>::sse_encode(self.end_before_unix_secs, serializer);
+        <i32>::sse_encode(self.priority, serializer);
+    }
+}
+
+impl SseEncode for crate::api::target_scoring::ApiScoringWeights {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.altitude, serializer);
+        <f64>::sse_encode(self.moon_distance, serializer);
+        <f64>::sse_encode(self.transit_proximity, serializer);
+        <f64>::sse_encode(self.darkness, serializer);
+        <f64>::sse_encode(self.airmass, serializer);
+        <Option<f64>>::sse_encode(self.min_moon_separation_deg, serializer);
+    }
+}
+
 impl SseEncode for crate::api::depthlock::ApiSkyRectangle {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17888,6 +18756,25 @@ impl SseEncode for crate::api::depthlock::ApiSkyRectangle {
         <f64>::sse_encode(self.width_arcsec, serializer);
         <f64>::sse_encode(self.height_arcsec, serializer);
         <f64>::sse_encode(self.rotation_deg, serializer);
+    }
+}
+
+impl SseEncode for crate::api::target_scoring::ApiTargetScoreNow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.target_id, serializer);
+        <f64>::sse_encode(self.total_score, serializer);
+        <f64>::sse_encode(self.altitude_score, serializer);
+        <f64>::sse_encode(self.moon_distance_score, serializer);
+        <f64>::sse_encode(self.transit_proximity_score, serializer);
+        <f64>::sse_encode(self.darkness_score, serializer);
+        <f64>::sse_encode(self.airmass_score, serializer);
+        <f64>::sse_encode(self.altitude_deg, serializer);
+        <f64>::sse_encode(self.azimuth_deg, serializer);
+        <f64>::sse_encode(self.airmass, serializer);
+        <f64>::sse_encode(self.moon_distance_deg, serializer);
+        <bool>::sse_encode(self.runnable, serializer);
+        <Option<String>>::sse_encode(self.skip_reason, serializer);
     }
 }
 
@@ -19422,6 +20309,56 @@ impl SseEncode for Vec<crate::api::depthlock::ApiDepthGoal> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::depthlock::ApiDepthGoal>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::target_scoring::ApiFloorSample> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::target_scoring::ApiFloorSample>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::target_scoring::ApiNightScore> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::target_scoring::ApiNightScore>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::target_scoring::ApiNightTarget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::target_scoring::ApiNightTarget>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::target_scoring::ApiSchedulerTarget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::target_scoring::ApiSchedulerTarget>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::target_scoring::ApiTargetScoreNow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::target_scoring::ApiTargetScoreNow>::sse_encode(item, serializer);
         }
     }
 }
@@ -21746,6 +22683,25 @@ mod io {
     impl
         CstDecode<
             StreamSink<
+                crate::api::centering::ApiCenteringStep,
+                flutter_rust_bridge::for_generated::DcoCodec,
+            >,
+        > for *mut wire_cst_list_prim_u_8_strict
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(
+            self,
+        ) -> StreamSink<
+            crate::api::centering::ApiCenteringStep,
+            flutter_rust_bridge::for_generated::DcoCodec,
+        > {
+            let raw: String = self.cst_decode();
+            StreamSink::deserialize(raw)
+        }
+    }
+    impl
+        CstDecode<
+            StreamSink<
                 crate::event::bus::SkotiqEvent,
                 flutter_rust_bridge::for_generated::DcoCodec,
             >,
@@ -21792,6 +22748,60 @@ mod io {
                 height: self.height.cst_decode(),
                 data: self.data.cst_decode(),
                 pedestal: self.pedestal.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::centering::ApiCenteringRequest> for wire_cst_api_centering_request {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringRequest {
+            crate::api::centering::ApiCenteringRequest {
+                mount_id: self.mount_id.cst_decode(),
+                camera_id: self.camera_id.cst_decode(),
+                filter_wheel_id: self.filter_wheel_id.cst_decode(),
+                ra_hours: self.ra_hours.cst_decode(),
+                dec_degrees: self.dec_degrees.cst_decode(),
+                accuracy_arcsec: self.accuracy_arcsec.cst_decode(),
+                max_attempts: self.max_attempts.cst_decode(),
+                exposure_secs: self.exposure_secs.cst_decode(),
+                filter: self.filter.cst_decode(),
+                sync_mount: self.sync_mount.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::centering::ApiCenteringStep> for wire_cst_api_centering_step {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringStep {
+            match self.tag {
+                0 => {
+                    let ans = unsafe { self.kind.Capturing };
+                    crate::api::centering::ApiCenteringStep::Capturing {
+                        attempt: ans.attempt.cst_decode(),
+                    }
+                }
+                1 => {
+                    let ans = unsafe { self.kind.Solved };
+                    crate::api::centering::ApiCenteringStep::Solved {
+                        attempt: ans.attempt.cst_decode(),
+                        ra_hours: ans.ra_hours.cst_decode(),
+                        dec_degrees: ans.dec_degrees.cst_decode(),
+                        separation_arcsec: ans.separation_arcsec.cst_decode(),
+                    }
+                }
+                2 => {
+                    let ans = unsafe { self.kind.Correcting };
+                    crate::api::centering::ApiCenteringStep::Correcting {
+                        attempt: ans.attempt.cst_decode(),
+                    }
+                }
+                3 => {
+                    let ans = unsafe { self.kind.Finished };
+                    crate::api::centering::ApiCenteringStep::Finished {
+                        centered: ans.centered.cst_decode(),
+                        cancelled: ans.cancelled.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -21966,6 +22976,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::target_scoring::ApiFloorSample> for wire_cst_api_floor_sample {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiFloorSample {
+            crate::api::target_scoring::ApiFloorSample {
+                azimuth_deg: self.azimuth_deg.cst_decode(),
+                altitude_deg: self.altitude_deg.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>
         for wire_cst_api_live_stacking_config
     {
@@ -22029,6 +23048,56 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::target_scoring::ApiNightScore> for wire_cst_api_night_score {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiNightScore {
+            crate::api::target_scoring::ApiNightScore {
+                target_id: self.target_id.cst_decode(),
+                total_score: self.total_score.cst_decode(),
+                altitude_score: self.altitude_score.cst_decode(),
+                moon_distance_score: self.moon_distance_score.cst_decode(),
+                transit_proximity_score: self.transit_proximity_score.cst_decode(),
+                darkness_score: self.darkness_score.cst_decode(),
+                airmass_score: self.airmass_score.cst_decode(),
+                current_altitude_deg: self.current_altitude_deg.cst_decode(),
+                current_azimuth_deg: self.current_azimuth_deg.cst_decode(),
+                peak_altitude_deg: self.peak_altitude_deg.cst_decode(),
+                peak_azimuth_deg: self.peak_azimuth_deg.cst_decode(),
+                peak_unix_ms: self.peak_unix_ms.cst_decode(),
+                hours_above_floor: self.hours_above_floor.cst_decode(),
+                above_floor_from_unix_ms: self.above_floor_from_unix_ms.cst_decode(),
+                above_floor_until_unix_ms: self.above_floor_until_unix_ms.cst_decode(),
+                best_airmass: self.best_airmass.cst_decode(),
+                moon_distance_deg: self.moon_distance_deg.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::target_scoring::ApiNightSky> for wire_cst_api_night_sky {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiNightSky {
+            crate::api::target_scoring::ApiNightSky {
+                latitude_deg: self.latitude_deg.cst_decode(),
+                longitude_deg: self.longitude_deg.cst_decode(),
+                now_unix_ms: self.now_unix_ms.cst_decode(),
+                night_start_unix_ms: self.night_start_unix_ms.cst_decode(),
+                night_end_unix_ms: self.night_end_unix_ms.cst_decode(),
+                moon_ra_deg: self.moon_ra_deg.cst_decode(),
+                moon_dec_deg: self.moon_dec_deg.cst_decode(),
+                moon_illumination_percent: self.moon_illumination_percent.cst_decode(),
+                floor: self.floor.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::target_scoring::ApiNightTarget> for wire_cst_api_night_target {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiNightTarget {
+            crate::api::target_scoring::ApiNightTarget {
+                id: self.id.cst_decode(),
+                ra_deg: self.ra_deg.cst_decode(),
+                dec_deg: self.dec_deg.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::depthlock::ApiReferenceGeometry> for wire_cst_api_reference_geometry {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::depthlock::ApiReferenceGeometry {
@@ -22046,6 +23115,34 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::target_scoring::ApiSchedulerTarget> for wire_cst_api_scheduler_target {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiSchedulerTarget {
+            crate::api::target_scoring::ApiSchedulerTarget {
+                id: self.id.cst_decode(),
+                name: self.name.cst_decode(),
+                ra_hours: self.ra_hours.cst_decode(),
+                dec_degrees: self.dec_degrees.cst_decode(),
+                min_altitude_deg: self.min_altitude_deg.cst_decode(),
+                start_after_unix_secs: self.start_after_unix_secs.cst_decode(),
+                end_before_unix_secs: self.end_before_unix_secs.cst_decode(),
+                priority: self.priority.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::target_scoring::ApiScoringWeights> for wire_cst_api_scoring_weights {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiScoringWeights {
+            crate::api::target_scoring::ApiScoringWeights {
+                altitude: self.altitude.cst_decode(),
+                moon_distance: self.moon_distance.cst_decode(),
+                transit_proximity: self.transit_proximity.cst_decode(),
+                darkness: self.darkness.cst_decode(),
+                airmass: self.airmass.cst_decode(),
+                min_moon_separation_deg: self.min_moon_separation_deg.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::depthlock::ApiSkyRectangle> for wire_cst_api_sky_rectangle {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::depthlock::ApiSkyRectangle {
@@ -22055,6 +23152,26 @@ mod io {
                 width_arcsec: self.width_arcsec.cst_decode(),
                 height_arcsec: self.height_arcsec.cst_decode(),
                 rotation_deg: self.rotation_deg.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::target_scoring::ApiTargetScoreNow> for wire_cst_api_target_score_now {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiTargetScoreNow {
+            crate::api::target_scoring::ApiTargetScoreNow {
+                target_id: self.target_id.cst_decode(),
+                total_score: self.total_score.cst_decode(),
+                altitude_score: self.altitude_score.cst_decode(),
+                moon_distance_score: self.moon_distance_score.cst_decode(),
+                transit_proximity_score: self.transit_proximity_score.cst_decode(),
+                darkness_score: self.darkness_score.cst_decode(),
+                airmass_score: self.airmass_score.cst_decode(),
+                altitude_deg: self.altitude_deg.cst_decode(),
+                azimuth_deg: self.azimuth_deg.cst_decode(),
+                airmass: self.airmass.cst_decode(),
+                moon_distance_deg: self.moon_distance_deg.cst_decode(),
+                runnable: self.runnable.cst_decode(),
+                skip_reason: self.skip_reason.cst_decode(),
             }
         }
     }
@@ -22118,6 +23235,13 @@ mod io {
             CstDecode::<crate::api::depthlock::ApiAcquisitionSettings>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::centering::ApiCenteringRequest> for *mut wire_cst_api_centering_request {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::centering::ApiCenteringRequest {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::centering::ApiCenteringRequest>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::defect_map::ApiDefectMapStatus> for *mut wire_cst_api_defect_map_status {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::defect_map::ApiDefectMapStatus {
@@ -22164,6 +23288,13 @@ mod io {
             CstDecode::<crate::api::live_stacking::ApiLiveStackingConfig>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::target_scoring::ApiNightSky> for *mut wire_cst_api_night_sky {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiNightSky {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::target_scoring::ApiNightSky>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::depthlock::ApiReferenceGeometry>
         for *mut wire_cst_api_reference_geometry
     {
@@ -22171,6 +23302,15 @@ mod io {
         fn cst_decode(self) -> crate::api::depthlock::ApiReferenceGeometry {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::api::depthlock::ApiReferenceGeometry>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::target_scoring::ApiScoringWeights>
+        for *mut wire_cst_api_scoring_weights
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::target_scoring::ApiScoringWeights {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::target_scoring::ApiScoringWeights>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::storage::AppSettings> for *mut wire_cst_app_settings {
@@ -23767,6 +24907,66 @@ mod io {
     impl CstDecode<Vec<crate::api::depthlock::ApiDepthGoal>> for *mut wire_cst_list_api_depth_goal {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::depthlock::ApiDepthGoal> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::target_scoring::ApiFloorSample>>
+        for *mut wire_cst_list_api_floor_sample
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiFloorSample> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::target_scoring::ApiNightScore>>
+        for *mut wire_cst_list_api_night_score
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiNightScore> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::target_scoring::ApiNightTarget>>
+        for *mut wire_cst_list_api_night_target
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiNightTarget> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::target_scoring::ApiSchedulerTarget>>
+        for *mut wire_cst_list_api_scheduler_target
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiSchedulerTarget> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::target_scoring::ApiTargetScoreNow>>
+        for *mut wire_cst_list_api_target_score_now
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiTargetScoreNow> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -25518,6 +26718,40 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_centering_request {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                mount_id: core::ptr::null_mut(),
+                camera_id: core::ptr::null_mut(),
+                filter_wheel_id: core::ptr::null_mut(),
+                ra_hours: Default::default(),
+                dec_degrees: Default::default(),
+                accuracy_arcsec: Default::default(),
+                max_attempts: Default::default(),
+                exposure_secs: Default::default(),
+                filter: core::ptr::null_mut(),
+                sync_mount: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_centering_request {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_centering_step {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: ApiCenteringStepKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_api_centering_step {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_defect_map_status {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25729,6 +26963,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_floor_sample {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                azimuth_deg: Default::default(),
+                altitude_deg: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_floor_sample {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_live_stacking_config {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25800,6 +27047,68 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_night_score {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                target_id: core::ptr::null_mut(),
+                total_score: Default::default(),
+                altitude_score: Default::default(),
+                moon_distance_score: Default::default(),
+                transit_proximity_score: Default::default(),
+                darkness_score: Default::default(),
+                airmass_score: Default::default(),
+                current_altitude_deg: Default::default(),
+                current_azimuth_deg: Default::default(),
+                peak_altitude_deg: Default::default(),
+                peak_azimuth_deg: Default::default(),
+                peak_unix_ms: Default::default(),
+                hours_above_floor: Default::default(),
+                above_floor_from_unix_ms: core::ptr::null_mut(),
+                above_floor_until_unix_ms: core::ptr::null_mut(),
+                best_airmass: core::ptr::null_mut(),
+                moon_distance_deg: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_night_score {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_night_sky {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                latitude_deg: Default::default(),
+                longitude_deg: Default::default(),
+                now_unix_ms: Default::default(),
+                night_start_unix_ms: Default::default(),
+                night_end_unix_ms: Default::default(),
+                moon_ra_deg: core::ptr::null_mut(),
+                moon_dec_deg: core::ptr::null_mut(),
+                moon_illumination_percent: Default::default(),
+                floor: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_night_sky {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_night_target {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                ra_deg: Default::default(),
+                dec_deg: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_night_target {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_reference_geometry {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25821,6 +27130,42 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_scheduler_target {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                name: core::ptr::null_mut(),
+                ra_hours: Default::default(),
+                dec_degrees: Default::default(),
+                min_altitude_deg: core::ptr::null_mut(),
+                start_after_unix_secs: core::ptr::null_mut(),
+                end_before_unix_secs: core::ptr::null_mut(),
+                priority: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_scheduler_target {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_scoring_weights {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                altitude: Default::default(),
+                moon_distance: Default::default(),
+                transit_proximity: Default::default(),
+                darkness: Default::default(),
+                airmass: Default::default(),
+                min_moon_separation_deg: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_scoring_weights {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_sky_rectangle {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25833,6 +27178,30 @@ mod io {
         }
     }
     impl Default for wire_cst_api_sky_rectangle {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_target_score_now {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                target_id: core::ptr::null_mut(),
+                total_score: Default::default(),
+                altitude_score: Default::default(),
+                moon_distance_score: Default::default(),
+                transit_proximity_score: Default::default(),
+                darkness_score: Default::default(),
+                airmass_score: Default::default(),
+                altitude_deg: Default::default(),
+                azimuth_deg: Default::default(),
+                airmass: Default::default(),
+                moon_distance_deg: Default::default(),
+                runnable: Default::default(),
+                skip_reason: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_target_score_now {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -27892,10 +29261,25 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__centering__api_cancel_centering_impl()
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(
         port_: i64,
     ) {
         wire__crate__api__imaging__api_cancel_focuser_backlash_calibration_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target(
+        port_: i64,
+        request: *mut wire_cst_api_centering_request,
+        sink: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__centering__api_center_on_target_impl(port_, request, sink)
     }
 
     #[unsafe(no_mangle)]
@@ -29332,6 +30716,25 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_rank_scheduler_targets(
+        latitude_deg: f64,
+        longitude_deg: f64,
+        now_unix_ms: i64,
+        targets: *mut wire_cst_list_api_scheduler_target,
+        weights: *mut wire_cst_api_scoring_weights,
+        floor: *mut wire_cst_list_api_floor_sample,
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__target_scoring__api_rank_scheduler_targets_impl(
+            latitude_deg,
+            longitude_deg,
+            now_unix_ms,
+            targets,
+            weights,
+            floor,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file(
         port_: i64,
         file_path: *mut wire_cst_list_prim_u_8_strict,
@@ -29519,6 +30922,18 @@ mod io {
     ) {
         wire__crate__api__imaging__api_save_rgba_png_file_impl(
             port_, file_path, width, height, rgba,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_score_targets_for_night(
+        port_: i64,
+        sky: *mut wire_cst_api_night_sky,
+        targets: *mut wire_cst_list_api_night_target,
+        weights: *mut wire_cst_api_scoring_weights,
+    ) {
+        wire__crate__api__target_scoring__api_score_targets_for_night_impl(
+            port_, sky, targets, weights,
         )
     }
 
@@ -30380,6 +31795,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request(
+    ) -> *mut wire_cst_api_centering_request {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_api_centering_request::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status(
     ) -> *mut wire_cst_api_defect_map_status {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -30428,10 +31851,26 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky(
+    ) -> *mut wire_cst_api_night_sky {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_api_night_sky::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry(
     ) -> *mut wire_cst_api_reference_geometry {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_api_reference_geometry::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights(
+    ) -> *mut wire_cst_api_scoring_weights {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_api_scoring_weights::new_with_null_ptr(),
         )
     }
 
@@ -30851,6 +32290,76 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_floor_sample(
+        len: i32,
+    ) -> *mut wire_cst_list_api_floor_sample {
+        let wrap = wire_cst_list_api_floor_sample {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_floor_sample>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_night_score(
+        len: i32,
+    ) -> *mut wire_cst_list_api_night_score {
+        let wrap = wire_cst_list_api_night_score {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_night_score>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_night_target(
+        len: i32,
+    ) -> *mut wire_cst_list_api_night_target {
+        let wrap = wire_cst_list_api_night_target {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_night_target>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_scheduler_target(
+        len: i32,
+    ) -> *mut wire_cst_list_api_scheduler_target {
+        let wrap = wire_cst_list_api_scheduler_target {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_scheduler_target>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_target_score_now(
+        len: i32,
+    ) -> *mut wire_cst_list_api_target_score_now {
+        let wrap = wire_cst_list_api_target_score_now {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_target_score_now>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_detected_star_info(
         len: i32,
     ) -> *mut wire_cst_list_detected_star_info {
@@ -31234,6 +32743,60 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_api_centering_request {
+        mount_id: *mut wire_cst_list_prim_u_8_strict,
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        filter_wheel_id: *mut wire_cst_list_prim_u_8_strict,
+        ra_hours: f64,
+        dec_degrees: f64,
+        accuracy_arcsec: f64,
+        max_attempts: u32,
+        exposure_secs: f64,
+        filter: *mut wire_cst_list_prim_u_8_strict,
+        sync_mount: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_centering_step {
+        tag: i32,
+        kind: ApiCenteringStepKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union ApiCenteringStepKind {
+        Capturing: wire_cst_ApiCenteringStep_Capturing,
+        Solved: wire_cst_ApiCenteringStep_Solved,
+        Correcting: wire_cst_ApiCenteringStep_Correcting,
+        Finished: wire_cst_ApiCenteringStep_Finished,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Capturing {
+        attempt: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Solved {
+        attempt: u32,
+        ra_hours: f64,
+        dec_degrees: f64,
+        separation_arcsec: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Correcting {
+        attempt: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ApiCenteringStep_Finished {
+        centered: bool,
+        cancelled: bool,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_api_defect_map_status {
         camera_id: *mut wire_cst_list_prim_u_8_strict,
         width: u32,
@@ -31368,6 +32931,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_api_floor_sample {
+        azimuth_deg: f64,
+        altitude_deg: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_api_live_stacking_config {
         sigma_clip_enabled: bool,
         sigma_clip_threshold: f64,
@@ -31411,6 +32980,47 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_api_night_score {
+        target_id: *mut wire_cst_list_prim_u_8_strict,
+        total_score: f64,
+        altitude_score: f64,
+        moon_distance_score: f64,
+        transit_proximity_score: f64,
+        darkness_score: f64,
+        airmass_score: f64,
+        current_altitude_deg: f64,
+        current_azimuth_deg: f64,
+        peak_altitude_deg: f64,
+        peak_azimuth_deg: f64,
+        peak_unix_ms: i64,
+        hours_above_floor: f64,
+        above_floor_from_unix_ms: *mut i64,
+        above_floor_until_unix_ms: *mut i64,
+        best_airmass: *mut f64,
+        moon_distance_deg: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_night_sky {
+        latitude_deg: f64,
+        longitude_deg: f64,
+        now_unix_ms: i64,
+        night_start_unix_ms: i64,
+        night_end_unix_ms: i64,
+        moon_ra_deg: *mut f64,
+        moon_dec_deg: *mut f64,
+        moon_illumination_percent: f64,
+        floor: *mut wire_cst_list_api_floor_sample,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_night_target {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        ra_deg: f64,
+        dec_deg: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_api_reference_geometry {
         width: u32,
         height: u32,
@@ -31425,12 +33035,51 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_api_scheduler_target {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        ra_hours: f64,
+        dec_degrees: f64,
+        min_altitude_deg: *mut f64,
+        start_after_unix_secs: *mut i64,
+        end_before_unix_secs: *mut i64,
+        priority: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_scoring_weights {
+        altitude: f64,
+        moon_distance: f64,
+        transit_proximity: f64,
+        darkness: f64,
+        airmass: f64,
+        min_moon_separation_deg: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_api_sky_rectangle {
         ra_deg: f64,
         dec_deg: f64,
         width_arcsec: f64,
         height_arcsec: f64,
         rotation_deg: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_target_score_now {
+        target_id: *mut wire_cst_list_prim_u_8_strict,
+        total_score: f64,
+        altitude_score: f64,
+        moon_distance_score: f64,
+        transit_proximity_score: f64,
+        darkness_score: f64,
+        airmass_score: f64,
+        altitude_deg: f64,
+        azimuth_deg: f64,
+        airmass: f64,
+        moon_distance_deg: f64,
+        runnable: bool,
+        skip_reason: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -32569,6 +34218,36 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_api_depth_goal {
         ptr: *mut wire_cst_api_depth_goal,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_floor_sample {
+        ptr: *mut wire_cst_api_floor_sample,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_night_score {
+        ptr: *mut wire_cst_api_night_score,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_night_target {
+        ptr: *mut wire_cst_api_night_target,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_scheduler_target {
+        ptr: *mut wire_cst_api_scheduler_target,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_target_score_now {
+        ptr: *mut wire_cst_api_target_score_now,
         len: i32,
     }
     #[repr(C)]

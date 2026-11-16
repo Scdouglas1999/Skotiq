@@ -678,6 +678,7 @@ impl FrameWatchStage {
                     max_attempts: 1,
                     exposure_duration: PROBE_EXPOSURE_SECS,
                     filter: None,
+                    sync_mount: true,
                 },
                 &probe_ctx,
                 None,

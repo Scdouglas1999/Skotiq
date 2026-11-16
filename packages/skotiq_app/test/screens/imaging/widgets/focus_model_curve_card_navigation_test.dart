@@ -10,6 +10,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:drift/native.dart';
+import 'package:skotiq_core/database.dart' show SkotiqDatabase;
 
 void main() {
   testWidgets('compact focus model card opens its merged Settings section', (
@@ -209,6 +211,10 @@ class _ConnectedFocuser extends FocuserStateNotifier {
 }
 
 class _FocusDataService extends FocusModelService {
+  _FocusDataService()
+      : super(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()).focusHistoryDao);
+
   @override
   Future<void> initialize() async {}
 
@@ -227,6 +233,10 @@ class _FocusDataService extends FocusModelService {
 }
 
 class _TrackingFocusService extends FocusModelService {
+  _TrackingFocusService()
+      : super(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()).focusHistoryDao);
+
   int addCalls = 0;
 
   @override

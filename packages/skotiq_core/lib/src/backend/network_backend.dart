@@ -4,6 +4,15 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiFloorSample,
+        ApiNightScore,
+        ApiNightSky,
+        ApiNightTarget,
+        ApiSchedulerTarget,
+        ApiScoringWeights,
+        ApiTargetScoreNow;
 import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/backend/host_runtime_update.dart';
@@ -39,6 +48,7 @@ import 'phd2_probe.dart';
 import '../models/site/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
 import 'roles/host_data/host_link.dart';
+import 'target_scoring.dart';
 import 'skotiq_backend.dart';
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the

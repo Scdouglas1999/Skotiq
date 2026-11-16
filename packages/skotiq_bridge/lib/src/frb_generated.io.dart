@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/centering.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/defect_map.dart';
@@ -47,6 +48,7 @@ import 'api/sky_atlas.dart';
 import 'api/sky_atlas/frames.dart';
 import 'api/sky_atlas/regions.dart';
 import 'api/storage.dart';
+import 'api/target_scoring.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -93,6 +95,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
 
   @protected
+  RustStreamSink<ApiCenteringStep> dco_decode_StreamSink_api_centering_step_Dco(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<SkotiqEvent> dco_decode_StreamSink_skotiq_event_Dco(
     dynamic raw,
   );
@@ -105,6 +112,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiCalibratedPixels dco_decode_api_calibrated_pixels(dynamic raw);
+
+  @protected
+  ApiCenteringRequest dco_decode_api_centering_request(dynamic raw);
+
+  @protected
+  ApiCenteringStep dco_decode_api_centering_step(dynamic raw);
 
   @protected
   ApiDefectMapStatus dco_decode_api_defect_map_status(dynamic raw);
@@ -140,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiDepthReport dco_decode_api_depth_report(dynamic raw);
 
   @protected
+  ApiFloorSample dco_decode_api_floor_sample(dynamic raw);
+
+  @protected
   ApiLiveStackingConfig dco_decode_api_live_stacking_config(dynamic raw);
 
   @protected
@@ -152,10 +168,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiLiveStackingStats dco_decode_api_live_stacking_stats(dynamic raw);
 
   @protected
+  ApiNightScore dco_decode_api_night_score(dynamic raw);
+
+  @protected
+  ApiNightSky dco_decode_api_night_sky(dynamic raw);
+
+  @protected
+  ApiNightTarget dco_decode_api_night_target(dynamic raw);
+
+  @protected
   ApiReferenceGeometry dco_decode_api_reference_geometry(dynamic raw);
 
   @protected
+  ApiSchedulerTarget dco_decode_api_scheduler_target(dynamic raw);
+
+  @protected
+  ApiScoringWeights dco_decode_api_scoring_weights(dynamic raw);
+
+  @protected
   ApiSkyRectangle dco_decode_api_sky_rectangle(dynamic raw);
+
+  @protected
+  ApiTargetScoreNow dco_decode_api_target_score_now(dynamic raw);
 
   @protected
   AppSettings dco_decode_app_settings(dynamic raw);
@@ -173,6 +207,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiAcquisitionSettings dco_decode_box_autoadd_api_acquisition_settings(
     dynamic raw,
   );
+
+  @protected
+  ApiCenteringRequest dco_decode_box_autoadd_api_centering_request(dynamic raw);
 
   @protected
   ApiDefectMapStatus dco_decode_box_autoadd_api_defect_map_status(dynamic raw);
@@ -197,9 +234,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ApiNightSky dco_decode_box_autoadd_api_night_sky(dynamic raw);
+
+  @protected
   ApiReferenceGeometry dco_decode_box_autoadd_api_reference_geometry(
     dynamic raw,
   );
+
+  @protected
+  ApiScoringWeights dco_decode_box_autoadd_api_scoring_weights(dynamic raw);
 
   @protected
   AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
@@ -545,6 +588,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ApiDepthGoal> dco_decode_list_api_depth_goal(dynamic raw);
+
+  @protected
+  List<ApiFloorSample> dco_decode_list_api_floor_sample(dynamic raw);
+
+  @protected
+  List<ApiNightScore> dco_decode_list_api_night_score(dynamic raw);
+
+  @protected
+  List<ApiNightTarget> dco_decode_list_api_night_target(dynamic raw);
+
+  @protected
+  List<ApiSchedulerTarget> dco_decode_list_api_scheduler_target(dynamic raw);
+
+  @protected
+  List<ApiTargetScoreNow> dco_decode_list_api_target_score_now(dynamic raw);
 
   @protected
   List<DetectedStarInfo> dco_decode_list_detected_star_info(dynamic raw);
@@ -968,6 +1026,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<ApiCenteringStep> sse_decode_StreamSink_api_centering_step_Dco(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<SkotiqEvent> sse_decode_StreamSink_skotiq_event_Dco(
     SseDeserializer deserializer,
   );
@@ -984,6 +1047,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiCalibratedPixels sse_decode_api_calibrated_pixels(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ApiCenteringRequest sse_decode_api_centering_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiCenteringStep sse_decode_api_centering_step(SseDeserializer deserializer);
 
   @protected
   ApiDefectMapStatus sse_decode_api_defect_map_status(
@@ -1035,6 +1106,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiDepthReport sse_decode_api_depth_report(SseDeserializer deserializer);
 
   @protected
+  ApiFloorSample sse_decode_api_floor_sample(SseDeserializer deserializer);
+
+  @protected
   ApiLiveStackingConfig sse_decode_api_live_stacking_config(
     SseDeserializer deserializer,
   );
@@ -1055,12 +1129,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ApiNightScore sse_decode_api_night_score(SseDeserializer deserializer);
+
+  @protected
+  ApiNightSky sse_decode_api_night_sky(SseDeserializer deserializer);
+
+  @protected
+  ApiNightTarget sse_decode_api_night_target(SseDeserializer deserializer);
+
+  @protected
   ApiReferenceGeometry sse_decode_api_reference_geometry(
     SseDeserializer deserializer,
   );
 
   @protected
+  ApiSchedulerTarget sse_decode_api_scheduler_target(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiScoringWeights sse_decode_api_scoring_weights(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ApiSkyRectangle sse_decode_api_sky_rectangle(SseDeserializer deserializer);
+
+  @protected
+  ApiTargetScoreNow sse_decode_api_target_score_now(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AppSettings sse_decode_app_settings(SseDeserializer deserializer);
@@ -1080,6 +1178,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiAcquisitionSettings sse_decode_box_autoadd_api_acquisition_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiCenteringRequest sse_decode_box_autoadd_api_centering_request(
     SseDeserializer deserializer,
   );
 
@@ -1114,7 +1217,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ApiNightSky sse_decode_box_autoadd_api_night_sky(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ApiReferenceGeometry sse_decode_box_autoadd_api_reference_geometry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiScoringWeights sse_decode_box_autoadd_api_scoring_weights(
     SseDeserializer deserializer,
   );
 
@@ -1542,6 +1655,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ApiDepthGoal> sse_decode_list_api_depth_goal(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiFloorSample> sse_decode_list_api_floor_sample(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiNightScore> sse_decode_list_api_night_score(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiNightTarget> sse_decode_list_api_night_target(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiSchedulerTarget> sse_decode_list_api_scheduler_target(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiTargetScoreNow> sse_decode_list_api_target_score_now(
     SseDeserializer deserializer,
   );
 
@@ -2098,6 +2236,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict>
+  cst_encode_StreamSink_api_centering_step_Dco(
+    RustStreamSink<ApiCenteringStep> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_String(
+      raw.setupAndSerialize(
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_centering_step,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+      ),
+    );
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prim_u_8_strict>
   cst_encode_StreamSink_skotiq_event_Dco(RustStreamSink<SkotiqEvent> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_String(
@@ -2122,6 +2276,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_api_acquisition_settings();
     cst_api_fill_to_wire_api_acquisition_settings(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_api_centering_request>
+  cst_encode_box_autoadd_api_centering_request(ApiCenteringRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_api_centering_request();
+    cst_api_fill_to_wire_api_centering_request(raw, ptr.ref);
     return ptr;
   }
 
@@ -2180,11 +2343,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_api_night_sky> cst_encode_box_autoadd_api_night_sky(
+    ApiNightSky raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_api_night_sky();
+    cst_api_fill_to_wire_api_night_sky(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_api_reference_geometry>
   cst_encode_box_autoadd_api_reference_geometry(ApiReferenceGeometry raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_api_reference_geometry();
     cst_api_fill_to_wire_api_reference_geometry(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_api_scoring_weights>
+  cst_encode_box_autoadd_api_scoring_weights(ApiScoringWeights raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_api_scoring_weights();
+    cst_api_fill_to_wire_api_scoring_weights(raw, ptr.ref);
     return ptr;
   }
 
@@ -2678,6 +2860,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_api_depth_goal(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_api_depth_goal(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_floor_sample> cst_encode_list_api_floor_sample(
+    List<ApiFloorSample> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_floor_sample(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_floor_sample(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_night_score> cst_encode_list_api_night_score(
+    List<ApiNightScore> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_night_score(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_night_score(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_night_target> cst_encode_list_api_night_target(
+    List<ApiNightTarget> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_night_target(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_night_target(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_scheduler_target>
+  cst_encode_list_api_scheduler_target(List<ApiSchedulerTarget> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_scheduler_target(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_scheduler_target(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_target_score_now>
+  cst_encode_list_api_target_score_now(List<ApiTargetScoreNow> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_target_score_now(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_target_score_now(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3287,6 +3527,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_centering_request(
+    ApiCenteringRequest apiObj,
+    wire_cst_api_centering_request wireObj,
+  ) {
+    wireObj.mount_id = cst_encode_String(apiObj.mountId);
+    wireObj.camera_id = cst_encode_String(apiObj.cameraId);
+    wireObj.filter_wheel_id = cst_encode_opt_String(apiObj.filterWheelId);
+    wireObj.ra_hours = cst_encode_f_64(apiObj.raHours);
+    wireObj.dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+    wireObj.accuracy_arcsec = cst_encode_f_64(apiObj.accuracyArcsec);
+    wireObj.max_attempts = cst_encode_u_32(apiObj.maxAttempts);
+    wireObj.exposure_secs = cst_encode_f_64(apiObj.exposureSecs);
+    wireObj.filter = cst_encode_opt_String(apiObj.filter);
+    wireObj.sync_mount = cst_encode_bool(apiObj.syncMount);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_centering_step(
+    ApiCenteringStep apiObj,
+    wire_cst_api_centering_step wireObj,
+  ) {
+    if (apiObj is ApiCenteringStep_Capturing) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      wireObj.tag = 0;
+      wireObj.kind.Capturing.attempt = pre_attempt;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Solved) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      var pre_ra_hours = cst_encode_f_64(apiObj.raHours);
+      var pre_dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+      var pre_separation_arcsec = cst_encode_f_64(apiObj.separationArcsec);
+      wireObj.tag = 1;
+      wireObj.kind.Solved.attempt = pre_attempt;
+      wireObj.kind.Solved.ra_hours = pre_ra_hours;
+      wireObj.kind.Solved.dec_degrees = pre_dec_degrees;
+      wireObj.kind.Solved.separation_arcsec = pre_separation_arcsec;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Correcting) {
+      var pre_attempt = cst_encode_u_32(apiObj.attempt);
+      wireObj.tag = 2;
+      wireObj.kind.Correcting.attempt = pre_attempt;
+      return;
+    }
+    if (apiObj is ApiCenteringStep_Finished) {
+      var pre_centered = cst_encode_bool(apiObj.centered);
+      var pre_cancelled = cst_encode_bool(apiObj.cancelled);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 3;
+      wireObj.kind.Finished.centered = pre_centered;
+      wireObj.kind.Finished.cancelled = pre_cancelled;
+      wireObj.kind.Finished.message = pre_message;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_defect_map_status(
     ApiDefectMapStatus apiObj,
     wire_cst_api_defect_map_status wireObj,
@@ -3491,6 +3789,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_floor_sample(
+    ApiFloorSample apiObj,
+    wire_cst_api_floor_sample wireObj,
+  ) {
+    wireObj.azimuth_deg = cst_encode_f_64(apiObj.azimuthDeg);
+    wireObj.altitude_deg = cst_encode_f_64(apiObj.altitudeDeg);
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_live_stacking_config(
     ApiLiveStackingConfig apiObj,
     wire_cst_api_live_stacking_config wireObj,
@@ -3556,6 +3863,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_night_score(
+    ApiNightScore apiObj,
+    wire_cst_api_night_score wireObj,
+  ) {
+    wireObj.target_id = cst_encode_String(apiObj.targetId);
+    wireObj.total_score = cst_encode_f_64(apiObj.totalScore);
+    wireObj.altitude_score = cst_encode_f_64(apiObj.altitudeScore);
+    wireObj.moon_distance_score = cst_encode_f_64(apiObj.moonDistanceScore);
+    wireObj.transit_proximity_score = cst_encode_f_64(
+      apiObj.transitProximityScore,
+    );
+    wireObj.darkness_score = cst_encode_f_64(apiObj.darknessScore);
+    wireObj.airmass_score = cst_encode_f_64(apiObj.airmassScore);
+    wireObj.current_altitude_deg = cst_encode_f_64(apiObj.currentAltitudeDeg);
+    wireObj.current_azimuth_deg = cst_encode_f_64(apiObj.currentAzimuthDeg);
+    wireObj.peak_altitude_deg = cst_encode_f_64(apiObj.peakAltitudeDeg);
+    wireObj.peak_azimuth_deg = cst_encode_f_64(apiObj.peakAzimuthDeg);
+    wireObj.peak_unix_ms = cst_encode_i_64(apiObj.peakUnixMs);
+    wireObj.hours_above_floor = cst_encode_f_64(apiObj.hoursAboveFloor);
+    wireObj.above_floor_from_unix_ms = cst_encode_opt_box_autoadd_i_64(
+      apiObj.aboveFloorFromUnixMs,
+    );
+    wireObj.above_floor_until_unix_ms = cst_encode_opt_box_autoadd_i_64(
+      apiObj.aboveFloorUntilUnixMs,
+    );
+    wireObj.best_airmass = cst_encode_opt_box_autoadd_f_64(apiObj.bestAirmass);
+    wireObj.moon_distance_deg = cst_encode_f_64(apiObj.moonDistanceDeg);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_night_sky(
+    ApiNightSky apiObj,
+    wire_cst_api_night_sky wireObj,
+  ) {
+    wireObj.latitude_deg = cst_encode_f_64(apiObj.latitudeDeg);
+    wireObj.longitude_deg = cst_encode_f_64(apiObj.longitudeDeg);
+    wireObj.now_unix_ms = cst_encode_i_64(apiObj.nowUnixMs);
+    wireObj.night_start_unix_ms = cst_encode_i_64(apiObj.nightStartUnixMs);
+    wireObj.night_end_unix_ms = cst_encode_i_64(apiObj.nightEndUnixMs);
+    wireObj.moon_ra_deg = cst_encode_opt_box_autoadd_f_64(apiObj.moonRaDeg);
+    wireObj.moon_dec_deg = cst_encode_opt_box_autoadd_f_64(apiObj.moonDecDeg);
+    wireObj.moon_illumination_percent = cst_encode_f_64(
+      apiObj.moonIlluminationPercent,
+    );
+    wireObj.floor = cst_encode_list_api_floor_sample(apiObj.floor);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_night_target(
+    ApiNightTarget apiObj,
+    wire_cst_api_night_target wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.ra_deg = cst_encode_f_64(apiObj.raDeg);
+    wireObj.dec_deg = cst_encode_f_64(apiObj.decDeg);
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_reference_geometry(
     ApiReferenceGeometry apiObj,
     wire_cst_api_reference_geometry wireObj,
@@ -3573,6 +3938,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_scheduler_target(
+    ApiSchedulerTarget apiObj,
+    wire_cst_api_scheduler_target wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.ra_hours = cst_encode_f_64(apiObj.raHours);
+    wireObj.dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+    wireObj.min_altitude_deg = cst_encode_opt_box_autoadd_f_64(
+      apiObj.minAltitudeDeg,
+    );
+    wireObj.start_after_unix_secs = cst_encode_opt_box_autoadd_i_64(
+      apiObj.startAfterUnixSecs,
+    );
+    wireObj.end_before_unix_secs = cst_encode_opt_box_autoadd_i_64(
+      apiObj.endBeforeUnixSecs,
+    );
+    wireObj.priority = cst_encode_i_32(apiObj.priority);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_scoring_weights(
+    ApiScoringWeights apiObj,
+    wire_cst_api_scoring_weights wireObj,
+  ) {
+    wireObj.altitude = cst_encode_f_64(apiObj.altitude);
+    wireObj.moon_distance = cst_encode_f_64(apiObj.moonDistance);
+    wireObj.transit_proximity = cst_encode_f_64(apiObj.transitProximity);
+    wireObj.darkness = cst_encode_f_64(apiObj.darkness);
+    wireObj.airmass = cst_encode_f_64(apiObj.airmass);
+    wireObj.min_moon_separation_deg = cst_encode_opt_box_autoadd_f_64(
+      apiObj.minMoonSeparationDeg,
+    );
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_sky_rectangle(
     ApiSkyRectangle apiObj,
     wire_cst_api_sky_rectangle wireObj,
@@ -3582,6 +3983,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.width_arcsec = cst_encode_f_64(apiObj.widthArcsec);
     wireObj.height_arcsec = cst_encode_f_64(apiObj.heightArcsec);
     wireObj.rotation_deg = cst_encode_f_64(apiObj.rotationDeg);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_target_score_now(
+    ApiTargetScoreNow apiObj,
+    wire_cst_api_target_score_now wireObj,
+  ) {
+    wireObj.target_id = cst_encode_String(apiObj.targetId);
+    wireObj.total_score = cst_encode_f_64(apiObj.totalScore);
+    wireObj.altitude_score = cst_encode_f_64(apiObj.altitudeScore);
+    wireObj.moon_distance_score = cst_encode_f_64(apiObj.moonDistanceScore);
+    wireObj.transit_proximity_score = cst_encode_f_64(
+      apiObj.transitProximityScore,
+    );
+    wireObj.darkness_score = cst_encode_f_64(apiObj.darknessScore);
+    wireObj.airmass_score = cst_encode_f_64(apiObj.airmassScore);
+    wireObj.altitude_deg = cst_encode_f_64(apiObj.altitudeDeg);
+    wireObj.azimuth_deg = cst_encode_f_64(apiObj.azimuthDeg);
+    wireObj.airmass = cst_encode_f_64(apiObj.airmass);
+    wireObj.moon_distance_deg = cst_encode_f_64(apiObj.moonDistanceDeg);
+    wireObj.runnable = cst_encode_bool(apiObj.runnable);
+    wireObj.skip_reason = cst_encode_opt_String(apiObj.skipReason);
   }
 
   @protected
@@ -3650,6 +4073,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_api_centering_request(
+    ApiCenteringRequest apiObj,
+    ffi.Pointer<wire_cst_api_centering_request> wireObj,
+  ) {
+    cst_api_fill_to_wire_api_centering_request(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_api_defect_map_status(
     ApiDefectMapStatus apiObj,
     ffi.Pointer<wire_cst_api_defect_map_status> wireObj,
@@ -3698,11 +4129,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_api_night_sky(
+    ApiNightSky apiObj,
+    ffi.Pointer<wire_cst_api_night_sky> wireObj,
+  ) {
+    cst_api_fill_to_wire_api_night_sky(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_api_reference_geometry(
     ApiReferenceGeometry apiObj,
     ffi.Pointer<wire_cst_api_reference_geometry> wireObj,
   ) {
     cst_api_fill_to_wire_api_reference_geometry(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_api_scoring_weights(
+    ApiScoringWeights apiObj,
+    ffi.Pointer<wire_cst_api_scoring_weights> wireObj,
+  ) {
+    cst_api_fill_to_wire_api_scoring_weights(apiObj, wireObj.ref);
   }
 
   @protected
@@ -7344,6 +7791,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_api_centering_step_Dco(
+    RustStreamSink<ApiCenteringStep> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_skotiq_event_Dco(
     RustStreamSink<SkotiqEvent> self,
     SseSerializer serializer,
@@ -7361,6 +7814,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_calibrated_pixels(
     ApiCalibratedPixels self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_centering_request(
+    ApiCenteringRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_centering_step(
+    ApiCenteringStep self,
     SseSerializer serializer,
   );
 
@@ -7428,6 +7893,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_floor_sample(
+    ApiFloorSample self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_live_stacking_config(
     ApiLiveStackingConfig self,
     SseSerializer serializer,
@@ -7452,14 +7923,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_night_score(ApiNightScore self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_night_sky(ApiNightSky self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_night_target(
+    ApiNightTarget self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_reference_geometry(
     ApiReferenceGeometry self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_api_scheduler_target(
+    ApiSchedulerTarget self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_scoring_weights(
+    ApiScoringWeights self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_sky_rectangle(
     ApiSkyRectangle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_target_score_now(
+    ApiTargetScoreNow self,
     SseSerializer serializer,
   );
 
@@ -7484,6 +7985,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_api_acquisition_settings(
     ApiAcquisitionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_api_centering_request(
+    ApiCenteringRequest self,
     SseSerializer serializer,
   );
 
@@ -7524,8 +8031,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_api_night_sky(
+    ApiNightSky self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_api_reference_geometry(
     ApiReferenceGeometry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_api_scoring_weights(
+    ApiScoringWeights self,
     SseSerializer serializer,
   );
 
@@ -8075,6 +8594,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_depth_goal(
     List<ApiDepthGoal> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_floor_sample(
+    List<ApiFloorSample> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_night_score(
+    List<ApiNightScore> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_night_target(
+    List<ApiNightTarget> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_scheduler_target(
+    List<ApiSchedulerTarget> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_target_score_now(
+    List<ApiTargetScoreNow> self,
     SseSerializer serializer,
   );
 
@@ -9489,6 +10038,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__imaging__api_cancel_autofocusPtr
           .asFunction<void Function(int)>();
 
+  WireSyncRust2DartDco wire__crate__api__centering__api_cancel_centering() {
+    return _wire__crate__api__centering__api_cancel_centering();
+  }
+
+  late final _wire__crate__api__centering__api_cancel_centeringPtr =
+      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
+        'frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering',
+      );
+  late final _wire__crate__api__centering__api_cancel_centering =
+      _wire__crate__api__centering__api_cancel_centeringPtr
+          .asFunction<WireSyncRust2DartDco Function()>();
+
   void wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(
     int port_,
   ) {
@@ -9504,6 +10065,40 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__imaging__api_cancel_focuser_backlash_calibration =
       _wire__crate__api__imaging__api_cancel_focuser_backlash_calibrationPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__centering__api_center_on_target(
+    int port_,
+    ffi.Pointer<wire_cst_api_centering_request> request,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> sink,
+  ) {
+    return _wire__crate__api__centering__api_center_on_target(
+      port_,
+      request,
+      sink,
+    );
+  }
+
+  late final _wire__crate__api__centering__api_center_on_targetPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_api_centering_request>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target',
+      );
+  late final _wire__crate__api__centering__api_center_on_target =
+      _wire__crate__api__centering__api_center_on_targetPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_api_centering_request>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
 
   void wire__crate__api__imaging__api_clear_device_image(
     int port_,
@@ -13527,6 +14122,53 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  WireSyncRust2DartDco
+  wire__crate__api__target_scoring__api_rank_scheduler_targets(
+    double latitude_deg,
+    double longitude_deg,
+    int now_unix_ms,
+    ffi.Pointer<wire_cst_list_api_scheduler_target> targets,
+    ffi.Pointer<wire_cst_api_scoring_weights> weights,
+    ffi.Pointer<wire_cst_list_api_floor_sample> floor,
+  ) {
+    return _wire__crate__api__target_scoring__api_rank_scheduler_targets(
+      latitude_deg,
+      longitude_deg,
+      now_unix_ms,
+      targets,
+      weights,
+      floor,
+    );
+  }
+
+  late final _wire__crate__api__target_scoring__api_rank_scheduler_targetsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          WireSyncRust2DartDco Function(
+            ffi.Double,
+            ffi.Double,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_api_scheduler_target>,
+            ffi.Pointer<wire_cst_api_scoring_weights>,
+            ffi.Pointer<wire_cst_list_api_floor_sample>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_rank_scheduler_targets',
+      );
+  late final _wire__crate__api__target_scoring__api_rank_scheduler_targets =
+      _wire__crate__api__target_scoring__api_rank_scheduler_targetsPtr
+          .asFunction<
+            WireSyncRust2DartDco Function(
+              double,
+              double,
+              int,
+              ffi.Pointer<wire_cst_list_api_scheduler_target>,
+              ffi.Pointer<wire_cst_api_scoring_weights>,
+              ffi.Pointer<wire_cst_list_api_floor_sample>,
+            )
+          >();
+
   void wire__crate__api__imaging__api_read_fits_file(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
@@ -14131,6 +14773,44 @@ class RustLibWire implements BaseWire {
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_loose>,
+            )
+          >();
+
+  void wire__crate__api__target_scoring__api_score_targets_for_night(
+    int port_,
+    ffi.Pointer<wire_cst_api_night_sky> sky,
+    ffi.Pointer<wire_cst_list_api_night_target> targets,
+    ffi.Pointer<wire_cst_api_scoring_weights> weights,
+  ) {
+    return _wire__crate__api__target_scoring__api_score_targets_for_night(
+      port_,
+      sky,
+      targets,
+      weights,
+    );
+  }
+
+  late final _wire__crate__api__target_scoring__api_score_targets_for_nightPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_api_night_sky>,
+            ffi.Pointer<wire_cst_list_api_night_target>,
+            ffi.Pointer<wire_cst_api_scoring_weights>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_score_targets_for_night',
+      );
+  late final _wire__crate__api__target_scoring__api_score_targets_for_night =
+      _wire__crate__api__target_scoring__api_score_targets_for_nightPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_api_night_sky>,
+              ffi.Pointer<wire_cst_list_api_night_target>,
+              ffi.Pointer<wire_cst_api_scoring_weights>,
             )
           >();
 
@@ -16400,6 +17080,21 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_api_acquisition_settings> Function()
           >();
 
+  ffi.Pointer<wire_cst_api_centering_request>
+  cst_new_box_autoadd_api_centering_request() {
+    return _cst_new_box_autoadd_api_centering_request();
+  }
+
+  late final _cst_new_box_autoadd_api_centering_requestPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_api_centering_request> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request');
+  late final _cst_new_box_autoadd_api_centering_request =
+      _cst_new_box_autoadd_api_centering_requestPtr
+          .asFunction<ffi.Pointer<wire_cst_api_centering_request> Function()>();
+
   ffi.Pointer<wire_cst_api_defect_map_status>
   cst_new_box_autoadd_api_defect_map_status() {
     return _cst_new_box_autoadd_api_defect_map_status();
@@ -16490,6 +17185,18 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_api_live_stacking_config> Function()
           >();
 
+  ffi.Pointer<wire_cst_api_night_sky> cst_new_box_autoadd_api_night_sky() {
+    return _cst_new_box_autoadd_api_night_sky();
+  }
+
+  late final _cst_new_box_autoadd_api_night_skyPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_api_night_sky> Function()>
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky');
+  late final _cst_new_box_autoadd_api_night_sky =
+      _cst_new_box_autoadd_api_night_skyPtr
+          .asFunction<ffi.Pointer<wire_cst_api_night_sky> Function()>();
+
   ffi.Pointer<wire_cst_api_reference_geometry>
   cst_new_box_autoadd_api_reference_geometry() {
     return _cst_new_box_autoadd_api_reference_geometry();
@@ -16506,6 +17213,19 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_api_reference_geometry> Function()
           >();
+
+  ffi.Pointer<wire_cst_api_scoring_weights>
+  cst_new_box_autoadd_api_scoring_weights() {
+    return _cst_new_box_autoadd_api_scoring_weights();
+  }
+
+  late final _cst_new_box_autoadd_api_scoring_weightsPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_api_scoring_weights> Function()>
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights');
+  late final _cst_new_box_autoadd_api_scoring_weights =
+      _cst_new_box_autoadd_api_scoring_weightsPtr
+          .asFunction<ffi.Pointer<wire_cst_api_scoring_weights> Function()>();
 
   ffi.Pointer<wire_cst_app_settings> cst_new_box_autoadd_app_settings() {
     return _cst_new_box_autoadd_app_settings();
@@ -17247,6 +17967,85 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_api_depth_goal = _cst_new_list_api_depth_goalPtr
       .asFunction<ffi.Pointer<wire_cst_list_api_depth_goal> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_api_floor_sample> cst_new_list_api_floor_sample(
+    int len,
+  ) {
+    return _cst_new_list_api_floor_sample(len);
+  }
+
+  late final _cst_new_list_api_floor_samplePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_floor_sample> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_floor_sample');
+  late final _cst_new_list_api_floor_sample = _cst_new_list_api_floor_samplePtr
+      .asFunction<ffi.Pointer<wire_cst_list_api_floor_sample> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_api_night_score> cst_new_list_api_night_score(
+    int len,
+  ) {
+    return _cst_new_list_api_night_score(len);
+  }
+
+  late final _cst_new_list_api_night_scorePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_night_score> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_night_score');
+  late final _cst_new_list_api_night_score = _cst_new_list_api_night_scorePtr
+      .asFunction<ffi.Pointer<wire_cst_list_api_night_score> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_api_night_target> cst_new_list_api_night_target(
+    int len,
+  ) {
+    return _cst_new_list_api_night_target(len);
+  }
+
+  late final _cst_new_list_api_night_targetPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_night_target> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_night_target');
+  late final _cst_new_list_api_night_target = _cst_new_list_api_night_targetPtr
+      .asFunction<ffi.Pointer<wire_cst_list_api_night_target> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_api_scheduler_target>
+  cst_new_list_api_scheduler_target(int len) {
+    return _cst_new_list_api_scheduler_target(len);
+  }
+
+  late final _cst_new_list_api_scheduler_targetPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_scheduler_target> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_scheduler_target');
+  late final _cst_new_list_api_scheduler_target =
+      _cst_new_list_api_scheduler_targetPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_api_scheduler_target> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_api_target_score_now>
+  cst_new_list_api_target_score_now(int len) {
+    return _cst_new_list_api_target_score_now(len);
+  }
+
+  late final _cst_new_list_api_target_score_nowPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_target_score_now> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_target_score_now');
+  late final _cst_new_list_api_target_score_now =
+      _cst_new_list_api_target_score_nowPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_api_target_score_now> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_detected_star_info> cst_new_list_detected_star_info(
     int len,
   ) {
@@ -17735,6 +18534,34 @@ final class wire_cst_list_prim_u_16_loose extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_api_centering_request extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mount_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_wheel_id;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  @ffi.Double()
+  external double accuracy_arcsec;
+
+  @ffi.Uint32()
+  external int max_attempts;
+
+  @ffi.Double()
+  external double exposure_secs;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
+
+  @ffi.Bool()
+  external bool sync_mount;
+}
+
 final class wire_cst_list_String extends ffi.Struct {
   external ffi.Pointer<ffi.Pointer<wire_cst_list_prim_u_8_strict>> ptr;
 
@@ -17917,6 +18744,68 @@ final class wire_cst_plate_solver_config_payload extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> solver_choice;
 }
 
+final class wire_cst_api_scheduler_target extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  external ffi.Pointer<ffi.Double> min_altitude_deg;
+
+  external ffi.Pointer<ffi.Int64> start_after_unix_secs;
+
+  external ffi.Pointer<ffi.Int64> end_before_unix_secs;
+
+  @ffi.Int32()
+  external int priority;
+}
+
+final class wire_cst_list_api_scheduler_target extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_scheduler_target> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_api_scoring_weights extends ffi.Struct {
+  @ffi.Double()
+  external double altitude;
+
+  @ffi.Double()
+  external double moon_distance;
+
+  @ffi.Double()
+  external double transit_proximity;
+
+  @ffi.Double()
+  external double darkness;
+
+  @ffi.Double()
+  external double airmass;
+
+  external ffi.Pointer<ffi.Double> min_moon_separation_deg;
+}
+
+final class wire_cst_api_floor_sample extends ffi.Struct {
+  @ffi.Double()
+  external double azimuth_deg;
+
+  @ffi.Double()
+  external double altitude_deg;
+}
+
+final class wire_cst_list_api_floor_sample extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_floor_sample> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_list_prim_i_32_loose extends ffi.Struct {
   external ffi.Pointer<ffi.Int32> ptr;
 
@@ -18058,6 +18947,49 @@ final class wire_cst_equipment_profile extends ffi.Struct {
 
 final class wire_cst_list_prim_u_8_loose extends ffi.Struct {
   external ffi.Pointer<ffi.Uint8> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_api_night_sky extends ffi.Struct {
+  @ffi.Double()
+  external double latitude_deg;
+
+  @ffi.Double()
+  external double longitude_deg;
+
+  @ffi.Int64()
+  external int now_unix_ms;
+
+  @ffi.Int64()
+  external int night_start_unix_ms;
+
+  @ffi.Int64()
+  external int night_end_unix_ms;
+
+  external ffi.Pointer<ffi.Double> moon_ra_deg;
+
+  external ffi.Pointer<ffi.Double> moon_dec_deg;
+
+  @ffi.Double()
+  external double moon_illumination_percent;
+
+  external ffi.Pointer<wire_cst_list_api_floor_sample> floor;
+}
+
+final class wire_cst_api_night_target extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  @ffi.Double()
+  external double ra_deg;
+
+  @ffi.Double()
+  external double dec_deg;
+}
+
+final class wire_cst_list_api_night_target extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_night_target> ptr;
 
   @ffi.Int32()
   external int len;
@@ -20386,6 +21318,108 @@ final class wire_cst_list_api_depth_goal extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_api_night_score extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_id;
+
+  @ffi.Double()
+  external double total_score;
+
+  @ffi.Double()
+  external double altitude_score;
+
+  @ffi.Double()
+  external double moon_distance_score;
+
+  @ffi.Double()
+  external double transit_proximity_score;
+
+  @ffi.Double()
+  external double darkness_score;
+
+  @ffi.Double()
+  external double airmass_score;
+
+  @ffi.Double()
+  external double current_altitude_deg;
+
+  @ffi.Double()
+  external double current_azimuth_deg;
+
+  @ffi.Double()
+  external double peak_altitude_deg;
+
+  @ffi.Double()
+  external double peak_azimuth_deg;
+
+  @ffi.Int64()
+  external int peak_unix_ms;
+
+  @ffi.Double()
+  external double hours_above_floor;
+
+  external ffi.Pointer<ffi.Int64> above_floor_from_unix_ms;
+
+  external ffi.Pointer<ffi.Int64> above_floor_until_unix_ms;
+
+  external ffi.Pointer<ffi.Double> best_airmass;
+
+  @ffi.Double()
+  external double moon_distance_deg;
+}
+
+final class wire_cst_list_api_night_score extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_night_score> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_api_target_score_now extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_id;
+
+  @ffi.Double()
+  external double total_score;
+
+  @ffi.Double()
+  external double altitude_score;
+
+  @ffi.Double()
+  external double moon_distance_score;
+
+  @ffi.Double()
+  external double transit_proximity_score;
+
+  @ffi.Double()
+  external double darkness_score;
+
+  @ffi.Double()
+  external double airmass_score;
+
+  @ffi.Double()
+  external double altitude_deg;
+
+  @ffi.Double()
+  external double azimuth_deg;
+
+  @ffi.Double()
+  external double airmass;
+
+  @ffi.Double()
+  external double moon_distance_deg;
+
+  @ffi.Bool()
+  external bool runnable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> skip_reason;
+}
+
+final class wire_cst_list_api_target_score_now extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_target_score_now> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_detected_star_info extends ffi.Struct {
   @ffi.Double()
   external double x;
@@ -20702,6 +21736,57 @@ final class wire_cst_api_calibrated_pixels extends ffi.Struct {
 
   @ffi.Double()
   external double pedestal;
+}
+
+final class wire_cst_ApiCenteringStep_Capturing extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+}
+
+final class wire_cst_ApiCenteringStep_Solved extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  @ffi.Double()
+  external double separation_arcsec;
+}
+
+final class wire_cst_ApiCenteringStep_Correcting extends ffi.Struct {
+  @ffi.Uint32()
+  external int attempt;
+}
+
+final class wire_cst_ApiCenteringStep_Finished extends ffi.Struct {
+  @ffi.Bool()
+  external bool centered;
+
+  @ffi.Bool()
+  external bool cancelled;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class ApiCenteringStepKind extends ffi.Union {
+  external wire_cst_ApiCenteringStep_Capturing Capturing;
+
+  external wire_cst_ApiCenteringStep_Solved Solved;
+
+  external wire_cst_ApiCenteringStep_Correcting Correcting;
+
+  external wire_cst_ApiCenteringStep_Finished Finished;
+}
+
+final class wire_cst_api_centering_step extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external ApiCenteringStepKind kind;
 }
 
 final class wire_cst_api_depth_floor_suggestion extends ffi.Struct {

@@ -104,6 +104,19 @@ typedef struct wire_cst_list_prim_u_16_loose {
   int32_t len;
 } wire_cst_list_prim_u_16_loose;
 
+typedef struct wire_cst_api_centering_request {
+  struct wire_cst_list_prim_u_8_strict *mount_id;
+  struct wire_cst_list_prim_u_8_strict *camera_id;
+  struct wire_cst_list_prim_u_8_strict *filter_wheel_id;
+  double ra_hours;
+  double dec_degrees;
+  double accuracy_arcsec;
+  uint32_t max_attempts;
+  double exposure_secs;
+  struct wire_cst_list_prim_u_8_strict *filter;
+  bool sync_mount;
+} wire_cst_api_centering_request;
+
 typedef struct wire_cst_list_String {
   struct wire_cst_list_prim_u_8_strict **ptr;
   int32_t len;
@@ -195,6 +208,41 @@ typedef struct wire_cst_plate_solver_config_payload {
   struct wire_cst_list_prim_u_8_strict *solver_choice;
 } wire_cst_plate_solver_config_payload;
 
+typedef struct wire_cst_api_scheduler_target {
+  struct wire_cst_list_prim_u_8_strict *id;
+  struct wire_cst_list_prim_u_8_strict *name;
+  double ra_hours;
+  double dec_degrees;
+  double *min_altitude_deg;
+  int64_t *start_after_unix_secs;
+  int64_t *end_before_unix_secs;
+  int32_t priority;
+} wire_cst_api_scheduler_target;
+
+typedef struct wire_cst_list_api_scheduler_target {
+  struct wire_cst_api_scheduler_target *ptr;
+  int32_t len;
+} wire_cst_list_api_scheduler_target;
+
+typedef struct wire_cst_api_scoring_weights {
+  double altitude;
+  double moon_distance;
+  double transit_proximity;
+  double darkness;
+  double airmass;
+  double *min_moon_separation_deg;
+} wire_cst_api_scoring_weights;
+
+typedef struct wire_cst_api_floor_sample {
+  double azimuth_deg;
+  double altitude_deg;
+} wire_cst_api_floor_sample;
+
+typedef struct wire_cst_list_api_floor_sample {
+  struct wire_cst_api_floor_sample *ptr;
+  int32_t len;
+} wire_cst_list_api_floor_sample;
+
 typedef struct wire_cst_list_prim_i_32_loose {
   int32_t *ptr;
   int32_t len;
@@ -267,6 +315,29 @@ typedef struct wire_cst_list_prim_u_8_loose {
   uint8_t *ptr;
   int32_t len;
 } wire_cst_list_prim_u_8_loose;
+
+typedef struct wire_cst_api_night_sky {
+  double latitude_deg;
+  double longitude_deg;
+  int64_t now_unix_ms;
+  int64_t night_start_unix_ms;
+  int64_t night_end_unix_ms;
+  double *moon_ra_deg;
+  double *moon_dec_deg;
+  double moon_illumination_percent;
+  struct wire_cst_list_api_floor_sample *floor;
+} wire_cst_api_night_sky;
+
+typedef struct wire_cst_api_night_target {
+  struct wire_cst_list_prim_u_8_strict *id;
+  double ra_deg;
+  double dec_deg;
+} wire_cst_api_night_target;
+
+typedef struct wire_cst_list_api_night_target {
+  struct wire_cst_api_night_target *ptr;
+  int32_t len;
+} wire_cst_list_api_night_target;
 
 typedef struct wire_cst_secondary_rig_config_api {
   struct wire_cst_list_prim_u_8_strict *camera_id;
@@ -1589,6 +1660,52 @@ typedef struct wire_cst_list_api_depth_goal {
   int32_t len;
 } wire_cst_list_api_depth_goal;
 
+typedef struct wire_cst_api_night_score {
+  struct wire_cst_list_prim_u_8_strict *target_id;
+  double total_score;
+  double altitude_score;
+  double moon_distance_score;
+  double transit_proximity_score;
+  double darkness_score;
+  double airmass_score;
+  double current_altitude_deg;
+  double current_azimuth_deg;
+  double peak_altitude_deg;
+  double peak_azimuth_deg;
+  int64_t peak_unix_ms;
+  double hours_above_floor;
+  int64_t *above_floor_from_unix_ms;
+  int64_t *above_floor_until_unix_ms;
+  double *best_airmass;
+  double moon_distance_deg;
+} wire_cst_api_night_score;
+
+typedef struct wire_cst_list_api_night_score {
+  struct wire_cst_api_night_score *ptr;
+  int32_t len;
+} wire_cst_list_api_night_score;
+
+typedef struct wire_cst_api_target_score_now {
+  struct wire_cst_list_prim_u_8_strict *target_id;
+  double total_score;
+  double altitude_score;
+  double moon_distance_score;
+  double transit_proximity_score;
+  double darkness_score;
+  double airmass_score;
+  double altitude_deg;
+  double azimuth_deg;
+  double airmass;
+  double moon_distance_deg;
+  bool runnable;
+  struct wire_cst_list_prim_u_8_strict *skip_reason;
+} wire_cst_api_target_score_now;
+
+typedef struct wire_cst_list_api_target_score_now {
+  struct wire_cst_api_target_score_now *ptr;
+  int32_t len;
+} wire_cst_list_api_target_score_now;
+
 typedef struct wire_cst_detected_star_info {
   double x;
   double y;
@@ -1779,6 +1896,39 @@ typedef struct wire_cst_api_calibrated_pixels {
   struct wire_cst_list_prim_u_16_strict *data;
   double pedestal;
 } wire_cst_api_calibrated_pixels;
+
+typedef struct wire_cst_ApiCenteringStep_Capturing {
+  uint32_t attempt;
+} wire_cst_ApiCenteringStep_Capturing;
+
+typedef struct wire_cst_ApiCenteringStep_Solved {
+  uint32_t attempt;
+  double ra_hours;
+  double dec_degrees;
+  double separation_arcsec;
+} wire_cst_ApiCenteringStep_Solved;
+
+typedef struct wire_cst_ApiCenteringStep_Correcting {
+  uint32_t attempt;
+} wire_cst_ApiCenteringStep_Correcting;
+
+typedef struct wire_cst_ApiCenteringStep_Finished {
+  bool centered;
+  bool cancelled;
+  struct wire_cst_list_prim_u_8_strict *message;
+} wire_cst_ApiCenteringStep_Finished;
+
+typedef union ApiCenteringStepKind {
+  struct wire_cst_ApiCenteringStep_Capturing Capturing;
+  struct wire_cst_ApiCenteringStep_Solved Solved;
+  struct wire_cst_ApiCenteringStep_Correcting Correcting;
+  struct wire_cst_ApiCenteringStep_Finished Finished;
+} ApiCenteringStepKind;
+
+typedef struct wire_cst_api_centering_step {
+  int32_t tag;
+  union ApiCenteringStepKind kind;
+} wire_cst_api_centering_step;
 
 typedef struct wire_cst_api_depth_floor_suggestion {
   double floor_adu;
@@ -2682,7 +2832,13 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__devices__camera__api
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_autofocus(int64_t port_);
 
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering(void);
+
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_cancel_focuser_backlash_calibration(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target(int64_t port_,
+                                                                            struct wire_cst_api_centering_request *request,
+                                                                            struct wire_cst_list_prim_u_8_strict *sink);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_clear_device_image(int64_t port_,
                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
@@ -3204,6 +3360,13 @@ void frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_platesolve_verify(i
 void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_post_session_cancel(int64_t port_,
                                                                                                struct wire_cst_list_prim_u_8_strict *args_json);
 
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_rank_scheduler_targets(double latitude_deg,
+                                                                                                       double longitude_deg,
+                                                                                                       int64_t now_unix_ms,
+                                                                                                       struct wire_cst_list_api_scheduler_target *targets,
+                                                                                                       struct wire_cst_api_scoring_weights *weights,
+                                                                                                       struct wire_cst_list_api_floor_sample *floor);
+
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file(int64_t port_,
                                                                         struct wire_cst_list_prim_u_8_strict *file_path);
 
@@ -3282,6 +3445,11 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_rgba_png_file(int6
                                                                             uint32_t width,
                                                                             uint32_t height,
                                                                             struct wire_cst_list_prim_u_8_loose *rgba);
+
+void frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_score_targets_for_night(int64_t port_,
+                                                                                        struct wire_cst_api_night_sky *sky,
+                                                                                        struct wire_cst_list_api_night_target *targets,
+                                                                                        struct wire_cst_api_scoring_weights *weights);
 
 void frbgen_skotiq_bridge_wire__crate__api__secondary_rig__api_secondary_rig_get_status(int64_t port_);
 
@@ -3586,6 +3754,8 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_d
 
 struct wire_cst_api_acquisition_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings(void);
 
+struct wire_cst_api_centering_request *frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request(void);
+
 struct wire_cst_api_defect_map_status *frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status(void);
 
 struct wire_cst_api_depth_forecast *frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_forecast(void);
@@ -3598,7 +3768,11 @@ struct wire_cst_api_depth_report *frbgen_skotiq_bridge_cst_new_box_autoadd_api_d
 
 struct wire_cst_api_live_stacking_config *frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config(void);
 
+struct wire_cst_api_night_sky *frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky(void);
+
 struct wire_cst_api_reference_geometry *frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry(void);
+
+struct wire_cst_api_scoring_weights *frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights(void);
 
 struct wire_cst_app_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings(void);
 
@@ -3708,6 +3882,16 @@ struct wire_cst_list_api_depth_curve_point *frbgen_skotiq_bridge_cst_new_list_ap
 
 struct wire_cst_list_api_depth_goal *frbgen_skotiq_bridge_cst_new_list_api_depth_goal(int32_t len);
 
+struct wire_cst_list_api_floor_sample *frbgen_skotiq_bridge_cst_new_list_api_floor_sample(int32_t len);
+
+struct wire_cst_list_api_night_score *frbgen_skotiq_bridge_cst_new_list_api_night_score(int32_t len);
+
+struct wire_cst_list_api_night_target *frbgen_skotiq_bridge_cst_new_list_api_night_target(int32_t len);
+
+struct wire_cst_list_api_scheduler_target *frbgen_skotiq_bridge_cst_new_list_api_scheduler_target(int32_t len);
+
+struct wire_cst_list_api_target_score_now *frbgen_skotiq_bridge_cst_new_list_api_target_score_now(int32_t len);
+
 struct wire_cst_list_detected_star_info *frbgen_skotiq_bridge_cst_new_list_detected_star_info(int32_t len);
 
 struct wire_cst_list_device_info *frbgen_skotiq_bridge_cst_new_list_device_info(int32_t len);
@@ -3766,13 +3950,16 @@ struct wire_cst_list_tracking_rate *frbgen_skotiq_bridge_cst_new_list_tracking_r
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_centering_request);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_defect_map_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_forecast);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_goal_definition);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_measurement);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_report);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_autofocus_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_bool);
@@ -3827,6 +4014,11 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_String);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_curve_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_goal);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_floor_sample);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_night_score);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_night_target);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_scheduler_target);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_target_score_now);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_detected_star_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_type);
@@ -3855,6 +4047,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracked_guide_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracking_rate);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__centering__api_cancel_centering);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__centering__api_center_on_target);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_disconnect_device);
@@ -4140,6 +4334,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_save_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_set_location);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_rank_scheduler_targets);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_score_targets_for_night);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);
     return dummy_var;
 }

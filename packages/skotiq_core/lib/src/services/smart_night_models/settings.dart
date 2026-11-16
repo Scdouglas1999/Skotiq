@@ -6,7 +6,7 @@ part of '../smart_night_models.dart';
 /// [resolveSmartNightFilterSet] names the wheel slots a set means. The recipe
 /// review and the Smart Night wizard let the user pick a different one.
 enum SmartNightStrategy {
-  /// L, R, G and B with twice the time on L. Needs all four on the wheel.
+  /// L, R, G and B. Needs all four on the wheel.
   autoLrgb,
 
   /// Ha and OIII. Needs both on the wheel.
@@ -19,9 +19,6 @@ enum SmartNightStrategy {
   /// whose wheel names no known band.
   oscOneShot,
 
-  /// L, R, G and B with equal time on each. Needs all four on the wheel.
-  monoLrgb,
-
   /// Ha alone. Needs Ha on the wheel.
   narrowbandHa,
 
@@ -29,7 +26,7 @@ enum SmartNightStrategy {
   /// the wheel.
   haLrgb,
 
-  /// R, G and B with equal time on each. Needs all three on the wheel.
+  /// R, G and B. Needs all three on the wheel.
   rgb,
 
   /// L alone. Needs L on the wheel.

@@ -1,38 +1,159 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/focus_model_service.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
   late Directory tempDir;
+  late SkotiqDatabase db;
+
+  /// A service over the test database; [jsonFolder] holds the file store's
+  /// profiles to import (none unless a test writes them).
+  FocusModelService newService({
+    FocusModelConfig config = const FocusModelConfig(),
+  }) => FocusModelService(
+    db.focusHistoryDao,
+    config: config,
+    jsonFolder: () async => Directory('${tempDir.path}/focus_models'),
+  );
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('focus-model-test');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(pathProviderChannel, (call) async {
-          if (call.method == 'getApplicationDocumentsDirectory') {
-            return tempDir.path;
-          }
-          return null;
-        });
+    db = SkotiqDatabase.forTesting(NativeDatabase.memory());
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(pathProviderChannel, null);
+    await db.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
   });
 
   group('FocusModelService', () {
+    group('moving the file store into the database', () {
+      // Every field the file store wrote, with values a round-trip through
+      // the database could get wrong (nulls, a non-default band, uncorrected
+      // and corrected offsets, a filterless point).
+      Map<String, dynamic> everyField(String profileId) => {
+        'profileId': profileId,
+        'dataPoints': [
+          {
+            'timestamp': '2026-10-01T03:04:05.000Z',
+            'temperature': 7.25,
+            'position': 12345,
+            'hfr': 2.125,
+            'filter': 'L',
+          },
+          {
+            'timestamp': '2026-10-02T01:00:00.000Z',
+            'temperature': 4.5,
+            'position': 12410,
+            'hfr': 1.875,
+            'filter': null,
+          },
+          {
+            'timestamp': '2026-10-03T22:30:00.000Z',
+            'temperature': -1.75,
+            'position': 12560,
+            'hfr': 2.5,
+            'filter': 'Ha',
+          },
+        ],
+        'temperatureModel': {
+          'slope': -24.5,
+          'intercept': 12500.25,
+          'rSquared': 0.93,
+          'dataPointCount': 3,
+          'lastUpdated': '2026-10-03T22:31:00.000Z',
+        },
+        'filterOffsets': {
+          'Ha': {
+            'filterName': 'Ha',
+            'referenceFilter': 'L',
+            'offsetSteps': 85,
+            'measurementCount': 4,
+            'confidence': 0.75,
+            'confidenceBand': 'medium',
+            'confidenceReason': 'narrow temperature spread',
+            'temperatureCorrected': true,
+          },
+          'R': {
+            'filterName': 'R',
+            'referenceFilter': 'L',
+            'offsetSteps': -12,
+            'measurementCount': 1,
+            'confidence': 1.0,
+            'confidenceBand': 'low',
+            'confidenceReason': '',
+            'temperatureCorrected': false,
+          },
+        },
+        'referenceFilter': 'L',
+      };
+
+      Future<File> writeFileStore(String profileId) async {
+        final folder = Directory('${tempDir.path}/focus_models');
+        await folder.create(recursive: true);
+        return File('${folder.path}/$profileId.json')
+          ..writeAsStringSync(jsonEncode(everyField(profileId)));
+      }
+
+      test('every point, offset and the model reach the database and are '
+          'read back unchanged', () async {
+        final file = await writeFileStore('7');
+        await newService().initialize();
+
+        // A fresh service reads only the database: the file is renamed.
+        final reread = newService();
+        await reread.initialize();
+        final data = reread.getProfileData('7')!;
+        expect(jsonEncode(data.toJson()), jsonEncode(everyField('7')));
+        expect(file.existsSync(), isFalse);
+        expect(File('${file.path}.imported').existsSync(), isTrue);
+      });
+
+      test(
+        'a profile the database already holds keeps the database copy',
+        () async {
+          final service = newService();
+          await service.addDataPoint(
+            profileId: '7',
+            temperatureCelsius: 3,
+            focusPosition: 999,
+            hfr: 2,
+          );
+          await writeFileStore('7');
+
+          final reread = newService();
+          await reread.initialize();
+          expect(
+            reread.getProfileData('7')!.dataPoints.map((p) => p.focusPosition),
+            [999],
+          );
+        },
+      );
+
+      test(
+        'an unreadable file is left in place and the rest are moved',
+        () async {
+          final good = await writeFileStore('7');
+          final bad = File('${good.parent.path}/broken.json')
+            ..writeAsStringSync('{not json');
+
+          final service = newService();
+          await service.initialize();
+
+          expect(service.getProfileData('7'), isNotNull);
+          expect(bad.existsSync(), isTrue);
+        },
+      );
+    });
+
     test('import rebinds exported data to the destination profile', () async {
-      final service = FocusModelService();
+      final service = newService();
       await service.importData(
         'destination',
         jsonEncode({
@@ -55,7 +176,7 @@ void main() {
       expect(service.getProfileData('source'), isNull);
       expect(service.getProfileData('destination')?.profileId, 'destination');
 
-      final reloaded = FocusModelService();
+      final reloaded = newService();
       await reloaded.initialize();
       expect(reloaded.getProfileData('source'), isNull);
       expect(reloaded.getProfileData('destination')?.dataPoints, hasLength(1));
@@ -64,7 +185,7 @@ void main() {
     test(
       'a newly invalid regression clears the previously fitted model',
       () async {
-        final service = FocusModelService();
+        final service = newService();
         for (var i = 0; i < 5; i++) {
           await service.addDataPoint(
             profileId: 'profile-model-clear',
@@ -95,7 +216,7 @@ void main() {
     test(
       'does not build a temperature model when all temperatures are identical',
       () async {
-        final service = FocusModelService();
+        final service = newService();
 
         await service.addDataPoint(
           profileId: 'profile-a',
@@ -123,7 +244,7 @@ void main() {
     );
 
     test('rejects unrealistic slopes', () async {
-      final service = FocusModelService();
+      final service = newService();
 
       await service.addDataPoint(
         profileId: 'profile-b',
@@ -189,7 +310,7 @@ void main() {
         }
 
         // Default config (500-step gate): the fit is rejected.
-        final defaultSvc = FocusModelService();
+        final defaultSvc = newService();
         await seed(defaultSvc);
         expect(
           defaultSvc.getProfileData('profile-c')?.temperatureModel,
@@ -198,7 +319,7 @@ void main() {
         );
 
         // Permissive config (2000-step gate): same data yields a model.
-        final permissiveSvc = FocusModelService(
+        final permissiveSvc = newService(
           config: const FocusModelConfig(maxAcceptableSlopeStepsPerC: 2000),
         );
         await seed(permissiveSvc);
@@ -227,7 +348,7 @@ void main() {
         required String referenceFilter,
         required List<({String filter, double temp, int position})> samples,
       }) async {
-        final svc = FocusModelService();
+        final svc = newService();
         // Seed reference filter first so setReferenceFilter has data to work
         // on, then push the rest.
         for (final s in samples.where((s) => s.filter == referenceFilter)) {

@@ -141,8 +141,7 @@ class FilterSetPicker extends ConsumerWidget {
   static String? _detail(FilterSet set, String recommendedKey) {
     final parts = [
       if (set.key == recommendedKey) 'Recommended',
-      if (set.isCustom || set.preset == SmartNightStrategy.monoLrgb)
-        set.filters.join(' '),
+      if (set.isCustom) set.filters.join(' '),
     ];
     return parts.isEmpty ? null : parts.join(' · ');
   }
@@ -175,25 +174,66 @@ class _FilterSetBuilderDialogState
     extends ConsumerState<_FilterSetBuilderDialog> {
   final _name = TextEditingController();
   final _ticked = <String>{};
+
+  /// Each ticked filter's share of the time, in percent; reset to equal
+  /// shares whenever a filter is ticked or cleared.
+  final _shares = <String, TextEditingController>{};
   bool _saving = false;
   String? _error;
 
   @override
   void dispose() {
     _name.dispose();
+    for (final field in _shares.values) {
+      field.dispose();
+    }
     super.dispose();
   }
 
+  void _tick(String filter, bool on) {
+    setState(() {
+      on ? _ticked.add(filter) : _ticked.remove(filter);
+      for (final field in _shares.values) {
+        field.dispose();
+      }
+      _shares.clear();
+      final equal = _ticked.isEmpty ? 0 : 100 / _ticked.length;
+      for (final ticked in _ticked) {
+        _shares[ticked] = TextEditingController(
+          text: equal == equal.roundToDouble()
+              ? '${equal.round()}'
+              : equal.toStringAsFixed(1),
+        );
+      }
+    });
+  }
+
+  /// The share typed for [filter], or null when it is not a number above 0.
+  double? _shareOf(String filter) {
+    final text = _shares[filter]?.text.trim();
+    final share = text == null ? null : double.tryParse(text);
+    return share != null && share.isFinite && share > 0 ? share : null;
+  }
+
+  bool get _sharesValid => _ticked.every((f) => _shareOf(f) != null);
+
   bool get _canSave =>
-      !_saving && _name.text.trim().isNotEmpty && _ticked.isNotEmpty;
+      !_saving &&
+      _name.text.trim().isNotEmpty &&
+      _ticked.isNotEmpty &&
+      _sharesValid;
 
   Future<void> _save() async {
+    final filters = [
+      for (final filter in widget.wheelFilters)
+        if (_ticked.contains(filter)) filter,
+    ];
+    final shares = {for (final filter in filters) filter: _shareOf(filter)!};
+    final even = shares.values.toSet().length <= 1;
     final set = CustomFilterSet(
       name: _name.text.trim(),
-      filters: [
-        for (final filter in widget.wheelFilters)
-          if (_ticked.contains(filter)) filter,
-      ],
+      filters: filters,
+      shares: even ? const {} : shares,
     );
     setState(() {
       _saving = true;
@@ -269,16 +309,36 @@ class _FilterSetBuilderDialogState
             _FilterTick(
               filter: filter,
               value: _ticked.contains(filter),
-              onChanged: (on) => setState(
-                () => on ? _ticked.add(filter) : _ticked.remove(filter),
-              ),
+              onChanged: (on) => _tick(filter, on),
+              share: switch (_shares[filter]) {
+                final field? => SizedBox(
+                    width: 88,
+                    child: SkotiqTextField(
+                      key: ValueKey('filter-set-share-$filter'),
+                      controller: field,
+                      dense: true,
+                      onChanged: (_) => setState(() {}),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ),
+                null => null,
+              },
             ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
-            'Plans take the filters in wheel order, with the same time on '
-            'each.',
+            'Plans take the filters in wheel order. Each one\'s share is its '
+            'part of the planned time.',
             style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
+          if (!_sharesValid) ...[
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            Text(
+              'Each share must be a number above 0.',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.error),
+            ),
+          ],
           if (saved.isNotEmpty) ...[
             const SizedBox(height: SkotiqTokens.space2xl),
             Text(
@@ -336,11 +396,15 @@ class _FilterTick extends StatelessWidget {
     required this.filter,
     required this.value,
     required this.onChanged,
+    this.share,
   });
 
   final String filter;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// The filter's share field while it is ticked.
+  final Widget? share;
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +429,7 @@ class _FilterTick extends StatelessWidget {
                 ),
               ),
             ),
+            if (share case final field?) field,
           ],
         ),
       ),

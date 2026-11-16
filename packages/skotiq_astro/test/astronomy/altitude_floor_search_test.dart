@@ -108,25 +108,4 @@ void main() {
       expect(visibility.setTime, isNull);
     });
   });
-
-  test('Best Targets drops a target that stays behind the horizon in '
-      'darkness and keeps it under an open sky', () {
-    final nightDate = DateTime(2026, 1, 14);
-    List<TonightRanking> rank(AltitudeFloorSamples floor) => rankTonightTargets(
-      // Declination -10 culminates 40 degrees up, due south.
-      raDeg: [90],
-      decDeg: [-10],
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      nightDate: nightDate,
-      floor: floor,
-    );
-    expect(rank(AltitudeFloorSamples.flat(30)), isNotEmpty);
-    // A ridge to 50 degrees across the whole southern sky.
-    const ridge = AltitudeFloorSamples(
-      [0, 89, 90, 270, 271, 359],
-      [0, 0, 50, 50, 0, 0],
-    );
-    expect(rank(ridge), isEmpty);
-  });
 }

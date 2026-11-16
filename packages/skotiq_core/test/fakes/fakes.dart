@@ -5,3 +5,4 @@
 // streams, etc.) should be added here so they can be picked up uniformly.
 
 export 'fake_network_client.dart';
+export 'fake_target_scoring.dart';

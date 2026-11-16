@@ -24,7 +24,7 @@ fn _cfg() -> StartGuidingConfig {
 // (lib.rs re-exports `device_ops::*`).
 use async_trait::async_trait;
 
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize};
 use std::sync::Mutex;
 
 /// The frame a camera returns with the focuser at a given position.
@@ -75,6 +75,7 @@ struct ScriptedDomeRotatorOps {
     mount_slew_calls: AtomicU32,
     /// Every slew target, in the order sent.
     mount_slew_targets: Mutex<Vec<(f64, f64)>>,
+    mount_sync_calls: AtomicUsize,
     /// The (RA degrees, Dec) hint of every plate solve.
     plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
     camera_exposure_calls: AtomicU32,
@@ -143,6 +144,7 @@ struct ScriptedDomeRotatorOps {
     guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
+    no_plate_solver: bool,
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
     /// `true` to prove a parked exposure is never daylight-gated.
@@ -251,6 +253,7 @@ impl ScriptedDomeRotatorOps {
             mount_slew_state_calls: AtomicU32::new(0),
             mount_slew_calls: AtomicU32::new(0),
             mount_slew_targets: Mutex::new(Vec::new()),
+            mount_sync_calls: AtomicUsize::new(0),
             plate_solve_hints: Mutex::new(Vec::new()),
             camera_exposure_calls: AtomicU32::new(0),
             dithers_after_frame: Mutex::new(Vec::new()),
@@ -292,6 +295,7 @@ impl ScriptedDomeRotatorOps {
             guider_stop_error: None,
             guider_absent: false,
             plate_solve_fails: false,
+            no_plate_solver: false,
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
@@ -528,6 +532,12 @@ impl ScriptedDomeRotatorOps {
         self
     }
 
+    /// A computer with no plate solver installed.
+    fn without_plate_solver(mut self) -> Self {
+        self.no_plate_solver = true;
+        self
+    }
+
     /// A guider whose every dither fails with `message`.
     fn with_dither_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
         self.dither_error = Some(error.into());
@@ -722,6 +732,7 @@ impl MountOps for ScriptedDomeRotatorOps {
         }
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.mount_sync_calls.fetch_add(1, Ordering::SeqCst);
         self.inner.mount_sync(id, ra, dec).await
     }
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {
@@ -1150,6 +1161,9 @@ impl PlateSolveOps for ScriptedDomeRotatorOps {
         s: Option<f64>,
     ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
         self.plate_solve_hints.lock().unwrap().push((ra, dec));
+        if self.no_plate_solver {
+            return Err(crate::device_ops::DeviceError::NO_PLATE_SOLVER);
+        }
         if self.plate_solve_fails {
             return Err("no solution: too few stars".into());
         }

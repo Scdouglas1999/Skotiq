@@ -27,13 +27,12 @@ native/skotiq_native/ascom/src/error.rs	-	highrisk	1	baseline	/// COM's own "not
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	description: "Property Gain is not implemented by this camera",
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	err.contains("Property Gain is not implemented by this camera"),
 native/skotiq_native/ascom/src/windows/connection.rs	scan_registry_path	highrisk	1	baseline	let registry_description = get_driver_description(&key, &prog_id).unwrap_or_default();
-native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	highrisk	1	baseline	let config = config.unwrap_or_default();
+native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	highrisk	1	baseline	let config = config.unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/skotiq_native/bridge/src/api/plate_solve.rs	frame	highrisk	1	baseline	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
-native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs	run_sequencer_event_loop	highrisk	1	baseline	node_id: node_id.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/sequencer/event_translation.rs	instruction_progress_event	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	api_sequencer_start	highrisk	1	baseline	let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
-native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	highrisk	1	baseline	get_sequence_executor().write().await.stop().await.ok();
+native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	highrisk	1	baseline	.ok();
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	auth_token: s.config.auth_token.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	capabilities	highrisk	1	baseline	.unwrap_or_default()
@@ -70,6 +69,7 @@ native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_GUARD.set(guard).ok();
 native/skotiq_native/bridge/src/simulator/camera.rs	sim_imaging_camera_traits	highrisk	1	baseline	SimCameraTraits::parse(&std::env::var(SIM_CAMERA_TRAITS_ENV).unwrap_or_default())
 native/skotiq_native/bridge/src/simulator/sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
+native/skotiq_native/bridge/src/solver/scale.rs	frame	highrisk	1	baseline	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
 native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	card_number	highrisk	1	baseline	let value = card[10..].split('/').next().unwrap_or_default().trim();
 native/skotiq_native/bridge/src/util/supervisor.rs	install_global_subscriber	highrisk	1	baseline	GLOBAL_WRITER.set(writer.clone()).ok();
 native/skotiq_native/bridge/src/util/temp_fits.rs	create_unique_temp_fits_path	highrisk	1	baseline	.unwrap_or_default()
