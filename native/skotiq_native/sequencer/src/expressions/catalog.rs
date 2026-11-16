@@ -338,7 +338,7 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
         },
         VariableEntry {
             name: "exposure.total",
-            description: "Total burst integration time (minutes — duration_secs × count / 60)",
+            description: "Total burst integration time (minutes: duration_secs × count / 60)",
             group: VariableGroup::Exposure,
             example: "30",
             supports_format: true,
