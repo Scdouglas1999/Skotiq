@@ -42,8 +42,9 @@ use skotiq_device::ascom::camera::{
     Probe,
 };
 use skotiq_device::{
-    CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
-    ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures,
+    CameraCapabilities, CameraDescription, CameraDriver, CameraState, CameraStatus, DeviceDriver,
+    DriverError, ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor,
+    VendorFeatures,
 };
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -114,57 +115,6 @@ fn compute_exposure_remaining(
             Some(remaining.max(0.0))
         }
         _ => None,
-    }
-}
-
-/// True when an ASCOM error is the driver stating a member does not exist,
-/// as opposed to failing to answer for it.
-///
-/// `OwnedExcepInfo::describe` renders the driver's `scode` as `0x%08X`, so the
-/// code is carried in the error text. `0x80040400` is ASCOM's `NotImplemented`
-/// (what `PropertyNotImplementedException` sets) and `0x80004001` is COM's
-/// `E_NOTIMPL`; both are permanent facts about the interface. Every other
-/// failure — disconnect, RPC fault, STA pump timeout — is transport and says
-/// nothing about the capability.
-fn is_not_implemented_error(err: &str) -> bool {
-    err.contains("0x80040400") || err.contains("0x80004001")
-}
-
-/// Try-once-cache lookup for an ASCOM "Can*" capability that the driver
-/// does not expose declaratively. Probes via `probe()` only until the answer
-/// is known; subsequent calls return the cached result.
-///
-/// The probe costs a COM round-trip, so its answer is cached — but only when
-/// the driver actually reported the property as unsupported. A transport
-/// failure leaves the cache unset so the next capability query re-probes:
-/// caching `false` on a blip would strip cooler telemetry from a cooled camera
-/// for the life of the connection, with nothing to re-probe it. Until the
-/// answer is known the capability reads `false`, which understates rather than
-/// fabricates. The cache is reset on disconnect, so a reconnect re-probes.
-fn cooler_power_supported(
-    cache: &mut Option<bool>,
-    probe: impl FnOnce() -> Result<f64, String>,
-) -> bool {
-    if let Some(v) = *cache {
-        return v;
-    }
-    match probe() {
-        Ok(_) => {
-            *cache = Some(true);
-            true
-        }
-        Err(e) if is_not_implemented_error(&e) => {
-            *cache = Some(false);
-            false
-        }
-        Err(e) => {
-            tracing::warn!(
-                "ASCOM CoolerPower probe failed without a NotImplemented code ({}); \
-                 leaving CanGetCoolerPower unresolved so the next capability query re-probes",
-                e
-            );
-            false
-        }
     }
 }
 
@@ -259,7 +209,6 @@ pub struct AscomCameraCapabilities {
     pub max_adu: u32,
     pub has_shutter: bool,
     pub can_set_ccd_temperature: bool,
-    pub can_get_cooler_power: bool,
     pub can_bin: bool,
     pub max_bin_x: i32,
     pub max_bin_y: i32,
@@ -267,8 +216,6 @@ pub struct AscomCameraCapabilities {
     pub can_stop_exposure: bool,
     /// How the camera offers gain and offset (`skotiq_device::ascom::camera`).
     pub controls: CameraControls,
-    /// `CoolerOn` is implemented: the camera has a cooler to switch.
-    pub has_cooler: bool,
     pub can_asymmetric_bin: bool,
     pub exposure_min: Option<f64>,
     pub exposure_max: Option<f64>,
@@ -347,9 +294,6 @@ impl AscomCameraWrapper {
             // value. Cleared on abort/stop/disconnect.
             let mut last_exposure_duration: Option<f64> = None;
             let mut last_exposure_bin: Option<(i32, i32)> = None;
-            // Try-once-cache for the `CanGetCoolerPower` capability.
-            // `None` = not yet resolved; `Some(_)` = cached result.
-            let mut cooler_power_cache: Option<bool> = None;
 
             Ok(Box::new(move || {
                 use tokio::sync::mpsc::error::TryRecvError;
@@ -398,11 +342,9 @@ impl AscomCameraWrapper {
                     }
                     AscomCommand::Disconnect(reply) => {
                         if let Some(cam) = &mut camera {
-                            // Why: a reconnect may target a different driver instance
-                            // (e.g. user picked another camera in SetupDialog), so the
-                            // cached `CanGetCoolerPower` probe and the in-flight
-                            // exposure tracking must be invalidated here.
-                            cooler_power_cache = None;
+                            // A reconnect may reach another driver instance (another
+                            // camera picked in SetupDialog): the in-flight exposure
+                            // tracking does not carry over.
                             last_exposure_duration = None;
                             let _ = reply.send(cam.disconnect().map_err(super::ascom_error));
                         } else {
@@ -589,12 +531,6 @@ impl AscomCameraWrapper {
                                     probe(cam.offset_max()),
                                 ),
                             };
-                            // Try-once-cache the CanGetCoolerPower probe.
-                            let can_get_cooler_power =
-                                cooler_power_supported(&mut cooler_power_cache, || {
-                                    cam.cooler_power().map_err(|e| e.to_string())
-                                });
-
                             let can_asymmetric_bin = match skotiq_device::ascom::optional(
                                 cam.can_asymmetric_bin().map_err(super::ascom_error),
                             ) {
@@ -615,14 +551,12 @@ impl AscomCameraWrapper {
                                 can_set_ccd_temperature: cam
                                     .can_set_ccd_temperature()
                                     .unwrap_or(false),
-                                can_get_cooler_power,
                                 can_bin: sensor_config.max_bin_x.unwrap_or(1) > 1,
                                 max_bin_x: sensor_config.max_bin_x.unwrap_or(1),
                                 max_bin_y: sensor_config.max_bin_y.unwrap_or(1),
                                 can_abort_exposure: cam.can_abort_exposure().unwrap_or(false),
                                 can_stop_exposure: cam.can_stop_exposure().unwrap_or(false),
                                 controls: controls.clone(),
-                                has_cooler: cam.cooler_on().is_ok(),
                                 can_asymmetric_bin,
                                 exposure_min: cam.exposure_min().ok(),
                                 exposure_max: cam.exposure_max().ok(),
@@ -1025,6 +959,26 @@ impl AscomCameraWrapper {
             .collect()
     }
 
+    /// What the camera's capability read says it can do and how its sensor
+    /// is built.
+    pub(crate) fn description(caps: &AscomCameraCapabilities) -> CameraDescription {
+        CameraDescription {
+            capabilities: Self::map_camera_capabilities(caps),
+            sensor: Self::map_sensor_info(caps),
+            gain_range: caps.controls.gain.range(),
+            offset_range: caps.controls.offset.range(),
+            iso_speeds: caps.controls.gain.iso_speeds(),
+            readout_modes: Self::map_readout_modes(caps),
+            // ICameraV3 has a set-point but no property bounding it.
+            cooler_temp_range: None,
+            exposure_range: caps.exposure_min.zip(caps.exposure_max),
+            can_abort_exposure: caps.can_abort_exposure,
+            can_stop_exposure: caps.can_stop_exposure,
+            can_asymmetric_bin: caps.can_asymmetric_bin,
+            sensor_type: caps.sensor_name.clone(),
+        }
+    }
+
     fn update_capability_cache(&self, caps: &AscomCameraCapabilities) {
         if let Ok(mut lock) = self.cached_capabilities.write() {
             *lock = Self::map_camera_capabilities(caps);
@@ -1395,7 +1349,7 @@ impl CameraDriver for AscomCameraWrapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
     use std::thread;
 
@@ -1499,96 +1453,6 @@ mod tests {
             ),
             other => panic!("expected SdkError, got {:?}", other),
         }
-    }
-
-    /// the cooler-power capability cache must probe at most once.
-    #[test]
-    fn test_cooler_power_supported_caches_first_probe() {
-        let probe_count = Arc::new(AtomicI32::new(0));
-
-        // First call: probe runs.
-        let mut cache: Option<bool> = None;
-        let count1 = Arc::clone(&probe_count);
-        let supported = cooler_power_supported(&mut cache, move || {
-            count1.fetch_add(1, Ordering::SeqCst);
-            Ok(0.5)
-        });
-        assert!(supported);
-        assert_eq!(probe_count.load(Ordering::SeqCst), 1);
-        assert_eq!(cache, Some(true));
-
-        // Second call: probe must NOT run again.
-        let count2 = Arc::clone(&probe_count);
-        let supported_again = cooler_power_supported(&mut cache, move || {
-            count2.fetch_add(1, Ordering::SeqCst);
-            Ok(0.5)
-        });
-        assert!(supported_again);
-        assert_eq!(
-            probe_count.load(Ordering::SeqCst),
-            1,
-            "cache hit must not invoke the probe closure"
-        );
-    }
-
-    /// A driver reporting the property as unsupported caches `false`, so we
-    /// don't pay the COM round-trip on every subsequent capability query.
-    #[test]
-    fn test_cooler_power_supported_caches_not_implemented() {
-        // The shape `OwnedExcepInfo::describe` produces for
-        // PropertyNotImplementedException: sentence, source, ASCOM scode.
-        const NOT_IMPLEMENTED: &str =
-            "CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
-
-        let probe_count = Arc::new(AtomicI32::new(0));
-        let mut cache: Option<bool> = None;
-
-        let count1 = Arc::clone(&probe_count);
-        let supported = cooler_power_supported(&mut cache, move || {
-            count1.fetch_add(1, Ordering::SeqCst);
-            Err(NOT_IMPLEMENTED.to_string())
-        });
-        assert!(!supported);
-        assert_eq!(cache, Some(false));
-
-        let count2 = Arc::clone(&probe_count);
-        let supported_again = cooler_power_supported(&mut cache, move || {
-            count2.fetch_add(1, Ordering::SeqCst);
-            Err(NOT_IMPLEMENTED.to_string())
-        });
-        assert!(!supported_again);
-        assert_eq!(
-            probe_count.load(Ordering::SeqCst),
-            1,
-            "a NotImplemented probe must cache the negative result"
-        );
-    }
-
-    /// A transport failure must not be cached: it says nothing about the
-    /// capability, and caching it would strip cooler telemetry from a cooled
-    /// camera for the life of the connection.
-    #[test]
-    fn test_cooler_power_supported_retries_after_transport_error() {
-        let probe_count = Arc::new(AtomicI32::new(0));
-        let mut cache: Option<bool> = None;
-
-        let count1 = Arc::clone(&probe_count);
-        let supported = cooler_power_supported(&mut cache, move || {
-            count1.fetch_add(1, Ordering::SeqCst);
-            Err("The RPC server is unavailable. (0x800706BA)".to_string())
-        });
-        assert!(!supported, "an unresolved capability reads false");
-        assert_eq!(cache, None, "a transport error must leave the cache unset");
-
-        // The camera is reachable again: the next query re-probes and resolves.
-        let count2 = Arc::clone(&probe_count);
-        let supported_again = cooler_power_supported(&mut cache, move || {
-            count2.fetch_add(1, Ordering::SeqCst);
-            Ok(0.75)
-        });
-        assert!(supported_again);
-        assert_eq!(cache, Some(true));
-        assert_eq!(probe_count.load(Ordering::SeqCst), 2);
     }
 
     /// PercentCompleted (0..100) translates into a wall-clock

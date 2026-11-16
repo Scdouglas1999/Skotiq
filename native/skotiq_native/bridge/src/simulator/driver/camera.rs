@@ -3,7 +3,6 @@
 //! through connect answers exactly as the connected one does, and the
 //! simulator's own gate says whether the camera is connected.
 
-use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::rig::camera::{Camera, ExposureAborts};
 use crate::device_manager::rig::RigDriver;
 use crate::dispatch::error::DeviceOpError;
@@ -294,11 +293,15 @@ impl Camera for SimCamera {
         Ok(())
     }
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    async fn describe(
+        &self,
+        device_id: &str,
+    ) -> Result<skotiq_device::CameraDescription, SkotiqError> {
         if !get_sim_camera_for(device_id).read().await.status.connected {
             return Err(crate::simulator::gate::not_connected_camera().into());
         }
-        let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
-        crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
+        Ok(crate::simulator::capabilities::camera_description(
+            device_id,
+        ))
     }
 }
