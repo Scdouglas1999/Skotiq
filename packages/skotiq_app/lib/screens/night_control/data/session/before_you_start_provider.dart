@@ -433,13 +433,13 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
                 ),
               ),
       );
-    case ConditionsSource.forecast:
+    case ConditionsSource.internet:
       rows.add(
         _row(
           ChecklistItemId.weather,
           ChecklistItemState.attention,
           'nightSessionCheckWeather',
-          detail: const NightText('nightSessionCheckWeatherForecast'),
+          detail: const NightText('nightSessionCheckWeatherInternet'),
           actionKey: 'nightSessionActionAdd',
           route: _weatherRoute,
         ),

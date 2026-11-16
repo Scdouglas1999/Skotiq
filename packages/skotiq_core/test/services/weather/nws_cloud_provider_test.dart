@@ -51,7 +51,7 @@ void main() {
     );
     addTearDown(provider.dispose);
 
-    await provider.fetchCurrentCloudForecast(
+    await provider.fetchRadarFrames(
       latitude: 40.0123456789,
       longitude: -75.4567891234,
     );
@@ -60,7 +60,7 @@ void main() {
   });
 
   test(
-    'current sky cover uses the containing NWS interval with its source',
+    'hourly sky cover keeps each NWS interval value and identifies the app',
     () async {
       final requests = <http.Request>[];
       final provider = NwsCloudProvider(
@@ -80,14 +80,14 @@ void main() {
       );
       addTearDown(provider.dispose);
 
-      final forecast = await provider.fetchCurrentCloudForecast(
+      final result = await provider.fetchRadarFrames(
         latitude: _point.latitude,
         longitude: _point.longitude,
       );
-      expect(forecast, isNotNull);
-      expect(forecast!.percent, 87);
-      expect(forecast.source, 'National Weather Service');
-      expect(forecast.validAt, DateTime.utc(2026, 11, 14, 3));
+      expect(result.providerName, 'National Weather Service');
+      expect(result.frames.first.timestamp, DateTime.utc(2026, 11, 14, 3));
+      expect(result.frames.first.opacity, .87);
+      expect(result.frames[1].opacity, .92);
       expect(requests.map((r) => r.url.toString()), [
         'https://api.weather.gov/points/40.0,-75.4',
         _gridUrl,
@@ -143,31 +143,7 @@ void main() {
       DateTime.utc(2026, 11, 1, 6),
       DateTime.utc(2026, 11, 1, 7),
     ]);
-    final current = await provider.fetchCurrentCloudForecast(
-      latitude: 40,
-      longitude: -75,
-    );
-    expect(current!.percent, 80);
-    expect(current.validAt, DateTime.utc(2026, 11, 1, 5));
   });
-
-  for (final now in [
-    DateTime.utc(2026, 11, 14, 2, 59),
-    DateTime.utc(2026, 11, 14, 5),
-    DateTime.utc(2026, 11, 14, 6),
-  ]) {
-    test('no nearest-neighbor answer outside valid interval at $now', () async {
-      final provider = _provider(
-        _grid([_value('2026-11-14T03:00:00Z/PT2H', 87)]),
-        now: now,
-      );
-      addTearDown(provider.dispose);
-      expect(
-        await provider.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-        isNull,
-      );
-    });
-  }
 
   test(
     'nulls, out-of-range cover, malformed times and huge durations are not forecasts',
@@ -194,10 +170,6 @@ void main() {
       expect(result.isSuccess, isTrue);
       expect(result.frames, hasLength(1));
       expect(result.frames.single.opacity, 0);
-      expect(
-        await provider.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-        isNull,
-      );
     },
   );
 
@@ -212,10 +184,6 @@ void main() {
     );
     expect(result.isSuccess, isFalse);
     expect(result.frames, isEmpty);
-    expect(
-      await provider.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-      isNull,
-    );
   });
 
   test(
@@ -239,34 +207,28 @@ void main() {
     },
   );
 
-  test(
-    'concurrent current and planning reads share one points/grid request',
-    () async {
-      final grid = Completer<http.Response>();
-      var calls = 0;
-      final provider = NwsCloudProvider(
-        clock: () => DateTime.utc(2026, 11, 14, 3, 30),
-        httpClient: MockClient((request) async {
-          calls++;
-          return request.url.path.startsWith('/points/')
-              ? _points()
-              : grid.future;
-        }),
-      );
-      addTearDown(provider.dispose);
-      final current = provider.fetchCurrentCloudForecast(
-        latitude: 40,
-        longitude: -75,
-      );
-      final frames = provider.fetchRadarFrames(latitude: 40, longitude: -75);
-      grid.complete(
-        http.Response(_grid([_value('2026-11-14T03:00:00Z/PT2H', 87)]), 200),
-      );
-      expect((await current)!.percent, 87);
-      expect((await frames).frames, hasLength(2));
-      expect(calls, 2);
-    },
-  );
+  test('concurrent reads share one points/grid request', () async {
+    final grid = Completer<http.Response>();
+    var calls = 0;
+    final provider = NwsCloudProvider(
+      clock: () => DateTime.utc(2026, 11, 14, 3, 30),
+      httpClient: MockClient((request) async {
+        calls++;
+        return request.url.path.startsWith('/points/')
+            ? _points()
+            : grid.future;
+      }),
+    );
+    addTearDown(provider.dispose);
+    final first = provider.fetchRadarFrames(latitude: 40, longitude: -75);
+    final frames = provider.fetchRadarFrames(latitude: 40, longitude: -75);
+    grid.complete(
+      http.Response(_grid([_value('2026-11-14T03:00:00Z/PT2H', 87)]), 200),
+    );
+    expect((await first).frames.first.opacity, .87);
+    expect((await frames).frames, hasLength(2));
+    expect(calls, 2);
+  });
 
   test(
     'calendar overflow is rejected instead of moving the forecast to another day',
@@ -381,7 +343,7 @@ void main() {
         }),
       );
       addTearDown(provider.dispose);
-      await provider.fetchCurrentCloudForecast(latitude: 40, longitude: -75);
+      await provider.fetchRadarFrames(latitude: 40, longitude: -75);
       await provider.fetchRadarFrames(latitude: 40, longitude: -75);
       expect(points, hasLength(1));
       now = now.add(const Duration(minutes: 5));
@@ -409,10 +371,6 @@ void main() {
           longitude: -75,
         )).isSuccess,
         isFalse,
-      );
-      expect(
-        await provider.fetchCurrentCloudForecast(latitude: 40, longitude: -75),
-        isNull,
       );
     });
   }
