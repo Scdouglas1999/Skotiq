@@ -8,11 +8,15 @@ extension _SkyCanvasPainterMarkers on SkyCanvasPainter {
     if (positions.isEmpty) return;
 
     final cardinalStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: Colors.white.withValues(alpha: 0.7),
       fontSize: 14,
       fontWeight: FontWeight.bold,
     );
     final intercardinalStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: Colors.white.withValues(alpha: 0.4),
       fontSize: 10,
       fontWeight: FontWeight.w500,
@@ -217,6 +221,8 @@ extension _SkyCanvasPainterMarkers on SkyCanvasPainter {
 
     if (statusText.isNotEmpty) {
       final textStyle = TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: markerColor,
         fontSize: 9,
         fontWeight: FontWeight.bold,

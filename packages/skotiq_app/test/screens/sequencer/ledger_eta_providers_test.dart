@@ -1,11 +1,10 @@
-// The two providers behind the ledger's ETA column, and the lifetimes their
-// correctness depends on (spec §2).
+// The minute clock behind the ledger's ETA column, and the lifetime its
+// correctness depends on (spec §2). The observed-start record it also reads is
+// core's `runNodeTimesProvider`, tested there.
 //
 // `ledger_columns_test.dart` covers the arithmetic. This covers the parts the
 // arithmetic cannot see: whether the minute clock really reaches the map while
-// a run is in flight (a run falling behind only shows when the clock moves),
-// and whether the observed-start fold lets go of the typed event stream when
-// there is no run to observe.
+// a run is in flight (a run falling behind only shows when the clock moves).
 
 import 'dart:async';
 
@@ -13,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -65,30 +63,6 @@ PreSessionSimulationResult _simulation(List<SequenceNode> steps) {
     ],
     targetWindows: const {},
     issues: const [],
-  );
-}
-
-bridge.SkotiqEvent _runStarted() {
-  return bridge.SkotiqEvent(
-    eventId: BigInt.from(2),
-    timestamp: _t0.millisecondsSinceEpoch,
-    severity: bridge.EventSeverity.info,
-    category: bridge.EventCategory.sequencer,
-    payload: const bridge.EventPayload.sequencer(
-      bridge.SequencerEvent.started(sequenceName: 'Night'),
-    ),
-  );
-}
-
-bridge.SkotiqEvent _nodeStarted(String nodeId, DateTime at) {
-  return bridge.SkotiqEvent(
-    eventId: BigInt.from(1),
-    timestamp: at.millisecondsSinceEpoch,
-    severity: bridge.EventSeverity.info,
-    category: bridge.EventCategory.sequencer,
-    payload: bridge.EventPayload.sequencer(
-      bridge.SequencerEvent.nodeStarted(nodeId: nodeId, nodeType: 'Delay'),
-    ),
   );
 }
 
@@ -217,93 +191,6 @@ void main() {
         2,
         reason: 'a minute timer must not outlive the tree that wanted it',
       );
-    });
-  });
-
-  group('ledgerActualStartsProvider', () {
-    late StreamController<bridge.SkotiqEvent> events;
-    late ProviderContainer container;
-
-    setUp(() {
-      events = StreamController<bridge.SkotiqEvent>.broadcast();
-      container = ProviderContainer(overrides: [
-        skotiqEventsProvider.overrideWith((ref) => events.stream),
-      ]);
-    });
-
-    tearDown(() {
-      container.dispose();
-      events.close();
-    });
-
-    test('survives the sequencer closing while a run is still going', () async {
-      container
-          .read(runRecordProvider.notifier)
-          .setLifecycle(SequenceExecutionState.running);
-      final subscription =
-          container.listen(ledgerActualStartsProvider, (_, __) {});
-
-      final at = _t0.add(const Duration(minutes: 7));
-      events.add(_nodeStarted('node-b', at));
-      await _settleDisposal();
-      expect(container.read(ledgerActualStartsProvider)['node-b'], at);
-
-      // The operator leaves the sequencer screen. The run is still going, so
-      // the times it has already observed are still the truth about it.
-      subscription.close();
-      await _settleDisposal();
-      expect(
-        container.read(ledgerActualStartsProvider)['node-b'],
-        at,
-        reason: 'the run has not ended, so its observed starts have not either',
-      );
-    });
-
-    test('keeps a finished run\'s observed starts after the tree is gone',
-        () async {
-      container
-          .read(runRecordProvider.notifier)
-          .setLifecycle(SequenceExecutionState.running);
-      final subscription =
-          container.listen(ledgerActualStartsProvider, (_, __) {});
-
-      final at = _t0.add(const Duration(minutes: 7));
-      events.add(_nodeStarted('node-b', at));
-      await _settleDisposal();
-
-      // The run finishes and the operator leaves the sequencer.
-      container
-          .read(runRecordProvider.notifier)
-          .setLifecycle(SequenceExecutionState.completed);
-      subscription.close();
-      await _settleDisposal();
-
-      // Spec §2: a finished node shows the time it really began. Disposing the
-      // record when the executor went idle made every row re-anchor on `now`
-      // the next time the tree was built, and finished nodes claimed a fresh
-      // start time.
-      expect(container.read(ledgerActualStartsProvider)['node-b'], at);
-    });
-
-    test('a NEW run is what clears the record', () async {
-      container
-          .read(runRecordProvider.notifier)
-          .setLifecycle(SequenceExecutionState.running);
-      final subscription =
-          container.listen(ledgerActualStartsProvider, (_, __) {});
-
-      events.add(_nodeStarted('node-b', _t0));
-      await _settleDisposal();
-      expect(container.read(ledgerActualStartsProvider), isNotEmpty);
-
-      subscription.close();
-      await _settleDisposal();
-
-      // The next run's `Started` is the only thing that should erase last
-      // night's times, and it does it in place.
-      events.add(_runStarted());
-      await _settleDisposal();
-      expect(container.read(ledgerActualStartsProvider), isEmpty);
     });
   });
 }

@@ -135,11 +135,17 @@ class ObservationTimeState {
   }
 }
 
+/// Now, for the sky: the wall clock unless the host app points it at its own
+/// clock, so the sky and the app's other readouts tell the same time.
+final skyNowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 class ObservationTimeNotifier extends StateNotifier<ObservationTimeState> {
   AlignedTicker? _timer;
+  final DateTime Function() _now;
 
-  ObservationTimeNotifier()
-    : super(ObservationTimeState(time: DateTime.now())) {
+  ObservationTimeNotifier({DateTime Function() now = DateTime.now})
+    : _now = now,
+      super(ObservationTimeState(time: now())) {
     _startTimer();
   }
 
@@ -149,7 +155,7 @@ class ObservationTimeNotifier extends StateNotifier<ObservationTimeState> {
     // full-window frame per second. See [AlignedTicker].
     _timer = AlignedTicker(const Duration(seconds: 1), () {
       if (state.isRealTime) {
-        state = state.copyWith(time: DateTime.now());
+        state = state.copyWith(time: _now());
       } else if (state.speedMultiplier != 0) {
         final delta = Duration(seconds: state.speedMultiplier.round());
         state = state.copyWith(time: state.time.add(delta));
@@ -169,7 +175,7 @@ class ObservationTimeNotifier extends StateNotifier<ObservationTimeState> {
   void setRealTime(bool realTime) {
     state = state.copyWith(
       isRealTime: realTime,
-      time: realTime ? DateTime.now() : state.time,
+      time: realTime ? _now() : state.time,
     );
   }
 
@@ -197,5 +203,5 @@ class ObservationTimeNotifier extends StateNotifier<ObservationTimeState> {
 
 final observationTimeProvider =
     StateNotifierProvider<ObservationTimeNotifier, ObservationTimeState>((ref) {
-      return ObservationTimeNotifier();
+      return ObservationTimeNotifier(now: ref.watch(skyNowProvider));
     });

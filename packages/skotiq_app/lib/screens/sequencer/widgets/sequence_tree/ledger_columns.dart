@@ -16,11 +16,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-// The typed `SkotiqEvent` union collides by name with the wire/JSON event
-// model the barrel above keeps canonical, so it is imported from the core's
-// dedicated typed-event seam under the `sk_events` prefix — the convention the
-// run dashboard providers already follow.
-import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../visual_timeline.dart';
 
@@ -434,79 +429,6 @@ final ledgerClockProvider = StreamProvider.autoDispose<DateTime>((ref) {
   return tick();
 });
 
-/// Observed node-start times for the current run, folded out of the typed
-/// event stream the executor already publishes (`NodeStarted` carries the
-/// node id; the event envelope carries the timestamp).
-///
-/// `Started` clears the map so a rerun does not show last night's times. The
-/// same `ref.listen` fold `eventHistoryProvider` uses — kept as a map provider
-/// rather than read inside the row so every event does not rebuild the tree.
-///
-/// `autoDispose`, and held alive from the moment a run starts.
-///
-/// The fold subscribes to `skotiqEventsProvider`, and as a plain provider
-/// it kept that subscription — and the observed starts of whatever ran last —
-/// for the lifetime of the process whether or not a sequencer had ever been
-/// opened. `autoDispose` means an app that never runs a sequence never
-/// subscribes.
-///
-/// The keep-alive is NOT released when the run settles, which is the mistake
-/// the first version of this made. A finished run's observed starts are the
-/// record of the night: spec §2 has finished nodes showing the time they
-/// really began, so disposing the map when the executor went idle meant an
-/// operator who left the sequencer and came back after the run found every row
-/// re-anchored on `now` — finished nodes claiming a fresh start time. The only
-/// thing that should erase the record is the next run, and that arrives as
-/// `SequencerEvent_Started`, which clears the map in place.
-final ledgerActualStartsProvider = StateNotifierProvider.autoDispose<
-    _LedgerActualStartsNotifier, Map<String, DateTime>>((ref) {
-  final notifier = _LedgerActualStartsNotifier();
-  ref.listen(skotiqEventsProvider, (previous, next) {
-    next.whenData(notifier._onEvent);
-  });
-  KeepAliveLink? sessionLink;
-  void holdForTheSession() => sessionLink ??= ref.keepAlive();
-  notifier._onRunObserved = holdForTheSession;
-  // The execution state covers the case where the tree is opened onto a run
-  // that is already going and whose `Started` event has long been delivered.
-  ref.listen<SequenceExecutionState>(
-    sequenceExecutionStateProvider,
-    (previous, next) {
-      if (!next.canStart) holdForTheSession();
-    },
-    fireImmediately: true,
-  );
-  ref.onDispose(() => sessionLink?.close());
-  return notifier;
-});
-
-class _LedgerActualStartsNotifier extends StateNotifier<Map<String, DateTime>> {
-  _LedgerActualStartsNotifier() : super(const <String, DateTime>{});
-
-  /// Told the provider that this session has a run in it, so the record must
-  /// outlive the sequencer screen being closed.
-  void Function()? _onRunObserved;
-
-  void _onEvent(sk_events.SkotiqEvent event) {
-    if (!mounted) return;
-    final payload = event.payload;
-    if (payload is! sk_events.EventPayload_Sequencer) return;
-    switch (payload.field0) {
-      case sk_events.SequencerEvent_Started():
-        _onRunObserved?.call();
-        state = const <String, DateTime>{};
-      case sk_events.SequencerEvent_NodeStarted(nodeId: final nodeId):
-        _onRunObserved?.call();
-        state = <String, DateTime>{
-          ...state,
-          nodeId: DateTime.fromMillisecondsSinceEpoch(event.timestamp.toInt()),
-        };
-      default:
-        break;
-    }
-  }
-}
-
 /// ETA per node id for every node in the open sequence — observed starts where
 /// the run has already produced them, anchored predictions elsewhere.
 ///
@@ -537,7 +459,7 @@ final ledgerEtaProvider = Provider.autoDispose<Map<String, LedgerEta>>((ref) {
     currentNodeId: ref.watch(
       sequenceProgressProvider.select((progress) => progress.currentNodeId),
     ),
-    actualStarts: ref.watch(ledgerActualStartsProvider),
+    actualStarts: ref.watch(runNodeTimesProvider.select((t) => t.started)),
   );
 });
 

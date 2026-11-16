@@ -163,6 +163,31 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(tester.getSize(find.byType(FormRow)).width, 150);
     });
+
+    testWidgets('a stacked row gives its control the full width', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          width: 280,
+          const FormRow(
+            label: 'Save to',
+            stacked: true,
+            child: SkotiqTextField(
+              initialValue: r'D:\Astro\Skotiq',
+              mono: true,
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byType(SkotiqTextField)).width, 280);
+      expect(
+        tester.getTopLeft(find.byType(SkotiqTextField)).dy,
+        greaterThan(tester.getBottomLeft(find.text('Save to')).dy),
+        reason: 'the label sits above the field, not beside it',
+      );
+    });
   });
 
   group('NightBand legend', () {

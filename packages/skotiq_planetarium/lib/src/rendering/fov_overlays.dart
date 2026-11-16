@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 // [SkyFovProjector] is declared in a part of the interactive sky view library
 // because Dart part files cannot declare their own imports, so that is the only
 // place all three FOV overlays can share one projection from. Reaching for it
@@ -438,6 +439,8 @@ class FOVOverlayPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: SkotiqTypography.fontFamily,
+          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
           color: color,
           fontSize: 10,
           fontWeight: FontWeight.w500,

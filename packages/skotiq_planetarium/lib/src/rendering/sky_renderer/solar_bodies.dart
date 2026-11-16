@@ -30,6 +30,8 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
 
     // Sun label
     const textStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: sunColor,
       fontSize: 10,
       fontWeight: FontWeight.bold,
@@ -150,6 +152,8 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
     // Moon label with illumination %
     final illuminationPct = (illumination * 100).round();
     final labelStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: const Color(0xFFB0BEC5),
       fontSize: moonRadius > 20 ? 11 : 10,
       fontWeight: FontWeight.w500,
@@ -200,6 +204,8 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
       // Planet label with collision avoidance
       final fontSize = _getLabelFontSize(planet.magnitude, 'planet');
       final textStyle = TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: planetColor,
         fontSize: fontSize,
         fontWeight: FontWeight.w600, // Planets always prominent
