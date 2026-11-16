@@ -9,7 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'plan_test_support.dart';
 
 void main() {
-  final evening = DateTime(2026, 10, 19, 18, 36);
+  final evening = bostonTime(2026, 10, 19, 18, 36);
 
   test('no site: no timeline', () {
     final container = planContainer(
@@ -57,11 +57,11 @@ void main() {
   });
 
   test('while running, windows keep the run start and mark progress', () {
-    final sessionStart = DateTime(2026, 10, 19, 19, 50);
-    final m74Started = DateTime(2026, 10, 19, 19, 51);
-    final m74Ended = DateTime(2026, 10, 19, 19, 58);
+    final sessionStart = bostonTime(2026, 10, 19, 19, 50);
+    final m74Started = bostonTime(2026, 10, 19, 19, 51);
+    final m74Ended = bostonTime(2026, 10, 19, 19, 58);
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 20, 2),
+      now: bostonTime(2026, 10, 19, 20, 2),
       sequence: TwoTargetPlan().sequence,
       execution: SequenceExecutionState.running,
       session: SessionState(isActive: true, startTime: sessionStart),
@@ -87,18 +87,18 @@ void main() {
     expect(windows[0].estimated, isFalse, reason: 'both ends recorded');
     expect(windows[1].state, TimelineWindowState.active);
     expect(windows[1].estimated, isTrue);
-    expect(windows[1].start.isBefore(DateTime(2026, 10, 19, 20, 2)), isTrue,
+    expect(windows[1].start.isBefore(bostonTime(2026, 10, 19, 20, 2)), isTrue,
         reason: 'anchored at the session start, not at now');
   });
 
   test('a target waiting for the altitude floor ends after the wait', () {
     // M74 clears a 30 degree floor at 20:14; the run reached it at 18:37
     // and waits inside it.
-    final sessionStart = DateTime(2026, 10, 19, 18, 36);
-    final m74Started = DateTime(2026, 10, 19, 18, 37);
-    final clears = DateTime(2026, 10, 19, 20, 14);
+    final sessionStart = bostonTime(2026, 10, 19, 18, 36);
+    final m74Started = bostonTime(2026, 10, 19, 18, 37);
+    final clears = bostonTime(2026, 10, 19, 20, 14);
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 18, 40),
+      now: bostonTime(2026, 10, 19, 18, 40),
       sequence: TwoTargetPlan().sequence,
       floor: const AltitudeFloor(horizon: null, minimumDeg: 30),
       execution: SequenceExecutionState.running,

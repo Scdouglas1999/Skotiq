@@ -10,7 +10,7 @@ import 'package:skotiq_core/providers.dart';
 import 'plan_test_support.dart';
 
 void main() {
-  final evening = DateTime(2026, 10, 19, 20, 10);
+  final evening = bostonTime(2026, 10, 19, 20, 10);
 
   test('no plan: no steps', () {
     final container = planContainer(now: evening);

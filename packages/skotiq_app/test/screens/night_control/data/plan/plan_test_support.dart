@@ -23,6 +23,13 @@ const LocationSettings boston = LocationSettings(
   elevation: 10,
 );
 
+/// [hour]:[minute] in Boston (EDT, UTC-4, until November 1, 2026), as this
+/// machine's local time. The planner reads the sky at the true instant, so a
+/// test's "now" must be Boston's evening whatever zone the machine runs in.
+DateTime bostonTime(int year, int month, int day,
+        [int hour = 0, int minute = 0, int second = 0]) =>
+    DateTime.utc(year, month, day, hour + 4, minute, second).toLocal();
+
 /// The night of 2026-10-19 into the 20th, on the host's clock.
 TonightNight bostonNight() => TonightNight(
       sunset: DateTime(2026, 10, 19, 18, 18),
