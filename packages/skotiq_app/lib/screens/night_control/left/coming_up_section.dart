@@ -120,6 +120,8 @@ String nightUpcomingName(SkotiqLocalizations l10n, UpcomingItemVm item) {
       return l10n.text('nightCtlUpDither');
     case UpcomingKind.autofocus:
       return l10n.text('nightCtlUpAutofocus');
+    case UpcomingKind.meridianHold:
+      return l10n.text('nightCtlUpHold');
     case UpcomingKind.meridianFlip:
       return l10n.text('nightCtlUpFlip');
     case UpcomingKind.targetSwitch:
@@ -204,7 +206,8 @@ String? nightUpcomingValue(
                   )
                 : l10n.text('nightCtlUpMoonNoSet'),
       );
-    case UpcomingKind.meridianFlip ||
+    case UpcomingKind.meridianHold ||
+          UpcomingKind.meridianFlip ||
           UpcomingKind.targetLow ||
           UpcomingKind.sunset ||
           UpcomingKind.astroDark ||

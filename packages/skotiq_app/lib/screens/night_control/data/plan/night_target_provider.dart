@@ -179,6 +179,17 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
       toLimit == null || toLimit == Duration.zero ? null : now.add(toLimit);
 
   final curves = ref.watch(_nightSkyCurvesProvider);
+  final flipAt = _flipAt(
+    ref,
+    now: now,
+    transit: transit,
+    tonight: tonight,
+    raOfDateDeg: raOfDateDeg,
+    decOfDateDeg: decOfDateDeg,
+  );
+  final holdMinutes = flipAt == null
+      ? null
+      : ref.watch(effectiveMeridianFlipSettingsProvider).holdMinutesBeforeFlip;
 
   return NightTargetVm(
     name: target.displayName,
@@ -200,14 +211,12 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
     belowLimitAt: belowLimit != null && tonight(belowLimit)
         ? clock.toNightClock(belowLimit)
         : null,
-    flipAt: _flipAt(
-      ref,
-      now: now,
-      transit: transit,
-      tonight: tonight,
-      raOfDateDeg: raOfDateDeg,
-      decOfDateDeg: decOfDateDeg,
-    ),
+    flipAt: flipAt,
+    holdAt: holdMinutes == null
+        ? null
+        : flipAt!.subtract(
+            Duration(seconds: (holdMinutes * 60 * _siderealToSolar).round()),
+          ),
   );
 });
 

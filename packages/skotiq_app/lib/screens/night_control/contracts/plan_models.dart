@@ -344,6 +344,7 @@ class NightTargetVm {
     this.transitAltitudeDeg,
     this.belowLimitAt,
     this.flipAt,
+    this.holdAt,
   });
 
   final String name;
@@ -390,6 +391,10 @@ class NightTargetVm {
   /// The next meridian flip, when one is armed.
   final DateTime? flipAt;
 
+  /// When the run stops tracking to wait for [flipAt] (the pre-meridian
+  /// hold), when the flip settings ask for one.
+  final DateTime? holdAt;
+
   @override
   bool operator ==(Object other) =>
       other is NightTargetVm &&
@@ -412,7 +417,8 @@ class NightTargetVm {
       other.transitAt == transitAt &&
       other.transitAltitudeDeg == transitAltitudeDeg &&
       other.belowLimitAt == belowLimitAt &&
-      other.flipAt == flipAt;
+      other.flipAt == flipAt &&
+      other.holdAt == holdAt;
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
@@ -436,6 +442,7 @@ class NightTargetVm {
         transitAltitudeDeg,
         belowLimitAt,
         flipAt,
+        holdAt,
       ]);
 }
 
@@ -609,6 +616,9 @@ class PlanStepVm {
 enum UpcomingKind {
   dither,
   autofocus,
+
+  /// The run stops tracking and taking frames to wait for the flip.
+  meridianHold,
   meridianFlip,
   targetSwitch,
 
