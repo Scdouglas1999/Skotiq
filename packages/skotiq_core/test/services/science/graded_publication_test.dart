@@ -96,10 +96,10 @@ void main() {
     },
   );
 
-  // F25: a frame the run's frame watch had solved (centre, scale, rotation,
+  // F25: a frame the run's frame watch had solved (center, scale, rotation,
   // no CD matrix) was solved again blind for its full WCS.
   test(
-    'a frame with a stored centre is solved again around that centre',
+    'a frame with a stored center is solved again around that center',
     () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       final science = _Science();
