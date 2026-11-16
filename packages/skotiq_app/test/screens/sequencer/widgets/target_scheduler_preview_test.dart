@@ -54,7 +54,7 @@ class _FloorRecordingScoring implements TargetScoring {
           moonDistanceDeg: 80,
           runnable: i != 0,
           skipReason: i == 0
-              ? 'altitude 20.0° below local horizon 35.0° at azimuth 90°'
+              ? 'altitude 20.0° below the altitude floor (35.0° at azimuth 90°)'
               : null,
         ),
     ];

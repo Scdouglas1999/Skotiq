@@ -295,7 +295,7 @@ mod tests {
         assert!(blocked[0]
             .skip_reason
             .as_deref()
-            .is_some_and(|r| r.contains("horizon")));
+            .is_some_and(|r| r.contains("altitude floor")));
     }
 
     #[tokio::test]

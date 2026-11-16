@@ -395,7 +395,7 @@ pub fn score_target(
             if alt < horizon_min {
                 runnable = false;
                 skip_reason = Some(format!(
-                    "altitude {alt:.1}° below local horizon {horizon_min:.1}° at azimuth {az:.0}°"
+                    "altitude {alt:.1}° below the altitude floor ({horizon_min:.1}° at azimuth {az:.0}°)"
                 ));
             }
         }
@@ -963,7 +963,7 @@ mod tests {
             alt + 5.0
         );
         let reason = gated.skip_reason.as_deref().unwrap_or("");
-        assert!(reason.contains("local horizon"), "reason: {reason}");
+        assert!(reason.contains("altitude floor"), "reason: {reason}");
         assert!(
             reason.contains(&format!("{az:.0}")),
             "skip reason must name the azimuth ({az:.0}); reason: {reason}"
