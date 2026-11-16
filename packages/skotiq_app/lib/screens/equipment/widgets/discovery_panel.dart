@@ -273,8 +273,11 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       (!scanning || _isScanning) &&
       (!rescanning || _isRescanning);
 
-  String _formatLastScanTime(DateTime? lastScan) => lastScan == null
-      ? 'Never scanned'
+  /// When the last scan ran, or null before any has: a rig that connects
+  /// from its profile never scans, and "0 found · Never scanned" beside its
+  /// connected devices read as a fault.
+  String? _formatLastScanTime(DateTime? lastScan) => lastScan == null
+      ? null
       : RelativeTime.ago(lastScan, style: RelativeTimeStyle.words);
 
   @override
@@ -347,7 +350,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   Widget _buildHeadRow(
     SkotiqColors colors, {
     required int found,
-    required String lastScanText,
+    required String? lastScanText,
     required bool isDiscovering,
   }) {
     return SizedBox(
@@ -393,7 +396,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (!compact) ...[
+                      if (!compact && lastScanText != null) ...[
                         const SizedBox(width: SkotiqTokens.spaceMd),
                         Flexible(
                           child: Text(

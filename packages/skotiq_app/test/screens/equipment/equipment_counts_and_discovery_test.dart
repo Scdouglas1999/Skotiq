@@ -88,6 +88,22 @@ void main() {
     expect(discovery.scans, 1);
   });
 
+  testWidgets('before any scan the drawer states no count and no scan time',
+      (tester) async {
+    await pumpAppScreen(
+      tester,
+      const DiscoveryPanel(),
+      settle: false,
+      extraOverrides: [
+        unifiedDiscoveryProvider.overrideWith(_CountingDiscovery.new),
+      ],
+    );
+    await tester.pump();
+    expect(find.textContaining(' found · '), findsNothing);
+    expect(find.textContaining('Never scanned'), findsNothing);
+    expect(find.text('DISCOVERED DEVICES'), findsOneWidget);
+  });
+
   // The rail's rig card listed no rotator, so with one connected it read one
   // device fewer than the Equipment screen.
   testWidgets('the rig card counts a connected rotator', (tester) async {
