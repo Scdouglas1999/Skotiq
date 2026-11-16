@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
 db.DbCapturedImage frame(
@@ -13,6 +15,7 @@ db.DbCapturedImage frame(
   String dir = '/n',
   int gain = 76,
   int offset = 15,
+  int bin = 1,
   double? sensorTemp = -10.0,
 }) {
   final at = DateTime(2026, 10, 22, 6).add(Duration(seconds: id));
@@ -25,8 +28,8 @@ db.DbCapturedImage frame(
     exposureDuration: exposure,
     gain: gain,
     offset: offset,
-    binX: 1,
-    binY: 1,
+    binX: bin,
+    binY: bin,
     sensorTemp: sensorTemp,
     isPlateSolved: false,
     capturedAt: at,
@@ -131,7 +134,7 @@ class FakeRig implements EonRig {
   Future<List<db.DbCapturedImage>> framesOfRun(int runId) async {
     if (runFrames != null) return runFrames!;
     var id = 100;
-    return [
+    final frames = [
       for (var i = 0; i < framesPerDarkGroup; i++)
         frame(id++, type: 'dark', exposure: 90, dir: '/n/Dark'),
       for (var i = 0; i < framesPerDarkGroup; i++)
@@ -139,6 +142,13 @@ class FakeRig implements EonRig {
       for (var i = 0; i < biasFrames; i++)
         frame(id++, type: 'bias', exposure: 0.001, dir: '/n/Bias'),
     ];
+    for (final f in frames) {
+      headers.putIfAbsent(
+        f.filePath,
+        () => FrameHeader(const {'SET-TEMP': -10}),
+      );
+    }
+    return frames;
   }
 
   @override
@@ -171,6 +181,19 @@ class FakeRig implements EonRig {
       ccdTempMean: -10,
       setTemp: -10,
     );
+  }
+
+  /// The frames' headers by path; a frame missing here has a header without
+  /// the cards the step reads.
+  final headers = <String, FrameHeader>{};
+
+  /// Paths whose header cannot be read.
+  final unreadable = <String>{};
+
+  @override
+  Future<FrameHeader> frameHeader(String path) async {
+    if (unreadable.contains(path)) throw 'not a FITS file';
+    return headers[path] ?? FrameHeader(const {});
   }
 
   double lightsOrFrame(String path) =>
@@ -264,58 +287,232 @@ void main() {
   });
 
   test(
-    'masters keep each set-point\'s darks apart, by measured temperature',
+    'frames read off the set-point their header states are left out, and said',
     () async {
       rig.lights = [
         frame(1, type: 'light', exposure: 3, sensorTemp: 1.2),
         frame(2, type: 'light', exposure: 3, sensorTemp: 0.2),
       ];
       var id = 100;
+      db.DbCapturedImage dark(double sensor, double setPoint) {
+        final f = frame(
+          id++,
+          type: 'dark',
+          exposure: 3,
+          dir: '/n/Dark',
+          sensorTemp: sensor,
+        );
+        rig.headers[f.filePath] = FrameHeader({'SET-TEMP': setPoint});
+        return f;
+      }
+
       rig.runFrames = [
         // Taken while the sensor was still warming from the night's -10 C.
-        for (final t in [-9.7, -5.5])
-          frame(id++, type: 'dark', exposure: 3, dir: '/n/Dark', sensorTemp: t),
-        for (var i = 0; i < 5; i++)
-          frame(
-            id++,
-            type: 'dark',
-            exposure: 3,
-            dir: '/n/Dark',
-            sensorTemp: 1.1,
-          ),
-        for (var i = 0; i < 4; i++)
-          frame(
-            id++,
-            type: 'dark',
-            exposure: 3,
-            dir: '/n/Dark',
-            sensorTemp: 0.1,
-          ),
+        dark(-9.7, 1),
+        dark(-5.5, 1),
+        for (var i = 0; i < 5; i++) dark(1.1, 1),
+        for (var i = 0; i < 4; i++) dark(0.1, 0),
       ];
 
       final report = await service.run(reason: 'manual');
 
-      expect(rig.built.map((b) => (b.kind, b.framePaths.length)).toSet(), {
-        ('dark', 5),
-        ('dark', 4),
-      });
       expect(
-        rig.built.where((b) => b.outputPath.contains('_p1C_')),
-        hasLength(1),
-      );
-      expect(
-        rig.built.where((b) => b.outputPath.contains('_p0C_')),
-        hasLength(1),
+        {
+          for (final b in rig.built)
+            b.outputPath.split('/').last: b.framePaths.length,
+        },
+        {
+          'MasterDark_3s_g76_o15_p1C_bin1_20261022-0630.fits': 5,
+          'MasterDark_3s_g76_o15_p0C_bin1_20261022-0630.fits': 4,
+        },
       );
       expect(
         report.problems,
         contains(
-          '2 frames read more than 2 °C from their set-point and were left out '
-          'of the masters',
+          '2 of the 7 3 s darks, gain 76, offset 15, bin 1x1, 1 °C read more '
+          'than 2 °C from the set-point and were left out',
         ),
       );
     },
   );
+
+  test(
+    'a group with too few frames at its set-point is said, not built',
+    () async {
+      rig.lights = [frame(1, type: 'light', exposure: 3, sensorTemp: 1)];
+      var id = 100;
+      rig.runFrames = [
+        for (final t in [-9.7, -8.1, 1.0])
+          frame(id++, type: 'dark', exposure: 3, dir: '/n/Dark', sensorTemp: t),
+      ];
+      for (final f in rig.runFrames!) {
+        rig.headers[f.filePath] = FrameHeader(const {'SET-TEMP': 1.0});
+      }
+
+      final report = await service.run(reason: 'manual');
+
+      expect(rig.built, isEmpty);
+      final outcome = report.masters.single;
+      expect(outcome.built, isFalse);
+      expect(outcome.label, '3 s darks, gain 76, offset 15, bin 1x1, 1 °C');
+      expect(
+        outcome.error,
+        'a master needs at least 2 frames at the set-point',
+      );
+      expect(report.phase, EonPhase.failed);
+    },
+  );
+
+  test('a frame whose header cannot be read is left out, and said', () async {
+    final frames = await rig.framesOfRun(31);
+    rig.unreadable.add(frames.first.filePath);
+
+    final report = await service.run(reason: 'manual');
+
+    expect(rig.built.first.framePaths, hasLength(19));
+    expect(
+      report.problems,
+      contains(
+        '1 frame could not be read and was left out of the masters '
+        '(dark_90.0s_100.fits: not a FITS file)',
+      ),
+    );
+  });
+
+  group('the rig night of 2026-11-16', () {
+    // Five set-points, the sensor readings each block's frames recorded, and
+    // the set-point each frame's header states.
+    var id = 100;
+    List<double> spread(double from, double to, int count) => [
+      for (var i = 0; i < count; i++)
+        count == 1 ? from : from + (to - from) * i / (count - 1),
+    ];
+    List<db.DbCapturedImage> block(
+      String type,
+      double exposure, {
+      required int gain,
+      required int offset,
+      required int bin,
+      required double setPoint,
+      required List<double> temps,
+    }) {
+      final frames = <db.DbCapturedImage>[];
+      for (final t in temps) {
+        final f = frame(
+          id++,
+          type: type,
+          exposure: exposure,
+          dir: '/n/${type == 'bias' ? 'Bias' : 'Dark'}',
+          gain: gain,
+          offset: offset,
+          bin: bin,
+          sensorTemp: t,
+        );
+        rig.headers[f.filePath] = FrameHeader({'SET-TEMP': setPoint});
+        frames.add(f);
+      }
+      return frames;
+    }
+
+    setUp(() {
+      id = 100;
+      rig.cameraInfo = const EonCameraInfo(
+        canCool: true,
+        coolerOn: true,
+        targetTempC: -10,
+        sensorTempC: -10,
+      );
+      rig.lights = [
+        frame(1, type: 'light', exposure: 30, sensorTemp: -10),
+        for (final (i, t) in [(2, -6.1), (3, -4.0)])
+          frame(
+            i,
+            type: 'light',
+            exposure: 3,
+            gain: 600,
+            offset: 21,
+            bin: 2,
+            sensorTemp: t,
+          ),
+        for (final (i, t) in [(4, 0.1), (5, 1.0)])
+          frame(
+            i,
+            type: 'light',
+            exposure: 3,
+            gain: 139,
+            offset: 21,
+            sensorTemp: t,
+          ),
+      ];
+      const g76 = (gain: 76, offset: 15, bin: 1);
+      const g600 = (gain: 600, offset: 21, bin: 2);
+      const g139 = (gain: 139, offset: 21, bin: 1);
+      rig.runFrames = [
+        for (final (s, setPoint, exposure, darks, bias) in [
+          (g76, -10.0, 30.0, spread(-10.0, -9.8, 20), spread(-10.0, -9.9, 10)),
+          (g600, -6.0, 3.0, spread(-6.2, -5.0, 20), spread(-6.1, -5.9, 10)),
+          // The bias block was skipped after 4 frames.
+          (g600, -4.0, 3.0, spread(-6.0, -3.5, 20), spread(-4.1, -3.9, 4)),
+          // ... and this one after 3.
+          (g139, 0.0, 3.0, spread(-0.6, 0.5, 20), spread(0.0, 0.1, 3)),
+          (g139, 1.0, 3.0, spread(0.2, 1.3, 20), spread(0.9, 1.1, 10)),
+        ]) ...[
+          ...block(
+            'dark',
+            exposure,
+            gain: s.gain,
+            offset: s.offset,
+            bin: s.bin,
+            setPoint: setPoint,
+            temps: darks,
+          ),
+          ...block(
+            'bias',
+            0.001,
+            gain: s.gain,
+            offset: s.offset,
+            bin: s.bin,
+            setPoint: setPoint,
+            temps: bias,
+          ),
+        ],
+      ];
+    });
+
+    test(
+      'builds one master per set-point and setting, never mixing blocks',
+      () async {
+        final report = await service.run(reason: 'dawn ended imaging');
+
+        final built = {
+          for (final b in rig.built)
+            b.outputPath
+                    .split('/')
+                    .last
+                    .replaceFirst('_20261022-0630.fits', ''):
+                b.framePaths.length,
+        };
+        expect(built, {
+          'MasterDark_30s_g76_o15_m10C_bin1': 20,
+          'MasterBias_g76_o15_m10C_bin1': 10,
+          'MasterDark_3s_g600_o21_m6C_bin2': 20,
+          'MasterBias_g600_o21_m6C_bin2': 10,
+          'MasterDark_3s_g600_o21_m4C_bin2': 20,
+          'MasterBias_g600_o21_m4C_bin2': 4,
+          'MasterDark_3s_g139_o21_p0C_bin1': 20,
+          'MasterBias_g139_o21_p0C_bin1': 3,
+          'MasterDark_3s_g139_o21_p1C_bin1': 20,
+          'MasterBias_g139_o21_p1C_bin1': 10,
+        });
+        expect(report.masters.where((m) => m.built), hasLength(10));
+        expect(
+          report.problems.where((p) => p.contains('left out')),
+          isEmpty,
+          reason: '${report.problems}',
+        );
+      },
+    );
+  });
 
   test('no dark slot and "skip" takes nothing and says why', () async {
     rig.wheel = ['L', 'R', 'G', 'B'];
@@ -397,6 +594,54 @@ void main() {
     expect(rig.notifications.last.$3, isTrue);
   });
 
+  test('every master built and every group left unbuilt is logged', () async {
+    final dataRoot = Directory.systemTemp.createTempSync('eon-log');
+    final logging = LoggingService(
+      applicationSupportDirectoryProvider: () async => dataRoot,
+      environment: {skotiqDataDirEnv: dataRoot.path},
+      nativeInitWithLogging: ({logDirectory}) {},
+      nativeInit: () {},
+      currentLogFileProvider: () => null,
+    );
+    await logging.initialize();
+    Log.attach(logging);
+    final lines = <LogEntry>[];
+    final subscription = logging.logEntryStream.listen(lines.add);
+    addTearDown(() async {
+      await subscription.cancel();
+      Log.detach(logging);
+      await logging.dispose();
+      dataRoot.deleteSync(recursive: true);
+    });
+    rig.leakyExposures = {120};
+
+    await service.run(reason: 'manual');
+    await Future<void>.delayed(Duration.zero);
+
+    final logged = [
+      for (final e in lines)
+        if (e.source == 'EndOfNightCalibration') e.message,
+    ];
+    expect(
+      logged,
+      containsAllInOrder([
+        startsWith(
+          'End-of-night calibration built the 90 s darks, gain 76, offset 15, '
+          'bin 1x1, -10 °C master from 20 of 20 frames: /n/Dark/Masters/',
+        ),
+        startsWith(
+          'End-of-night calibration built no master for the 120 s darks, '
+          'gain 76, offset 15, bin 1x1, -10 °C: light leak',
+        ),
+        startsWith(
+          'End-of-night calibration built the bias, gain 76, offset 15, '
+          'bin 1x1, -10 °C master from 50 of 50 frames',
+        ),
+        startsWith('Built 2 of 3 masters from 90 frames'),
+      ]),
+    );
+  });
+
   test('a short run builds what it took and reports the shortfall', () async {
     rig.runStatus = SequenceRunStatus.stopped;
     rig.framesPerDarkGroup = 7;
@@ -407,7 +652,7 @@ void main() {
       containsAll([
         'The calibration run was stopped before taking every frame',
         'Only 7 frames were taken for the 90 s darks, gain 76, offset 15, '
-            'bin 1x1',
+            'bin 1x1, -10 °C',
       ]),
     );
   });

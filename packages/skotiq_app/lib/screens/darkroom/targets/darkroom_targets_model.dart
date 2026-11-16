@@ -160,13 +160,14 @@ class DarkroomNight {
 
   int get notInMasters => kept - inMasters;
 
-  /// The one thing worth knowing about how the night went.
+  /// The one thing worth knowing about how the night went. Without a flip or
+  /// lost stars it is the newest sub's time: the night may still be imaging.
   String get note {
     final flip = marks.where((m) => m.label == 'flip').firstOrNull;
     if (flip != null) return 'Flip at ${ClockFormat.hm(flip.at.toLocal())}';
     final lost = marks.where((m) => m.label != 'flip').firstOrNull;
     if (lost != null) return 'Stars lost ${ClockFormat.hm(lost.at.toLocal())}';
-    return 'Ended ${ClockFormat.hm(last.toLocal())}';
+    return 'Last sub ${ClockFormat.hm(last.toLocal())}';
   }
 }
 

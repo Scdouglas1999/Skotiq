@@ -79,7 +79,7 @@ NightHeaderVm _header() {
     currentExposureSecs: lastFrame.exposureSecs,
     framesDone: currentTargetFrames.length,
     framesTotal: _current.plan.framesPerNight,
-    plannedDuration: _night.slots.last.end.difference(_night.start),
+    plannedDuration: ShotNight.tonightPlanEnd.difference(_night.start),
     pauseResume: enabled,
     skipStep: enabled,
     stop: enabled,
@@ -180,13 +180,13 @@ List<PlanStepVm> _steps() {
     nodeId: 'unpark',
     label: 'Unpark',
     status: PlanStepStatus.done,
-    when: StepWhenActual(_night.start.subtract(const Duration(minutes: 9))),
+    when: StepWhenActual(ShotNight.plannedStart('unpark')!),
   ));
   steps.add(PlanStepVm(
     nodeId: 'cool',
     label: 'Cool to −10 °C',
     status: PlanStepStatus.done,
-    when: StepWhenActual(_night.start.subtract(const Duration(minutes: 8))),
+    when: StepWhenActual(ShotNight.plannedStart('cool')!),
   ));
   for (final slot in _night.slots) {
     final t = slot.target;
@@ -214,14 +214,14 @@ List<PlanStepVm> _steps() {
           ? StepWhenProgress(currentTargetFrames.length, t.plan.framesPerNight)
           : done
               ? StepWhenActual(slot.end)
-              : StepWhenPlanned(slot.start.add(const Duration(minutes: 6))),
+              : StepWhenPlanned(ShotNight.plannedStart('$k-lrgb')!),
     ));
   }
   steps.add(PlanStepVm(
     nodeId: 'park',
     label: 'Warm up & park',
     status: PlanStepStatus.pending,
-    when: StepWhenPlanned(_night.slots.last.end),
+    when: StepWhenPlanned(ShotNight.plannedStart('warm')!),
   ));
   return steps;
 }
@@ -457,7 +457,7 @@ NightLastFrameVm _lastFrame() {
 
 NightSessionVm _session() {
   final frames = _night.frames;
-  final remaining = _night.slots.last.end.difference(_now);
+  final remaining = ShotNight.tonightPlanEnd.difference(_now);
   return NightSessionVm(
     frameCount: frames.length,
     elapsed: _now.difference(_night.start),
@@ -640,14 +640,14 @@ NightCameraPanelVm _camera() {
     ),
     sensorSpecs: '${ShotNight.sensorWidth} × ${ShotNight.sensorHeight} · '
         '${ShotNight.pixelSizeUm.toStringAsFixed(2)} µm',
-    savesTo: 'D:\\Astro\\Skotiq\\${_current.folder}\\${lastFrame.filter}',
+    savesTo: 'D:\\Astro\\Skotiq',
     diskFreeBytes: 1312 * 1024 * 1024 * 1024,
     nightsOfSpace: 140,
   );
 }
 
 NightSeriesVm _coolerHistory() {
-  final from = _night.start.subtract(const Duration(minutes: 8));
+  final from = _night.start;
   return NightSeriesVm(
     lines: [
       SeriesLineVm(

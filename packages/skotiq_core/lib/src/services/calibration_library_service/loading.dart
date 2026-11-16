@@ -87,8 +87,10 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
   ) async => [for (final record in records) await _enrich(record)];
 
   /// Fill missing camera id / temperature / filter from the master's frame
-  /// header, caching the camera id in `calibration_tags`. Best-effort:
-  /// returns the record unchanged when the file is missing or unreadable.
+  /// header, caching the camera id in `calibration_tags`; for a local dark or
+  /// bias master also its read mode, its set-point and whether its frames
+  /// were off it ([masterOffSetPoint]). Best-effort: returns the record
+  /// unchanged when the file is missing or unreadable.
   Future<CalibrationMasterRecord> _enrich(
     CalibrationMasterRecord record,
   ) async {
@@ -97,7 +99,12 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     final needsTemp = record.temperature == null;
     final needsFilter =
         record.type == CalibrationMasterType.flat && record.filter == null;
-    if (!needsCamera && !needsTemp && !needsFilter) return record;
+    final judged =
+        record.isMaster &&
+        !record.isRemote &&
+        (record.type == CalibrationMasterType.dark ||
+            record.type == CalibrationMasterType.bias);
+    if (!needsCamera && !needsTemp && !needsFilter && !judged) return record;
 
     final path = record.filePath;
     if (path == null || path.isEmpty) return record;
@@ -136,6 +143,17 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       cameraId: camera,
       temperature: temperature,
       filter: filterName,
+      readoutMode: judged ? header.string('READOUTM') : null,
+      setPointC: judged
+          ? header.firstNumber(const ['SET-TEMP', 'SET_TEMP'])
+          : null,
+      offSetPoint: judged
+          ? masterOffSetPoint(
+              header,
+              (_darkTolerances?.call() ?? DarkLibraryMatchTolerances.defaults)
+                  .temperatureC,
+            )
+          : null,
     );
   }
 

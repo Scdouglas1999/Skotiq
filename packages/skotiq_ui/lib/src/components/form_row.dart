@@ -13,6 +13,10 @@ import '../theme/skotiq_typography.dart';
 /// a dense panel into a scroll. Beside it, the labels line up into a readable
 /// column and the controls line up into another, which is what makes a form of
 /// twelve rows scannable.
+///
+/// The exception is [stacked]: a value that is routinely longer than the
+/// control column (a folder, a file-name pattern) goes under its label at the
+/// form's full width, rather than cut to a few characters beside it.
 class FormRow extends StatelessWidget {
   const FormRow({
     super.key,
@@ -20,6 +24,7 @@ class FormRow extends StatelessWidget {
     required this.child,
     this.labelWidth = defaultLabelWidth,
     this.help,
+    this.stacked = false,
   });
 
   /// The label, in `textSecondary` at 13.
@@ -42,6 +47,9 @@ class FormRow extends StatelessWidget {
   /// One short line under the control. Use sparingly — most rows do not need
   /// one, and a form of explanations is a form nobody reads.
   final String? help;
+
+  /// The label above the control, which then takes the form's full width.
+  final bool stacked;
 
   /// The default label column width in logical pixels (`observatory.css`
   /// `.form .row` grid column).
@@ -73,9 +81,38 @@ class FormRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (stacked) return _stacked(context);
     return LayoutBuilder(
       builder: (context, constraints) =>
           _row(context, resolveLabelWidth(labelWidth, constraints.maxWidth)),
+    );
+  }
+
+  Widget _label(BuildContext context) => Text(
+    label,
+    style: SkotiqTypography.bodySm.copyWith(
+      color: context.skotiqColors.textSecondary,
+    ),
+  );
+
+  Widget _stacked(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _label(context),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        child,
+        if (help != null) ...<Widget>[
+          const SizedBox(height: SkotiqTokens.spaceXs),
+          Text(
+            help!,
+            style: SkotiqTypography.caption.copyWith(
+              color: context.skotiqColors.textMuted,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -86,15 +123,7 @@ class FormRow extends StatelessWidget {
       children: <Widget>[
         SizedBox(
           width: labelWidth,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              style: SkotiqTypography.bodySm.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-          ),
+          child: Align(alignment: Alignment.centerLeft, child: _label(context)),
         ),
         const SizedBox(width: columnGap),
         Expanded(child: child),

@@ -157,7 +157,7 @@ class CenteringService {
       onStatusUpdate: onStatusUpdate,
     );
     try {
-      return await workFuture.timeout(
+      final result = await workFuture.timeout(
         config.overallTimeout,
         onTimeout: () async {
           await stop();
@@ -178,6 +178,8 @@ class CenteringService {
           );
         },
       );
+      _logOutcome(result, config);
+      return result;
     } finally {
       final stopFuture = _stopFuture;
       try {
@@ -193,6 +195,27 @@ class CenteringService {
         _ownedImagingService = null;
         _ownedDeviceService = null;
       }
+    }
+  }
+
+  void _logOutcome(CenteringResult result, CenteringConfig config) {
+    final attempts =
+        '${result.iterations} attempt${result.iterations == 1 ? '' : 's'}';
+    final logger = _ref.read(loggingServiceProvider);
+    final offset = result.finalOffsetArcsec;
+    if (result.success) {
+      logger.info(
+        'Centering done after $attempts: '
+        '${offset == null ? 'on target' : '${offset.toStringAsFixed(1)}" from the target'}'
+        ' (accuracy ${config.toleranceArcsec.toStringAsFixed(1)}")',
+        source: 'CenteringService',
+      );
+    } else {
+      logger.warning(
+        'Centering ended after $attempts without reaching the target: '
+        '${result.errorMessage ?? 'no reason given'}',
+        source: 'CenteringService',
+      );
     }
   }
 }

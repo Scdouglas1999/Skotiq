@@ -72,8 +72,15 @@ void main() {
     expect(_fieldsOf(night.astroDawn), _fields(dawn, offset));
     expect(_fieldsOf(night.sunrise), _fields(sunrise, offset));
     expect(_fieldsOf(night.moonSet!), _fields(moonSet, offset));
-    expect(night.moonIlluminationPercent, 44,
-        reason: 'the planetarium already reports a percentage');
+  });
+
+  test('the Moon is quoted at the middle of the dark, as Plan quotes it', () {
+    final night = container(const SystemClock()).read(tonightNightProvider)!;
+    final middle = DateTime.utc(2026, 10, 20, 4, 46);
+    expect(night.moonIlluminationPercent,
+        AstronomyCalculations.moonIllumination(middle));
+    expect(night.moonIlluminationPercent, isNot(44),
+        reason: 'the illumination now is not the night\'s');
   });
 
   test('the system clock reads host local time', () {

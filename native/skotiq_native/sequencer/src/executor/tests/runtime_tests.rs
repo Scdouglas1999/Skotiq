@@ -831,7 +831,7 @@ async fn an_overrunning_exposure_keeps_the_imaging_train() {
         "the estimate has passed, and the hold says so honestly"
     );
     assert!(
-        hold.max_remaining_secs > 0.0,
+        hold.max_remaining_secs.is_some_and(|secs| secs > 0.0),
         "but the claim has NOT lapsed, so the camera cannot be taken mid-frame"
     );
     assert!(
@@ -2347,6 +2347,104 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
         crate::recovery::RecoveryCause::GuideStarLost
     );
     assert!(history[0].recovered, "{history:?}");
+}
+
+/// The messages of the log events this thread emits while it is the
+/// default subscriber.
+#[derive(Clone, Default)]
+struct LogCapture(Arc<std::sync::Mutex<Vec<String>>>);
+
+impl LogCapture {
+    fn lines(&self) -> Vec<String> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
+struct LogMessage(String);
+
+impl tracing::field::Visit for LogMessage {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if field.name() == "message" {
+            self.0 = format!("{value:?}");
+        }
+    }
+}
+
+impl tracing::Subscriber for LogCapture {
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        let mut message = LogMessage(String::new());
+        event.record(&mut message);
+        self.0.lock().unwrap().push(message.0);
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+/// A lost guide star only notifies (the default), and the log says so: the
+/// rig's log read "action: Pause" for a run that kept imaging.
+#[tokio::test]
+async fn a_notify_only_lost_star_logs_the_notice_it_sends() {
+    let capture = LogCapture::default();
+    let _logging = tracing::subscriber::set_default(capture.clone());
+    let ops = ReacquireGuiderOps::new(false, true);
+    let guiding = ops.started.clone();
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ops));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor
+        .load_sequence(guided_delay_sequence(true))
+        .expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !guider_flags(&executor).await.0 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "StartGuiding never armed the star-lost trigger"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    guiding.store(false, Ordering::Relaxed);
+    let action = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired {
+                    trigger_id, action, ..
+                }) if trigger_id == "guide_star_lost" => return Some(action),
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return None,
+            }
+        }
+    })
+    .await
+    .ok()
+    .flatten();
+    executor.stop().await.ok();
+
+    assert_eq!(action, Some(TriggerFiredAction::Notify));
+    let fired: Vec<String> = capture
+        .lines()
+        .into_iter()
+        .filter(|line| {
+            line.starts_with("Trigger fired: Guide Star Lost") && line.contains(" - action: ")
+        })
+        .collect();
+    assert!(!fired.is_empty(), "the firing is logged");
+    assert!(
+        fired.iter().all(|line| line.ends_with("action: Notify")),
+        "the log names the action the run took: {fired:?}"
+    );
 }
 
 /// What a run did after a trigger-fired autofocus failed.

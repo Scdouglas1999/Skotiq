@@ -3,11 +3,41 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/models.dart'
+    as remote_profile
+    show EquipmentProfile;
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';
+
+class _MockFfiBackend extends Mock implements FfiBackend {}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
+
+class _QuietLogger extends LoggingService {
+  @override
+  void debug(String message, {String? source, Map<String, Object?>? fields}) {}
+  @override
+  void info(String message, {String? source, Map<String, Object?>? fields}) {}
+  @override
+  void warning(
+    String message, {
+    String? source,
+    Map<String, Object?>? fields,
+  }) {}
+  @override
+  void error(String message, {String? source, Map<String, Object?>? fields}) {}
+}
 
 HostStartup _host(HostKind kind) {
   final container = ProviderContainer();
@@ -145,6 +175,71 @@ void main() {
           ),
         ]);
         expect(await status(), 'interrupted');
+      });
+    }
+  });
+
+  // The run, the plate solver and the guider read the optics from the
+  // native store's copy of the active profile. A host started with
+  // Auto-connect off left it empty, and every solve said the profile had no
+  // focal length.
+  group('the active profile', () {
+    for (final kind in HostKind.values) {
+      test('reaches the native store as the ${kind.name} starts with '
+          'Auto-connect off', () async {
+        registerFallbackValue(
+          const remote_profile.EquipmentProfile(id: '0', name: 'fallback'),
+        );
+        final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final backend = _MockFfiBackend();
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+        when(() => backend.loadProfile(any())).thenAnswer((_) async {});
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            loggingServiceProvider.overrideWithValue(_QuietLogger()),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final dao = container.read(equipmentProfilesDaoProvider);
+        final id = await dao.createProfile(
+          const EquipmentProfileModel(
+            name: '10" Newt',
+            telescopeFocalLength: 1016,
+          ).toCompanion(),
+        );
+        await dao.setActiveProfile(id);
+
+        final host = HostStartup(
+          kind: kind,
+          container: container,
+          logger: _QuietLogger(),
+          logSource: 'test',
+          appVersion: const AppVersionInfo(version: '0.0.0', buildNumber: 1),
+          args: const [],
+          daemonConfig: kind == HostKind.daemon ? HeadlessAuthConfig() : null,
+        )..backendReady = Future<void>.value();
+        await runHostStartup(
+          host,
+          HostStartupPhase.services,
+          hostStartupSteps
+              .where((s) => s.name == 'active profile in the native store')
+              .toList(),
+        );
+
+        final saved = verify(
+          () => backend.saveProfile(captureAny()),
+        ).captured.cast<remote_profile.EquipmentProfile>();
+        expect(saved.map((p) => p.id), ['$id']);
+        expect(saved.single.telescopeFocalLength, 1016);
+        verify(() => backend.loadProfile('$id')).called(1);
       });
     }
   });

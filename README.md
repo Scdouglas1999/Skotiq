@@ -53,7 +53,7 @@ how high it gets, when it transits, how long it stays up, where the Moon is and 
 horizon blocks. Click one and you get its altitude curve and a suggested exposure.</p>
 </td>
 <td width="50%" valign="top">
-<img src="assets/screenshots/framing.png" width="100%" alt="Skotiq framing for NGC 891: the camera's 1.00 by 0.75 degree field of view drawn over real DSS2 Red survey imagery of the galaxy, with the sensor size and image scale from the active equipment profile">
+<img src="assets/screenshots/framing.png" width="100%" alt="Skotiq framing for NGC 7331: the camera's 1.00 by 0.75 degree field of view drawn over SDSS color survey imagery of the galaxy, with Stephan's Quintet below it, the target's altitude tonight and the sensor size and image scale from the active equipment profile">
 <p><b>Frame it before you waste the clear sky.</b> Your actual sensor and focal length
 over real survey imagery, so you can see whether it fits and which way to rotate.
 Mosaic panels get laid out here too.</p>
@@ -86,16 +86,17 @@ guider. Capture waits for the dither to settle either way.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/weather.png" width="100%" alt="Skotiq Weather showing live GOES satellite cloud imagery over the observing site with the alert radius marked, reporting zero percent cloud cover overhead and a clear verdict">
+<img src="assets/screenshots/weather.png" width="100%" alt="Skotiq Weather on a clear night: the GOES satellite frame over the observing site with the alert radius marked, and the forecast at zero percent cloud with no alert">
 <p><b>See the clouds coming.</b> Live satellite imagery over your site, with an alert
 radius you set. Weather, your safety monitor, twilight and free disk space all feed one
 answer about whether it's safe to carry on.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/darkroom-draft.png" width="100%" alt="Skotiq darkroom showing a real L-filter master of NGC 891 from the previous night's run, edge-on galaxy visible, with the processing recipe listing background extraction and denoise stages beside it">
-<p><b>Process what you shot.</b> The Darkroom stacks each filter's frames into masters
-and drafts the color composite for you at dawn. The NGC 891 master above came out of
-a real run in October 2026.</p>
+<img src="assets/screenshots/darkroom.png" width="100%" alt="Skotiq Darkroom on M31: the L, R, G and B masters built from the week's nights, tonight's frames ready to fold in, every night of the target on one timeline, and the darks, bias and flats each filter is calibrated with">
+<p><b>Process what you shot.</b> The Darkroom stacks each filter's frames into masters,
+calibrated with the darks, bias and flats it matches from your library, and drafts the
+color composite for you at dawn. The picture of M31 above is a raw 30 s sub from the
+author's rig.</p>
 </td>
 </tr>
 <tr>

@@ -153,6 +153,52 @@ void main() {
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
     });
 
+    // The rig on 2026-11-16 at 00:17: an Image tonight run on M1 was stopped
+    // and Tonight showed "Stopped · M31 Plan", the plan of the one-tap night
+    // before it, over the M1 frames it had just taken.
+    test('a planner plan kept after its run is not restored over the next '
+        'planner run', () {
+      final c = newContainer();
+      final editor = c.read(currentSequenceProvider.notifier);
+
+      editor.takeOwnership(
+        buildSequence(id: 'm31', name: 'M31 Plan'),
+        ActivePlanOwner.smartNight,
+      );
+      editor.releaseOwnership();
+      expect(c.read(currentSequenceProvider)!.name, 'M31 Plan');
+
+      editor.takeOwnership(
+        buildSequence(id: 'm1', name: 'M1 Plan'),
+        ActivePlanOwner.smartNight,
+      );
+      editor.releaseOwnership();
+      expect(c.read(currentSequenceProvider)!.name, 'M1 Plan');
+    });
+
+    test(
+      'a kept planner plan the operator edited is their work and returns',
+      () {
+        final c = newContainer();
+        final editor = c.read(currentSequenceProvider.notifier);
+
+        editor.takeOwnership(
+          buildSequence(id: 'm31', name: 'M31 Plan'),
+          ActivePlanOwner.smartNight,
+        );
+        editor.releaseOwnership();
+        editor.setName('M31 Plan (mine)');
+
+        editor.takeOwnership(
+          buildSequence(id: 'm1', name: 'M1 Plan'),
+          ActivePlanOwner.smartNight,
+        );
+        editor.releaseOwnership();
+        expect(c.read(currentSequenceProvider)!.name, 'M31 Plan (mine)');
+        expect(editor.isDirty, isTrue);
+      },
+    );
+
     test('releaseOwnership is a no-op when manual already owns the slot', () {
       final c = newContainer();
       final editor = c.read(currentSequenceProvider.notifier);

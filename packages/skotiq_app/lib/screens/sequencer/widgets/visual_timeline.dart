@@ -10,26 +10,32 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../night_control/data/plan/night_plan_inputs.dart'
+    show planStartProvider;
+
 final timelineVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Timer-free twilight lookup for sequencer pre-session simulation.
 ///
 /// The planetarium's `twilightTimesProvider` intentionally follows the live
 /// observation clock, which starts a periodic timer. The sequencer only needs
-/// tonight's dark-window boundary from app settings, so compute it directly.
+/// tonight's dark-window boundary from app settings, so compute it directly:
+/// the night in progress, or the coming one once its dark has ended.
 final preSessionTwilightTimesProvider =
     Provider<planetarium.TwilightTimes?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final hasLocation = settings != null && settings.hasObserverLocation;
   if (!hasLocation) return null;
 
-  return planetarium.AstronomyCalculations.calculateTwilightTimes(
-    date: ref.watch(clockProvider).instant,
+  return planetarium.AstronomyCalculations.nightAt(
+    now: ref.watch(clockProvider).instant,
     latitudeDeg: settings.latitude,
     longitudeDeg: settings.longitude,
   );
 });
 
+/// The open sequence simulated from [planStartProvider], the start Tonight
+/// times the plan from, or from now when nothing fixes the start.
 final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return null;
@@ -37,7 +43,8 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final twilight = ref.watch(preSessionTwilightTimesProvider);
   return ref.watch(planTimerProvider).simulate(
         sequence,
-        start: ref.watch(clockProvider).instant,
+        start: ref.watch(planStartProvider) ??
+            ref.watch<Clock>(clockProvider).instant,
         darkWindowStart: twilight?.astronomicalDusk,
         darkWindowEnd: twilight?.astronomicalDawn,
       );

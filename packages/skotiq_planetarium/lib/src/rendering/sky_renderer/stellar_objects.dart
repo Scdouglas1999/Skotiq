@@ -345,6 +345,8 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
       final fontSize = _getLabelFontSize(magnitude, 'star');
       final fontWeight = _getLabelFontWeight(magnitude);
       final textStyle = TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: Colors.white.withValues(alpha: 0.6),
         fontSize: fontSize,
         fontWeight: fontWeight,
@@ -430,6 +432,8 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
       if (offset == null || !_isInView(offset, size)) continue;
 
       final textStyle = TextStyle(
+        fontFamily: SkotiqTypography.fontFamily,
+        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
         color: Colors.white.withValues(alpha: 0.5),
         fontSize: 9,
         fontWeight: FontWeight.w500,
@@ -603,6 +607,8 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
                     effectiveAlpha // Bright DSOs get prominent labels
               : 0.6 * effectiveAlpha; // Fainter DSOs get subtler labels
           final textStyle = TextStyle(
+            fontFamily: SkotiqTypography.fontFamily,
+            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
             color: _dsoTypeColor(dso.type).withValues(alpha: labelAlpha),
             fontSize: fontSize,
             fontWeight: fontWeight,

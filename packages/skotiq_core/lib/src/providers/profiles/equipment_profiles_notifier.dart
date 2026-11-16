@@ -341,6 +341,23 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// UI and running sequencer on different profiles.
   Future<void> setActiveProfile(int profileId) => _activateProfile(profileId);
 
+  /// Copies the active profile into the native store, which the run, the
+  /// plate solver and the guider read their optics from. A host does this as
+  /// it starts; activations and saves keep the copy current after that. A
+  /// linked client has no native store of its own.
+  Future<void> writeActiveProfileToNativeStore() async {
+    if (_remote != null) return;
+    final local = _local;
+    final active = await local.dao.getActiveProfile();
+    if (active == null) return;
+    await writeActiveProfileThrough(
+      dao: local.dao,
+      backend: local.settings,
+      logger: local.logger,
+      profileId: active.id,
+    );
+  }
+
   /// Startup-facing alias for the same strict transaction used by every
   /// activation. Kept as a named API because startup callers use the failure as
   /// a hard gate before connecting equipment.

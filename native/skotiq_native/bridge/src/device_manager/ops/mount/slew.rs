@@ -28,6 +28,12 @@ impl DeviceManager {
             crate::device_manager::motion_guard::CommandKind::Slew,
         );
         self.mount_slew_dispatch(device_id, ra, dec).await?;
+        tracing::info!(
+            "Mount {} slewing to RA {:.4} h, Dec {:+.4}° (J2000)",
+            device_id,
+            ra,
+            dec
+        );
         // The driver returning means the slew has started, not finished: the
         // completion event waits for the mount to arrive (see `state_events`).
         self.publish_state_event(EquipmentEvent::MountSlewStarted {

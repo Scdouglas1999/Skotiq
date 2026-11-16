@@ -29,6 +29,9 @@ struct RecordingOps {
     timeline: Mutex<Vec<String>>,
     /// The rig has no guider: every dither is refused as not configured.
     guider_absent: bool,
+    /// Raised by every dither: a next-target request arriving while the
+    /// guider settles.
+    next_target_on_dither: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl RecordingOps {
@@ -40,6 +43,7 @@ impl RecordingOps {
             total_exposures,
             timeline: Mutex::new(Vec::new()),
             guider_absent: false,
+            next_target_on_dither: None,
         }
     }
 
@@ -140,6 +144,9 @@ impl GuiderOps for RecordingOps {
         ra_only: bool,
     ) -> DeviceResult<()> {
         self.timeline.lock().unwrap().push("dither".to_string());
+        if let Some(next_target) = &self.next_target_on_dither {
+            next_target.store(true, Ordering::SeqCst);
+        }
         if self.guider_absent {
             return Err(crate::device_ops::DeviceError::NO_GUIDER);
         }
@@ -938,4 +945,41 @@ async fn a_targets_end_time_ends_its_smart_exposure() {
         (3..=9).contains(&taken),
         "{taken} of 16 frames taken; the end time was 3 s in"
     );
+}
+
+/// The rig on 2026-11-16 at 04:25:36: the Altitude Limit trigger asked for the
+/// next target while the Smart Exposure dithered, and the node still started
+/// another 30 s frame of the target that had dropped below the floor.
+#[tokio::test]
+async fn a_next_target_request_during_a_dither_starts_no_frame() {
+    let total = Arc::new(AtomicU32::new(0));
+    let next_target = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut ops = RecordingOps::new(total.clone());
+    ops.next_target_on_dither = Some(next_target.clone());
+    let ops = Arc::new(ops);
+    let mut context = crate::node::ExecutionContext::new("smart".to_string(), ops.clone());
+    context.skip_to_next_target = next_target;
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.filterwheel_id = Some("fw-1".to_string());
+    let dir = std::env::temp_dir().join(format!("sk-next-target-{}", uuid::Uuid::new_v4()));
+    context.run.rig.save_path = Some(dir.clone());
+    let config = SmartExposureConfig {
+        plans: vec![FilterPlan {
+            filter_name: "L".to_string(),
+            count: 3,
+            duration_secs: 0.01,
+            ..Default::default()
+        }],
+        dither_on_filter_change: true,
+        ..Default::default()
+    };
+
+    use crate::node::registry::InstructionNode;
+    let status = crate::node::instructions::smart_exposure::SmartExposureInstruction
+        .execute("smart", &NodeType::SmartExposure(config), &mut context)
+        .await;
+
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(status, crate::NodeStatus::Skipped, "{}", ops.timeline());
+    assert_eq!(total.load(Ordering::SeqCst), 0, "{}", ops.timeline());
 }

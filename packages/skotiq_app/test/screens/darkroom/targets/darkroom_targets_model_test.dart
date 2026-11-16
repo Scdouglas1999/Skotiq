@@ -64,6 +64,31 @@ void main() {
     expect(oct21.note, 'Flip at 01:36');
   });
 
+  test('a night with no flip or lost stars names its newest sub, not an end',
+      () {
+    final evening = DateTime(2026, 11, 15);
+    DarkroomSub sub(int id, DateTime time) => DarkroomSub(
+          imageId: id,
+          time: time,
+          filter: 'L',
+          exposureSeconds: 30,
+          kept: true,
+          offTarget: false,
+        );
+    final night = DarkroomNight(
+      key: '2026-11-15',
+      evening: evening,
+      subs: [
+        sub(1, DateTime(2026, 11, 15, 22, 29)),
+        sub(2, DateTime(2026, 11, 15, 22, 40)),
+      ],
+      pauses: const [],
+      marks: const [],
+      use: DarkroomNightUse.none,
+    );
+    expect(night.note, 'Last sub 22:40');
+  });
+
   test('lost stars are marked once per run, and far pointing is off target',
       () async {
     final oct23 = (await ngc891()).nights.first;

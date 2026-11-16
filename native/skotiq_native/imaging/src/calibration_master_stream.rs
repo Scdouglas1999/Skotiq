@@ -383,7 +383,8 @@ fn card_i64(header: &FitsHeader, keys: &[&str]) -> Option<i64> {
     })
 }
 
-/// Every source must agree with the first on a card, when both carry it.
+/// Every source must agree with the first on a card, when both carry it: size,
+/// exposure, set-point, read mode, gain, offset and binning.
 fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
     let first = &sources[0];
     for source in &sources[1..] {
@@ -403,6 +404,16 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
             if (a - b).abs() > 1e-3_f64.max(a.abs() * 1e-4) {
                 return Err(format!(
                     "{} was exposed {b} s but {} was exposed {a} s",
+                    source.path.display(),
+                    first.path.display()
+                ));
+            }
+        }
+        let set_point = |h: &FitsHeader| card_f64(h, &["SET-TEMP", "SET_TEMP"]);
+        if let (Some(a), Some(b)) = (set_point(first.header()), set_point(source.header())) {
+            if (a - b).abs() > 0.05 {
+                return Err(format!(
+                    "{} was taken at a {b} °C set-point but {} at {a} °C",
                     source.path.display(),
                     first.path.display()
                 ));
@@ -452,7 +463,7 @@ pub enum MasterBuildError {
 /// Build a dark or bias master from `paths` and write it to `output`.
 ///
 /// Fails without writing anything when the frames disagree on size, exposure,
-/// gain, offset, binning or read mode, when more than half of them leak, or when fewer
+/// set-point, gain, offset, binning or read mode, when more than half of them leak, or when fewer
 /// than two frames are left after the leaking ones are dropped.
 pub fn build_streamed_master(
     paths: &[PathBuf],
@@ -633,6 +644,13 @@ fn build_with_free_space(
     }
     if let Some(v) = ccd_temp_mean {
         header.set_float("CCD-TEMP", (v * 100.0).round() / 100.0);
+    }
+    // The coldest and warmest frame, so the library can tell a master whose
+    // frames were not all at its set-point from one whose mean merely is.
+    let extreme = |pick: fn(f64, f64) -> f64| temps.iter().copied().reduce(pick);
+    if let (Some(coldest), Some(warmest)) = (extreme(f64::min), extreme(f64::max)) {
+        header.set_float("CCDTMIN", (coldest * 100.0).round() / 100.0);
+        header.set_float("CCDTMAX", (warmest * 100.0).round() / 100.0);
     }
     if let Some(v) = set_temp {
         header.set_float("SET-TEMP", v);
@@ -1133,6 +1151,42 @@ mod tests {
             header.get_string("READOUTM"),
             Some("Photographic DSO 16BIT")
         );
+    }
+
+    /// Darks of two cooler set-points stand for neither temperature.
+    #[test]
+    fn mixed_set_points_are_refused_and_the_extremes_are_carried() {
+        let dir = tempdir();
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let at = |name: &str, seed: u64, set_point: f64, sensor: f64| {
+            let path = write_frame(dir.path(), name, &noisy(seed, 4, 4, 300.0), 4, 4, CARDS);
+            crate::rewrite_frame_header(&path, |h| {
+                h.set_float("SET-TEMP", set_point);
+                h.set_float("CCD-TEMP", sensor);
+            })
+            .unwrap();
+            path
+        };
+        let minus_six = at("a.fits", 1, -6.0, -6.2);
+        let minus_four = at("b.fits", 2, -4.0, -5.0);
+        let err = build_streamed_master(
+            &[minus_six.clone(), minus_four],
+            &dir.path().join("m.fits"),
+            &config,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("set-point")),
+            "{err}"
+        );
+
+        let also_minus_six = at("c.fits", 3, -6.0, -5.0);
+        let out = dir.path().join("one.fits");
+        build_streamed_master(&[minus_six, also_minus_six], &out, &config).unwrap();
+        let (_, header) = crate::read_frame(&out).unwrap();
+        assert_eq!(header.get_float("CCDTMIN"), Some(-6.2));
+        assert_eq!(header.get_float("CCDTMAX"), Some(-5.0));
+        assert_eq!(header.get_float("SET-TEMP"), Some(-6.0));
     }
 
     #[test]

@@ -798,12 +798,11 @@ impl ImagingTrainClaimGuard {
                 if !announced {
                     announced = true;
                     tracing::info!(
-                        "Holding {} for ~{:.0}s: {} is using the camera and filter wheel \
-                         (at most {:.0}s)",
+                        "Holding {} for ~{:.0}s: {} is using the camera and filter wheel ({})",
                         holder,
                         hold.expected_remaining_secs,
                         hold.holder,
-                        hold.max_remaining_secs
+                        hold.bound()
                     );
                 }
             }

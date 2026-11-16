@@ -104,29 +104,6 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     return isConnected ? '$name connected' : '$name disconnected';
   }
 
-  String _getStateLabel(Phd2State state) {
-    switch (state) {
-      case Phd2State.stopped:
-        return 'Stopped';
-      case Phd2State.selected:
-        return 'Star selected';
-      case Phd2State.looping:
-        return 'Looping';
-      case Phd2State.calibrating:
-        return 'Calibrating';
-      case Phd2State.guiding:
-        return 'Guiding';
-      case Phd2State.paused:
-        return 'Paused';
-      case Phd2State.settling:
-        return 'Settling';
-      case Phd2State.lostLock:
-        return 'Lost lock';
-      case Phd2State.unknown:
-        return 'Unknown';
-    }
-  }
-
   Phd2GuidingState _mapPhd2State(Phd2State state) {
     switch (state) {
       case Phd2State.stopped:

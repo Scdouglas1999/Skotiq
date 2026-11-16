@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
@@ -53,9 +54,62 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
 /// force a rebuild of the suggestions list.
 final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
+/// A suggestion candidate from the catalog, with every designation that names
+/// it ("NGC1952", "M1").
+typedef CatalogTarget = ({db.DbTarget target, List<String> designations});
+
 /// Catalog targets built from one OpenNGC reader. The catalog manager
 /// replaces the reader when the file changes, which retires this entry.
-final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
+final Expando<Future<List<CatalogTarget>>> _catalogTargets = Expando();
+
+/// The user's own targets and the catalog's, one entry per object. A user
+/// target is the catalog object its catalog id or its name designates (a run
+/// saves "M1" by name, which is NGC1952): it keeps its own progress, takes the
+/// catalog's description where it has none, and the catalog entry is dropped.
+List<db.DbTarget> joinUserAndCatalogTargets(
+  List<db.DbTarget> userTargets,
+  List<CatalogTarget> catalog,
+) {
+  final byDesignation = <String, db.DbTarget>{};
+  for (final entry in catalog) {
+    for (final designation in entry.designations) {
+      byDesignation.putIfAbsent(
+        normalizeCatalogSearchText(designation),
+        () => entry.target,
+      );
+    }
+  }
+
+  final claimed = <int>{};
+  final joined = <db.DbTarget>[];
+  for (final user in userTargets) {
+    db.DbTarget? match;
+    for (final name in [user.catalogId, user.name]) {
+      if (name == null || name.trim().isEmpty) continue;
+      match = byDesignation[normalizeCatalogSearchText(name)];
+      if (match != null) break;
+    }
+    if (match == null) {
+      joined.add(user);
+      continue;
+    }
+    claimed.add(match.id);
+    joined.add(
+      user.copyWith(
+        catalogId: Value(user.catalogId ?? match.catalogId),
+        objectType: Value(user.objectType ?? match.objectType),
+        magnitude: Value(user.magnitude ?? match.magnitude),
+        constellation: Value(user.constellation ?? match.constellation),
+        sizeArcmin: Value(user.sizeArcmin ?? match.sizeArcmin),
+      ),
+    );
+  }
+  return [
+    ...joined,
+    for (final entry in catalog)
+      if (!claimed.contains(entry.target.id)) entry.target,
+  ];
+}
 
 /// Provider that generates target suggestions for tonight's imaging session.
 ///
@@ -131,29 +185,16 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           allSessionsProvider.future,
         );
 
-        // Fetch catalog objects from OpenNGC
         final catalogTargets = await _loadCatalogTargets(logging);
-
-        // Combine user targets with catalog targets
-        // User targets take precedence (they have imaging progress data)
-        final seenCatalogIds = <String>{};
-        for (final t in userTargets) {
-          if (t.catalogId != null) {
-            seenCatalogIds.add(t.catalogId!.toUpperCase());
-          }
-        }
-
-        // Filter out catalog objects that already exist as user targets
-        final filteredCatalog = catalogTargets.where((t) {
-          if (t.catalogId == null) return true;
-          return !seenCatalogIds.contains(t.catalogId!.toUpperCase());
-        }).toList();
-
-        // Combine: user targets first (have progress data), then catalog targets
-        final allTargets = [...userTargets, ...filteredCatalog];
+        final allTargets = joinUserAndCatalogTargets(
+          userTargets,
+          catalogTargets,
+        );
 
         logging.info(
-          'Loaded ${userTargets.length} user targets + ${filteredCatalog.length} catalog targets = ${allTargets.length} total',
+          'Loaded ${userTargets.length} user targets + '
+          '${allTargets.length - userTargets.length} catalog targets = '
+          '${allTargets.length} total',
           source: 'TargetSuggestionProvider',
         );
 
@@ -188,7 +229,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 /// Suggestion candidates from the OpenNGC catalog: every object to
 /// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
 /// with negative ids so they cannot be mistaken for the user's own targets.
-Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
+Future<List<CatalogTarget>> _loadCatalogTargets(LoggingService logging) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -227,13 +268,13 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   }
 }
 
-Future<List<db.DbTarget>> _readCatalogTargets(
+Future<List<CatalogTarget>> _readCatalogTargets(
   OpenNgcDsoCatalog reader,
   LoggingService logging,
 ) async {
   final dsos = await reader.load();
   var fakeId = -1;
-  final targets = <db.DbTarget>[];
+  final targets = <CatalogTarget>[];
   final now = DateTime.now();
 
   for (final dso in dsos) {
@@ -241,31 +282,30 @@ Future<List<db.DbTarget>> _readCatalogTargets(
     // with no magnitude sort last.
     if ((dso.magnitude ?? 99) > 14.0) break;
 
-    targets.add(
-      db.DbTarget(
-        id: fakeId--,
-        name: dso.name,
-        catalogId: dso.id,
-        objectType: dso.type.displayName,
-        ra: dso.coordinates.ra,
-        dec: dso.coordinates.dec,
-        magnitude: dso.magnitude,
-        constellation: dso.constellation,
-        sizeArcmin: dso.sizeArcMin,
-        positionAngle: dso.positionAngle,
-        minAltitude: 30.0,
-        priority: 5,
-        totalPlannedSubs: 0,
-        capturedSubs: 0,
-        totalIntegrationSecs: 0.0,
-        goalIntegrationSecs: 0.0,
-        filterProgress: null,
-        notes: dso.commonNames,
-        createdAt: now,
-        updatedAt: now,
-        isFavorite: false,
-      ),
+    final target = db.DbTarget(
+      id: fakeId--,
+      name: dso.name,
+      catalogId: dso.id,
+      objectType: dso.type.displayName,
+      ra: dso.coordinates.ra,
+      dec: dso.coordinates.dec,
+      magnitude: dso.magnitude,
+      constellation: dso.constellation,
+      sizeArcmin: dso.sizeArcMin,
+      positionAngle: dso.positionAngle,
+      minAltitude: 30.0,
+      priority: 5,
+      totalPlannedSubs: 0,
+      capturedSubs: 0,
+      totalIntegrationSecs: 0.0,
+      goalIntegrationSecs: 0.0,
+      filterProgress: null,
+      notes: dso.commonNames,
+      createdAt: now,
+      updatedAt: now,
+      isFavorite: false,
     );
+    targets.add((target: target, designations: [dso.id, ...dso.catalogIds]));
   }
 
   logging.debug(

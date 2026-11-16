@@ -118,9 +118,11 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final exposureContext =
       await readHeld(ref, smartNightExposureContextProvider);
 
+  final now = ref.read(clockProvider).instant;
   final window = ref.read(smartNightServiceProvider).calculateWindow(
         latitudeDeg: settings.latitude,
         longitudeDeg: settings.longitude,
+        now: now,
       );
 
   final end = switch (options?.end) {
@@ -134,7 +136,6 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     throw const SmartNightBuildException(
         'The selected dawn does not occur at this location tonight. Choose a different end condition.');
   }
-  final now = DateTime.now();
   final start = now.isAfter(window.start) ? now : window.start;
   if (!start.isBefore(end)) {
     throw const SmartNightBuildException('Tonight’s imaging window has ended.');
@@ -239,6 +240,7 @@ Future<TargetSuggestion> catalogTargetSuggestion({
   final window = ref.read(smartNightServiceProvider).calculateWindow(
         latitudeDeg: settings.latitude,
         longitudeDeg: settings.longitude,
+        now: ref.read(clockProvider).instant,
       );
 
   // When the target clears and leaves the site's altitude floor, in the

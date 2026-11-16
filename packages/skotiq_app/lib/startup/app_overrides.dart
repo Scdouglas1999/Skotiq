@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show skyNowProvider;
 
 import '../screens/onboarding/steps/capture_dir_step.dart';
 import 'plugin_enablement_wiring.dart';
@@ -26,4 +27,9 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
       // First-run setup starts with a capture folder made and checked.
       onboardingDefaultCaptureDirectoryProvider
           .overrideWithValue(prepareDefaultCaptureDirectory),
+      // The planetarium's sky tells the app's time.
+      skyNowProvider.overrideWith((ref) {
+        final clock = ref.watch(clockProvider);
+        return () => clock.instant;
+      }),
     ];

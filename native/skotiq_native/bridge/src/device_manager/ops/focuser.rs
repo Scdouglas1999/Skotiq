@@ -2,15 +2,22 @@
 //! bookkeeping around the focuser's handle (see
 //! [`crate::device_manager::rig::focuser`]).
 
+use std::time::{Duration, Instant};
+
 use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
 use crate::event::equipment::EquipmentEvent;
+use crate::timeout_ops::Timeouts;
+
+/// How often a move that returned before the focuser arrived is checked.
+const ARRIVAL_POLL: Duration = Duration::from_millis(250);
 
 impl DeviceManager {
     /// Move to an absolute position, publishing `FocuserMoveStarted` before
-    /// the move and `FocuserMoveCompleted` with the position read back after
-    /// it (see [`state_events`]). The read-back is what the focuser reached,
-    /// which after backlash or a stall is not the commanded position.
+    /// the move and `FocuserMoveCompleted` with the position read back once
+    /// the focuser stops (see [`state_events`]). The read-back is what the
+    /// focuser reached, which after backlash or a stall is not the commanded
+    /// position. Returns when the focuser has stopped.
     ///
     /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn focuser_move_abs(
@@ -29,6 +36,9 @@ impl DeviceManager {
             target_position: position,
         });
         let result = self.focuser_move_abs_dispatch(device_id, position).await;
+        if result.is_ok() {
+            self.focuser_wait_until_stopped(device_id).await;
+        }
         self.publish_focuser_move_end(device_id, result.is_ok().then_some(position))
             .await;
         result
@@ -56,6 +66,9 @@ impl DeviceManager {
             });
         }
         let result = self.focuser_move_rel_dispatch(device_id, steps).await;
+        if result.is_ok() {
+            self.focuser_wait_until_stopped(device_id).await;
+        }
         self.publish_focuser_move_end(device_id, target.filter(|_| result.is_ok()))
             .await;
         result
@@ -72,6 +85,25 @@ impl DeviceManager {
             self.publish_focuser_move_end(device_id, None).await;
         }
         result
+    }
+
+    /// Waits for the focuser to stop. Some focusers (the ZWO EAF) return from
+    /// the move command as the move starts; a position read then is a point
+    /// on the way. Bounded by the move timeout; a focuser that cannot say
+    /// whether it moves is taken as stopped.
+    async fn focuser_wait_until_stopped(&self, device_id: &str) {
+        let deadline = Instant::now() + Timeouts::focuser_move();
+        while matches!(self.focuser_is_moving(device_id).await, Ok(true)) {
+            if Instant::now() >= deadline {
+                tracing::warn!(
+                    "Focuser {} still reports moving {} s after a move; reporting where it is now",
+                    device_id,
+                    Timeouts::focuser_move().as_secs()
+                );
+                return;
+            }
+            tokio::time::sleep(ARRIVAL_POLL).await;
+        }
     }
 
     /// `FocuserMoveCompleted` with the position the focuser reads back, or

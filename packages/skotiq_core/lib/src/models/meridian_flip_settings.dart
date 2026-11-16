@@ -226,6 +226,15 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     return retryDelaysSeconds[attempt];
   }
 
+  /// How long before the flip the run stops tracking and taking frames, in
+  /// minutes of hour angle (the pre-meridian hold to the flip threshold);
+  /// null when there is no hold.
+  double? get holdMinutesBeforeFlip =>
+      triggerMethod == MeridianTriggerMethod.minutesPastMeridian &&
+          pauseBeforeMeridianMinutes > 0
+      ? pauseBeforeMeridianMinutes + minutesPastMeridian
+      : null;
+
   /// Whether any post-flip operations are enabled
   bool get hasPostFlipOperations =>
       recenterAfterFlip || refocusAfterFlip || resumeGuidingAfterFlip;

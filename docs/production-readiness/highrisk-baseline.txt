@@ -52,6 +52,7 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable	highrisk	1	baseline	offset_y: Err("BayerOffsetY not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_frame_carries_the_catalogue_field	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/device_manager/ops/camera/settings.rs	stated_frame_defaults	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	capabilities	highrisk	1	baseline	let position = self.members.position().await.ok();
 native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	focus_offsets	highrisk	1	baseline	"FocusOffsets is not implemented",

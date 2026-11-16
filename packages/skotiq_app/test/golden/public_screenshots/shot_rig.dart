@@ -1,16 +1,19 @@
 // The rig at "now" on the night of [ShotNight]: settings, the equipment
 // profile, every connected device, the guider, the loaded sequence and the
 // run in progress. Every value is read from [ShotNight] so the screens agree.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/profile_actions.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show CatalogManager, SkyCatalog;
+import 'package:skotiq_core/bridge_events.dart' as sk;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -19,8 +22,10 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 
 import '../../harness/mock_backend.dart';
+import '../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import '../surface_golden_harness.dart';
 import 'shot_night.dart';
+import 'shot_weather.dart';
 
 int _gb(int value) => value * 1024 * 1024 * 1024;
 
@@ -184,6 +189,8 @@ class _Settings extends AppSettingsNotifier {
         longitude: ShotNight.longitude,
         elevation: ShotNight.elevation,
         timezone: ShotNight.timezone,
+        // The site's sky: SQM 21.4 on Tonight's conditions.
+        bortleClass: 4,
         safetyFailMode: SafetyFailMode.failClosed,
       );
 }
@@ -509,9 +516,6 @@ final screenshotSequence = () {
     description: 'NGC 7331, M31 and M1 in LRGB, each across the meridian.',
     createdAt: ShotNight.at(-9, 17, 30),
     modifiedAt: ShotNight.at(-1, 17, 40),
-    estimatedDurationMins: ShotNight.tonight.slots.last.end
-        .difference(ShotNight.tonight.start)
-        .inMinutes,
     rootNodeId: 'root',
     nodes: nodes,
   );
@@ -545,7 +549,7 @@ class _Run extends RunRecordNotifier {
       completedIntegrationSecs: _tonight.integrationSecs,
       elapsedSecs:
           ShotNight.now.difference(_tonight.start).inSeconds.toDouble(),
-      estimatedRemainingSecs: _tonight.slots.last.end
+      estimatedRemainingSecs: ShotNight.tonightPlanEnd
           .difference(ShotNight.now)
           .inSeconds
           .toDouble(),
@@ -595,6 +599,62 @@ class _Run extends RunRecordNotifier {
   }
 }
 
+/// The executor's step events of tonight so far, newest first: every step
+/// the plan has started by now, and its end once it has finished. The current
+/// step is still running.
+class _NightEvents extends EventHistoryNotifier {
+  _NightEvents() {
+    final current = '${_key(lastFrame.target)}-lrgb';
+    final events = <sk.SkotiqEvent>[];
+    void add(DateTime at, sk.SequencerEvent event) => events.add(
+          sk.SkotiqEvent(
+            eventId: BigInt.from(events.length + 1),
+            timestamp: at.millisecondsSinceEpoch,
+            severity: sk.EventSeverity.info,
+            category: sk.EventCategory.sequencer,
+            payload: sk.EventPayload.sequencer(event),
+          ),
+        );
+    add(
+      _tonight.start,
+      const sk.SequencerEvent.started(sequenceName: ShotNight.sequenceName),
+    );
+    final steps = <(String, DateTime, DateTime?)>[
+      for (final slot in _tonight.slots)
+        if (!slot.start.isAfter(ShotNight.now))
+          (
+            'target-${_key(slot.target)}',
+            slot.start,
+            slot.end.isAfter(ShotNight.now) ? null : slot.end,
+          ),
+      for (final id in ShotNight.plannedSteps)
+        if (!ShotNight.plannedStart(id)!.isAfter(ShotNight.now))
+          (
+            id,
+            ShotNight.plannedStart(id)!,
+            id == current || ShotNight.plannedEnd(id)!.isAfter(ShotNight.now)
+                ? null
+                : ShotNight.plannedEnd(id),
+          ),
+    ];
+    final timeline = <(DateTime, sk.SequencerEvent)>[
+      for (final (id, start, end) in steps) ...[
+        (start, sk.SequencerEvent.nodeStarted(nodeId: id, nodeType: 'step')),
+        if (end != null)
+          (
+            end,
+            sk.SequencerEvent.nodeCompleted(nodeId: id, status: 'success'),
+          ),
+      ],
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
+    for (final (at, event) in timeline) {
+      add(at, event);
+    }
+    // ignore: invalid_use_of_protected_member
+    state = events.reversed.toList();
+  }
+}
+
 const _solver = PlateSolverDetection(
   astapPath: 'C:\\Program Files\\astap\\astap.exe',
   catalogName: 'D50',
@@ -605,8 +665,9 @@ const _solver = PlateSolverDetection(
 /// The shared overrides: the rig, the run and the site.
 List<Override> rigOverrides() => <Override>[
       clockProvider.overrideWithValue(const ShotClock()),
-      planetarium.localSiderealTimeProvider
-          .overrideWith((ref) => ShotNight.lst(ShotNight.now)),
+      planetarium.skyNowProvider.overrideWithValue(() => ShotNight.now),
+      // A debug build shows the frame-time readout; a release build does not.
+      planetarium.showPerfHudProvider.overrideWith((ref) => false),
       appSettingsProvider.overrideWith(_Settings.new),
       planetarium.observerLocationProvider.overrideWith((ref) => _Observer()),
       equipmentProfilesProvider.overrideWith(_Profiles.new),
@@ -667,32 +728,137 @@ List<Override> rigOverrides() => <Override>[
       focuserStateProvider.overrideWith((ref) => _Focuser(ref)),
       filterWheelStateProvider.overrideWith((ref) => _FilterWheel(ref)),
       sessionStateProvider.overrideWith((ref) => _Session(ref)),
+      eventHistoryProvider.overrideWith((ref) => _NightEvents()),
+      ...clearSkyOverrides(),
       activeTransientAlertsProvider.overrideWith(
         (ref) => Stream.value(const <TransientAlert>[]),
       ),
     ];
 
-/// Master darks and bias for every sub length the run uses.
-Future<void> seedDarkLibrary(SkotiqDatabase db) async {
-  for (final secs in [120.0, 180.0, 240.0]) {
+/// Times tonight's run with the app's own plan estimate, over the settings
+/// and overrides every shot uses, and gives [ShotNight] its windows.
+Future<void> planTonightFromApp() async {
+  final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+  final container = ProviderContainer(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      backendProvider.overrideWith(
+        (ref) => TestBackendNotifier(ref, mockBackend()),
+      ),
+      ...rigOverrides(),
+    ],
+  );
+  try {
+    final keep = container.listen(planTimerProvider, (_, __) {});
+    await container.read(appSettingsProvider.future);
+    await container.read(schedulerPersistedConfigProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final plan = container
+        .read(planTimerProvider)
+        .time(screenshotSequence, ShotNight.runStart);
+    keep.close();
+
+    final timings = plan.timings;
+    final stepStarts = <String, DateTime>{};
+    final stepEnds = <String, DateTime>{};
+    for (final t in timings) {
+      stepStarts.putIfAbsent(t.nodeId, () => t.estimatedStart.toLocal());
+      stepEnds[t.nodeId] = t.estimatedEnd.toLocal();
+    }
+    final windows = <ShotSlot>[];
+    for (final target in ShotNight.targets) {
+      final id = 'target-${_key(target)}';
+      final first = timings.indexWhere((t) => t.targetHeaderId == id);
+      final last = timings.lastIndexWhere((t) => t.targetHeaderId == id);
+      var end = last + 1 < timings.length
+          ? timings[last + 1].estimatedStart
+          : plan.end;
+      if (end.isBefore(timings[last].estimatedEnd)) {
+        end = timings[last].estimatedEnd;
+      }
+      windows.add(
+        ShotSlot(
+            target, timings[first].estimatedStart.toLocal(), end.toLocal()),
+      );
+    }
+    ShotNight.planTonight(
+      windows: windows,
+      stepStarts: stepStarts,
+      stepEnds: stepEnds,
+      end: plan.end.toLocal(),
+    );
+  } finally {
+    container.dispose();
+    await db.close();
+  }
+}
+
+String _calibrationName(String kind, String setting) =>
+    'D:\\Astro\\Skotiq\\Calibration\\master_${kind}_$setting.xisf';
+
+/// The calibration library: master darks for both sub lengths the run uses
+/// and a master bias (built three weeks ago), and this morning's LRGB master
+/// flats from the flat panel (the Flat wizard shot).
+List<String> calibrationPaths() => [
+      for (final secs in [30, 60])
+        _calibrationName('dark', '${secs}s_-10C_g${ShotNight.gain}'),
+      _calibrationName('bias', '-10C_g${ShotNight.gain}'),
+      for (final f in ['L', 'R', 'G', 'B'])
+        _calibrationName('flat', '${f}_g${ShotNight.gain}'),
+    ];
+
+/// The calibration library ([calibrationPaths]) and the operator's last
+/// snapshot settings: a 30 s test frame through B before the run. Weather
+/// safety stays off, as on the owner's rig: it has no weather device or safety
+/// monitor, and the app does not let a forecast alone hold a fail-closed run.
+Future<void> seedCalibration(SkotiqDatabase db) async {
+  final paths = calibrationPaths();
+  final built = ShotNight.at(-21, 14, 0);
+  for (final (i, secs) in [30.0, 60.0, 0.0].indexed) {
     await db.into(db.darkLibrary).insert(
           DarkLibraryCompanion.insert(
-            filePath:
-                'D:\\Astro\\Skotiq\\Darks\\dark_${secs.round()}s_-10C_g100.fits',
+            filePath: paths[i],
+            frameType: Value(secs == 0 ? 'bias' : 'dark'),
             exposureTime: secs,
             temperature: const Value(-10),
             gain: const Value(ShotNight.gain),
             offset: const Value(ShotNight.offset),
             width: const Value(ShotNight.sensorWidth),
             height: const Value(ShotNight.sensorHeight),
-            masterDarkPath: Value(
-              'D:\\Astro\\Skotiq\\Darks\\master_dark_${secs.round()}s_-10C_g100.xisf',
-            ),
-            masterFrameCount: const Value(40),
-            createdAt: Value(ShotNight.at(-20, 14, 0)),
+            masterDarkPath: Value(paths[i]),
+            masterFrameCount: Value(secs == 0 ? 100 : 40),
+            createdAt: Value(built),
           ),
         );
   }
+  for (final (i, filter) in ['L', 'R', 'G', 'B'].indexed) {
+    await db.into(db.flatLibrary).insert(
+          FlatLibraryCompanion.insert(
+            filePath: paths[3 + i],
+            filter: Value(filter),
+            temperature: const Value(-10),
+            gain: const Value(ShotNight.gain),
+            offset: const Value(ShotNight.offset),
+            width: const Value(ShotNight.sensorWidth),
+            height: const Value(ShotNight.sensorHeight),
+            flatKind: const Value('panel'),
+            masterFrameCount: const Value(30),
+            createdAt: ShotNight.at(-1, 6, 40).millisecondsSinceEpoch ~/ 1000,
+          ),
+        );
+  }
+  await db.settingsDao.write(
+    StoreSettings.captureSettings.row('${screenshotProfile.id}'),
+    jsonEncode({
+      'exposureTime': lastFrame.exposureSecs,
+      'gain': ShotNight.gain,
+      'offset': ShotNight.offset,
+      'binningX': 1,
+      'binningY': 1,
+      'filter': lastFrame.filter,
+      'frameType': 'light',
+    }),
+  );
 }
 
 /// What the backend answers for the rig: frame thumbnails, PHD2's star image,
@@ -734,12 +900,28 @@ void stubRigBackend(MockBackend backend) {
   );
 }
 
-/// Installs the OpenNGC copy that ships in the app, as the app does at start,
-/// so the planner and the target search have their catalog.
+/// Installs the catalogs as an install has them: the OpenNGC copy that ships
+/// in the app, and the HYG star catalog as its download leaves it (the
+/// decompressed CSV and its metadata), here cut to the stars to V 7.0 (see
+/// `test/fixtures/README.md`).
 Future<void> installBuiltInCatalog(String directory) async {
-  final csv = File(
-    '${SurfaceGoldenHarness.repoRoot().path}'
-    '/packages/skotiq_core/assets/catalogs/NGC.csv',
+  final root = SurfaceGoldenHarness.repoRoot().path;
+  final csv = File('$root/packages/skotiq_core/assets/catalogs/NGC.csv');
+  final stars =
+      File('$root/packages/skotiq_app/test/fixtures/hyg_v44_bright.csv.gz');
+  Directory(directory).createSync(recursive: true);
+  final hyg = File('$directory/${SkyCatalog.stars.fileName}');
+  final rows = gzip.decode(await stars.readAsBytes());
+  await hyg.writeAsBytes(rows);
+  await File('$directory/${SkyCatalog.stars.metadataFileName}').writeAsString(
+    jsonEncode({
+      'source': SkyCatalog.stars.displayName,
+      'name': SkyCatalog.stars.name,
+      'version': SkyCatalog.stars.version,
+      'objectCount': '\n'.allMatches(utf8.decode(rows)).length - 1,
+      'sizeBytes': rows.length,
+      'installedDate': ShotNight.at(-30, 20, 0).toUtc().toIso8601String(),
+    }),
   );
   await CatalogManager.instance.initialize(
     directory,

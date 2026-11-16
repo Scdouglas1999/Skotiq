@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'render_quality.dart';
 import 'sprite_atlas.dart';
 import 'star_psf_cache.dart';

@@ -17,6 +17,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../utils/guide_distance.dart';
+import '../../../../utils/guider_state_label.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../widgets/phd2_connection_dialog.dart';
 import '../../actions/manual_action_gating.dart';
@@ -25,23 +26,6 @@ import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_sections.dart';
-
-/// The state label and its tone for a PHD2 state.
-(String key, MetricGridTone tone) nightGuiderStateKey(Phd2State state) =>
-    switch (state) {
-      Phd2State.stopped => ('nightScopeGuideStopped', MetricGridTone.neutral),
-      Phd2State.selected => ('nightScopeGuideSelected', MetricGridTone.neutral),
-      Phd2State.looping => ('nightScopeGuideLooping', MetricGridTone.warning),
-      Phd2State.calibrating => (
-          'nightScopeGuideCalibrating',
-          MetricGridTone.warning
-        ),
-      Phd2State.guiding => ('nightScopeGuideGuiding', MetricGridTone.good),
-      Phd2State.settling => ('nightScopeGuideSettling', MetricGridTone.warning),
-      Phd2State.paused => ('nightScopeGuidePaused', MetricGridTone.warning),
-      Phd2State.lostLock => ('nightScopeGuideLostLock', MetricGridTone.bad),
-      Phd2State.unknown => ('nightScopeGuideUnknown', MetricGridTone.warning),
-    };
 
 class NightGuideTab extends ConsumerWidget {
   const NightGuideTab({super.key});
@@ -236,7 +220,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final inputs = ref.watch(nightActionInputsProvider);
     final isPhd2 = guider.deviceId == null || isPhd2DeviceId(guider.deviceId!);
 
-    final (stateKey, tone) = nightGuiderStateKey(state);
+    final (stateKey, tone) = guiderStateLabel(state);
     // SNR and mass are reported once a star is measured; zero means none.
     final measured = stats.frameCount > 0 || stats.loopFrameCount > 0;
     final snr = measured && stats.snr > 0 ? stats.snr : null;

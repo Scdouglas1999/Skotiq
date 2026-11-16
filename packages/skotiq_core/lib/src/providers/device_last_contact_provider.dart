@@ -177,7 +177,9 @@ final deviceLastContactProvider =
       );
       ref.listen(
         connectedDeviceDescriptorsProvider,
-        (previous, next) => notifier.track(next.map((d) => d.deviceId)),
+        (previous, next) => notifier.track(
+          next.where((d) => d.heartbeatPolled).map((d) => d.deviceId),
+        ),
         fireImmediately: true,
       );
       return notifier;

@@ -536,7 +536,7 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               const SizedBox(width: 4),
                               Text(
                                 '~${DurationFormat.seconds(progress.estimatedRemainingSecs!, rounding: DurationRounding.truncate)}'
-                                ' · done ~${ClockFormat.hms(DateTime.now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
+                                ' · done ~${ClockFormat.hms(ref.watch(clockProvider).now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
                                 style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: widget.colors.textMuted,

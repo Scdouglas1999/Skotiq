@@ -39,6 +39,20 @@ class _LowHorizonSettingsNotifier extends AppSettingsNotifier {
       );
 }
 
+class _StoppedClock implements Clock {
+  const _StoppedClock(this.at);
+  final DateTime at;
+
+  @override
+  DateTime now() => at.toLocal();
+  @override
+  DateTime nowUtc() => at.toUtc();
+  @override
+  Duration get utcOffset => at.toLocal().timeZoneOffset;
+  @override
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
+}
+
 class _SeedingNotifier extends CurrentSequenceNotifier {
   _SeedingNotifier(Ref ref) : super(ref: ref) {
     loadSequence(_sequence(), discardUnsaved: true);
@@ -119,6 +133,26 @@ void main() {
       simulation.issues.map((issue) => issue.message),
       contains(contains('never rises above')),
     );
+  });
+
+  // The rig on 2026-11-16 at 03:08 EST: Pre-flight warned that the plan
+  // started "before the dark window starts at 18:18", the next evening's
+  // dusk, in the middle of the night it was imaging.
+  test('after midnight the dark window is the night in progress', () async {
+    final at = DateTime.utc(2026, 11, 16, 8, 8);
+    final container = ProviderContainer(
+      overrides: [
+        appSettingsProvider.overrideWith(_LowHorizonSettingsNotifier.new),
+        clockProvider.overrideWithValue(_StoppedClock(at)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(appSettingsProvider.future);
+    final night = container.read(preSessionTwilightTimesProvider);
+
+    expect(night?.astronomicalDusk?.isBefore(at), isTrue);
+    expect(night?.astronomicalDawn?.isAfter(at), isTrue);
   });
 
   testWidgets('preflight simulation uses the site horizon', (tester) async {

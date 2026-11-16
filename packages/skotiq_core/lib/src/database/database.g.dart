@@ -26973,7 +26973,7 @@ class $WeatherSettingsTable extends WeatherSettings
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("weather_safety_enabled" IN (0, 1))',
     ),
-    defaultValue: const Constant(true),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _maxHumidityPercentMeta =
       const VerificationMeta('maxHumidityPercent');
@@ -27289,6 +27289,9 @@ class WeatherSettingRow extends DataClass
   final double triggerDistanceKm;
   final double cloudDensityThreshold;
   final int leadTimeMinutes;
+
+  /// Off until the operator turns it on: with no weather device or safety
+  /// monitor, fail closed would hold every run.
   final bool weatherSafetyEnabled;
   final double maxHumidityPercent;
   final double maxWindSpeedKph;

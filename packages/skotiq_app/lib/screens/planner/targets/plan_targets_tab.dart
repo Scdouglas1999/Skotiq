@@ -21,6 +21,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
 import '../../../router/settings_sections.dart';
+import '../../../services/run_dashboard_providers.dart'
+    show runDashboardActiveTargetProvider;
 import '../../../utils/darkroom_navigation.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -652,7 +654,13 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                   if (t.inGroup(group.id!)) t,
               ];
         final now = ref.watch(clockProvider).instant;
-        final rows = _rows(scoped, autopilot, windows, now);
+        // A run started outside the autopilot (Image tonight, the
+        // Sequencer) images its target too.
+        final runTarget = ref.watch(sequenceExecutionStateProvider).isLive
+            ? ref.watch(runDashboardActiveTargetProvider)
+            : null;
+        final rows =
+            _rows(scoped, autopilot, windows, now, runTarget: runTarget);
         final selected =
             rows.where((r) => r.target.id == _selectedTargetId).firstOrNull;
         // Beside the list the detail always shows a target; the first row

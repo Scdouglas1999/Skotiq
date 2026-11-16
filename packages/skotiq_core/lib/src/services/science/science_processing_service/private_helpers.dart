@@ -1,5 +1,10 @@
 part of '../science_processing_service.dart';
 
+/// How far from a frame's already solved center its full-WCS solve searches:
+/// the center is known to arcseconds, and a blind search costs a whole-sky
+/// pass for nothing.
+const double _knownCenterSearchRadiusDeg = 2.0;
+
 extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   Future<void> _processImmediateQualityLane({
     required String imagePath,
@@ -497,9 +502,10 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         stored?.cd2_1 != null &&
         stored?.cd2_2 != null;
     // A stored solve without its CD matrix (the frame watch records only
-    // centre, scale and rotation) cannot tell a mirrored frame from a normal
+    // center, scale and rotation) cannot tell a mirrored frame from a normal
     // one, so the frame is solved again for the full WCS when solving is
-    // allowed. The stored solve is the fallback if that solve fails.
+    // allowed, around the center already known. The stored solve is the
+    // fallback if that solve fails.
     WcsSolution? solved;
     if (image != null &&
         image.isPlateSolved &&
@@ -507,7 +513,13 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         solveIfUnsolved) {
       solved = await _scienceBackend.solveForScience(
         imagePath,
-        const SolveOptions(),
+        image.solvedRa == null || image.solvedDec == null
+            ? const SolveOptions()
+            : SolveOptions(
+                raHintHours: image.solvedRa,
+                decHintDegrees: image.solvedDec,
+                searchRadiusDegrees: _knownCenterSearchRadiusDeg,
+              ),
       );
     }
     if (solved == null &&
