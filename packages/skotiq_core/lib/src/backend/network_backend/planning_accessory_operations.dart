@@ -11,35 +11,31 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     await _post(FramingApi.slewToTarget, body: {'ra': ra, 'dec': dec});
   }
 
-  /// Center on target with plate solving
-  Future<Map<String, dynamic>> centerOnTarget({
-    required double ra,
-    required double dec,
-    int? maxIterations,
-    double? toleranceArcsec,
-    double? exposureTime,
-    int? binning,
-    int? gain,
-    bool? syncMount,
+  /// POST /api/framing/center-on-target
+  Future<String> startCentering({
+    required double raHours,
+    required double decDegrees,
+    required int maxAttempts,
+    required double accuracyArcsec,
+    required double exposureSecs,
+    required bool syncMount,
   }) async {
     final start = await _post(
       FramingApi.centerOnTarget,
       body: {
-        'ra': ra,
-        'dec': dec,
-        if (maxIterations != null) 'maxIterations': maxIterations,
-        if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
-        if (exposureTime != null) 'exposureTime': exposureTime,
-        if (binning != null) 'binning': binning,
-        if (gain != null) 'gain': gain,
-        if (syncMount != null) 'syncMount': syncMount,
+        'ra': raHours,
+        'dec': decDegrees,
+        'maxIterations': maxAttempts,
+        'toleranceArcsec': accuracyArcsec,
+        'exposureTime': exposureSecs,
+        'syncMount': syncMount,
       },
     );
-    return awaitOperationResult(
-      start,
-      operation: 'center on target',
-      timeout: const Duration(minutes: 10),
-    );
+    final jobId = start['jobId'];
+    if (jobId is! String || jobId.isEmpty) {
+      throw const FormatException('The host did not start a centering job');
+    }
+    return jobId;
   }
 
   Future<void> syncMountToCoordinates(double ra, double dec) async {

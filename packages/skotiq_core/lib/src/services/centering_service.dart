@@ -1,200 +1,392 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
-import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
-import '../backend/roles/device_backend.dart';
-import 'plate_solve_service.dart';
-import 'imaging_service.dart';
-import 'device_service.dart';
-import '../providers/backend_provider.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiCenteringRequest,
+        ApiCenteringStep,
+        ApiCenteringStep_Capturing,
+        ApiCenteringStep_Correcting,
+        ApiCenteringStep_Finished,
+        ApiCenteringStep_Solved,
+        apiCancelCentering,
+        apiCenterOnTarget;
+import '../backend/remote_host.dart';
+import '../models/app_screen.dart';
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
-import '../providers/imaging_provider.dart' show exposureSettingsProvider;
-import '../models/app_screen.dart';
-import '../models/imaging/imaging_models.dart';
-import '../models/equipment/equipment_models.dart';
-import '../providers/device_service_providers.dart';
-import '../providers/imaging_service_providers.dart';
 import '../providers/logging_service_provider.dart';
-import 'logging_service.dart';
-import '../providers/plate_solve_service_provider.dart';
 import '../providers/smart_notification_service_provider.dart';
 part 'centering_service/centering_models.dart';
-part 'centering_service/centering_loop.dart';
-part 'centering_service/slew_settle.dart';
-part 'centering_service/centering_geometry.dart';
 
-/// Service for automated target centering using plate solving
+/// Where a centering runs: the sequence's Center step in this process's
+/// native sequencer, or the linked host's centering.
+abstract interface class CenteringRunner {
+  /// The run's steps, the last always [ApiCenteringStep_Finished].
+  Stream<ApiCenteringStep> center(ApiCenteringRequest request);
+
+  /// Stops the run in progress.
+  Future<void> cancel();
+}
+
+/// The Center step of this process's native sequencer.
+final class NativeCenteringRunner implements CenteringRunner {
+  const NativeCenteringRunner();
+
+  @override
+  Stream<ApiCenteringStep> center(ApiCenteringRequest request) =>
+      apiCenterOnTarget(request: request);
+
+  @override
+  Future<void> cancel() async => apiCancelCentering();
+}
+
+/// The linked host's centering: the host runs its Center step and answers
+/// with the attempts it solved and how it ended.
+final class HostCenteringRunner implements CenteringRunner {
+  HostCenteringRunner(this._host);
+
+  final RemoteHost _host;
+  String? _jobId;
+
+  @override
+  Stream<ApiCenteringStep> center(ApiCenteringRequest request) async* {
+    final jobId = await _host.pointing.startCentering(
+      raHours: request.raHours,
+      decDegrees: request.decDegrees,
+      maxAttempts: request.maxAttempts,
+      accuracyArcsec: request.accuracyArcsec,
+      exposureSecs: request.exposureSecs,
+      syncMount: request.syncMount,
+    );
+    _jobId = jobId;
+    try {
+      final job = await _host.jobs.awaitJobCompletion(
+        jobId,
+        timeout: const Duration(minutes: 10),
+        pollInterval: const Duration(seconds: 1),
+      );
+      final outcome = job.result ?? job.error?['details'];
+      for (final attempt
+          in (outcome is Map ? outcome['iterationHistory'] : null)
+                  as List<dynamic>? ??
+              const []) {
+        if (attempt case {
+          'iterationNumber': final int number,
+          'solvedRa': final num ra,
+          'solvedDec': final num dec,
+          'offsetArcsec': final num separation,
+        }) {
+          yield ApiCenteringStep.solved(
+            attempt: number,
+            raHours: ra.toDouble(),
+            decDegrees: dec.toDouble(),
+            separationArcsec: separation.toDouble(),
+          );
+        }
+      }
+      yield ApiCenteringStep.finished(
+        centered: job.state == 'succeeded',
+        cancelled: job.state == 'cancelled',
+        message: switch (job.state) {
+          'succeeded' => 'Centered on the imaging host',
+          'cancelled' => 'Centering stopped',
+          _ =>
+            job.error?['message'] as String? ??
+                'Centering did not reach the target.',
+        },
+      );
+    } finally {
+      _jobId = null;
+    }
+  }
+
+  @override
+  Future<void> cancel() async {
+    final jobId = _jobId;
+    if (jobId != null) await _host.jobs.cancelJob(jobId);
+  }
+}
+
+/// Centering on a target by hand (Slew & center, the centering dialog, the
+/// Go to panel, a client's center request), run by the sequence's Center
+/// step, so the guider is stopped for the move, the frames take the camera's
+/// stated defaults and the solves search near the target as they do in a run.
 class CenteringService {
+  CenteringService(this._ref, {CenteringRunner? runner})
+    : _runner = runner ?? const NativeCenteringRunner();
+
   final Ref _ref;
-  final DeviceBackend _backend;
+  final CenteringRunner _runner;
 
-  /// Interval between mount-status polls during post-slew settle.
-  ///
-  /// 500ms keeps UI status reasonably fresh without hammering the bridge.
-  static const Duration _defaultPollInterval = Duration(milliseconds: 500);
-
-  /// Upper bound (in ticks) on the post-slew settle wait. 120 × 500ms = 60s
-  /// — preserves the existing wall-clock budget for slow-but-working mounts.
-  static const int _defaultMaxPollTicks = 120;
-
-  /// Maximum number of consecutive `getMountStatus` failures tolerated
-  /// during the settle poll before aborting centering with a typed
-  /// [CenteringMountUnresponsiveException].
-  ///
-  /// 6 ticks × [_pollInterval] = 3 seconds of unbroken failure. A single
-  /// transient blip (e.g. one missed COM frame, INDI reconnect) recovers on
-  /// the next tick and never trips this threshold; a permanently-broken
-  /// mount fails fast at 3s rather than dragging out the full 60s timeout.
-  static const int _maxConsecutiveQueryFailures = 6;
-
-  final Duration _pollInterval;
-  final int _maxPollTicks;
-
-  // Flag flipped by [stop]; checked at every centering loop yield-point so the
-  // user-visible Abort path returns promptly and the post-stop status is
-  // explicit ("aborted") rather than ambiguous.
   bool _abortRequested = false;
   bool _isRunning = false;
   bool _retired = false;
-  bool _captureInFlight = false;
-  bool _slewInFlight = false;
-  Future<void>? _stopFuture;
-  ImagingService? _ownedImagingService;
-  DeviceService? _ownedDeviceService;
-
-  CenteringService(
-    this._ref, {
-    DeviceBackend? backend,
-    Duration slewPollInterval = _defaultPollInterval,
-    int maxSlewPollTicks = _defaultMaxPollTicks,
-  }) : _backend = backend ?? _ref.read(deviceBackendProvider),
-       _pollInterval = slewPollInterval,
-       _maxPollTicks = maxSlewPollTicks;
 
   /// True while a centering run has been asked to stop but hasn't returned yet.
   bool get isAborting => _abortRequested;
 
-  /// True until the active centering owner's Future has fully settled.
+  /// True until the active centering run has ended.
   bool get isRunning => _isRunning;
 
-  /// Abort the current centering run.
-  ///
-  /// Cancels the in-flight exposure (so the camera doesn't sit idle for the
-  /// remainder of [CenteringConfig.exposureTime]) and aborts any in-progress
-  /// mount slew, then sets the abort flag that the centering loop polls. The
-  /// loop returns a [CenteringResult.failure] with `errorMessage: 'Aborted'`.
-  ///
-  /// Safe to call when no run is active. Only hardware currently owned by this
-  /// service is interrupted, so an idle stop cannot cancel an unrelated camera
-  /// exposure or mount slew.
+  /// Stops the centering run: the exposure or slew under way is aborted and
+  /// the run ends as aborted. Safe to call when no run is active.
   Future<void> stop() async {
-    if (!_isRunning) return;
+    if (!_isRunning || _abortRequested) return;
     _abortRequested = true;
-
-    final existing = _stopFuture;
-    if (existing != null) {
-      await existing;
-      return;
-    }
-
-    final operation = _stopOwnedHardware();
-    _stopFuture = operation;
-    await operation;
+    await _runner.cancel();
   }
 
-  /// Retire this service when its backend changes. Any old-host work keeps
-  /// unwinding against the services captured at admission and cannot abort or
-  /// slew hardware on the replacement host.
+  /// Retire this service when its backend changes: a run still in progress
+  /// is stopped.
   void retire() {
     if (_retired) return;
     _retired = true;
-    if (!_isRunning) return;
-    _abortRequested = true;
-    unawaited(_stopOwnedHardware().catchError((_) {}));
+    if (_isRunning) unawaited(stop());
   }
 
-  /// Center on target coordinates with iterative plate solve and slew
-  ///
-  /// Returns a [CenteringResult] with success status and iteration history
+  /// Center on target coordinates (RA hours, Dec degrees, J2000).
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
-    required PlateSolverConfig solverConfig,
     CenteringConfig config = const CenteringConfig(),
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {
-    final validationError = _validateRequest(
-      targetRa: targetRa,
-      targetDec: targetDec,
-      solverConfig: solverConfig,
-      config: config,
-    );
-    if (validationError != null) {
-      return CenteringResult.failure(
-        errorMessage: validationError,
-        iterations: 0,
-        iterationHistory: const [],
-      );
-    }
-
+    final refusal = _refusal(targetRa, targetDec, config);
+    if (refusal != null) return _failure(refusal, const []);
     if (_isRunning) {
-      return CenteringResult.failure(
-        errorMessage: 'Another centering operation is already running',
-        iterations: 0,
-        iterationHistory: const [],
+      return _failure(
+        'Another centering operation is already running',
+        const [],
       );
     }
 
     _isRunning = true;
     _abortRequested = false;
-    final workFuture = _runCentering(
-      targetRa: targetRa,
-      targetDec: targetDec,
-      solverConfig: solverConfig,
-      config: config,
-      onStatusUpdate: onStatusUpdate,
-    );
     try {
-      final result = await workFuture.timeout(
-        config.overallTimeout,
-        onTimeout: () async {
-          await stop();
-          CenteringResult? settledResult;
-          try {
-            settledResult = await workFuture;
-          } catch (_) {
-            // The timeout remains the user-facing terminal reason. Waiting for
-            // the owner Future here is about hardware settlement, not replacing
-            // it with a secondary cancellation exception.
-          }
-          return CenteringResult.failure(
-            errorMessage:
-                'Centering timed out after ${config.overallTimeout.inSeconds} seconds',
-            iterations: settledResult?.iterations ?? 0,
-            iterationHistory:
-                settledResult?.iterationHistory ?? const <CenteringIteration>[],
-          );
-        },
+      final framed = await _coImagingFramedTarget(targetRa, targetDec);
+      if (_abortRequested) return _failure('Aborted by user', const []);
+      final result = await _run(
+        framed?.raHours ?? targetRa,
+        framed?.decDeg ?? targetDec,
+        config,
+        onStatusUpdate,
       );
       _logOutcome(result, config);
       return result;
     } finally {
-      final stopFuture = _stopFuture;
-      try {
-        if (stopFuture != null) {
-          await stopFuture;
+      _isRunning = false;
+      _abortRequested = false;
+    }
+  }
+
+  Future<CenteringResult> _run(
+    double targetRa,
+    double targetDec,
+    CenteringConfig config,
+    void Function(CenteringStatus)? onStatusUpdate,
+  ) async {
+    final mountId = _ref.read(mountStateProvider).deviceId;
+    final cameraId = _ref.read(cameraStateProvider).deviceId;
+    if (mountId == null) return _failure('Mount not connected', const []);
+    if (cameraId == null) return _failure('Camera not connected', const []);
+
+    final iterations = <CenteringIteration>[];
+    void report(
+      CenteringState state,
+      int attempt,
+      String message, {
+      CenteringIteration? solved,
+    }) => onStatusUpdate?.call(
+      CenteringStatus(
+        state: state,
+        currentIteration: attempt,
+        maxIterations: config.maxIterations,
+        currentOffsetArcsec: solved?.offsetArcsec,
+        currentOffsetArcmin: solved?.offsetArcmin,
+        message: message,
+        iterationHistory: List.unmodifiable(iterations),
+        solvedRa: solved?.solvedRa,
+        solvedDec: solved?.solvedDec,
+      ),
+    );
+
+    final steps = _runner.center(
+      ApiCenteringRequest(
+        mountId: mountId,
+        cameraId: cameraId,
+        filterWheelId: _ref.read(filterWheelStateProvider).deviceId,
+        raHours: targetRa,
+        decDegrees: targetDec,
+        accuracyArcsec: config.toleranceArcsec,
+        maxAttempts: config.maxIterations,
+        exposureSecs: config.exposureTime,
+        syncMount: config.syncMount,
+      ),
+    );
+    ApiCenteringStep_Finished? finished;
+    var timedOut = false;
+    final deadline = Timer(config.overallTimeout, () {
+      timedOut = true;
+      unawaited(_runner.cancel());
+    });
+    try {
+      await for (final step in steps) {
+        switch (step) {
+          case ApiCenteringStep_Capturing(:final attempt):
+            report(
+              CenteringState.exposing,
+              attempt,
+              'Taking centering image (attempt $attempt/${config.maxIterations})...',
+            );
+          case ApiCenteringStep_Solved(
+            :final attempt,
+            :final raHours,
+            :final decDegrees,
+            :final separationArcsec,
+          ):
+            final solved = CenteringIteration(
+              iterationNumber: attempt,
+              solvedRa: raHours,
+              solvedDec: decDegrees,
+              targetRa: targetRa,
+              targetDec: targetDec,
+              offsetArcsec: separationArcsec,
+              offsetArcmin: separationArcsec / 60.0,
+              plateSolveSuccess: true,
+              timestamp: DateTime.now(),
+            );
+            iterations.add(solved);
+            report(
+              CenteringState.verifying,
+              attempt,
+              'Offset: ${(separationArcsec / 60.0).toStringAsFixed(2)} arcmin',
+              solved: solved,
+            );
+          case ApiCenteringStep_Correcting(:final attempt):
+            report(
+              CenteringState.slewing,
+              attempt,
+              'Slewing to target...',
+              solved: iterations.lastOrNull,
+            );
+          case final ApiCenteringStep_Finished done:
+            finished = done;
         }
-      } finally {
-        _isRunning = false;
-        _abortRequested = false;
-        _captureInFlight = false;
-        _slewInFlight = false;
-        _stopFuture = null;
-        _ownedImagingService = null;
-        _ownedDeviceService = null;
       }
+    } catch (e) {
+      if (_abortRequested) return _failure('Aborted by user', iterations);
+      return _failure('Centering failed: $e', iterations);
+    } finally {
+      deadline.cancel();
+    }
+    if (timedOut) {
+      return _failure(
+        'Centering timed out after ${config.overallTimeout.inSeconds} seconds',
+        iterations,
+      );
+    }
+
+    final attempts = iterations.isEmpty ? 0 : iterations.last.iterationNumber;
+    final done = finished;
+    if (done == null) {
+      return _failure('Centering ended without a result', iterations);
+    }
+    if (done.cancelled || _abortRequested) {
+      return _failure('Aborted by user', iterations);
+    }
+    if (!done.centered) return _failure(done.message, iterations);
+
+    final offset = iterations.lastOrNull?.offsetArcsec ?? 0;
+    report(
+      CenteringState.completed,
+      attempts,
+      'Target centered successfully!',
+      solved: iterations.lastOrNull,
+    );
+    _ref
+        .read(smartNotificationServiceProvider)
+        .showSuccessIfNotOnScreens(
+          message:
+              'Target centered (offset: ${(offset / 60.0).toStringAsFixed(2)} arcmin)',
+          relevantScreens: [AppScreen.imaging, AppScreen.sequencer],
+          title: 'Centering Complete',
+        );
+    return CenteringResult.success(
+      finalOffsetArcsec: offset,
+      iterations: attempts,
+      iterationHistory: iterations,
+    );
+  }
+
+  CenteringResult _failure(
+    String message,
+    List<CenteringIteration> iterations,
+  ) => CenteringResult.failure(
+    errorMessage: message,
+    iterations: iterations.isEmpty ? 0 : iterations.last.iterationNumber,
+    iterationHistory: iterations,
+  );
+
+  static String? _refusal(double ra, double dec, CenteringConfig config) {
+    if (!ra.isFinite || ra < 0 || ra > 24) {
+      return 'Target RA must be between 0 and 24 hours';
+    }
+    if (!dec.isFinite || dec < -90 || dec > 90) {
+      return 'Target declination must be between -90° and +90°';
+    }
+    if (config.maxIterations < 1) {
+      return 'Centering requires at least one iteration';
+    }
+    if (!config.toleranceArcsec.isFinite || config.toleranceArcsec <= 0) {
+      return 'Centering tolerance must be greater than zero';
+    }
+    if (!config.exposureTime.isFinite || config.exposureTime <= 0) {
+      return 'Centering exposure time must be greater than zero';
+    }
+    if (config.overallTimeout <= Duration.zero) {
+      return 'Centering timeout must be greater than zero';
+    }
+    return null;
+  }
+
+  /// The center of this rig's tile when [raHours]/[decDeg] belongs to a
+  /// co-imaging session it is in, so the rigs tile the field; null for an
+  /// ordinary target. A failed lookup centers on the raw target.
+  Future<({double raHours, double decDeg})?> _coImagingFramedTarget(
+    double raHours,
+    double decDeg,
+  ) async {
+    try {
+      final framed = await _ref
+          .read(coImagingSessionServiceProvider)
+          .framedCenterForPoint(
+            centerRaDeg: raHours * 15.0,
+            centerDecDeg: decDeg,
+          );
+      if (framed == null) return null;
+      final framedRaHours = framed.raDeg / 15.0;
+      if (framedRaHours == raHours && framed.decDeg == decDeg) return null;
+      _ref
+          .read(loggingServiceProvider)
+          .info(
+            'Co-imaging: framing this rig on its assigned coverage tile '
+            '(${framedRaHours.toStringAsFixed(4)}h, '
+            '${framed.decDeg.toStringAsFixed(4)} deg) instead of the raw center '
+            '(${raHours.toStringAsFixed(4)}h, ${decDeg.toStringAsFixed(4)} deg).',
+            source: 'CenteringService',
+          );
+      return (raHours: framedRaHours, decDeg: framed.decDeg);
+    } catch (e) {
+      _ref
+          .read(loggingServiceProvider)
+          .warning(
+            'Co-imaging framing-offset resolve failed; centering on the raw '
+            'target: $e',
+            source: 'CenteringService',
+          );
+      return null;
     }
   }
 

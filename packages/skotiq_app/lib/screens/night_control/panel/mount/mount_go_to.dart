@@ -374,7 +374,6 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     final result = await ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: to.ra,
           targetDec: to.dec,
-          solverConfig: centering.solver,
           config: centering.config,
           onStatusUpdate: (status) =>
               ref.read(centeringStatusProvider.notifier).state = status,

@@ -10,4 +10,7 @@ abstract interface class HostJobs {
     Duration timeout,
     Duration pollInterval,
   });
+
+  /// Asks the host to stop a job; the job then ends cancelled.
+  Future<void> cancelJob(String jobId);
 }

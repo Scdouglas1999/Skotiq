@@ -11,6 +11,11 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     return RemoteJob.fromJson(response);
   }
 
+  /// POST /api/jobs/<jobId>/cancel
+  Future<void> cancelJob(String jobId) async {
+    await _post(JobApi.cancelJob, path: {'jobId': jobId});
+  }
+
   /// Stream WS-broadcast snapshots for a single [jobId]. The stream
   /// terminates when the job reaches a terminal state or when the
   /// underlying event subscription closes (server restart, network

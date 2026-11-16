@@ -252,8 +252,7 @@ class PlanetariumHandlers implements RouteSource {
     final result = await centeringService.centerOnTarget(
       targetRa: ra,
       targetDec: dec,
-      solverConfig: centering.solver,
-      config: centering.config,
+      config: centering,
     );
 
     return jsonOk({

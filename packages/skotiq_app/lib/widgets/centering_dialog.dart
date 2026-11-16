@@ -521,7 +521,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
       final result = await centeringService.centerOnTarget(
         targetRa: widget.targetRa!,
         targetDec: widget.targetDec!,
-        solverConfig: centering.solver,
         config: centering.config,
         onStatusUpdate: (status) {
           if (host.isCurrent) {

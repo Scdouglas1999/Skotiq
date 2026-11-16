@@ -57,7 +57,6 @@ class _GivingUpCentering extends Mock implements CenteringService {
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
-    required PlateSolverConfig solverConfig,
     CenteringConfig config = const CenteringConfig(),
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {

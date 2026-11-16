@@ -234,14 +234,9 @@ void main() {
     test("a center request without settings of its own runs the host's manual "
         'centering', () async {
       CenteringConfig? ranWith;
-      PlateSolverConfig? solvedWith;
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      await db.settingsDao.setSettings({
-        'plate_solve_timeout': '90',
-        'plate_solve_search_radius': '12',
-        'centering_sync_mount': 'false',
-      });
+      await db.settingsDao.setSettings({'centering_sync_mount': 'false'});
       final container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(db),
@@ -253,10 +248,7 @@ void main() {
                 iterations: 1,
                 iterationHistory: [],
               ),
-              onRun: (config, solver) {
-                ranWith = config;
-                solvedWith = solver;
-              },
+              onRun: (config) => ranWith = config,
             ),
           ),
         ],
@@ -267,17 +259,19 @@ void main() {
         Request(
           'POST',
           Uri.parse('http://localhost/api/framing/center-on-target'),
-          body: jsonEncode({'ra': 22.14, 'dec': 45.0, 'binning': 3}),
+          body: jsonEncode({'ra': 22.14, 'dec': 45.0, 'maxIterations': 3}),
         ),
       );
 
       expect(response.statusCode, 200);
-      expect(solvedWith!.timeoutSeconds, 90);
-      expect(solvedWith!.searchRadius, 12);
       expect(ranWith!.syncMount, isFalse);
       expect(ranWith!.exposureTime, ManualCentering.defaultExposureSeconds);
-      expect(ranWith!.maxIterations, ManualCentering.maxIterations);
-      expect(ranWith!.binning, 3, reason: 'a field the request names wins');
+      expect(ranWith!.toleranceArcsec, ManualCentering.toleranceArcsec);
+      expect(
+        ranWith!.maxIterations,
+        3,
+        reason: 'a field the request names wins',
+      );
     });
 
     test('a centering that converges ends the job succeeded', () async {
@@ -301,17 +295,16 @@ class _CenteringEndingWith extends CenteringService {
   _CenteringEndingWith(super.ref, this.outcome, {this.onRun});
 
   final CenteringResult outcome;
-  final void Function(CenteringConfig config, PlateSolverConfig solver)? onRun;
+  final void Function(CenteringConfig config)? onRun;
 
   @override
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
-    required PlateSolverConfig solverConfig,
     CenteringConfig config = const CenteringConfig(),
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {
-    onRun?.call(config, solverConfig);
+    onRun?.call(config);
     return outcome;
   }
 }

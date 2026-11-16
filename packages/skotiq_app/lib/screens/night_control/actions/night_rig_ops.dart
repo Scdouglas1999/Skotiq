@@ -230,7 +230,6 @@ class ServiceNightRigOps implements NightRigOps {
     final result = await _ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: target.raHours,
           targetDec: target.decDegrees,
-          solverConfig: centering.solver,
           config: centering.config,
           onStatusUpdate: (status) =>
               _ref.read(centeringStatusProvider.notifier).state = status,

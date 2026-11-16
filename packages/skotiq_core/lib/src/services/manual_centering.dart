@@ -1,13 +1,13 @@
 import '../models/equipment_profile_model.dart';
 import 'centering_service.dart';
-import 'plate_solve_service.dart';
 import '../settings/app_settings_state.g.dart';
 
 /// What a centering the operator starts by hand runs with: Slew & center from
 /// a catalog card, the planetarium or Tonight, and a phone's or the web
 /// dashboard's center request to the host. The solve frames use the active
-/// profile's centering exposure, binning, gain and offset; the solves use the
-/// Plate Solving settings. A sequence's Center step has its own settings.
+/// profile's centering exposure and the camera's stated gain and offset; the
+/// mount is synced to each solve unless the Plate Solving settings say not
+/// to.
 class ManualCentering {
   ManualCentering.of(
     AppSettingsState settings,
@@ -17,14 +17,7 @@ class ManualCentering {
          maxIterations: maxIterations,
          toleranceArcsec: toleranceArcsec,
          exposureTime: exposureSeconds ?? exposureFor(profile),
-         binning: profile?.defaultBinX ?? 2,
-         gain: profile?.defaultGain,
-         offset: profile?.defaultOffset,
          syncMount: settings.centeringSyncMount,
-       ),
-       solver = PlateSolverConfig(
-         timeoutSeconds: settings.plateSolveTimeout,
-         searchRadius: settings.plateSolveSearchRadius,
        );
 
   /// Solve-and-correct passes before a run gives up.
@@ -37,7 +30,6 @@ class ManualCentering {
   static const double defaultExposureSeconds = 5.0;
 
   final CenteringConfig config;
-  final PlateSolverConfig solver;
 
   /// The solve exposure, in seconds, of [profile]'s centering frames.
   static double exposureFor(EquipmentProfileModel? profile) {
