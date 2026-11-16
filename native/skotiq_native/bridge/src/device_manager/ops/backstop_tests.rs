@@ -97,6 +97,48 @@ async fn a_focuser_moved_outside_skotiq_is_published_once() {
     assert!(focuser_completions(&drain(&mut rx)).is_empty());
 }
 
+/// Makes simulated focuser moves take time until dropped.
+struct TravelingFocuser;
+
+impl TravelingFocuser {
+    fn at(steps_per_sec: f64) -> Self {
+        sim::focuser::set_sim_focuser_steps_per_sec(Some(steps_per_sec));
+        TravelingFocuser
+    }
+}
+
+impl Drop for TravelingFocuser {
+    fn drop(&mut self) {
+        sim::focuser::set_sim_focuser_steps_per_sec(None);
+    }
+}
+
+// The ZWO EAF returns from a move command as the move starts. Skotiq's own
+// move then read as a change made outside Skotiq once the focuser arrived.
+#[tokio::test]
+async fn a_move_that_returns_before_the_focuser_arrives_is_not_an_outside_change() {
+    let _serialized = sim::sim_singleton_test_lock().lock().await;
+    attach(FOCUSER, DeviceType::Focuser).await;
+    let manager = get_device_manager();
+    manager.focuser_move_abs(FOCUSER, 27_000).await.unwrap();
+    let _traveling = TravelingFocuser::at(2_000.0);
+    let mut rx = get_state().event_bus.subscribe();
+
+    manager.focuser_move_abs(FOCUSER, 27_600).await.unwrap();
+    assert_eq!(
+        focuser_completions(&drain(&mut rx)),
+        vec![(FOCUSER.to_string(), 27_600)],
+        "the move's end event carries where the focuser stopped"
+    );
+
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    manager.backstop_check(FOCUSER, DeviceType::Focuser).await;
+    assert!(
+        focuser_completions(&drain(&mut rx)).is_empty(),
+        "Skotiq's own move is not a change made outside Skotiq"
+    );
+}
+
 #[tokio::test]
 async fn a_device_with_a_command_in_flight_is_skipped() {
     let _serialized = sim::sim_singleton_test_lock().lock().await;

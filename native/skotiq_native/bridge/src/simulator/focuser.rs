@@ -1,5 +1,5 @@
 use crate::device::FocuserStatus;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
 use tokio::sync::RwLock;
 
@@ -92,4 +92,98 @@ pub(crate) fn sim_focuser_temperature_c() -> f64 {
 /// so the focuser has to travel outward to follow it.
 pub(crate) fn sim_thermal_focus_shift_steps() -> i32 {
     (sim_night_cooling_c() * SIM_FOCUS_STEPS_PER_C).round() as i32
+}
+
+/// Environment switch: steps per second the simulated focuser travels.
+///
+/// Unset (the default), a move lands at once. Set, a move command returns as
+/// soon as the move starts and the focuser then reports `moving` and the
+/// positions it passes until it arrives, as the ZWO EAF does: whoever needs
+/// the focuser at rest has to wait for it.
+pub(crate) const SIM_FOCUSER_STEPS_PER_SEC_ENV: &str = "SKOTIQ_SIM_FOCUSER_STEPS_PER_SEC";
+
+/// A simulated focuser move under way. Kept out of [`SimulatedFocuser`],
+/// which is mirrored to Dart.
+#[derive(Debug, Clone, Copy)]
+struct Travel {
+    start: Instant,
+    from: i32,
+    to: i32,
+    steps_per_sec: f64,
+}
+
+impl Travel {
+    /// The position passed so far, and whether the focuser still moves.
+    fn now(&self) -> (i32, bool) {
+        let span = self.to.abs_diff(self.from) as f64;
+        let covered = self.start.elapsed().as_secs_f64() * self.steps_per_sec;
+        if covered >= span {
+            (self.to, false)
+        } else {
+            (
+                self.from + (self.to - self.from).signum() * covered as i32,
+                true,
+            )
+        }
+    }
+}
+
+struct Motion {
+    steps_per_sec: Option<f64>,
+    travel: Option<Travel>,
+}
+
+fn motion() -> MutexGuard<'static, Motion> {
+    static MOTION: OnceLock<Mutex<Motion>> = OnceLock::new();
+    MOTION
+        .get_or_init(|| {
+            let steps_per_sec = std::env::var(SIM_FOCUSER_STEPS_PER_SEC_ENV)
+                .ok()
+                .and_then(|raw| raw.trim().parse::<f64>().ok())
+                .filter(|rate| rate.is_finite() && *rate > 0.0);
+            Mutex::new(Motion {
+                steps_per_sec,
+                travel: None,
+            })
+        })
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+}
+
+/// Sets the travel rate a test needs; `None` makes moves land at once.
+#[cfg(test)]
+pub(crate) fn set_sim_focuser_steps_per_sec(steps_per_sec: Option<f64>) {
+    let mut motion = motion();
+    motion.steps_per_sec = steps_per_sec;
+    motion.travel = None;
+}
+
+/// Starts a move from `from` to `to`. Without a travel rate it has already
+/// landed.
+pub(crate) fn begin_sim_focuser_travel(from: i32, to: i32) {
+    let mut motion = motion();
+    motion.travel = motion.steps_per_sec.map(|steps_per_sec| Travel {
+        start: Instant::now(),
+        from,
+        to,
+        steps_per_sec,
+    });
+}
+
+/// Stops a move under way; the position it stopped at, or `None` when no
+/// move was under way.
+pub(crate) fn halt_sim_focuser_travel() -> Option<i32> {
+    let (position, moving) = motion().travel.take()?.now();
+    moving.then_some(position)
+}
+
+/// `status` as the focuser reads now: during a move, the position passed so
+/// far, and moving. `status.position` holds where the move lands.
+pub(crate) fn sim_focuser_status_now(status: &mut FocuserStatus) {
+    let Some(travel) = motion().travel else {
+        return;
+    };
+    let (position, moving) = travel.now();
+    status.position = position;
+    status.moving |= moving;
 }
