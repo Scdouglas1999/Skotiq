@@ -5,6 +5,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'linked_host.dart';
 import '../database/database.dart' as db;
 import '../models/planning/target_suggestion.dart';
+import '../services/catalog_target_types.dart';
 import '../services/logging_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
@@ -74,41 +75,30 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
 /// force a rebuild of the suggestions list.
 final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
-/// A suggestion candidate from the catalog, with every designation that names
-/// it ("NGC1952", "M1").
-typedef CatalogTarget = ({db.DbTarget target, List<String> designations});
-
 /// Catalog targets built from one OpenNGC reader. The catalog manager
 /// replaces the reader when the file changes, which retires this entry.
-final Expando<Future<List<CatalogTarget>>> _catalogTargets = Expando();
+final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
 
 /// The user's own targets and the catalog's, one entry per object. A user
-/// target is the catalog object its catalog id or its name designates (a run
-/// saves "M1" by name, which is NGC1952): it keeps its own progress, takes the
-/// catalog's description where it has none, and the catalog entry is dropped.
+/// target is the catalog object it designates ([DsoDesignations.ofTarget]: a
+/// run saves "M1" by name, which is NGC1952): it keeps its own progress,
+/// takes the catalog's type, and its description where it has none, and the
+/// catalog entry is dropped.
 List<db.DbTarget> joinUserAndCatalogTargets(
   List<db.DbTarget> userTargets,
-  List<CatalogTarget> catalog,
+  List<db.DbTarget> catalog,
+  DsoDesignations designations,
 ) {
-  final byDesignation = <String, db.DbTarget>{};
-  for (final entry in catalog) {
-    for (final designation in entry.designations) {
-      byDesignation.putIfAbsent(
-        normalizeCatalogSearchText(designation),
-        () => entry.target,
-      );
-    }
-  }
+  final byObjectId = {for (final entry in catalog) entry.catalogId: entry};
 
   final claimed = <int>{};
   final joined = <db.DbTarget>[];
   for (final user in userTargets) {
-    db.DbTarget? match;
-    for (final name in [user.catalogId, user.name]) {
-      if (name == null || name.trim().isEmpty) continue;
-      match = byDesignation[normalizeCatalogSearchText(name)];
-      if (match != null) break;
-    }
+    final object = designations.ofTarget(
+      catalogId: user.catalogId,
+      name: user.name,
+    );
+    final match = object == null ? null : byObjectId[object.id];
     if (match == null) {
       joined.add(user);
       continue;
@@ -117,7 +107,7 @@ List<db.DbTarget> joinUserAndCatalogTargets(
     joined.add(
       user.copyWith(
         catalogId: Value(user.catalogId ?? match.catalogId),
-        objectType: Value(user.objectType ?? match.objectType),
+        objectType: Value(match.objectType ?? user.objectType),
         magnitude: Value(user.magnitude ?? match.magnitude),
         constellation: Value(user.constellation ?? match.constellation),
         sizeArcmin: Value(user.sizeArcmin ?? match.sizeArcmin),
@@ -127,7 +117,7 @@ List<db.DbTarget> joinUserAndCatalogTargets(
   return [
     ...joined,
     for (final entry in catalog)
-      if (!claimed.contains(entry.target.id)) entry.target,
+      if (!claimed.contains(entry.id)) entry,
   ];
 }
 
@@ -209,6 +199,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
         final allTargets = joinUserAndCatalogTargets(
           userTargets,
           catalogTargets,
+          await installedDsoDesignations(logging),
         );
 
         logging.info(
@@ -249,7 +240,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 /// Suggestion candidates from the OpenNGC catalog: every object to
 /// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
 /// with negative ids so they cannot be mistaken for the user's own targets.
-Future<List<CatalogTarget>> _loadCatalogTargets(LoggingService logging) async {
+Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -288,13 +279,13 @@ Future<List<CatalogTarget>> _loadCatalogTargets(LoggingService logging) async {
   }
 }
 
-Future<List<CatalogTarget>> _readCatalogTargets(
+Future<List<db.DbTarget>> _readCatalogTargets(
   OpenNgcDsoCatalog reader,
   LoggingService logging,
 ) async {
   final dsos = await reader.load();
   var fakeId = -1;
-  final targets = <CatalogTarget>[];
+  final targets = <db.DbTarget>[];
   final now = DateTime.now();
 
   for (final dso in dsos) {
@@ -325,7 +316,7 @@ Future<List<CatalogTarget>> _readCatalogTargets(
       updatedAt: now,
       isFavorite: false,
     );
-    targets.add((target: target, designations: [dso.id, ...dso.catalogIds]));
+    targets.add(target);
   }
 
   logging.debug(
