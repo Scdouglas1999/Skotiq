@@ -7,7 +7,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/backend.dart' show TargetScoring;
+import 'package:skotiq_core/services.dart' show TargetScorer;
 import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiFloorSample,
+        ApiNightScore,
+        ApiNightSky,
+        ApiNightTarget,
+        ApiSchedulerTarget,
+        ApiScoringWeights,
+        ApiTargetScoreNow;
 import 'package:skotiq_desktop/headless_api/handlers/suggestion_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -185,6 +196,30 @@ void main() {
     );
   });
 
+  // POST /api/suggestions/score-now and /score-night: a linked client's
+  // requests to the host's target scorer.
+  group('SuggestionHandlers scorer routes', () {
+    test('a malformed scoring request is a 400 naming the field', () async {
+      final handlers = SuggestionHandlers(ProviderContainer());
+      for (final (handle, body) in [
+        (handlers.handleScoreTargetsForNight, {'latitudeDeg': 'x'}),
+        (handlers.handleScoreTargetsNow, {'latitudeDeg': 40}),
+      ]) {
+        final r = await translateHandlerErrors(
+          handle(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/suggestions/score'),
+              body: jsonEncode(body),
+            ),
+          ),
+        );
+        expect(r.statusCode, HttpStatus.badRequest);
+        expect(await r.readAsString(), contains('must be'));
+      }
+    });
+  });
+
   // GET /api/suggestions/ranked serves the host's own Plan > Tonight ranking
   // to linked clients in the TargetSuggestion shape they read back.
   group('SuggestionHandlers ranked', () {
@@ -201,6 +236,9 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           appSettingsProvider.overrideWith(_LocatedSettings.new),
+          targetScorerProvider.overrideWithValue(
+            const TargetScorer(_EveryTargetUsable()),
+          ),
         ],
       );
       handlers = SuggestionHandlers(container);
@@ -248,4 +286,47 @@ void main() {
       expect(body['field'], 'maxMoonDistance');
     });
   });
+}
+
+/// A target scorer for the host's ranking route: the scoring itself is the
+/// native sequencer's; every target here is usable for six hours.
+class _EveryTargetUsable implements TargetScoring {
+  const _EveryTargetUsable();
+
+  @override
+  Future<List<ApiNightScore>> scoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) async => [
+    for (final t in targets)
+      ApiNightScore(
+        targetId: t.id,
+        totalScore: 60,
+        altitudeScore: 60,
+        moonDistanceScore: 60,
+        transitProximityScore: 60,
+        darknessScore: 60,
+        airmassScore: 60,
+        currentAltitudeDeg: 50,
+        currentAzimuthDeg: 0,
+        peakAltitudeDeg: 50,
+        peakAzimuthDeg: 0,
+        peakUnixMs: sky.nightStartUnixMs,
+        hoursAboveFloor: 6,
+        firstUsableUnixMs: sky.nightStartUnixMs,
+        bestAirmass: 1.3,
+        moonDistanceDeg: 90,
+      ),
+  ];
+
+  @override
+  Future<List<ApiTargetScoreNow>> rankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required int nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) async => const [];
 }
