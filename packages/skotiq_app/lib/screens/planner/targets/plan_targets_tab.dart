@@ -651,7 +651,8 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                 for (final t in all)
                   if (t.inGroup(group.id!)) t,
               ];
-        final rows = _rows(scoped, autopilot, windows);
+        final now = ref.watch(clockProvider).instant;
+        final rows = _rows(scoped, autopilot, windows, now);
         final selected =
             rows.where((r) => r.target.id == _selectedTargetId).firstOrNull;
         // Beside the list the detail always shows a target; the first row
@@ -663,7 +664,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           groupName: group?.name,
           busy: _autopilotBusy,
           compact: phone,
-          nextLine: _nextLine(autopilot, rows, group),
+          nextLine: _nextLine(autopilot, rows, group, now),
           onStart: () => _startWithConfirmation(
             autopilot.readiness?.warnings ?? const [],
           ),

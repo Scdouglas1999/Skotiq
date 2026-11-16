@@ -55,7 +55,6 @@ class ShellClock extends ConsumerStatefulWidget {
 class _ShellClockState extends ConsumerState<ShellClock>
     with WidgetsBindingObserver {
   AlignedTicker? _timer;
-  DateTime _now = DateTime.now();
 
   @override
   void initState() {
@@ -70,7 +69,7 @@ class _ShellClockState extends ConsumerState<ShellClock>
     // the minute, and the tick shares its frame with anything else on the
     // epoch boundary. See [AlignedTicker].
     _timer = AlignedTicker(const Duration(minutes: 1), () {
-      if (mounted) setState(() => _now = DateTime.now());
+      if (mounted) setState(() {});
     });
   }
 
@@ -79,7 +78,6 @@ class _ShellClockState extends ConsumerState<ShellClock>
     if (state == AppLifecycleState.resumed) {
       if (_timer == null || !_timer!.isActive) {
         // Resync immediately so the clock doesn't show a stale time.
-        _now = DateTime.now();
         _startTimer();
       }
     } else if (state == AppLifecycleState.paused ||
@@ -99,7 +97,6 @@ class _ShellClockState extends ConsumerState<ShellClock>
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final now = _now;
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final siteIsSet = settings != null &&
         siteLocationIsSet(settings.latitude, settings.longitude);
@@ -138,7 +135,7 @@ class _ShellClockState extends ConsumerState<ShellClock>
     // and this clock keep the laptop's time. `Clock.fromUtc` re-expresses the
     // SAME instant in the chosen zone — the caller's timer still decides when
     // the chip reticks — and [SystemClock] leaves host-local users untouched.
-    final displayNow = ref.watch(clockProvider).fromUtc(now.toUtc());
+    final displayNow = ref.watch(clockProvider).now();
     final timeStr =
         '${displayNow.hour.toString().padLeft(2, '0')}:${displayNow.minute.toString().padLeft(2, '0')}';
 

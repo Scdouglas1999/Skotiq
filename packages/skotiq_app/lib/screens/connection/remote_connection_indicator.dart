@@ -361,8 +361,11 @@ class _RemoteConnectionIndicatorState
         return LucideIcons.serverOff;
       case RemoteConnectionStatus.error:
         return LucideIcons.alertTriangle;
+      // Standalone is the normal state of a local install, not a fault: a
+      // plain link (tap to link to an imaging host), never a crossed-out
+      // network.
       case RemoteConnectionStatus.notConnected:
-        return LucideIcons.wifiOff;
+        return LucideIcons.link;
     }
   }
 

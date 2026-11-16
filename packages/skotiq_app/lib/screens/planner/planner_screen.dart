@@ -112,7 +112,7 @@ final _plannerOptimizationProvider =
     }
     return ref.watch(sessionOptimizerServiceProvider).buildPlanFromSuggestions(
           suggestions,
-          generatedAt: DateTime.now(),
+          generatedAt: ref.read(clockProvider).instant,
           exposureContext: exposureContext,
         );
   } on PlannerSiteUnsetError {

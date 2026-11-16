@@ -8,6 +8,7 @@
 // build centres.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/connection/remote_connection_indicator.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -62,5 +63,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Connection status'), findsNothing);
+  });
+
+  testWidgets('a standalone install shows a link, not a lost network',
+      (tester) async {
+    await pumpAppScreen(
+      tester,
+      const Align(
+        alignment: Alignment.topRight,
+        child: RemoteConnectionIndicator(compact: true),
+      ),
+      size: _viewport,
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byIcon(LucideIcons.wifiOff), findsNothing);
+    expect(find.byIcon(LucideIcons.link), findsOneWidget);
   });
 }

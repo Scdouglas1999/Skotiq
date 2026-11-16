@@ -304,7 +304,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
       floorPoints.add((t, floor.atAzimuth(az).clamp(0.0, 90.0)));
     }
 
-    final now = DateTime.now();
+    final now = ref.watch(clockProvider).instant;
     return DecoratedBox(
       decoration: SkotiqDecorations.well(colors),
       child: Padding(

@@ -7,6 +7,7 @@ import '../models/planning/target_suggestion.dart';
 import '../services/logging_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
+import 'clock_provider.dart';
 import 'database_provider.dart';
 import 'hardware_presets_provider.dart';
 import 'profiles_provider.dart';
@@ -162,6 +163,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           longitude: longitude,
           targets: allTargets,
           sessions: sessions,
+          observationTime: ref.read(clockProvider).instant,
           opticalConfig: opticalConfig,
           floor: ref.read(altitudeFloorProvider),
         );

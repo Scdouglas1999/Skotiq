@@ -48,12 +48,8 @@ abstract final class SurfaceGoldenHarness {
   /// invalidate every one of those baselines. Only the public-screenshot
   /// capture, which asserts nothing about pixels, opts in.
   ///
-  /// Emoji are a known gap. The profile icon row offers telescope, moon,
-  /// ringed planet, star and camera as literal emoji, and they still capture
-  /// as boxes: a font registered through `loadFontFromList` is reachable by
-  /// family name, and nothing names a family for those strings, so the
-  /// renderer never reaches it through the fallback chain. Fixing it needs the
-  /// icons to stop being emoji, not another font here.
+  /// Also Sora, the typography's fallback face for the arcminute and
+  /// arcsecond primes; without it they capture as boxes.
   static Future<void> ensureCaptureFonts() async {
     await ensureFonts();
     if (_captureFontsLoaded) return;
@@ -61,6 +57,10 @@ abstract final class SurfaceGoldenHarness {
     if (materialIcons != null) {
       await _loadFont('MaterialIcons', materialIcons);
     }
+    await _loadFont(
+      'Sora',
+      '${repoRoot().path}/packages/skotiq_ui/assets/fonts/Sora-VF.ttf',
+    );
     _captureFontsLoaded = true;
   }
 

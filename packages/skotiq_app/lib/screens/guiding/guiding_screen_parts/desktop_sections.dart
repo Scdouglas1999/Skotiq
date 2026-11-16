@@ -252,6 +252,7 @@ mixin _GuidingDesktopSections
 
     final Widget graph = GuideGraphAdvanced(
       key: TourTarget.guidingGraph.key,
+      now: ref.watch(clockProvider).instant,
       data: graphData
           .map(
             (p) => GuideDataPoint(

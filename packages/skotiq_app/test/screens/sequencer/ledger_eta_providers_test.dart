@@ -119,6 +119,7 @@ void main() {
         currentSequenceProvider.overrideWith((_) => sequence),
         sequenceTimelineProvider.overrideWithValue(_simulation(built.steps)),
         ledgerClockProvider.overrideWith((ref) => clock.stream),
+        clockProvider.overrideWithValue(const SystemClock()),
       ]);
       addTearDown(container.dispose);
 
@@ -163,6 +164,7 @@ void main() {
         currentSequenceProvider.overrideWith((_) => sequence),
         sequenceTimelineProvider.overrideWithValue(_simulation(built.steps)),
         ledgerClockProvider.overrideWith((ref) => clock.stream),
+        clockProvider.overrideWithValue(const SystemClock()),
       ]);
       addTearDown(container.dispose);
 

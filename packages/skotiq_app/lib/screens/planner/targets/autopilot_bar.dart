@@ -225,17 +225,17 @@ class _AutopilotBar extends StatelessWidget {
 
 /// What the autopilot does next, with the time to its next check while it
 /// runs. Only this line repaints each second.
-class _NextLine extends StatefulWidget {
+class _NextLine extends ConsumerStatefulWidget {
   const _NextLine({required this.text, required this.nextCheckAt});
 
   final String text;
   final DateTime? nextCheckAt;
 
   @override
-  State<_NextLine> createState() => _NextLineState();
+  ConsumerState<_NextLine> createState() => _NextLineState();
 }
 
-class _NextLineState extends State<_NextLine> {
+class _NextLineState extends ConsumerState<_NextLine> {
   Timer? _tick;
 
   @override
@@ -273,7 +273,7 @@ class _NextLineState extends State<_NextLine> {
     final next = widget.nextCheckAt;
     var text = widget.text;
     if (next != null) {
-      final left = next.difference(DateTime.now());
+      final left = next.difference(ref.read(clockProvider).instant);
       text += left.isNegative
           ? ' · choosing now'
           : ' · next check in '

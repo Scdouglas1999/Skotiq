@@ -116,9 +116,10 @@ class SessionState extends Equatable {
     );
   }
 
-  Duration? get duration {
+  /// How long the session has run at [now].
+  Duration? elapsedAt(DateTime now) {
     if (startTime == null) return null;
-    return DateTime.now().difference(startTime!);
+    return now.difference(startTime!);
   }
 
   /// Frames that count: captured and neither rejected nor excluded.
@@ -502,7 +503,7 @@ final sessionStateProvider =
 /// Provider for session duration as a formatted string
 final sessionDurationProvider = Provider<String>((ref) {
   final session = ref.watch(sessionStateProvider);
-  final duration = session.duration;
+  final duration = session.elapsedAt(ref.watch(clockProvider).instant);
   if (duration == null) return '--:--:--';
 
   final hours = duration.inHours;

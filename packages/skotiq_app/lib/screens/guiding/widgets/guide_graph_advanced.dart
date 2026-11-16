@@ -103,12 +103,16 @@ class GuideGraphAdvanced extends StatelessWidget {
   /// Callback when time scale is changed
   final void Function(GraphTimeScale)? onTimeScaleChanged;
 
+  /// The right edge of the plot.
+  final DateTime now;
+
   /// Callback when Y scale is changed
   final void Function(GraphYScale)? onYScaleChanged;
 
   const GuideGraphAdvanced({
     super.key,
     required this.data,
+    required this.now,
     this.timeScale = GraphTimeScale.fiveMinutes,
     this.yScale = GraphYScale.two,
     this.showRa = true,
@@ -152,7 +156,6 @@ class GuideGraphAdvanced extends StatelessWidget {
   /// samples scrolling left, as PHD2 draws it) on a fixed symmetric scale. An
   /// excursion past the scale sits on its edge rather than leaving the plot.
   Widget _plot() {
-    final now = DateTime.now();
     final span = timeScale.duration.inMilliseconds / 1000.0;
     final limit = yScale.arcsec;
     List<Offset> trace(double Function(GuideDataPoint) error) => <Offset>[

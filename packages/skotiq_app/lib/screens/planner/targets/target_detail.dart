@@ -343,7 +343,7 @@ class _TonightSection extends ConsumerWidget {
           astroDark: w.dusk,
           astroDawn: w.dawn,
           sunrise: w.sunrise,
-          now: DateTime.now(),
+          now: ref.watch(clockProvider).instant,
           targetAltitudeCurve: [
             for (final a in w.altitudes) (a / 90).clamp(0.0, 1.0),
           ],

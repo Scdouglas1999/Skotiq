@@ -27,6 +27,12 @@ abstract final class SkotiqTypography {
   /// renders offline (no runtime font fetch).
   static const String fontFamilyMono = 'SplineSansMono';
 
+  /// Where glyphs missing from both faces come from: Sora (bundled for the
+  /// wordmark) has the arcminute and arcsecond primes (′ ″) that Hanken
+  /// Grotesk and Spline Sans Mono lack, so every platform draws them in a
+  /// bundled face instead of whatever system font it falls back to.
+  static const List<String> fontFamilyFallback = ['Sora'];
+
   // Named TextStyles below are preferred for new UI. Numeric tokens support
   // dense scientific readouts with custom weights, heights or canvas scaling.
   // Their values are shared so screens never invent another text-size scale.
@@ -68,6 +74,7 @@ abstract final class SkotiqTypography {
   /// 28px, Semi-bold
   static const TextStyle display = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 28,
     fontWeight: FontWeight.w600,
     height: 1.2,
@@ -78,6 +85,7 @@ abstract final class SkotiqTypography {
   /// 52px, Semi-bold
   static const TextStyle heroTitle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 52,
     fontWeight: FontWeight.w600,
     height: 1.0,
@@ -88,6 +96,7 @@ abstract final class SkotiqTypography {
   /// master build keeps). 64px, Semi-bold, tabular.
   static const TextStyle heroFigure = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 64,
     fontWeight: FontWeight.w600,
     height: 1.0,
@@ -99,6 +108,7 @@ abstract final class SkotiqTypography {
   /// 20px, Semi-bold
   static const TextStyle pageTitle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 20,
     fontWeight: FontWeight.w600,
     height: 1.3,
@@ -110,6 +120,7 @@ abstract final class SkotiqTypography {
   /// 15px, Semi-bold
   static const TextStyle sectionTitle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 15,
     fontWeight: FontWeight.w600,
     height: 1.4,
@@ -123,6 +134,7 @@ abstract final class SkotiqTypography {
   /// value beneath it.
   static const TextStyle eyebrow = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w600,
     height: 1.4,
@@ -133,6 +145,7 @@ abstract final class SkotiqTypography {
   /// 14px, Semi-bold
   static const TextStyle bodyStrong = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w600,
     height: 1.5,
@@ -144,6 +157,7 @@ abstract final class SkotiqTypography {
   /// 28px, Medium, tabular
   static const TextStyle readoutLg = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 28,
     fontWeight: FontWeight.w500,
     height: 1.15,
@@ -155,6 +169,7 @@ abstract final class SkotiqTypography {
   /// 20px, Medium, tabular
   static const TextStyle readoutMd = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 20,
     fontWeight: FontWeight.w500,
     height: 1.2,
@@ -166,6 +181,7 @@ abstract final class SkotiqTypography {
   /// 14px, Medium, tabular
   static const TextStyle readoutSm = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: 1.3,
@@ -177,6 +193,7 @@ abstract final class SkotiqTypography {
   /// 12px, Medium, tabular
   static const TextStyle readoutXs = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     height: 1.3,
@@ -188,6 +205,7 @@ abstract final class SkotiqTypography {
   /// 16px, Semi-bold, tabular
   static const TextStyle readoutBadge = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 16,
     fontWeight: FontWeight.w600,
     height: 1.2,
@@ -199,6 +217,7 @@ abstract final class SkotiqTypography {
   /// 11px, Medium, UPPERCASE at the call site. Sans, not mono: it is a word.
   static const TextStyle readoutLabel = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w500,
     height: 1.3,
@@ -210,6 +229,7 @@ abstract final class SkotiqTypography {
   /// 11px, Regular, tabular
   static const TextStyle monoCaption = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w400,
     height: 1.3,
@@ -221,6 +241,7 @@ abstract final class SkotiqTypography {
   /// 15px, Medium
   static const TextStyle buttonLg = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 15,
     fontWeight: FontWeight.w500,
     height: 1.4,
@@ -235,6 +256,7 @@ abstract final class SkotiqTypography {
   /// the type scale: nothing else in the app is allowed to look like the brand.
   static const TextStyle wordmark = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w700,
     height: 1.3,
@@ -248,6 +270,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h1 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 32,
     fontWeight: FontWeight.w600,
     height: 1.25,
@@ -259,6 +282,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h2 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 24,
     fontWeight: FontWeight.w600,
     height: 1.33,
@@ -270,6 +294,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h3 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 20,
     fontWeight: FontWeight.w600,
     height: 1.4,
@@ -281,6 +306,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h4 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 16,
     fontWeight: FontWeight.w600,
     height: 1.5,
@@ -292,6 +318,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h5 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w600,
     height: 1.43,
@@ -303,6 +330,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle h6 = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w600,
     height: 1.5,
@@ -315,6 +343,7 @@ abstract final class SkotiqTypography {
   /// 16px, Regular
   static const TextStyle bodyLg = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 16,
     fontWeight: FontWeight.w400,
     height: 1.5,
@@ -325,6 +354,7 @@ abstract final class SkotiqTypography {
   /// 14px, Regular
   static const TextStyle body = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.5,
@@ -335,6 +365,7 @@ abstract final class SkotiqTypography {
   /// 14px, Medium
   static const TextStyle bodyMedium = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: 1.5,
@@ -345,6 +376,7 @@ abstract final class SkotiqTypography {
   /// 13px, Regular
   static const TextStyle bodySm = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 13,
     fontWeight: FontWeight.w400,
     height: 1.46,
@@ -357,6 +389,7 @@ abstract final class SkotiqTypography {
   /// 14px, Medium
   static const TextStyle labelLg = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: 1.43,
@@ -367,6 +400,7 @@ abstract final class SkotiqTypography {
   /// 13px, Medium
   static const TextStyle label = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 13,
     fontWeight: FontWeight.w500,
     height: 1.38,
@@ -377,6 +411,7 @@ abstract final class SkotiqTypography {
   /// 12px, Medium
   static const TextStyle labelSm = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     height: 1.33,
@@ -387,6 +422,7 @@ abstract final class SkotiqTypography {
   /// 11px, Medium — pair with [SkotiqColors.textMuted] at the call site
   static const TextStyle labelQuiet = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w500,
     height: 1.27,
@@ -400,6 +436,7 @@ abstract final class SkotiqTypography {
   /// Apply the call-site color with `.copyWith(color:)` / `.colored(…)`.
   static const TextStyle labelStrong = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 13,
     fontWeight: FontWeight.w600,
     height: 1.38,
@@ -413,6 +450,7 @@ abstract final class SkotiqTypography {
   /// w600, …)` literals in the screens (same folding caveat as [labelStrong]).
   static const TextStyle labelStrongSm = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w600,
     height: 1.27,
@@ -425,6 +463,7 @@ abstract final class SkotiqTypography {
   /// 12px, Regular
   static const TextStyle caption = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w400,
     height: 1.33,
@@ -435,6 +474,7 @@ abstract final class SkotiqTypography {
   /// 11px, Regular
   static const TextStyle captionSm = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w400,
     height: 1.27,
@@ -449,6 +489,7 @@ abstract final class SkotiqTypography {
   /// carries the small-label rhythm without exaggerated letter spacing.
   static const TextStyle overline = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 10,
     fontWeight: FontWeight.w600,
     height: 1.6,
@@ -461,6 +502,7 @@ abstract final class SkotiqTypography {
   /// 18px, Regular (non-tabular; use [telemetryMd] for live-updating values)
   static const TextStyle monoLg = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.33,
@@ -471,6 +513,7 @@ abstract final class SkotiqTypography {
   /// 22px, Medium, tabular figures
   static const TextStyle telemetryLg = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 22,
     fontWeight: FontWeight.w500,
     height: 1.0,
@@ -482,6 +525,7 @@ abstract final class SkotiqTypography {
   /// 18px, Regular, tabular figures
   static const TextStyle telemetryMd = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.33,
@@ -493,6 +537,7 @@ abstract final class SkotiqTypography {
   /// 14px, Regular
   static const TextStyle mono = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.43,
@@ -503,6 +548,7 @@ abstract final class SkotiqTypography {
   /// 12px, Regular
   static const TextStyle monoSm = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w400,
     height: 1.33,
@@ -513,6 +559,7 @@ abstract final class SkotiqTypography {
   /// 11px, Regular
   static const TextStyle monoXs = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w400,
     height: 1.27,
@@ -526,6 +573,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle statValue = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 36,
     fontWeight: FontWeight.w700,
     height: 1.2,
@@ -537,6 +585,7 @@ abstract final class SkotiqTypography {
   @Deprecated('Use pageTitle/sectionTitle/display/readout*')
   static const TextStyle statLabel = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     height: 1.33,
@@ -547,6 +596,7 @@ abstract final class SkotiqTypography {
   /// 14px, Medium
   static const TextStyle button = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: 1.43,
@@ -557,6 +607,7 @@ abstract final class SkotiqTypography {
   /// 13px, Medium
   static const TextStyle buttonSm = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 13,
     fontWeight: FontWeight.w500,
     height: 1.38,
@@ -567,6 +618,7 @@ abstract final class SkotiqTypography {
   /// 14px, Regular
   static const TextStyle input = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.43,
@@ -577,6 +629,7 @@ abstract final class SkotiqTypography {
   /// 14px, Regular
   static const TextStyle inputMono = TextStyle(
     fontFamily: fontFamilyMono,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.43,

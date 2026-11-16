@@ -457,7 +457,14 @@ class _PlannerNightWindow {
   final DateTime start;
   final DateTime end;
 
-  const _PlannerNightWindow({required this.start, required this.end});
+  /// Where the window bars mark now.
+  final DateTime now;
+
+  const _PlannerNightWindow({
+    required this.start,
+    required this.end,
+    required this.now,
+  });
 
   /// Where [visibility]'s above-horizon span sits on this night, or null when
   /// the target has no span to draw (never rises, or its rise/set are not
@@ -487,7 +494,7 @@ class _PlannerNightWindow {
     return CandidateWindow(
       start: from,
       end: to,
-      now: fraction(DateTime.now()),
+      now: fraction(now),
     );
   }
 }
@@ -498,14 +505,15 @@ final _plannerNightWindowProvider = Provider.autoDispose<_PlannerNightWindow?>(
   (ref) {
     final location = ref.watch(appObserverLocationProvider);
     if (plannerSiteUnset(location)) return null;
+    final now = ref.watch(clockProvider).instant;
     final twilight = AstronomyCalculations.nightAt(
-      now: DateTime.now(),
+      now: now,
       latitudeDeg: location!.latitude,
       longitudeDeg: location.longitude,
     );
     final dusk = twilight.astronomicalDusk;
     final dawn = twilight.astronomicalDawn;
     if (dusk == null || dawn == null) return null;
-    return _PlannerNightWindow(start: dusk, end: dawn);
+    return _PlannerNightWindow(start: dusk, end: dawn, now: now);
   },
 );

@@ -61,25 +61,36 @@ final nightGuideRmsProvider = Provider<NightGuideRms>((ref) {
 });
 
 /// How many frames the run dithers after: the running exposure step's, else
-/// the first light step's, else a dither-interval trigger's. A step without
-/// its own number takes the app's dither setting when the run is sent, and so
-/// does a run with no plan loaded yet. Null when nothing dithers.
+/// the first light step's, else a dither-interval trigger's. A light step is an
+/// exposure or a smart exposure (whose filter plans carry the number). A step
+/// without its own number takes the app's dither setting when the run is
+/// sent, and so does a run with no plan loaded yet. Null when nothing
+/// dithers.
 final nightDitherEveryProvider = Provider<int?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final appEvery = settings != null && settings.ditherEnabled
       ? settings.ditherEveryFrames
       : null;
   int? positive(int? every) => every != null && every > 0 ? every : null;
-  int? forStep(ExposureNode node) => positive(node.ditherEvery ?? appEvery);
+  int? stepEvery(SequenceNode node) => switch (node) {
+        ExposureNode(:final ditherEvery) => ditherEvery,
+        SmartExposureNode(:final plans) =>
+          plans.map((plan) => plan.ditherEvery).nonNulls.firstOrNull,
+        _ => null,
+      };
+  bool isLightStep(SequenceNode node) =>
+      (node is ExposureNode && node.frameType == FrameType.light) ||
+      node is SmartExposureNode;
 
   final active = ref.watch(nightActiveStepProvider)?.node;
-  if (active is ExposureNode) return forStep(active);
+  if (active is ExposureNode || active is SmartExposureNode) {
+    return positive(stepEvery(active!) ?? appEvery);
+  }
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null) return positive(appEvery);
   for (final entry in tree.steps) {
-    final node = entry.node;
-    if (node is ExposureNode && node.frameType == FrameType.light) {
-      return forStep(node);
+    if (isLightStep(entry.node)) {
+      return positive(stepEvery(entry.node) ?? appEvery);
     }
   }
   for (final entry in tree.entries) {
