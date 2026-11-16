@@ -5,9 +5,13 @@ import 'providers/nws_cloud_provider.dart';
 import 'providers/openmeteo_cloud_provider.dart';
 import 'radar_provider.dart';
 
-/// The one owner of the site's hourly cloud forecast. Regional NWS forecasts
-/// take precedence where its points API supplies a grid; the global models
-/// remain fallbacks. The sky now is [CurrentSkyService]'s.
+/// The one owner of the site's hourly cloud forecast.
+///
+/// Open-Meteo's best-match model comes first: it runs the best regional model
+/// for the site (NOAA HRRR, updated hourly, for the first hours in the United
+/// States) and global models after. The National Weather Service grid, a
+/// forecast issued a few times a day, and MET Norway follow when it fails.
+/// The sky now is [CurrentSkyService]'s.
 class LocationCloudForecastService {
   LocationCloudForecastService({
     http.Client? httpClient,
@@ -37,19 +41,19 @@ class LocationCloudForecastService {
     required double latitude,
     required double longitude,
   }) async {
-    if (_mayHaveNwsCoverage(latitude, longitude)) {
-      final regional = await _nws.fetchRadarFrames(
-        latitude: latitude,
-        longitude: longitude,
-      );
-      if (_hasFutureForecast(regional)) return regional;
-    }
     final model = await _openMeteo.fetchRadarFrames(
       latitude: latitude,
       longitude: longitude,
     );
     if (_hasFutureForecast(model)) {
       return model.withProviderName('Open-Meteo');
+    }
+    if (_mayHaveNwsCoverage(latitude, longitude)) {
+      final regional = await _nws.fetchRadarFrames(
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (_hasFutureForecast(regional)) return regional;
     }
     final fallback = await _metNorway.fetchRadarFrames(
       latitude: latitude,

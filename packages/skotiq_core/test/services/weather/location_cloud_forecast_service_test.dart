@@ -72,27 +72,34 @@ void main() {
         })
       : _json(_nwsGrid());
 
-  test('the NWS grid comes first where it answers', () async {
-    final hosts = <String>[];
-    final client = _TrackedClient((request) async {
-      hosts.add(request.url.host);
-      return request.url.host == 'api.weather.gov'
-          ? nwsAnswer(request)
-          : _json(_openMeteo());
-    });
-    final service = LocationCloudForecastService(
-      httpClient: client,
-      clock: () => _now,
-    );
-    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
-    expect(hours.providerName, 'National Weather Service');
-    expect(hosts, everyElement('api.weather.gov'));
-    expect(client.closeCount, 0);
-    service.dispose();
-    expect(client.closeCount, 1);
-  });
+  test(
+    'the hourly model comes before the NWS grid where both answer',
+    () async {
+      final hosts = <String>[];
+      final client = _TrackedClient((request) async {
+        hosts.add(request.url.host);
+        return request.url.host == 'api.weather.gov'
+            ? nwsAnswer(request)
+            : _json(_openMeteo());
+      });
+      final service = LocationCloudForecastService(
+        httpClient: client,
+        clock: () => _now,
+      );
+      final hours = await service.fetchRadarFrames(
+        latitude: 40,
+        longitude: -75,
+      );
+      expect(hours.providerName, 'Open-Meteo');
+      expect(hours.frames.first.opacity, .08);
+      expect(hosts, ['api.open-meteo.com']);
+      expect(client.closeCount, 0);
+      service.dispose();
+      expect(client.closeCount, 1);
+    },
+  );
 
-  test('the NWS grid answers without the model', () async {
+  test('the NWS grid answers when the model has no future hours', () async {
     final client = MockClient(
       (request) async => request.url.host == 'api.weather.gov'
           ? nwsAnswer(request)
