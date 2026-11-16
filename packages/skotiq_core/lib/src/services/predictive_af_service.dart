@@ -28,6 +28,7 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as db;
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
+import 'focus_temperature_fit.dart';
 import 'logging_service.dart';
 part 'predictive_af_service/predictive_af_models.dart';
 part 'predictive_af_service/settings_controller.dart';

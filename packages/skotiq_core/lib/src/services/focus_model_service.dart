@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
+import 'focus_temperature_fit.dart';
 import 'logging_service.dart';
 
 /// User-configurable thresholds that gate the focus regression model.
@@ -375,72 +376,28 @@ class FocusModelService {
 
   /// Calculate linear regression model for temperature vs focus position
   FocusModel? _calculateTemperatureModel(List<FocusHistoryPoint> points) {
-    if (points.length < 3) return null;
-
-    // Use only the best HFR point per temperature range
-    // Group by temperature buckets (1°C)
-    final buckets = <int, List<FocusHistoryPoint>>{};
-    for (final point in points) {
-      final bucket = point.temperatureCelsius.round();
-      buckets.putIfAbsent(bucket, () => []).add(point);
-    }
-
-    // Take best (lowest HFR) from each bucket
-    final bestPoints = <FocusHistoryPoint>[];
-    for (final bucket in buckets.values) {
-      bucket.sort((a, b) => a.hfr.compareTo(b.hfr));
-      bestPoints.add(bucket.first);
-    }
-
-    if (bestPoints.length < 3) return null;
-
-    // Linear regression: y = mx + b
-    // where y = focus position, x = temperature
-    final n = bestPoints.length;
-    double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-
-    for (final point in bestPoints) {
-      final x = point.temperatureCelsius;
-      final y = point.focusPosition.toDouble();
-      sumX += x;
-      sumY += y;
-      sumXY += x * y;
-      sumX2 += x * x;
-      sumY2 += y * y;
-    }
-
-    final denominator = n * sumX2 - sumX * sumX;
-    if (denominator.abs() < 1e-9) {
-      return null;
-    }
-
-    final slope = (n * sumXY - sumX * sumY) / denominator;
-    if (slope.abs() > config.maxAcceptableSlopeStepsPerC) {
+    final line = fitFocusTemperatureLine([
+      for (final p in points)
+        (
+          temperatureCelsius: p.temperatureCelsius,
+          focusPosition: p.focusPosition,
+          hfr: p.hfr,
+        ),
+    ]);
+    if (line == null) return null;
+    if (line.slope.abs() > config.maxAcceptableSlopeStepsPerC) {
       Log.warning(
-        'Rejecting focus model with unrealistic slope ${slope.toStringAsFixed(2)} steps/°C '
+        'Rejecting focus model with unrealistic slope ${line.slope.toStringAsFixed(2)} steps/°C '
         '(threshold ${config.maxAcceptableSlopeStepsPerC.toStringAsFixed(0)})',
         source: 'FocusModelService',
       );
       return null;
     }
-    final intercept = (sumY - slope * sumX) / n;
-
-    // Calculate R-squared
-    final meanY = sumY / n;
-    double ssTot = 0, ssRes = 0;
-    for (final point in bestPoints) {
-      final predicted = intercept + slope * point.temperatureCelsius;
-      ssTot += math.pow(point.focusPosition - meanY, 2);
-      ssRes += math.pow(point.focusPosition - predicted, 2);
-    }
-
-    final rSquared = ssTot > 0 ? 1.0 - (ssRes / ssTot) : 0.0;
-
     return FocusModel(
-      slope: slope,
-      intercept: intercept,
-      rSquared: rSquared,
-      dataPointCount: bestPoints.length,
+      slope: line.slope,
+      intercept: line.intercept,
+      rSquared: line.rSquared,
+      dataPointCount: line.points,
       lastUpdated: DateTime.now(),
     );
   }
