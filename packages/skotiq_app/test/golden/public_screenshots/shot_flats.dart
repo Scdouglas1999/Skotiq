@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -123,5 +124,8 @@ List<Override> flatWizardOverrides() => [
 
 /// Ends the batch once the screen has loaded the wheel's filters, as a run
 /// started from the opened screen would.
-void finishFlatBatch(ProviderContainer container) =>
+Future<void> finishFlatBatch(
+  WidgetTester tester,
+  ProviderContainer container,
+) async =>
     (container.read(flatWizardProvider.notifier) as _Flats).finishBatch();

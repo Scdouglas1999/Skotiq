@@ -54,8 +54,10 @@ class Shot {
   final List<Override> overrides;
 
   /// Runs after the screen has drawn and loaded, before the capture: the
-  /// state the screen reaches after it opens (a run that finished).
-  final void Function(ProviderContainer container)? prepare;
+  /// state the screen reaches after it opens (a run that finished, a row the
+  /// user picked).
+  final Future<void> Function(WidgetTester tester, ProviderContainer container)?
+      prepare;
 
   /// Real time the screen needs beyond the usual settle to finish loading
   /// (scoring the whole catalog, say).
@@ -155,7 +157,7 @@ Future<File> captureShot(
       await tester.pump(const Duration(milliseconds: 50));
     }
     if (shot.prepare != null) {
-      shot.prepare!(container);
+      await shot.prepare!(tester, container);
       for (var i = 0; i < 8; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 30)),

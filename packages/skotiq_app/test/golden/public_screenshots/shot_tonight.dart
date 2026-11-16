@@ -203,8 +203,8 @@ List<PlanStepVm> _steps() {
           : StepWhenPlanned(slot.start),
     ));
     steps.add(PlanStepVm(
-      nodeId: '$k-lrgb',
-      label: 'LRGB ${t.plan.framesPerNight} × $secs s',
+      nodeId: '$k-exposures',
+      label: '${t.plan.setName} ${t.plan.framesPerNight} × $secs s',
       status: isCurrent
           ? PlanStepStatus.active
           : done
@@ -214,7 +214,7 @@ List<PlanStepVm> _steps() {
           ? StepWhenProgress(currentTargetFrames.length, t.plan.framesPerNight)
           : done
               ? StepWhenActual(slot.end)
-              : StepWhenPlanned(ShotNight.plannedStart('$k-lrgb')!),
+              : StepWhenPlanned(ShotNight.plannedStart('$k-exposures')!),
     ));
   }
   steps.add(PlanStepVm(
@@ -628,8 +628,9 @@ NightCameraPanelVm _camera() {
       binning: 1,
       filter: lastFrame.filter,
     ),
-    stepNodeId: '${_current.folder.toLowerCase()}-lrgb',
-    stepLabel: 'LRGB ${_current.plan.framesPerNight} × $secs s',
+    stepNodeId: '${_current.folder.toLowerCase()}-exposures',
+    stepLabel:
+        '${_current.plan.setName} ${_current.plan.framesPerNight} × $secs s',
     stepIndex: 9,
     filters: NightFilterSlotsVm(
       connected: true,
