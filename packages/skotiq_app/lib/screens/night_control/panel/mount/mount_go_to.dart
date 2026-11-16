@@ -93,14 +93,19 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   /// Why the last name lookup found nothing.
   String? _lookupError;
 
+  /// The name in the object field when RA and Dec were last filled or typed.
+  /// Any other name is still to be looked up.
+  String _coordinatesName = '';
+
   @override
   void initState() {
     super.initState();
+    _name.addListener(_onEdited);
+    _ra.addListener(_onCoordinatesEdited);
+    _dec.addListener(_onCoordinatesEdited);
     // Start on the run's target, so Slew & center works without typing.
     final target = ref.read(nightCenterTargetProvider);
     if (target != null) _fill(target.name, target.raHours, target.decDegrees);
-    _ra.addListener(_onEdited);
-    _dec.addListener(_onEdited);
   }
 
   @override
@@ -113,6 +118,17 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
 
   void _onEdited() {
     if (mounted) setState(() {});
+  }
+
+  void _onCoordinatesEdited() {
+    _coordinatesName = _name.text.trim();
+    _onEdited();
+  }
+
+  /// A typed object name that RA and Dec do not answer yet.
+  String? get _pendingName {
+    final typed = _name.text.trim();
+    return typed.isEmpty || typed == _coordinatesName ? null : typed;
   }
 
   void _fill(String? name, double raHours, double decDegrees) {
@@ -132,16 +148,18 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     return (ra: ra, dec: dec);
   }
 
-  Future<void> _resolve(String query) async {
+  /// Looks [query] up and fills RA and Dec with what it names; null when
+  /// nothing was found, with the reason under the field.
+  Future<({double ra, double dec})?> _resolve(String query) async {
     final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return null;
     setState(() {
       _busy = 'resolve';
       _lookupError = null;
     });
     try {
       final found = await ref.read(nightGoToResolverProvider)(trimmed);
-      if (!mounted) return;
+      if (!mounted) return null;
       if (found == null) {
         final catalogInstalled =
             ref.read(catalogStateProvider).dsoCatalogStatus.isInstalled;
@@ -150,15 +168,17 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
                 ? 'nightScopeGoToNotFound'
                 : 'nightScopeGoToNoCatalog',
             params: {'name': trimmed}));
-        return;
+        return null;
       }
       _fill(found.name, found.raHours, found.decDegrees);
+      return (ra: found.raHours, dec: found.decDegrees);
     } catch (e) {
       if (mounted) {
         setState(() => _lookupError = context.l10n.text(
             'nightScopeGoToLookupFailed',
             params: {'error': userFacingError(e)}));
       }
+      return null;
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -169,7 +189,10 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     final l10n = context.l10n;
     final facts = watchNightMountFacts(ref, context);
     final runTarget = ref.watch(nightCenterTargetProvider);
-    final coordinates = _coordinates;
+    // A typed name is looked up by the button pressed, so the stale RA and
+    // Dec of an earlier object neither count nor block.
+    final pendingName = _pendingName;
+    final coordinates = pendingName == null ? _coordinates : null;
     final isRunTarget = coordinates != null &&
         runTarget != null &&
         _sameTarget(
@@ -178,8 +201,9 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
           runTarget.raHours,
           runTarget.decDegrees,
         );
-    final noCoordinates =
-        coordinates == null ? l10n.text('nightScopeWhyNoCoordinates') : null;
+    final noCoordinates = coordinates == null && pendingName == null
+        ? l10n.text('nightScopeWhyNoCoordinates')
+        : null;
     final busy = switch (_busy) {
       null => null,
       'center' =>
@@ -279,7 +303,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
               onPressed: centerReason == null
                   ? () => isRunTarget
                       ? unawaited(ref.read(nightActionApiProvider).center())
-                      : _run('center', () => _center(coordinates!))
+                      : _run('center', _center)
                   : null,
             ),
           ],
@@ -295,9 +319,9 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
               onPressed: slewReason == null
                   ? () => _run(
                         'slew',
-                        () => ref
+                        (to) => ref
                             .read(mountCommandServiceProvider)
-                            .slewTo(coordinates!.ra, coordinates.dec),
+                            .slewTo(to.ra, to.dec),
                       )
                   : null,
             ),
@@ -309,9 +333,9 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
               onPressed: syncReason == null
                   ? () => _run(
                         'sync',
-                        () => ref
+                        (to) => ref
                             .read(mountCommandServiceProvider)
-                            .sync(coordinates!.ra, coordinates.dec),
+                            .sync(to.ra, to.dec),
                       )
                   : null,
             ),
@@ -321,13 +345,18 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     );
   }
 
+  /// Runs [command] on the coordinates in the fields, looking a typed name
+  /// up first.
   Future<void> _run(
     String id,
-    Future<CommandActionResult> Function() command,
+    Future<CommandActionResult> Function(({double ra, double dec}) to) command,
   ) async {
+    final pendingName = _pendingName;
+    final to = pendingName == null ? _coordinates : await _resolve(pendingName);
+    if (to == null || !mounted) return;
     setState(() => _busy = id);
     try {
-      final result = await command();
+      final result = await command(to);
       if (mounted) showNightCommandResult(context, result);
     } finally {
       if (mounted) setState(() => _busy = null);
