@@ -176,7 +176,7 @@ fn osc_start_from_data_without_pattern_is_error() {
         ..base_config()
     };
     let data = make_star_plane(IMG_W, IMG_H);
-    let err = api_stacking_start_from_data(IMG_W, IMG_H, data, cfg)
+    let err = api_stacking_start_from_data(IMG_W, IMG_H, data, 0.0, cfg)
         .expect_err("OSC without resolvable pattern must error");
     assert!(
         err.to_string()
@@ -226,7 +226,7 @@ fn osc_start_from_data_produces_three_channel_result() {
     // through an RGGB mosaic, which still yields detectable stars in the
     // luminance proxy after debayering.
     let cfa = make_star_plane(IMG_W, IMG_H);
-    api_stacking_start_from_data(IMG_W, IMG_H, cfa.clone(), cfg).expect("osc start succeeds");
+    api_stacking_start_from_data(IMG_W, IMG_H, cfa.clone(), 0.0, cfg).expect("osc start succeeds");
 
     // The current stack is the debayered reference: 3 channels, same dims.
     let result = api_stacking_get_result().expect("result available");
@@ -295,10 +295,10 @@ fn osc_add_frame_from_data_keeps_three_channels() {
         ..base_config()
     };
     let cfa = make_star_plane(IMG_W, IMG_H);
-    api_stacking_start_from_data(IMG_W, IMG_H, cfa.clone(), cfg).expect("osc start");
+    api_stacking_start_from_data(IMG_W, IMG_H, cfa.clone(), 0.0, cfg).expect("osc start");
 
     // Feeding the identical CFA plane debayers and accumulates as RGB.
-    let added = api_stacking_add_frame_from_data(IMG_W, IMG_H, cfa).expect("add frame");
+    let added = api_stacking_add_frame_from_data(IMG_W, IMG_H, cfa, 0.0).expect("add frame");
     assert_eq!(added.channels, 3, "added OSC frame stays 3-channel");
     assert_eq!(added.data.len(), (IMG_W * IMG_H * 3) as usize);
     assert_eq!(
@@ -317,7 +317,8 @@ fn mono_start_from_data_is_single_channel() {
     let _ = api_stacking_stop();
 
     let data = make_star_plane(IMG_W, IMG_H);
-    api_stacking_start_from_data(IMG_W, IMG_H, data.clone(), base_config()).expect("mono start");
+    api_stacking_start_from_data(IMG_W, IMG_H, data.clone(), 0.0, base_config())
+        .expect("mono start");
 
     let result = api_stacking_get_result().expect("result");
     assert_eq!(result.channels, 1, "mono stack stays single-channel");
@@ -348,7 +349,7 @@ fn auto_start_from_data_without_pattern_is_mono() {
         ..base_config()
     };
     let data = make_star_plane(IMG_W, IMG_H);
-    api_stacking_start_from_data(IMG_W, IMG_H, data.clone(), cfg)
+    api_stacking_start_from_data(IMG_W, IMG_H, data.clone(), 0.0, cfg)
         .expect("auto without pattern must stack as mono, not error");
 
     let result = api_stacking_get_result().expect("result");
@@ -371,7 +372,7 @@ fn auto_start_from_data_with_pattern_debayers_to_color() {
         ..base_config()
     };
     let cfa = make_star_plane(IMG_W, IMG_H);
-    api_stacking_start_from_data(IMG_W, IMG_H, cfa, cfg).expect("auto+pattern start");
+    api_stacking_start_from_data(IMG_W, IMG_H, cfa, 0.0, cfg).expect("auto+pattern start");
 
     let result = api_stacking_get_result().expect("result");
     assert_eq!(result.channels, 3, "auto+pattern debayers to RGB");
@@ -399,7 +400,7 @@ fn every_demosaic_quality_ingests_with_consistent_geometry() {
             ..base_config()
         };
         let cfa = make_star_plane(IMG_W, IMG_H);
-        api_stacking_start_from_data(IMG_W, IMG_H, cfa, cfg)
+        api_stacking_start_from_data(IMG_W, IMG_H, cfa, 0.0, cfg)
             .unwrap_or_else(|e| panic!("osc start with {quality} failed: {e}"));
 
         let result = api_stacking_get_result().expect("result");

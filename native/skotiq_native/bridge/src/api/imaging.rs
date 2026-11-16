@@ -1810,8 +1810,10 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
 /// skips that correction.
 ///
 /// A frame keeps the light's sample format: a float light gives a float
-/// frame, any other a 16-bit one. Either carries the calibration pedestal,
-/// stated in its `PEDESTAL` card.
+/// frame, any other a 16-bit one. Either carries the frame's automatic output
+/// pedestal (PixInsight's WBPP default for lights), stated in a `PEDESTAL`
+/// card when there is one. A raster has no header to state it, so it gets the
+/// zero-based samples.
 pub fn api_calibrate_image_file(
     light_path: String,
     dark_path: Option<String>,
@@ -1834,31 +1836,40 @@ pub fn api_calibrate_image_file(
         &flat_path,
         &bias_path,
     )?;
-    let calibrated = if matches!(
+    let float_light = matches!(
         light_result.image.pixel_type,
         skotiq_imaging::PixelType::F32 | skotiq_imaging::PixelType::F64
-    ) {
-        calibrated.image
-    } else {
-        calibrated.sixteen_bit
-    };
+    );
 
     // A raster name gets a raster; any other name the frame format it names,
     // carrying the light's header with its card order and comments.
     let out = Path::new(&output_path);
     match skotiq_imaging::RasterFormat::from_path(out) {
         Some(format) => {
-            skotiq_imaging::write_raster(out, &calibrated, format).map_err(|e| {
+            let zero_based = if float_light {
+                std::borrow::Cow::Borrowed(&calibrated.image)
+            } else {
+                calibrated.image.converted_to(
+                    skotiq_imaging::PixelType::U16,
+                    skotiq_imaging::SampleRange::ADU,
+                )
+            };
+            skotiq_imaging::write_raster(out, &zero_based, format).map_err(|e| {
                 SkotiqError::ImageError(format!("Failed to write the calibrated image: {e}"))
             })?;
         }
         None => {
             let mut header = light_result.header;
             header.set_string("CALSTAT", "calibrated by Skotiq");
-            header.set_float(
-                "PEDESTAL",
-                f64::from(skotiq_processing::post_session::CALIBRATION_PEDESTAL),
+            skotiq_imaging::calibration::state_pedestal(
+                &mut header,
+                f64::from(calibrated.pedestal),
             );
+            let calibrated = if float_light {
+                calibrated.with_pedestal()
+            } else {
+                calibrated.sixteen_bit
+            };
             for (card, path) in [
                 ("DARKFILE", &dark_path),
                 ("FLATFILE", &flat_path),
@@ -1891,9 +1902,15 @@ pub fn api_calibrate_image_file(
     Ok(())
 }
 
+/// A light calibrated in memory: its 16-bit samples and the output pedestal,
+/// in ADU, they carry (0 for none).
+pub struct ApiCalibratedFrame {
+    pub data: Vec<u16>,
+    pub pedestal: f64,
+}
+
 /// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`]. Every
-/// returned sample carries the calibration pedestal.
+/// given paths, by the same rule as [`api_calibrate_image_file`].
 pub fn api_calibrate_image_data(
     width: u32,
     height: u32,
@@ -1901,16 +1918,18 @@ pub fn api_calibrate_image_data(
     dark_path: Option<String>,
     flat_path: Option<String>,
     bias_path: Option<String>,
-) -> Result<Vec<u16>, SkotiqError> {
+) -> Result<ApiCalibratedFrame, SkotiqError> {
     let light = ImageData::from_u16(width, height, 1, &light_data);
-    calibrate_light(&light, None, &dark_path, &flat_path, &bias_path)?
-        .sixteen_bit
-        .as_u16()
-        .ok_or_else(|| {
-            SkotiqError::ImageError(
-                "Failed to extract u16 pixel data from calibrated image".to_string(),
-            )
-        })
+    let calibrated = calibrate_light(&light, None, &dark_path, &flat_path, &bias_path)?;
+    let data = calibrated.sixteen_bit.as_u16().ok_or_else(|| {
+        SkotiqError::ImageError(
+            "Failed to extract u16 pixel data from calibrated image".to_string(),
+        )
+    })?;
+    Ok(ApiCalibratedFrame {
+        data,
+        pedestal: f64::from(calibrated.pedestal),
+    })
 }
 
 fn calibrate_light(

@@ -11,14 +11,12 @@ use crate::post_session::args::{
 use crate::post_session::calibration_report::build_calibration_report;
 use crate::post_session::cancel::{check_stage, RUNS};
 use crate::post_session::helpers::{
-    aligned_quality, build_integration_config, build_master_header, build_normalization_config,
+    build_integration_config, build_master_header, build_normalization_config,
     build_registration_config, build_weight_formula, choose_reference, collect_master_provenance,
     derive_luma_f64, exposures_per_light, extract_channel, header_string, image_to_f64,
-    reference_wcs_from_fits, write_channel,
+    pedestal_free_quality, reference_wcs_from_fits, write_channel,
 };
-use crate::post_session::light_calibration::{
-    light_exposure, LightCalibration, CALIBRATION_PEDESTAL,
-};
+use crate::post_session::light_calibration::{light_exposure, LightCalibration};
 use crate::post_session::telemetry::{
     elapsed_ms, emit_pass_telemetry, file_name, master_noise, report_normalized, RunningPreview,
 };
@@ -36,6 +34,9 @@ use std::path::Path;
 pub(crate) struct LoadedLight {
     pub(crate) path: String,
     pub(crate) image: ImageData,
+    /// The output pedestal in `image`, in ADU: the calibration's, or the one an
+    /// already calibrated sub states. Taken out once the sub is on the grid.
+    pub(crate) pedestal: f64,
     pub(crate) exposure_sec: f64,
     /// The sub's own FITS keywords, kept from the single read so the master can
     /// inherit FILTER/OBJECT/INSTRUME/DATE-OBS without re-opening every file.
@@ -60,13 +61,6 @@ pub(crate) fn run_integration(
     let run_id = args.run_id.clone();
 
     let masters = LightCalibration::for_lights(&args.calibration)?;
-    // Calibrated lights are registered and measured as their 16-bit copies;
-    // the pedestal those carry leaves each sub once it is on the grid.
-    let pedestal = if masters.is_empty() {
-        0.0
-    } else {
-        f64::from(CALIBRATION_PEDESTAL)
-    };
 
     // What the masters above actually are, measured against the group's anchor
     // sub — the same first-sub anchor the Dart matcher selects on.
@@ -105,6 +99,7 @@ pub(crate) fn run_integration(
             read_image(Path::new(path)).map_err(|e| format!("failed to read '{path}': {e}"))?;
         let source_header = read.header;
         let mut image = read.image;
+        let mut pedestal = skotiq_imaging::calibration::stated_pedestal(&source_header);
         if image.pixel_type != PixelType::U16 {
             return Err(format!(
                 "light '{path}' is {:?}; registration requires U16 (debayer/convert first)",
@@ -120,11 +115,13 @@ pub(crate) fn run_integration(
                 dark_scales.push(k);
             }
             image = calibrated.sixteen_bit;
+            pedestal = f64::from(calibrated.pedestal);
         }
         // `exposures_per_light` guaranteed one entry per light, so `i` is in range.
         loaded.push(LoadedLight {
             path: path.clone(),
             image,
+            pedestal,
             exposure_sec: exposures[i],
             header: source_header,
         });
@@ -255,8 +252,9 @@ pub(crate) fn run_integration(
         if i == ref_index {
             // The reference aligns to itself by identity; flatten directly.
             let coverage = CoverageMask::full(width as usize, height as usize);
-            let pixels = without_pedestal(image_to_f64(&light.image), &coverage, chan, pedestal);
-            let quality = measured(aligned_quality(&light.image, &q_cfg), pedestal);
+            let pixels =
+                without_pedestal(image_to_f64(&light.image), &coverage, chan, light.pedestal);
+            let quality = pedestal_free_quality(&light.image, light.pedestal, &q_cfg);
             registered.push(Registered {
                 path: light.path.clone(),
                 pixels,
@@ -289,8 +287,8 @@ pub(crate) fn run_integration(
                     width as usize,
                     height as usize,
                 );
-                let pixels = without_pedestal(pixels, &coverage, chan, pedestal);
-                let quality = measured(aligned_quality(&reg.aligned, &q_cfg), pedestal);
+                let pixels = without_pedestal(pixels, &coverage, chan, light.pedestal);
+                let quality = pedestal_free_quality(&reg.aligned, light.pedestal, &q_cfg);
                 registered.push(Registered {
                     path: light.path.clone(),
                     pixels,
@@ -528,6 +526,9 @@ pub(crate) fn run_integration(
     for k in &dark_scales {
         header.add_history(&format!("Dark scaled by the exposure ratio {k:.4}"));
     }
+    if accepted_idx.iter().any(|&i| loaded[i].pedestal != 0.0) {
+        header.add_history(skotiq_imaging::calibration::PEDESTAL_REMOVED_HISTORY);
+    }
     write_fits(master_path, &output.master, &header)
         .map_err(|e| format!("failed to write master FITS: {e:?}"))?;
 
@@ -692,13 +693,4 @@ fn without_pedestal(
         }
     }
     pixels
-}
-
-/// A quality measured on a calibrated 16-bit copy, its background stated
-/// without the pedestal.
-fn measured(quality: Option<FrameQuality>, pedestal: f64) -> Option<FrameQuality> {
-    quality.map(|q| FrameQuality {
-        background: q.background - pedestal,
-        ..q
-    })
 }

@@ -40,6 +40,7 @@ class _FakeLocalStackingService extends LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async => const LiveStackingStats(stackedFrameCount: 1);
 
@@ -153,7 +154,12 @@ void main() {
     final container = _localContainer(_FakeLocalStackingService.new);
     final notifier = container.read(liveStackingProvider.notifier);
 
-    await notifier.startFromData(width: 2, height: 1, data: const [1, 2]);
+    await notifier.startFromData(
+      width: 2,
+      height: 1,
+      data: const [1, 2],
+      pedestal: 0,
+    );
 
     expect(
       container.read(liveStackingProvider).status,

@@ -28,7 +28,7 @@ fn headerless_stack_still_writes_exptime_and_date_obs() {
     let dir = std::env::temp_dir().join("sk-stack-master-headerless");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("master.fits");
-    write_stack_master(&path, &gradient_frame(16, 12), &provenance).unwrap();
+    write_stack_master(&path, &gradient_frame(16, 12), &provenance, 0.0).unwrap();
 
     let (image, header) = read_fits(&path).unwrap();
     assert_eq!(image.width, 16);
@@ -74,13 +74,14 @@ fn frame_headers_sum_into_total_integration_and_earliest_date_obs() {
             exposure_secs: Some(120.0),
             date_obs: Some(date_obs.to_string()),
             filter: None,
+            pedestal: 0.0,
         });
     }
 
     let dir = std::env::temp_dir().join("sk-stack-master-headers");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("master.fits");
-    write_stack_master(&path, &gradient_frame(8, 8), &provenance).unwrap();
+    write_stack_master(&path, &gradient_frame(8, 8), &provenance, 0.0).unwrap();
 
     let (_, header) = read_fits(&path).unwrap();
     assert_eq!(header.get_float("EXPTIME"), Some(360.0));
@@ -104,6 +105,7 @@ fn partial_frame_headers_report_how_many_frames_were_counted() {
         exposure_secs: Some(60.0),
         date_obs: Some("2026-08-14T03:22:30".to_string()),
         filter: None,
+        pedestal: 0.0,
     });
     provenance.fold(&FrameProvenance::unknown());
 

@@ -1,11 +1,10 @@
 //! Calibrating a file and calibrating pixels in memory follow one rule: with a
 //! master bias, a master flat is used as it is (PixInsight's default), so a
 //! light of a flat sky comes out flat, and sky below the bias keeps its value
-//! over the calibration pedestal.
+//! over the frame's automatic output pedestal, which a file states.
 
 use super::{api_calibrate_image_data, api_calibrate_image_file};
 use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
-use skotiq_processing::post_session::CALIBRATION_PEDESTAL;
 
 /// A flat sky of 1000 ADU seen through a 0.8 / 1.0 / 1.2 / 1.0 response.
 const LIGHT: [u16; 4] = [1800, 2000, 2200, 2000];
@@ -17,10 +16,9 @@ fn path_of(dir: &std::path::Path, name: &str, pixels: [u16; 4], header: FitsHead
 }
 
 fn assert_flat_sky(pixels: &[u16], how: &str) {
-    let sky = 1000 + CALIBRATION_PEDESTAL as u16;
     assert!(
-        pixels.iter().all(|&p| p.abs_diff(sky) <= 1),
-        "{how}: {pixels:?}, PixInsight gives 1000 everywhere, here over the pedestal"
+        pixels.iter().all(|&p| p.abs_diff(1000) <= 1),
+        "{how}: {pixels:?}, PixInsight gives 1000 everywhere and no pedestal"
     );
 }
 
@@ -52,10 +50,15 @@ fn file_and_memory_calibration_use_a_master_flat_as_it_is() {
         out.to_string_lossy().into_owned(),
     )
     .expect("calibrated file");
-    let (written, _) = read_frame(&out).expect("calibrated file reads");
+    let (written, header) = read_frame(&out).expect("calibrated file reads");
 
-    assert_flat_sky(&in_memory, "in memory");
+    assert_eq!(in_memory.pedestal, 0.0);
+    assert_flat_sky(&in_memory.data, "in memory");
     assert_flat_sky(&written.as_u16().expect("u16"), "file");
+    assert!(
+        header.get("PEDESTAL").is_none(),
+        "a frame with no pedestal states none"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -80,11 +83,11 @@ fn sky_below_the_bias_is_kept_and_the_pedestal_stated() {
     .expect("calibrated file");
     let (written, header) = read_frame(&out).expect("calibrated file reads");
 
-    assert_eq!(in_memory, vec![90, 110, 95, 105]);
-    assert_eq!(written.as_u16().expect("u16"), vec![90, 110, 95, 105]);
-    assert_eq!(
-        header.get_float("PEDESTAL"),
-        Some(f64::from(CALIBRATION_PEDESTAL))
-    );
+    // Samples -10, 10, -5, 5 over the bias: the smallest whole pedestal that
+    // lifts -10 off zero is 11.
+    assert_eq!(in_memory.pedestal, 11.0);
+    assert_eq!(in_memory.data, vec![1, 21, 6, 16]);
+    assert_eq!(written.as_u16().expect("u16"), vec![1, 21, 6, 16]);
+    assert_eq!(header.get_float("PEDESTAL"), Some(11.0));
     let _ = std::fs::remove_dir_all(&dir);
 }

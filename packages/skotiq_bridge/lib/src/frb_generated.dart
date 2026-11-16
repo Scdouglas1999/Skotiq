@@ -189,7 +189,7 @@ abstract class RustLibApi extends BaseApi {
     required String filePath,
   });
 
-  Future<Uint16List> crateApiImagingApiCalibrateImageData({
+  Future<ApiCalibratedFrame> crateApiImagingApiCalibrateImageData({
     required int width,
     required int height,
     required List<int> lightData,
@@ -1150,6 +1150,7 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   });
 
   int crateApiLiveStackingApiStackingFrameCount();
@@ -1175,6 +1176,7 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required ApiLiveStackingConfig config,
   });
 
@@ -1755,7 +1757,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Uint16List> crateApiImagingApiCalibrateImageData({
+  Future<ApiCalibratedFrame> crateApiImagingApiCalibrateImageData({
     required int width,
     required int height,
     required List<int> lightData,
@@ -1783,7 +1785,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_list_prim_u_16_strict,
+          decodeSuccessData: dco_decode_api_calibrated_frame,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiImagingApiCalibrateImageDataConstMeta,
@@ -9223,6 +9225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -9230,12 +9233,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_u_32(width);
           var arg1 = cst_encode_u_32(height);
           var arg2 = cst_encode_list_prim_u_16_loose(data);
+          var arg3 = cst_encode_f_64(pedestal);
           return wire
               .wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
                 port_,
                 arg0,
                 arg1,
                 arg2,
+                arg3,
               );
         },
         codec: DcoCodec(
@@ -9243,7 +9248,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiLiveStackingApiStackingAddFrameFromDataConstMeta,
-        argValues: [width, height, data],
+        argValues: [width, height, data, pedestal],
         apiImpl: this,
       ),
     );
@@ -9252,7 +9257,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiLiveStackingApiStackingAddFrameFromDataConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_add_frame_from_data",
-        argNames: ["width", "height", "data"],
+        argNames: ["width", "height", "data", "pedestal"],
       );
 
   @override
@@ -9436,6 +9441,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required ApiLiveStackingConfig config,
   }) {
     return handler.executeNormal(
@@ -9444,7 +9450,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_u_32(width);
           var arg1 = cst_encode_u_32(height);
           var arg2 = cst_encode_list_prim_u_16_loose(data);
-          var arg3 = cst_encode_box_autoadd_api_live_stacking_config(config);
+          var arg3 = cst_encode_f_64(pedestal);
+          var arg4 = cst_encode_box_autoadd_api_live_stacking_config(config);
           return wire
               .wire__crate__api__live_stacking__api_stacking_start_from_data(
                 port_,
@@ -9452,6 +9459,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
                 arg1,
                 arg2,
                 arg3,
+                arg4,
               );
         },
         codec: DcoCodec(
@@ -9459,7 +9467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiLiveStackingApiStackingStartFromDataConstMeta,
-        argValues: [width, height, data, config],
+        argValues: [width, height, data, pedestal, config],
         apiImpl: this,
       ),
     );
@@ -9468,7 +9476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiLiveStackingApiStackingStartFromDataConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_start_from_data",
-        argNames: ["width", "height", "data", "config"],
+        argNames: ["width", "height", "data", "pedestal", "config"],
       );
 
   @override
@@ -10620,6 +10628,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: dco_decode_i_32(arr[5]),
       binY: dco_decode_i_32(arr[6]),
       ccdTempC: dco_decode_opt_box_autoadd_f_64(arr[7]),
+    );
+  }
+
+  @protected
+  ApiCalibratedFrame dco_decode_api_calibrated_frame(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ApiCalibratedFrame(
+      data: dco_decode_list_prim_u_16_strict(arr[0]),
+      pedestal: dco_decode_f_64(arr[1]),
     );
   }
 
@@ -14566,6 +14586,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binY: var_binY,
       ccdTempC: var_ccdTempC,
     );
+  }
+
+  @protected
+  ApiCalibratedFrame sse_decode_api_calibrated_frame(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_data = sse_decode_list_prim_u_16_strict(deserializer);
+    var var_pedestal = sse_decode_f_64(deserializer);
+    return ApiCalibratedFrame(data: var_data, pedestal: var_pedestal);
   }
 
   @protected
@@ -20172,6 +20202,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.ccdTempC, serializer);
+  }
+
+  @protected
+  void sse_encode_api_calibrated_frame(
+    ApiCalibratedFrame self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_16_strict(self.data, serializer);
+    sse_encode_f_64(self.pedestal, serializer);
   }
 
   @protected

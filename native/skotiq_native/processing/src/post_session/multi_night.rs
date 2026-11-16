@@ -22,10 +22,10 @@ use crate::post_session::calibration_report::{build_calibration_report, Calibrat
 use crate::post_session::cancel::{check_stage, RUNS};
 use crate::post_session::helpers::{
     aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
-    extract_channel, image_to_f64, reject_label, write_channel,
+    extract_channel, image_to_f64, pedestal_free_quality, reject_label, write_channel,
 };
 use crate::post_session::light_calibration::{
-    light_exposure, CalibratedLight, LightCalibration, MasterCache, CALIBRATION_PEDESTAL,
+    light_exposure, CalibratedLight, LightCalibration, MasterCache, FLOAT_CALIBRATION_HISTORY,
 };
 use crate::post_session::master_cards::{attach_wcs, copy_optics_cards, fits_header_of};
 use crate::post_session::masters::MasterSettingsArgs;
@@ -444,14 +444,22 @@ impl OnGrid {
         self.covered.iter().filter(|&&c| c).count() as f64 / self.covered.len().max(1) as f64
     }
 
-    /// The 16-bit copy quality measurement and star matching run on.
-    pub(crate) fn detection(&self, width: u32, height: u32, channels: u32) -> ImageData {
+    /// The 16-bit copy quality measurement and star matching run on, lifted
+    /// by the sub's output `pedestal` so sky below zero is not clipped.
+    pub(crate) fn detection(
+        &self,
+        width: u32,
+        height: u32,
+        channels: u32,
+        pedestal: f32,
+    ) -> ImageData {
+        let pedestal = f64::from(pedestal);
         let data: Vec<u16> = self
             .pixels
             .iter()
             .map(|v| {
                 if v.is_finite() {
-                    v.round().clamp(0.0, 65535.0) as u16
+                    (v + pedestal).round().clamp(0.0, 65535.0) as u16
                 } else {
                     0
                 }
@@ -678,7 +686,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             )
             .map_err(|e| format!("does not register: {e}"))?;
             let on_grid = OnGrid::new(&light.image, (gw, gh), &transform, interp);
-            let detection = on_grid.detection(gw, gh, gc);
+            let detection = on_grid.detection(gw, gh, gc, light.pedestal);
             let quality = aligned_quality(&detection, &FrameQualityConfig::default())
                 .ok_or("its star shapes cannot be measured")?;
             if let Some(limit) = args.max_eccentricity {
@@ -916,7 +924,11 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 );
                 continue;
             }
-            let Some(quality) = aligned_quality(&on_grid.detection(gw, gh, gc), &q_cfg) else {
+            let Some(quality) = pedestal_free_quality(
+                &on_grid.detection(gw, gh, gc, calibrated.pedestal),
+                f64::from(calibrated.pedestal),
+                &q_cfg,
+            ) else {
                 skip("quality", "its quality could not be measured".to_string());
                 continue;
             };
@@ -1145,9 +1157,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             fallback.reason
         ));
     }
-    header.add_history(&format!(
-        "Calibrated in 32-bit float with a {CALIBRATION_PEDESTAL} ADU pedestal, removed from this master"
-    ));
+    header.add_history(FLOAT_CALIBRATION_HISTORY);
     header.add_history(&format!(
         "Batch integration: weighted mean, rejection {}, {} of {} samples rejected",
         reject_label(&reject),
@@ -1258,8 +1268,7 @@ struct Integrated {
 }
 
 /// Integrate every spooled sub, reading the same band of rows from each, with
-/// `reject` and a weighted mean. The calibration pedestal is removed and
-/// pixels no sub covers are 0.
+/// `reject` and a weighted mean. Pixels no sub covers are 0.
 fn integrate_spool(
     spool: &super::spool::FrameSpool,
     overlap_spool: Option<&super::spool::FrameSpool>,
@@ -1354,11 +1363,7 @@ fn integrate_spool(
             });
         for (v, &count) in values.iter().zip(&counts) {
             coverage.push(count as f32);
-            master.push(if count == 0 {
-                0.0
-            } else {
-                v - CALIBRATION_PEDESTAL
-            });
+            master.push(if count == 0 { 0.0 } else { *v });
         }
         y0 += band;
     }

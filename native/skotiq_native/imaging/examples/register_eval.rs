@@ -21,17 +21,27 @@ use std::time::Instant;
 fn load(path: &Path, dark: Option<&ImageData>) -> ImageData {
     let (image, _) = read_fits(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     match dark {
-        Some(d) => calibrate_frame_f32(
-            &image,
-            &FloatCalibration {
-                dark: Some(d),
-                output_pedestal: 100.0,
-                ..Default::default()
-            },
-        )
-        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
-        .converted_to(PixelType::U16, SampleRange::ADU)
-        .into_owned(),
+        Some(d) => {
+            let calibrated = calibrate_frame_f32(
+                &image,
+                &FloatCalibration {
+                    dark: Some(d),
+                    ..Default::default()
+                },
+            )
+            .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            // A 100 ADU pedestal keeps sky below the dark out of zero in the
+            // 16-bit frame registration reads.
+            let lifted: Vec<f32> = calibrated
+                .as_f32()
+                .expect("calibration returns F32")
+                .iter()
+                .map(|v| v + 100.0)
+                .collect();
+            ImageData::from_f32(image.width, image.height, image.channels, &lifted)
+                .converted_to(PixelType::U16, SampleRange::ADU)
+                .into_owned()
+        }
         None => image,
     }
 }

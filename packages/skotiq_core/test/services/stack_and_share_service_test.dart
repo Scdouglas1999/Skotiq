@@ -34,6 +34,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
@@ -70,6 +71,9 @@ class _FakeStackingEngine implements StackingEngineSeam {
   /// `read:PATH`, `stretch`, `stop`.
   final List<String> calls = <String>[];
 
+  /// The pedestal each in-memory start stated.
+  final List<double> startPedestals = <double>[];
+
   /// The engine config captured from the most recent start call, so tests can
   /// assert the resolved OSC sensor mode + Bayer pattern reached the engine.
   LiveStackingConfig? lastStartConfig;
@@ -94,9 +98,11 @@ class _FakeStackingEngine implements StackingEngineSeam {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   }) async {
     calls.add('startData:${width}x$height');
+    startPedestals.add(pedestal);
     lastStartConfig = config;
     return const LiveStackingStats(stackedFrameCount: 1);
   }
@@ -185,6 +191,7 @@ class _NativeContractStackingEngine implements StackingEngineSeam {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   }) async {
     // In-memory frames carry no BAYERPAT: only the config override can resolve
@@ -260,6 +267,9 @@ class _FakeLiveStacking implements LiveStackingService {
   /// Ordered log of the per-frame add calls.
   final List<String> addCalls = <String>[];
 
+  /// The pedestal each in-memory add stated.
+  final List<double> addPedestals = <double>[];
+
   int _followerIndex = 0;
 
   @override
@@ -273,8 +283,10 @@ class _FakeLiveStacking implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   }) async {
     addCalls.add('addData:${width}x$height');
+    addPedestals.add(pedestal);
     return _nextResult();
   }
 
@@ -1131,6 +1143,10 @@ void main() {
 
       expect(calibration, everyElement('flat ${flat.path} bias ${bias.path}'));
       expect(calibration, hasLength(2));
+      // The stacker takes each calibrated frame's pedestal out, so it is told
+      // what every frame carries.
+      expect(engine.startPedestals, [_RecordingCalibration.pedestal]);
+      expect(live.addPedestals, [_RecordingCalibration.pedestal]);
     });
   });
 
@@ -1525,8 +1541,11 @@ class _RecordingCalibration extends CalibrationService {
 
   final List<String> calls;
 
+  /// What every calibrated frame states it carries.
+  static const double pedestal = 11;
+
   @override
-  Future<Uint16List> calibrateData({
+  Future<bridge.ApiCalibratedFrame> calibrateData({
     required int width,
     required int height,
     required List<int> lightData,
@@ -1535,7 +1554,10 @@ class _RecordingCalibration extends CalibrationService {
     String? biasPath,
   }) async {
     calls.add('flat $flatPath bias $biasPath');
-    return Uint16List.fromList(lightData);
+    return bridge.ApiCalibratedFrame(
+      data: Uint16List.fromList(lightData),
+      pedestal: pedestal,
+    );
   }
 }
 

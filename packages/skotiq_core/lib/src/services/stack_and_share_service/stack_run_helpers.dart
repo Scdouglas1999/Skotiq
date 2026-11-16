@@ -32,6 +32,7 @@ extension _StackRunHelpers on StackAndShareService {
       width: calibrated.width,
       height: calibrated.height,
       data: calibrated.data,
+      pedestal: calibrated.pedestal,
       config: stackingConfig,
     );
     _ensureSameHost();
@@ -54,6 +55,7 @@ extension _StackRunHelpers on StackAndShareService {
       width: calibrated.width,
       height: calibrated.height,
       data: calibrated.data,
+      pedestal: calibrated.pedestal,
     );
   }
 

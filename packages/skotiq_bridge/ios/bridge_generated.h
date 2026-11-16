@@ -1774,6 +1774,11 @@ typedef struct wire_cst_list_tracked_guide_star {
   int32_t len;
 } wire_cst_list_tracked_guide_star;
 
+typedef struct wire_cst_api_calibrated_frame {
+  struct wire_cst_list_prim_u_16_strict *data;
+  double pedestal;
+} wire_cst_api_calibrated_frame;
+
 typedef struct wire_cst_api_depth_floor_suggestion {
   double floor_adu;
   double dark_noise_adu;
@@ -3430,7 +3435,8 @@ void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_fram
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data(int64_t port_,
                                                                                             uint32_t width,
                                                                                             uint32_t height,
-                                                                                            struct wire_cst_list_prim_u_16_loose *data);
+                                                                                            struct wire_cst_list_prim_u_16_loose *data,
+                                                                                            double pedestal);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count(void);
 
@@ -3453,6 +3459,7 @@ void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_fr
                                                                                         uint32_t width,
                                                                                         uint32_t height,
                                                                                         struct wire_cst_list_prim_u_16_loose *data,
+                                                                                        double pedestal,
                                                                                         struct wire_cst_api_live_stacking_config *config);
 
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop(int64_t port_);

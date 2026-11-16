@@ -2150,7 +2150,11 @@ fn integrate_session_keeps_a_faint_sky_at_its_level() {
     );
     assert_eq!(result.frames_integrated, 3);
 
-    let (master, _) = read_frame(master_path.as_path()).expect("read master");
+    let (master, header) = read_frame(master_path.as_path()).expect("read master");
+    // Each faint sub carries an automatic pedestal; integration takes it out
+    // and the master says so instead of stating one.
+    assert!(header.get("PEDESTAL").is_none());
+    assert!(history_text(&header).contains(skotiq_imaging::calibration::PEDESTAL_REMOVED_HISTORY));
     let mut samples: Vec<f64> = master.samples_f64();
     samples.sort_by(f64::total_cmp);
     let median = samples[samples.len() / 2];

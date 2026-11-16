@@ -363,8 +363,8 @@ class CalibrationService {
 
   /// Calibrate a single-plane u16 light in memory with the masters at these
   /// paths, by the same rule as [calibrateFile]. A null path skips that
-  /// correction.
-  Future<Uint16List> calibrateData({
+  /// correction. The result states the output pedestal its samples carry.
+  Future<bridge.ApiCalibratedFrame> calibrateData({
     required int width,
     required int height,
     required List<int> lightData,
@@ -373,7 +373,10 @@ class CalibrationService {
     String? biasPath,
   }) async {
     if (darkPath == null && flatPath == null && biasPath == null) {
-      return Uint16List.fromList(lightData);
+      return bridge.ApiCalibratedFrame(
+        data: Uint16List.fromList(lightData),
+        pedestal: 0,
+      );
     }
     return bridge.apiCalibrateImageData(
       width: width,

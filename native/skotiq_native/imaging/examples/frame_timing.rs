@@ -215,12 +215,12 @@ fn main() {
     let mut stacker = LiveStacker::new(&frame, LiveStackConfig::default()).unwrap();
     line(
         "LiveStacker::add_frame mono",
-        best_of(3, || stacker.add_frame(&shifted).unwrap()),
+        best_of(3, || stacker.add_frame(&shifted, 0.0).unwrap()),
     );
     let mut rgb_stacker = LiveStacker::new(&rgb, LiveStackConfig::default()).unwrap();
     line(
         "LiveStacker::add_frame rgb",
-        best_of(3, || rgb_stacker.add_frame(&rgb).unwrap()),
+        best_of(3, || rgb_stacker.add_frame(&rgb, 0.0).unwrap()),
     );
     line(
         "extract_and_subtract (background)",

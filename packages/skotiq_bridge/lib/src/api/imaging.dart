@@ -383,8 +383,10 @@ Future<Uint8List> apiGenerateFitsThumbnail({
 /// skips that correction.
 ///
 /// A frame keeps the light's sample format: a float light gives a float
-/// frame, any other a 16-bit one. Either carries the calibration pedestal,
-/// stated in its `PEDESTAL` card.
+/// frame, any other a 16-bit one. Either carries the frame's automatic output
+/// pedestal (PixInsight's WBPP default for lights), stated in a `PEDESTAL`
+/// card when there is one. A raster has no header to state it, so it gets the
+/// zero-based samples.
 Future<void> apiCalibrateImageFile({
   required String lightPath,
   String? darkPath,
@@ -400,9 +402,8 @@ Future<void> apiCalibrateImageFile({
 );
 
 /// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`]. Every
-/// returned sample carries the calibration pedestal.
-Future<Uint16List> apiCalibrateImageData({
+/// given paths, by the same rule as [`api_calibrate_image_file`].
+Future<ApiCalibratedFrame> apiCalibrateImageData({
   required int width,
   required int height,
   required List<int> lightData,
@@ -417,6 +418,26 @@ Future<Uint16List> apiCalibrateImageData({
   flatPath: flatPath,
   biasPath: biasPath,
 );
+
+/// A light calibrated in memory: its 16-bit samples and the output pedestal,
+/// in ADU, they carry (0 for none).
+class ApiCalibratedFrame {
+  final Uint16List data;
+  final double pedestal;
+
+  const ApiCalibratedFrame({required this.data, required this.pedestal});
+
+  @override
+  int get hashCode => data.hashCode ^ pedestal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiCalibratedFrame &&
+          runtimeType == other.runtimeType &&
+          data == other.data &&
+          pedestal == other.pedestal;
+}
 
 /// Autofocus configuration for API
 class AutofocusConfigApi {

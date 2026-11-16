@@ -22,16 +22,19 @@ Future<ApiLiveStackingStats> apiStackingStart({
 );
 
 /// Start live stacking from a single-plane u16 reference frame in memory.
-/// Such a frame has no header, so a color session needs `bayer_pattern`.
+/// Such a frame has no header, so a color session needs `bayer_pattern`, and
+/// `pedestal` states the output pedestal its samples carry (ADU, 0 for none).
 Future<ApiLiveStackingStats> apiStackingStartFromData({
   required int width,
   required int height,
   required List<int> data,
+  required double pedestal,
   required ApiLiveStackingConfig config,
 }) => RustLib.instance.api.crateApiLiveStackingApiStackingStartFromData(
   width: width,
   height: height,
   data: data,
+  pedestal: pedestal,
   config: config,
 );
 
@@ -42,15 +45,18 @@ Future<ApiLiveStackingResult> apiStackingAddFrame({
   imagePath: imagePath,
 );
 
-/// Add a single-plane u16 frame in memory to the stack.
+/// Add a single-plane u16 frame in memory to the stack; `pedestal` is the
+/// output pedestal its samples carry (ADU, 0 for none).
 Future<ApiLiveStackingResult> apiStackingAddFrameFromData({
   required int width,
   required int height,
   required List<int> data,
+  required double pedestal,
 }) => RustLib.instance.api.crateApiLiveStackingApiStackingAddFrameFromData(
   width: width,
   height: height,
   data: data,
+  pedestal: pedestal,
 );
 
 /// The current stack, without adding a frame.
