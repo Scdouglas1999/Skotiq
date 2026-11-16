@@ -26,8 +26,11 @@
 part of '../settings_provider.dart';
 
 const _allowedSmartNightStrategies = {
+  'auto',
   'auto_lrgb',
   'mono_lrgb',
+  'ha_lrgb',
+  'narrowband_ha',
   'narrowband_hoo',
   'narrowband_sho',
   'osc_one_shot',
@@ -73,10 +76,10 @@ extension SmartNightSettingsSection on AppSettingsNotifier {
   Future<void> setSmartNightSchedulerTargetThreshold(int value) =>
       _set(AppSettingDefs.smartNightSchedulerTargetThreshold, value);
 
-  /// Default Smart Night strategy. Values are the snake_case strategy
-  /// names (`auto_lrgb`, `mono_lrgb`, `narrowband_hoo`, `narrowband_sho`,
-  /// `osc_one_shot`); the wizard maps them back to [SmartNightStrategy]
-  /// enum values.
+  /// Default Smart Night filter set: `auto` (each target its own) or a
+  /// snake_case [SmartNightStrategy] name (`auto_lrgb`, `mono_lrgb`,
+  /// `ha_lrgb`, `narrowband_ha`, `narrowband_hoo`, `narrowband_sho`,
+  /// `osc_one_shot`).
   Future<void> setSmartNightDefaultStrategy(String value) async {
     if (!_allowedSmartNightStrategies.contains(value)) {
       throw ArgumentError(

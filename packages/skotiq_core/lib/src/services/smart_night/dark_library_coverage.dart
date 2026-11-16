@@ -6,7 +6,7 @@ import '../dark_library_service.dart';
 import '../session_optimizer_service.dart' show SmartNightExposureContext;
 import '../smart_night_service.dart';
 
-/// Builds Smart Night dark-library requirements from the same strategy and
+/// Builds Smart Night dark-library requirements from the filters and
 /// exposure recommendation inputs used by the sequence builder.
 class SmartNightDarkLibraryCoverage {
   final DarkLibraryService darkLibraryService;
@@ -17,49 +17,20 @@ class SmartNightDarkLibraryCoverage {
     this.coverageService = const DarkLibraryCoverageService(),
   });
 
-  /// Convenience wrapper that returns only the human-readable warning
-  /// strings — retained for callers that just want to surface a soft
-  /// warning. Use [missing] when you also need the structured
-  /// requirements (e.g. to opt in to auto-scheduling dark capture).
-  Future<List<String>> missingNotes({
-    required EquipmentProfileModel profile,
-    required List<String> availableFilters,
-    required SmartNightStrategy strategy,
-    required SmartNightSettings settings,
-    required SmartNightExposureContext exposureContext,
-    required int minCoverage,
-    DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults,
-  }) async {
-    final result = await missing(
-      profile: profile,
-      availableFilters: availableFilters,
-      strategy: strategy,
-      settings: settings,
-      exposureContext: exposureContext,
-      minCoverage: minCoverage,
-      tolerances: tolerances,
-    );
-    return result.notes;
-  }
-
   /// Compute both the structured [DarkFrameRequirement]s missing from
   /// the library AND the human-readable note strings, sharing the same
   /// underlying coverage evaluation so the two views never disagree.
   ///
-  /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
+  /// [filters] are the wheel slots the night captures through (each
+  /// target's [SmartNightFilterChoice.filtersFor]).
   Future<SmartNightDarkLibraryMissing> missing({
     required EquipmentProfileModel profile,
-    required List<String> availableFilters,
-    required SmartNightStrategy strategy,
+    required Iterable<String> filters,
     required SmartNightSettings settings,
     required SmartNightExposureContext exposureContext,
     required int minCoverage,
     DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults,
   }) async {
-    final filters = resolveSmartNightFilterSet(
-      strategy: strategy,
-      availableFilters: availableFilters,
-    );
     if (filters.isEmpty) return const SmartNightDarkLibraryMissing.empty();
 
     // Darks MUST be captured at the SAME sensor setpoint the lights are

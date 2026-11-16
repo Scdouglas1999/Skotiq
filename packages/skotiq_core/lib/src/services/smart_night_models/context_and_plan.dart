@@ -214,8 +214,9 @@ class SmartNightPlan {
   ///   recovery added."
   final List<String> warnings;
 
-  /// Strategy that was selected — surfaced in the wizard summary.
-  final SmartNightStrategy strategy;
+  /// The filter set every target was planned with; null when each target
+  /// has its own ([SmartNightPlannedTarget.filterReason]).
+  final SmartNightStrategy? strategy;
 
   /// The settings actually used (after wizard overrides).
   final SmartNightSettings settings;
@@ -241,7 +242,7 @@ class SmartNightPlan {
     'totalIntegrationSecs': totalIntegrationSecs,
     'estimatedWallClockSecs': estimatedWallClockSecs,
     'warnings': warnings,
-    'strategy': strategy.name,
+    'strategy': strategy?.name,
     'settings': settings.toJson(),
     'context': context.toJson(),
   };
@@ -260,11 +261,9 @@ class SmartNightPlan {
       totalIntegrationSecs: _jsonDouble(json['totalIntegrationSecs'], 0.0),
       estimatedWallClockSecs: _jsonDouble(json['estimatedWallClockSecs'], 0.0),
       warnings: _stringList(json['warnings']),
-      strategy: _enumByName(
-        SmartNightStrategy.values,
-        json['strategy'],
-        SmartNightStrategy.autoLrgb,
-      ),
+      strategy: SmartNightStrategy.values
+          .where((s) => s.name == json['strategy'])
+          .firstOrNull,
       settings: SmartNightSettings.fromJson(
         (json['settings'] as Map).cast<String, dynamic>(),
       ),

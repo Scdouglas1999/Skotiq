@@ -168,7 +168,9 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
     super.dispose();
   }
 
-  SmartNightStrategy _strategy = SmartNightStrategy.autoLrgb;
+  /// The filter set for every target; null lets each target take its own
+  /// ([SmartNightService.chooseFilters]).
+  SmartNightStrategy? _strategy;
 
   SmartNightPlan? _preview;
   String? _previewError;
@@ -524,12 +526,25 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       if (exposureContext == null || isRemoteBackend) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();
       } else {
+        final service = _buildService();
+        final planningFilters =
+            smartNightPlanningFilters(ref.read(effectiveFiltersProvider));
+        List<String> targetFilters(TargetSuggestion suggestion) {
+          final choice = service.chooseFilters(
+            suggestion: suggestion,
+            availableFilters: planningFilters,
+            exposureContext: exposureContext,
+            windowStart: _windowStart!,
+            windowEnd: _windowEnd!,
+          );
+          return choice.filtersFor(_strategy ?? choice.strategy);
+        }
+
         darkLibraryMissing = await SmartNightDarkLibraryCoverage(
           darkLibraryService: ref.read(darkLibraryServiceProvider),
         ).missing(
           profile: activeProfile,
-          availableFilters: ref.read(effectiveFiltersProvider),
-          strategy: _strategy,
+          filters: {for (final s in selected) ...targetFilters(s)},
           settings: effectiveSettings,
           exposureContext: exposureContext,
           minCoverage: settings.darkLibraryMinCoverage,

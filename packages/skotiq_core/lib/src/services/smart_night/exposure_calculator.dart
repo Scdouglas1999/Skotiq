@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../../models/equipment/filter_names.dart';
+
 /// Explains which exposure ceiling selected the final sub length.
 enum ExposureLimitingFactor { glover, saturation, mount, userCap, floor }
 
@@ -94,50 +96,17 @@ class FilterExposureSpec {
   static const double _greenSkyFraction = 0.40;
   static const double _blueSkyFraction = 0.22;
 
+  /// The spec for a filter by its name, read by the filter-name rule
+  /// (`filter_names.dart`): "Ha 7nm" is Ha, "Baader R" is R. A name that
+  /// passes Ha and OIII together is a multi-band filter; any other name is
+  /// modeled as luminance.
   factory FilterExposureSpec.fromName(String? rawName) {
-    final normalized = (rawName ?? '').trim().toLowerCase();
-    if (normalized == 'ha' ||
-        normalized == 'h-alpha' ||
-        normalized == 'halpha' ||
-        normalized.contains('hydrogen')) {
-      return const FilterExposureSpec.narrowbandHa();
-    }
-    if (normalized == 'oiii' ||
-        normalized == 'o3' ||
-        normalized == 'o-iii' ||
-        normalized == 'oxygen iii') {
-      return const FilterExposureSpec(
-        name: 'OIII',
-        bandwidthNm: 3,
-        peakTransmission: 0.9,
-        category: FilterCategory.narrowband,
-        relativeSkyFlux: 3 / _referenceBandwidthNm,
-      );
-    }
-    if (normalized == 'sii' ||
-        normalized == 's2' ||
-        normalized == 's-ii' ||
-        normalized == 'sulfur ii' ||
-        normalized == 'sulphur ii') {
-      return const FilterExposureSpec(
-        name: 'SII',
-        bandwidthNm: 3,
-        peakTransmission: 0.9,
-        category: FilterCategory.narrowband,
-        relativeSkyFlux: 3 / _referenceBandwidthNm,
-      );
-    }
-    if (normalized.contains('l-extreme') ||
-        normalized.contains('lextreme') ||
-        normalized.contains('l-ultimate') ||
-        normalized.contains('lultimate') ||
-        normalized.contains('l-enhance') ||
-        normalized.contains('lenhance')) {
-      final bw = normalized.contains('ultimate') ? 3.0 : 7.0;
+    final name = rawName?.trim() ?? '';
+    final bands = filterBands(name);
+    if (bands.containsAll(const {'HA', 'OIII'})) {
+      final bw = name.toLowerCase().contains('ultimate') ? 3.0 : 7.0;
       return FilterExposureSpec(
-        name: rawName?.trim().isNotEmpty == true
-            ? rawName!.trim()
-            : 'Multi-band',
+        name: name,
         bandwidthNm: bw,
         peakTransmission: 0.9,
         category: FilterCategory.narrowband,
@@ -146,40 +115,52 @@ class FilterExposureSpec {
         relativeSkyFlux: (2 * bw) / _referenceBandwidthNm,
       );
     }
-    if (normalized == 'r' || normalized == 'red') {
-      return FilterExposureSpec(
-        name: rawName?.trim().isNotEmpty == true ? rawName!.trim() : 'R',
+    final band = bands.length == 1 ? bands.single : null;
+    return switch (band) {
+      'HA' => const FilterExposureSpec.narrowbandHa(),
+      'OIII' => const FilterExposureSpec(
+        name: 'OIII',
+        bandwidthNm: 3,
+        peakTransmission: 0.9,
+        category: FilterCategory.narrowband,
+        relativeSkyFlux: 3 / _referenceBandwidthNm,
+      ),
+      'SII' => const FilterExposureSpec(
+        name: 'SII',
+        bandwidthNm: 3,
+        peakTransmission: 0.9,
+        category: FilterCategory.narrowband,
+        relativeSkyFlux: 3 / _referenceBandwidthNm,
+      ),
+      'R' => FilterExposureSpec(
+        name: name.isNotEmpty ? name : 'R',
         bandwidthNm: 80,
         peakTransmission: 0.9,
         category: FilterCategory.red,
         relativeSkyFlux: _redSkyFraction,
-      );
-    }
-    if (normalized == 'g' || normalized == 'green') {
-      return FilterExposureSpec(
-        name: rawName?.trim().isNotEmpty == true ? rawName!.trim() : 'G',
+      ),
+      'G' => FilterExposureSpec(
+        name: name.isNotEmpty ? name : 'G',
         bandwidthNm: 80,
         peakTransmission: 0.9,
         category: FilterCategory.green,
         relativeSkyFlux: _greenSkyFraction,
-      );
-    }
-    if (normalized == 'b' || normalized == 'blue') {
-      return FilterExposureSpec(
-        name: rawName?.trim().isNotEmpty == true ? rawName!.trim() : 'B',
+      ),
+      'B' => FilterExposureSpec(
+        name: name.isNotEmpty ? name : 'B',
         bandwidthNm: 80,
         peakTransmission: 0.9,
         category: FilterCategory.blue,
         relativeSkyFlux: _blueSkyFraction,
-      );
-    }
-    return FilterExposureSpec(
-      name: rawName?.trim().isNotEmpty == true ? rawName!.trim() : 'L',
-      bandwidthNm: 100,
-      peakTransmission: 0.95,
-      category: FilterCategory.luminance,
-      relativeSkyFlux: 1.0,
-    );
+      ),
+      _ => FilterExposureSpec(
+        name: name.isNotEmpty ? name : 'L',
+        bandwidthNm: 100,
+        peakTransmission: 0.95,
+        category: FilterCategory.luminance,
+        relativeSkyFlux: 1.0,
+      ),
+    };
   }
 }
 

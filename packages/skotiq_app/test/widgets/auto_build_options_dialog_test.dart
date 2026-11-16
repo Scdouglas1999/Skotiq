@@ -27,6 +27,9 @@ const _target = TargetSuggestion(
         moonDistance: 90,
         hoursAboveMinAlt: 6));
 
+SmartNightFilterChoice _choice(List<String> filters) => chooseSmartNightFilters(
+    target: _target, availableFilters: filters, moonIlluminationPercent: 10);
+
 void main() {
   testWidgets('switching filter groups restores each camera recipe and edits',
       (tester) async {
@@ -44,6 +47,7 @@ void main() {
                           builder: (_) => AutoBuildOptionsDialog(
                               profile: _profile,
                               filters: _filters,
+                              filterChoice: _choice(_filters),
                               target: _target,
                               saved: const {},
                               onSave: (value) async {
@@ -100,6 +104,7 @@ void main() {
                             builder: (_) => AutoBuildOptionsDialog(
                                 profile: _profile,
                                 filters: _filters,
+                                filterChoice: _choice(_filters),
                                 target: _target,
                                 saved: const {},
                                 onSave: (value) async {
@@ -156,6 +161,7 @@ void main() {
                           builder: (_) => AutoBuildOptionsDialog(
                               profile: _profile,
                               filters: const ['L', 'R', 'G', 'B'],
+                              filterChoice: _choice(const ['L', 'R', 'G', 'B']),
                               target: _target,
                               saved: const {},
                               suggestedSeconds: const {'L': 55},
@@ -171,5 +177,57 @@ void main() {
     await tester.tap(find.text('Build sequence'));
     await tester.pumpAndSettle();
     expect(result!.exposures['L'], 55);
+  });
+
+  testWidgets(
+      'the recipe says why it chose its filters and remembers only a set '
+      'the user picked over it', (tester) async {
+    final saves = <Map<String, dynamic>>[];
+    Future<void> open(Map<String, dynamic> saved) async {
+      await tester.pumpWidget(MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Builder(
+              builder: (context) => Scaffold(
+                  body: TextButton(
+                      child: const Text('Open'),
+                      onPressed: () => showDialog<AutoBuildOptions>(
+                          context: context,
+                          builder: (_) => AutoBuildOptionsDialog(
+                              profile: _profile,
+                              filters: _filters,
+                              filterChoice: _choice(_filters),
+                              target: _target,
+                              saved: saved,
+                              onSave: (value) async => saves.add(value))))))));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    await open(const {});
+    expect(find.text('Narrowband SHO: NGC7380 is an emission nebula.'),
+        findsOneWidget);
+    tester
+        .widget<DropdownButtonFormField<SmartNightStrategy>>(
+            find.byType(DropdownButtonFormField<SmartNightStrategy>))
+        .onChanged!(SmartNightStrategy.autoLrgb);
+    await tester.pumpAndSettle();
+    expect(
+        find.text('Your choice. Skotiq would pick Narrowband SHO: NGC7380 is '
+            'an emission nebula.'),
+        findsOneWidget);
+    await tester.tap(find.text('Build sequence'));
+    await tester.pumpAndSettle();
+    expect((saves.last['strategies'] as Map)['NGC7380'], 'autoLrgb');
+
+    await open(saves.last);
+    expect(find.text('LRGB · more luminance'), findsOneWidget);
+    tester
+        .widget<DropdownButtonFormField<SmartNightStrategy>>(
+            find.byType(DropdownButtonFormField<SmartNightStrategy>))
+        .onChanged!(SmartNightStrategy.narrowbandSho);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Build sequence'));
+    await tester.pumpAndSettle();
+    expect(saves.last['strategies'] as Map, isNot(contains('NGC7380')));
   });
 }

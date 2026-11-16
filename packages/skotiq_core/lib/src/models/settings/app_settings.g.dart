@@ -159,7 +159,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   smartNightSchedulerTargetThreshold:
       (json['smartNightSchedulerTargetThreshold'] as num?)?.toInt() ?? 3,
   smartNightDefaultStrategy:
-      json['smartNightDefaultStrategy'] as String? ?? 'auto_lrgb',
+      json['smartNightDefaultStrategy'] as String? ?? 'auto',
   smartNightPolarAlignmentStaleAfterDays:
       (json['smartNightPolarAlignmentStaleAfterDays'] as num?)?.toInt() ?? 7,
   smartNightSubExposureFloorSecs:

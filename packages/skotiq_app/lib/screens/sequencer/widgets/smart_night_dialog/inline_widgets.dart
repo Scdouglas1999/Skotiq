@@ -407,7 +407,8 @@ class _ProfileRow extends StatelessWidget {
 }
 
 class _StrategyTile extends StatelessWidget {
-  final SmartNightStrategy strategy;
+  /// Null is each target's own filters.
+  final SmartNightStrategy? strategy;
   final bool isSelected;
   final bool filtersAvailable;
   final VoidCallback onSelected;
@@ -487,8 +488,14 @@ class _StrategyTile extends StatelessWidget {
     );
   }
 
-  ({String title, String subtitle}) _descriptors(SmartNightStrategy s) {
+  ({String title, String subtitle}) _descriptors(SmartNightStrategy? s) {
     switch (s) {
+      case null:
+        return (
+          title: 'Per target',
+          subtitle: 'Narrowband for emission nebulae, LRGB for galaxies and '
+              'clusters, from what your wheel holds and the moon.',
+        );
       case SmartNightStrategy.autoLrgb:
         return (
           title: 'Auto-balance LRGB',
@@ -508,6 +515,16 @@ class _StrategyTile extends StatelessWidget {
         return (
           title: 'Narrowband SHO (Hubble)',
           subtitle: 'Ha + OIII + SII tricolor.',
+        );
+      case SmartNightStrategy.narrowbandHa:
+        return (
+          title: 'Narrowband Ha',
+          subtitle: 'Ha alone. Emission detail on any night.',
+        );
+      case SmartNightStrategy.haLrgb:
+        return (
+          title: 'LRGB + Ha',
+          subtitle: 'Starlight in LRGB, glowing gas in Ha.',
         );
       case SmartNightStrategy.oscOneShot:
         return (
@@ -731,6 +748,15 @@ class _PlannedTargetCard extends StatelessWidget {
                   color: colors.textSecondary,
                   fontSize: SkotiqTypography.fontSize11),
             ),
+            if (planned.filterReason.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                planned.filterReason,
+                style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: SkotiqTypography.fontSize11),
+              ),
+            ],
             const SizedBox(height: 8),
             _WindowBar(
               start: planned.windowStart,

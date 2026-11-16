@@ -38,6 +38,11 @@ class _TargetDetailColumn extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     final visibility = target.visibility;
+    // Why Image tonight and Build sequence use these filters.
+    final filterReason = ref
+        .watch(plannerTargetIntegrationPreviewProvider(target.targetId))
+        .valueOrNull
+        ?.filterReason;
 
     final content = <Widget>[
       SizedBox(
@@ -93,6 +98,15 @@ class _TargetDetailColumn extends ConsumerWidget {
       ),
       const SizedBox(height: SkotiqTokens.spaceMd),
       KeyValueList(rows: _facts(context, ref)),
+      if (filterReason != null && filterReason.isNotEmpty) ...[
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        Text(
+          filterReason,
+          style: SkotiqTypography.bodySm.copyWith(
+            color: colors.textSecondary,
+          ),
+        ),
+      ],
       // The sensor the exposure above was computed from, and where each of its
       // figures came from. It belongs beside the exposure, not on a settings
       // screen: this is the number the owner found the app calling unknown.

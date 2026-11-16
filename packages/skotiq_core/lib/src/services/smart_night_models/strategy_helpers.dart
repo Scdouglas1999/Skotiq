@@ -35,158 +35,20 @@ List<String> smartNightPlanningFilters(List<String> availableFilters) {
 String smartNightFilterLabel(String filterName) =>
     filterName.trim().isEmpty ? 'no filter' : filterName;
 
-/// Map a Smart Night strategy to the actual filter slots present on a rig.
-///
-/// This is intentionally public because the sequence builder and pre-build
-/// integrations, such as dark-library coverage, must agree on the exact
-/// filter set before the plan is emitted.
-List<String> resolveSmartNightFilterSet({
-  required SmartNightStrategy strategy,
-  required List<String> availableFilters,
-}) {
-  final lookup = {for (final f in availableFilters) f.toLowerCase(): f};
-  String? present(String wanted) => lookup[wanted.toLowerCase()];
-
-  switch (strategy) {
-    case SmartNightStrategy.autoLrgb:
-    case SmartNightStrategy.monoLrgb:
-      final out = <String>[];
-      final l = present('L') ?? present('Lum') ?? present('Luminance');
-      final r = present('R') ?? present('Red');
-      final g = present('G') ?? present('Green');
-      final b = present('B') ?? present('Blue');
-      if (l != null) out.add(l);
-      if (r != null) out.add(r);
-      if (g != null) out.add(g);
-      if (b != null) out.add(b);
-      return out;
-    case SmartNightStrategy.narrowbandHoo:
-      final out = <String>[];
-      final ha = present('Ha') ?? present('H-alpha') ?? present('Halpha');
-      final oiii = present('OIII') ?? present('O3');
-      if (ha != null) out.add(ha);
-      if (oiii != null) out.add(oiii);
-      return out;
-    case SmartNightStrategy.narrowbandSho:
-      final out = <String>[];
-      final ha = present('Ha') ?? present('H-alpha') ?? present('Halpha');
-      final oiii = present('OIII') ?? present('O3');
-      final sii = present('SII') ?? present('S2');
-      if (ha != null) out.add(ha);
-      if (oiii != null) out.add(oiii);
-      if (sii != null) out.add(sii);
-      return out;
-    case SmartNightStrategy.oscOneShot:
-      final preferred =
-          present('L-eXtreme') ??
-          present('L-uLtimate') ??
-          present('L-Pro') ??
-          present('L') ??
-          present('UV/IR') ??
-          present('UVIR') ??
-          present('Light');
-      if (preferred != null) return [preferred];
-      if (availableFilters.isNotEmpty) return [availableFilters.first];
-      return const [smartNightUnfilteredName];
-  }
-}
-
-/// Strategy-specific ratio weighting. Keys are lowercased filter names; values
-/// are weight units normalised against the integration window in
-/// [composeSmartNightFilterPlans].
-Map<String, double> smartNightFilterRatios(SmartNightStrategy strategy) {
-  switch (strategy) {
-    case SmartNightStrategy.autoLrgb:
-      return const {
-        'l': 2.0,
-        'lum': 2.0,
-        'luminance': 2.0,
-        'r': 1.0,
-        'g': 1.0,
-        'b': 1.0,
-      };
-    case SmartNightStrategy.monoLrgb:
-      return const {
-        'l': 1.0,
-        'lum': 1.0,
-        'luminance': 1.0,
-        'r': 1.0,
-        'g': 1.0,
-        'b': 1.0,
-      };
-    case SmartNightStrategy.narrowbandHoo:
-      return const {
-        'ha': 1.0,
-        'h-alpha': 1.0,
-        'halpha': 1.0,
-        'oiii': 1.0,
-        'o3': 1.0,
-      };
-    case SmartNightStrategy.narrowbandSho:
-      return const {
-        'ha': 1.0,
-        'h-alpha': 1.0,
-        'halpha': 1.0,
-        'oiii': 1.0,
-        'o3': 1.0,
-        'sii': 1.0,
-        's2': 1.0,
-      };
-    case SmartNightStrategy.oscOneShot:
-      return const {
-        'osc': 1.0,
-        'l': 1.0,
-        'lum': 1.0,
-        'uv/ir': 1.0,
-        'uvir': 1.0,
-        'light': 1.0,
-      };
-  }
-}
-
-/// True for emission / HII targets that benefit from narrowband rotation.
-bool isEmissionNebulaTarget(TargetSuggestion suggestion) {
-  final type = suggestion.objectType?.toLowerCase().trim() ?? '';
-  if (type.isEmpty) return false;
-  return type.contains('emission') ||
-      type.contains('hii') ||
-      type.contains('h ii') ||
-      type == 'emission nebula';
-}
-
-/// Infer the Smart Night filter strategy from target type and wheel/profile
-/// filters. Broadband galaxies pick LRGB when available; emission nebulae
-/// prefer SHO or HOO; single-filter / OSC rigs fall back to one-shot.
-SmartNightStrategy inferSmartNightStrategy(
-  TargetSuggestion suggestion,
-  List<String> availableFilters,
-) {
-  if (availableFilters.isEmpty) return SmartNightStrategy.oscOneShot;
-
-  final lookup = {for (final f in availableFilters) f.toLowerCase(): f};
-  final hasHa = _filterAliasPresent(lookup, ['Ha', 'H-alpha', 'Halpha']);
-  final hasOiii = _filterAliasPresent(lookup, ['OIII', 'O3']);
-  final hasSii = _filterAliasPresent(lookup, ['SII', 'S2']);
-
-  final lrgbFilters = resolveSmartNightFilterSet(
-    strategy: SmartNightStrategy.autoLrgb,
-    availableFilters: availableFilters,
-  );
-
-  if (isEmissionNebulaTarget(suggestion)) {
-    if (hasHa && hasOiii && hasSii) return SmartNightStrategy.narrowbandSho;
-    if (hasHa && hasOiii) return SmartNightStrategy.narrowbandHoo;
-  }
-
-  // Galaxies, planetary/reflection nebulae, and SNRs prefer broadband LRGB.
-  if (lrgbFilters.length >= 4) return SmartNightStrategy.autoLrgb;
-  if (lrgbFilters.isNotEmpty) return SmartNightStrategy.autoLrgb;
-
-  if (hasHa && hasOiii && hasSii) return SmartNightStrategy.narrowbandSho;
-  if (hasHa && hasOiii) return SmartNightStrategy.narrowbandHoo;
-
-  return SmartNightStrategy.oscOneShot;
-}
+/// Share of the window each filter of [strategy] gets, by filter identity
+/// (`filterIdentity`); a filter not listed gets 1. LRGB gives luminance
+/// twice a color's time; LRGB + Ha gives Ha a color's share, as it is
+/// blended into the red and luminance like one more color.
+Map<String, double> _smartNightFilterRatios(SmartNightStrategy strategy) =>
+    switch (strategy) {
+      SmartNightStrategy.autoLrgb ||
+      SmartNightStrategy.haLrgb => const {'L': 2.0},
+      SmartNightStrategy.monoLrgb ||
+      SmartNightStrategy.narrowbandHa ||
+      SmartNightStrategy.narrowbandHoo ||
+      SmartNightStrategy.narrowbandSho ||
+      SmartNightStrategy.oscOneShot => const {},
+    };
 
 /// Compose per-filter (count, durationSecs) using the exposure calculator,
 /// strategy ratios, and integration window budget.
@@ -295,13 +157,6 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
 // above. Kept in this file so model JSON serde + filter-plan composition
 // stay self-contained.
 
-bool _filterAliasPresent(Map<String, String> lookup, Iterable<String> aliases) {
-  for (final alias in aliases) {
-    if (lookup.containsKey(alias.toLowerCase())) return true;
-  }
-  return false;
-}
-
 bool _allStrategyFiltersHaveRemainingGoals({
   required List<String> activeFilters,
   required List<IntegrationGoalProgress>? integrationGoalProgress,
@@ -312,13 +167,11 @@ bool _allStrategyFiltersHaveRemainingGoals({
     return false;
   }
 
-  final lookup = {for (final f in availableFilters) f.toLowerCase(): f};
   for (final filter in activeFilters) {
-    final key = filter.toLowerCase();
     final hasRemaining = integrationGoalProgress.any((progress) {
       if (progress.remainingFrames <= 0) return false;
-      final matched = lookup[progress.goal.filter.toLowerCase()];
-      return matched != null && matched.toLowerCase() == key;
+      return matchingFilterName(progress.goal.filter, availableFilters) ==
+          filter;
     });
     if (!hasRemaining) return false;
   }
@@ -357,16 +210,16 @@ List<SmartNightFilterPlan> _composeBudgetFilterPlans({
 }) {
   if (activeFilters.isEmpty) return const [];
 
-  final ratios = smartNightFilterRatios(strategy);
+  final ratios = _smartNightFilterRatios(strategy);
   final sumRatios = activeFilters.fold<double>(
     0,
-    (sum, f) => sum + (ratios[f.toLowerCase()] ?? 1.0),
+    (sum, f) => sum + (ratios[filterIdentity(f)] ?? 1.0),
   );
   final perFilterBudget = sumRatios <= 0
       ? <String, double>{}
       : {
           for (final f in activeFilters)
-            f: windowSecs * (ratios[f.toLowerCase()] ?? 1.0) / sumRatios,
+            f: windowSecs * (ratios[filterIdentity(f)] ?? 1.0) / sumRatios,
         };
 
   final out = <SmartNightFilterPlan>[];
@@ -429,12 +282,11 @@ List<SmartNightFilterPlan>? _composeFilterPlansFromIntegrationGoals({
     return null;
   }
 
-  final lookup = {for (final f in availableFilters) f.toLowerCase(): f};
   final out = <SmartNightFilterPlan>[];
 
   for (final progress in integrationGoalProgress) {
     if (progress.remainingFrames <= 0) continue;
-    final matched = lookup[progress.goal.filter.toLowerCase()];
+    final matched = matchingFilterName(progress.goal.filter, availableFilters);
     if (matched == null) continue;
 
     final goalSecs = progress.goal.exposureSeconds;

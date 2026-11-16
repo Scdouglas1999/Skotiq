@@ -1,29 +1,34 @@
 part of '../smart_night_models.dart';
 
-/// High-level strategy for the auto-builder.
+/// A filter set the auto-builder captures with.
 ///
-/// Each strategy picks per-filter sub counts + a sane filter rotation given
-/// the equipment profile's available filters. The wizard exposes this as a
-/// radio group on step 4.
+/// [chooseSmartNightFilters] picks one for a target on a rig;
+/// [resolveSmartNightFilterSet] names the wheel slots a set means. The recipe
+/// review and the Smart Night wizard let the user pick a different one.
 enum SmartNightStrategy {
-  /// Auto: LRGB rotation with 2x luminance weighting for galaxies / RGB
-  /// reflection nebulae and falls back to whichever broadband filters are
-  /// present. Treated as the default.
+  /// L, R, G and B with twice the time on L. Any of the four that the wheel
+  /// has; a wheel with only R, G and B images RGB.
   autoLrgb,
 
-  /// Narrowband bicolor — Ha + OIII. Used by emission-nebula nights on
-  /// duo/quad-band rigs and for mono shooters who only own Ha + OIII.
+  /// Ha and OIII. Needs both on the wheel.
   narrowbandHoo,
 
-  /// Narrowband tricolor (Hubble palette) — Ha + OIII + SII. Requires all
-  /// three filters in the equipment profile.
+  /// Ha, OIII and SII (the Hubble palette). Needs all three on the wheel.
   narrowbandSho,
 
-  /// One-shot color cameras — single light filter with no wheel rotation.
+  /// One light filter, or none, with no rotation: a color camera, or a rig
+  /// whose wheel names no known band.
   oscOneShot,
 
-  /// Mono LRGB — even L/R/G/B counts without luminance over-weighting.
+  /// L, R, G and B with equal time on each.
   monoLrgb,
+
+  /// Ha alone. Needs Ha on the wheel.
+  narrowbandHa,
+
+  /// L, R, G and B, plus Ha for the emission in the field. Needs Ha and at
+  /// least one of L, R, G and B on the wheel.
+  haLrgb,
 }
 
 /// AF cadence policy.

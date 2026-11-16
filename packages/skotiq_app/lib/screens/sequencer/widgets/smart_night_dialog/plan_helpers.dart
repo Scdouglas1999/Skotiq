@@ -4,38 +4,29 @@ part of '../smart_night_dialog.dart';
 
 extension _SmartNightPlanHelpers on _SmartNightDialogState {
   /// Translate the snake_case strategy id stored in app_settings back
-  /// into a [SmartNightStrategy] enum value. Unknown strings fall back
-  /// to [SmartNightStrategy.autoLrgb] (the constructor default).
-  SmartNightStrategy _strategyFromPersistedName(String name) {
-    switch (name) {
-      case 'mono_lrgb':
-        return SmartNightStrategy.monoLrgb;
-      case 'narrowband_hoo':
-        return SmartNightStrategy.narrowbandHoo;
-      case 'narrowband_sho':
-        return SmartNightStrategy.narrowbandSho;
-      case 'osc_one_shot':
-        return SmartNightStrategy.oscOneShot;
-      case 'auto_lrgb':
-      default:
-        return SmartNightStrategy.autoLrgb;
-    }
-  }
+  /// into a [SmartNightStrategy]; `auto` and an unknown id are null, each
+  /// target's own filters.
+  SmartNightStrategy? _strategyFromPersistedName(String name) => switch (name) {
+        'auto_lrgb' => SmartNightStrategy.autoLrgb,
+        'mono_lrgb' => SmartNightStrategy.monoLrgb,
+        'ha_lrgb' => SmartNightStrategy.haLrgb,
+        'narrowband_ha' => SmartNightStrategy.narrowbandHa,
+        'narrowband_hoo' => SmartNightStrategy.narrowbandHoo,
+        'narrowband_sho' => SmartNightStrategy.narrowbandSho,
+        'osc_one_shot' => SmartNightStrategy.oscOneShot,
+        _ => null,
+      };
 
-  String _persistedNameForStrategy(SmartNightStrategy s) {
-    switch (s) {
-      case SmartNightStrategy.autoLrgb:
-        return 'auto_lrgb';
-      case SmartNightStrategy.monoLrgb:
-        return 'mono_lrgb';
-      case SmartNightStrategy.narrowbandHoo:
-        return 'narrowband_hoo';
-      case SmartNightStrategy.narrowbandSho:
-        return 'narrowband_sho';
-      case SmartNightStrategy.oscOneShot:
-        return 'osc_one_shot';
-    }
-  }
+  String _persistedNameForStrategy(SmartNightStrategy? s) => switch (s) {
+        null => 'auto',
+        SmartNightStrategy.autoLrgb => 'auto_lrgb',
+        SmartNightStrategy.monoLrgb => 'mono_lrgb',
+        SmartNightStrategy.haLrgb => 'ha_lrgb',
+        SmartNightStrategy.narrowbandHa => 'narrowband_ha',
+        SmartNightStrategy.narrowbandHoo => 'narrowband_hoo',
+        SmartNightStrategy.narrowbandSho => 'narrowband_sho',
+        SmartNightStrategy.oscOneShot => 'osc_one_shot',
+      };
 
   /// Best-effort writeback of the wizard's working [_settings] +
   /// [_strategy] into [AppSettingsState]. Called whenever the user
@@ -221,28 +212,14 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     return true;
   }
 
-  /// True if [strategy] can find at least one usable filter in [filters]
-  /// (the rig's list, `effectiveFiltersProvider`). A plain set intersection
-  /// so the step validates synchronously before the builder runs.
-  bool _strategyFits(SmartNightStrategy strategy, List<String> filters) {
-    final names = filters.map((n) => n.toLowerCase()).toSet();
-    bool any(Iterable<String> wanted) => wanted.any(names.contains);
-    switch (strategy) {
-      case SmartNightStrategy.autoLrgb:
-      case SmartNightStrategy.monoLrgb:
-        return any({'l', 'lum', 'luminance', 'r', 'g', 'b'});
-      case SmartNightStrategy.narrowbandHoo:
-        return any({'ha', 'h-alpha', 'halpha'}) && any({'oiii', 'o3'});
-      case SmartNightStrategy.narrowbandSho:
-        return any({'ha', 'h-alpha', 'halpha'}) &&
-            any({'oiii', 'o3'}) &&
-            any({'sii', 's2'});
-      case SmartNightStrategy.oscOneShot:
-        // OSC works without a wheel — the service plans a single unfiltered
-        // row and emits an ExposureNode with no filter selection.
-        return true;
-    }
-  }
+  /// Whether the rig's wheel ([filters], `effectiveFiltersProvider`) has
+  /// what [strategy] needs; choosing per target always fits.
+  bool _strategyFits(SmartNightStrategy? strategy, List<String> filters) =>
+      strategy == null ||
+      resolveSmartNightFilterSet(
+        strategy: strategy,
+        availableFilters: smartNightPlanningFilters(filters),
+      ).isNotEmpty;
 
   /// Whether a sensor value Smart Night's exposure model needs is missing.
   ///
@@ -302,6 +279,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
           filterPlans: updatedFilters,
           integrationSecs: newIntegration,
           rationale: p.rationale,
+          filterReason: p.filterReason,
         ));
       } else {
         newPlannedTargets.add(p);

@@ -791,6 +791,7 @@ void main() {
               usableWindowHours: 10,
               subExposureSecs: 105,
               filterNames: ['L', 'R', 'G', 'B'],
+              filterReason: 'LRGB: M31 is a galaxy.',
             ),
           ),
         ],

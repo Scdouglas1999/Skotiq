@@ -49,6 +49,7 @@ SmartNightPlannedTarget _plannedTarget({
     ],
     integrationSecs: 3600,
     rationale: 'High score tonight',
+    filterReason: 'LRGB: the target is a galaxy.',
   );
 }
 

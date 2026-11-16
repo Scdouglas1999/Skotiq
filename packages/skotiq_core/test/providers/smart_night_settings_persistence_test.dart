@@ -36,7 +36,7 @@ void main() {
     expect(settings.smartNightIncludeFlatsAtEnd, isTrue);
     expect(settings.smartNightUseSchedulerForMultiTarget, isTrue);
     expect(settings.smartNightSchedulerTargetThreshold, 3);
-    expect(settings.smartNightDefaultStrategy, 'auto_lrgb');
+    expect(settings.smartNightDefaultStrategy, 'auto');
     expect(settings.smartNightPolarAlignmentStaleAfterDays, 7);
     expect(settings.smartNightSubExposureFloorSecs, 30.0);
     expect(settings.smartNightSubExposureCeilingSecs, 300.0);

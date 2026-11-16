@@ -4,7 +4,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   Sequence _emitSingleTargetSequence({
     required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
-    required SmartNightStrategy strategy,
     required SmartNightSettings settings,
     required SmartNightContext context,
     required bool includeSessionPreamble,
@@ -46,7 +45,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final header = _emitTargetHeaderSubtree(
       profile: profile,
       planned: planned,
-      strategy: strategy,
       settings: settings,
       context: context,
       nodesAccumulator: nodes,
@@ -87,7 +85,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
 
     return Sequence.create(
       name: '${planned.suggestion.targetName} Plan',
-      description: _composeSequenceDescription([planned], strategy, settings),
+      description: _composeSequenceDescription([planned], settings),
       nodes: nodes,
       rootNodeId: rootId,
     );
@@ -198,7 +196,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   ///      │     ├─ Slew + Center
   ///      │     ├─ StartGuiding
   ///      │     ├─ Autofocus (initial)
-  ///      │     ├─ SmartExposure (per strategy filter rotation)
+  ///      │     ├─ SmartExposure (the target's filter rotation)
   ///      │     │   carries integration budget + AF cadence triggers
   ///      │     └─ MeridianFlip   (auto-enabled per profile setting)
   ///      ├─ Flats               (optional; cover calibrator path)
@@ -208,7 +206,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   Sequence _emitSequence({
     required EquipmentProfileModel profile,
     required double latitudeDeg,
-    required SmartNightStrategy strategy,
+    required SmartNightStrategy? strategy,
     required SmartNightSettings settings,
     required SmartNightContext context,
     required List<SmartNightPlannedTarget> planned,
@@ -272,7 +270,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       final targetHeader = _emitTargetHeaderSubtree(
         profile: profile,
         planned: p,
-        strategy: strategy,
         settings: settings,
         context: context,
         nodesAccumulator: nodes,
@@ -507,7 +504,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
 
     return Sequence.create(
       name: _composeSequenceName(planned, strategy),
-      description: _composeSequenceDescription(planned, strategy, settings),
+      description: _composeSequenceDescription(planned, settings),
       nodes: nodes,
       rootNodeId: rootId,
     );
@@ -706,7 +703,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   TargetHeaderNode _emitTargetHeaderSubtree({
     required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
-    required SmartNightStrategy strategy,
     required SmartNightSettings settings,
     required SmartNightContext context,
     required Map<String, SequenceNode> nodesAccumulator,

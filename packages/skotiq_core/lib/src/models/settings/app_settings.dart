@@ -314,9 +314,9 @@ abstract class AppSettings with _$AppSettings {
     /// DB key `smart_night_scheduler_target_threshold`.
     @Default(3) int smartNightSchedulerTargetThreshold,
 
-    /// Default capture strategy id (e.g. 'auto_lrgb').
+    /// Default Smart Night filter set id ('auto': each target its own).
     /// DB key `smart_night_default_strategy`.
-    @Default('auto_lrgb') String smartNightDefaultStrategy,
+    @Default('auto') String smartNightDefaultStrategy,
 
     /// Days after which polar alignment is considered stale for the wizard.
     /// DB key `smart_night_polar_alignment_stale_after_days`.

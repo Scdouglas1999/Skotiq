@@ -382,7 +382,7 @@ void main() {
       expect(plan.recommendedFilterNames, isEmpty);
     });
 
-    test('planetary nebula prefers luminance over narrowband for exposure', () {
+    test('planetary nebula is suggested narrowband, sized for Ha', () {
       const context = SmartNightExposureContext(
         camera: CameraExposureSpec(
           readNoiseE: 1.5,
@@ -419,70 +419,59 @@ void main() {
         exposureContext: context,
       );
 
-      expect(plan.recommendedFilterName, equals('L'));
-      expect(plan.recommendedFilterNames, equals(['L', 'R', 'G', 'B']));
+      expect(plan.recommendedFilterName, equals('Ha'));
+      expect(plan.recommendedFilterNames, equals(['Ha', 'OIII', 'SII']));
       expect(
-        context
-            .selectFilterForTarget(
-              const TargetSuggestion(
-                targetId: 57,
-                targetName: 'M57',
-                raHours: 18.89,
-                decDegrees: 33.03,
-                totalScore: 88,
-                visibility: TargetVisibilityInfo(
-                  currentAltitude: 62,
-                  currentAzimuth: 120,
-                  airmass: 1.1,
-                  moonDistance: 110,
-                  peakAltitude: 75,
-                  hoursAboveMinAlt: 5.5,
-                ),
-                objectType: 'Planetary Nebula',
-              ),
-            )
-            .name,
-        equals('L'),
+        plan.recommendedExposureSeconds,
+        context.recommendForFilter('Ha').seconds,
       );
     });
 
-    test(
-      'generic nebula label prefers luminance over narrowband for exposure',
-      () {
-        const context = SmartNightExposureContext(
-          camera: CameraExposureSpec(
-            readNoiseE: 1.5,
-            fullWellE: 18000,
-            qePeak: 0.8,
-          ),
-          bortleClass: 5,
-          focalLengthMm: 480,
-          apertureMm: 80,
-          pixelSizeMicrons: 3.76,
-          availableFilterNames: ['L', 'Ha', 'OIII'],
-        );
-        final filter = context.selectFilterForTarget(
-          const TargetSuggestion(
-            targetId: 2244,
-            targetName: 'NGC 2244',
-            raHours: 6.32,
-            decDegrees: 4.9,
-            totalScore: 80,
-            visibility: TargetVisibilityInfo(
-              currentAltitude: 55,
-              currentAzimuth: 180,
-              airmass: 1.2,
-              moonDistance: 90,
-              peakAltitude: 70,
-              hoursAboveMinAlt: 4.0,
-            ),
-            objectType: 'Nebula',
-          ),
-        );
+    test('a nebula the catalog does not classify follows the moon', () {
+      const context = SmartNightExposureContext(
+        camera: CameraExposureSpec(
+          readNoiseE: 1.5,
+          fullWellE: 18000,
+          qePeak: 0.8,
+        ),
+        bortleClass: 5,
+        focalLengthMm: 480,
+        apertureMm: 80,
+        pixelSizeMicrons: 3.76,
+        availableFilterNames: ['L', 'Ha', 'OIII'],
+      );
+      SessionOptimizationPlan planAt(DateTime when) =>
+          service.buildPlanFromSuggestions(
+            [
+              const TargetSuggestion(
+                targetId: 2244,
+                targetName: 'NGC 2244',
+                raHours: 6.32,
+                decDegrees: 4.9,
+                totalScore: 80,
+                visibility: TargetVisibilityInfo(
+                  currentAltitude: 55,
+                  currentAzimuth: 180,
+                  airmass: 1.2,
+                  moonDistance: 90,
+                  peakAltitude: 70,
+                  hoursAboveMinAlt: 4.0,
+                ),
+                objectType: 'Nebula',
+              ),
+            ],
+            generatedAt: when,
+            exposureContext: context,
+          );
 
-        expect(filter.name, equals('L'));
-      },
-    );
+      // New moon on 2026-08-12, full moon on 2026-08-28.
+      final dark = planAt(DateTime.utc(2026, 8, 12, 4));
+      expect(dark.recommendedFilterNames, equals(['L', 'Ha']));
+      expect(dark.recommendedFilterName, equals('L'));
+      final bright = planAt(DateTime.utc(2026, 8, 28, 4));
+      expect(bright.recommendedFilterNames, equals(['Ha', 'OIII']));
+      expect(bright.recommendedFilterName, equals('Ha'));
+    });
 
     test(
       'falls back to Smart Night exposure math when context is unavailable',
