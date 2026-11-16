@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
@@ -361,27 +360,18 @@ class CalibrationService {
     );
   }
 
-  /// Calibrate a single-plane u16 light in memory with the masters at these
-  /// paths, by the same rule as [calibrateFile]. A null path skips that
-  /// correction. The result states the output pedestal its samples carry.
-  Future<bridge.ApiCalibratedFrame> calibrateData({
-    required int width,
-    required int height,
-    required List<int> lightData,
+  /// The single-plane light at [lightPath] calibrated with the masters at
+  /// these paths, as 16-bit pixels, by the same rule as [calibrateFile]. A
+  /// null path skips that correction. The result states the output pedestal
+  /// its samples carry.
+  Future<bridge.ApiCalibratedPixels> calibrateData({
+    required String lightPath,
     String? darkPath,
     String? flatPath,
     String? biasPath,
-  }) async {
-    if (darkPath == null && flatPath == null && biasPath == null) {
-      return bridge.ApiCalibratedFrame(
-        data: Uint16List.fromList(lightData),
-        pedestal: 0,
-      );
-    }
-    return bridge.apiCalibrateImageData(
-      width: width,
-      height: height,
-      lightData: lightData,
+  }) {
+    return bridge.apiCalibratedLightPixels(
+      lightPath: lightPath,
       darkPath: darkPath,
       flatPath: flatPath,
       biasPath: biasPath,

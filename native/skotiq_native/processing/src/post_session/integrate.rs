@@ -16,7 +16,7 @@ use crate::post_session::helpers::{
     derive_luma_f64, exposures_per_light, extract_channel, header_string, image_to_f64,
     pedestal_free_quality, reference_wcs_from_fits, write_channel,
 };
-use crate::post_session::light_calibration::{light_exposure, LightCalibration};
+use crate::post_session::light_calibration::LightCalibration;
 use crate::post_session::telemetry::{
     elapsed_ms, emit_pass_telemetry, file_name, master_noise, report_normalized, RunningPreview,
 };
@@ -98,25 +98,21 @@ pub(crate) fn run_integration(
         let read =
             read_image(Path::new(path)).map_err(|e| format!("failed to read '{path}': {e}"))?;
         let source_header = read.header;
-        let mut image = read.image;
-        let mut pedestal = skotiq_imaging::calibration::stated_pedestal(&source_header);
-        if image.pixel_type != PixelType::U16 {
+        if read.image.pixel_type != PixelType::U16 {
             return Err(format!(
                 "light '{path}' is {:?}; registration requires U16 (debayer/convert first)",
-                image.pixel_type
+                read.image.pixel_type
             ));
         }
-        if !masters.is_empty() {
-            let calibrated = masters
-                .apply(&image, light_exposure(Some(exposures[i]), &source_header))
-                .map_err(|e| format!("'{path}': {e}"))?;
-            let k = calibrated.dark_scale;
-            if (k - 1.0).abs() > 1e-9 && !dark_scales.iter().any(|s| (s - k).abs() < 1e-9) {
-                dark_scales.push(k);
-            }
-            image = calibrated.sixteen_bit;
-            pedestal = f64::from(calibrated.pedestal);
+        let calibrated = masters
+            .apply(&read.image, &source_header, Some(exposures[i]))
+            .map_err(|e| format!("'{path}': {e}"))?;
+        let k = calibrated.dark_scale;
+        if (k - 1.0).abs() > 1e-9 && !dark_scales.iter().any(|s| (s - k).abs() < 1e-9) {
+            dark_scales.push(k);
         }
+        let image = calibrated.sixteen_bit;
+        let pedestal = f64::from(calibrated.pedestal);
         // `exposures_per_light` guaranteed one entry per light, so `i` is in range.
         loaded.push(LoadedLight {
             path: path.clone(),

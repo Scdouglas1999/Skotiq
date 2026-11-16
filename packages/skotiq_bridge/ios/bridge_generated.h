@@ -1890,10 +1890,12 @@ typedef struct wire_cst_list_tracked_guide_star {
   int32_t len;
 } wire_cst_list_tracked_guide_star;
 
-typedef struct wire_cst_api_calibrated_frame {
+typedef struct wire_cst_api_calibrated_pixels {
+  uint32_t width;
+  uint32_t height;
   struct wire_cst_list_prim_u_16_strict *data;
   double pedestal;
-} wire_cst_api_calibrated_frame;
+} wire_cst_api_calibrated_pixels;
 
 typedef struct wire_cst_ApiCenteringStep_Capturing {
   uint32_t attempt;
@@ -2774,20 +2776,18 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__a
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_calculate_auto_stretch(int64_t port_,
                                                                                 struct wire_cst_list_prim_u_8_strict *file_path);
 
-void frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_data(int64_t port_,
-                                                                              uint32_t width,
-                                                                              uint32_t height,
-                                                                              struct wire_cst_list_prim_u_16_loose *light_data,
-                                                                              struct wire_cst_list_prim_u_8_strict *dark_path,
-                                                                              struct wire_cst_list_prim_u_8_strict *flat_path,
-                                                                              struct wire_cst_list_prim_u_8_strict *bias_path);
-
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_file(int64_t port_,
                                                                               struct wire_cst_list_prim_u_8_strict *light_path,
                                                                               struct wire_cst_list_prim_u_8_strict *dark_path,
                                                                               struct wire_cst_list_prim_u_8_strict *flat_path,
                                                                               struct wire_cst_list_prim_u_8_strict *bias_path,
                                                                               struct wire_cst_list_prim_u_8_strict *output_path);
+
+void frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrated_light_pixels(int64_t port_,
+                                                                                 struct wire_cst_list_prim_u_8_strict *light_path,
+                                                                                 struct wire_cst_list_prim_u_8_strict *dark_path,
+                                                                                 struct wire_cst_list_prim_u_8_strict *flat_path,
+                                                                                 struct wire_cst_list_prim_u_8_strict *bias_path);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_cancel_exposure(int64_t port_,
                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
@@ -4198,8 +4198,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_auto_stretch_color_image);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_auto_stretch_image);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_calculate_auto_stretch);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_data);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_file);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrated_light_pixels);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_cancel_exposure);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure_configured);

@@ -122,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 288174336;
+  int get rustContentHash => -1685998195;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -191,21 +191,19 @@ abstract class RustLibApi extends BaseApi {
     required String filePath,
   });
 
-  Future<ApiCalibratedFrame> crateApiImagingApiCalibrateImageData({
-    required int width,
-    required int height,
-    required List<int> lightData,
-    String? darkPath,
-    String? flatPath,
-    String? biasPath,
-  });
-
   Future<void> crateApiImagingApiCalibrateImageFile({
     required String lightPath,
     String? darkPath,
     String? flatPath,
     String? biasPath,
     required String outputPath,
+  });
+
+  Future<ApiCalibratedPixels> crateApiImagingApiCalibratedLightPixels({
+    required String lightPath,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
   });
 
   Future<void> crateApiImagingApiCameraCancelExposure({
@@ -1778,58 +1776,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<ApiCalibratedFrame> crateApiImagingApiCalibrateImageData({
-    required int width,
-    required int height,
-    required List<int> lightData,
-    String? darkPath,
-    String? flatPath,
-    String? biasPath,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_u_32(width);
-          var arg1 = cst_encode_u_32(height);
-          var arg2 = cst_encode_list_prim_u_16_loose(lightData);
-          var arg3 = cst_encode_opt_String(darkPath);
-          var arg4 = cst_encode_opt_String(flatPath);
-          var arg5 = cst_encode_opt_String(biasPath);
-          return wire.wire__crate__api__imaging__api_calibrate_image_data(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_api_calibrated_frame,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiCalibrateImageDataConstMeta,
-        argValues: [width, height, lightData, darkPath, flatPath, biasPath],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiCalibrateImageDataConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_calibrate_image_data",
-        argNames: [
-          "width",
-          "height",
-          "lightData",
-          "darkPath",
-          "flatPath",
-          "biasPath",
-        ],
-      );
-
-  @override
   Future<void> crateApiImagingApiCalibrateImageFile({
     required String lightPath,
     String? darkPath,
@@ -1875,6 +1821,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "biasPath",
           "outputPath",
         ],
+      );
+
+  @override
+  Future<ApiCalibratedPixels> crateApiImagingApiCalibratedLightPixels({
+    required String lightPath,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(lightPath);
+          var arg1 = cst_encode_opt_String(darkPath);
+          var arg2 = cst_encode_opt_String(flatPath);
+          var arg3 = cst_encode_opt_String(biasPath);
+          return wire.wire__crate__api__imaging__api_calibrated_light_pixels(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_calibrated_pixels,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiImagingApiCalibratedLightPixelsConstMeta,
+        argValues: [lightPath, darkPath, flatPath, biasPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiImagingApiCalibratedLightPixelsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_calibrated_light_pixels",
+        argNames: ["lightPath", "darkPath", "flatPath", "biasPath"],
       );
 
   @override
@@ -10793,14 +10778,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  ApiCalibratedFrame dco_decode_api_calibrated_frame(dynamic raw) {
+  ApiCalibratedPixels dco_decode_api_calibrated_pixels(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return ApiCalibratedFrame(
-      data: dco_decode_list_prim_u_16_strict(arr[0]),
-      pedestal: dco_decode_f_64(arr[1]),
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ApiCalibratedPixels(
+      width: dco_decode_u_32(arr[0]),
+      height: dco_decode_u_32(arr[1]),
+      data: dco_decode_list_prim_u_16_strict(arr[2]),
+      pedestal: dco_decode_f_64(arr[3]),
     );
   }
 
@@ -14950,13 +14937,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  ApiCalibratedFrame sse_decode_api_calibrated_frame(
+  ApiCalibratedPixels sse_decode_api_calibrated_pixels(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
     var var_data = sse_decode_list_prim_u_16_strict(deserializer);
     var var_pedestal = sse_decode_f_64(deserializer);
-    return ApiCalibratedFrame(data: var_data, pedestal: var_pedestal);
+    return ApiCalibratedPixels(
+      width: var_width,
+      height: var_height,
+      data: var_data,
+      pedestal: var_pedestal,
+    );
   }
 
   @protected
@@ -20873,11 +20867,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_api_calibrated_frame(
-    ApiCalibratedFrame self,
+  void sse_encode_api_calibrated_pixels(
+    ApiCalibratedPixels self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
     sse_encode_list_prim_u_16_strict(self.data, serializer);
     sse_encode_f_64(self.pedestal, serializer);
   }

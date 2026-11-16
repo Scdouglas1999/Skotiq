@@ -55,7 +55,7 @@ fn light() -> ImageData {
 /// The calibrated samples, zero-based.
 fn signal(calibration: &LightCalibration, light: &ImageData, exposure: Option<f64>) -> Vec<f64> {
     calibration
-        .apply(light, exposure)
+        .apply(light, &FitsHeader::new(), exposure)
         .expect("calibrated")
         .image
         .samples_f64()
@@ -116,7 +116,9 @@ fn noise_below_the_dark_is_kept() {
     let light = u16_frame([1030.0, 1070.0, 1040.0, 1060.0]);
     let out = signal(&calibration, &light, None);
     assert_eq!(out, vec![-20.0, 20.0, -10.0, 10.0]);
-    let calibrated = calibration.apply(&light, None).expect("calibrated");
+    let calibrated = calibration
+        .apply(&light, &FitsHeader::new(), None)
+        .expect("calibrated");
     assert_eq!(
         calibrated.pedestal, 21.0,
         "the smallest that lifts -20 off zero"
@@ -139,7 +141,9 @@ fn a_sky_above_the_dark_gets_no_pedestal() {
     let dark = write(&d.0, "dark.fits", &u16_frame(DARK.map(f64::from)), &[]);
     let bias = write(&d.0, "bias.fits", &u16_frame([f64::from(BIAS); 4]), &[]);
     let calibration = LightCalibration::load(&dark, &None, &bias).expect("masters read");
-    let calibrated = calibration.apply(&light(), None).expect("calibrated");
+    let calibrated = calibration
+        .apply(&light(), &FitsHeader::new(), None)
+        .expect("calibrated");
     assert_eq!(calibrated.pedestal, 0.0);
     assert_eq!(
         calibrated.sixteen_bit.as_u16().expect("16-bit copy"),
@@ -212,7 +216,7 @@ fn a_dark_of_another_exposure_is_scaled_to_the_light() {
     }
     assert!(
         (calibration
-            .apply(&light(), Some(30.0))
+            .apply(&light(), &FitsHeader::new(), Some(30.0))
             .expect("calibrated")
             .dark_scale
             - 0.1)
@@ -233,9 +237,11 @@ fn a_dark_of_another_exposure_without_a_bias_is_refused() {
     let dark = Some(path.to_string_lossy().into_owned());
     let calibration = LightCalibration::load(&dark, &None, &None).expect("masters read");
     let err = calibration
-        .apply(&light(), Some(30.0))
+        .apply(&light(), &FitsHeader::new(), Some(30.0))
         .err()
         .expect("refused");
     assert!(err.contains("master bias"), "{err}");
-    assert!(calibration.apply(&light(), Some(300.0)).is_ok());
+    assert!(calibration
+        .apply(&light(), &FitsHeader::new(), Some(300.0))
+        .is_ok());
 }

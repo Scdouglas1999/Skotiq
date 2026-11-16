@@ -25,7 +25,7 @@ use crate::post_session::helpers::{
     extract_channel, image_to_f64, pedestal_free_quality, reject_label, write_channel,
 };
 use crate::post_session::light_calibration::{
-    light_exposure, CalibratedLight, LightCalibration, MasterCache, FLOAT_CALIBRATION_HISTORY,
+    CalibratedLight, LightCalibration, MasterCache, FLOAT_CALIBRATION_HISTORY,
 };
 use crate::post_session::master_cards::{attach_wcs, copy_optics_cards, fits_header_of};
 use crate::post_session::masters::MasterSettingsArgs;
@@ -400,7 +400,7 @@ fn calibrated_light(
         ));
     }
     calibration
-        .apply(&read.image, light_exposure(exposure, &read.header))
+        .apply(&read.image, &read.header, exposure)
         .map_err(|e| ("calibration", e))
 }
 

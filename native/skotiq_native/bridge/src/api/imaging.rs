@@ -1848,11 +1848,16 @@ pub fn api_calibrate_image_file(
     })?;
     let calibrated = calibrate_light(
         &light_result.image,
-        light_result.header.get_float("EXPTIME"),
+        &light_result.header,
         &dark_path,
         &flat_path,
         &bias_path,
     )?;
+    if calibrated.already_calibrated {
+        return Err(SkotiqError::ImageError(format!(
+            "'{light_path}' is already calibrated (its header says so), so it was not calibrated again"
+        )));
+    }
     let float_light = matches!(
         light_result.image.pixel_type,
         skotiq_imaging::PixelType::F32 | skotiq_imaging::PixelType::F64
@@ -1919,31 +1924,48 @@ pub fn api_calibrate_image_file(
     Ok(())
 }
 
-/// A light calibrated in memory: its 16-bit samples and the output pedestal,
+/// A single-plane light's calibrated 16-bit samples and the output pedestal,
 /// in ADU, they carry (0 for none).
-pub struct ApiCalibratedFrame {
+pub struct ApiCalibratedPixels {
+    pub width: u32,
+    pub height: u32,
     pub data: Vec<u16>,
     pub pedestal: f64,
 }
 
-/// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`].
-pub fn api_calibrate_image_data(
-    width: u32,
-    height: u32,
-    light_data: Vec<u16>,
+/// The single-plane light at `light_path` calibrated with the masters at the
+/// given paths, by the same rule as [`api_calibrate_image_file`]. A light
+/// whose header says it is already calibrated comes back as it is.
+pub fn api_calibrated_light_pixels(
+    light_path: String,
     dark_path: Option<String>,
     flat_path: Option<String>,
     bias_path: Option<String>,
-) -> Result<ApiCalibratedFrame, SkotiqError> {
-    let light = ImageData::from_u16(width, height, 1, &light_data);
-    let calibrated = calibrate_light(&light, None, &dark_path, &flat_path, &bias_path)?;
+) -> Result<ApiCalibratedPixels, SkotiqError> {
+    let read = skotiq_imaging::read_image(std::path::Path::new(&light_path)).map_err(|e| {
+        SkotiqError::ImageError(format!("Failed to read light frame '{light_path}': {e}"))
+    })?;
+    if read.image.channels != 1 {
+        return Err(SkotiqError::ImageError(format!(
+            "'{light_path}' has {} channels; a single-plane light was expected",
+            read.image.channels
+        )));
+    }
+    let calibrated = calibrate_light(
+        &read.image,
+        &read.header,
+        &dark_path,
+        &flat_path,
+        &bias_path,
+    )?;
     let data = calibrated.sixteen_bit.as_u16().ok_or_else(|| {
         SkotiqError::ImageError(
             "Failed to extract u16 pixel data from calibrated image".to_string(),
         )
     })?;
-    Ok(ApiCalibratedFrame {
+    Ok(ApiCalibratedPixels {
+        width: read.image.width,
+        height: read.image.height,
         data,
         pedestal: f64::from(calibrated.pedestal),
     })
@@ -1951,13 +1973,13 @@ pub fn api_calibrate_image_data(
 
 fn calibrate_light(
     light: &ImageData,
-    exposure: Option<f64>,
+    header: &skotiq_imaging::FitsHeader,
     dark_path: &Option<String>,
     flat_path: &Option<String>,
     bias_path: &Option<String>,
 ) -> Result<skotiq_processing::post_session::CalibratedLight, SkotiqError> {
     skotiq_processing::post_session::LightCalibration::load(dark_path, flat_path, bias_path)
-        .and_then(|masters| masters.apply(light, exposure))
+        .and_then(|masters| masters.apply(light, header, None))
         .map_err(SkotiqError::ImageError)
 }
 

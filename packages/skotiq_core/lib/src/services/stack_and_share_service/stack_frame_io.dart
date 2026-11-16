@@ -1,8 +1,9 @@
 part of '../stack_and_share_service.dart';
 
 extension _StackFrameIo on StackAndShareService {
-  /// Load [frame]'s raw linear pixels and calibrate them with its matching
-  /// dark and the run's master flat / bias in [context].
+  /// [frame]'s pixels calibrated with its matching dark and the run's master
+  /// flat / bias in [context], by the one light-calibration rule: a frame
+  /// whose header says it is calibrated is used as it is.
   ///
   /// The light's exposure / gain / binning / temperature drive the per-frame
   /// dark match; a frame with no matching dark and no master flat / bias is fed
@@ -12,9 +13,6 @@ extension _StackFrameIo on StackAndShareService {
     StackedFrameSelection frame,
     _CalibrationContext context,
   ) async {
-    final raw = await _loadRawU16(frame.filePath);
-    _ensureSameHost();
-
     final meta = await _imagesDao.getImageById(frame.imageId);
     _ensureSameHost();
     String? darkPath;
@@ -33,9 +31,7 @@ extension _StackFrameIo on StackAndShareService {
     }
 
     final calibrated = await _calibration.calibrateData(
-      width: raw.width,
-      height: raw.height,
-      lightData: raw.data,
+      lightPath: frame.filePath,
       darkPath: darkPath,
       flatPath: context.flatPath,
       biasPath: context.biasPath,
@@ -43,8 +39,8 @@ extension _StackFrameIo on StackAndShareService {
     _ensureSameHost();
 
     return _RawFrame(
-      width: raw.width,
-      height: raw.height,
+      width: calibrated.width,
+      height: calibrated.height,
       data: calibrated.data,
       pedestal: calibrated.pedestal,
     );
@@ -67,38 +63,6 @@ extension _StackFrameIo on StackAndShareService {
       flatPath: existing(settings.masterFlatPath, 'flat'),
       biasPath: existing(settings.masterBiasPath, 'bias'),
     );
-  }
-
-  /// Read a frame's unstretched linear pixels and quantise to u16.
-  ///
-  /// Uses the science-grade linear read path so the stacked integration works
-  /// on genuine sensor values rather than display-stretched bytes. The native
-  /// reader returns samples on the 16-bit ADU scale (BZERO/BSCALE and the
-  /// file's declared range applied); they are clamped to `[0, 65535]` (the
-  /// engine and calibration pipeline operate on u16), and a NaN sample, which
-  /// a float master holds where it rejected every frame, becomes 0.
-  Future<_RawFrame> _loadRawU16(String filePath) async {
-    final linear = await _engine.readLinearFrame(filePath);
-    _ensureSameHost();
-    final pixelCount = linear.width * linear.height;
-    if (linear.linearData.length != pixelCount) {
-      throw StateError(
-        'FITS "$filePath" reported ${linear.width}x${linear.height} '
-        '($pixelCount px) but returned ${linear.linearData.length} samples.',
-      );
-    }
-    final data = Uint16List(pixelCount);
-    for (var i = 0; i < pixelCount; i++) {
-      final v = linear.linearData[i];
-      if (!(v > 0)) {
-        data[i] = 0;
-      } else if (v >= 65535) {
-        data[i] = 65535;
-      } else {
-        data[i] = (v + 0.5).floor();
-      }
-    }
-    return _RawFrame(width: linear.width, height: linear.height, data: data);
   }
 
   /// Discover the reference frame's Bayer pattern, preferring the connected

@@ -111,7 +111,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw);
 
   @protected
-  ApiCalibratedFrame dco_decode_api_calibrated_frame(dynamic raw);
+  ApiCalibratedPixels dco_decode_api_calibrated_pixels(dynamic raw);
 
   @protected
   ApiCenteringRequest dco_decode_api_centering_request(dynamic raw);
@@ -1044,7 +1044,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ApiCalibratedFrame sse_decode_api_calibrated_frame(
+  ApiCalibratedPixels sse_decode_api_calibrated_pixels(
     SseDeserializer deserializer,
   );
 
@@ -3516,10 +3516,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_api_calibrated_frame(
-    ApiCalibratedFrame apiObj,
-    wire_cst_api_calibrated_frame wireObj,
+  void cst_api_fill_to_wire_api_calibrated_pixels(
+    ApiCalibratedPixels apiObj,
+    wire_cst_api_calibrated_pixels wireObj,
   ) {
+    wireObj.width = cst_encode_u_32(apiObj.width);
+    wireObj.height = cst_encode_u_32(apiObj.height);
     wireObj.data = cst_encode_list_prim_u_16_strict(apiObj.data);
     wireObj.pedestal = cst_encode_f_64(apiObj.pedestal);
   }
@@ -7810,8 +7812,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_api_calibrated_frame(
-    ApiCalibratedFrame self,
+  void sse_encode_api_calibrated_pixels(
+    ApiCalibratedPixels self,
     SseSerializer serializer,
   );
 
@@ -9649,56 +9651,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_calibrate_image_data(
-    int port_,
-    int width,
-    int height,
-    ffi.Pointer<wire_cst_list_prim_u_16_loose> light_data,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> dark_path,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> flat_path,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> bias_path,
-  ) {
-    return _wire__crate__api__imaging__api_calibrate_image_data(
-      port_,
-      width,
-      height,
-      light_data,
-      dark_path,
-      flat_path,
-      bias_path,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_calibrate_image_dataPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_data',
-      );
-  late final _wire__crate__api__imaging__api_calibrate_image_data =
-      _wire__crate__api__imaging__api_calibrate_image_dataPtr
-          .asFunction<
-            void Function(
-              int,
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
   void wire__crate__api__imaging__api_calibrate_image_file(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> light_path,
@@ -9738,6 +9690,48 @@ class RustLibWire implements BaseWire {
             void Function(
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__imaging__api_calibrated_light_pixels(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> light_path,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> dark_path,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> flat_path,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> bias_path,
+  ) {
+    return _wire__crate__api__imaging__api_calibrated_light_pixels(
+      port_,
+      light_path,
+      dark_path,
+      flat_path,
+      bias_path,
+    );
+  }
+
+  late final _wire__crate__api__imaging__api_calibrated_light_pixelsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrated_light_pixels',
+      );
+  late final _wire__crate__api__imaging__api_calibrated_light_pixels =
+      _wire__crate__api__imaging__api_calibrated_light_pixelsPtr
+          .asFunction<
+            void Function(
+              int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
@@ -21731,7 +21725,13 @@ final class wire_cst_list_tracked_guide_star extends ffi.Struct {
   external int len;
 }
 
-final class wire_cst_api_calibrated_frame extends ffi.Struct {
+final class wire_cst_api_calibrated_pixels extends ffi.Struct {
+  @ffi.Uint32()
+  external int width;
+
+  @ffi.Uint32()
+  external int height;
+
   external ffi.Pointer<wire_cst_list_prim_u_16_strict> data;
 
   @ffi.Double()
