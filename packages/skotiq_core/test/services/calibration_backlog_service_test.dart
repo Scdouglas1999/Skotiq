@@ -9,6 +9,7 @@ import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/models/calibration/calibration_library_models.dart';
 import 'package:skotiq_core/src/services/calibration_backlog_service.dart';
 import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/calibration_master_builder.dart';
@@ -28,6 +29,7 @@ void main() {
   late List<CalibrationMasterBuildRequest> masterCalls;
   late CalibrationBacklogService service;
   final missing = <String>{};
+  final headers = <String, FrameHeader>{};
 
   CalibrationBacklogService makeService() => CalibrationBacklogService(
     db: db,
@@ -62,6 +64,8 @@ void main() {
     },
     settings: SettingsDao(db),
     fileExists: (path) async => !missing.contains(path),
+    readHeader: (path) async => headers[path] ?? FrameHeader(const {}),
+    temperatureToleranceC: () async => 2,
     now: () => DateTime(2026, 10, 25, 9),
   );
 
@@ -73,6 +77,7 @@ void main() {
     seam = FakePostSessionSeam();
     masterCalls = [];
     missing.clear();
+    headers.clear();
     service = makeService();
   });
 
@@ -90,10 +95,14 @@ void main() {
     double? temp = -10,
     int gain = 76,
     int offset = 15,
+    int bin = 1,
     String dir = 'Dark',
+    List<double>? temps,
+    double? setPoint,
   }) async {
     for (var i = 0; i < count; i++) {
       final path = '${tmp.path}/$dir/${type}_${exposure}_${filter}_$i.fits';
+      if (setPoint != null) headers[path] = FrameHeader({'SET-TEMP': setPoint});
       await db
           .into(db.capturedImages)
           .insert(
@@ -105,12 +114,19 @@ void main() {
               capturedAt: start.add(Duration(seconds: 100 * i)),
               gain: Value(gain),
               offset: Value(offset),
+              binX: Value(bin),
+              binY: Value(bin),
               filter: Value(filter),
-              sensorTemp: Value(temp),
+              sensorTemp: Value(temps == null ? temp : temps[i]),
             ),
           );
     }
   }
+
+  List<double> spread(double from, double to, int count) => [
+    for (var i = 0; i < count; i++)
+      count == 1 ? from : from + (to - from) * i / (count - 1),
+  ];
 
   Future<void> addMaster({
     required String frameType,
@@ -255,6 +271,136 @@ void main() {
     expect(warm.settings, 'gain 76 · offset 15 · bin 1x1 · 20 °C');
     // Newest night first.
     expect(groups.first.night, '2026-10-23');
+  });
+
+  test('darks and bias group by the set-point their headers state, never '
+      'by a temperature shared across set-points', () async {
+    // The rig night of 2026-11-16: neighboring set-points whose sensor
+    // readings overlap.
+    final at = DateTime(2026, 11, 16, 4);
+    for (final (setPoint, gain, bin, darks, bias) in [
+      (-6.0, 600, 2, spread(-6.2, -5.0, 20), spread(-6.1, -5.9, 10)),
+      (-4.0, 600, 2, spread(-6.0, -3.5, 20), spread(-4.1, -3.9, 4)),
+      (0.0, 139, 1, spread(-0.6, 0.5, 20), spread(0.0, 0.1, 3)),
+      (1.0, 139, 1, spread(0.2, 1.3, 20), spread(0.9, 1.1, 10)),
+    ]) {
+      for (final (type, exposure, temps) in [
+        ('dark', 3.0, darks),
+        ('bias', 0.001, bias),
+      ]) {
+        await addFrames(
+          type,
+          temps.length,
+          start: at,
+          exposure: exposure,
+          gain: gain,
+          offset: 21,
+          bin: bin,
+          dir: 'sp$setPoint',
+          temps: temps,
+          setPoint: setPoint,
+        );
+      }
+    }
+
+    final groups = await service.pending();
+
+    expect(
+      groups.map((g) => '${g.title} · ${g.settings} · ${g.frames.length}'),
+      unorderedEquals([
+        'Dark 3 s · gain 600 · offset 21 · bin 2x2 · -6 °C · 20',
+        'Bias · gain 600 · offset 21 · bin 2x2 · -6 °C · 10',
+        'Dark 3 s · gain 600 · offset 21 · bin 2x2 · -4 °C · 20',
+        'Bias · gain 600 · offset 21 · bin 2x2 · -4 °C · 4',
+        'Dark 3 s · gain 139 · offset 21 · bin 1x1 · 0 °C · 20',
+        'Bias · gain 139 · offset 21 · bin 1x1 · 0 °C · 3',
+        'Dark 3 s · gain 139 · offset 21 · bin 1x1 · 1 °C · 20',
+        'Bias · gain 139 · offset 21 · bin 1x1 · 1 °C · 10',
+      ]),
+    );
+  });
+
+  test(
+    'frames read off their set-point are shown with why and never built',
+    () async {
+      final at = DateTime(2026, 11, 15, 23, 27);
+      // Darks taken while the sensor warmed from -10 °C toward a 1 °C
+      // set-point, then a block taken at it.
+      await addFrames(
+        'dark',
+        6,
+        start: at,
+        exposure: 3,
+        gain: 139,
+        offset: 21,
+        dir: 'warming',
+        temps: spread(-9.7, -5.5, 6),
+        setPoint: 1,
+      );
+
+      final warming = (await service.pending()).single;
+
+      expect(warming.frames, isEmpty);
+      expect(warming.offSetPoint, hasLength(6));
+      expect(warming.buildable, isFalse);
+      expect(
+        warming.offSetPointNote,
+        '6 of 6 frames read too far from the 1 °C set-point; a master needs at '
+        'least 2 at it',
+      );
+
+      await addFrames(
+        'dark',
+        5,
+        start: at.add(const Duration(hours: 5)),
+        exposure: 3,
+        gain: 139,
+        offset: 21,
+        dir: 'at',
+        temps: spread(0.2, 1.3, 5),
+        setPoint: 1,
+      );
+      final both = (await service.pending()).single;
+      expect(both.frames, hasLength(5));
+      expect(
+        both.offSetPointNote,
+        '6 of 11 frames read too far from the 1 °C set-point and are left out '
+        'of the master',
+      );
+
+      await service.build(both);
+
+      expect(masterCalls.single.framePaths, [
+        for (final f in both.frames) f.filePath,
+      ]);
+      expect(masterCalls.single.outputPath, contains('_p1C_'));
+    },
+  );
+
+  test('a master built off its set-point covers nothing', () async {
+    await addFrames('dark', 20, start: night);
+    final group = (await service.pending()).single;
+    CalibrationMasterRecord master({String? offSetPoint}) =>
+        CalibrationMasterRecord(
+          type: CalibrationMasterType.dark,
+          id: 1,
+          filePath: '/m.fits',
+          isMaster: true,
+          exposureSeconds: 90,
+          temperature: -10,
+          gain: 76,
+          offset: 15,
+          offSetPoint: offSetPoint,
+          createdAt: night.add(const Duration(days: 1)),
+        );
+
+    expect(CalibrationBacklogService.isCovered(group, [master()], 2), isTrue);
+    expect(
+      CalibrationBacklogService.isCovered(group, [
+        master(offSetPoint: 'Built from frames that read -7.6 °C on average'),
+      ], 2),
+      isFalse,
+    );
   });
 
   test(

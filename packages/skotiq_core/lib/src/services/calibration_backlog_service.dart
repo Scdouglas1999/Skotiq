@@ -15,11 +15,14 @@ import '../models/imaging/imaging_models.dart'
     show FrameType, frameFileFormatOf;
 import '../providers/dark_library_provider.dart';
 import '../providers/database_provider.dart';
+import '../models/calibration/dark_library_match_tolerances.dart';
+import 'calibration/calibration_frame_groups.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
-import 'darkroom_build_service.dart'
-    show darkroomTemperatureGapC, observingNight, flatSetupKey;
+import 'darkroom_build_service.dart' show observingNight, flatSetupKey;
 import 'flat_library_service.dart';
+import 'frame_header.dart';
+import 'logging_service.dart';
 import '../models/imaging/frame_gain.dart';
 import '../providers/calibration_library_service_providers.dart';
 import '../providers/calibration_master_builder_provider.dart';
@@ -46,10 +49,6 @@ enum CalibrationFrameKind {
       };
 }
 
-/// Sensor temperatures further apart than this split raw darks and bias into
-/// separate masters; the same bar the Darkroom uses for lights.
-const double calibrationBacklogTemperatureGapC = darkroomTemperatureGapC;
-
 /// The fewest frames a master is built from.
 const int calibrationBacklogMinFrames = 2;
 
@@ -67,6 +66,9 @@ class CalibrationBacklogGroup {
     required this.binY,
     required this.filter,
     required this.temperature,
+    this.setPointC,
+    this.readMode,
+    this.offSetPoint = const [],
     this.missingFiles = 0,
   });
 
@@ -84,14 +86,29 @@ class CalibrationBacklogGroup {
   /// Filter of a flat group; null for darks and bias.
   final String? filter;
 
-  /// Median sensor temperature, when the frames recorded one.
+  /// The temperature the master stands for: the darks' and bias' set-point,
+  /// otherwise the median sensor reading, when the frames recorded one.
   final double? temperature;
+
+  /// The cooler set-point the darks or bias were taken at; null for flats
+  /// and for a camera that was not cooling.
+  final double? setPointC;
+  final String? readMode;
+
+  /// Frames of this setting whose sensor read further than the dark
+  /// library's tolerance from the set-point; never built into the master.
+  final List<DbCapturedImage> offSetPoint;
 
   /// Frames whose file is not on this computer.
   final int missingFiles;
 
-  DateTime get firstCapturedAt => frames.first.capturedAt;
-  DateTime get lastCapturedAt => frames.last.capturedAt;
+  /// Every frame of the group, the left-out ones too, oldest first.
+  List<DbCapturedImage> get _taken =>
+      [...frames, ...offSetPoint]
+        ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+
+  DateTime get firstCapturedAt => _taken.first.capturedAt;
+  DateTime get lastCapturedAt => _taken.last.capturedAt;
 
   /// Stable identity, used to dismiss a group and to track its build.
   String get key => [
@@ -102,7 +119,11 @@ class CalibrationBacklogGroup {
     gain ?? '',
     offset ?? '',
     '${binX}x$binY',
-    if (temperature != null) temperature!.round(),
+    if (readMode != null) readMode!,
+    if (setPointC != null)
+      'sp${(setPointC! * 10).round()}'
+    else if (temperature != null)
+      temperature!.round(),
   ].join('|');
 
   /// What the master is, in a few words: "Dark 90 s", "Bias", "Flat Ha".
@@ -114,15 +135,30 @@ class CalibrationBacklogGroup {
 
   /// The capture settings the master is matched on.
   String get settings => [
-    if (gain != null) frames.first.recordedGainKind.describe(gain!),
+    if (gain != null) _taken.first.recordedGainKind.describe(gain!),
     if (offset != null) 'offset $offset',
     'bin ${binX}x$binY',
-    if (temperature != null) '${temperature!.round()} °C',
+    if (readMode != null) readMode!,
+    if (temperature != null) '${_trim(temperature!)} °C',
     if (kind == CalibrationFrameKind.flat) '${_trim(exposureSeconds)} s',
   ].join(' · ');
 
   bool get buildable =>
       missingFiles == 0 && frames.length >= calibrationBacklogMinFrames;
+
+  /// What [offSetPoint] means for the master, for the operator; null when
+  /// every frame was at the set-point.
+  String? get offSetPointNote {
+    if (offSetPoint.isEmpty) return null;
+    final n = offSetPoint.length;
+    final at = setPointC == null
+        ? 'the set-point'
+        : 'the ${_trim(setPointC!)} °C set-point';
+    final read = '$n of ${n + frames.length} frames read too far from $at';
+    return frames.length < calibrationBacklogMinFrames
+        ? '$read; a master needs at least $calibrationBacklogMinFrames at it'
+        : '$read and are left out of the master';
+  }
 
   static String _trim(double v) {
     if (v == v.roundToDouble()) return v.toStringAsFixed(0);
@@ -190,6 +226,8 @@ class CalibrationBacklogService {
     required CalibrationMasterBuild buildMaster,
     SettingsDao? settings,
     Future<bool> Function(String path)? fileExists,
+    FrameHeaderReader readHeader = readFrameHeader,
+    Future<double> Function()? temperatureToleranceC,
     DateTime Function()? now,
   }) : _db = db,
        _library = library,
@@ -198,6 +236,10 @@ class CalibrationBacklogService {
        _buildMaster = buildMaster,
        _settings = settings,
        _fileExists = fileExists ?? ((path) => File(path).exists()),
+       _readHeader = readHeader,
+       _temperatureToleranceC =
+           temperatureToleranceC ??
+           (() async => DarkLibraryMatchTolerances.defaults.temperatureC),
        _now = now ?? DateTime.now;
 
   final SkotiqDatabase _db;
@@ -207,7 +249,14 @@ class CalibrationBacklogService {
   final CalibrationMasterBuild _buildMaster;
   final SettingsDao? _settings;
   final Future<bool> Function(String path) _fileExists;
+  final FrameHeaderReader _readHeader;
+
+  /// The dark library's temperature tolerance, the one the matcher uses.
+  final Future<double> Function() _temperatureToleranceC;
   final DateTime Function() _now;
+
+  /// Header facts by frame path; a frame file does not change once written.
+  final Map<String, CalibrationFrameFacts> _facts = {};
 
   static const String dismissedKey = 'calibration.backlog.dismissed';
   static const scheduledFlatsKey = 'calibration.backlog.night_end_flats';
@@ -360,87 +409,174 @@ class CalibrationBacklogService {
             ))
             .get();
     if (rows.isEmpty) return const [];
-    final groups = await groupFrames(rows);
+    final toleranceC = await _temperatureToleranceC();
+    final groups = await groupFrames(rows, toleranceC: toleranceC);
     final masters = await _library.listMasters();
     final dismissed = await dismissedKeys();
     final waiting = [
       for (final g in groups)
-        if (!dismissed.contains(g.key) && !isCovered(g, masters)) g,
+        if (!dismissed.contains(g.key) && !isCovered(g, masters, toleranceC)) g,
     ];
     waiting.sort((a, b) => b.lastCapturedAt.compareTo(a.lastCapturedAt));
     return waiting;
   }
 
-  /// Group raw frames by kind, observing night and capture setting; darks
-  /// and bias are further split where sensor temperatures jump.
+  /// Group raw frames by kind, observing night and capture setting. Darks
+  /// and bias follow [groupCalibrationFrames], the rule the end-of-night
+  /// calibration builds its masters by; [toleranceC] defaults to the dark
+  /// library's. Flats group by filter, gain, offset and binning.
   Future<List<CalibrationBacklogGroup>> groupFrames(
-    List<DbCapturedImage> frames,
-  ) async {
-    final buckets = <String, List<DbCapturedImage>>{};
+    List<DbCapturedImage> frames, {
+    double? toleranceC,
+  }) async {
+    final tolerance = toleranceC ?? await _temperatureToleranceC();
+    final flats = <String, List<DbCapturedImage>>{};
+    final darksByNight =
+        <String, List<(DbCapturedImage, CalibrationFrameFacts)>>{};
+    final present = <String, bool>{};
+    for (final f in frames) {
+      if (CalibrationFrameKind.parse(f.frameType) == null) continue;
+      present[f.filePath] = await _fileExists(f.filePath);
+    }
+    await _loadFacts([
+      for (final f in frames)
+        if (present[f.filePath] == true &&
+            CalibrationFrameKind.parse(f.frameType) !=
+                CalibrationFrameKind.flat)
+          f.filePath,
+    ]);
     for (final f in frames) {
       final kind = CalibrationFrameKind.parse(f.frameType);
       if (kind == null) continue;
-      final key = [
-        kind.name,
-        observingNight(f.capturedAt),
-        if (kind == CalibrationFrameKind.dark) f.exposureDuration,
-        if (kind == CalibrationFrameKind.flat) _filterOf(f) ?? '',
-        f.gain,
-        f.offset,
-        f.binX,
-        f.binY,
-      ].join('|');
-      buckets.putIfAbsent(key, () => []).add(f);
+      final night = observingNight(f.capturedAt);
+      if (kind == CalibrationFrameKind.flat) {
+        final key = [
+          night,
+          _filterOf(f) ?? '',
+          f.gain,
+          f.offset,
+          f.binX,
+          f.binY,
+        ].join('|');
+        (flats[key] ??= []).add(f);
+      } else {
+        (darksByNight[night] ??= []).add((
+          f,
+          _facts[f.filePath] ?? const CalibrationFrameFacts(),
+        ));
+      }
     }
+    int missingOf(List<DbCapturedImage> frames) =>
+        frames.where((f) => !present[f.filePath]!).length;
+
     final result = <CalibrationBacklogGroup>[];
-    for (final bucket in buckets.values) {
-      final kind = CalibrationFrameKind.parse(bucket.first.frameType)!;
-      final clusters = kind == CalibrationFrameKind.flat
-          ? [bucket]
-          : _temperatureClusters(bucket);
-      for (final cluster in clusters) {
-        cluster.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-        var missing = 0;
-        for (final f in cluster) {
-          if (!await _fileExists(f.filePath)) missing++;
-        }
-        final first = cluster.first;
-        final temps = [
-          for (final f in cluster)
-            if (f.sensorTemp != null) f.sensorTemp!,
-        ]..sort();
-        final exposures = [for (final f in cluster) f.exposureDuration]..sort();
+    for (final MapEntry(key: night, value: nightFrames)
+        in darksByNight.entries) {
+      for (final group in groupCalibrationFrames(
+        nightFrames,
+        toleranceC: tolerance,
+      )) {
+        final s = group.setting;
+        final all = [...group.frames, ...group.offSetPoint];
         result.add(
           CalibrationBacklogGroup(
-            kind: kind,
-            night: observingNight(first.capturedAt),
-            frames: cluster,
-            exposureSeconds: exposures[exposures.length ~/ 2],
-            gain: first.gain,
-            offset: first.offset,
-            binX: first.binX,
-            binY: first.binY,
-            filter: kind == CalibrationFrameKind.flat ? _filterOf(first) : null,
-            temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],
-            missingFiles: missing,
+            kind: s.type == FrameType.bias
+                ? CalibrationFrameKind.bias
+                : CalibrationFrameKind.dark,
+            night: night,
+            frames: group.frames,
+            exposureSeconds: s.exposureSecs,
+            gain: s.gain,
+            offset: s.offset,
+            binX: s.binX,
+            binY: s.binY,
+            filter: null,
+            temperature: group.temperatureC,
+            setPointC: s.setPointC,
+            readMode: s.readMode,
+            offSetPoint: group.offSetPoint,
+            missingFiles: missingOf(all),
           ),
         );
       }
     }
+    for (final cluster in flats.values) {
+      cluster.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+      final first = cluster.first;
+      final temps = [
+        for (final f in cluster)
+          if (f.sensorTemp != null) f.sensorTemp!,
+      ]..sort();
+      final exposures = [for (final f in cluster) f.exposureDuration]..sort();
+      result.add(
+        CalibrationBacklogGroup(
+          kind: CalibrationFrameKind.flat,
+          night: observingNight(first.capturedAt),
+          frames: cluster,
+          exposureSeconds: exposures[exposures.length ~/ 2],
+          gain: first.gain,
+          offset: first.offset,
+          binX: first.binX,
+          binY: first.binY,
+          filter: _filterOf(first),
+          temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],
+          missingFiles: missingOf(cluster),
+        ),
+      );
+    }
     return result;
   }
 
-  /// Whether a library master already stands for [group].
+  /// Read the set-point and read mode the headers of [paths] state into
+  /// [_facts], several at a time: the first look at a long-used library reads
+  /// thousands. A header that cannot be read states neither (and is logged);
+  /// the native builder says why when its frame is built.
+  Future<void> _loadFacts(List<String> paths) async {
+    final unread = [
+      for (final path in paths)
+        if (!_facts.containsKey(path)) path,
+    ];
+    const batch = 32;
+    for (var i = 0; i < unread.length; i += batch) {
+      await Future.wait([
+        for (final path in unread.skip(i).take(batch))
+          _readHeader(path).then(
+            (header) => _facts[path] = CalibrationFrameFacts.fromHeader(header),
+            onError: (Object e) {
+              Log.warning(
+                'The header of $path could not be read, so its set-point '
+                'and read mode are unknown: $e',
+                source: 'CalibrationBacklog',
+              );
+              return _facts[path] = const CalibrationFrameFacts();
+            },
+          ),
+      ]);
+    }
+  }
+
+  /// Whether a library master already stands for [group]: same kind and
+  /// capture setting, created after the group's last frame, not built off
+  /// its set-point ([CalibrationMasterRecord.offSetPoint]), and for darks and
+  /// bias within [toleranceC] of the group's temperature, the tolerance the
+  /// matcher picks masters by.
   static bool isCovered(
     CalibrationBacklogGroup group,
     List<CalibrationMasterRecord> masters,
+    double toleranceC,
   ) {
     for (final m in masters) {
       if (m.type != group.kind.masterType || !m.isMaster) continue;
+      if (m.offSetPoint != null) continue;
       if (m.createdAt.isBefore(group.lastCapturedAt)) continue;
       if (group.gain != null && m.gain != group.gain) continue;
       if (group.offset != null && m.offset != group.offset) continue;
       if (m.binX != group.binX || m.binY != group.binY) continue;
+      if (group.readMode != null &&
+          m.readoutMode != null &&
+          m.readoutMode != group.readMode) {
+        continue;
+      }
       switch (group.kind) {
         case CalibrationFrameKind.dark:
           final exposure = m.exposureSeconds;
@@ -459,8 +595,7 @@ class CalibrationBacklogService {
       if (group.kind != CalibrationFrameKind.flat &&
           group.temperature != null &&
           m.temperature != null &&
-          (m.temperature! - group.temperature!).abs() >
-              calibrationBacklogTemperatureGapC) {
+          (m.temperature! - group.temperature!).abs() > toleranceC) {
         continue;
       }
       return true;
@@ -740,29 +875,6 @@ class CalibrationBacklogService {
     final name = f.filter?.trim();
     return name == null || name.isEmpty ? null : name;
   }
-
-  static List<List<DbCapturedImage>> _temperatureClusters(
-    List<DbCapturedImage> frames,
-  ) {
-    final known = frames.where((f) => f.sensorTemp != null).toList()
-      ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
-    final unknown = frames.where((f) => f.sensorTemp == null).toList();
-    if (known.isEmpty) return [frames];
-    final clusters = <List<DbCapturedImage>>[
-      [known.first],
-    ];
-    for (final f in known.skip(1)) {
-      if (f.sensorTemp! - clusters.last.last.sensorTemp! >
-          calibrationBacklogTemperatureGapC) {
-        clusters.add([f]);
-      } else {
-        clusters.last.add(f);
-      }
-    }
-    clusters.sort((a, b) => b.length.compareTo(a.length));
-    clusters.first.addAll(unknown);
-    return clusters;
-  }
 }
 
 final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
@@ -775,6 +887,7 @@ final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
     flatLibrary: ref.watch(flatLibraryServiceProvider),
     buildMaster: ref.watch(calibrationMasterBuildProvider),
     settings: ref.watch(settingsDaoProvider),
+    temperatureToleranceC: () => loadedDarkTemperatureToleranceC(ref),
   );
 });
 

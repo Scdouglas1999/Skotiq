@@ -37,13 +37,22 @@ class _Rig {
   final missing = <String>{};
   final built = <CalibrationMasterBuildRequest>[];
 
+  /// Frame and master headers by path; a file missing here states nothing.
+  final headers = <String, FrameHeader>{};
+  Future<FrameHeader> readHeader(String path) async =>
+      headers[path] ?? FrameHeader(const {});
+
+  late final library = CalibrationLibraryService(
+    db: database,
+    flatLibraryDao: FlatLibraryDao(database),
+    tagsDao: CalibrationTagsDao(database),
+    readHeader: readHeader,
+    darkTolerances: () => const DarkLibraryMatchTolerances(temperatureC: 2),
+  );
+
   late final service = CalibrationBacklogService(
     db: database,
-    library: CalibrationLibraryService(
-      db: database,
-      flatLibraryDao: FlatLibraryDao(database),
-      tagsDao: CalibrationTagsDao(database),
-    ),
+    library: library,
     darkLibrary: DarkLibraryService(DarkLibraryDao(database)),
     flatLibrary: FlatLibraryService(
       dao: FlatLibraryDao(database),
@@ -73,6 +82,8 @@ class _Rig {
     },
     settings: database.settingsDao,
     fileExists: (path) async => !missing.contains(path),
+    readHeader: readHeader,
+    temperatureToleranceC: () async => 2,
   );
 
   Future<void> addFrames(
@@ -81,12 +92,17 @@ class _Rig {
     required double exposure,
     required DateTime start,
     double temp = -10,
+    List<double>? temps,
+    double? setPoint,
     int gain = 76,
     int offset = 15,
     String dir = 'NGC7380',
   }) async {
     for (var i = 0; i < count; i++) {
       final path = '${folder.path}/$dir/${type}_${exposure}_$i.fits';
+      if (setPoint != null) {
+        headers[path] = FrameHeader({'SET-TEMP': setPoint});
+      }
       await database.into(database.capturedImages).insert(
             db.CapturedImagesCompanion.insert(
               filePath: path,
@@ -96,7 +112,7 @@ class _Rig {
               capturedAt: start.add(Duration(seconds: 95 * i)),
               gain: Value(gain),
               offset: Value(offset),
-              sensorTemp: Value(temp),
+              sensorTemp: Value(temps?[i] ?? temp),
             ),
           );
     }
@@ -142,6 +158,7 @@ Future<HarnessHandle> _pumpTab(
     database: rig.database,
     settle: false,
     extraOverrides: [
+      calibrationLibraryServiceProvider.overrideWithValue(rig.library),
       calibrationBacklogServiceProvider.overrideWithValue(rig.service),
       calibrationBacklogProvider.overrideWith(
         (ref) => CalibrationBacklogNotifier(ref, remote: false),
@@ -216,6 +233,75 @@ void main() {
         ),
       );
       expect(build.onPressed, isNull);
+    });
+
+    testWidgets('darks read off their set-point say so and cannot be built', (
+      tester,
+    ) async {
+      final rig = await _rig();
+      // The rig's darks of 2026-11-15 23:27, taken while the sensor warmed
+      // from -10 °C toward the 1 °C set-point.
+      await rig.addFrames(
+        'dark',
+        6,
+        exposure: 3,
+        start: DateTime(2026, 11, 15, 23, 27),
+        temps: const [-9.7, -8.9, -8.0, -7.2, -6.3, -5.5],
+        setPoint: 1,
+        gain: 139,
+        offset: 21,
+      );
+
+      await _pumpTab(tester, rig);
+
+      expect(
+          find.text('gain 139 · offset 21 · bin 1x1 · 1 °C'), findsOneWidget);
+      expect(find.text('0 frames'), findsOneWidget);
+      expect(
+        find.text(
+          '6 of 6 frames read too far from the 1 °C set-point; a master '
+          'needs at least 2 at it',
+        ),
+        findsOneWidget,
+      );
+      final build = tester.widget<SkotiqButton>(
+        find.widgetWithText(SkotiqButton, 'Build'),
+      );
+      expect(build.onPressed, isNull);
+    });
+
+    testWidgets(
+        'a master built off its set-point is listed with why it is '
+        'not used', (tester) async {
+      final rig = await _rig();
+      final path = '${rig.folder.path}/MasterDark_3s_g139_o21_m8C_bin1.fits';
+      File(path).writeAsStringSync('');
+      rig.headers[path] = FrameHeader(const {
+        'SET-TEMP': 1.0,
+        'CCD-TEMP': -7.6,
+      });
+      await DarkLibraryDao(rig.database).addEntry(
+        db.DarkLibraryCompanion.insert(
+          filePath: path,
+          exposureTime: 3,
+          gain: const Value(139),
+          offset: const Value(21),
+          temperature: const Value(-7.6),
+          masterDarkPath: Value(path),
+          masterFrameCount: const Value(6),
+        ),
+      );
+
+      await _pumpTab(tester, rig);
+
+      expect(
+        find.text(
+          'Not used to calibrate: Built from frames that read -7.6 °C on '
+          'average at a 1 °C set-point, more than 2 °C from it.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('MasterDark_3s_g139_o21_m8C_bin1.fits'), findsOneWidget);
     });
 
     testWidgets('one click builds the master, registers it and says so', (

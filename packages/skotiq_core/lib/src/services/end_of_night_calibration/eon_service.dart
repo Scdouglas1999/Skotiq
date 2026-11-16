@@ -8,8 +8,11 @@ import 'package:path/path.dart' as p;
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/sequence_run_status.dart';
+import '../calibration/calibration_frame_groups.dart';
 import '../calibration_master_builder.dart';
 import '../camera_warmup_controller.dart' show CameraWarmupOutcome;
+import '../frame_header.dart';
+import '../logging_service.dart';
 import 'eon_plan.dart';
 import 'eon_settings.dart';
 
@@ -78,6 +81,9 @@ abstract class EonRig {
   Future<void> stopRun();
 
   Future<List<DbCapturedImage>> framesOfRun(int runId);
+
+  /// The header of the frame file at [path]; throws when it cannot be read.
+  Future<FrameHeader> frameHeader(String path);
 
   Future<CalibrationMasterBuildResult> buildMaster(
     CalibrationMasterBuildRequest request,
@@ -378,6 +384,11 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   void _finish(EonReport report, EonPhase phase, String summary) {
     report.finishedAt = _rig.now();
     report.summary = summary;
+    Log.write(
+      phase == EonPhase.failed ? LogLevel.warning : LogLevel.info,
+      summary,
+      source: _logSource,
+    );
     _set(phase, summary, report);
   }
 
@@ -486,9 +497,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       needs,
       config,
       report,
-      toleranceC: camera.canCool
-          ? await _rig.darkTemperatureToleranceC()
-          : null,
+      toleranceC: await _rig.darkTemperatureToleranceC(),
     );
 
     if (_cancelRequested) return _cancelled(report);
@@ -639,143 +648,144 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     return false;
   }
 
-  /// Build one master per frame type, exposure, gain, offset, binning and
-  /// set-point. A frame belongs to the planned set-point nearest its measured
-  /// sensor temperature; one more than [toleranceC] from every set-point it
-  /// could belong to was taken off its set-point and is left out, so a master
-  /// never mixes temperatures the library would not match together. A camera
-  /// that cannot cool holds no set-point ([toleranceC] null): its frames
-  /// group without one.
+  /// Build one master per [groupCalibrationFrames] group of the run's darks
+  /// and bias: frame type, exposure, gain, offset, binning, read mode and the
+  /// set-point each frame's header states. Frames read off their set-point
+  /// are left out. Every master built and every group left unbuilt is logged
+  /// and reported, with why.
   Future<void> _buildMasters(
     List<DbCapturedImage> frames,
     EonFrameNeeds needs,
     EonSettings config,
     EonReport report, {
-    required double? toleranceC,
+    required double toleranceC,
   }) async {
-    final groups =
-        <(String, int, int?, int?, int, int, double?), List<DbCapturedImage>>{};
-    var offSetPoint = 0;
+    final read = <(DbCapturedImage, CalibrationFrameFacts)>[];
+    final unread = <String>[];
     for (final frame in frames) {
       final type = frame.recordedFrameType;
       if (type != FrameType.dark && type != FrameType.bias) continue;
-      final exposureMs = (frame.exposureDuration * 1000).round();
-      final planned = type == FrameType.dark
-          ? {
-              for (final d in needs.darks)
-                if ((d.exposureSecs * 1000).round() == exposureMs &&
-                    d.gain == frame.gain &&
-                    d.offset == frame.offset &&
-                    d.binX == frame.binX &&
-                    d.binY == frame.binY)
-                  d.setPointC,
-            }
-          : {
-              for (final b in needs.bias)
-                if (b.gain == frame.gain &&
-                    b.offset == frame.offset &&
-                    b.binX == frame.binX &&
-                    b.binY == frame.binY)
-                  b.setPointC,
-            };
-      final owner = toleranceC == null
-          ? (setPointC: null)
-          : _setPointOwning(frame.sensorTemp, planned, toleranceC);
-      if (owner == null) {
-        offSetPoint++;
-        continue;
+      try {
+        final header = await _rig.frameHeader(frame.filePath);
+        read.add((frame, CalibrationFrameFacts.fromHeader(header)));
+      } catch (e) {
+        unread.add('${p.basename(frame.filePath)}: $e');
       }
-      final key = (
-        type!.record,
-        exposureMs,
-        frame.gain,
-        frame.offset,
-        frame.binX,
-        frame.binY,
-        owner.setPointC,
-      );
-      (groups[key] ??= []).add(frame);
     }
-    if (offSetPoint > 0) {
-      report.problems.add(
-        '$offSetPoint frames read more than ${_trimTemp(toleranceC!)} °C from '
-        'their set-point and were left out of the masters',
+    if (unread.isNotEmpty) {
+      _problem(
+        report,
+        unread.length == 1
+            ? '1 frame could not be read and was left out of the masters '
+                  '(${unread.single})'
+            : '${unread.length} frames could not be read and were left out '
+                  'of the masters (${unread.first})',
       );
     }
+    final groups = groupCalibrationFrames(read, toleranceC: toleranceC);
     for (final dark in needs.darks) {
-      final key = (
-        'dark',
-        (dark.exposureSecs * 1000).round(),
-        dark.gain,
-        dark.offset,
-        dark.binX,
-        dark.binY,
-        toleranceC == null ? null : dark.setPointC,
+      final taken = groups.any(
+        (g) =>
+            g.setting.type == FrameType.dark &&
+            g.frames.isNotEmpty &&
+            (g.setting.exposureSecs * 1000).round() ==
+                (dark.exposureSecs * 1000).round() &&
+            g.setting.gain == dark.gain &&
+            g.setting.offset == dark.offset &&
+            g.setting.binX == dark.binX &&
+            g.setting.binY == dark.binY &&
+            (g.setting.setPointC == null ||
+                g.setting.setPointC == dark.setPointC),
       );
-      if (!groups.containsKey(key)) {
-        report.problems.add('No darks were taken for ${dark.label}');
-      }
+      if (!taken) _problem(report, 'No darks were taken for ${dark.label}');
     }
     final stamp = _stamp(report.startedAt);
-    for (final entry in groups.entries) {
+    for (final (index, group) in groups.indexed) {
       if (_cancelRequested) return;
-      final (type, exposureMs, gain, offset, binX, binY, setPointC) = entry.key;
-      final group = entry.value;
-      final exposure = exposureMs / 1000;
-      final temps = [
-        for (final f in group)
-          if (f.sensorTemp != null) f.sensorTemp!,
-      ];
-      final temp = temps.isEmpty
-          ? null
-          : temps.reduce((a, b) => a + b) / temps.length;
-      final settings = gainOffsetLabel(gain, offset);
-      final label = type == 'bias'
-          ? 'bias, $settings, bin ${binX}x$binY'
-          : '${_trim(exposure)} s darks, $settings, bin ${binX}x$binY';
-      if (type == 'dark' && group.length < config.darkCount ||
-          type == 'bias' && group.length < config.biasCount) {
-        report.problems.add(
-          'Only ${group.length} frames were taken for the $label',
+      final s = group.setting;
+      final isBias = s.type == FrameType.bias;
+      final type = s.type.record;
+      final label = _groupLabel(group);
+      final taken = group.frames.length + group.offSetPoint.length;
+      if (group.offSetPoint.isNotEmpty) {
+        _problem(
+          report,
+          '${group.offSetPoint.length} of the $taken $label read more than '
+          '${_trimTemp(toleranceC)} °C from the set-point and were left out',
         );
       }
-      if (group.length < 2) {
+      if (taken < (isBias ? config.biasCount : config.darkCount)) {
+        _problem(report, 'Only $taken frames were taken for the $label');
+      }
+      void unbuilt(String why) {
+        Log.warning(
+          'End-of-night calibration built no master for the $label: $why',
+          source: _logSource,
+        );
         report.masters.add(
           EonMasterOutcome(
             frameType: type,
             label: label,
-            framesCaptured: group.length,
-            error: 'a master needs at least 2 frames',
+            framesCaptured: taken,
+            error: why,
           ),
+        );
+      }
+
+      if (group.frames.length < 2) {
+        unbuilt(
+          group.offSetPoint.isEmpty
+              ? 'a master needs at least 2 frames'
+              : 'a master needs at least 2 frames at the set-point',
         );
         continue;
       }
+      final readMode = s.readMode == null
+          ? ''
+          : '_${s.readMode!.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
       final name =
-          '${type == 'bias' ? 'MasterBias' : 'MasterDark_${_trim(exposure)}s'}'
-          '${gain == null ? '' : '_g$gain'}${offset == null ? '' : '_o$offset'}'
-          '_${_tempTag(setPointC ?? temp)}_bin$binX'
+          '${isBias ? 'MasterBias' : 'MasterDark_${_trim(s.exposureSecs)}s'}'
+          '${s.gain == null ? '' : '_g${s.gain}'}'
+          '${s.offset == null ? '' : '_o${s.offset}'}'
+          '_${_tempTag(group.temperatureC)}_bin${s.binX}$readMode'
           '_$stamp.fits';
-      final output = p.join(p.dirname(group.first.filePath), 'Masters', name);
+      final output = p.join(
+        p.dirname(group.frames.first.filePath),
+        'Masters',
+        name,
+      );
+      final step =
+          'Building master ${index + 1} of ${groups.length}: the $label, from '
+          '${group.frames.length} frames';
+      _set(EonPhase.buildingMasters, step, report);
+      Log.info('End-of-night calibration: $step', source: _logSource);
       try {
         final built = await _rig.buildMaster(
           CalibrationMasterBuildRequest(
             kind: type,
-            framePaths: [for (final f in group) f.filePath],
+            framePaths: [for (final f in group.frames) f.filePath],
             outputPath: output,
           ),
         );
         final id = await _rig.registerMaster(built, type);
         if (built.leakingFrames.isNotEmpty) {
-          report.problems.add(
-            'Light leak: ${built.leakingFrames.length} of ${group.length} '
-            '$label read brighter than the first frames and were left out',
+          _problem(
+            report,
+            'Light leak: ${built.leakingFrames.length} of '
+            '${group.frames.length} $label read brighter than the first '
+            'frames and were left out',
           );
         }
+        Log.info(
+          'End-of-night calibration built the $label master from '
+          '${built.frameCount} of $taken frames: ${built.outputPath}',
+          source: _logSource,
+        );
         report.masters.add(
           EonMasterOutcome(
             frameType: type,
             label: label,
-            framesCaptured: group.length,
+            framesCaptured: taken,
             framesCombined: built.frameCount,
             outputPath: built.outputPath,
             libraryId: id,
@@ -789,44 +799,34 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
               ? 'Light leak in the $label: $message'
               : 'The $label master failed: $message',
         );
-        report.masters.add(
-          EonMasterOutcome(
-            frameType: type,
-            label: label,
-            framesCaptured: group.length,
-            error: message,
-          ),
-        );
+        unbuilt(message);
       }
     }
   }
 
-  /// The set-point of [planned] a frame read at [sensorTempC] was taken at:
-  /// the nearest within [toleranceC]. Null when it is outside the tolerance
-  /// of all of them, or carries no reading and more than one could own it.
-  /// A frame of a group the plan did not name forms its own, uncooled.
-  static ({double? setPointC})? _setPointOwning(
-    double? sensorTempC,
-    Set<double?> planned,
-    double toleranceC,
-  ) {
-    if (planned.isEmpty) return (setPointC: null);
-    if (planned.length == 1 && planned.single == null) {
-      return (setPointC: null);
-    }
-    if (sensorTempC == null) {
-      return planned.length == 1 ? (setPointC: planned.single) : null;
-    }
-    double? best;
-    for (final setPoint in planned) {
-      if (setPoint == null) continue;
-      if (best == null ||
-          (setPoint - sensorTempC).abs() < (best - sensorTempC).abs()) {
-        best = setPoint;
-      }
-    }
-    if (best == null || (best - sensorTempC).abs() > toleranceC) return null;
-    return (setPointC: best);
+  static const _logSource = 'EndOfNightCalibration';
+
+  /// Record [problem] in the report and the log.
+  static void _problem(EonReport report, String problem) {
+    report.problems.add(problem);
+    Log.warning('End-of-night calibration: $problem', source: _logSource);
+  }
+
+  /// "3 s darks, gain 139, offset 21, bin 1x1, 1 °C", in the words the report
+  /// and the log use for one master.
+  static String _groupLabel(CalibrationFrameGroup group) {
+    final s = group.setting;
+    final temp = group.temperatureC;
+    return [
+      s.type == FrameType.bias ? 'bias' : '${_trim(s.exposureSecs)} s darks',
+      gainOffsetLabel(s.gain, s.offset),
+      'bin ${s.binX}x${s.binY}',
+      if (s.readMode != null) 'read mode ${s.readMode}',
+      if (temp != null)
+        s.setPointC == null
+            ? 'uncooled at ${_trimTemp(temp)} °C'
+            : '${_trimTemp(temp)} °C',
+    ].join(', ');
   }
 
   static String _trimTemp(double value) => value == value.roundToDouble()
