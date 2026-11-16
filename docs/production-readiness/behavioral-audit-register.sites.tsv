@@ -271,6 +271,8 @@ native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unw
 native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_literal	1	V0047	min_hfr: config.min_hfr.unwrap_or(1.0),
 native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	unwrap_or_literal	1	V0047	min_snr: config.min_snr.unwrap_or(5.0),
 native/skotiq_native/bridge/src/api/imaging/calibrate_header_carry_over_tests.rs	a_calibrated_copy_named_as_camera_raw_is_refused	rust_let_underscore	1	R9-011	let _ = std::fs::remove_file(&out);
+native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	a_calibrated_light_is_not_calibrated_again	rust_let_underscore	1	O10-05	let _ = std::fs::remove_dir_all(&dir);
+native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	a_light_pedestal_leaves_before_calibration	rust_let_underscore	1	O10-05	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	file_and_memory_calibration_use_a_master_flat_as_it_is	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	sky_below_the_bias_is_kept_and_the_pedestal_stated	rust_let_underscore	1	V0779	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0631	let _ = crate::state::save_platesolver_preference(&previous);

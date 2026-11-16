@@ -26,9 +26,7 @@ use skotiq_imaging::drizzle::{
     self, bayer_drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame, DrizzleKernel,
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
-use skotiq_imaging::{
-    read_color_filter_array, read_frame, write_fits, FitsHeader, PixelType,
-};
+use skotiq_imaging::{read_color_filter_array, read_frame, write_fits, FitsHeader, PixelType};
 use std::path::Path;
 
 // drizzle_integrate — JSON contracts
