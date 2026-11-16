@@ -90,25 +90,15 @@ List<db.DbTarget> joinUserAndCatalogTargets(
   List<db.DbTarget> userTargets,
   List<CatalogTarget> catalog,
 ) {
-  final byDesignation = <String, db.DbTarget>{};
-  for (final entry in catalog) {
-    for (final designation in entry.designations) {
-      byDesignation.putIfAbsent(
-        normalizeCatalogSearchText(designation),
-        () => entry.target,
-      );
-    }
-  }
+  final identity = CatalogIdentity([
+    for (final entry in catalog)
+      (object: entry.target, designations: entry.designations),
+  ]);
 
   final claimed = <int>{};
   final joined = <db.DbTarget>[];
   for (final user in userTargets) {
-    db.DbTarget? match;
-    for (final name in [user.catalogId, user.name]) {
-      if (name == null || name.trim().isEmpty) continue;
-      match = byDesignation[normalizeCatalogSearchText(name)];
-      if (match != null) break;
-    }
+    final match = identity.objectOf([user.catalogId, user.name]);
     if (match == null) {
       joined.add(user);
       continue;

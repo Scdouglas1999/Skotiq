@@ -15,6 +15,7 @@ export 'src/astronomy/sgp4.dart';
 export 'src/catalogs/sky_catalog.dart';
 export 'src/catalogs/catalog_install_models.dart';
 export 'src/catalogs/catalog_installer.dart';
+export 'src/catalogs/catalog_identity.dart';
 export 'src/catalogs/catalog_name_search.dart';
 export 'src/catalogs/open_ngc_catalog.dart';
 export 'src/catalogs/nebula_light.dart';
