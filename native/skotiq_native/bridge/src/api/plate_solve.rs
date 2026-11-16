@@ -2004,8 +2004,10 @@ mod solve_ladder_tests {
     /// no solver instead of listing searches that never ran.
     #[tokio::test]
     async fn a_frame_with_no_solver_installed_names_no_search() {
-        // The test environment has no solver installed.
-        assert!(!skotiq_platesolve::is_solver_available());
+        if skotiq_platesolve::is_solver_available() {
+            eprintln!("skipped: this machine has a plate solver installed");
+            return;
+        }
         let path =
             std::env::temp_dir().join(format!("sk-ladder-message-{}.fits", std::process::id()));
         std::fs::write(&path, b"not a real frame").expect("scratch file");
