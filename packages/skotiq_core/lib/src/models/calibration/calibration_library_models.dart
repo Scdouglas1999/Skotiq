@@ -116,6 +116,15 @@ class CalibrationMasterRecord {
   /// The camera's read mode the frames were read out in (`READOUTM`), read
   /// from the file's header when lights that state one are matched.
   final String? readoutMode;
+
+  /// Why this dark or bias master's frames were not at its set-point
+  /// (read from its header), or null. Such a master is
+  /// kept and listed, and never picked to calibrate.
+  final String? offSetPoint;
+
+  /// The cooler set-point a dark or bias master's frames were taken at
+  /// (`SET-TEMP`, read from its header); null when it states none.
+  final double? setPointC;
   final DateTime createdAt;
 
   /// User tags + notes from `calibration_tags` (empty when untagged).
@@ -159,6 +168,8 @@ class CalibrationMasterRecord {
     this.cameraId,
     this.opticalTrainId,
     this.readoutMode,
+    this.offSetPoint,
+    this.setPointC,
     required this.createdAt,
     this.tags = const [],
     this.notes,
@@ -205,6 +216,8 @@ class CalibrationMasterRecord {
     String? filter,
     String? cameraId,
     String? readoutMode,
+    String? offSetPoint,
+    double? setPointC,
     List<String>? tags,
     String? notes,
   }) {
@@ -227,6 +240,8 @@ class CalibrationMasterRecord {
       cameraId: cameraId ?? this.cameraId,
       opticalTrainId: opticalTrainId,
       readoutMode: readoutMode ?? this.readoutMode,
+      offSetPoint: offSetPoint ?? this.offSetPoint,
+      setPointC: setPointC ?? this.setPointC,
       createdAt: createdAt,
       tags: tags ?? this.tags,
       notes: notes ?? this.notes,
@@ -265,6 +280,8 @@ class CalibrationMasterRecord {
       cameraId: json['cameraId'] as String?,
       opticalTrainId: json['opticalTrainId'] as String?,
       readoutMode: json['readoutMode'] as String?,
+      offSetPoint: json['offSetPoint'] as String?,
+      setPointC: (json['setPointC'] as num?)?.toDouble(),
       createdAt:
           DateTime.tryParse('${json['createdAt']}')?.toLocal() ??
           DateTime.now(),
@@ -306,6 +323,8 @@ class CalibrationMasterRecord {
       if (cameraId != null) 'cameraId': cameraId,
       if (opticalTrainId != null) 'opticalTrainId': opticalTrainId,
       if (readoutMode != null) 'readoutMode': readoutMode,
+      if (offSetPoint != null) 'offSetPoint': offSetPoint,
+      if (setPointC != null) 'setPointC': setPointC,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'ageDays': ageDays(at),
       'freshness': freshness(at).name,

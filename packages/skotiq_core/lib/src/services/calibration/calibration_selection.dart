@@ -52,11 +52,14 @@ CalibrationMasterRecord darkLibraryRecord(DarkLibraryEntry row) =>
 
 /// Whether [r] agrees with [ctx] on every capture dimension the lights
 /// recorded: gain and offset when the lights state them, binning always, and
-/// the camera and read mode when both sides name one.
+/// the camera and read mode when both sides name one. A master built from
+/// frames off its set-point ([CalibrationMasterRecord.offSetPoint]) agrees
+/// with nothing.
 ///
 /// A gain or offset missing on the lights is not compared. One missing on the
 /// record cannot satisfy a value the lights state.
 bool calibrationTupleMatches(CalibrationMasterRecord r, LightFrameContext ctx) {
+  if (r.offSetPoint != null) return false;
   final camera = ctx.cameraId?.trim();
   final cameraAgrees =
       camera == null ||

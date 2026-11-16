@@ -25,6 +25,7 @@ import '../sequence_stats_provider.dart';
 import '../../models/sequence/terminal_run_result.dart';
 import '../ui_notification_provider.dart';
 import '../../services/calibration_master_builder.dart';
+import '../../services/frame_header.dart';
 import '../../services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 import '../../services/mount_home_watcher.dart' show MountHomeOutcome;
 import '../../services/notification_service.dart';
@@ -193,15 +194,16 @@ class ProviderEonRig implements EonRig {
       .getImagesByProducingRun(producingRunId: '$runId');
 
   @override
+  Future<FrameHeader> frameHeader(String path) => readFrameHeader(path);
+
+  @override
   Future<CalibrationMasterBuildResult> buildMaster(
     CalibrationMasterBuildRequest request,
   ) => _ref.read(calibrationMasterBuildProvider)(request);
 
   @override
-  Future<double> darkTemperatureToleranceC() async {
-    await _ref.read(allSettingsProvider.future);
-    return _ref.read(darkLibraryMatchTolerancesProvider).temperatureC;
-  }
+  Future<double> darkTemperatureToleranceC() =>
+      loadedDarkTemperatureToleranceC(_ref);
 
   @override
   Future<int> registerMaster(
