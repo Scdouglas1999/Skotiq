@@ -292,13 +292,17 @@ class EndOfNightCalibrationCoordinator {
   }
 
   /// The operator's "take darks and bias now", which is also how they end a
-  /// night they stopped themselves. After the step, a night whose run did not
-  /// end it is handed to the post-session integration, as a dawn end is.
-  /// Null when the step is already running.
-  Future<EonReport?> runNow() async {
+  /// night they stopped themselves. [retake] takes every set, also those the
+  /// library already holds. After the step, a night whose run did not end it
+  /// is handed to the post-session integration, as a dawn end is. Null when
+  /// the step is already running.
+  Future<EonReport?> runNow({bool retake = false}) async {
     final service = _ref.read(endOfNightCalibrationProvider.notifier);
     if (service.isRunning) return null;
-    final report = await service.run(reason: EonEndReason.manual.description);
+    final report = await service.run(
+      reason: EonEndReason.manual.description,
+      retake: retake,
+    );
     final session = _openNightSession;
     if (session != null) {
       _openNightSession = null;

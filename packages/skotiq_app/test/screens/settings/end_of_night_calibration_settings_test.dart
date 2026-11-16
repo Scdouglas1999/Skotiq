@@ -66,6 +66,13 @@ class _CapRig extends Fake implements EonRig {
 
   @override
   Future<void> saveReport(Map<String, Object?> report) async {}
+
+  @override
+  Future<double> darkTemperatureToleranceC() async => 2;
+
+  @override
+  Future<EonLibrary> library() async =>
+      const EonLibrary(masters: [], frameGroups: []);
 }
 
 void main() {

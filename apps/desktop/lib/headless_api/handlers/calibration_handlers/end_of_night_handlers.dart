@@ -5,7 +5,8 @@ part of '../calibration_handlers.dart';
 ///
 ///   GET  /api/calibration/end-of-night                 — settings, status, last report
 ///   POST /api/calibration/end-of-night/settings        — change settings
-///   POST /api/calibration/end-of-night/start           — run it now
+///   POST /api/calibration/end-of-night/start           — run it now; with
+///        {"retake": true} it also takes the sets the library already holds
 ///   POST /api/calibration/end-of-night/imaging-ended   — the night's imaging ended
 ///   POST /api/calibration/end-of-night/confirm-capped  — the telescope is capped
 ///   POST /api/calibration/end-of-night/cancel          — stop it
@@ -69,6 +70,12 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
           : EonNoDarkSlotPolicy.parse(noDarkSlot),
       capWaitMinutes: optionalInt(payload, 'capWaitMinutes', min: 1, max: 240),
       warmUp: optionalBool(payload, 'warmUp'),
+      darkValidDays: optionalInt(
+        payload,
+        'darkValidDays',
+        min: 1,
+        max: EonSettings.maxDarkValidDays,
+      ),
     );
     await dao.setSettings(updated.toStorage());
     publishHostMutationFromContainer(
@@ -82,6 +89,8 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
 
   Future<Response> handleStartEndOfNight(Request request) async {
     _logInfo('[API] POST /api/calibration/end-of-night/start');
+    final retake =
+        optionalBool(await readJsonObjectOrEmpty(request), 'retake') ?? false;
     final service = container.read(endOfNightCalibrationProvider.notifier);
     if (service.isRunning) {
       return jsonConflict({
@@ -96,7 +105,9 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
       });
     }
     unawaited(
-      container.read(endOfNightCalibrationCoordinatorProvider).runNow(),
+      container
+          .read(endOfNightCalibrationCoordinatorProvider)
+          .runNow(retake: retake),
     );
     return jsonResponse(
       await _endOfNightJson(),
