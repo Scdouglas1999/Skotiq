@@ -1,9 +1,4 @@
-// End-to-end test for the plugin-node palette wiring in
-// `skotiq_app/lib/startup/plugin_node_palette_wiring.dart`.
-//
-// The wiring layer plugs the live `PluginNodeRegistry` (defined in
-// `skotiq_plugins`) into the `pluginNodeBlueprintsProvider` (defined
-// in `skotiq_core`). This test confirms that:
+// The palette lists the nodes of registered plugins:
 //
 //   1. Before any plugin registers, the palette renders only the
 //      built-in categories.
@@ -15,22 +10,23 @@
 //   4. Malformed registrations (empty id / name) are filtered out
 //      loudly, NOT silently rendered as broken items.
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/startup/plugin_node_palette_wiring.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('pluginNodePaletteBlueprintsOverride', () {
+  group('pluginNodeBlueprintsProvider', () {
     test('blueprints list is empty before any plugin registers', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodePaletteBlueprintsOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -47,8 +43,9 @@ void main() {
         'registering a SequencePlugin surfaces a blueprint whose factory '
         'creates a PluginInstructionNode', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodePaletteBlueprintsOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -100,8 +97,9 @@ void main() {
     test('palette updates reactively when a plugin registers post-startup',
         () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodePaletteBlueprintsOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -133,7 +131,7 @@ void main() {
     });
 
     test(
-        'blueprintsFromRegistrations filters malformed definitions '
+        'pluginNodeBlueprints filters malformed definitions '
         'loudly (no crash, no silent render)', () async {
       // Build a registry manually so we can shove a malformed
       // SequenceNodeDefinition (empty id + empty name) past the host.
@@ -141,7 +139,7 @@ void main() {
       addTearDown(registry.dispose);
       registry.registerSequencePlugin(_BrokenDefinitionPlugin());
 
-      final blueprints = blueprintsFromRegistrations(registry.registrations);
+      final blueprints = pluginNodeBlueprints(registry.registrations);
       expect(blueprints, hasLength(1),
           reason: 'only the well-formed definition should be retained');
       expect(blueprints.single.nodeTypeId, equals('ok.node'));

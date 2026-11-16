@@ -1,39 +1,26 @@
-// End-to-end test for the plugin-node dispatcher
-// wiring shipped in `skotiq_app/lib/startup/plugin_node_dispatcher_wiring.dart`.
-//
-// The wiring layer plugs the Dart-side `PluginNodeExecutor` (defined in
-// `skotiq_plugins`) into the `pluginNodeDispatcherProvider` (defined
-// in `skotiq_core`). This test confirms a request that flows
-// through `pluginNodeDispatcherProvider` actually:
-//
-//   1. Looks up the plugin in `PluginNodeRegistry`.
-//   2. Resolves the plugin's `PluginContext` from `PluginHost`.
-//   3. Builds the node via `SequenceNodeDefinition.createNode`.
-//   4. Runs `PluginSequenceNode.validate()`.
-//   5. Runs `PluginSequenceNode.execute()`.
-//   6. Returns the result through the dispatcher abstraction.
-//
-// This is the canonical "production-finished" surface: a user drops a
-// plugin into the package, the app boot wires the override, and a
-// sequence containing the plugin's node runs end-to-end.
+// A plugin-node request that flows through `pluginNodeDispatcherProvider`
+// looks the plugin up in `PluginNodeRegistry`, resolves its context from
+// `PluginHost`, builds the node from its definition, validates and runs it, and
+// returns the verdict.
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/startup/plugin_node_dispatcher_wiring.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('pluginNodeDispatcherOverride', () {
+  group('pluginNodeDispatcherProvider', () {
     test(
         'request resolves through registry → executor → plugin execute → result',
         () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodeDispatcherOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -73,8 +60,9 @@ void main() {
 
     test('unknown plugin returns a structured failure (not a throw)', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodeDispatcherOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -97,8 +85,9 @@ void main() {
 
     test('plugin returning false maps to dispatcher success=false', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodeDispatcherOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -124,8 +113,9 @@ void main() {
 
     test('malformed config fails without executing the plugin', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodeDispatcherOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
@@ -152,8 +142,9 @@ void main() {
 
     test('non-object JSON config fails without executing the plugin', () async {
       final container = ProviderContainer(overrides: [
-        inMemoryDatabaseOverride(),
-        pluginNodeDispatcherOverride(),
+        databaseProvider.overrideWithValue(
+          SkotiqDatabase.forTesting(NativeDatabase.memory()),
+        ),
       ]);
       addTearDown(container.dispose);
 
