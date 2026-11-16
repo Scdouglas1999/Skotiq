@@ -255,6 +255,7 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
     return Semantics(
       container: true,
       button: true,
+      enabled: true,
       onTap: widget.onOpen,
       label: [
         'Frame ${widget.frame.number}',

@@ -183,6 +183,7 @@ class FrameViewButton extends StatelessWidget {
     final button = Semantics(
       button: true,
       enabled: enabled,
+      onTap: onPressed,
       toggled: selected,
       label: label,
       hint: tooltip,

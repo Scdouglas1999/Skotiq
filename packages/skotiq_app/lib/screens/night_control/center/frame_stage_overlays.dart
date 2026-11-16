@@ -287,7 +287,8 @@ class _StageControls extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
-        Flexible(
+        // The buttons keep their width; the status gets the rest.
+        Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: leading,
@@ -295,10 +296,7 @@ class _StageControls extends ConsumerWidget {
         ),
         if (buttons != null) ...<Widget>[
           const SizedBox(width: SkotiqTokens.spaceSm),
-          Flexible(
-            flex: 2,
-            child: Align(alignment: Alignment.bottomRight, child: buttons),
-          ),
+          buttons,
         ],
       ],
     );
