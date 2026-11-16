@@ -472,9 +472,9 @@ class AppSettingsState {
   final bool smartNightUseSchedulerForMultiTarget;
   /// Minimum target count before the wizard auto-picks scheduler mode.
   final int smartNightSchedulerTargetThreshold;
-  /// Default Smart Night strategy persisted across sessions. One of
-  /// `auto_lrgb`, `mono_lrgb`, `narrowband_hoo`, `narrowband_sho`,
-  /// `osc_one_shot`.
+  /// Default Smart Night filter set persisted across sessions: `auto` (each
+  /// target its own) or one of `auto_lrgb`, `mono_lrgb`, `ha_lrgb`,
+  /// `narrowband_ha`, `narrowband_hoo`, `narrowband_sho`, `osc_one_shot`.
   final String smartNightDefaultStrategy;
   /// Days after which a polar alignment is "stale" enough to warrant the
   /// Smart Night wizard prepending an alignment node. Distinct from the
@@ -687,7 +687,7 @@ class AppSettingsState {
     this.smartNightIncludeFlatsAtEnd = true,
     this.smartNightUseSchedulerForMultiTarget = true,
     this.smartNightSchedulerTargetThreshold = 3,
-    this.smartNightDefaultStrategy = 'auto_lrgb',
+    this.smartNightDefaultStrategy = 'auto',
     this.smartNightPolarAlignmentStaleAfterDays = 7,
     this.smartNightSubExposureFloorSecs = 30.0,
     this.smartNightSubExposureCeilingSecs = 300.0,

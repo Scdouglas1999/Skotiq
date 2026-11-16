@@ -493,6 +493,7 @@ SmartNightPlan _draftPlan() {
         ],
         integrationSecs: 3600,
         rationale: 'High altitude',
+        filterReason: 'LRGB: M51 is a galaxy.',
       ),
     ],
     totalIntegrationSecs: 3600,

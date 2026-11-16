@@ -268,6 +268,8 @@ class SmartNightService {
   /// target once they are met.
   ///
   /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
+  /// [strategy] is the filter set for every target; null chooses each
+  /// target's own ([chooseFilters]).
   /// [planTimer] (`planTimerProvider`) times the night for its warnings and
   /// run length, with the dawn park and autofocus runs the pre-flight counts.
   ///
@@ -281,7 +283,7 @@ class SmartNightService {
     required double longitudeDeg,
     required SmartNightContext context,
     required List<TargetSuggestion> selectedSuggestions,
-    required SmartNightStrategy strategy,
+    required SmartNightStrategy? strategy,
     required SmartNightSettings settings,
     required PlanTimer planTimer,
     SmartNightExposureContext? exposureContext,
@@ -303,17 +305,17 @@ class SmartNightService {
       maxHours: settings.maxSessionHours,
     );
 
-    final activeFilters = _resolveFilterSet(
-      strategy: strategy,
-      availableFilters: availableFilters,
-    );
-    if (activeFilters.isEmpty) {
+    final planningFilters = smartNightPlanningFilters(availableFilters);
+    if (strategy != null &&
+        resolveSmartNightFilterSet(
+          strategy: strategy,
+          availableFilters: planningFilters,
+        ).isEmpty) {
       throw SmartNightBuildException(
-        'No filters from strategy "${strategy.name}" matched the available '
-        'filters (${availableFilters.isEmpty ? "<none>" : availableFilters.join(", ")}). '
-        'Either switch strategies (the OSC One-Shot strategy works without '
-        'a wheel) or add the required filters to the wheel or the equipment '
-        'profile.',
+        'The wheel has no filters for ${smartNightStrategyLabel(strategy)} '
+        '(${availableFilters.isEmpty ? "no filters" : availableFilters.join(", ")}). '
+        'Choose the filters per target, pick another filter set, or add the '
+        'filters to the wheel or the equipment profile.',
       );
     }
 
@@ -420,10 +422,18 @@ class SmartNightService {
         continue;
       }
 
+      final choice = chooseFilters(
+        suggestion: suggestion,
+        availableFilters: planningFilters,
+        exposureContext: exposureContext,
+        windowStart: context.windowStart,
+        windowEnd: context.windowEnd,
+      );
+      final targetStrategy = strategy ?? choice.strategy;
       final filterPlans = _composeFilterPlans(
         suggestion: suggestion,
-        strategy: strategy,
-        activeFilters: activeFilters,
+        strategy: targetStrategy,
+        activeFilters: choice.filtersFor(targetStrategy),
         windowSecs: windowSecs,
         profile: profile,
         cameraSpec: cameraSpec,
@@ -460,6 +470,7 @@ class SmartNightService {
             filterPlans: filterPlans,
             windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
           ),
+          filterReason: choice.reasonFor(targetStrategy),
         ),
       );
       cursor = clampedEnd;
@@ -627,12 +638,15 @@ class SmartNightService {
     SmartNightStrategy? strategy,
   }) {
     final planningFilters = smartNightPlanningFilters(availableFilters);
-    final resolvedStrategy =
-        strategy ?? inferSmartNightStrategy(suggestion, planningFilters);
-    final activeFilters = _resolveFilterSet(
-      strategy: resolvedStrategy,
+    final choice = chooseFilters(
+      suggestion: suggestion,
       availableFilters: planningFilters,
+      exposureContext: exposureContext,
+      windowStart: windowStart,
+      windowEnd: windowEnd,
     );
+    final resolvedStrategy = strategy ?? choice.strategy;
+    final activeFilters = choice.filtersFor(resolvedStrategy);
     if (activeFilters.isEmpty) return null;
 
     final pixelSizeUm =
@@ -705,6 +719,7 @@ class SmartNightService {
       usableWindowHours: usableWindowHours,
       subExposureSecs: filterPlans.first.durationSecs,
       filterNames: filterPlans.map((p) => p.filterName).toList(),
+      filterReason: choice.reasonFor(resolvedStrategy),
     );
   }
 
@@ -729,16 +744,20 @@ class SmartNightService {
     bool fillWindow = false,
   }) {
     final planningFilters = smartNightPlanningFilters(availableFilters);
-    final resolvedStrategy =
-        strategy ?? inferSmartNightStrategy(suggestion, planningFilters);
-    final activeFilters = _resolveFilterSet(
-      strategy: resolvedStrategy,
+    final choice = chooseFilters(
+      suggestion: suggestion,
       availableFilters: planningFilters,
+      exposureContext: exposureContext,
+      windowStart: windowStart,
+      windowEnd: windowEnd,
     );
+    final resolvedStrategy = strategy ?? choice.strategy;
+    final activeFilters = choice.filtersFor(resolvedStrategy);
     if (activeFilters.isEmpty) {
       throw SmartNightBuildException(
-        'No filters from strategy "${resolvedStrategy.name}" matched the '
-        'available filter list (${availableFilters.join(", ")}).',
+        'The wheel has no filters for '
+        '${smartNightStrategyLabel(resolvedStrategy)} '
+        '(${availableFilters.join(", ")}). Pick another filter set.',
       );
     }
 
@@ -831,6 +850,7 @@ class SmartNightService {
         filterPlans: filterPlans,
         windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
       ),
+      filterReason: choice.reasonFor(resolvedStrategy),
     );
 
     final context = SmartNightContext(
@@ -844,7 +864,6 @@ class SmartNightService {
     final sequence = _emitSingleTargetSequence(
       profile: profile,
       planned: planned,
-      strategy: resolvedStrategy,
       settings: settings,
       context: context,
       includeSessionPreamble: includeSessionPreamble,
@@ -942,14 +961,24 @@ class SmartNightService {
     return specs.pixelSizeMicrons?.value ?? 0;
   }
 
-  /// Map the strategy to the filter rotation that matters for this rig.
-  List<String> _resolveFilterSet({
-    required SmartNightStrategy strategy,
+  /// The filter set for [suggestion] imaged between [windowStart] and
+  /// [windowEnd] on a rig whose wheel holds [availableFilters]: the moon is
+  /// read at the middle of that window, and the camera's color from
+  /// [exposureContext] (a rig without one counts as mono, so its wheel
+  /// decides). See [chooseSmartNightFilters].
+  SmartNightFilterChoice chooseFilters({
+    required TargetSuggestion suggestion,
     required List<String> availableFilters,
+    required SmartNightExposureContext? exposureContext,
+    required DateTime windowStart,
+    required DateTime windowEnd,
   }) {
-    return resolveSmartNightFilterSet(
-      strategy: strategy,
+    final middle = windowStart.add(windowEnd.difference(windowStart) ~/ 2);
+    return chooseSmartNightFilters(
+      target: suggestion,
       availableFilters: availableFilters,
+      moonIlluminationPercent: AstronomyCalculations.moonIllumination(middle),
+      oneShotColor: exposureContext?.oneShotColor ?? false,
     );
   }
 
@@ -993,19 +1022,18 @@ class SmartNightService {
 
   String _composeSequenceName(
     List<SmartNightPlannedTarget> planned,
-    SmartNightStrategy strategy,
+    SmartNightStrategy? strategy,
   ) {
     final today = DateTime.now();
     final dateStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-'
         '${today.day.toString().padLeft(2, '0')}';
     final names = planned.map((p) => p.suggestion.targetName).join(' · ');
-    return 'Smart Night $dateStr: $names (${_strategyLabel(strategy)})';
+    return 'Smart Night $dateStr: $names (${_filterSetLabel(strategy)})';
   }
 
   String _composeSequenceDescription(
     List<SmartNightPlannedTarget> planned,
-    SmartNightStrategy strategy,
     SmartNightSettings settings,
   ) {
     final integrationHours =
@@ -1017,8 +1045,8 @@ class SmartNightService {
         )
         .toSet()
         .toList();
-    return 'Auto-built by Smart Night using the '
-        '${_strategyLabel(strategy)} strategy. '
+    return 'Auto-built by Smart Night. '
+        '${planned.map((p) => p.filterReason).join(' ')} '
         '${planned.length} target${planned.length == 1 ? '' : 's'}, '
         '${integrationHours.toStringAsFixed(1)}h integration, '
         'filters: ${filters.join(", ")}. '
@@ -1026,20 +1054,9 @@ class SmartNightService {
         'Altitude floor: ${_floor.followsHorizon ? 'your horizon' : '${_floor.minimumDeg.toStringAsFixed(0)}°'}.';
   }
 
-  String _strategyLabel(SmartNightStrategy s) {
-    switch (s) {
-      case SmartNightStrategy.autoLrgb:
-        return 'Auto-balance LRGB';
-      case SmartNightStrategy.monoLrgb:
-        return 'Mono LRGB';
-      case SmartNightStrategy.narrowbandHoo:
-        return 'Narrowband HOO';
-      case SmartNightStrategy.narrowbandSho:
-        return 'Narrowband SHO';
-      case SmartNightStrategy.oscOneShot:
-        return 'OSC One-Shot';
-    }
-  }
+  String _filterSetLabel(SmartNightStrategy? strategy) => strategy == null
+      ? 'filters per target'
+      : smartNightStrategyLabel(strategy);
 
   String _afCadenceLabel(SmartNightSettings s) {
     switch (s.afCadence) {

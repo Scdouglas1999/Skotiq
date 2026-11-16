@@ -63,6 +63,25 @@ const Set<String> _wireAddedSinceBase = {
   'xisfChecksums',
 };
 
+/// Defaults changed on purpose since the base build, as (stored key, wire
+/// field, new default). A stored row still reads as written; only what a
+/// missing or empty value falls back to differs. Smart Night now chooses each
+/// target's filters unless the user picks one set ('auto').
+const List<(String, String, String)> _defaultsChangedSinceBase = [
+  ('smart_night_default_strategy', 'smartNightDefaultStrategy', 'auto'),
+];
+
+/// [fixture] with [_defaultsChangedSinceBase] applied to the base build's
+/// defaults.
+Map<String, dynamic> _withChangedDefaults(Map<String, dynamic> fixture) {
+  for (final (key, wire, value) in _defaultsChangedSinceBase) {
+    (fixture['defaults'] as Map)[key] = value;
+    (fixture['fromWireEmpty'] as Map)[key] = value;
+    (fixture['wireDefault'] as Map)[wire] = value;
+  }
+  return fixture;
+}
+
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
   for (final entry in rows.entries)
@@ -72,13 +91,14 @@ Map<String, String> _baseOnly(Map<String, String> rows) => {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final fixture =
-      jsonDecode(
-            File(
-              'test/fixtures/settings/base_settings_behavior.json',
-            ).readAsStringSync(),
-          )
-          as Map<String, dynamic>;
+  final fixture = _withChangedDefaults(
+    jsonDecode(
+          File(
+            'test/fixtures/settings/base_settings_behavior.json',
+          ).readAsStringSync(),
+        )
+        as Map<String, dynamic>,
+  );
   final baseDefaults = Map<String, String>.from(fixture['defaults'] as Map);
   final baseRows = Map<String, String>.from(fixture['nonDefaultStored'] as Map);
 

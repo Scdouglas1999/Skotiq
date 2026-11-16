@@ -12,7 +12,10 @@ import '../services/smart_night/hardware_specs_service.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
+import 'auto_stretch_provider.dart' show connectedCameraIdProvider;
 import 'camera_sensor_specs_provider.dart';
+import 'capability_provider.dart';
+import '../services/logging_service.dart';
 import 'database_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'profiles_provider.dart';
@@ -73,6 +76,7 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   }
 
   final sensorSpecs = await ref.watch(activeCameraSensorSpecsProvider.future);
+  final oneShotColor = await _connectedCameraRecordsColor(ref);
   final cameraLabel =
       sensorSpecs.databaseEntry?.model ??
       sensorSpecs.reportedModel ??
@@ -178,8 +182,32 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
     userCapSeconds: settings.smartNightSubExposureCeilingSecs,
     floorSeconds: settings.smartNightSubExposureFloorSecs,
     caveats: caveats,
+    oneShotColor: oneShotColor,
   );
 });
+
+/// Whether the connected camera records color itself, as it reports. False
+/// with no camera connected: the wheel then decides the filters.
+Future<bool> _connectedCameraRecordsColor(Ref ref) async {
+  final cameraId = ref.watch(connectedCameraIdProvider);
+  if (cameraId == null) return false;
+  try {
+    final capabilities = await ref.watch(
+      cameraCapabilitiesProvider(cameraId).future,
+    );
+    return capabilities?.isColor ?? false;
+  } catch (error, stack) {
+    // Planning goes on with the wheel deciding; the capability read is
+    // retried when the camera reconnects.
+    Log.warning(
+      'Could not read whether camera $cameraId is a color camera.',
+      source: 'SmartNightExposureContext',
+      error: error,
+      stackTrace: stack,
+    );
+    return false;
+  }
+}
 
 /// Stand-ins used only when a value misses at every tier of the resolution
 /// chain, each paired with a caveat that says so. Chosen to be conservative

@@ -3,7 +3,9 @@ import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
+import '../models/equipment/filter_names.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
@@ -211,7 +213,7 @@ class SessionOptimizationPlan {
   final double recommendedExposureSeconds;
   final String? recommendedFilterName;
 
-  /// Full filter rotation inferred from target type and available filters.
+  /// The primary target's filter set ([chooseSmartNightFilters]).
   final List<String> recommendedFilterNames;
   final double estimatedUsableHours;
   final List<String> rationale;
@@ -248,6 +250,11 @@ class SmartNightExposureContext {
   final double floorSeconds;
   final List<String> caveats;
 
+  /// Whether the connected camera records color itself (a one-shot color
+  /// camera or DSLR), read from the camera; false for a mono camera or when
+  /// no camera is connected.
+  final bool oneShotColor;
+
   const SmartNightExposureContext({
     required this.camera,
     required this.bortleClass,
@@ -262,6 +269,7 @@ class SmartNightExposureContext {
     this.userCapSeconds = 300,
     this.floorSeconds = 60,
     this.caveats = const [],
+    this.oneShotColor = false,
   });
 
   ExposureRecommendation recommendForFilter(
@@ -287,56 +295,6 @@ class SmartNightExposureContext {
     );
   }
 
-  ExposureRecommendation recommendForTarget(
-    TargetSuggestion suggestion, {
-    SmartNightExposureCalculator calculator =
-        const SmartNightExposureCalculator(),
-  }) {
-    return calculator.recommend(
-      ExposureCalculatorInput(
-        camera: camera,
-        filter: selectFilterForTarget(suggestion),
-        bortleClass: bortleClass,
-        focalLengthMm: focalLengthMm,
-        apertureMm: apertureMm,
-        pixelSizeMicrons: pixelSizeMicrons,
-        guideRmsArcsec: guideRmsArcsec,
-        guideSampleCount: guideSampleCount,
-        gloverKFactor: gloverKFactor,
-        targetSnr: targetSnr,
-        userCapSeconds: userCapSeconds,
-        floorSeconds: floorSeconds,
-      ),
-    );
-  }
-
-  FilterExposureSpec selectFilterForTarget(TargetSuggestion suggestion) {
-    final filters = availableFilterNames
-        .map((f) => f.trim())
-        .where((f) => f.isNotEmpty)
-        .toList(growable: false);
-
-    // Align with inferSmartNightStrategy: only emission nebulae prefer Ha.
-    // Planetary/reflection nebulae and SNRs use broadband luminance.
-    if (isEmissionNebulaTarget(suggestion)) {
-      final narrowband = filters.where(_isNarrowbandFilter).toList();
-      if (narrowband.isNotEmpty) {
-        final ha = narrowband.where((f) => f.toLowerCase().contains('ha'));
-        return FilterExposureSpec.fromName(
-          ha.isNotEmpty ? ha.first : narrowband.first,
-        );
-      }
-    }
-
-    if (filters.isEmpty) {
-      return const FilterExposureSpec.luminance();
-    }
-
-    return FilterExposureSpec.fromName(
-      _preferredBroadbandFilterName(filters) ?? filters.first,
-    );
-  }
-
   /// Shared default for mosaic builders: prefer the luminance/clear channel
   /// when present, otherwise use the first configured filter, and run the
   /// same Smart Night exposure calculator used by Plan Tonight and the
@@ -356,31 +314,13 @@ class SmartNightExposureContext {
   }
 }
 
-bool _isNarrowbandFilter(String filterName) {
-  final normalized = filterName.toLowerCase();
-  return normalized.contains('ha') ||
-      normalized.contains('oiii') ||
-      normalized.contains('sii') ||
-      normalized.contains('h-alpha') ||
-      normalized.contains('oxygen') ||
-      normalized.contains('sulfur') ||
-      normalized.contains('sulphur');
-}
-
 String? _preferredBroadbandFilterName(List<String> filters) {
   final cleaned = filters
       .map((f) => f.trim())
       .where((f) => f.isNotEmpty)
       .toList(growable: false);
   if (cleaned.isEmpty) return null;
-  final luminance = cleaned.where((f) {
-    final normalized = f.toLowerCase();
-    return normalized == 'l' ||
-        normalized == 'lum' ||
-        normalized == 'luminance' ||
-        normalized == 'clear';
-  });
-  return luminance.isNotEmpty ? luminance.first : cleaned.first;
+  return matchingFilterName('L', cleaned) ?? cleaned.first;
 }
 
 /// Centralized mosaic exposure defaults for every UI/API surface. Passing
@@ -507,14 +447,23 @@ class SessionOptimizerService {
     final estimatedUsableHours = (primary.visibility.hoursAboveMinAlt ?? 0)
         .clamp(0.0, 24.0);
 
-    final exposurePlan = _recommendExposure(primary, exposureContext);
+    final effectiveContext = exposureContext ?? _fallbackExposureContext;
+    final filterChoice = chooseSmartNightFilters(
+      target: primary,
+      availableFilters: effectiveContext.availableFilterNames,
+      moonIlluminationPercent: AstronomyCalculations.moonIllumination(
+        primary.visibility.peakAltitudeTime ?? planGeneratedAt,
+      ),
+      oneShotColor: effectiveContext.oneShotColor,
+    );
+    final exposurePlan = _recommendExposure(
+      filterChoice.filters.first,
+      effectiveContext,
+    );
     final availableFilters = exposureContext?.availableFilterNames ?? const [];
     final recommendedFilterNames = availableFilters.isEmpty
         ? const <String>[]
-        : resolveSmartNightFilterSet(
-            strategy: inferSmartNightStrategy(primary, availableFilters),
-            availableFilters: availableFilters,
-          );
+        : filterChoice.filters;
     // A rig that reports no filter names at all captures unfiltered. The
     // exposure model still uses a luminance passband to size the sub, but
     // reporting that as "L" would promise a filter the built sequence never
@@ -567,22 +516,18 @@ class SessionOptimizerService {
   }
 
   _ExposurePlan _recommendExposure(
-    TargetSuggestion suggestion,
-    SmartNightExposureContext? context,
+    String filterName,
+    SmartNightExposureContext context,
   ) {
-    final effectiveContext = context ?? _fallbackExposureContext;
-
-    final filter = effectiveContext.selectFilterForTarget(suggestion);
-    final recommendation = effectiveContext.recommendForTarget(
-      suggestion,
+    final recommendation = context.recommendForFilter(
+      filterName,
       calculator: _exposureCalculator,
     );
-
     return _ExposurePlan(
       seconds: recommendation.seconds,
-      filterName: filter.name,
+      filterName: filterName,
       rationale: recommendation.rationale,
-      caveats: [...effectiveContext.caveats, ...recommendation.caveats],
+      caveats: [...context.caveats, ...recommendation.caveats],
     );
   }
 

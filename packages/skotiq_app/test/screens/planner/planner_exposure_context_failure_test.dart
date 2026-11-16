@@ -48,6 +48,7 @@ TargetIntegrationPreview _preview(double hours) => TargetIntegrationPreview(
       usableWindowHours: 6,
       subExposureSecs: 120,
       filterNames: const ['Lum'],
+      filterReason: 'LRGB: M45 is an open cluster.',
     );
 
 List<Override> _overrides(double integrationHours, Override exposureContext) {

@@ -20,6 +20,10 @@ class SmartNightPlannedTarget {
   /// Rationale string surfaced to the user: `"Picked because (reason)"`.
   final String rationale;
 
+  /// The filter set and why, in one line
+  /// ([SmartNightFilterChoice.reason]).
+  final String filterReason;
+
   /// True when this target plans a single unfiltered row — the rig has no
   /// filter wheel, so the emitted sub-tree captures with no filter selection
   /// instead of rotating one.
@@ -33,6 +37,7 @@ class SmartNightPlannedTarget {
     required this.filterPlans,
     required this.integrationSecs,
     required this.rationale,
+    required this.filterReason,
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +47,7 @@ class SmartNightPlannedTarget {
     'filterPlans': filterPlans.map((p) => p.toJson()).toList(),
     'integrationSecs': integrationSecs,
     'rationale': rationale,
+    'filterReason': filterReason,
   };
 
   factory SmartNightPlannedTarget.fromJson(Map<String, dynamic> json) {
@@ -60,6 +66,7 @@ class SmartNightPlannedTarget {
           .toList(),
       integrationSecs: _jsonDouble(json['integrationSecs'], 0.0),
       rationale: json['rationale'] as String? ?? '',
+      filterReason: json['filterReason'] as String? ?? '',
     );
   }
 }
@@ -131,11 +138,16 @@ class TargetIntegrationPreview {
   /// Filters included in the estimate (strategy + equipment profile).
   final List<String> filterNames;
 
+  /// The filter set and why, in one line
+  /// ([SmartNightFilterChoice.reason]).
+  final String filterReason;
+
   const TargetIntegrationPreview({
     required this.estimatedIntegrationHours,
     required this.usableWindowHours,
     required this.subExposureSecs,
     required this.filterNames,
+    required this.filterReason,
   });
 }
 

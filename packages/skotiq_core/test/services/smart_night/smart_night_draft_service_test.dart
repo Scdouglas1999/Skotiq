@@ -169,6 +169,7 @@ SmartNightPlan testSmartNightPlan(String targetName) {
         ],
         integrationSecs: 600,
         rationale: 'High altitude',
+        filterReason: 'LRGB: $targetName is a galaxy.',
       ),
     ],
     totalIntegrationSecs: 600,

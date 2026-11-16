@@ -98,12 +98,14 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     setState(() {});
     if (state.phase != ImageTonightPhase.running || !mounted) return;
     final name = state.target?.targetName;
+    final filterReason = state.plan?.plannedTarget.filterReason;
     _imageTonight.reset();
     if (name != null) {
+      final started = context.l10n.text('plannerImageTonightStarted', params: {
+        'target': name,
+      });
       context.showSuccessSnackBar(
-        context.l10n.text('plannerImageTonightStarted', params: {
-          'target': name,
-        }),
+        filterReason == null ? started : '$started. $filterReason',
       );
     }
     context.go(AppRoute.tonight.path);

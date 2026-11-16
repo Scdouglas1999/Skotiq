@@ -619,7 +619,10 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             ),
           ),
           const SizedBox(height: 12),
-          for (final s in SmartNightStrategy.values)
+          for (final s in <SmartNightStrategy?>[
+            null,
+            ...SmartNightStrategy.values,
+          ])
             _StrategyTile(
               strategy: s,
               isSelected: _strategy == s,

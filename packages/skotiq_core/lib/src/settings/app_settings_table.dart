@@ -938,13 +938,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
     max: 20,
   ),
 
-  /// Default Smart Night strategy persisted across sessions. One of
-  /// `auto_lrgb`, `mono_lrgb`, `narrowband_hoo`, `narrowband_sho`,
-  /// `osc_one_shot`.
+  /// Default Smart Night filter set persisted across sessions: `auto` (each
+  /// target its own) or one of `auto_lrgb`, `mono_lrgb`, `ha_lrgb`,
+  /// `narrowband_ha`, `narrowband_hoo`, `narrowband_sho`, `osc_one_shot`.
   TextSetting(
     'smartNightDefaultStrategy',
     'smart_night_default_strategy',
-    'auto_lrgb',
+    'auto',
   ),
 
   /// Days after which a polar alignment is "stale" enough to warrant the

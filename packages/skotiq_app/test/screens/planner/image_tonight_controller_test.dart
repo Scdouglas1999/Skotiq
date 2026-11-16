@@ -55,6 +55,7 @@ void main() {
         filterPlans: const [],
         integrationSecs: 0,
         rationale: 'Seeded test target.',
+        filterReason: 'LRGB: the seeded target is a galaxy.',
       ),
     );
   }

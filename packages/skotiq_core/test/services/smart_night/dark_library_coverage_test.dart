@@ -57,14 +57,13 @@ void main() {
             .seconds
             .toStringAsFixed(0);
 
-        final notes = await coverage.missingNotes(
+        final notes = (await coverage.missing(
           profile: profile,
-          availableFilters: profile.filterNames,
-          strategy: SmartNightStrategy.oscOneShot,
+          filters: const ['L'],
           settings: const SmartNightSettings(),
           exposureContext: exposureContext,
           minCoverage: 10,
-        );
+        )).notes;
 
         expect(notes, isNotEmpty);
         expect(notes.first, startsWith('$expectedDuration s darks at '));
@@ -104,14 +103,13 @@ void main() {
         index++;
       }
 
-      final notes = await coverage.missingNotes(
+      final notes = (await coverage.missing(
         profile: profile,
-        availableFilters: profile.filterNames,
-        strategy: SmartNightStrategy.autoLrgb,
+        filters: profile.filterNames,
         settings: const SmartNightSettings(),
         exposureContext: exposureContext,
         minCoverage: 10,
-      );
+      )).notes;
 
       expect(notes, isEmpty);
     });
@@ -140,8 +138,7 @@ void main() {
 
       final result = await coverage.missing(
         profile: profileWithDifferentDefault,
-        availableFilters: profileWithDifferentDefault.filterNames,
-        strategy: SmartNightStrategy.autoLrgb,
+        filters: profileWithDifferentDefault.filterNames,
         settings: const SmartNightSettings(coolDownTargetC: -10),
         exposureContext: exposureContext,
         minCoverage: 10,

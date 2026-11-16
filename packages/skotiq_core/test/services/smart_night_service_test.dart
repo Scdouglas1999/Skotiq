@@ -1226,7 +1226,7 @@ void main() {
             isA<SmartNightBuildException>().having(
               (e) => e.message,
               'message',
-              contains('matched the available filter list'),
+              contains('The wheel has no filters for LRGB, equal time'),
             ),
           ),
         );
@@ -2454,93 +2454,140 @@ void main() {
     });
   });
 
-  group('inferSmartNightStrategy', () {
-    TargetSuggestion minimalSuggestion({
-      required int id,
-      required String name,
-      String? objectType,
-    }) {
-      return TargetSuggestion(
-        targetId: id,
-        targetName: name,
-        raHours: 10,
-        decDegrees: 40,
-        totalScore: 80,
-        objectType: objectType,
-        visibility: const TargetVisibilityInfo(
-          currentAltitude: 50,
-          currentAzimuth: 180,
-          airmass: 1.4,
-          moonDistance: 90,
-        ),
-      );
-    }
+  group('filter choice in the plans', () {
+    late SmartNightService service;
+    // The owner's rig: 10" Newtonian, ASI1600MM-Cool, ZWO EFW 8 slots.
+    const ownerWheel = ['L', 'R', 'G', 'B', 'Ha', 'SII', 'OIII', 'DARK'];
+    const ownerProfile = EquipmentProfileModel(
+      id: 7,
+      name: '10" Newt',
+      focalLength: 1200,
+      aperture: 254,
+      cameraName: 'ZWO ASI1600MM-Cool',
+      defaultGain: 139,
+      defaultOffset: 21,
+      filterNames: ownerWheel,
+    );
 
-    test('galaxy with LRGB filters picks autoLrgb', () {
-      expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(id: 1, name: 'M51', objectType: 'Galaxy'),
-          const ['L', 'R', 'G', 'B'],
+    setUp(() {
+      service = SmartNightService(
+        suggestionService: TargetSuggestionService(
+          loggingService: _MockLoggingService(),
         ),
-        SmartNightStrategy.autoLrgb,
+        logging: _MockLoggingService(),
+        floor: _openSky,
       );
     });
 
-    test('emission nebula with SHO filters picks narrowbandSho', () {
-      expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(
-            id: 2,
-            name: 'NGC 7000',
-            objectType: 'Emission Nebula',
+    TargetSuggestion target(int id, String name, String objectType) =>
+        TargetSuggestion(
+          targetId: id,
+          targetName: name,
+          raHours: 10,
+          decDegrees: 40,
+          totalScore: 90,
+          objectType: objectType,
+          visibility: TargetVisibilityInfo(
+            currentAltitude: 50,
+            currentAzimuth: 180,
+            airmass: 1.4,
+            peakAltitude: 65,
+            riseTime: siteTime(2026, 5, 17, 22),
+            setTime: siteTime(2026, 5, 18, 5),
+            peakAltitudeTime: siteTime(2026, 5, 18, 1),
+            moonDistance: 90,
+            hoursAboveMinAlt: 6,
+            transitTime: siteTime(2026, 5, 18, 1),
           ),
-          const ['Ha', 'OIII', 'SII'],
-        ),
-        SmartNightStrategy.narrowbandSho,
+        );
+
+    SingleTargetSequenceResult imageTonight(TargetSuggestion suggestion) =>
+        service.buildSingleTargetSequence(
+          profile: ownerProfile,
+          suggestion: suggestion,
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
+          availableFilters: ownerWheel,
+          includeSessionPreamble: true,
+        );
+
+    test('M1 on the owner wheel plans SHO with longer subs than LRGB', () {
+      final m1 = imageTonight(target(1, 'M1', 'Supernova Remnant'));
+      expect(m1.strategy, SmartNightStrategy.narrowbandSho);
+      expect(m1.filterPlans.map((p) => p.filterName), ['Ha', 'OIII', 'SII']);
+      expect(
+        m1.plannedTarget.filterReason,
+        'Narrowband SHO: M1 is a supernova remnant.',
       );
+      final smartExposure = m1.sequence.nodes.values
+          .whereType<SmartExposureNode>()
+          .single;
+      expect(smartExposure.name, 'Smart Exposure: Ha+OIII+SII');
+      expect(
+        m1.sequence.description,
+        contains('Narrowband SHO: M1 is a supernova remnant.'),
+      );
+
+      final m31 = imageTonight(target(31, 'M31', 'Galaxy'));
+      expect(m31.filterPlans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
+      final longestBroadband = m31.filterPlans
+          .map((p) => p.durationSecs)
+          .reduce((a, b) => a > b ? a : b);
+      for (final plan in m1.filterPlans) {
+        expect(plan.durationSecs, greaterThan(longestBroadband));
+      }
     });
 
-    test('planetary nebula on mixed rig picks LRGB not SHO', () {
-      expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(id: 4, name: 'M57', objectType: 'Planetary Nebula'),
-          const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'],
-        ),
-        SmartNightStrategy.autoLrgb,
+    test('a recipe set the user picks is kept and named as theirs', () {
+      final result = service.buildSingleTargetSequence(
+        profile: ownerProfile,
+        suggestion: target(1, 'M1', 'Supernova Remnant'),
+        windowStart: siteTime(2026, 5, 17, 22),
+        windowEnd: siteTime(2026, 5, 18, 5),
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+        availableFilters: ownerWheel,
+        strategy: SmartNightStrategy.autoLrgb,
       );
+      expect(result.filterPlans.map((p) => p.filterName), ['L', 'R', 'G', 'B']);
+      expect(result.plannedTarget.filterReason, 'LRGB: your choice.');
     });
 
-    test('reflection nebula on mixed rig picks LRGB not SHO', () {
-      expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(
-            id: 5,
-            name: 'M45',
-            objectType: 'Reflection Nebula',
-          ),
-          const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'],
+    test('Smart Night per target gives each target its own set', () {
+      final plan = service.build(
+        profile: ownerProfile,
+        availableFilters: ownerWheel,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+        context: SmartNightContext(
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
+          bortleClass: 4,
         ),
-        SmartNightStrategy.autoLrgb,
+        selectedSuggestions: [
+          target(1, 'M1', 'Supernova Remnant'),
+          target(31, 'M31', 'Galaxy'),
+        ],
+        strategy: null,
+        settings: const SmartNightSettings(defaultIntegrationBudgetHours: 2),
+        planTimer: const PlanTimer(),
       );
-    });
+      expect(plan.strategy, isNull);
+      final byName = {
+        for (final p in plan.plannedTargets)
+          p.suggestion.targetName: p.filterPlans.map((f) => f.filterName),
+      };
+      expect(byName['M1'], ['Ha', 'OIII', 'SII']);
+      expect(byName['M31'], ['L', 'R', 'G', 'B']);
+      expect(plan.sequence.name, contains('(filters per target)'));
 
-    test('generic nebula label without emission does not force SHO', () {
+      final restored = SmartNightPlan.fromJson(plan.toJson());
+      expect(restored.strategy, isNull);
       expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(id: 6, name: 'NGC 2244', objectType: 'Nebula'),
-          const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'],
-        ),
-        SmartNightStrategy.autoLrgb,
-      );
-    });
-
-    test('single filter rig picks oscOneShot', () {
-      expect(
-        inferSmartNightStrategy(
-          minimalSuggestion(id: 3, name: 'M42', objectType: 'Emission Nebula'),
-          const ['L-eXtreme'],
-        ),
-        SmartNightStrategy.oscOneShot,
+        restored.plannedTargets.map((p) => p.filterReason),
+        plan.plannedTargets.map((p) => p.filterReason),
       );
     });
   });

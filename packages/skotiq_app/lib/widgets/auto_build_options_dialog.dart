@@ -9,6 +9,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../utils/held_future.dart';
+
 enum AutoBuildEnd {
   integration('Integration budget'),
   astronomical('Astronomical dawn'),
@@ -68,6 +70,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       .matchCameraByName(cameraName, exactOnly: true);
   final dao = ref.read(settingsDaoProvider);
   final raw = await dao.getSetting(key);
+  final filterChoice = await _tonightFilterChoice(ref, target, filters);
   if (!context.mounted ||
       (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
@@ -84,6 +87,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       cameraName: cameraName,
       cameraPreset: preset,
       filters: filters,
+      filterChoice: filterChoice,
       target: target,
       saved: saved,
       suggestedSeconds: suggestedSeconds,
@@ -99,11 +103,40 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   return result;
 }
 
+/// The filter set Skotiq would pick for [target] tonight, the same choice
+/// the builder makes when the recipe keeps it.
+Future<SmartNightFilterChoice> _tonightFilterChoice(
+  WidgetRef ref,
+  TargetSuggestion target,
+  List<String> filters,
+) async {
+  final settings = await readHeld(ref, appSettingsProvider);
+  final exposureContext =
+      await readHeld(ref, smartNightExposureContextProvider);
+  final service = ref.read(smartNightServiceProvider);
+  final window = service.calculateWindow(
+    latitudeDeg: settings.latitude,
+    longitudeDeg: settings.longitude,
+    now: ref.read(clockProvider).instant,
+  );
+  return service.chooseFilters(
+    suggestion: target,
+    availableFilters: smartNightPlanningFilters(filters),
+    exposureContext: exposureContext,
+    windowStart: window.start,
+    windowEnd: window.end,
+  );
+}
+
 class AutoBuildOptionsDialog extends StatefulWidget {
   final EquipmentProfileModel profile;
   final String? cameraName;
   final CameraDefaultsPreset? cameraPreset;
   final List<String> filters;
+
+  /// The filter set Skotiq picks for [target] on this rig; the dialog opens
+  /// on it unless the user picked another for this target before.
+  final SmartNightFilterChoice filterChoice;
   final TargetSuggestion target;
   final Map<String, dynamic> saved;
   final Future<void> Function(Map<String, dynamic>) onSave;
@@ -119,6 +152,7 @@ class AutoBuildOptionsDialog extends StatefulWidget {
       this.cameraName,
       this.cameraPreset,
       required this.filters,
+      required this.filterChoice,
       required this.target,
       required this.saved,
       this.suggestedSeconds = const {},
@@ -147,14 +181,9 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     super.initState();
     final strategyName =
         (widget.saved['strategies'] as Map<String, dynamic>?)?[_targetKey];
-    _strategy = SmartNightStrategy.values.firstWhere(
-        (s) =>
-            s.name == strategyName &&
-            resolveSmartNightFilterSet(
-                    strategy: s,
-                    availableFilters: smartNightPlanningFilters(widget.filters))
-                .isNotEmpty,
-        orElse: () => inferSmartNightStrategy(widget.target, widget.filters));
+    _strategy = widget.filterChoice.capturable.firstWhere(
+        (s) => s.name == strategyName,
+        orElse: () => widget.filterChoice.strategy);
     _end = AutoBuildEnd.values.firstWhere((e) => e.name == widget.saved['end'],
         orElse: () => AutoBuildEnd.astronomical);
     _calculator = widget.saved['calculator'] == true;
@@ -170,11 +199,15 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
         widget.saved['exposures'] as Map<String, dynamic>? ?? {};
     for (final filter in smartNightPlanningFilters(widget.filters)) {
       final spec = FilterExposureSpec.fromName(filter);
-      final seconds = savedExposures[filter] ??
+      final num seconds = savedExposures[filter] as num? ??
           widget.suggestedSeconds[filter]?.round() ??
           const SmartNightSettings().defaultFrameDurationSecs[spec.name] ??
           180;
-      _durations[filter] = TextEditingController(text: '$seconds');
+      // Whole seconds read as "300", not "300.0".
+      _durations[filter] = TextEditingController(
+          text: seconds == seconds.roundToDouble()
+              ? '${seconds.round()}'
+              : '$seconds');
     }
   }
 
@@ -188,9 +221,12 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
 
   String get _targetKey => widget.target.catalogId ?? widget.target.targetName;
 
-  List<String> get _filters => resolveSmartNightFilterSet(
-      strategy: _strategy,
-      availableFilters: smartNightPlanningFilters(widget.filters));
+  List<String> get _filters => widget.filterChoice.filtersFor(_strategy);
+
+  /// Why these filters, in one line.
+  String get _filterReason => _strategy == widget.filterChoice.strategy
+      ? widget.filterChoice.reason
+      : 'Your choice. Skotiq would pick ${widget.filterChoice.reason}';
 
   CaptureFilterGroup get _filterGroup => captureFilterGroup(_filters.first);
 
@@ -265,12 +301,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                       ),
-                      items: SmartNightStrategy.values
-                          .where((s) => resolveSmartNightFilterSet(
-                                  strategy: s,
-                                  availableFilters:
-                                      smartNightPlanningFilters(widget.filters))
-                              .isNotEmpty)
+                      items: widget.filterChoice.capturable
                           .map((s) => DropdownMenuItem(
                               value: s,
                               child: Text(switch (s) {
@@ -282,6 +313,9 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                                   'HOO · Ha + OIII',
                                 SmartNightStrategy.narrowbandSho =>
                                   'SHO · SII + Ha + OIII',
+                                SmartNightStrategy.narrowbandHa => 'Ha only',
+                                SmartNightStrategy.haLrgb =>
+                                  'LRGB + Ha · starlight and emission',
                                 SmartNightStrategy.oscOneShot =>
                                   'Single filter / OSC',
                               })))
@@ -297,8 +331,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                        'Target type: ${widget.target.objectType ?? 'unknown'} · check the filter choice before building.'),
+                    Text(_filterReason),
                     const SizedBox(height: 16),
                     SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -413,10 +446,13 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     setState(() => _saving = true);
     try {
       await widget.onSave({
+        // Only a set the user picked over Skotiq's choice is remembered, so
+        // the target follows the automatic choice until then.
         'strategies': {
           ...?widget.saved['strategies'] as Map<String, dynamic>?,
           _targetKey: _strategy.name
-        },
+        }..removeWhere((key, _) =>
+            key == _targetKey && _strategy == widget.filterChoice.strategy),
         'end': _end.name,
         'hours': options.hours,
         'calculator': _calculator,
