@@ -6,8 +6,11 @@ import '../database/database.dart';
 import '../database/daos/dark_library_dao.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import 'calibration/calibration_frame_groups.dart';
 import 'calibration/calibration_selection.dart';
 import 'calibration_master_builder.dart';
+import 'frame_header.dart';
+import 'logging_service.dart';
 
 /// Service for managing dark frame library operations.
 ///
@@ -21,10 +24,16 @@ class DarkLibraryService {
   /// a time.
   final CalibrationMasterBuild _buildMaster;
 
+  /// Reads a master's header to tell whether its frames were at its
+  /// set-point.
+  final FrameHeaderReader _readHeader;
+
   DarkLibraryService(
     this._dao, {
     CalibrationMasterBuild buildMaster = buildCalibrationMasterNative,
-  }) : _buildMaster = buildMaster;
+    FrameHeaderReader readHeader = readFrameHeader,
+  }) : _buildMaster = buildMaster,
+       _readHeader = readHeader;
 
   /// Register a captured dark or bias frame in the library.
   ///
@@ -68,7 +77,8 @@ class DarkLibraryService {
   /// The pick is [selectDark]'s (or [rankBiases]' for a bias), the same rule
   /// the Darkroom uses. A dark that would need exposure scaling is not
   /// returned, because these callers subtract the file unscaled. A dark
-  /// outside the temperature tolerance is returned when none is within it.
+  /// outside the temperature tolerance is returned when none is within it. A
+  /// master built from frames off its set-point is never returned.
   Future<DarkLibraryEntry?> findMatchingDark({
     required double exposureTime,
     required int? gain,
@@ -80,7 +90,10 @@ class DarkLibraryService {
     String frameType = 'dark',
   }) async {
     final rows = await _dao.getEntriesByFrameType(frameType);
-    final records = rows.map(darkLibraryRecord);
+    final records = [
+      for (final row in rows)
+        await _judged(darkLibraryRecord(row), tolerances.temperatureC),
+    ];
     final context = LightFrameContext(
       gain: gain,
       offset: offset,
@@ -100,6 +113,29 @@ class DarkLibraryService {
     }
     if (id == null) return null;
     return rows.firstWhere((row) => row.id == id);
+  }
+
+  /// [record] with whether a master's frames were off its set-point, from
+  /// its header. A raw frame, or a master whose header cannot be read, is
+  /// left unjudged.
+  Future<CalibrationMasterRecord> _judged(
+    CalibrationMasterRecord record,
+    double toleranceC,
+  ) async {
+    final path = record.filePath;
+    if (!record.isMaster || path == null) return record;
+    try {
+      if (!await File(path).exists()) return record;
+      return record.copyWith(
+        offSetPoint: masterOffSetPoint(await _readHeader(path), toleranceC),
+      );
+    } catch (e) {
+      Log.warning(
+        'Could not read $path to check its set-point: $e',
+        source: 'DarkLibraryService',
+      );
+      return record;
+    }
   }
 
   /// Build a master dark (or bias) from a list of raw frames.

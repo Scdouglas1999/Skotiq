@@ -179,6 +179,13 @@ final darkLibraryMatchTolerancesProvider = Provider<DarkLibraryMatchTolerances>(
   },
 );
 
+/// The dark library's temperature tolerance once the stored settings have
+/// loaded, for work that must not start on the defaults.
+Future<double> loadedDarkTemperatureToleranceC(Ref ref) async {
+  await ref.read(allSettingsProvider.future);
+  return ref.read(darkLibraryMatchTolerancesProvider).temperatureC;
+}
+
 class DarkLibrarySettingsSnapshot {
   final bool autoCalibrate;
   final double temperatureTolerance;
