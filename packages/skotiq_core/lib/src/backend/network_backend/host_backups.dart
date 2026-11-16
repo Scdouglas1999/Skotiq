@@ -1,13 +1,9 @@
 part of '../network_backend.dart';
 
 /// The database backups a linked imaging host keeps and restores.
-final class HostBackups {
-  HostBackups(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostBackups on NetworkBackendTransport {
   Future<Map<String, dynamic>> createBackup({bool autoSave = false}) async {
-    final response = await _host._post(
+    final response = await _post(
       BackupApi.createBackup,
       body: {'autoSave': autoSave},
       timeout: _backupTimeout,
@@ -16,15 +12,15 @@ final class HostBackups {
   }
 
   Future<void> deleteBackup(String backupId) async {
-    await _host._delete(BackupApi.deleteBackup, path: {'id': backupId});
+    await _delete(BackupApi.deleteBackup, path: {'id': backupId});
   }
 
   Future<Uint8List> downloadBackup(String backupId) async {
-    return _host._downloadBytes(BackupApi.downloadBackup, path: {'id': backupId});
+    return _downloadBytes(BackupApi.downloadBackup, path: {'id': backupId});
   }
 
   Future<List<Map<String, dynamic>>> listBackups() async {
-    final response = await _host._get(BackupApi.listBackups);
+    final response = await _get(BackupApi.listBackups);
     final backupsList = response['backups'];
     if (backupsList is! List) {
       throw const FormatException(
@@ -50,7 +46,7 @@ final class HostBackups {
     String backupId, {
     required RestoreMode mode,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       BackupApi.restoreBackup,
       body: {'id': backupId, 'mode': mode.wireName},
       timeout: _backupTimeout,
@@ -63,7 +59,7 @@ final class HostBackups {
     String fileName, {
     required RestoreMode mode,
   }) async {
-    return _host._postRaw(
+    return _postRaw(
       BackupApi.uploadRestoreBackup,
       query: {'fileName': fileName, 'mode': mode.wireName},
       bytes: bytes,
@@ -74,13 +70,13 @@ final class HostBackups {
     );
   }
 
-  Future<Map<String, dynamic>> restoreState() => _host._get(BackupApi.restoreState);
+  Future<Map<String, dynamic>> restoreState() => _get(BackupApi.restoreState);
 
   Future<void> cancelReplace() async {
-    await _host._post(BackupApi.cancelReplace);
+    await _post(BackupApi.cancelReplace);
   }
 
   Future<void> acknowledgeReplace() async {
-    await _host._post(BackupApi.acknowledgeReplace);
+    await _post(BackupApi.acknowledgeReplace);
   }
 }

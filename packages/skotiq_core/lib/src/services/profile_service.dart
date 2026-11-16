@@ -16,7 +16,7 @@ import '../providers/settings_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
 import '../models/optical_train_limits.dart';
-import '../backend/roles/host_data/host_profiles.dart';
+import '../backend/network_backend.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/async_scope.dart';

@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// Recorded history of a linked imaging host: polar alignments, guide RMS, the night narrator feed and photometric transforms.
-final class HostHistory {
-  HostHistory(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostHistory on NetworkBackendTransport {
   /// GET /api/guide-rms-history?sinceMs=&untilMs=&limit=&offset=
   Future<RemotePage<RemoteGuideRmsHistoryEntry>> fetchGuideRmsHistory({
     String? mountId,
@@ -14,7 +10,7 @@ final class HostHistory {
     int limit = 200,
     int offset = 0,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       DbReadApi.listGuideRmsHistory,
       query: {
         if (mountId != null && mountId.trim().isNotEmpty)
@@ -35,7 +31,7 @@ final class HostHistory {
     int limit = 200,
     int offset = 0,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       DbReadApi.listPolarAlignmentHistory,
       query: {
         if (equipmentProfileId != null)
@@ -57,28 +53,28 @@ final class HostHistory {
   /// `NarratorEvent` via `narratorEventFromWireJson`. The narrator runs on the
   /// host, so a remote client reads its feed here instead of the local DB.
   Future<List<Map<String, dynamic>>> getNarratorFeed(int sessionId) async {
-    final json = await _host._get(
+    final json = await _get(
       NarratorApi.feed,
       query: {'sessionId': sessionId.toString()},
     );
-    return _host._narratorEventsList(json);
+    return _narratorEventsList(json);
   }
 
   /// Fetch the appliance's sessionless recent narrator feed.
   Future<List<Map<String, dynamic>>> getRecentNarratorFeed({
     int limit = 50,
   }) async {
-    final json = await _host._get(
+    final json = await _get(
       NarratorApi.recent,
       query: {'limit': limit.toString()},
     );
-    return _host._narratorEventsList(json);
+    return _narratorEventsList(json);
   }
 
   Future<List<PhotometricTransformRow>> getPhotometricTransforms({
     int? profileId,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       ScienceApi.getPhotometricTransforms,
       query: profileId == null ? null : {'profileId': profileId.toString()},
     );

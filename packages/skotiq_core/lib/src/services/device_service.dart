@@ -50,7 +50,7 @@ import 'device_service/profile_device_resolution.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
-import '../backend/roles/host_data/host_device_control.dart';
+import '../backend/network_backend.dart';
 import '../backend/roles/host_data/host_link.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/error_service_provider.dart';

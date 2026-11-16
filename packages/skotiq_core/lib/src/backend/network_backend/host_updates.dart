@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// The software version of a linked imaging host and its update flow.
-final class HostUpdates {
-  HostUpdates(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostUpdates on NetworkBackendTransport {
   /// POST /api/system/update/abort — abort any in-flight check or
   /// download.
   ///
@@ -14,7 +10,7 @@ final class HostUpdates {
   /// error. The endpoint answers `{aborted: bool, cancelledJobs: [...]}` and
   /// never mints a job of its own, so neither does this.
   Future<List<String>> abortUpdate() async {
-    final response = await _host._post(UpdateApi.abort);
+    final response = await _post(UpdateApi.abort);
     final cancelled = response['cancelledJobs'];
     if (cancelled is! List) return const <String>[];
     return cancelled
@@ -27,7 +23,7 @@ final class HostUpdates {
   /// process may exit during the apply (the host is replaced by the
   /// updater binary), so clients should reconnect after the WS drops.
   Future<RemoteJob> applyUpdate() async {
-    final response = await _host._post(UpdateApi.apply);
+    final response = await _post(UpdateApi.apply);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.apply',
@@ -36,7 +32,7 @@ final class HostUpdates {
 
   /// POST /api/system/update/check — dispatch a check job.
   Future<RemoteJob> checkForUpdate({String? channel}) async {
-    final response = await _host._post(
+    final response = await _post(
       UpdateApi.checkForUpdate,
       body: {if (channel != null && channel.isNotEmpty) 'channel': channel},
     );
@@ -48,13 +44,13 @@ final class HostUpdates {
 
   /// DELETE /api/system/update/staged — discard the staged update.
   Future<void> discardStagedUpdate() async {
-    await _host._delete(UpdateApi.discardStaged);
+    await _delete(UpdateApi.discardStaged);
   }
 
   /// POST /api/system/update/download — start downloading the staged
   /// update. Returns a job handle for progress tracking.
   Future<RemoteJob> downloadUpdate() async {
-    final response = await _host._post(UpdateApi.download);
+    final response = await _post(UpdateApi.download);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.download',
@@ -71,13 +67,13 @@ final class HostUpdates {
 
   /// GET /api/system/version — current build info.
   Future<RemoteVersionInfo> getSystemVersion() async {
-    final response = await _host._get(SystemApi.version);
+    final response = await _get(SystemApi.version);
     return RemoteVersionInfo.fromJson(response);
   }
 
   /// GET /api/system/update/status — current update phase snapshot.
   Future<RemoteUpdateStatus> getUpdateStatus() async {
-    final response = await _host._get(UpdateApi.getStatus);
+    final response = await _get(UpdateApi.getStatus);
     return RemoteUpdateStatus.fromJson(response);
   }
 
@@ -87,7 +83,7 @@ final class HostUpdates {
   /// the server returns 501 otherwise. The host process may restart during
   /// the rollback, so clients should reconnect after the WS drops.
   Future<RemoteJob> rollbackUpdate() async {
-    final response = await _host._post(UpdateApi.rollback);
+    final response = await _post(UpdateApi.rollback);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.rollback',

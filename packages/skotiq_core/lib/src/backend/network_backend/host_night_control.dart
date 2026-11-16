@@ -2,14 +2,10 @@ part of '../network_backend.dart';
 
 /// The night a linked imaging host is running: its scheduled start, its
 /// end-of-night steps, its manual loop and its history.
-final class HostNightControl {
-  HostNightControl(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostNightControl on NetworkBackendTransport {
   /// Remote-only: stop the host's end-of-night calibration (skip the darks).
   Future<EonStatus?> cancelHostEndOfNight() async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.cancelEndOfNight,
       body: const {},
       maxAttempts: 1,
@@ -19,7 +15,7 @@ final class HostNightControl {
 
   /// Remote-only: cancel the host's scheduled start.
   Future<void> cancelHostScheduledStart() async {
-    await _host._post(
+    await _post(
       SequencerApi.cancelScheduledStart,
       body: const {},
       maxAttempts: 1,
@@ -28,7 +24,7 @@ final class HostNightControl {
 
   /// Remote-only: tell the host the telescope is capped for its darks.
   Future<EonStatus?> confirmHostEndOfNightCapped() async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.confirmEndOfNightCapped,
       body: const {},
       maxAttempts: 1,
@@ -40,17 +36,17 @@ final class HostNightControl {
   /// steps, autofocus runs, dithers, flips, lost stars, recent solves and the
   /// cooler history.
   Future<Map<String, dynamic>> getHostNightHistory() =>
-      _host._get(RuntimeStateApi.nightHistory);
+      _get(RuntimeStateApi.nightHistory);
 
   /// Stop the host's manual Loop, whichever window started it.
   Future<void> stopHostManualLoop() async {
-    await _host._post(RuntimeStateApi.stopManualLoop, body: const {}, maxAttempts: 1);
+    await _post(RuntimeStateApi.stopManualLoop, body: const {}, maxAttempts: 1);
   }
 
   /// Start the manual Loop on the host with [request] (see
   /// [manualLoopRequestJson]). The loop runs on the host; its progress comes
   /// back on the `manualLoop` runtime channel.
   Future<void> startHostManualLoop(Map<String, dynamic> request) async {
-    await _host._post(RuntimeStateApi.startManualLoop, body: request, maxAttempts: 1);
+    await _post(RuntimeStateApi.startManualLoop, body: request, maxAttempts: 1);
   }
 }

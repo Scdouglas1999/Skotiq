@@ -2,13 +2,9 @@ part of '../network_backend.dart';
 
 /// The file system of a linked imaging host: the folders it will write to and
 /// the files it can send to this device.
-final class HostFiles {
-  HostFiles(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostFiles on NetworkBackendTransport {
   Future<RemoteDirectoryListing> browseRemoteDirectories({String? path}) async {
-    final response = await _host._get(
+    final response = await _get(
       FileSystemApi.browseDirectories,
       query: path == null || path.isEmpty ? null : {'path': path},
     );
@@ -21,7 +17,7 @@ final class HostFiles {
     bool mustBeWritable = false,
   }) async {
     try {
-      return await _host._post(
+      return await _post(
         FileSystemApi.validateDirectory,
         body: {
           'path': path,
@@ -42,7 +38,7 @@ final class HostFiles {
   }
 
   Future<Uint8List> downloadSessionExport(int sessionId, String format) async {
-    return _host._downloadBytes(
+    return _downloadBytes(
       SessionApi.exportSession,
       path: {'sessionId': sessionId, 'format': format},
     );
@@ -54,7 +50,7 @@ final class HostFiles {
   /// (the host's capture path does not exist on the phone's filesystem).
   /// Returns `null` when the host has no capture directory configured.
   Future<DiskSpaceInfo?> getHostCaptureDiskSpace() async {
-    final json = await _host._get(SystemApi.diskSpace);
+    final json = await _get(SystemApi.diskSpace);
     if (json['configured'] == false) return null;
     return DiskSpaceInfo(
       path: json['path'] as String? ?? '',

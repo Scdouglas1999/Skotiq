@@ -3,16 +3,12 @@ part of '../network_backend.dart';
 /// Device actions that only a linked imaging host can take for its client:
 /// the camera warm-up it runs next to the camera, its switch channels, and
 /// the dome and cover readings a local process takes from the bridge.
-final class HostDeviceControl {
-  HostDeviceControl(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostDeviceControl on NetworkBackendTransport {
   /// Remote-only: start the gradual camera warm-up on the host, which runs
   /// the ramp next to the camera. Returns the host's outcome name (see
   /// `CameraWarmupOutcome`).
   Future<String> cameraStartHostWarmUp({double ratePerMin = 2.0}) async {
-    final response = await _host._post(
+    final response = await _post(
       DeviceApi.cameraStartWarmUp,
       body: {'ratePerMin': ratePerMin},
     );
@@ -22,7 +18,7 @@ final class HostDeviceControl {
   /// Remote-only: stop the host's warm-up. With [restorePriorSetting] the
   /// cooler goes back to the set-point it held before the warm-up.
   Future<void> cameraCancelHostWarmUp({bool restorePriorSetting = true}) async {
-    await _host._post(
+    await _post(
       DeviceApi.cameraCancelWarmUp,
       body: {'restorePriorSetting': restorePriorSetting},
     );
@@ -30,7 +26,7 @@ final class HostDeviceControl {
 
   /// Remote-only: whether the host is warming the camera.
   Future<bool> cameraHostIsWarming() async {
-    final response = await _host._get(DeviceApi.cameraGetWarmUp);
+    final response = await _get(DeviceApi.cameraGetWarmUp);
     return response['warming'] == true;
   }
 
@@ -42,7 +38,7 @@ final class HostDeviceControl {
     required int switchId,
     required dynamic value,
   }) async {
-    await _host._post(
+    await _post(
       AuxiliaryApi.switchSet,
       body: {'deviceId': deviceId, 'switchId': switchId, 'value': value},
     );
@@ -55,7 +51,7 @@ final class HostDeviceControl {
   /// consumes. Omit it for the all-devices summary
   /// (`{devicesConnected, devices:[...]}`).
   Future<Map<String, dynamic>> getSwitchStatus({String? deviceId}) async {
-    return await _host._get(
+    return await _get(
       AuxiliaryApi.switchStatus,
       query: {
         if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
@@ -64,7 +60,7 @@ final class HostDeviceControl {
   }
 
   Future<DomeCapabilities?> getDomeCapabilities(String deviceId) async {
-    final json = await _host._get(
+    final json = await _get(
       DomeApi.capabilities,
       query: {'deviceId': deviceId},
     );
@@ -72,6 +68,6 @@ final class HostDeviceControl {
   }
 
   Future<Map<String, dynamic>> getCoverStatus(String deviceId) async {
-    return await _host._get(AuxiliaryApi.coverStatus, query: {'deviceId': deviceId});
+    return await _get(AuxiliaryApi.coverStatus, query: {'deviceId': deviceId});
   }
 }

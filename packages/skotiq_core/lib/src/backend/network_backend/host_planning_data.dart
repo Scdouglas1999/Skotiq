@@ -2,16 +2,12 @@ part of '../network_backend.dart';
 
 /// Projects, integration goals, target constraints and the scheduler queue
 /// kept in a linked imaging host's database.
-final class HostPlanningData {
-  HostPlanningData(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostPlanningData on NetworkBackendTransport {
   /// GET /api/projects/progress?projectId= — the server-computed
   /// accrued-vs-remaining campaign roll-up (derived from the host's
   /// `captured_images` + goals, never a slave-side recompute).
   Future<CampaignProgress> getProjectProgress(int projectId) async {
-    final response = await _host._get(
+    final response = await _get(
       PlanningDataApi.getProjectProgress,
       query: {'projectId': projectId.toString()},
     );
@@ -20,13 +16,13 @@ final class HostPlanningData {
 
   /// GET /api/projects — every project, most-recently-updated first.
   Future<List<Project>> getProjects() async {
-    final response = await _host._get(PlanningDataApi.getProjects);
+    final response = await _get(PlanningDataApi.getProjects);
     return _listFrom(response, 'projects', Project.fromJson);
   }
 
   /// GET /api/projects/targets?projectId= — the membership rows for a project.
   Future<List<ProjectTarget>> getProjectTargets(int projectId) async {
-    final response = await _host._get(
+    final response = await _get(
       PlanningDataApi.getProjectTargets,
       query: {'projectId': projectId.toString()},
     );
@@ -35,7 +31,7 @@ final class HostPlanningData {
 
   /// POST /api/scheduler/removed-targets — empty the queue.
   Future<void> clearSchedulerQueue() async {
-    await _host._post(PlanningDataApi.removeSchedulerTarget, body: {'all': true});
+    await _post(PlanningDataApi.removeSchedulerTarget, body: {'all': true});
   }
 
   /// GET /api/scheduler/removed-targets — the ids the host's operator has taken
@@ -43,7 +39,7 @@ final class HostPlanningData {
   /// autopilot over targets the operator had removed, because a goal-less
   /// target is otherwise a perfectly eligible free-form candidate.
   Future<Set<int>> getSchedulerQueueRemovedTargets() async {
-    final response = await _host._get(PlanningDataApi.getSchedulerRemovedTargets);
+    final response = await _get(PlanningDataApi.getSchedulerRemovedTargets);
     final ids = response['targetIds'];
     if (ids is! List) {
       throw const FormatException(
@@ -55,7 +51,7 @@ final class HostPlanningData {
 
   /// DELETE /api/scheduler/removed-targets?targetId= — put one target back.
   Future<void> readmitSchedulerQueueTarget(int targetId) async {
-    await _host._delete(
+    await _delete(
       PlanningDataApi.readmitSchedulerTarget,
       query: {'targetId': targetId},
     );
@@ -63,7 +59,7 @@ final class HostPlanningData {
 
   /// POST /api/scheduler/removed-targets — remove one target from the queue.
   Future<void> removeSchedulerQueueTarget(int targetId) async {
-    await _host._post(
+    await _post(
       PlanningDataApi.removeSchedulerTarget,
       body: {'targetId': targetId},
     );
@@ -71,7 +67,7 @@ final class HostPlanningData {
 
   /// DELETE /api/target-constraints?all=true — delete every constraint.
   Future<void> deleteAllTargetConstraints() async {
-    await _host._delete(
+    await _delete(
       PlanningDataApi.deleteTargetConstraint,
       query: {'all': 'true'},
     );
@@ -79,12 +75,12 @@ final class HostPlanningData {
 
   /// DELETE /api/target-constraints?id= — delete a single constraint.
   Future<void> deleteTargetConstraint(int id) async {
-    await _host._delete(PlanningDataApi.deleteTargetConstraint, query: {'id': id});
+    await _delete(PlanningDataApi.deleteTargetConstraint, query: {'id': id});
   }
 
   /// DELETE /api/target-constraints?targetId= — delete all for a target.
   Future<void> deleteTargetConstraintsForTarget(int targetId) async {
-    await _host._delete(
+    await _delete(
       PlanningDataApi.deleteTargetConstraint,
       query: {'targetId': targetId},
     );
@@ -93,7 +89,7 @@ final class HostPlanningData {
   /// GET /api/target-constraints?targetId= — every constraint, or the
   /// constraints for one target.
   Future<List<TargetConstraint>> getTargetConstraints({int? targetId}) async {
-    final response = await _host._get(
+    final response = await _get(
       PlanningDataApi.getTargetConstraints,
       query: {if (targetId != null) 'targetId': targetId.toString()},
     );
@@ -102,16 +98,16 @@ final class HostPlanningData {
 
   /// POST /api/target-constraints — insert a constraint on the host; returns id.
   Future<int> insertTargetConstraint(TargetConstraint constraint) async {
-    final response = await _host._post(
+    final response = await _post(
       PlanningDataApi.insertTargetConstraint,
       body: constraint.toJson(),
     );
-    return _host._requiredPlanningInt(response, 'id', 'POST /api/target-constraints');
+    return _requiredPlanningInt(response, 'id', 'POST /api/target-constraints');
   }
 
   /// POST /api/target-constraints/set-enabled — toggle a constraint.
   Future<void> setTargetConstraintEnabled(int id, bool enabled) async {
-    await _host._post(
+    await _post(
       PlanningDataApi.setTargetConstraintEnabled,
       body: {'id': id, 'enabled': enabled},
     );
@@ -119,7 +115,7 @@ final class HostPlanningData {
 
   /// POST /api/target-constraints/update — update an existing constraint.
   Future<void> updateTargetConstraint(TargetConstraint constraint) async {
-    await _host._post(
+    await _post(
       PlanningDataApi.updateTargetConstraint,
       body: constraint.toJson(),
     );
@@ -127,7 +123,7 @@ final class HostPlanningData {
 
   /// DELETE /api/integration-goals?all=true — delete every goal on the host.
   Future<void> deleteAllIntegrationGoals() async {
-    await _host._delete(
+    await _delete(
       PlanningDataApi.deleteIntegrationGoal,
       query: {'all': 'true'},
     );
@@ -135,12 +131,12 @@ final class HostPlanningData {
 
   /// DELETE /api/integration-goals?id= — delete a single goal on the host.
   Future<void> deleteIntegrationGoal(int goalId) async {
-    await _host._delete(PlanningDataApi.deleteIntegrationGoal, query: {'id': goalId});
+    await _delete(PlanningDataApi.deleteIntegrationGoal, query: {'id': goalId});
   }
 
   /// DELETE /api/integration-goals?targetId= — delete all goals for a target.
   Future<void> deleteIntegrationGoalsForTarget(int targetId) async {
-    await _host._delete(
+    await _delete(
       PlanningDataApi.deleteIntegrationGoal,
       query: {'targetId': targetId},
     );
@@ -153,11 +149,11 @@ final class HostPlanningData {
     required int targetId,
     required String filter,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       PlanningDataApi.getCapturedFrameCount,
       query: {'targetId': targetId.toString(), 'filter': filter},
     );
-    return _host._requiredPlanningInt(
+    return _requiredPlanningInt(
       response,
       'count',
       'GET /api/integration-goals/captured-count',
@@ -167,7 +163,7 @@ final class HostPlanningData {
   /// GET /api/integration-goals?targetId= — every goal, or the goals for one
   /// target when [targetId] is supplied.
   Future<List<IntegrationGoal>> getIntegrationGoals({int? targetId}) async {
-    final response = await _host._get(
+    final response = await _get(
       PlanningDataApi.getIntegrationGoals,
       query: {if (targetId != null) 'targetId': targetId.toString()},
     );
@@ -176,16 +172,16 @@ final class HostPlanningData {
 
   /// POST /api/integration-goals — upsert a goal on the host and return its id.
   Future<int> upsertIntegrationGoal(IntegrationGoal goal) async {
-    final response = await _host._post(
+    final response = await _post(
       PlanningDataApi.upsertIntegrationGoal,
       body: goal.toJson(),
     );
-    return _host._requiredPlanningInt(response, 'id', 'POST /api/integration-goals');
+    return _requiredPlanningInt(response, 'id', 'POST /api/integration-goals');
   }
 
   /// GET /api/horizon-profiles — every custom horizon profile.
   Future<List<HorizonProfile>> getHorizonProfiles() async {
-    final response = await _host._get(PlanningDataApi.getHorizonProfiles);
+    final response = await _get(PlanningDataApi.getHorizonProfiles);
     return _listFrom(response, 'profiles', HorizonProfile.fromJson);
   }
 
@@ -194,7 +190,7 @@ final class HostPlanningData {
     String action, {
     bool confirmWarnings = false,
   }) async {
-    return _host._post(
+    return _post(
       SchedulerApi.control,
       body: {'action': action, if (confirmWarnings) 'confirmWarnings': true},
     );
@@ -204,16 +200,16 @@ final class HostPlanningData {
   Future<Map<String, dynamic>> updateSchedulerConfig(
     Map<String, dynamic> config,
   ) async {
-    return _host._post(SchedulerApi.updateConfig, body: config);
+    return _post(SchedulerApi.updateConfig, body: config);
   }
 
   /// Get the imaging host's complete unattended-scheduler state.
   Future<Map<String, dynamic>> getSchedulerState() async {
-    return _host._get(SchedulerApi.getState);
+    return _get(SchedulerApi.getState);
   }
 
   Future<Map<String, dynamic>> planetariumCatalogSearch(String query) async {
-    return await _host._get(PlanetariumApi.catalogSearch, query: {'query': query});
+    return await _get(PlanetariumApi.catalogSearch, query: {'query': query});
   }
 
   /// Remote-only: fetch the host's live autopilot preview decision so the
@@ -221,7 +217,7 @@ final class HostPlanningData {
   /// against its empty local catalog (which always yields "nothing eligible").
   /// Not part of the abstract backend — only a NetworkBackend slave calls this.
   Future<SchedulerDecision> getSchedulerPreview() async {
-    final response = await _host._get(SchedulerApi.previewDecision);
+    final response = await _get(SchedulerApi.previewDecision);
     return SchedulerDecision.fromJson(Map<String, dynamic>.from(response));
   }
 
@@ -241,11 +237,11 @@ final class HostPlanningData {
       if (config.preferredObjectTypes.isNotEmpty)
         'objectTypes': config.preferredObjectTypes.join(','),
     };
-    final response = await _host._get(
+    final response = await _get(
       SuggestionApi.getRankedSuggestions,
       query: params,
     );
-    return _host._sessionScienceObjectList(
+    return _sessionScienceObjectList(
       response,
       'suggestions',
       'GET /api/suggestions/ranked',
@@ -269,10 +265,34 @@ final class HostPlanningData {
     if (objectTypes != null && objectTypes.isNotEmpty) {
       params['objectTypes'] = objectTypes.join(',');
     }
-    final response = await _host._get(
+    final response = await _get(
       SuggestionApi.getSuggestionsForTonight,
       query: params.isEmpty ? null : params,
     );
     return response;
+  }
+}
+
+extension _HostPlanningDataNumbers on NetworkBackendTransport {
+  int _requiredPlanningInt(
+    Map<String, dynamic> response,
+    String key,
+    String request,
+  ) {
+    final value = response[key];
+    if (value is! num) {
+      throw FormatException('$request returned no numeric `$key` field');
+    }
+    return value.toInt();
+  }
+}
+
+extension _HostPlanningDataLists on NetworkBackendTransport {
+  List<T> _listFrom<T>(
+    Map<String, dynamic> response,
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    return _rowsFromJson(response[key], fromJson);
   }
 }

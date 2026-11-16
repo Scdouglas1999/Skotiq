@@ -1,18 +1,14 @@
 part of '../network_backend.dart';
 
 /// The sequencer decision log of a linked imaging host and its logging settings.
-final class HostReplayDebug {
-  HostReplayDebug(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostReplayDebug on NetworkBackendTransport {
   /// Chronological decision list for [runId] from the host. Mirrors the
   /// local `ReplayDebugService.listByRun` ordering.
   Future<List<ReplayDecision>> replayListDecisions(int runId) async {
     if (runId <= 0) {
       throw ArgumentError.value(runId, 'runId', 'must be positive');
     }
-    final response = await _host._get(
+    final response = await _get(
       ReplayDebugApi.listDecisions,
       query: {'runId': runId},
     );
@@ -60,7 +56,7 @@ final class HostReplayDebug {
     if (runId <= 0) {
       throw ArgumentError.value(runId, 'runId', 'must be positive');
     }
-    final response = await _host._get(
+    final response = await _get(
       ReplayDebugApi.countDecisions,
       query: {'runId': runId},
     );
@@ -81,7 +77,7 @@ final class HostReplayDebug {
   /// thrown error — the caller states that it does not know the size rather
   /// than showing a made-up one.
   Future<int> replayCountAllDecisions() async {
-    final response = await _host._get(ReplayDebugApi.countDecisions);
+    final response = await _get(ReplayDebugApi.countDecisions);
     final count = response['count'];
     if (count is! int || count < 0) {
       throw FormatException(
@@ -94,7 +90,7 @@ final class HostReplayDebug {
 
   /// Read the host's authoritative replay settings (enabled + retention).
   Future<ReplayDebugSettings> replayGetSettings() async {
-    final response = await _host._get(ReplayDebugApi.getSettings);
+    final response = await _get(ReplayDebugApi.getSettings);
     return ReplayDebugSettings.fromWireJson(response);
   }
 
@@ -103,7 +99,7 @@ final class HostReplayDebug {
   /// (the host handler rolls the persist back if the executor update
   /// fails). Never touches the remote client's local database.
   Future<void> replaySetEnabled(bool enabled) async {
-    final response = await _host._post(
+    final response = await _post(
       ReplayDebugApi.setEnabled,
       body: {'enabled': enabled},
     );
@@ -120,7 +116,7 @@ final class HostReplayDebug {
     if (days < 1 || days > 3650) {
       throw ArgumentError.value(days, 'days', 'must be between 1 and 3650');
     }
-    final response = await _host._post(
+    final response = await _post(
       ReplayDebugApi.setRetention,
       body: {'days': days},
     );
@@ -134,7 +130,7 @@ final class HostReplayDebug {
 
   /// Ask the host to delete every decision row. Returns the number removed.
   Future<int> replayClearHistory() async {
-    final response = await _host._post(ReplayDebugApi.clear);
+    final response = await _post(ReplayDebugApi.clear);
     final removed = response['removed'];
     if (removed is! int || removed < 0) {
       throw FormatException(

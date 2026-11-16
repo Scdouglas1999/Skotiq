@@ -1,17 +1,13 @@
 part of '../network_backend.dart';
 
 /// The log entries and log files of a linked imaging host.
-final class HostLogs {
-  HostLogs(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostLogs on NetworkBackendTransport {
   /// POST /api/logs/clear — delete all non-current log files on the
   /// server. Returns when the server acknowledges; the response body is
   /// the per-file status map which the desktop log viewer surfaces but
   /// the mobile log tab does not currently need.
   Future<void> clearServerLogs() async {
-    await _host._post(LogApi.clear);
+    await _post(LogApi.clear);
   }
 
   /// GET `/api/logs/files/<name>/download` — stream one full log file to
@@ -26,7 +22,7 @@ final class HostLogs {
     if (fileName.trim().isEmpty) {
       throw ArgumentError.value(fileName, 'fileName', 'must not be empty');
     }
-    return _host._downloadToFile(
+    return _downloadToFile(
       LogApi.downloadFile,
       localPath,
       path: {'filename': fileName},
@@ -52,7 +48,7 @@ final class HostLogs {
     if (categoryFilter != null && categoryFilter.isNotEmpty) {
       query['source'] = categoryFilter;
     }
-    final body = await _host._get(LogApi.recent, query: query);
+    final body = await _get(LogApi.recent, query: query);
     final entriesRaw = body['entries'];
     if (entriesRaw is! List) {
       // Malformed payload — surface loudly. A silent empty list would
@@ -88,7 +84,7 @@ final class HostLogs {
   /// GET /api/logs — list the host's on-disk log files (name, size,
   /// mtime, isCurrent) so a paired device can pick one to download.
   Future<List<RemoteLogFileInfo>> listServerLogFiles() async {
-    final body = await _host._get(LogApi.listFiles);
+    final body = await _get(LogApi.listFiles);
     final filesRaw = body['files'];
     if (filesRaw is! List) {
       // Malformed payload — surface loudly, matching fetchRecentServerLogs.

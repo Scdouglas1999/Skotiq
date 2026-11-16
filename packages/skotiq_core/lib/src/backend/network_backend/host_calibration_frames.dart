@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// The dark library, flat records and defect-map settings of a linked imaging host.
-final class HostCalibrationFrames {
-  HostCalibrationFrames(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostCalibrationFrames on NetworkBackendTransport {
   /// GET /api/calibration/darks — filtered listing.
   Future<List<RemoteDarkLibraryEntry>> listDarks({
     double? exposureSeconds,
@@ -20,7 +16,7 @@ final class HostCalibrationFrames {
       params['temperatureC'] = temperatureCelsius;
     }
     if (limit != null) params['limit'] = limit;
-    final response = await _host._get(
+    final response = await _get(
       CalibrationApi.listDarks,
       query: params.isEmpty ? null : params,
     );
@@ -28,14 +24,14 @@ final class HostCalibrationFrames {
   }
 
   Future<Map<String, dynamic>> getDarkLibrarySettings() async {
-    return _host._get(CalibrationApi.getDarkSettings);
+    return _get(CalibrationApi.getDarkSettings);
   }
 
   Future<Map<String, dynamic>> updateDarkLibrarySettings({
     bool? autoCalibrate,
     double? temperatureTolerance,
   }) async {
-    return _host._post(
+    return _post(
       CalibrationApi.updateDarkSettings,
       body: {
         if (autoCalibrate != null) 'autoCalibrate': autoCalibrate,
@@ -54,7 +50,7 @@ final class HostCalibrationFrames {
     required String outputPath,
     required String frameType,
   }) async {
-    return _host._post(
+    return _post(
       CalibrationApi.createMasterDark,
       body: {
         'exposureTime': exposureTime,
@@ -71,13 +67,13 @@ final class HostCalibrationFrames {
   /// DELETE `/api/calibration/darks/{id}?deleteFile=<bool>`.
   Future<void> deleteDark(int id, {bool deleteFile = false}) async {
     if (deleteFile) {
-      await _host._delete(
+      await _delete(
         CalibrationApi.deleteDark,
         path: {'id': id},
         query: {'deleteFile': 'true'},
       );
     } else {
-      await _host._delete(CalibrationApi.deleteDark, path: {'id': id});
+      await _delete(CalibrationApi.deleteDark, path: {'id': id});
     }
   }
 
@@ -90,7 +86,7 @@ final class HostCalibrationFrames {
     required String frameType,
     bool deleteFiles = false,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.deleteDarkGroup,
       body: {
         'exposureTime': exposureTime,
@@ -106,12 +102,12 @@ final class HostCalibrationFrames {
   }
 
   Future<int> cleanDarkLibraryOrphans() async {
-    final response = await _host._post(CalibrationApi.cleanDarkOrphans);
+    final response = await _post(CalibrationApi.cleanDarkOrphans);
     return (response['removed'] as num?)?.toInt() ?? 0;
   }
 
   Future<int> clearDarkLibrary({bool deleteFiles = false}) async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.clearDarkLibrary,
       body: {'deleteFiles': deleteFiles},
     );
@@ -134,7 +130,7 @@ final class HostCalibrationFrames {
     if (gain != null) params['gain'] = gain;
     if (since != null) params['since'] = since.toUtc().toIso8601String();
     if (limit != null) params['limit'] = limit;
-    final response = await _host._get(
+    final response = await _get(
       CalibrationApi.listFlats,
       query: params.isEmpty ? null : params,
     );
@@ -166,19 +162,19 @@ final class HostCalibrationFrames {
       if (twilightPhase != null) 'twilightPhase': twilightPhase,
       if (equipmentProfileId != null) 'equipmentProfileId': equipmentProfileId,
     };
-    final response = await _host._post(CalibrationApi.recordFlat, body: body);
+    final response = await _post(CalibrationApi.recordFlat, body: body);
     return RemoteFlatHistoryEntry.fromJson(
       (response['flat'] as Map).cast<String, dynamic>(),
     );
   }
 
   Future<Map<String, dynamic>> getDefectMapSettings() {
-    return _host._get(CalibrationApi.getDefectMapSettings);
+    return _get(CalibrationApi.getDefectMapSettings);
   }
 
   Future<Map<String, dynamic>> updateDefectMapSettings(
     Map<String, dynamic> patch,
   ) {
-    return _host._post(CalibrationApi.updateDefectMapSettings, body: patch);
+    return _post(CalibrationApi.updateDefectMapSettings, body: patch);
   }
 }

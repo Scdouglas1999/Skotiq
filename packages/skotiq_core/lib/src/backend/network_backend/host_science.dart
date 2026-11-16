@@ -2,18 +2,14 @@ part of '../network_backend.dart';
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.
-final class HostScience {
-  HostScience(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostScience on NetworkBackendTransport {
   Future<PhotometricTransformCoefficients?> computePhotometricTransform({
     required List<CatalogStarMatch> starMatches,
     required String filterName,
     int? equipmentProfileId,
   }) async {
     try {
-      final response = await _host._post(
+      final response = await _post(
         ScienceApi.computePhotometricTransform,
         body: {
           'starMatches': starMatches.map((match) => match.toJson()).toList(),
@@ -23,7 +19,7 @@ final class HostScience {
         },
       );
       return PhotometricTransformCoefficients.fromJson(
-        _host._sessionScienceObject(
+        _sessionScienceObject(
           response,
           'coefficients',
           'POST /api/science/calibration/compute-transform',
@@ -44,7 +40,7 @@ final class HostScience {
     String? filterBand,
     String? chartId,
   }) async {
-    return _host._postRawBytes(
+    return _postRawBytes(
       ScienceApi.exportAavso,
       path: {'sessionId': sessionId},
       body: {
@@ -57,14 +53,14 @@ final class HostScience {
   }
 
   Future<Uint8List> generateObservationReport(int sessionId) async {
-    return _host._downloadBytes(
+    return _downloadBytes(
       ScienceApi.generateObservationReport,
       path: {'sessionId': sessionId},
     );
   }
 
   Future<String> scienceReport(int sessionId, {PeriodFinding? period}) async {
-    final response = await _host._post(
+    final response = await _post(
       ScienceApi.scienceReport,
       path: {'sessionId': sessionId},
       body: {if (period != null) 'period': period.toJson()},
@@ -79,7 +75,7 @@ final class HostScience {
   }
 
   Future<int?> scienceDefaultSession() async {
-    final response = await _host._get(ScienceApi.defaultSession);
+    final response = await _get(ScienceApi.defaultSession);
     final sessionId = response['sessionId'];
     if (sessionId != null && sessionId is! int) {
       throw const FormatException(
@@ -90,7 +86,7 @@ final class HostScience {
   }
 
   Future<Map<String, dynamic>> generateSessionLineRatios(int sessionId) async {
-    return _host._post(
+    return _post(
       ScienceApi.generateLineRatios,
       path: {'sessionId': sessionId},
       body: {},
@@ -103,17 +99,17 @@ final class HostScience {
   /// has no such file.
   Future<({int width, int height})?> getFitsDimensions(String hostPath) async {
     try {
-      final response = await _host._get(
+      final response = await _get(
         ImagingApi.getFitsDimensions,
         query: {'path': hostPath},
       );
       return (
-        width: _host._sessionScienceNumber(
+        width: _sessionScienceNumber(
           response,
           'width',
           'GET /api/imaging/fits-dimensions',
         ).toInt(),
-        height: _host._sessionScienceNumber(
+        height: _sessionScienceNumber(
           response,
           'height',
           'GET /api/imaging/fits-dimensions',
@@ -129,15 +125,15 @@ final class HostScience {
 
   Future<List<PsfFieldTileRow>> getSessionPsfTiles(int sessionId) async {
     final endpoint = 'GET /api/sessions/$sessionId/psf-tiles';
-    final response = await _host._get(
+    final response = await _get(
       AnalyticsApi.getSessionPsfTiles,
       path: {'id': sessionId},
     );
-    final rows = _host._sessionScienceObjectList(response, 'psfTiles', endpoint);
+    final rows = _sessionScienceObjectList(response, 'psfTiles', endpoint);
     final seenIds = <int>{};
     final tiles = <PsfFieldTileRow>[];
     for (var index = 0; index < rows.length; index++) {
-      final tile = _host._psfFieldTileFromJson(rows[index], endpoint, index);
+      final tile = _psfFieldTileFromJson(rows[index], endpoint, index);
       if (!seenIds.add(tile.id)) {
         throw FormatException(
           '$endpoint row $index field `id` duplicates id ${tile.id}',
@@ -149,7 +145,7 @@ final class HostScience {
   }
 
   Future<RemoteScienceBundle> getSessionlessScienceBundle() async {
-    final response = await _host._get(ScienceApi.getSessionlessBundle);
+    final response = await _get(ScienceApi.getSessionlessBundle);
     return RemoteScienceBundle(
       photometry: _rowsFromJson<PhotometryMeasurementRow>(
         response['photometry'],
@@ -193,11 +189,11 @@ final class HostScience {
   Future<int> savePhotometricTransform(
     PhotometricTransformCoefficients coefficients,
   ) async {
-    final response = await _host._post(
+    final response = await _post(
       ScienceApi.savePhotometricTransform,
       body: {'coefficients': coefficients.toJson()},
     );
-    return _host._sessionScienceNumber(
+    return _sessionScienceNumber(
       response,
       'id',
       'POST /api/science/calibration/save-transform',

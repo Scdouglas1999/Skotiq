@@ -1,28 +1,6 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendRemoteDatabasePluginOperations
-    on _NetworkBackendTransport {
-  /// GET /api/sequence-runs?sequenceId=&limit=&offset=
-  Future<RemotePage<RemoteSequenceRun>> fetchSequenceRuns({
-    int? sequenceId,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    if (sequenceId != null && sequenceId <= 0) {
-      throw ArgumentError.value(sequenceId, 'sequenceId', 'must be positive');
-    }
-    _validateReplayPageRequest(limit: limit, offset: offset);
-    final response = await _get(
-      DbReadApi.listSequenceRuns,
-      query: {
-        if (sequenceId != null) 'sequenceId': sequenceId.toString(),
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-      },
-    );
-    return RemotePage.fromJson(response, RemoteSequenceRun.fromJson);
-  }
-
+mixin _NetworkBackendRemoteDatabasePluginOperations on NetworkBackendTransport {
   /// GET /api/notes-journal?equipmentProfileId=&limit=&offset=
   Future<RemotePage<RemoteNotesJournalEntry>> fetchNotesJournal({
     int? equipmentProfileId,
@@ -99,256 +77,6 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   /// DELETE /api/notes-journal
   Future<void> deleteAllObservationLogs() =>
       _delete(DbReadApi.deleteAllObservationLogs);
-
-  /// GET /api/db/notes?targetId=&runId=
-  ///
-  /// The operator's per-target / per-run journal notes (the `notes_journal`
-  /// table). Distinct from [fetchNotesJournal], which despite its name serves
-  /// the `observation_logs` table. With no filter it returns every note;
-  /// [targetId] / [runId] scope it for the family providers.
-  Future<RemotePage<JournalNote>> fetchJournalNotes({
-    String? targetId,
-    int? runId,
-  }) async {
-    final response = await _get(
-      DbReadApi.listJournalNotes,
-      query: {
-        if (targetId != null && targetId.isNotEmpty) 'targetId': targetId,
-        if (runId != null) 'runId': runId.toString(),
-      },
-    );
-    return RemotePage.fromJson(response, JournalNote.fromJson);
-  }
-
-  /// POST /api/db/notes
-  Future<JournalNote> createJournalNote({
-    required String targetId,
-    int? sequenceRunId,
-    required String body,
-    String? title,
-    List<String> tags = const <String>[],
-    List<String> attachments = const <String>[],
-    String? sentiment,
-  }) async {
-    // Creating a note is not idempotent because the host assigns its UUID.
-    // Avoid duplicating it after an ambiguous timeout.
-    final response = await _post(
-      DbReadApi.createJournalNote,
-      body: {
-        'targetId': targetId,
-        if (sequenceRunId != null) 'sequenceRunId': sequenceRunId,
-        'body': body,
-        if (title != null) 'title': title,
-        'tags': tags,
-        'attachments': attachments,
-        if (sentiment != null) 'sentiment': sentiment,
-      },
-      maxAttempts: 1,
-    );
-    return _journalNoteFromMutationResponse(response);
-  }
-
-  /// PUT `/api/db/notes/<id>`
-  Future<JournalNote> updateJournalNote(
-    String id, {
-    String? body,
-    String? title,
-    List<String>? tags,
-    List<String>? attachments,
-    String? sentiment,
-    bool clearTitle = false,
-    bool clearSentiment = false,
-  }) async {
-    final response = await _put(
-      DbReadApi.updateJournalNote,
-      path: {'id': id},
-      body: {
-        if (body != null) 'body': body,
-        if (title != null) 'title': title,
-        if (tags != null) 'tags': tags,
-        if (attachments != null) 'attachments': attachments,
-        if (sentiment != null) 'sentiment': sentiment,
-        'clearTitle': clearTitle,
-        'clearSentiment': clearSentiment,
-      },
-    );
-    return _journalNoteFromMutationResponse(response);
-  }
-
-  /// DELETE `/api/db/notes/<id>`
-  Future<void> deleteJournalNote(String id) =>
-      _delete(DbReadApi.deleteJournalNote, path: {'id': id});
-
-  JournalNote _journalNoteFromMutationResponse(Map<String, dynamic> response) {
-    final raw = response['note'];
-    if (raw is! Map) {
-      throw StateError('Malformed journal-note response: missing note');
-    }
-    return JournalNote.fromJson(raw.cast<String, dynamic>());
-  }
-
-  /// GET /api/guide-rms-history?sinceMs=&untilMs=&limit=&offset=
-  Future<RemotePage<RemoteGuideRmsHistoryEntry>> fetchGuideRmsHistory({
-    String? mountId,
-    int? sinceMs,
-    int? untilMs,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    final response = await _get(
-      DbReadApi.listGuideRmsHistory,
-      query: {
-        if (mountId != null && mountId.trim().isNotEmpty)
-          'mountId': mountId.trim(),
-        if (sinceMs != null) 'sinceMs': sinceMs.toString(),
-        if (untilMs != null) 'untilMs': untilMs.toString(),
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-      },
-    );
-    return RemotePage.fromJson(response, RemoteGuideRmsHistoryEntry.fromJson);
-  }
-
-  /// GET /api/polar-alignment-history?equipmentProfileId=&limit=&offset=
-  Future<RemotePage<RemotePolarAlignmentHistoryEntry>>
-  fetchPolarAlignmentHistory({
-    int? equipmentProfileId,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    final response = await _get(
-      DbReadApi.listPolarAlignmentHistory,
-      query: {
-        if (equipmentProfileId != null)
-          'equipmentProfileId': equipmentProfileId.toString(),
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-      },
-    );
-    return RemotePage.fromJson(
-      response,
-      RemotePolarAlignmentHistoryEntry.fromJson,
-    );
-  }
-
-  // Replay scrubber — per-run endpoints.
-  Future<RemoteSequenceRunDetail> fetchSequenceRunById(int runId) async {
-    _validateReplayRunId(runId);
-    final response = await _get(
-      DbReadApi.getSequenceRunById,
-      path: {'runId': runId},
-    );
-    final run = response['run'];
-    if (run is! Map) {
-      throw StateError(
-        'Malformed /sequence-runs/$runId response: missing run object',
-      );
-    }
-    final parsed = RemoteSequenceRunDetail.fromJson(
-      run.cast<String, dynamic>(),
-    );
-    if (parsed.id != runId) {
-      throw FormatException(
-        'GET /api/sequence-runs/$runId returned run ${parsed.id}',
-      );
-    }
-    return parsed;
-  }
-
-  /// Fetch the exact current and prior completed sequence snapshots needed by
-  /// the run-history diff action. The host only includes these potentially
-  /// large documents when explicitly requested.
-  Future<RemoteSequenceRunDiffContext> fetchSequenceRunDiffContext(
-    int runId,
-  ) async {
-    _validateReplayRunId(runId);
-    final response = await _get(
-      DbReadApi.getSequenceRunById,
-      path: {'runId': runId},
-      query: {'includeDiffContext': 'true'},
-    );
-    final raw = response['diffContext'];
-    if (raw is! Map) {
-      throw StateError(
-        'Malformed /sequence-runs/$runId diff response: '
-        'missing diffContext object',
-      );
-    }
-    final parsed = RemoteSequenceRunDiffContext.fromJson(
-      raw.cast<String, dynamic>(),
-    );
-    if (parsed.runId != runId) {
-      throw FormatException(
-        'GET /api/sequence-runs/$runId returned diff context for run '
-        '${parsed.runId}',
-      );
-    }
-    return parsed;
-  }
-
-  Future<RemoteReplayEventsPage> fetchSequenceRunEvents(
-    int runId, {
-    int? sinceMs,
-    int? untilMs,
-    String? severityMin,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    _validateReplayRunId(runId);
-    _validateReplayPageRequest(limit: limit, offset: offset);
-    if (sinceMs != null && sinceMs <= 0) {
-      throw ArgumentError.value(sinceMs, 'sinceMs', 'must be positive');
-    }
-    if (untilMs != null && untilMs <= 0) {
-      throw ArgumentError.value(untilMs, 'untilMs', 'must be positive');
-    }
-    if (sinceMs != null && untilMs != null && sinceMs > untilMs) {
-      throw ArgumentError('sinceMs must not be after untilMs');
-    }
-    final response = await _get(
-      DbReadApi.getSequenceRunEvents,
-      path: {'runId': runId},
-      query: {
-        if (sinceMs != null) 'since': sinceMs.toString(),
-        if (untilMs != null) 'until': untilMs.toString(),
-        if (severityMin != null && severityMin.isNotEmpty)
-          'severityMin': severityMin,
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-      },
-    );
-    return RemoteReplayEventsPage.fromJson(response);
-  }
-
-  Future<RemotePage<RemoteReplayFrame>> fetchSequenceRunFrames(
-    int runId, {
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    _validateReplayRunId(runId);
-    _validateReplayPageRequest(limit: limit, offset: offset);
-    final response = await _get(
-      DbReadApi.getSequenceRunFrames,
-      path: {'runId': runId},
-      query: {'limit': limit.toString(), 'offset': offset.toString()},
-    );
-    return RemotePage.fromJson(response, RemoteReplayFrame.fromJson);
-  }
-
-  void _validateReplayRunId(int runId) {
-    if (runId <= 0) {
-      throw ArgumentError.value(runId, 'runId', 'must be positive');
-    }
-  }
-
-  void _validateReplayPageRequest({required int limit, required int offset}) {
-    if (limit <= 0 || limit > 1000) {
-      throw ArgumentError.value(limit, 'limit', 'must be between 1 and 1000');
-    }
-    if (offset < 0) {
-      throw ArgumentError.value(offset, 'offset', 'must not be negative');
-    }
-  }
 
   // Plugin management. Methods live on NetworkBackend because the
   // FfiBackend manages plugins directly via PluginHost; the network path
@@ -436,4 +164,30 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   /// Fetch the last `limit` entries from the server's in-memory ring
   /// buffer, optionally filtered by severity and source substring.
   /// Throws on transport errors (let the UI display the failure rather
+}
+
+extension _NetworkBackendRemoteDatabasePluginOperationsHelpers
+    on NetworkBackendTransport {
+  JournalNote _journalNoteFromMutationResponse(Map<String, dynamic> response) {
+    final raw = response['note'];
+    if (raw is! Map) {
+      throw StateError('Malformed journal-note response: missing note');
+    }
+    return JournalNote.fromJson(raw.cast<String, dynamic>());
+  }
+
+  void _validateReplayRunId(int runId) {
+    if (runId <= 0) {
+      throw ArgumentError.value(runId, 'runId', 'must be positive');
+    }
+  }
+
+  void _validateReplayPageRequest({required int limit, required int offset}) {
+    if (limit <= 0 || limit > 1000) {
+      throw ArgumentError.value(limit, 'limit', 'must be between 1 and 1000');
+    }
+    if (offset < 0) {
+      throw ArgumentError.value(offset, 'offset', 'must not be negative');
+    }
+  }
 }

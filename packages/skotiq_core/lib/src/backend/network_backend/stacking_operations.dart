@@ -16,7 +16,31 @@ part of '../network_backend.dart';
 /// `/preview`) with a `no_active_stack` 404 — is surfaced by the transport
 /// layer ([_get]/[_downloadBytes] throw on non-200) and handled above this
 /// mixin; we never turn a malformed 200 into that state.
-mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
+mixin _NetworkBackendStackingOperations on NetworkBackendTransport {
+  /// Push the host config to apply on the next start.
+  Future<void> stackingUpdateConfig(LiveStackingConfig config) async {
+    await _post(
+      StackingApi.updateConfig,
+      body: {'config': _stackingConfigToJson(config)},
+    );
+  }
+
+  /// Liveness + counters.
+  ///
+  /// `active` must be a boolean and `frameCount` a non-negative integer. A
+  /// missing/malformed value throws — a protocol failure must not read as a
+  /// truthful-looking idle host (`active: false, frameCount: 0`).
+  Future<({bool active, int frameCount})> stackingStatus() async {
+    const endpoint = 'GET /api/stacking/status';
+    final response = await _get(StackingApi.status);
+    return (
+      active: _requireStackingBool(response, 'active', endpoint),
+      frameCount: _requireStackingInt(response, 'frameCount', endpoint, min: 0),
+    );
+  }
+}
+
+extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
   Map<String, Object?> _stackingConfigToJson(LiveStackingConfig c) => {
     'sigmaClipEnabled': c.sigmaClipEnabled,
     'sigmaClipThreshold': c.sigmaClipThreshold,
@@ -28,28 +52,6 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     if (c.bayerPattern != null) 'bayerPattern': c.bayerPattern,
     'demosaicQuality': c.demosaicQuality,
   };
-
-  // Strict field decoders
-  //
-  // Each helper requires the field to be present with the correct type and
-  // fails with a message naming the endpoint and field. Nothing is defaulted,
-  // clamped, or coerced from a missing value: absent data is a protocol error.
-
-  /// Require a boolean [key] on [json]. Throws when absent or non-boolean.
-  bool _requireStackingBool(
-    Map<String, dynamic> json,
-    String key,
-    String endpoint,
-  ) {
-    final value = json[key];
-    if (value is! bool) {
-      throw FormatException(
-        '$endpoint response field `$key` must be a boolean, got '
-        '${value.runtimeType}',
-      );
-    }
-    return value;
-  }
 
   /// Require an integral [key] on [json] that is at least [min]. JSON numbers
   /// decode to `int` or `double`; a double is accepted only when it carries no
@@ -100,66 +102,6 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
       '$endpoint response field `$key` must be an integer, got '
       '${value.runtimeType}',
     );
-  }
-
-  /// Require a finite, non-negative number for [key] on [json]. Averages ride
-  /// the wire as doubles; an `int` is tolerated (a whole-valued average) but a
-  /// missing value, a NaN/Infinity, or a negative is a protocol error.
-  double _requireStackingNonNegativeDouble(
-    Map<String, dynamic> json,
-    String key,
-    String endpoint,
-  ) {
-    final value = json[key];
-    if (value is! num) {
-      throw FormatException(
-        '$endpoint response field `$key` must be a number, got '
-        '${value.runtimeType}',
-      );
-    }
-    final asDouble = value.toDouble();
-    if (!asDouble.isFinite || asDouble < 0) {
-      throw FormatException(
-        '$endpoint response field `$key` must be a finite, non-negative '
-        'number, got $asDouble',
-      );
-    }
-    return asDouble;
-  }
-
-  String? _optionalSavedStackString(
-    Map<String, dynamic> json,
-    String key,
-    String endpoint, {
-    required int maxLength,
-  }) {
-    final value = json[key];
-    if (value == null) return null;
-    if (value is! String || value.length > maxLength) {
-      throw FormatException(
-        '$endpoint response field `$key` must be null or a string no longer '
-        'than $maxLength characters',
-      );
-    }
-    return value;
-  }
-
-  int? _optionalSavedStackId(
-    Map<String, dynamic> json,
-    String key,
-    String endpoint,
-  ) {
-    if (json[key] == null) return null;
-    return _requireStackingInt(json, key, endpoint, min: 1);
-  }
-
-  double? _optionalSavedStackDouble(
-    Map<String, dynamic> json,
-    String key,
-    String endpoint,
-  ) {
-    if (json[key] == null) return null;
-    return _requireStackingNonNegativeDouble(json, key, endpoint);
   }
 
   RemoteStackedResult _savedStackResultFromJson(
@@ -338,9 +280,6 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     );
   }
 
-  String? _optionalFilterName(Object? value) =>
-      value is String && value.trim().isNotEmpty ? value : null;
-
   /// Require the stacked result's `channels`, accepting only the two documented
   /// counts.
   ///
@@ -413,191 +352,88 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     return samples;
   }
 
-  /// Start (or arm) live stacking on the host. With [referencePath] (a host
-  /// path) the stack starts immediately from that frame; without it the host
-  /// arms and the next captured frame becomes the reference.
-  ///
-  /// Both branches return a complete stats object — an armed host reports a
-  /// zero-valued (but fully populated) [LiveStackingStats] because nothing has
-  /// stacked yet. A missing/malformed `stats` object is a protocol failure and
-  /// throws rather than being manufactured as zero.
-  Future<LiveStackingStats> stackingStart({
-    String? referencePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    final response = await _post(
-      StackingApi.start,
-      body: {
-        'config': _stackingConfigToJson(config),
-        if (referencePath != null) 'referencePath': referencePath,
-      },
-    );
-    return _requireStackingStats(response, 'POST /api/stacking/start');
-  }
+  // Strict field decoders
+  //
+  // Each helper requires the field to be present with the correct type and
+  // fails with a message naming the endpoint and field. Nothing is defaulted,
+  // clamped, or coerced from a missing value: absent data is a protocol error.
 
-  /// Push the host config to apply on the next start.
-  Future<void> stackingUpdateConfig(LiveStackingConfig config) async {
-    await _post(
-      StackingApi.updateConfig,
-      body: {'config': _stackingConfigToJson(config)},
-    );
-  }
-
-  /// Add a host-side frame to the running stack and return the refreshed
-  /// result (dimensions + stats + stacked pixels).
-  Future<LiveStackingResult> stackingAddFrame(String imagePath) async {
-    await _post(StackingApi.addFrame, body: {'imagePath': imagePath});
-    return stackingGetResult();
-  }
-
-  /// Current accumulation stats only (cheap; no pixels). Requires a complete
-  /// stats object; a partial/malformed 200 throws rather than reporting zeros.
-  Future<LiveStackingStats> stackingGetStats() async {
-    final response = await _get(StackingApi.stats);
-    return _requireStackingStats(response, 'GET /api/stacking/stats');
-  }
-
-  /// Fetch the current stacked result: dimensions + stats (JSON) plus the raw
-  /// little-endian u16 pixel buffer (binary).
-  ///
-  /// Every field is required and validated: `width`/`height` must be positive
-  /// integers, `channels` must be 1 or 3, `stats` must be complete, and the
-  /// downloaded preview must be exactly `width * height * channels` u16 samples.
-  /// A truncated, oversized, odd-length, or dimension-mismatched buffer throws
-  /// rather than being displayed as a valid stack.
-  Future<LiveStackingResult> stackingGetResult() async {
-    const metaEndpoint = 'GET /api/stacking/result';
-    const previewEndpoint = 'GET /api/stacking/preview';
-    final meta = await _get(StackingApi.result);
-    final width = _requireStackingInt(meta, 'width', metaEndpoint, min: 1);
-    final height = _requireStackingInt(meta, 'height', metaEndpoint, min: 1);
-    final channels = _requireStackingChannels(meta, metaEndpoint);
-    final stats = _requireStackingStats(meta, metaEndpoint);
-
-    final bytes = await _downloadBytes(StackingApi.preview);
-    final samples = _decodeStackingPreview(
-      bytes,
-      width,
-      height,
-      channels,
-      previewEndpoint,
-    );
-
-    return LiveStackingResult(
-      width: width,
-      height: height,
-      channels: channels,
-      data: samples,
-      stats: stats,
-    );
-  }
-
-  /// Clear the accumulation (host stays armed).
-  Future<void> stackingReset() async {
-    await _post(StackingApi.reset, body: const {});
-  }
-
-  /// Stop the stacker and disarm host auto-feed.
-  Future<void> stackingStop() async {
-    await _post(StackingApi.stop, body: const {});
-  }
-
-  /// Liveness + counters.
-  ///
-  /// `active` must be a boolean and `frameCount` a non-negative integer. A
-  /// missing/malformed value throws — a protocol failure must not read as a
-  /// truthful-looking idle host (`active: false, frameCount: 0`).
-  Future<({bool active, int frameCount})> stackingStatus() async {
-    const endpoint = 'GET /api/stacking/status';
-    final response = await _get(StackingApi.status);
-    return (
-      active: _requireStackingBool(response, 'active', endpoint),
-      frameCount: _requireStackingInt(response, 'frameCount', endpoint, min: 0),
-    );
-  }
-
-  /// Fetch one durable Stack-and-Share result without exposing host paths.
-  Future<RemoteStackedResult> stackingGetSavedResult(int resultId) async {
-    if (resultId <= 0) {
-      throw ArgumentError.value(resultId, 'resultId', 'must be positive');
-    }
-    final endpoint = 'GET /api/stacking/results/$resultId';
-    final response = await _get(
-      StackingApi.savedResult,
-      path: {'resultId': resultId},
-    );
-    final result = _requireStackingObject(response, 'result', endpoint);
-    return _savedStackResultFromJson(result, endpoint);
-  }
-
-  /// Fetch recent durable Stack-and-Share results, newest first.
-  Future<List<RemoteStackedResult>> stackingGetSavedResults({
-    int limit = 20,
-  }) async {
-    if (limit < 1 || limit > 100) {
-      throw RangeError.range(limit, 1, 100, 'limit');
-    }
-    const endpoint = 'GET /api/stacking/results';
-    final response = await _get(
-      StackingApi.savedResults,
-      query: {'limit': limit},
-    );
-    final rawResults = response['results'];
-    if (rawResults is! List) {
-      throw const FormatException(
-        'GET /api/stacking/results response field `results` must be an array',
-      );
-    }
-    final results = <RemoteStackedResult>[];
-    for (var index = 0; index < rawResults.length; index++) {
-      final raw = rawResults[index];
-      if (raw is! Map) {
-        throw FormatException(
-          '$endpoint response result at index $index must be an object',
-        );
-      }
-      results.add(
-        _savedStackResultFromJson(
-          Map<String, dynamic>.from(raw),
-          '$endpoint result[$index]',
-        ),
-      );
-    }
-    return results;
-  }
-
-  /// Download the encoded durable preview for [resultId]. Decoding and exact
-  /// dimension validation happen in the provider shared by local and remote
-  /// result review.
-  Future<Uint8List> stackingGetSavedResultPreview(int resultId) async {
-    if (resultId <= 0) {
-      throw ArgumentError.value(resultId, 'resultId', 'must be positive');
-    }
-    final endpoint = 'GET /api/stacking/results/$resultId/preview';
-    final downloaded = await _downloadBytesWithHeaders(
-      StackingApi.savedResultPreview,
-      path: {'resultId': resultId},
-    );
-    final contentType = downloaded.headers['content-type']
-        ?.split(';')
-        .first
-        .trim()
-        .toLowerCase();
-    if (contentType != 'image/png' && contentType != 'image/jpeg') {
+  /// Require a boolean [key] on [json]. Throws when absent or non-boolean.
+  bool _requireStackingBool(
+    Map<String, dynamic> json,
+    String key,
+    String endpoint,
+  ) {
+    final value = json[key];
+    if (value is! bool) {
       throw FormatException(
-        '$endpoint returned unsupported content type `${contentType ?? 'missing'}`',
+        '$endpoint response field `$key` must be a boolean, got '
+        '${value.runtimeType}',
       );
     }
-    if (downloaded.bytes.isEmpty) {
-      throw FormatException('$endpoint returned an empty image');
-    }
-    const maxPreviewBytes = 256 * 1024 * 1024;
-    if (downloaded.bytes.lengthInBytes > maxPreviewBytes) {
-      throw FormatException(
-        '$endpoint returned ${downloaded.bytes.lengthInBytes} bytes; the '
-        'maximum supported preview size is $maxPreviewBytes',
-      );
-    }
-    return downloaded.bytes;
+    return value;
   }
+
+  /// Require a finite, non-negative number for [key] on [json]. Averages ride
+  /// the wire as doubles; an `int` is tolerated (a whole-valued average) but a
+  /// missing value, a NaN/Infinity, or a negative is a protocol error.
+  double _requireStackingNonNegativeDouble(
+    Map<String, dynamic> json,
+    String key,
+    String endpoint,
+  ) {
+    final value = json[key];
+    if (value is! num) {
+      throw FormatException(
+        '$endpoint response field `$key` must be a number, got '
+        '${value.runtimeType}',
+      );
+    }
+    final asDouble = value.toDouble();
+    if (!asDouble.isFinite || asDouble < 0) {
+      throw FormatException(
+        '$endpoint response field `$key` must be a finite, non-negative '
+        'number, got $asDouble',
+      );
+    }
+    return asDouble;
+  }
+
+  String? _optionalSavedStackString(
+    Map<String, dynamic> json,
+    String key,
+    String endpoint, {
+    required int maxLength,
+  }) {
+    final value = json[key];
+    if (value == null) return null;
+    if (value is! String || value.length > maxLength) {
+      throw FormatException(
+        '$endpoint response field `$key` must be null or a string no longer '
+        'than $maxLength characters',
+      );
+    }
+    return value;
+  }
+
+  int? _optionalSavedStackId(
+    Map<String, dynamic> json,
+    String key,
+    String endpoint,
+  ) {
+    if (json[key] == null) return null;
+    return _requireStackingInt(json, key, endpoint, min: 1);
+  }
+
+  double? _optionalSavedStackDouble(
+    Map<String, dynamic> json,
+    String key,
+    String endpoint,
+  ) {
+    if (json[key] == null) return null;
+    return _requireStackingNonNegativeDouble(json, key, endpoint);
+  }
+
+  String? _optionalFilterName(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value : null;
 }

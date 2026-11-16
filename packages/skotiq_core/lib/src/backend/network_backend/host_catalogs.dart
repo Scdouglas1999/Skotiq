@@ -1,16 +1,12 @@
 part of '../network_backend.dart';
 
 /// The star and object catalogs installed on a linked imaging host.
-final class HostCatalogs {
-  HostCatalogs(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostCatalogs on NetworkBackendTransport {
   /// POST /api/catalog/download. Returns the job handle; the actual
   /// download runs in the background and progress is broadcast as
   /// `catalog`-category events on the WS stream.
   Future<RemoteJob> downloadCatalog(String name) async {
-    final response = await _host._post(CatalogApi.download, body: {'name': name});
+    final response = await _post(CatalogApi.download, body: {'name': name});
     return RemoteJob.fromJson(response, fallbackOperation: 'catalog.download');
   }
 
@@ -19,14 +15,14 @@ final class HostCatalogs {
   /// this in the catalog management UI so a freshly-imaged server can be
   /// detected ("plate-solve will fail until you download a star catalog").
   Future<RemoteCatalogStatusResponse> getCatalogStatus() async {
-    final response = await _host._get(CatalogApi.status);
+    final response = await _get(CatalogApi.status);
     return RemoteCatalogStatusResponse.fromJson(response);
   }
 
   /// GET /api/catalog/available. Returns the manifest of catalogs the
   /// server knows how to download. Cached server-side for 1 hour.
   Future<List<RemoteAvailableCatalog>> listAvailableCatalogs() async {
-    final response = await _host._get(CatalogApi.available);
+    final response = await _get(CatalogApi.available);
     return _rowsFromJson(
       response['available'],
       RemoteAvailableCatalog.fromJson,
@@ -36,12 +32,12 @@ final class HostCatalogs {
   /// POST /api/catalog/reload. Drops the server's cached catalog loaders
   /// so subsequent searches re-parse the on-disk files.
   Future<void> reloadCatalogs() async {
-    await _host._post(CatalogApi.reload);
+    await _post(CatalogApi.reload);
   }
 
   /// DELETE /api/catalog/{name}.
   Future<void> uninstallCatalog(String name) async {
-    await _host._delete(CatalogApi.delete, path: {'name': name});
+    await _delete(CatalogApi.delete, path: {'name': name});
   }
 
   /// POST /api/catalog/verify. Recomputes SHA-256 over every (or one)
@@ -49,7 +45,7 @@ final class HostCatalogs {
   Future<Map<String, RemoteCatalogVerifyResult>> verifyCatalog({
     String? name,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       CatalogApi.verify,
       body: name == null ? null : {'name': name},
     );

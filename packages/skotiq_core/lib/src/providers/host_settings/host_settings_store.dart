@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 
-import '../../backend/roles/host_data/host_rig_settings.dart';
+import '../../backend/network_backend.dart';
 import '../../models/backend/event_types.dart' show SkotiqEvent;
 import '../../models/backend/host_mutation_event.dart';
 import '../../utils/logging_service.dart';

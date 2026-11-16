@@ -2,30 +2,7 @@ part of '../network_backend.dart';
 
 /// Frame calibration, its settings and the defect maps of a linked imaging
 /// host, which holds the calibration masters and the frames they apply to.
-final class HostCalibrationTools {
-  HostCalibrationTools(this._host);
-
-  final NetworkBackend _host;
-
-  Future<void> calibrateImageFile({
-    required String lightPath,
-    String? darkPath,
-    String? flatPath,
-    String? biasPath,
-    required String outputPath,
-  }) async {
-    await _host._post(
-      ImagingApi.calibrateImageFile,
-      body: {
-        'lightPath': lightPath,
-        if (darkPath != null) 'darkPath': darkPath,
-        if (flatPath != null) 'flatPath': flatPath,
-        if (biasPath != null) 'biasPath': biasPath,
-        'outputPath': outputPath,
-      },
-    );
-  }
-
+mixin HostCalibrationTools on NetworkBackendTransport {
   /// Ask the host to find the best-matching dark in its library for the given
   /// light-frame capture parameters and return that dark's on-host file path.
   ///
@@ -42,7 +19,7 @@ final class HostCalibrationTools {
     int binY = 1,
     double? temperature,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.matchDark,
       body: {
         'exposureTime': exposureTime,
@@ -68,7 +45,7 @@ final class HostCalibrationTools {
     required DefectMapKernelSize kernel,
     required bool saveOriginal,
   }) async {
-    await _host._post(
+    await _post(
       CalibrationApi.applyDefectMapToSequencer,
       body: {
         'cameraId': cameraId,
@@ -97,7 +74,7 @@ final class HostCalibrationTools {
     List<String>? darkFramePaths,
     String? darkFramesDirectory,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       CalibrationApi.buildDefectMap,
       body: {
         'cameraId': cameraId,
@@ -108,7 +85,7 @@ final class HostCalibrationTools {
       },
     );
     final status = response['status'] as Map<String, dynamic>;
-    return _host._defectMapStatusFromJson(status);
+    return _defectMapStatusFromJson(status);
   }
 
   /// Clear one exact host defect-map bucket and disable its apply flag.
@@ -118,7 +95,7 @@ final class HostCalibrationTools {
     required int height,
     required double sensorTemperatureCelsius,
   }) async {
-    await _host._post(
+    await _post(
       CalibrationApi.clearDefectMap,
       body: {
         'cameraId': cameraId,
@@ -137,7 +114,7 @@ final class HostCalibrationTools {
     required int height,
     required double sensorTemperatureCelsius,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       CalibrationApi.getDefectMapStatus,
       query: {
         'cameraId': cameraId,
@@ -151,14 +128,14 @@ final class HostCalibrationTools {
     if (status is! Map<String, dynamic>) {
       throw const FormatException('Malformed remote defect-map status');
     }
-    return _host._defectMapStatusFromJson(status);
+    return _defectMapStatusFromJson(status);
   }
 
   /// Read the complete automatic-calibration configuration owned by the
   /// imaging host. This is intentionally separate from the app-settings wire
   /// model because the master-frame paths are host filesystem resources.
   Future<Map<String, dynamic>> getCalibrationSettings() {
-    return _host._get(CalibrationApi.getCalibrationSettings);
+    return _get(CalibrationApi.getCalibrationSettings);
   }
 
   /// Apply a partial automatic-calibration configuration on the imaging host.
@@ -166,14 +143,14 @@ final class HostCalibrationTools {
   Future<Map<String, dynamic>> updateCalibrationSettings(
     Map<String, dynamic> patch,
   ) {
-    return _host._post(CalibrationApi.updateCalibrationSettings, body: patch);
+    return _post(CalibrationApi.updateCalibrationSettings, body: patch);
   }
 
   /// Remote-only: schedule the run loaded on the host to start at tonight's
   /// astronomical dark. The host starts it itself, so it does not depend on
   /// this client staying awake or connected. Returns when it will start.
   Future<DateTime?> armHostStartAtDark() async {
-    final response = await _host._post(
+    final response = await _post(
       SequencerApi.armScheduledStart,
       body: const {},
       maxAttempts: 1,
@@ -184,7 +161,7 @@ final class HostCalibrationTools {
   Future<List<CatalogStarMatch>> matchPhotometricCalibrationStars(
     int imageId,
   ) async {
-    final response = await _host._post(
+    final response = await _post(
       ScienceApi.matchPhotometricCalibrationStars,
       path: {'imageId': imageId},
       body: const {},
@@ -194,7 +171,4 @@ final class HostCalibrationTools {
       CatalogStarMatch.fromJson,
     );
   }
-
-  /// The host's events, for the settings-changed notice.
-  Stream<SkotiqEvent> get eventStream => _host.eventStream;
 }

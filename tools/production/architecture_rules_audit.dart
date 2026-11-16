@@ -852,7 +852,8 @@ List<_Site> _backendClassSites(List<String> files) {
 const _hostStoreInstead =
     'Declare the data set with hostRoleProvider '
     '(packages/skotiq_core/lib/src/providers/host_role.dart): an interface '
-    'in backend/roles/host_data/ with a local and a remote implementation, '
+    'with a local and a remote implementation (database/stores/ when a DAO '
+    'is the local side, backend/roles/host_data/ when a service is), '
     'which providers, services and widgets watch without asking which side '
     'they got. A yes/no question that is not about data reads '
     'isRemoteModeProvider. See .claude/skills/skotiq-dev/SKILL.md section 3.8.';

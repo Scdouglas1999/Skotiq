@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// Transient alerts and first-light candidates kept by a linked imaging host.
-final class HostTransients {
-  HostTransients(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostTransients on NetworkBackendTransport {
   /// Ask the host to generate an ingestible AAVSO Extended File Format report
   /// for detection [id] and return the bytes (the slave saves / share-sheets
   /// them — there is no per-observer AAVSO upload API; WebObs upload is manual).
@@ -16,7 +12,7 @@ final class HostTransients {
     required double magZeroPoint,
     String? standardBand,
   }) async {
-    return _host._postRawBytes(
+    return _postRawBytes(
       FirstLightApi.exportAavso,
       path: {'id': id},
       body: {
@@ -30,7 +26,7 @@ final class HostTransients {
   /// Ask the host to generate an MPC ADES PSV astrometry report for detection
   /// [id] and return the bytes (MPC submission is via the web form / email).
   Future<Uint8List> exportFirstLightMpc(int id) async {
-    return _host._postRawBytes(
+    return _postRawBytes(
       FirstLightApi.exportMpc,
       path: {'id': id},
       body: const {},
@@ -42,7 +38,7 @@ final class HostTransients {
   /// the slave only triggers and surfaces the result. Returns the host's
   /// `{success, atName?, reportId?, message}` payload.
   Future<Map<String, dynamic>> submitFirstLightToTns(int id) async {
-    return _host._post(FirstLightApi.submitTns, path: {'id': id});
+    return _post(FirstLightApi.submitTns, path: {'id': id});
   }
 
   // First Light — difference-imaging transient discovery (read + triage)
@@ -55,11 +51,11 @@ final class HostTransients {
   Future<List<Map<String, dynamic>>> getFirstLightCandidates({
     int? sessionId,
   }) async {
-    final json = await _host._get(
+    final json = await _get(
       FirstLightApi.getCandidates,
       query: sessionId == null ? null : {'sessionId': sessionId.toString()},
     );
-    return _host._sessionScienceObjectList(
+    return _sessionScienceObjectList(
       json,
       'candidates',
       'GET /api/firstlight/candidates',
@@ -73,7 +69,7 @@ final class HostTransients {
   /// around the candidate — not a host-local file path. Maps to the advertised
   /// `GET /api/firstlight/<id>/crops/<stage>`.
   Future<Uint8List> getFirstLightCrop(int id, String stage) {
-    return _host._downloadBytes(
+    return _downloadBytes(
       FirstLightApi.getCrop,
       path: {'id': id, 'stage': stage},
     );
@@ -88,7 +84,7 @@ final class HostTransients {
     required double decDeg,
     double radiusDeg = 0.02,
   }) async {
-    final json = await _host._get(
+    final json = await _get(
       FirstLightApi.getNear,
       query: {
         'ra': raDeg.toString(),
@@ -96,7 +92,7 @@ final class HostTransients {
         'radius': radiusDeg.toString(),
       },
     );
-    return _host._sessionScienceObjectList(
+    return _sessionScienceObjectList(
       json,
       'detections',
       'GET /api/firstlight/near',
@@ -105,19 +101,19 @@ final class HostTransients {
 
   /// Mark a First Light detection reviewed (confirmed) on the host.
   Future<void> reviewFirstLightCandidate(int id) async {
-    await _host._post(FirstLightApi.review, path: {'id': id});
+    await _post(FirstLightApi.review, path: {'id': id});
   }
 
   /// Dismiss a First Light detection as a triaged artefact on the host so the
   /// next difference scan suppresses the same position.
   Future<void> dismissFirstLightCandidate(int id) async {
-    await _host._post(FirstLightApi.dismiss, path: {'id': id});
+    await _post(FirstLightApi.dismiss, path: {'id': id});
   }
 
   /// Get the imaging host's durable per-alert action states.
   Future<Map<String, dynamic>> getTransientStates() async {
-    final response = await _host._get(TransientApi.getStates);
-    return _host._sessionScienceObject(
+    final response = await _get(TransientApi.getStates);
+    return _sessionScienceObject(
       response,
       'states',
       'GET /api/transients/states',
@@ -126,7 +122,7 @@ final class HostTransients {
 
   /// Persist an alert action state on the imaging host.
   Future<void> updateTransientState(String transientId, String state) async {
-    await _host._post(
+    await _post(
       TransientApi.updateState,
       path: {'id': transientId},
       body: {'state': state},
@@ -135,12 +131,12 @@ final class HostTransients {
 
   /// Remove all durable alert action states on the imaging host.
   Future<void> clearTransientStates() async {
-    await _host._delete(TransientApi.clearStates);
+    await _delete(TransientApi.clearStates);
   }
 
   Future<Map<String, dynamic>> getTransientSettings() async {
-    final response = await _host._get(TransientApi.getSettings);
-    return _host._sessionScienceObject(
+    final response = await _get(TransientApi.getSettings);
+    return _sessionScienceObject(
       response,
       'settings',
       'GET /api/transients/settings',
@@ -148,14 +144,14 @@ final class HostTransients {
   }
 
   Future<void> updateTransientSettings(Map<String, dynamic> settings) async {
-    await _host._post(TransientApi.updateSettings, body: settings);
+    await _post(TransientApi.updateSettings, body: settings);
   }
 
   Future<Map<String, dynamic>> getActiveTransients() async {
-    final response = await _host._get(TransientApi.getActiveTransients);
+    final response = await _get(TransientApi.getActiveTransients);
     return {
       ...response,
-      'alerts': _host._sessionScienceObjectList(
+      'alerts': _sessionScienceObjectList(
         response,
         'alerts',
         'GET /api/transients',

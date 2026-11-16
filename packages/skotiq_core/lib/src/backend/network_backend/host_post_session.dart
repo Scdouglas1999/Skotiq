@@ -1,11 +1,78 @@
 part of '../network_backend.dart';
 
-/// Post-session processing passes run by a linked imaging host on its own
-/// files.
-final class HostPostSession {
-  HostPostSession(this._host);
+/// Post-session integration and finishing passes a linked imaging host runs on
+/// its own files (`/api/post-session/*`).
+///
+/// This is the "review and integrate last night's data" workflow run over the
+/// wire: a tablet hands the host the on-disk paths of the subs / masters and the
+/// host's Rust pipeline does the compute. No pixel data crosses the wire — the
+/// request bodies are exactly the native JSON arg envelopes the host-side
+/// `BridgePostSessionSeam` would have passed to the FFI directly, and the
+/// results are the identical JSON envelopes the FFI returns. The
+/// [PostSessionSeam] result classes (`IntegrateSessionResult`, …) decode those
+/// maps verbatim, so a remote run is byte-for-byte equivalent to a local one.
+///
+/// Every op is long-running, so the host runs it as a [JobManager] job: the POST
+/// returns `{jobId}` and these methods await the job to its terminal state via
+/// the shared [awaitJobCompletion] helper, then surface the job's `result`
+/// envelope (or throw on a failed / cancelled job). Per-op timeouts are tuned to
+/// the work: integration / drizzle can run for many minutes, the analytic
+/// predictor is quick.
+///
+/// Mosaic stitching is intentionally NOT part of this surface.
+mixin HostPostSession on NetworkBackendTransport {
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout,
+    Duration pollInterval,
+  });
 
-  final NetworkBackend _host;
+  /// A long compute ceiling for integration / drizzle / accumulate / finishing
+  /// passes — these can fold dozens of full-frame subs.
+  static const Duration _postSessionLongTimeout = Duration(minutes: 30);
+
+  /// A shorter ceiling for the quick analytic / detection passes.
+  static const Duration _postSessionQuickTimeout = Duration(minutes: 5);
+
+  /// POST a post-session op, await its job, and return the result envelope.
+  ///
+  /// Throws an [IoException] when the job ends `failed` / `cancelled` (the
+  /// host's structured error, if any, is folded into the message), or a
+  /// [ValidationException] when the terminal job carries no result map (a
+  /// server contract violation).
+  Future<Map<String, dynamic>> _runPostSessionJob(
+    ApiEndpoint endpoint,
+    Map<String, dynamic> args, {
+    required Duration timeout,
+  }) async {
+    final start = await _post(endpoint, body: args);
+    final jobId = start['jobId'] as String?;
+    if (jobId == null || jobId.isEmpty) {
+      throw ValidationException(
+        message: '${endpoint.route.signature} did not return a jobId',
+        userMessage: 'The host did not accept the operation.',
+      );
+    }
+    final job = await awaitJobCompletion(jobId, timeout: timeout);
+    if (job.state != 'succeeded') {
+      final detail = job.error?['message'] ?? job.error?['code'] ?? job.state;
+      throw IoException(
+        message:
+            '${endpoint.route.signature} job ${job.jobId} ended ${job.state}: '
+            '$detail',
+        userMessage: 'The operation failed on the host.',
+      );
+    }
+    final result = job.result;
+    if (result == null) {
+      throw ValidationException(
+        message:
+            '${endpoint.route.signature} job ${job.jobId} succeeded with no result',
+        userMessage: 'The host returned an empty result.',
+      );
+    }
+    return result;
+  }
 
   /// Predict the marginal-SNR integration curve + keep/cull recommendation on
   /// the host. [args] is `{ qualities, weights, exposuresS, optimizer? }`.
@@ -13,10 +80,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionAnalyzeNight(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.analyzeNight,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionQuickTimeout,
+      timeout: _postSessionQuickTimeout,
     );
   }
 
@@ -26,10 +93,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionBuildMasterFlat(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.buildMasterFlat,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
@@ -39,10 +106,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionColorCalibrate(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.colorCalibrate,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
@@ -52,10 +119,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionDetectStars(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.detectStars,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionQuickTimeout,
+      timeout: _postSessionQuickTimeout,
     );
   }
 
@@ -65,10 +132,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionDrizzleIntegrate(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.drizzleIntegrate,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
@@ -78,10 +145,10 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionExtractBackground(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.extractBackground,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
@@ -89,10 +156,10 @@ final class HostPostSession {
   /// the `IntegrateSessionArgs` JSON shape (host paths). Returns the
   /// `IntegrateSessionResult` envelope.
   Future<Map<String, dynamic>> postSessionIntegrate(Map<String, dynamic> args) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.integrateSession,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
@@ -102,16 +169,16 @@ final class HostPostSession {
   Future<Map<String, dynamic>> postSessionMasterAccumulate(
     Map<String, dynamic> args,
   ) {
-    return _host._runPostSessionJob(
+    return _runPostSessionJob(
       PostSessionApi.masterAccumulate,
       args,
-      timeout: _NetworkBackendPostSessionOperations._postSessionLongTimeout,
+      timeout: _postSessionLongTimeout,
     );
   }
 
   /// Read the host-owned automatic post-session integration preference.
   Future<bool> getAutoIntegrationEnabled() async {
-    final response = await _host._get(PostSessionApi.getSettings);
+    final response = await _get(PostSessionApi.getSettings);
     final enabled = response['autoIntegrate'];
     if (enabled is! bool) {
       throw const ValidationException(
@@ -124,7 +191,7 @@ final class HostPostSession {
 
   /// Change the host-owned automatic post-session integration preference.
   Future<void> setAutoIntegrationEnabled(bool enabled) async {
-    await _host._post(
+    await _post(
       PostSessionApi.updateSettings,
       body: {'autoIntegrate': enabled},
     );

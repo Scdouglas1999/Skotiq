@@ -1,47 +1,6 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
-  /// Remote-only: schedule the run loaded on the host to start at tonight's
-  /// astronomical dark. The host starts it itself, so it does not depend on
-  /// this client staying awake or connected. Returns when it will start.
-  Future<DateTime?> armHostStartAtDark() async {
-    final response = await _post(
-      SequencerApi.armScheduledStart,
-      body: const {},
-      maxAttempts: 1,
-    );
-    return parseHostScheduledStart(response['at']);
-  }
-
-  /// Remote-only: cancel the host's scheduled start.
-  Future<void> cancelHostScheduledStart() async {
-    await _post(
-      SequencerApi.cancelScheduledStart,
-      body: const {},
-      maxAttempts: 1,
-    );
-  }
-
-  /// Remote-only: tell the host the telescope is capped for its darks.
-  Future<EonStatus?> confirmHostEndOfNightCapped() async {
-    final response = await _post(
-      CalibrationApi.confirmEndOfNightCapped,
-      body: const {},
-      maxAttempts: 1,
-    );
-    return EonStatus.fromHostJson(response['status']);
-  }
-
-  /// Remote-only: stop the host's end-of-night calibration (skip the darks).
-  Future<EonStatus?> cancelHostEndOfNight() async {
-    final response = await _post(
-      CalibrationApi.cancelEndOfNight,
-      body: const {},
-      maxAttempts: 1,
-    );
-    return EonStatus.fromHostJson(response['status']);
-  }
-
+mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
   Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
@@ -204,21 +163,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // A remote client's stop is an operator action; the origin is not
     // forwarded because the host treats an unlabelled stop as operator.
     await _post(SequencerApi.stop);
-  }
-
-  /// Host-authoritative secondary-rig status. These operations deliberately
-  /// live on [NetworkBackend] rather than the generic sequencer role because
-  /// the local implementation is still an FRB-owned background capture loop.
-  Future<Map<String, dynamic>> secondaryRigGetStatus() {
-    return _get(SequencerApi.secondaryRigStatus);
-  }
-
-  Future<void> secondaryRigStart(Map<String, dynamic> config) async {
-    await _post(SequencerApi.secondaryRigStart, body: config);
-  }
-
-  Future<void> secondaryRigStop() async {
-    await _post(SequencerApi.secondaryRigStop);
   }
 
   @override
@@ -414,65 +358,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       'GET /api/sequencer/cloud-motion returned a non-string '
       '`cloud_motion` field (${value.runtimeType})',
     );
-  }
-
-  /// Remote-only: put this client's open plan into the host's sequence
-  /// editor, so the host runs and mirrors the plan the operator sees here.
-  ///
-  /// [sequence] null closes the host's editor. [isDirty] carries whether the
-  /// plan has changes not yet saved to the library. Throws when the host
-  /// refuses, for example while its run holds the editor (409).
-  Future<void> putOpenEditorSequence(
-    Map<String, dynamic>? sequence, {
-    int? databaseId,
-    required bool isDirty,
-  }) async {
-    await _put(
-      SequencerApi.putEditorSequence,
-      body: <String, dynamic>{
-        'open': sequence != null,
-        if (sequence != null) 'sequence': sequence,
-        if (databaseId != null) 'databaseId': databaseId,
-        'isDirty': isDirty,
-      },
-    );
-  }
-
-  /// Remote-only: whether the host has a run in flight (running, paused,
-  /// recovering, stopping). An unreadable state counts as in flight, so a
-  /// caller deciding whether to offer recovery errs toward leaving it alone.
-  Future<bool> hostRunInFlight() async {
-    try {
-      final status = await sequencerGetStatus();
-      return !const {
-        'idle',
-        'completed',
-        'failed',
-        'cancelled',
-        'stopped',
-        'error',
-      }.contains(status.state.toLowerCase());
-    } catch (_) {
-      return true;
-    }
-  }
-
-  /// Remote-only: stop the host's run through its own executor, keeping or
-  /// discarding its resume point as the operator chose.
-  Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {
-    await _post(
-      SequencerApi.stop,
-      body: <String, dynamic>{'preserveCheckpoint': preserveCheckpoint},
-    );
-  }
-
-  /// Remote-only: fetch the host's live autopilot preview decision so the
-  /// slave's scheduler banner mirrors the real host pick instead of recomputing
-  /// against its empty local catalog (which always yields "nothing eligible").
-  /// Not part of the abstract backend — only a NetworkBackend slave calls this.
-  Future<SchedulerDecision> getSchedulerPreview() async {
-    final response = await _get(SchedulerApi.previewDecision);
-    return SchedulerDecision.fromJson(Map<String, dynamic>.from(response));
   }
 
   @override

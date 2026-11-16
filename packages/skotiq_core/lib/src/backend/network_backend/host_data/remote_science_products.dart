@@ -17,7 +17,6 @@ import '../../../models/science/science_models.dart' show ScienceSessionConfig;
 import '../../network_backend.dart';
 import '../../../database/stores/science_products.dart';
 import 'host_poll.dart';
-import '../../roles/host_data/host_science.dart';
 
 /// Science measurements on a linked host.
 ///

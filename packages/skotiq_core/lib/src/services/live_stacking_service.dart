@@ -5,7 +5,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../utils/logging_service.dart';
-import '../backend/roles/host_data/host_live_stack.dart';
+import '../backend/network_backend.dart';
 import '../providers/logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
 

@@ -11,7 +11,6 @@ export 'src/backend/disconnected_backend.dart';
 export 'src/backend/remote_host.dart';
 export 'src/backend/roles/host_data/calibration_library.dart';
 export 'src/backend/roles/host_data/notes_journal.dart';
-export 'src/backend/roles/host_data/host_science.dart';
 // Typed bridge events. `SkotiqEvent`, `EventCategory` and `EventSeverity` share
 // their names with the wire event model in models.dart and are imported
 // from `package:skotiq_core/bridge_events.dart`.

@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// Notification delivery configured on a linked imaging host.
-final class HostNotifications {
-  HostNotifications(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostNotifications on NetworkBackendTransport {
   /// Replace the host's Home Assistant discovery and broker configuration.
   ///
   /// Omitting [replacementPassword] preserves the write-only host secret;
@@ -16,7 +12,7 @@ final class HostNotifications {
     String? replacementPassword,
     bool replacePassword = false,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       ProfileApi.updateHomeAssistantSettings,
       body: {
         'config': config.toJson(),
@@ -32,9 +28,7 @@ final class HostNotifications {
   ///
   /// Counts and a verdict only; the host never returns token values.
   Future<PushDeliveryTargets> getPushDeliveryTargets() async {
-    final response = await _host._get(PushApi.getTargets);
+    final response = await _get(PushApi.getTargets);
     return PushDeliveryTargets.fromJson(response);
   }
-
-  Stream<Map<String, dynamic>> get pushNotificationStream => _host.pushNotificationStream;
 }

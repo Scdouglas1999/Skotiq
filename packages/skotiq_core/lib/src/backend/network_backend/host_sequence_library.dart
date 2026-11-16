@@ -1,22 +1,18 @@
 part of '../network_backend.dart';
 
 /// Saved sequences, templates and their versions on a linked imaging host.
-final class HostSequenceLibrary {
-  HostSequenceLibrary(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostSequenceLibrary on NetworkBackendTransport {
   Future<void> deleteSequence(int id) async {
-    await _host._delete(SequenceManagementApi.deleteSequence, path: {'id': id});
+    await _delete(SequenceManagementApi.deleteSequence, path: {'id': id});
   }
 
   Future<int> duplicateSequence(int sourceId, String newName) async {
-    final response = await _host._post(
+    final response = await _post(
       SequenceManagementApi.duplicateSequence,
       path: {'id': sourceId},
       body: {'newName': newName},
     );
-    return _host._domainId(
+    return _domainId(
       response,
       'POST /api/sequence-management/$sourceId/duplicate',
     );
@@ -26,11 +22,11 @@ final class HostSequenceLibrary {
   /// host's entire sequence and template libraries.
   Future<Map<String, dynamic>?> getFullSequence(int sequenceId) async {
     try {
-      final response = await _host._get(
+      final response = await _get(
         SequenceManagementApi.getFullSequence,
         path: {'id': sequenceId},
       );
-      return _host._domainNullableObject(
+      return _domainNullableObject(
         response,
         'sequence',
         'GET /api/sequence-management/$sequenceId/full',
@@ -44,11 +40,11 @@ final class HostSequenceLibrary {
   /// Load one host-owned version snapshot, or `null` after a real 404.
   Future<RemoteSequenceVersion?> getSequenceVersion(int versionId) async {
     try {
-      final response = await _host._get(
+      final response = await _get(
         SequenceManagementApi.getVersion,
         path: {'versionId': versionId},
       );
-      final map = _host._domainNullableObject(
+      final map = _domainNullableObject(
         response,
         'version',
         'GET /api/sequence-management/versions/$versionId',
@@ -62,8 +58,8 @@ final class HostSequenceLibrary {
 
   /// Load all sequences with full node trees from the host.
   Future<List<Map<String, dynamic>>> listFullSequences() async {
-    final response = await _host._get(SequenceManagementApi.listFullSequences);
-    return _host._domainObjectRows(
+    final response = await _get(SequenceManagementApi.listFullSequences);
+    return _domainObjectRows(
       response,
       'sequences',
       'GET /api/sequence-management/list-full',
@@ -72,8 +68,8 @@ final class HostSequenceLibrary {
 
   /// Load all templates with full node trees from the host.
   Future<List<Map<String, dynamic>>> listFullTemplates() async {
-    final response = await _host._get(SequenceManagementApi.listFullTemplates);
-    return _host._domainObjectRows(
+    final response = await _get(SequenceManagementApi.listFullTemplates);
+    return _domainObjectRows(
       response,
       'templates',
       'GET /api/sequence-management/templates-full',
@@ -82,8 +78,8 @@ final class HostSequenceLibrary {
 
   /// Load host-authoritative sequence-library metadata and run roll-ups.
   Future<List<RemoteSequenceSummary>> listSequenceSummaries() async {
-    final response = await _host._get(SequenceManagementApi.listSequenceSummaries);
-    return _host._domainObjectRows(
+    final response = await _get(SequenceManagementApi.listSequenceSummaries);
+    return _domainObjectRows(
       response,
       'summaries',
       'GET /api/sequence-management/summaries',
@@ -94,11 +90,11 @@ final class HostSequenceLibrary {
   Future<List<RemoteSequenceVersionSummary>> listSequenceVersions(
     int sequenceId,
   ) async {
-    final response = await _host._get(
+    final response = await _get(
       SequenceManagementApi.listVersions,
       path: {'id': sequenceId},
     );
-    return _host._domainObjectRows(
+    return _domainObjectRows(
       response,
       'versions',
       'GET /api/sequence-management/$sequenceId/versions',
@@ -111,7 +107,7 @@ final class HostSequenceLibrary {
     bool isTemplate = false,
     int? databaseId,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       SequenceManagementApi.saveFullSequence,
       body: {
         'sequence': sequence,
@@ -119,12 +115,12 @@ final class HostSequenceLibrary {
         if (databaseId != null) 'databaseId': databaseId,
       },
     );
-    return _host._domainId(response, 'POST /api/sequence-management/save-full');
+    return _domainId(response, 'POST /api/sequence-management/save-full');
   }
 
   /// Replace the full tag list for a stored sequence on the host.
   Future<void> setSequenceTags(int sequenceId, List<String> tags) async {
-    await _host._put(
+    await _put(
       SequenceManagementApi.setTags,
       path: {'id': sequenceId},
       body: {'tags': tags},
@@ -137,12 +133,12 @@ final class HostSequenceLibrary {
     Map<String, dynamic> sequence, {
     String? label,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       SequenceManagementApi.snapshotVersion,
       path: {'id': sequenceId},
       body: {'sequence': sequence, if (label != null) 'label': label},
     );
-    return _host._domainId(
+    return _domainId(
       response,
       'POST /api/sequence-management/$sequenceId/versions',
     );
@@ -150,7 +146,7 @@ final class HostSequenceLibrary {
 
   /// Toggle a stored sequence's favorite flag and return its new value.
   Future<bool> toggleSequenceFavorite(int sequenceId) async {
-    final response = await _host._post(
+    final response = await _post(
       SequenceManagementApi.toggleFavorite,
       path: {'id': sequenceId},
     );
@@ -165,18 +161,18 @@ final class HostSequenceLibrary {
   }
 
   Future<int> createSequence(Map<String, dynamic> sequence) async {
-    final response = await _host._post(
+    final response = await _post(
       SequenceManagementApi.createSequence,
       body: sequence,
     );
-    return _host._domainId(response, 'POST /api/sequence-management');
+    return _domainId(response, 'POST /api/sequence-management');
   }
 
   Future<void> createSequenceNode(
     int sequenceId,
     Map<String, dynamic> node,
   ) async {
-    await _host._post(
+    await _post(
       SequenceManagementApi.createNode,
       path: {'id': sequenceId},
       body: node,
@@ -184,8 +180,8 @@ final class HostSequenceLibrary {
   }
 
   Future<List<Map<String, dynamic>>> getSequenceTemplates() async {
-    final response = await _host._get(SequenceManagementApi.getAllTemplates);
-    return _host._domainObjectRows(
+    final response = await _get(SequenceManagementApi.getAllTemplates);
+    return _domainObjectRows(
       response,
       'templates',
       'GET /api/sequence-management/templates',
@@ -195,8 +191,8 @@ final class HostSequenceLibrary {
   // Sequence Management (CRUD - separate from sequencer execution)
 
   Future<List<Map<String, dynamic>>> getSequenceList() async {
-    final response = await _host._get(SequenceManagementApi.getAllSequences);
-    return _host._domainObjectRows(
+    final response = await _get(SequenceManagementApi.getAllSequences);
+    return _domainObjectRows(
       response,
       'sequences',
       'GET /api/sequence-management/list',
@@ -209,8 +205,8 @@ final class HostSequenceLibrary {
   Future<RemoteSequenceRunDiffContext> fetchSequenceRunDiffContext(
     int runId,
   ) async {
-    _host._validateReplayRunId(runId);
-    final response = await _host._get(
+    _validateReplayRunId(runId);
+    final response = await _get(
       DbReadApi.getSequenceRunById,
       path: {'runId': runId},
       query: {'includeDiffContext': 'true'},

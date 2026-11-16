@@ -1,15 +1,11 @@
 part of '../network_backend.dart';
 
 /// The live stack a linked imaging host builds from the frames it captures.
-final class HostLiveStack {
-  HostLiveStack(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostLiveStack on NetworkBackendTransport {
   /// Add a host-side frame to the running stack and return the refreshed
   /// result (dimensions + stats + stacked pixels).
   Future<LiveStackingResult> stackingAddFrame(String imagePath) async {
-    await _host._post(StackingApi.addFrame, body: {'imagePath': imagePath});
+    await _post(StackingApi.addFrame, body: {'imagePath': imagePath});
     return stackingGetResult();
   }
 
@@ -24,14 +20,14 @@ final class HostLiveStack {
   Future<LiveStackingResult> stackingGetResult() async {
     const metaEndpoint = 'GET /api/stacking/result';
     const previewEndpoint = 'GET /api/stacking/preview';
-    final meta = await _host._get(StackingApi.result);
-    final width = _host._requireStackingInt(meta, 'width', metaEndpoint, min: 1);
-    final height = _host._requireStackingInt(meta, 'height', metaEndpoint, min: 1);
-    final channels = _host._requireStackingChannels(meta, metaEndpoint);
-    final stats = _host._requireStackingStats(meta, metaEndpoint);
+    final meta = await _get(StackingApi.result);
+    final width = _requireStackingInt(meta, 'width', metaEndpoint, min: 1);
+    final height = _requireStackingInt(meta, 'height', metaEndpoint, min: 1);
+    final channels = _requireStackingChannels(meta, metaEndpoint);
+    final stats = _requireStackingStats(meta, metaEndpoint);
 
-    final bytes = await _host._downloadBytes(StackingApi.preview);
-    final samples = _host._decodeStackingPreview(
+    final bytes = await _downloadBytes(StackingApi.preview);
+    final samples = _decodeStackingPreview(
       bytes,
       width,
       height,
@@ -51,13 +47,13 @@ final class HostLiveStack {
   /// Current accumulation stats only (cheap; no pixels). Requires a complete
   /// stats object; a partial/malformed 200 throws rather than reporting zeros.
   Future<LiveStackingStats> stackingGetStats() async {
-    final response = await _host._get(StackingApi.stats);
-    return _host._requireStackingStats(response, 'GET /api/stacking/stats');
+    final response = await _get(StackingApi.stats);
+    return _requireStackingStats(response, 'GET /api/stacking/stats');
   }
 
   /// Clear the accumulation (host stays armed).
   Future<void> stackingReset() async {
-    await _host._post(StackingApi.reset, body: const {});
+    await _post(StackingApi.reset, body: const {});
   }
 
   /// Start (or arm) live stacking on the host. With [referencePath] (a host
@@ -72,19 +68,19 @@ final class HostLiveStack {
     String? referencePath,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       StackingApi.start,
       body: {
-        'config': _host._stackingConfigToJson(config),
+        'config': _stackingConfigToJson(config),
         if (referencePath != null) 'referencePath': referencePath,
       },
     );
-    return _host._requireStackingStats(response, 'POST /api/stacking/start');
+    return _requireStackingStats(response, 'POST /api/stacking/start');
   }
 
   /// Stop the stacker and disarm host auto-feed.
   Future<void> stackingStop() async {
-    await _host._post(StackingApi.stop, body: const {});
+    await _post(StackingApi.stop, body: const {});
   }
 
   /// Fetch recent durable Stack-and-Share results, newest first.
@@ -95,7 +91,7 @@ final class HostLiveStack {
       throw RangeError.range(limit, 1, 100, 'limit');
     }
     const endpoint = 'GET /api/stacking/results';
-    final response = await _host._get(
+    final response = await _get(
       StackingApi.savedResults,
       query: {'limit': limit},
     );
@@ -114,7 +110,7 @@ final class HostLiveStack {
         );
       }
       results.add(
-        _host._savedStackResultFromJson(
+        _savedStackResultFromJson(
           Map<String, dynamic>.from(raw),
           '$endpoint result[$index]',
         ),
@@ -129,12 +125,12 @@ final class HostLiveStack {
       throw ArgumentError.value(resultId, 'resultId', 'must be positive');
     }
     final endpoint = 'GET /api/stacking/results/$resultId';
-    final response = await _host._get(
+    final response = await _get(
       StackingApi.savedResult,
       path: {'resultId': resultId},
     );
-    final result = _host._requireStackingObject(response, 'result', endpoint);
-    return _host._savedStackResultFromJson(result, endpoint);
+    final result = _requireStackingObject(response, 'result', endpoint);
+    return _savedStackResultFromJson(result, endpoint);
   }
 
   /// Download the encoded durable preview for [resultId]. Decoding and exact
@@ -145,7 +141,7 @@ final class HostLiveStack {
       throw ArgumentError.value(resultId, 'resultId', 'must be positive');
     }
     final endpoint = 'GET /api/stacking/results/$resultId/preview';
-    final downloaded = await _host._downloadBytesWithHeaders(
+    final downloaded = await _downloadBytesWithHeaders(
       StackingApi.savedResultPreview,
       path: {'resultId': resultId},
     );

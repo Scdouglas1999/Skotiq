@@ -2,11 +2,7 @@ part of '../network_backend.dart';
 
 /// What a linked imaging host is running: the plan this client puts in its
 /// editor, its run (to stop it) and its recent events.
-final class HostRunState {
-  HostRunState(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostRunState on NetworkBackendTransport {
   /// Remote-only: put this client's open plan into the host's sequence
   /// editor, so the host runs and mirrors the plan the operator sees here.
   ///
@@ -18,7 +14,7 @@ final class HostRunState {
     int? databaseId,
     required bool isDirty,
   }) async {
-    await _host._put(
+    await _put(
       SequencerApi.putEditorSequence,
       body: <String, dynamic>{
         'open': sequence != null,
@@ -32,7 +28,7 @@ final class HostRunState {
   /// Remote-only: stop the host's run through its own executor, keeping or
   /// discarding its resume point as the operator chose.
   Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {
-    await _host._post(
+    await _post(
       SequencerApi.stop,
       body: <String, dynamic>{'preserveCheckpoint': preserveCheckpoint},
     );
@@ -41,7 +37,7 @@ final class HostRunState {
   /// The host's newest log-worthy events from before this client connected,
   /// oldest first.
   Future<List<SkotiqEvent>> getHostRecentEvents({int limit = 100}) async {
-    final response = await _host._get(
+    final response = await _get(
       RuntimeStateApi.recentEvents,
       query: {'limit': limit},
     );

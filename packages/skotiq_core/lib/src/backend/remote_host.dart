@@ -7,44 +7,12 @@ import 'network_backend/host_data/remote_polar_alignment_log.dart';
 import 'disconnected_backend.dart';
 import 'ffi_backend.dart';
 import 'roles/host_data/calibration_library.dart';
-import 'roles/host_data/host_calibration_tools.dart';
-import 'roles/host_data/host_imaging_records.dart';
-import 'roles/host_data/host_device_control.dart';
-import 'roles/host_data/host_files.dart';
-import 'roles/host_data/host_focus_models.dart';
-import 'roles/host_data/host_profiles.dart';
-import 'roles/host_data/host_backups.dart';
-import 'roles/host_data/host_catalogs.dart';
-import 'roles/host_data/host_cloud_sync.dart';
-import 'roles/host_data/host_logs.dart';
-import 'roles/host_data/host_notifications.dart';
-import 'roles/host_data/host_jobs.dart';
-import 'roles/host_data/host_updates.dart';
-import 'roles/host_data/host_science.dart';
-import 'roles/host_data/host_transients.dart';
-import 'roles/host_data/host_sky_atlas.dart';
-import 'roles/host_data/host_control_session.dart';
-import 'roles/host_data/host_night_control.dart';
 import 'roles/host_data/host_link.dart';
-import 'roles/host_data/host_live_stack.dart';
-import 'roles/host_data/host_planning_data.dart';
-import 'roles/host_data/host_post_session.dart';
-import 'roles/host_data/host_sequence_library.dart';
 import 'roles/host_data/notes_journal.dart';
 import '../database/stores/observation_log.dart';
 import '../database/stores/observing_lists_store.dart';
 import '../database/stores/polar_alignment_log.dart';
 import 'skotiq_backend.dart';
-import 'roles/host_data/host_runtime_mirror.dart';
-import 'roles/host_data/host_secondary_rig.dart';
-import 'roles/host_data/host_pointing.dart';
-import 'roles/host_data/host_rig_settings.dart';
-import 'roles/host_data/host_history.dart';
-import 'roles/host_data/host_notes.dart';
-import 'roles/host_data/host_run_state.dart';
-import 'roles/host_data/host_calibration_frames.dart';
-import 'roles/host_data/host_replay_debug.dart';
-import 'roles/host_data/host_weather.dart';
 import 'network_backend/host_data/host_poll.dart';
 import 'network_backend/host_data/remote_host_records.dart';
 import 'network_backend/host_data/remote_science_products.dart';
@@ -53,58 +21,61 @@ import 'roles/host_data/photometric_transforms.dart';
 import 'network_backend/host_data/remote_photometric_transforms.dart';
 import '../models/backend/backend_types.dart';
 
-export 'roles/host_data/host_calibration_tools.dart';
-export 'roles/host_data/host_imaging_records.dart';
-export 'roles/host_data/host_device_control.dart';
-export 'roles/host_data/host_files.dart';
-export 'roles/host_data/host_focus_models.dart';
-export 'roles/host_data/host_profiles.dart';
-export 'roles/host_data/host_backups.dart';
-export 'roles/host_data/host_catalogs.dart';
-export 'roles/host_data/host_cloud_sync.dart';
-export 'roles/host_data/host_logs.dart';
-export 'roles/host_data/host_notifications.dart';
-export 'roles/host_data/host_jobs.dart';
-export 'roles/host_data/host_updates.dart';
-export 'roles/host_data/host_science.dart';
-export 'roles/host_data/host_transients.dart';
-export 'roles/host_data/host_sky_atlas.dart';
-export 'roles/host_data/host_control_session.dart';
-export 'roles/host_data/host_night_control.dart';
 export 'roles/host_data/host_link.dart';
-export 'roles/host_data/host_live_stack.dart';
-export 'roles/host_data/host_planning_data.dart';
-export 'roles/host_data/host_post_session.dart';
-export 'roles/host_data/host_sequence_library.dart';
-export 'roles/host_data/host_runtime_mirror.dart';
-export 'roles/host_data/host_secondary_rig.dart';
-export 'roles/host_data/host_pointing.dart';
-export 'roles/host_data/host_rig_settings.dart';
-export 'roles/host_data/host_history.dart';
-export 'roles/host_data/host_notes.dart';
-export 'roles/host_data/host_run_state.dart';
-export 'roles/host_data/host_calibration_frames.dart';
-export 'roles/host_data/host_replay_debug.dart';
-export 'roles/host_data/host_weather.dart';
+// The host-only roles a RemoteHost hands out.
+export 'network_backend.dart'
+    show
+        HostBackups,
+        HostCalibrationFrames,
+        HostCalibrationTools,
+        HostCatalogs,
+        HostCloudSync,
+        HostControlSession,
+        HostDeviceControl,
+        HostFiles,
+        HostFocusModels,
+        HostHistory,
+        HostImagingRecords,
+        HostLiveStack,
+        HostLogs,
+        HostNightControl,
+        HostNotes,
+        HostNotifications,
+        HostPlanningData,
+        HostPointing,
+        HostPostSession,
+        HostProfiles,
+        HostReplayDebug,
+        HostRigSettings,
+        HostRunState,
+        HostRuntimeMirror,
+        HostScience,
+        HostSecondaryRig,
+        HostSequenceLibrary,
+        HostSettingsRows,
+        HostSkyAtlas,
+        HostTransients,
+        HostUpdates,
+        HostWeather,
+        RemoteScienceBundle;
 
-/// The data roles of a backend whose imaging host is another machine.
+/// The host's side of everything a linked client reaches over the link.
 ///
-/// Host-owned data (observing lists, the calibration library, sessions, ...)
-/// lives in the host's database. A linked client reaches it over the host API;
-/// the host itself reads its own database. Each such data set is a role
-/// interface under `roles/host_data/` with one implementation per side, and
-/// this class is where the remote side of every role hangs.
-///
-/// Callers do not test which backend they have. They ask
-/// [HostDataDispatch.remoteHost] and fall back to the local implementation:
+/// Data both sides keep (observing lists, the calibration library, sessions,
+/// ...) is one role interface with a local implementation, a DAO or service in
+/// this process, and a remote one built here. Its provider is a
+/// `hostRoleProvider` (`providers/host_role.dart`), which picks the side:
 ///
 /// ```dart
-/// final observingListsStoreProvider = Provider<ObservingListsStore>(
-///   (ref) =>
-///       ref.watch(backendProvider).remoteHost?.observingLists ??
-///       ref.watch(observingListsDaoProvider),
+/// final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
+///   here: (ref) => ref.watch(observingListsDaoProvider),
+///   linked: (ref, host) => host.observingLists,
 /// );
 /// ```
+///
+/// What only a linked host has (its backups, logs, updates, weather verdict,
+/// ...) is a class over the link (`network_backend/host_*.dart`), read through
+/// a `linkedOnlyProvider` half (`providers/linked_host.dart`).
 final class RemoteHost {
   RemoteHost._(this._backend);
 
@@ -117,19 +88,15 @@ final class RemoteHost {
 
   late final ObservationLog observationLog = RemoteObservationLog(_backend);
 
-  late final NotesJournal notesJournal = RemoteNotesJournal(_backend);
+  late final NotesJournal notesJournal = RemoteNotesJournal(notes);
 
   late final PolarAlignmentLog polarAlignmentLog = RemotePolarAlignmentLog(
-    _backend,
+    history,
   );
 
   late final ObservingListsStore observingLists = RemoteObservingListsStore(
     _backend,
   );
-
-  // Roles below have no shared local interface yet: the feature's service or
-  // screen holds the local half and asks for the host's half here. The host
-  // client itself answers them until the shared route definitions land.
 
   /// The connection to the host: where it is and whether it answers.
   HostLink get link => _backend;
@@ -155,8 +122,6 @@ final class RemoteHost {
   HostLogs get logs => _backend;
 
   HostNotifications get notifications => _backend;
-
-  HostJobs get jobs => _backend;
 
   HostUpdates get updates => _backend;
 
@@ -218,7 +183,7 @@ final class RemoteHost {
   );
 
   late final PhotometricTransforms photometricTransforms =
-      RemotePhotometricTransforms(_backend);
+      RemotePhotometricTransforms(science);
 }
 
 extension HostDataDispatch on SkotiqBackend {

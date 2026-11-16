@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart' show listEquals;
-import 'package:skotiq_remote_protocol/wire_models.dart';
 
 import '../../../database/database.dart' show PolarAlignmentHistoryEntry;
-import '../../roles/host_data/host_history.dart';
+import '../../network_backend.dart';
 import '../../../database/stores/polar_alignment_log.dart';
 import 'host_poll.dart';
 

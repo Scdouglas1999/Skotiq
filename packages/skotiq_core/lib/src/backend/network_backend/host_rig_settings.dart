@@ -1,17 +1,13 @@
 part of '../network_backend.dart';
 
 /// Settings a linked imaging host serves through their own endpoints.
-final class HostRigSettings {
-  HostRigSettings(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostRigSettings on NetworkBackendTransport {
   /// Load the imaging host's global meridian-flip defaults.
   ///
   /// These settings drive unattended hardware behavior and therefore belong
   /// to the host, not the phone rendering the settings screen.
   Future<MeridianFlipSettings> getMeridianFlipSettings() async {
-    final response = await _host._get(ProfileApi.getMeridianFlipSettings);
+    final response = await _get(ProfileApi.getMeridianFlipSettings);
     final raw = response['settings'];
     if (raw is! Map<String, dynamic>) {
       throw const FormatException(
@@ -23,7 +19,7 @@ final class HostRigSettings {
 
   /// Replace the imaging host's global meridian-flip defaults.
   Future<void> updateMeridianFlipSettings(MeridianFlipSettings settings) async {
-    await _host._post(
+    await _post(
       ProfileApi.updateMeridianFlipSettings,
       body: {'settings': settings.toJson()},
     );
@@ -32,7 +28,7 @@ final class HostRigSettings {
   /// Load the headless/desktop host's Home Assistant discovery and broker
   /// configuration. The returned broker never contains its password.
   Future<HomeAssistantHostSettings> getHomeAssistantHostSettings() async {
-    final response = await _host._get(ProfileApi.getHomeAssistantSettings);
+    final response = await _get(ProfileApi.getHomeAssistantSettings);
     return HomeAssistantHostSettings.fromJson(response);
   }
 
@@ -46,7 +42,7 @@ final class HostRigSettings {
     final extraHeaders = commandId == null
         ? null
         : <String, String>{'X-Skotiq-Command-Id': commandId};
-    await _host._post(
+    await _post(
       ProfileApi.updateSettings,
       body: {'settings': patch},
       headers: extraHeaders,
@@ -57,16 +53,16 @@ final class HostRigSettings {
   /// [models.AppSettings] wire model.
   Future<HostSettingsRows> getSettingsStore() {
     return _retryableRequest(() async {
-      final endpoint = _host._endpointPath(
+      final endpoint = _endpointPath(
         ProfileApi.getSettingsStore,
         ApiMethod.get,
       );
-      final response = await _host._sendWithAuthRefresh(
+      final response = await _sendWithAuthRefresh(
         endpoint: endpoint,
-        send: (headers) => _host._http.get(_host._apiUri(endpoint), headers: headers),
+        send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
       );
       if (response.statusCode != 200) {
-        throw _host._errorFromResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'GET',
@@ -95,7 +91,7 @@ final class HostRigSettings {
     Map<String, String> settings, {
     List<String> remove = const [],
   }) async {
-    await _host._post(
+    await _post(
       ProfileApi.updateSettingsStore,
       body: {'settings': settings, if (remove.isNotEmpty) 'remove': remove},
     );
@@ -108,7 +104,7 @@ final class HostRigSettings {
     Map<String, Map<String, Object?>> fields, {
     Map<String, Map<String, Object?>> base = const {},
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       ProfileApi.updateSettingsStore,
       body: {'merge': fields, if (base.isNotEmpty) 'mergeBase': base},
     );
@@ -125,8 +121,8 @@ final class HostRigSettings {
   }
 
   Future<Map<String, String>> getScienceSettings() async {
-    final response = await _host._get(ScienceApi.getScienceSettings);
-    return _host._sessionScienceObject(
+    final response = await _get(ScienceApi.getScienceSettings);
+    return _sessionScienceObject(
       response,
       'settings',
       'GET /api/science/settings',
@@ -134,12 +130,12 @@ final class HostRigSettings {
   }
 
   Future<void> updateScienceSettings(Map<String, String> settings) async {
-    await _host._post(ScienceApi.updateScienceSettings, body: {'settings': settings});
+    await _post(ScienceApi.updateScienceSettings, body: {'settings': settings});
   }
 
   Future<Map<String, String>> getSmartNightSettings() async {
-    final response = await _host._get(ScienceApi.getSmartNightSettings);
-    return _host._sessionScienceObject(
+    final response = await _get(ScienceApi.getSmartNightSettings);
+    return _sessionScienceObject(
       response,
       'settings',
       'GET /api/smart-night/settings',
@@ -147,7 +143,7 @@ final class HostRigSettings {
   }
 
   Future<void> updateSmartNightSettings(Map<String, String> settings) async {
-    await _host._post(
+    await _post(
       ScienceApi.updateSmartNightSettings,
       body: {'settings': settings},
     );

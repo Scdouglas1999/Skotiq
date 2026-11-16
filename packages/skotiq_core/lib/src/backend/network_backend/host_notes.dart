@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// The notes journal of a linked imaging host.
-final class HostNotes {
-  HostNotes(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostNotes on NetworkBackendTransport {
   /// GET /api/db/notes?targetId=&runId=
   ///
   /// The operator's per-target / per-run journal notes (the `notes_journal`
@@ -16,7 +12,7 @@ final class HostNotes {
     String? targetId,
     int? runId,
   }) async {
-    final response = await _host._get(
+    final response = await _get(
       DbReadApi.listJournalNotes,
       query: {
         if (targetId != null && targetId.isNotEmpty) 'targetId': targetId,
@@ -38,7 +34,7 @@ final class HostNotes {
   }) async {
     // Creating a note is not idempotent because the host assigns its UUID.
     // Avoid duplicating it after an ambiguous timeout.
-    final response = await _host._post(
+    final response = await _post(
       DbReadApi.createJournalNote,
       body: {
         'targetId': targetId,
@@ -51,7 +47,7 @@ final class HostNotes {
       },
       maxAttempts: 1,
     );
-    return _host._journalNoteFromMutationResponse(response);
+    return _journalNoteFromMutationResponse(response);
   }
 
   /// PUT `/api/db/notes/<id>`
@@ -65,7 +61,7 @@ final class HostNotes {
     bool clearTitle = false,
     bool clearSentiment = false,
   }) async {
-    final response = await _host._put(
+    final response = await _put(
       DbReadApi.updateJournalNote,
       path: {'id': id},
       body: {
@@ -78,10 +74,10 @@ final class HostNotes {
         'clearSentiment': clearSentiment,
       },
     );
-    return _host._journalNoteFromMutationResponse(response);
+    return _journalNoteFromMutationResponse(response);
   }
 
   /// DELETE `/api/db/notes/<id>`
   Future<void> deleteJournalNote(String id) =>
-      _host._delete(DbReadApi.deleteJournalNote, path: {'id': id});
+      _delete(DbReadApi.deleteJournalNote, path: {'id': id});
 }

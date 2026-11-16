@@ -1,11 +1,7 @@
 part of '../network_backend.dart';
 
 /// The sky atlas a linked imaging host builds from its frames.
-final class HostSkyAtlas {
-  HostSkyAtlas(this._host);
-
-  final NetworkBackend _host;
-
+mixin HostSkyAtlas on NetworkBackendTransport {
   /// Fetch the co-added region cone as PNG bytes (latest depth) so the companion
   /// renders the cutout via `Image.memory` — the host-local file path the FFI
   /// path uses is not portable over the wire. Maps to the advertised
@@ -15,7 +11,7 @@ final class HostSkyAtlas {
     int outPixels = 2048,
     String? interp,
   }) {
-    return _host._downloadBytes(
+    return _downloadBytes(
       AtlasApi.getRegionCutout,
       path: {'id': regionId},
       query: {
@@ -30,8 +26,8 @@ final class HostSkyAtlas {
   /// The native coverage query runs on the host. Callers reconstruct rows via
   /// `AtlasTileCoverage.fromJson`.
   Future<List<Map<String, dynamic>>> getAtlasCoverage() async {
-    final json = await _host._get(AtlasApi.getCoverage);
-    return _host._sessionScienceObjectList(json, 'tiles', 'GET /api/atlas/coverage');
+    final json = await _get(AtlasApi.getCoverage);
+    return _sessionScienceObjectList(json, 'tiles', 'GET /api/atlas/coverage');
   }
 
   // Sky Atlas — Pillar A ("Your Sky") personal atlas
@@ -41,8 +37,8 @@ final class HostSkyAtlas {
   /// a remote client reads its regions here instead of its (empty) local store.
   /// Callers reconstruct rows via `skyAtlasRegionFromWireJson`.
   Future<List<Map<String, dynamic>>> getAtlasRegions() async {
-    final json = await _host._get(AtlasApi.getRegions);
-    return _host._sessionScienceObjectList(json, 'regions', 'GET /api/atlas/regions');
+    final json = await _get(AtlasApi.getRegions);
+    return _sessionScienceObjectList(json, 'regions', 'GET /api/atlas/regions');
   }
 
   /// Fetch one region's detail from the host: its row (`region`), live native
@@ -51,14 +47,14 @@ final class HostSkyAtlas {
   /// slave and so must branch here. Maps to the already-advertised
   /// `GET /api/atlas/region/<id>` route (no catalog change).
   Future<Map<String, dynamic>> getAtlasRegion(int regionId) async {
-    return _host._get(AtlasApi.getRegion, path: {'id': regionId});
+    return _get(AtlasApi.getRegion, path: {'id': regionId});
   }
 
   /// Fetch a region's fold timeline (`folds`) + deepening growth curve
   /// (`growth`) from the host — the scrubber stops + contributing-frames list on
   /// a slave. Maps to the advertised `GET /api/atlas/region/<id>/timeline`.
   Future<Map<String, dynamic>> getAtlasRegionTimeline(int regionId) async {
-    return _host._get(AtlasApi.getRegionTimeline, path: {'id': regionId});
+    return _get(AtlasApi.getRegionTimeline, path: {'id': regionId});
   }
 
   /// Create or update a named region in the host-owned atlas. The companion
@@ -71,7 +67,7 @@ final class HostSkyAtlas {
     required String kind,
     int? targetId,
   }) async {
-    final response = await _host._post(
+    final response = await _post(
       AtlasApi.createRegion,
       body: {
         'name': name,
