@@ -89,7 +89,7 @@ void _stubHostScratch(_MockNetworkBackend backend) {
 class _HostSettingsNotifier extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async => const AppSettingsState(
-    imageOutputPath: r'C:\Users\scdou\Documents\NGC7380',
+    imageOutputPath: r'C:\Users\observer\Documents\NGC7380',
     fileNamingPattern: r'$TARGET_$FILTER_$DATE_$SEQ',
   );
 }
@@ -975,11 +975,13 @@ void main() {
     });
 
     test('keeper paths are built in the host path style', () {
-      final windowsHost = hostPathContext(r'C:\Users\scdou\Documents\NGC7380');
+      final windowsHost = hostPathContext(
+        r'C:\Users\observer\Documents\NGC7380',
+      );
       expect(
         ImagingService.buildImageFilePath(
           pattern: r'$TARGET/Light/$TARGET_$SEQ',
-          basePath: r'C:\Users\scdou\Documents\NGC7380',
+          basePath: r'C:\Users\observer\Documents\NGC7380',
           extension: 'fits',
           values: const {
             NamingToken.target: 'NGC0891',
@@ -987,7 +989,7 @@ void main() {
           },
           pathContext: windowsHost,
         ),
-        r'C:\Users\scdou\Documents\NGC7380\NGC0891\Light\NGC0891_0001.fits',
+        r'C:\Users\observer\Documents\NGC7380\NGC0891\Light\NGC0891_0001.fits',
       );
       expect(
         () => ImagingService.buildImageFilePath(
@@ -1015,7 +1017,7 @@ void main() {
 
     test('a linked client saves keepers under the host output path and numbers '
         'them from the host records', () async {
-      const hostOutput = r'C:\Users\scdou\Documents\NGC7380';
+      const hostOutput = r'C:\Users\observer\Documents\NGC7380';
       final remoteBackend = _MockNetworkBackend();
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
@@ -2842,10 +2844,10 @@ void main() {
           values: subs,
         );
 
-        expect(path.isWithin('/captures', fullPath), isTrue);
-        expect(fullPath, isNot(contains('..')));
-        expect(fullPath, isNot(contains(r'\')));
-        expect(fullPath, endsWith('M31_Ha_unsafe_0001.fits'));
+        expect(path.split(path.relative(fullPath, from: '/captures')), [
+          'M31_Ha_unsafe',
+          'M31_Ha_unsafe_0001.fits',
+        ]);
       },
     );
 

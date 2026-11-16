@@ -1129,7 +1129,7 @@ void main() {
       expect(byFilter.keys.toSet(), {'B', 'L', 'R'});
       for (final entry in byFilter.entries) {
         expect(entry.value, hasLength(1), reason: '${entry.key} once');
-        expect(entry.value.single, contains('/${made[2]}/'));
+        expect(p.split(entry.value.single!), contains(made[2]));
       }
       // The edit followed the L master through both folds.
       final moved = (await RecipesDao(db).getById(recipe!))!;

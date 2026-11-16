@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -381,7 +382,7 @@ void main() {
       addTearDown(local.dispose);
       await local.read(appSettingsProvider.future);
       final localHandlers = ImagingHandlers(local);
-      final filePath = '${root.path}/2026-07-13/L/flat-1.fits';
+      final filePath = p.join(root.path, '2026-07-13', 'L', 'flat-1.fits');
 
       final response = await translateHandlerErrors(
         localHandlers.handleSaveFitsFromLastCapture(

@@ -17,12 +17,13 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 
-const String _masterPath = '/tmp/skotiq-test/ngc1499_Ha.fits';
+final String _masterPath = '$darkroomScratch/ngc1499_Ha.fits';
 
 const Map<String, dynamic> _sho = {
   'red': {'sii': 1.0},

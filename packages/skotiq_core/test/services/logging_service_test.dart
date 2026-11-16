@@ -27,6 +27,7 @@ void main() {
       },
       currentLogFileProvider: () => 'skotiq.log',
     );
+    addTearDown(service.dispose);
 
     expect(service.currentLogFile, isNull);
 
@@ -55,6 +56,7 @@ void main() {
       nativeInit: () {},
       currentLogFileProvider: () => 'skotiq.log',
     );
+    addTearDown(service.dispose);
     await service.ensureInitialized();
 
     service.info(

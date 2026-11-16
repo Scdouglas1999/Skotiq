@@ -23,6 +23,8 @@ class _FakeWindowManagerChannel {
       switch (call.method) {
         case 'isMaximized':
           return maximized;
+        case 'isFullScreen':
+          return false;
         default:
           return null;
       }

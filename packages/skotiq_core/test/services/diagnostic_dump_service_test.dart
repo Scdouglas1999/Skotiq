@@ -11,12 +11,16 @@ LoggingService _testLogging({required Directory tempDir}) {
   // LoggingService talks to a native bridge in production. Tests inject
   // no-op native callbacks so the on-disk surface stays inside the
   // managed temp dir and we don't depend on the Rust runtime.
-  return LoggingService(
+  final logger = LoggingService(
     applicationSupportDirectoryProvider: () async => tempDir,
     nativeInitWithLogging: ({logDirectory}) {},
     nativeInit: () {},
     currentLogFileProvider: () => 'skotiq.log',
   );
+  // Its log file stays open until it is disposed, and Windows will not delete
+  // a folder holding an open file.
+  addTearDown(logger.dispose);
+  return logger;
 }
 
 void main() {

@@ -37,6 +37,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
@@ -218,7 +219,7 @@ DawnPhotometryResolver _emptyPhotometry() {
   );
 }
 
-const String _masterPath = '/tmp/skotiq-test/m31_L.fits';
+final String _masterPath = '$darkroomScratch/m31_L.fits';
 
 Map<String, dynamic> _step(String opId, {bool enabled = true}) => {
       'opId': opId,
@@ -294,7 +295,7 @@ void main() {
     db = mockDatabase();
     recipes = RecipesDao(db);
     pickerCalls = [];
-    pickerAnswer = '/tmp/skotiq-test/out.fits';
+    pickerAnswer = '$darkroomScratch/out.fits';
     pickerHold = null;
     revealFailure = null;
     revealCalls = 0;
@@ -1187,18 +1188,18 @@ void main() {
     expect(args['masterPath'], _masterPath);
     expect((args['stage'] as Map)['kind'], 'final');
     expect(args['writeSidecar'], isTrue);
-    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.skrecipe');
+    expect(args['sidecarPath'], '$darkroomScratch/out.fits.skrecipe');
     expect(args['screenTransfer'], isFalse);
     expect((args['outputs'] as List).single, {
       'format': 'fits',
-      'path': '/tmp/skotiq-test/out.fits',
+      'path': '$darkroomScratch/out.fits',
     });
     expect((args['renderId'] as String), startsWith('darkroom-export-$root-'));
 
     // The reply's own numbers are reported back, sidecar included.
     expect(find.textContaining('Written', findRichText: true), findsOneWidget);
     expect(
-      find.textContaining('/tmp/skotiq-test/out.fits.skrecipe'),
+      find.textContaining('$darkroomScratch/out.fits.skrecipe'),
       findsOneWidget,
     );
     await drain(tester);
@@ -1327,7 +1328,7 @@ void main() {
     expect(darkroom.exportArgs, hasLength(1));
     final args = darkroom.exportArgs.single;
     expect((args['stage'] as Map)['kind'], 'linear');
-    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.skrecipe');
+    expect(args['sidecarPath'], '$darkroomScratch/out.fits.skrecipe');
     // The recipe rides along as provenance, refused step included: the export
     // sends the stack whole rather than quietly dropping what the engine
     // objected to.
@@ -1415,7 +1416,7 @@ void main() {
     expect(darkroom.exportArgs, hasLength(1));
     expect(find.textContaining('Written', findRichText: true), findsOneWidget);
     expect(
-      find.textContaining('/tmp/skotiq-test/out.fits.skrecipe'),
+      find.textContaining('$darkroomScratch/out.fits.skrecipe'),
       findsOneWidget,
     );
     // And it is NOT reported as a failure.
@@ -1618,7 +1619,7 @@ void main() {
 
     // The operator names a file: now — and only now — the render is inside the
     // engine, and the sheet says so.
-    chooser.complete('/tmp/skotiq-test/out.fits');
+    chooser.complete('$darkroomScratch/out.fits');
     await tester.pump();
     await tester.pump();
     expect(darkroom.exportArgs, hasLength(1));
@@ -2038,7 +2039,7 @@ void main() {
 
   /// What the engine says when the base master is not on disk any more, in the
   /// shape every base-master refusal takes: the path it was handed, in quotes.
-  const missingMaster = DarkroomSeamException(
+  final missingMaster = DarkroomSeamException(
     'renderPreview',
     "cannot read '$_masterPath': No such file or directory (os error 2)",
     'os error 2',

@@ -83,6 +83,7 @@ class _Seam implements SkyAtlasSeam {
 
 void main() {
   late SkotiqDatabase db;
+  late Directory atlasRoot;
   late SkyAtlasDao atlasDao;
   late ConstellationContributionsDao contributionsDao;
   late List<String> deletedContributionIds;
@@ -102,7 +103,7 @@ void main() {
       dao: atlasDao,
       seam: seam,
       logger: LoggingService(),
-      atlasRootResolver: () async => '/tmp/constellation_seed_retract_test',
+      atlasRootResolver: () async => atlasRoot.path,
       order: ConstellationService.defaultHealpixOrder,
     );
     return ConstellationService(
@@ -164,13 +165,19 @@ void main() {
   }
 
   setUp(() {
+    atlasRoot = Directory.systemTemp.createTempSync(
+      'constellation_seed_retract_test_',
+    );
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     atlasDao = SkyAtlasDao(db);
     contributionsDao = ConstellationContributionsDao(db);
     deletedContributionIds = [];
   });
 
-  tearDown(() => db.close());
+  tearDown(() async {
+    await db.close();
+    await atlasRoot.delete(recursive: true);
+  });
 
   test(
     'proposeTarget POSTs /v1/targets, decodes + joins the new target',

@@ -8,6 +8,20 @@ import 'package:skotiq_core/services.dart';
 
 var _databases = 0;
 
+/// A logger that writes into [dir] and is disposed when the test ends: its log
+/// file stays open until then, and Windows will not delete a folder holding an
+/// open file.
+LoggingService testLogger(Directory dir) {
+  final logger = LoggingService(
+    applicationSupportDirectoryProvider: () async => dir,
+    nativeInitWithLogging: ({String? logDirectory}) {},
+    nativeInit: () {},
+    currentLogFileProvider: () => null,
+  );
+  addTearDown(logger.dispose);
+  return logger;
+}
+
 /// Replaces a file database in [dir] with the backup at [backupPath] the way
 /// the app does (build the new one beside it, close, swap at the next open)
 /// and returns it reopened; the caller closes it. [seed] fills the database

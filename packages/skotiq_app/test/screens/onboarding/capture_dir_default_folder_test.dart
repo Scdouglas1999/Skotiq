@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
 import 'package:skotiq_core/database.dart';
@@ -87,7 +88,7 @@ void main() {
       configDir: '${home.path}/.config',
     );
 
-    expect(made, '${home.path}/Bilder/Skotiq');
+    expect(p.normalize(made), p.join(home.path, 'Bilder', 'Skotiq'));
     expect(Directory(made).existsSync(), isTrue);
   });
 
@@ -98,7 +99,7 @@ void main() {
 
     final made = await makeCaptureDirectoryIn(home.path);
 
-    expect(made, '${home.path}/Skotiq');
+    expect(p.normalize(made), p.join(home.path, 'Skotiq'));
     expect(Directory(made).existsSync(), isTrue);
   });
 }

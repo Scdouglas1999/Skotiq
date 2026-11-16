@@ -33,12 +33,13 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 
-const String _masterPath = '/tmp/skotiq-test/m31_L.fits';
+final String _masterPath = '$darkroomScratch/m31_L.fits';
 
 /// A calibration record with one clean slot and two the matcher warned about —
 /// the shape a real night produces when the flat library has nothing close.
@@ -460,7 +461,7 @@ void main() {
       );
       final imageId = await images.createImage(
         CapturedImagesCompanion.insert(
-          filePath: '/tmp/skotiq-test/m31_L_0001.fits',
+          filePath: '$darkroomScratch/m31_L_0001.fits',
           fileName: 'm31_L_0001.fits',
           exposureDuration: 300,
           capturedAt: DateTime.utc(2026, 8, 15, 22, 30),

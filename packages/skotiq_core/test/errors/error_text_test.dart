@@ -6,6 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 
+/// How the operating system words a refused connection; the error text passes
+/// the system's own words through.
+final _refusedByTheOs = Platform.isWindows
+    ? 'The remote computer refused the network connection'
+    : 'Connection refused';
+
 void main() {
   group('userFacingError', () {
     test('a database failure keeps the reason and drops the statement', () {
@@ -90,7 +96,7 @@ void main() {
       expect(error, isA<http.ClientException>());
       expect(
         userFacingError(error),
-        'Could not reach 127.0.0.1:$port (Connection refused)',
+        'Could not reach 127.0.0.1:$port ($_refusedByTheOs)',
       );
     });
 

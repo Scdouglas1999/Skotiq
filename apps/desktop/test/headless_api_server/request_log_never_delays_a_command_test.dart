@@ -22,6 +22,7 @@ void main() {
   setUpAll(() => HttpOverrides.global = _RealHttp());
 
   late Directory root;
+  late LoggingService logger;
   late HeadlessApiServer server;
   late ProviderContainer container;
   late Completer<void> disk;
@@ -31,7 +32,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('sk-hung-log-disk-');
     disk = Completer<void>();
     writesAttempted = 0;
-    final logger = LoggingService(
+    logger = LoggingService(
       environment: {skotiqDataDirEnv: root.path},
       nativeInitWithLogging: ({logDirectory}) {},
       nativeInit: () {},
@@ -59,6 +60,9 @@ void main() {
     disk.complete();
     await server.stop();
     container.dispose();
+    // The log file is open until the service closes it, and Windows will not
+    // delete a folder holding an open file.
+    await logger.dispose();
     await root.delete(recursive: true);
   });
 

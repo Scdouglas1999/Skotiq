@@ -317,9 +317,10 @@ class SkyAtlasService {
     if (usable.isEmpty) {
       return AtlasFoldSummary.empty;
     }
-    final foldLabel = label.trim().isEmpty
+    final callerLabel = label.trim();
+    final foldLabel = callerLabel.isEmpty
         ? DateTime.now().toUtc().toIso8601String()
-        : label.trim();
+        : callerLabel;
     final region = _RegionRequest(
       targetId: targetId,
       name: regionName,
@@ -333,10 +334,15 @@ class SkyAtlasService {
       labels.update(label, (count) => count + 1, ifAbsent: () => 1);
     }
     // The fold log uses labels as frame identities. Preserve the call label
-    // while distinguishing files that share it within a batch.
+    // while distinguishing files that share it within a batch. A clock reading
+    // is no identity: folds that nobody labelled can read the same clock tick,
+    // so their frames are told apart by file as well.
     String frameLabel(SolvedFrameRef frame) {
       final label = frame.label ?? foldLabel;
-      return labels[label]! > 1 ? '$label | ${frame.framePath}' : label;
+      final unlabelled = frame.label == null && callerLabel.isEmpty;
+      return labels[label]! > 1 || unlabelled
+          ? '$label | ${frame.framePath}'
+          : label;
     }
 
     final items = [

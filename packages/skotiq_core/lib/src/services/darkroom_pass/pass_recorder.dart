@@ -68,9 +68,18 @@ class DarkroomPassRecorder implements PassReporter {
   final Map<String, PassLog> _logs = <String, PassLog>{};
   final Map<int, String> _sessionRuns = <int, String>{};
   final Map<String, Timer> _pendingSaves = <String, Timer>{};
+
+  /// Saves under way, so [dispose] does not return while one still writes.
+  final Set<Future<void>> _saving = <Future<void>>{};
+
   final StreamController<String> _changes =
       StreamController<String>.broadcast();
   Map<String, double>? _rates;
+
+  void _track(Future<void> save) {
+    _saving.add(save);
+    unawaited(save.whenComplete(() => _saving.remove(save)));
+  }
 
   /// The run id of each report as it lands.
   Stream<String> get changes => _changes.stream;
@@ -113,9 +122,9 @@ class DarkroomPassRecorder implements PassReporter {
     }
     _changes.add(runId);
     if (entry.kind == PassKinds.passEnded) {
-      unawaited(_save(runId, finished: true));
+      _track(_save(runId, finished: true));
     } else {
-      _pendingSaves[runId] ??= Timer(_saveDelay, () => unawaited(_save(runId)));
+      _pendingSaves[runId] ??= Timer(_saveDelay, () => _track(_save(runId)));
     }
   }
 
@@ -287,6 +296,7 @@ class DarkroomPassRecorder implements PassReporter {
     for (final runId in _pendingSaves.keys.toList()) {
       await _save(runId);
     }
+    await Future.wait(_saving.toList());
     await _changes.close();
   }
 }

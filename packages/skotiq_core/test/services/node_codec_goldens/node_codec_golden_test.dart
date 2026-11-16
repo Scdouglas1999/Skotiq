@@ -13,6 +13,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -252,8 +253,9 @@ void main() {
         ...Directory('assets/sample_sequences')
             .listSync()
             .whereType<File>()
-            .map((f) => f.path)
-            .where((p) => p.endsWith('.json')),
+            // Keyed the same on every host: `/` between the parts.
+            .map((f) => p.posix.joinAll(p.split(f.path)))
+            .where((name) => name.endsWith('.json')),
         'test/fixtures/m51_starter_export.skseq.json',
       ]..sort();
       for (final path in paths) {

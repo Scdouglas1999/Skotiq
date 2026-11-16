@@ -16,6 +16,7 @@ import 'dart:io';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/utils.dart';
 
 /// Records whether the save dialog was reached, and with what.
@@ -125,8 +126,11 @@ void main() {
       // The separators are gone, so the whole thing is one flat file name
       // sitting in the exports directory rather than a path that climbs out
       // of it.
-      expect(File(target!.path).parent.path, endsWith('Skotiq/exports'));
-      expect(target.path.split('/').last, isNot(contains('/')));
+      expect(
+        File(target!.path).parent.path,
+        endsWith(p.join('Skotiq', 'exports')),
+      );
+      expect(p.basename(target.path), isNot(contains('/')));
     });
   });
 

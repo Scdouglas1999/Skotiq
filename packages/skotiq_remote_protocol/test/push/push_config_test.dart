@@ -2,6 +2,7 @@
 // resolution, the "missing secret file disables the channel" validation, and
 // the "malformed or absent => disabled, never crash" contract.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +46,7 @@ void main() {
     final secret = File(p.join(tmp.path, 'sa.json'))..writeAsStringSync('{}');
     final override = File(p.join(tmp.path, 'custom.json'));
     override.writeAsStringSync('''
-      { "fcm": { "enabled": true, "serviceAccountPath": "${secret.path}" } }
+      { "fcm": { "enabled": true, "serviceAccountPath": ${jsonEncode(secret.path)} } }
     ''');
 
     final cfg = await PushConfig.load(
@@ -83,7 +84,7 @@ void main() {
 
     // Missing teamId => disabled.
     File(p.join(dir.path, 'push_config.json')).writeAsStringSync('''
-      { "apns": { "enabled": true, "p8KeyPath": "${p8.path}",
+      { "apns": { "enabled": true, "p8KeyPath": ${jsonEncode(p8.path)},
                   "keyId": "K", "bundleId": "com.x" } }
     ''');
     var cfg = await PushConfig.load(
@@ -94,7 +95,7 @@ void main() {
 
     // Complete + existing .p8 => enabled.
     File(p.join(dir.path, 'push_config.json')).writeAsStringSync('''
-      { "apns": { "enabled": true, "p8KeyPath": "${p8.path}",
+      { "apns": { "enabled": true, "p8KeyPath": ${jsonEncode(p8.path)},
                   "keyId": "K1", "teamId": "T1",
                   "bundleId": "com.x", "useSandbox": true } }
     ''');

@@ -27,12 +27,18 @@ void main() {
     }
   });
 
-  LoggingService buildService() => LoggingService(
-    applicationSupportDirectoryProvider: () async => appDir,
-    nativeInitWithLogging: ({logDirectory}) {},
-    nativeInit: () {},
-    currentLogFileProvider: () => 'skotiq.log',
-  );
+  LoggingService buildService() {
+    final service = LoggingService(
+      applicationSupportDirectoryProvider: () async => appDir,
+      nativeInitWithLogging: ({logDirectory}) {},
+      nativeInit: () {},
+      currentLogFileProvider: () => 'skotiq.log',
+    );
+    // Its log file stays open until it is disposed, and Windows will not
+    // delete a folder holding an open file.
+    addTearDown(service.dispose);
+    return service;
+  }
 
   Future<File> writeLogFile(String name, String body, Duration age) async {
     final file = File('${logDir.path}${Platform.pathSeparator}$name');

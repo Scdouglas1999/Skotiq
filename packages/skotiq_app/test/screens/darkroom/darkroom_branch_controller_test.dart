@@ -15,9 +15,10 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 
-const String _masterPath = '/tmp/skotiq-test/m31_L.fits';
+final String _masterPath = '$darkroomScratch/m31_L.fits';
 
 String _steps(int count) => jsonEncode([
       for (var i = 0; i < count; i++)
