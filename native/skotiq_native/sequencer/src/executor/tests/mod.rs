@@ -410,7 +410,14 @@ fn plan_with_switched_off_centering() -> SequenceDefinition {
             "dark",
             crate::NodeType::TakeExposure(crate::ExposureConfig {
                 frame_type: crate::FrameType::Dark,
-                save_to: Some("/abs/darks".to_string()),
+                save_to: Some(
+                    if cfg!(windows) {
+                        r"C:\abs\darks"
+                    } else {
+                        "/abs/darks"
+                    }
+                    .to_string(),
+                ),
                 ..Default::default()
             }),
             true,
