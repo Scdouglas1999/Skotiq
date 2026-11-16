@@ -369,5 +369,37 @@ void main() {
       expect(state.mosaicPanels.single.raHours, closeTo(5.5, 1e-9));
       expect(state.mosaicPanels.single.decDegrees, closeTo(21.0, 1e-9));
     });
+
+    test('the mosaic is cut from the camera field the reticle draws, also '
+        'when the optics alone have no sensor (no camera connected)', () async {
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          framingProvider.overrideWith(
+            (ref) => _SeededFraming(ref, FramingState(target: _target())),
+          ),
+          // The reticle's field, from a remembered sensor.
+          framingFOVProvider.overrideWith(
+            (ref) async => const FramingEquipmentResult(
+              status: FramingEquipmentStatus.ready,
+              equipment: _equipment,
+              profileName: 'Rig',
+            ),
+          ),
+          // The profile's optics without a live camera carry no sensor.
+          opticalConfigProvider.overrideWithValue(
+            const OpticalConfig(focalLength: 900),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(framingProvider.notifier);
+
+      notifier.setMosaicConfig(const FramingMosaicConfig(columns: 2, rows: 2));
+      notifier.setMosaicEnabled(true);
+      await pumpEventQueue();
+
+      expect(container.read(framingProvider).mosaicPanels, hasLength(4));
+    });
   });
 }

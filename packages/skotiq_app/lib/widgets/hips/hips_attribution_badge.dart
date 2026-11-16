@@ -5,21 +5,18 @@
 // licence, e.g. the STScI Digitized Sky Survey acknowledgement that must
 // accompany any DSS-derived image). This badge renders that credit, parsed from
 // the survey `properties` document into [HipsProperties.obsCopyright] /
-// [HipsProperties.creator], in the design system's quiet on-canvas chrome style
-// — and only while HiPS imagery is actually visible.
+// [HipsProperties.creator], as one line inside the canvas's glass, and only
+// while the imagery it credits is on screen.
 //
 // It is a small, pure presentation widget: it takes the resolved
 // [HipsProperties] (or `null` when none is resolved) and whether the layer is
-// currently showing imagery, and renders the credit pill or nothing. It owns no
-// fetch logic and no provider reads, so it composes cleanly into the framing
-// `Stack` next to the tile layer and is trivially testable.
+// currently showing imagery, and renders the credit line or nothing. It owns no
+// fetch logic and no provider reads.
 //
 // When the survey publishes an [HipsProperties.obsCopyrightUrl] the badge is
 // tappable and opens it in the external browser (the canonical
 // attribution-page link), matching how the settings screens launch external
 // URLs. When no URL is published the badge is non-interactive text.
-
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -30,14 +27,14 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/models.dart' show HipsProperties;
 import 'package:url_launcher/url_launcher.dart';
 
-/// A quiet on-canvas pill crediting the HiPS survey whose imagery is currently
+/// A line crediting the HiPS survey whose imagery is currently
 /// displayed, shown only while [visible] is true and [properties] carries an
 /// attribution.
 ///
 /// Renders [HipsProperties.obsCopyright] when present, else falls back to the
 /// publisher [HipsProperties.creator]; if neither is published the badge renders
 /// nothing (an empty [SizedBox]) rather than inventing a credit. When
-/// [HipsProperties.obsCopyrightUrl] is present the pill is tappable and opens it
+/// [HipsProperties.obsCopyrightUrl] is present the line is tappable and opens it
 /// externally.
 class HipsAttributionBadge extends StatelessWidget {
   /// The resolved survey metadata, or `null` when no HiPS survey is resolved.
@@ -61,12 +58,16 @@ class HipsAttributionBadge extends StatelessWidget {
   /// Attribution page paired with [fallbackCredit].
   final String? fallbackCreditUrl;
 
+  /// Space around the credit, taken only when it is shown.
+  final EdgeInsets padding;
+
   const HipsAttributionBadge({
     super.key,
     required this.properties,
     required this.visible,
     this.fallbackCredit,
     this.fallbackCreditUrl,
+    this.padding = EdgeInsets.zero,
   });
 
   /// The credit text to display: the survey copyright, else the creator, else
@@ -120,79 +121,35 @@ class HipsAttributionBadge extends StatelessWidget {
     final url = _creditUrl;
     final hasUrl = url != null && url.isNotEmpty;
 
-    // The credit cap has to be derived from the space actually available, not
-    // fixed. `maxWidth: 360` was a constant, so on a 360 px phone the pill came
-    // to 360 + icon + gap + padding + border and overflowed the canvas by 44 px
-    // (34 px landscape, 14 px at 390 px). 360 survives only as an UPPER bound so
-    // a long DSS copyright still ellipsizes rather than running the full width of
-    // a desktop canvas.
-    //
-    // Chrome subtracted below = the pill's own horizontal padding (both sides),
-    // the leading icon, the gap after it, and the 1 px border on each side.
-    const chromeWidth = SkotiqTokens.spaceMd * 2 +
-        SkotiqTokens.iconXs +
-        SkotiqTokens.spaceXs +
-        2;
-    const preferredCreditWidth = 360.0;
-
-    final pill = LayoutBuilder(
-      builder: (context, constraints) {
-        // An unbounded width (an unconstrained Row/Stack parent) means "take
-        // what you need", so fall back to the preferred cap rather than
-        // producing Infinity.
-        final available = constraints.maxWidth.isFinite
-            ? constraints.maxWidth - chromeWidth
-            : preferredCreditWidth;
-        // Never below a legible floor: at that point ellipsizing to a few
-        // characters is worse than letting the pill be the widest thing in the
-        // band, and the canvas is too narrow to be showing this chrome anyway.
-        final creditMaxWidth =
-            math.max(64.0, math.min(preferredCreditWidth, available));
-
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: SkotiqTokens.spaceMd,
-            vertical: SkotiqTokens.spaceXs,
+    // A line of text, not a container: it sits inside whatever glass group
+    // the canvas gives it, which bounds its width.
+    final line = Padding(
+      padding: padding,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            SkotiqIcons.info,
+            size: SkotiqTokens.iconXs,
+            color: colors.textMuted,
           ),
-          decoration: BoxDecoration(
-            color: colors.surfaceOverlay
-                .withValues(alpha: SkotiqTokens.opacityHoverBorder),
-            borderRadius: SkotiqTokens.borderRadiusMd,
-            border: Border.all(
-              color:
-                  colors.border.withValues(alpha: SkotiqTokens.opacitySubtle),
+          const SizedBox(width: SkotiqTokens.spaceXs),
+          Flexible(
+            child: Text(
+              credit,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: SkotiqTypography.caption.copyWith(
+                color: hasUrl ? colors.textSecondary : colors.textMuted,
+                decoration: hasUrl ? TextDecoration.underline : null,
+              ),
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                SkotiqIcons.info,
-                size: SkotiqTokens.iconXs,
-                color: colors.textMuted,
-              ),
-              const SizedBox(width: SkotiqTokens.spaceXs),
-              // Constrain the credit so a long copyright string wraps/ellipsizes
-              // rather than overflowing the canvas chrome.
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: creditMaxWidth),
-                child: Text(
-                  credit,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.overline.copyWith(
-                    color: hasUrl ? colors.textSecondary : colors.textMuted,
-                    decoration: hasUrl ? TextDecoration.underline : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
     );
 
-    if (!hasUrl) return pill;
+    if (!hasUrl) return line;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -200,7 +157,7 @@ class HipsAttributionBadge extends StatelessWidget {
         onTap: () => _openAttributionUrl(url),
         child: Tooltip(
           message: url,
-          child: pill,
+          child: line,
         ),
       ),
     );

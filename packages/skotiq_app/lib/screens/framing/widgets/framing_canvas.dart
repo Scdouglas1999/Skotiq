@@ -10,22 +10,17 @@ import 'package:skotiq_core/providers.dart';
 import '../../../tours/tour_target.dart';
 import '../painters/framing_background_painters.dart';
 import '../painters/framing_painters.dart';
+import 'framing_canvas_chrome.dart';
 import 'framing_overlays.dart';
+import 'framing_survey_credit.dart';
 import 'guide_star_overlay.dart';
 import 'hips_tile_layer.dart';
 
 part 'framing_canvas_parts/_canvas_controls.dart';
 
-/// The survey notice sits above the scale bar (bottom left, about 40 px tall)
-/// and left of the zoom group (bottom right, about 44 px wide) at any canvas
-/// width, so it covers neither.
-const double _surveyNoticeBottom = 64;
-const double _surveyNoticeRightInset = 72;
-
 /// The main framing canvas: handles pan / rotate gestures, stacks the survey
 /// image (or starfield fallback), optional grid, equipment FOV overlays, the
-/// mosaic grid, and the on-canvas controls (top chips, zoom, scale, target
-/// info, error banner).
+/// mosaic grid, and the glass chrome [FramingCanvasChrome] lays out over them.
 
 class FramingCanvas extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -314,29 +309,26 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
   bool get _showTargetInfoOverlay =>
       widget.framingState.target != null && widget.framingState.showLabels;
 
-  /// Whether the "configure equipment for accurate framing" hint is shown.
-  bool get _showEquipmentHint =>
-      !_hasEquipment && widget.framingState.target != null;
-
-  /// Horizontal space kept clear at the canvas's top-left for the
-  /// optical-config affordance, which [FramingScreen] paints in its OWN Stack
-  /// at (16, 16): a 48px touch-target button when collapsed, or the panel
-  /// (capped at 260px) when open. Reserving it here keeps the two Stacks from
-  /// placing their children at the same origin, where the opaque button body
-  /// covers the survey dropdown and the open panel hides the Grid chip.
-  ///
-  /// The gutter is skipped when the canvas is too narrow to give it away: on a
-  /// phone the controls already Wrap onto a second line and squeezing them
-  /// further would cost more than the overlap.
-  double _opticalConfigGutter() {
-    const gap = SkotiqTokens.spaceMd;
-    final reserved = widget.framingState.showOpticalConfigPanel
-        ? 260.0 + gap
-        : SkotiqTokens.minTouchTarget + gap;
-    final width = _canvasSize.width;
-    // Pre-layout (first frame) assume there is room; the next frame corrects it.
-    if (width <= 0) return reserved;
-    return (width - reserved) >= 240 ? reserved : 0;
+  /// The lines under the target's coordinates: the camera frame on the sky
+  /// and the mosaic, or that no camera field is set up.
+  List<String> _frameNotes() {
+    final state = widget.framingState;
+    final equipment = _equipment;
+    if (!_hasEquipment || equipment == null) {
+      return [
+        'Preview ${state.previewFovDegrees.toStringAsFixed(1)}° wide, '
+            'no camera field set up',
+      ];
+    }
+    final rotation = state.rotation.round() % 360;
+    return [
+      'Frame ${equipment.fovWidthDeg.toStringAsFixed(2)}° × '
+          '${equipment.fovHeightDeg.toStringAsFixed(2)}°'
+          '${rotation == 0 ? '' : ', rotated $rotation°'}',
+      if (state.mosaicEnabled && state.mosaicPanels.length > 1)
+        'Mosaic ${state.mosaicConfig.columns} × ${state.mosaicConfig.rows}, '
+            '${state.mosaicPanels.length} panels',
+    ];
   }
 
   Widget _buildCanvas(BuildContext context, FramingPlateScale plateScale) {
@@ -655,79 +647,26 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                   ),
                 ),
 
-              // Top chrome — ONE flow, not three hard-coded offsets.
-              //
-              // The toolbar was `top: 16` with a [Wrap] that flows onto a second
-              // line at narrow widths, while the target card and the
-              // equipment-status card were each pinned at a literal `top: 60`.
-              // Below roughly 1100 px the wrapped second row landed exactly
-              // under those cards, which — being LATER Stack children — painted
-              // over it and swallowed its hits: the "HiPS Tiles" chip was
-              // visible ghosting through the card and could not be clicked at
-              // all. Laying the three out in one Column means the cards always
-              // sit below the toolbar however many lines it takes, at any width.
-              Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      // The optical-config gutter reserves room for the gear
-                      // that floats at the canvas's left edge.
-                      padding: EdgeInsets.only(left: _opticalConfigGutter()),
-                      child: _CanvasControls(
-                        colors: widget.colors,
-                        framingState: widget.framingState,
-                      ),
-                    ),
-                    if (_showTargetInfoOverlay || _showEquipmentHint) ...[
-                      const SizedBox(height: SkotiqTokens.spaceMd),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_showTargetInfoOverlay)
-                            Flexible(
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                // The card reports where the telescope will
-                                // point — the effective aim (the picked
-                                // object's name/catalog id, the dragged
-                                // reticle's coordinates) — not the view center.
-                                child: FramingTargetInfoOverlay(
-                                  colors: widget.colors,
-                                  target:
-                                      widget.framingState.effectiveAimTarget!,
-                                ),
-                              ),
-                            ),
-                          const Spacer(),
-                          if (_showEquipmentHint)
-                            Flexible(
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: _EquipmentHintCard(
-                                  colors: widget.colors,
-                                  previewFovDegrees:
-                                      widget.framingState.previewFovDegrees,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: Consumer(
-                  builder: (context, ref, child) => _ZoomControls(
-                    colors: widget.colors,
+              Positioned.fill(
+                child: FramingCanvasChrome(
+                  target: _showTargetInfoOverlay
+                      ? FramingTargetInfoOverlay(
+                          // Where the telescope will point: the effective
+                          // aim, not the view center.
+                          target: widget.framingState.effectiveAimTarget!,
+                          notes: _frameNotes(),
+                        )
+                      : null,
+                  toolbar: _FramingToolbar(
+                    framingState: widget.framingState,
+                    hasEquipment: _hasEquipment,
+                  ),
+                  status: _FramingStatus(
+                    framingState: widget.framingState,
+                    plateScale: plateScale,
+                    canvasSize: _canvasSize,
+                  ),
+                  zoom: _ZoomControls(
                     zoom: widget.framingState.zoom,
                     onZoomIn: () => ref.read(framingProvider.notifier).zoomIn(),
                     onZoomOut: () =>
@@ -737,61 +676,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                   ),
                 ),
               ),
-
-              Positioned(
-                bottom: 16,
-                left: 16,
-                child: _ScaleIndicator(
-                  colors: widget.colors,
-                  zoom: widget.framingState.zoom,
-                  plateScale: plateScale,
-                  canvasSize: _canvasSize,
-                ),
-              ),
-
-              // The sky behind still frames the target from the installed
-              // catalog, so a missing survey image is a note above the scale
-              // bar, not a box over the frame.
-              if (widget.framingState.imageError case final error?)
-                Positioned(
-                  left: SkotiqTokens.spaceLg,
-                  right: _surveyNoticeRightInset,
-                  bottom: _surveyNoticeBottom,
-                  child: Center(
-                    child: Glass(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            SkotiqIcons.warning,
-                            size: SkotiqTokens.iconSm,
-                            color: widget.colors.warning,
-                          ),
-                          const SizedBox(width: SkotiqTokens.spaceSm),
-                          Flexible(
-                            child: Text(
-                              error,
-                              style: SkotiqTypography.bodySm.copyWith(
-                                color: widget.colors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: SkotiqTokens.spaceSm),
-                          SkotiqButton(
-                            label: 'Retry',
-                            variant: ButtonVariant.ghost,
-                            size: ButtonSize.small,
-                            onPressed: widget.framingState.isLoadingImage
-                                ? null
-                                : () => ref
-                                    .read(framingProvider.notifier)
-                                    .loadSurveyImage(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
