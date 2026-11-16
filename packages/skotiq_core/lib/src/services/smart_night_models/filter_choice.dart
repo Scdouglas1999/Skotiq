@@ -113,7 +113,7 @@ class SmartNightFilterChoice {
   List<String> get wheelFilters => _availableFilters;
 
   /// The Filters picker's line for [recommended]
-  /// ("Recommended: narrowband SHO, M1 is a supernova remnant.").
+  /// ("Recommended: narrowband SHO, {target} is a supernova remnant.").
   String get recommendation {
     final lowered = _label.length > 1 && _label[1] == _label[1].toLowerCase()
         ? '${_label[0].toLowerCase()}${_label.substring(1)}'
