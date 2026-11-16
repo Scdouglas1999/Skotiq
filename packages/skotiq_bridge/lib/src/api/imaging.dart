@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`, `write_rgba`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `thumbnail_generation_gate`, `write_rgba`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -147,7 +147,10 @@ Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .api
     .crateApiImagingApiCameraCancelExposure(deviceId: deviceId);
 
-/// Read a FITS file from disk
+/// A frame file decoded for the screen at full resolution: its pixels through
+/// the app's display stretch, with its histogram, statistics and header facts.
+/// The decode runs on the blocking pool, so a 16-megapixel read and stretch
+/// holds no async worker and no Dart isolate.
 Future<FitsReadResult> apiReadFitsFile({required String filePath}) =>
     RustLib.instance.api.crateApiImagingApiReadFitsFile(filePath: filePath);
 
@@ -188,7 +191,7 @@ Future<QualityMapsResultApi> apiComputeFitsQualityMaps({
   highClipAdu: highClipAdu,
 );
 
-/// Detect stars in a FITS file
+/// Detect stars in a frame file, on the blocking pool.
 Future<StarDetectionResultApi> apiDetectStarsInFile({
   required String filePath,
   StarDetectionConfigApi? config,
@@ -383,8 +386,10 @@ Future<Uint8List> apiGenerateFitsThumbnail({
 /// skips that correction.
 ///
 /// A frame keeps the light's sample format: a float light gives a float
-/// frame, any other a 16-bit one. Either carries the calibration pedestal,
-/// stated in its `PEDESTAL` card.
+/// frame, any other a 16-bit one. Either carries the frame's automatic output
+/// pedestal (PixInsight's WBPP default for lights), stated in a `PEDESTAL`
+/// card when there is one. A raster has no header to state it, so it gets the
+/// zero-based samples.
 Future<void> apiCalibrateImageFile({
   required String lightPath,
   String? darkPath,
@@ -400,9 +405,8 @@ Future<void> apiCalibrateImageFile({
 );
 
 /// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`]. Every
-/// returned sample carries the calibration pedestal.
-Future<Uint16List> apiCalibrateImageData({
+/// given paths, by the same rule as [`api_calibrate_image_file`].
+Future<ApiCalibratedFrame> apiCalibrateImageData({
   required int width,
   required int height,
   required List<int> lightData,
@@ -417,6 +421,26 @@ Future<Uint16List> apiCalibrateImageData({
   flatPath: flatPath,
   biasPath: biasPath,
 );
+
+/// A light calibrated in memory: its 16-bit samples and the output pedestal,
+/// in ADU, they carry (0 for none).
+class ApiCalibratedFrame {
+  final Uint16List data;
+  final double pedestal;
+
+  const ApiCalibratedFrame({required this.data, required this.pedestal});
+
+  @override
+  int get hashCode => data.hashCode ^ pedestal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiCalibratedFrame &&
+          runtimeType == other.runtimeType &&
+          data == other.data &&
+          pedestal == other.pedestal;
+}
 
 /// Autofocus configuration for API
 class AutofocusConfigApi {

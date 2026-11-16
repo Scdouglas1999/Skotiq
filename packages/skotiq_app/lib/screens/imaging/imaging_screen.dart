@@ -27,6 +27,7 @@ import 'widgets/imaging_side_panel.dart';
 import 'widgets/imaging_status_strip.dart';
 import 'widgets/live_preview_area.dart';
 import 'widgets/meridian_flip_countdown_banner.dart';
+import 'widgets/uncalibrated_frames_banner.dart';
 import '../../widgets/image_preview/preview_display_scale.dart'
     show previewFitScaleProvider;
 import 'widgets/stacking_panel.dart';
@@ -218,6 +219,10 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
             // in the viewer toolbar; with nothing urgent this is zero height
             // and never pushes the canvas down.
             const MeridianFlipCountdownBanner(),
+
+            // Captured lights that auto-calibration keeps uncalibrated, and
+            // why; zero height while calibration works.
+            const UncalibratedFramesBanner(),
 
             Expanded(
               child: switch (_tab) {

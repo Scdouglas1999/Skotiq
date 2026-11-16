@@ -84,11 +84,13 @@ class LiveStackingService {
 
   /// Start live stacking from raw pixel data in memory.
   ///
-  /// Used when the reference frame is already captured and available as u16 data.
+  /// Used when the reference frame is already captured and available as u16
+  /// data carrying [pedestal] ADU (0 for none), which the stacker takes out.
   Future<LiveStackingStats> startFromData({
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
     _logger.info(
@@ -110,6 +112,7 @@ class LiveStackingService {
       width: width,
       height: height,
       data: data,
+      pedestal: pedestal,
       config: config.toBridge(),
     );
 
@@ -140,11 +143,12 @@ class LiveStackingService {
     });
   }
 
-  /// Add a frame to the stack from raw pixel data.
+  /// Add a frame to the stack from raw pixel data carrying [pedestal] ADU.
   Future<LiveStackingResult> addFrameFromData({
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
   }) async {
     if (_remote != null) {
       throw StateError(
@@ -157,6 +161,7 @@ class LiveStackingService {
         width: width,
         height: height,
         data: data,
+        pedestal: pedestal,
       );
       return LiveStackingResult.fromBridge(result);
     });

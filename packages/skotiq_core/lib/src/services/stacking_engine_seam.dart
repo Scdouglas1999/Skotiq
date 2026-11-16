@@ -81,11 +81,12 @@ abstract class StackingEngineSeam {
   });
 
   /// Start the stack from already-calibrated in-memory u16 pixels (the
-  /// calibration-on path).
+  /// calibration-on path) that carry [pedestal] ADU.
   Future<LiveStackingStats> startFromData({
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   });
 
@@ -156,12 +157,14 @@ class BridgeStackingEngineSeam implements StackingEngineSeam {
     required int width,
     required int height,
     required List<int> data,
+    required double pedestal,
     required LiveStackingConfig config,
   }) async {
     final stats = await bridge.apiStackingStartFromData(
       width: width,
       height: height,
       data: data,
+      pedestal: pedestal,
       config: config.toBridge(),
     );
     return LiveStackingStats.fromBridge(stats);

@@ -6151,6 +6151,7 @@ fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
     width: impl CstDecode<u32>,
     height: impl CstDecode<u32>,
     data: impl CstDecode<Vec<u16>>,
+    pedestal: impl CstDecode<f64>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6162,10 +6163,14 @@ fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
             let api_width = width.cst_decode();
             let api_height = height.cst_decode();
             let api_data = data.cst_decode();
+            let api_pedestal = pedestal.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_add_frame_from_data(
-                        api_width, api_height, api_data,
+                        api_width,
+                        api_height,
+                        api_data,
+                        api_pedestal,
                     )?;
                     Ok(output_ok)
                 })())
@@ -6321,6 +6326,7 @@ fn wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
     width: impl CstDecode<u32>,
     height: impl CstDecode<u32>,
     data: impl CstDecode<Vec<u16>>,
+    pedestal: impl CstDecode<f64>,
     config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6333,11 +6339,16 @@ fn wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
             let api_width = width.cst_decode();
             let api_height = height.cst_decode();
             let api_data = data.cst_decode();
+            let api_pedestal = pedestal.cst_decode();
             let api_config = config.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_start_from_data(
-                        api_width, api_height, api_data, api_config,
+                        api_width,
+                        api_height,
+                        api_data,
+                        api_pedestal,
+                        api_config,
                     )?;
                     Ok(output_ok)
                 })())
@@ -7588,6 +7599,18 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
             bin_x: var_binX,
             bin_y: var_binY,
             ccd_temp_c: var_ccdTempC,
+        };
+    }
+}
+
+impl SseDecode for crate::api::imaging::ApiCalibratedFrame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_data = <Vec<u16>>::sse_decode(deserializer);
+        let mut var_pedestal = <f64>::sse_decode(deserializer);
+        return crate::api::imaging::ApiCalibratedFrame {
+            data: var_data,
+            pedestal: var_pedestal,
         };
     }
 }
@@ -12895,6 +12918,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiAcquisitionSett
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiCalibratedFrame {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.data.into_into_dart().into_dart(),
+            self.pedestal.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::imaging::ApiCalibratedFrame
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiCalibratedFrame>
+    for crate::api::imaging::ApiCalibratedFrame
+{
+    fn into_into_dart(self) -> crate::api::imaging::ApiCalibratedFrame {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::defect_map::ApiDefectMapStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -17597,6 +17641,14 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
     }
 }
 
+impl SseEncode for crate::api::imaging::ApiCalibratedFrame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<u16>>::sse_encode(self.data, serializer);
+        <f64>::sse_encode(self.pedestal, serializer);
+    }
+}
+
 impl SseEncode for crate::api::defect_map::ApiDefectMapStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21730,6 +21782,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::imaging::ApiCalibratedFrame> for wire_cst_api_calibrated_frame {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::imaging::ApiCalibratedFrame {
+            crate::api::imaging::ApiCalibratedFrame {
+                data: self.data.cst_decode(),
+                pedestal: self.pedestal.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::defect_map::ApiDefectMapStatus> for wire_cst_api_defect_map_status {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::defect_map::ApiDefectMapStatus {
@@ -25434,6 +25495,19 @@ mod io {
         }
     }
     impl Default for wire_cst_api_acquisition_settings {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_calibrated_frame {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                data: core::ptr::null_mut(),
+                pedestal: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_calibrated_frame {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -29885,9 +29959,10 @@ mod io {
         width: u32,
         height: u32,
         data: *mut wire_cst_list_prim_u_16_loose,
+        pedestal: f64,
     ) {
         wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
-            port_, width, height, data,
+            port_, width, height, data, pedestal,
         )
     }
 
@@ -29951,10 +30026,11 @@ mod io {
         width: u32,
         height: u32,
         data: *mut wire_cst_list_prim_u_16_loose,
+        pedestal: f64,
         config: *mut wire_cst_api_live_stacking_config,
     ) {
         wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
-            port_, width, height, data, config,
+            port_, width, height, data, pedestal, config,
         )
     }
 
@@ -31143,6 +31219,12 @@ mod io {
         bin_x: i32,
         bin_y: i32,
         ccd_temp_c: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_calibrated_frame {
+        data: *mut wire_cst_list_prim_u_16_strict,
+        pedestal: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

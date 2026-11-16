@@ -28,7 +28,8 @@
 
 use crate::post_session::report::{report, PassReport};
 
-pub use light_calibration::{CalibratedLight, LightCalibration, CALIBRATION_PEDESTAL};
+pub(crate) use light_calibration::FLOAT_CALIBRATION_HISTORY;
+pub use light_calibration::{CalibratedLight, LightCalibration};
 
 pub(crate) mod args;
 mod calibration_master;

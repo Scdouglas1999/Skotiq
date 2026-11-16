@@ -6,26 +6,29 @@
 //! As PixInsight's ImageCalibration: in 32-bit float, the bias leaves the
 //! light, the dark's thermal signal leaves it scaled to the light's exposure,
 //! and the light is divided by the flat normalized to unit mean, then
-//! cosmetic correction when asked. Nothing is clipped: every sample carries
-//! [`CALIBRATION_PEDESTAL`] so sky that noise pulls below the bias keeps its
-//! value through a 16-bit copy. Which masters calibrate a light is chosen
-//! before this (the Dart calibration selection); this rule applies them.
+//! cosmetic correction when asked. The float result is zero-based and never
+//! clipped. A copy that cannot hold negative samples (the 16-bit copy, a
+//! written frame) carries the frame's automatic output pedestal, WBPP's
+//! default for lights. Which masters calibrate a light is chosen before this
+//! (the Dart calibration selection); this rule applies them.
 
 use crate::post_session::args::CalibrationArgs;
 use crate::post_session::calibration_report::DARK_MAX_EXPOSURE_FRACTION;
 use crate::post_session::master_cards::fits_header_of;
 use crate::post_session::masters::flat_pedestal_state;
-use skotiq_imaging::calibration::{calibrate_frame_f32, FlatPedestal, FloatCalibration};
+use skotiq_imaging::calibration::{
+    automatic_pedestal, calibrate_frame_f32, FlatPedestal, FloatCalibration,
+};
 use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::{read_image, FitsHeader, ImageData};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-/// Constant added to every calibrated sample, in ADU. A master built from
-/// calibrated lights has it removed again; a single calibrated frame states
-/// it in its `PEDESTAL` card.
-pub const CALIBRATION_PEDESTAL: f32 = 100.0;
+/// The HISTORY line of a master integrated from the zero-based float lights
+/// this rule gives: no pedestal reaches it.
+pub(crate) const FLOAT_CALIBRATION_HISTORY: &str =
+    "Lights calibrated in 32-bit float; no pedestal in this master";
 
 /// A master flat and whether its bias pedestal is already removed.
 pub(crate) struct FlatMaster {
@@ -49,12 +52,30 @@ pub struct LightCalibration {
 /// A light calibrated in floating point, and the 16-bit copy star detection
 /// and registration run on.
 pub struct CalibratedLight {
-    /// `F32`, every sample carrying [`CALIBRATION_PEDESTAL`].
+    /// `F32` and zero-based: sky that noise pulls below the dark is negative.
     pub image: ImageData,
-    /// The samples rounded into 16 bits, pedestal included.
+    /// The automatic output pedestal in ADU, 0 when the frame needs none.
+    /// It is in [`Self::sixteen_bit`] and [`Self::with_pedestal`], never in
+    /// [`Self::image`].
+    pub pedestal: f32,
+    /// The samples plus the pedestal, rounded into 16 bits.
     pub sixteen_bit: ImageData,
     /// The multiplier applied to the dark's thermal signal.
     pub dark_scale: f64,
+}
+
+impl CalibratedLight {
+    /// The `F32` frame a file carries: every sample plus the pedestal, which
+    /// its `PEDESTAL` card states.
+    pub fn with_pedestal(&self) -> ImageData {
+        let image = &self.image;
+        let data: Vec<f32> = image
+            .samples_f64()
+            .iter()
+            .map(|v| (v + f64::from(self.pedestal)) as f32)
+            .collect();
+        ImageData::from_f32(image.width, image.height, image.channels, &data)
+    }
 }
 
 impl LightCalibration {
@@ -124,7 +145,6 @@ impl LightCalibration {
                 .flat
                 .as_deref()
                 .map_or(FlatPedestal::Removed, |f| f.pedestal),
-            output_pedestal: CALIBRATION_PEDESTAL,
         };
         let mut image =
             calibrate_frame_f32(light, &cal).map_err(|e| format!("calibration failed: {e}"))?;
@@ -132,9 +152,11 @@ impl LightCalibration {
             cosmetic_correct_transient(&mut image, CosmeticConfig::default())
                 .map_err(|e| format!("cosmetic correction failed: {e}"))?;
         }
-        let sixteen_bit = sixteen_bit_copy(&image);
+        let pedestal = automatic_pedestal(&image.samples_f64()) as f32;
+        let sixteen_bit = sixteen_bit_copy(&image, pedestal);
         Ok(CalibratedLight {
             image,
+            pedestal,
             sixteen_bit,
             dark_scale,
         })
@@ -171,14 +193,15 @@ pub(crate) fn light_exposure(stated: Option<f64>, header: &FitsHeader) -> Option
         .or_else(|| header.get_float("EXPTIME"))
 }
 
-/// The calibrated samples rounded into 16 bits.
-fn sixteen_bit_copy(image: &ImageData) -> ImageData {
+/// The calibrated samples plus `pedestal`, rounded into 16 bits.
+fn sixteen_bit_copy(image: &ImageData, pedestal: f32) -> ImageData {
+    let pedestal = f64::from(pedestal);
     let data: Vec<u16> = image
         .samples_f64()
         .iter()
         .map(|v| {
             if v.is_finite() {
-                v.round().clamp(0.0, 65535.0) as u16
+                (v + pedestal).round().clamp(0.0, 65535.0) as u16
             } else {
                 0
             }
