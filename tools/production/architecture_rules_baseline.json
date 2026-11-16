@@ -58,14 +58,7 @@
   },
   "srcImport": {
     "note": "Existing imports of another package's src/ files. Fix by importing the public library (export the name there if needed), then run --sync-baseline.",
-    "allowed": {
-      "skotiq_app -> package:skotiq_core/src/backend/skotiq_exception.dart": 1,
-      "skotiq_app -> package:skotiq_plugins/src/plugin_host.dart": 1,
-      "skotiq_app -> package:skotiq_plugins/src/plugin_registration.dart": 5,
-      "skotiq_core -> package:skotiq_plugins/src/plugin_host.dart": 1,
-      "skotiq_core -> package:skotiq_plugins/src/plugin_registration.dart": 2,
-      "skotiq_core -> package:skotiq_remote_protocol/src/push/lan_push_broadcaster.dart": 1
-    }
+    "allowed": {}
   },
   "coreLayers": {
     "allowed": {
