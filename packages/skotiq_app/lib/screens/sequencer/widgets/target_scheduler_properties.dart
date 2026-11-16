@@ -732,7 +732,7 @@ class _LiveRankingPreview extends ConsumerStatefulWidget {
 }
 
 class _LiveRankingPreviewState extends ConsumerState<_LiveRankingPreview> {
-  Object? _inputs;
+  int? _inputs;
   Future<List<SchedulerTargetScore>>? _ranking;
 
   @override
@@ -761,13 +761,22 @@ class _LiveRankingPreviewState extends ConsumerState<_LiveRankingPreview> {
     final tick = ref.watch(tickerProvider(TickerCadence.thirtySeconds));
     final now = (tick.valueOrNull ?? DateTime.now()).toUtc();
     final ownHorizon = node.horizonProfile;
-    final floor = ownHorizon == null
-        ? ref.watch(altitudeFloorProvider).asSamples()
-        : _samplesOf(ownHorizon);
+    final siteFloor = ref.watch(altitudeFloorProvider);
     final scorer = ref.watch(targetScorerProvider);
-    final inputs = (node, children, now, location, floor, scorer);
+    // Ranked again only when something it is ranked from changed.
+    final inputs = Object.hashAll([
+      node,
+      ...children,
+      now,
+      location.latitude,
+      location.longitude,
+      ownHorizon ?? siteFloor,
+      scorer,
+    ]);
     if (_inputs != inputs) {
       _inputs = inputs;
+      final floor =
+          ownHorizon == null ? siteFloor.asSamples() : _samplesOf(ownHorizon);
       _ranking = scorer.rankSchedulerTargets(
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,

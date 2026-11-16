@@ -70,8 +70,8 @@ class TargetSuggestionService {
       'Generating suggestions for ${targets.length} targets at lat=$latitude, lon=$longitude',
       source: _source,
     );
-    final scorer = _TonightSuggestionScorer();
-    final suggestions = await scorer.score(
+    final tonight = _TonightSuggestionScorer();
+    final suggestions = await tonight.score(
       scorer: _scorer,
       config: config,
       latitude: latitude,
@@ -82,16 +82,15 @@ class TargetSuggestionService {
       opticalConfig: opticalConfig,
       floor: floor,
     );
-    final result = (suggestions: suggestions, warnings: scorer.warnings);
-    for (final warning in result.warnings) {
+    for (final warning in tonight.warnings) {
       _logging.warning(warning, source: _source);
     }
     _logging.info(
-      'Generated ${result.suggestions.length} suggestions from ${targets.length} '
+      'Generated ${suggestions.length} suggestions from ${targets.length} '
       'targets in ${elapsed.elapsedMilliseconds}ms',
       source: _source,
     );
-    return result.suggestions;
+    return suggestions;
   }
 }
 
