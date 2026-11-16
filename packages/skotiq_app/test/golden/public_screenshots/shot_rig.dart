@@ -617,7 +617,7 @@ class _NightEvents extends EventHistoryNotifier {
         );
     add(
       _tonight.start,
-      sk.SequencerEvent.started(sequenceName: ShotNight.sequenceName),
+      const sk.SequencerEvent.started(sequenceName: ShotNight.sequenceName),
     );
     final steps = <(String, DateTime, DateTime?)>[
       for (final slot in _tonight.slots)
