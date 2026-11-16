@@ -4,11 +4,13 @@ library;
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/shell/shell_chrome.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show CelestialCoordinate;
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show SkyViewNotifier, skyViewStateProvider;
 
@@ -67,12 +69,19 @@ final shots = <Shot>[
     description: 'Tonight with the Guide tab open.',
     overrides: tonightOverrides(tab: NightPanelTab.guide),
   ),
-  const Shot(
+  Shot(
     fileName: 'plan-best-tonight.png',
     location: '/planner?tab=recommendation',
-    description: 'Plan > Best tonight: the OpenNGC catalog ranked for this '
-        'site and rig tonight, with the top pick\'s altitude curve.',
-    loadTime: Duration(seconds: 8),
+    description: 'Plan > Best tonight narrowed to nebulae: the OpenNGC '
+        'catalog ranked for this site and rig tonight, with the Bubble Nebula '
+        'picked: its altitude curve and the narrowband set the app suggests.',
+    loadTime: const Duration(seconds: 8),
+    overrides: [
+      suggestionFilterProvider.overrideWith(
+        (ref) => const SuggestionFilterState(selectedObjectTypes: {'nebula'}),
+      ),
+    ],
+    prepare: pickRow('Bubble Nebula'),
   ),
   const Shot(
     fileName: 'plan-targets.png',
@@ -105,8 +114,8 @@ final shots = <Shot>[
   const Shot(
     fileName: 'sequencer.png',
     location: '/sequencer?tab=builder',
-    description: 'Sequencer > Builder with the three-target LRGB plan '
-        'running on M31.',
+    description: 'Sequencer > Builder with the three-target plan (the '
+        'galaxies in LRGB, M1 in SHO) running on M31.',
   ),
   const Shot(
     fileName: 'imaging.png',
@@ -153,9 +162,9 @@ final shots = <Shot>[
   const Shot(
     fileName: 'darkroom.png',
     location: '/darkroom',
-    description: 'Darkroom > Targets: the L, R, G and B masters built this '
-        'morning for the run\'s three targets.',
-    loadTime: Duration(seconds: 6),
+    description: 'Darkroom > Targets: the masters built this morning for '
+        'the run\'s three targets (LRGB for the galaxies, SHO for M1).',
+    loadTime: Duration(seconds: 16),
   ),
   Shot(
     fileName: 'flat-wizard.png',
@@ -181,6 +190,11 @@ final shots = <Shot>[
     pixelRatio: 3,
   ),
 ];
+
+/// Clicks the row named [name], as the user picks it from a list.
+Future<void> Function(WidgetTester tester, ProviderContainer container) pickRow(
+        String name) =>
+    (tester, _) => tester.tap(find.text(name).first);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

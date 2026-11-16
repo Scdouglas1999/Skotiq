@@ -118,7 +118,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       decDegrees: target.decDegrees,
       latitudeDeg: lat,
       longitudeDeg: lon,
-      time: DateTime.now(),
+      time: ref.read(clockProvider).instant,
     );
   }
 
