@@ -25,7 +25,8 @@ import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/scheduler_engine.dart';
 import '../services/scheduler/scheduler_log.dart' show schedulerLogSinkFor;
 import '../services/scheduler/target_constraint_service.dart';
-import '../services/smart_night_models.dart' show smartNightPlanningFilters;
+import '../services/smart_night_models.dart'
+    show smartNightPlanningFilters, smartNightRotatesFilters;
 import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
 import 'backend_provider.dart';
