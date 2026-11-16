@@ -10,6 +10,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 
 /// The tab names this build renders, as `PlannerTab` + the English labels in
@@ -61,10 +62,12 @@ void main() {
 
     final offenders = <String>[];
     for (final entity in dir.listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // `/` between the parts on every host.
+      final path = p.posix.joinAll(p.split(entity.path));
+      if (entity is! File || !path.endsWith('.dart')) continue;
       // The goal and constraint editors are dialogs with one fixed column,
       // and their "above" and "below" compare quantities.
-      if (entity.path.contains('/planner/editors/')) continue;
+      if (path.contains('/planner/editors/')) continue;
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
@@ -78,7 +81,7 @@ void main() {
               _renderedTabLabels.contains(trimmed)) {
             continue;
           }
-          offenders.add('${entity.path}:${i + 1}: "$name tab"');
+          offenders.add('$path:${i + 1}: "$name tab"');
         }
       }
     }
@@ -110,10 +113,12 @@ void main() {
 
     final offenders = <String>[];
     for (final entity in dir.listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // `/` between the parts on every host.
+      final path = p.posix.joinAll(p.split(entity.path));
+      if (entity is! File || !path.endsWith('.dart')) continue;
       // The goal and constraint editors are dialogs with one fixed column,
       // and their "above" and "below" compare quantities.
-      if (entity.path.contains('/planner/editors/')) continue;
+      if (path.contains('/planner/editors/')) continue;
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
@@ -134,7 +139,7 @@ void main() {
           if (RegExp(r'^\s*the\s+(?:horizon|meridian)').hasMatch(restText)) {
             continue;
           }
-          offenders.add('${entity.path}:${i + 1}: "${match.group(0)}"');
+          offenders.add('$path:${i + 1}: "${match.group(0)}"');
         }
       }
     }

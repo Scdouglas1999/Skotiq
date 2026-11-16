@@ -7,6 +7,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -230,7 +231,12 @@ void main() {
       'with no image folder chosen, an accumulating master goes to its '
       'target\'s masters folder in the documents folder', () async {
     final sidecar = await accumulatingSidecar();
-    expect(sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters/'));
+    expect(
+      p.isWithin(
+          p.join(dataDir().path, 'documents', 'Skotiq', 'Masters'), sidecar),
+      isTrue,
+      reason: sidecar,
+    );
   });
 
   test(
@@ -244,8 +250,8 @@ void main() {
     final locations = await container.read(outputLocationsProvider.future);
     final folder =
         await locations.mastersOf(state().targetName ?? state().title);
-    expect(sidecar, startsWith('${folder.path}/'));
-    expect(sidecar, startsWith('$images/Masters/'));
+    expect(p.isWithin(folder.path, sidecar), isTrue, reason: sidecar);
+    expect(p.isWithin(p.join(images, 'Masters'), sidecar), isTrue);
   });
 
   /// A master over this night's subs as the Darkroom's build registers it: a

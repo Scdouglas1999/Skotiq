@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/widgets/accessible_dropdown.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/secondary_rig_card.dart';
 import 'package:skotiq_app/screens/settings/widgets/element_refresh_card.dart';
@@ -379,14 +380,16 @@ void main() {
     final raw = RegExp(r'\bDropdownButton(FormField)?\s*<');
     final offenders = <String>[];
     for (final entity in screens.listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      if (rawDropdownsCarriedIn.any(entity.path.endsWith)) continue;
+      // `/` between the parts on every host, as the list above names them.
+      final path = p.posix.joinAll(p.split(entity.path));
+      if (entity is! File || !path.endsWith('.dart')) continue;
+      if (rawDropdownsCarriedIn.any(path.endsWith)) continue;
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         final code = line.split('//').first;
         if (raw.hasMatch(code)) {
-          offenders.add('${entity.path}:${i + 1}');
+          offenders.add('$path:${i + 1}');
         }
       }
     }

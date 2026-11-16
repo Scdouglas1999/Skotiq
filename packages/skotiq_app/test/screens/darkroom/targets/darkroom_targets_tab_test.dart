@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
@@ -515,7 +516,7 @@ void main() {
     await _settle(tester);
 
     expect(h.jobs.accepted, hasLength(1));
-    expect(h.jobs.accepted.single!.path, '/data/Masters/NGC_891');
+    expect(h.jobs.accepted.single!.path, p.join('/data', 'Masters', 'NGC_891'));
     expect(h.location, '/darkroom?tab=targets&target=NGC+891');
   });
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
@@ -29,17 +31,21 @@ SkotiqEvent _guideStep(DateTime at, Map<String, dynamic> data) => SkotiqEvent(
       data: data,
     );
 
+/// The image folder of these tests; the Darkroom keeps its pass records in it.
+final String _imageOutput =
+    Directory.systemTemp.createTempSync('skotiq-session-images-').path;
+
 /// A site near Boston, for the dawn rule.
-const AppSettingsState _boston = AppSettingsState(
+final AppSettingsState _boston = AppSettingsState(
   latitude: 42.36,
   longitude: -71.06,
-  imageOutputPath: '/data',
+  imageOutputPath: _imageOutput,
 );
 
 /// The rig of the Ready board: camera, mount and PHD2 connected, PHD2 idle,
 /// no weather device, no forecast, solver installed, plenty of disk.
 List<Override> _readyRig({
-  AppSettingsState settings = _boston,
+  AppSettingsState? settings,
   Phd2State phd2 = Phd2State.stopped,
 }) =>
     <Override>[
@@ -91,7 +97,8 @@ List<Override> _readyRig({
             ),
         ]),
       ),
-      appSettingsProvider.overrideWith(() => FixedSettings(settings)),
+      appSettingsProvider
+          .overrideWith(() => FixedSettings(settings ?? _boston)),
       nightSolverStatusProvider.overrideWithValue(
         const NightSolverStatus(ready: true, name: 'ASTAP'),
       ),
@@ -460,7 +467,7 @@ void main() {
     test('no site: no dawn rule, and the site row asks for one', () async {
       final h = await sessionHarness(
         overrides: _readyRig(
-          settings: const AppSettingsState(imageOutputPath: '/data'),
+          settings: AppSettingsState(imageOutputPath: _imageOutput),
         ),
       );
       final items = await _checklist(h);
@@ -474,10 +481,10 @@ void main() {
     test('park before dawn off is stated, not hidden', () async {
       final h = await sessionHarness(
         overrides: _readyRig(
-          settings: const AppSettingsState(
+          settings: AppSettingsState(
             latitude: 42.36,
             longitude: -71.06,
-            imageOutputPath: '/data',
+            imageOutputPath: _imageOutput,
             parkBeforeDawn: false,
           ),
         ),

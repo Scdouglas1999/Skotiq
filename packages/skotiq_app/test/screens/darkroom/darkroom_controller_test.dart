@@ -23,6 +23,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
+import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
 
@@ -312,7 +313,7 @@ DawnPhotometryResolver _emptyPhotometry() {
   );
 }
 
-const String _masterPath = '/tmp/skotiq-test/m31_L.fits';
+final String _masterPath = '$darkroomScratch/m31_L.fits';
 
 Map<String, dynamic> _step(
   String opId, {
@@ -1288,9 +1289,9 @@ void main() {
     final controller = container.read(
       darkroomControllerProvider(scope).notifier,
     );
-    darkroom.previewError = const DarkroomSeamException(
+    darkroom.previewError = DarkroomSeamException(
       'renderPreview',
-      "cannot read '/tmp/skotiq-test/m31_L.fits': No such file or directory",
+      "cannot read '$darkroomScratch/m31_L.fits': No such file or directory",
       'io',
     );
     await controller.refreshRender();
