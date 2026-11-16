@@ -1,11 +1,12 @@
-//! Target scoring math — Rust port of `target_scoring.dart`.
+//! How good a target is to image now: the five-axis score the TargetScheduler
+//! step ranks its targets by, and the hard gates that make a target
+//! unrunnable (completed, outside its time window, below its floor, behind
+//! the horizon, too near a bright Moon).
 //!
-//! Each `_score*` helper from the Dart implementation is reproduced verbatim
-//! (same break-points, same magic numbers, same fallthroughs). The result is
-//! that `scoreTarget` in Dart and `score_target` here produce the same
-//! `totalScore` for the same inputs, modulo IEEE-754 rounding. The parity
-//! test in `tests` pins a fixed observer / target / moon / time tuple to that
-//! contract.
+//! This is the app's one target scorer. The step's preview in the sequence
+//! editor asks for the same ranking through the bridge, and the night form in
+//! [`super::night_scoring`] reads the same axes over a whole night for the
+//! planner.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -14,8 +15,7 @@ use crate::scheduling::astronomy::{
     airmass, angular_separation, calculate_object_visibility, object_alt_az, ObjectVisibility,
 };
 
-/// Weights — one knob per scoring axis. Defaults match `target_scoring.dart`'s
-/// `const ScoringWeights()`.
+/// One weight per scoring axis.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct ScoringWeights {
     pub altitude_weight: f64,
@@ -26,8 +26,7 @@ pub struct ScoringWeights {
     /// Optional HARD moon-avoidance gate (companion to the soft
     /// `moon_distance_weight` score): when set, a target within this many
     /// degrees of an up, sufficiently-illuminated moon is marked
-    /// `runnable=false` regardless of its score. `None` = no hard gate (the
-    /// pre-existing behaviour). Matches NINA/Ekos moon-avoidance.
+    /// `runnable=false` regardless of its score. `None` = no hard gate.
     #[serde(default)]
     pub min_moon_separation_deg: Option<f64>,
 }
@@ -46,8 +45,7 @@ impl Default for ScoringWeights {
 }
 
 impl ScoringWeights {
-    /// Sum of all weights. Used to normalise the weighted score the same way
-    /// the Dart implementation does.
+    /// Sum of all weights.
     pub fn sum(&self) -> f64 {
         self.altitude_weight
             + self.moon_distance_weight
@@ -55,10 +53,26 @@ impl ScoringWeights {
             + self.darkness_weight
             + self.airmass_weight
     }
+
+    /// The weighted mean of five 0..=100 axis scores, in field order.
+    pub fn weighted_mean(
+        &self,
+        altitude: f64,
+        moon_distance: f64,
+        transit_proximity: f64,
+        darkness: f64,
+        airmass: f64,
+    ) -> f64 {
+        (altitude * self.altitude_weight
+            + moon_distance * self.moon_distance_weight
+            + transit_proximity * self.transit_proximity_weight
+            + darkness * self.darkness_weight
+            + airmass * self.airmass_weight)
+            / self.sum().max(f64::EPSILON)
+    }
 }
 
-/// Input target description for scoring. RA in degrees (consistent with the
-/// Dart `coord.raDegrees`).
+/// A target to score. RA in degrees.
 #[derive(Debug, Clone)]
 pub struct TargetInput {
     pub id: String,
@@ -89,33 +103,47 @@ pub struct ObserverContext {
     pub latitude_deg: f64,
     pub longitude_deg: f64,
     pub now: DateTime<Utc>,
-    /// Optional moon position (`(ra_deg, dec_deg)`). When `None`, moon-distance
-    /// scoring assumes the worst-case 180° separation (i.e. moon-distance
-    /// score is its safest "moon is far" value), matching the Dart fallback
-    /// (`moonDist = 180`).
+    /// Moon position (`(ra_deg, dec_deg)`); `None` scores every target as
+    /// 180° from it.
     pub moon: Option<(f64, f64)>,
     /// 0..=100 illumination fraction. Defaults to 0 (new moon).
     pub moon_illumination: f64,
     /// Optional twilight bracket for darkness scoring.
     pub twilight: Option<TwilightBracket>,
-    /// Optional per-azimuth horizon mask describing local obstructions
-    /// (trees, buildings, roof lines). When present, a target whose current
-    /// altitude is below the horizon's min-altitude at the target's current
-    /// azimuth is marked `runnable = false` regardless of its score — the
-    /// Rust mirror of the Dart `HorizonProfile.minAltitudeAt(az)`
-    /// constraint (`services/scheduler/horizon_profile.dart`). `None` keeps
-    /// the pre-existing flat-floor-only behaviour. Matches NINA/SGP/Ekos
-    /// horizon profiles.
+    /// The floor by azimuth (horizon profile). A target below it at its
+    /// current azimuth is `runnable = false` whatever its score; `None` holds
+    /// targets only to their own `min_altitude`.
     pub horizon: Option<HorizonProfile>,
 }
 
+impl ObserverContext {
+    /// The sky over a site at `now` as the TargetScheduler step sees it: the
+    /// Moon and twilight from the scheduler's ephemeris, and `horizon` as the
+    /// floor. The step and its preview both build their observer here.
+    pub fn at_site(
+        latitude_deg: f64,
+        longitude_deg: f64,
+        now: DateTime<Utc>,
+        horizon: Option<HorizonProfile>,
+    ) -> Self {
+        Self {
+            latitude_deg,
+            longitude_deg,
+            now,
+            moon: Some(super::ephemeris::moon_equatorial(&now)),
+            moon_illumination: super::ephemeris::moon_illumination_percent(&now),
+            twilight: Some(super::ephemeris::twilight_bracket(
+                &now,
+                latitude_deg,
+                longitude_deg,
+            )),
+            horizon,
+        }
+    }
+}
+
 /// One azimuth/altitude pair defining a tree, building, or roof outline.
-///
-/// Rust mirror of the Dart `HorizonSample`
-/// (`services/scheduler/horizon_profile.dart`). The JSON shape
-/// (`{"az": .., "alt": ..}`) matches the Dart `toJson`/`fromJson` so a
-/// profile authored on either side round-trips through the sequence
-/// payload unchanged.
+/// Serialized as `{"az": .., "alt": ..}`, the shape the app writes.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct HorizonSample {
     #[serde(rename = "az")]
@@ -135,13 +163,8 @@ impl HorizonSample {
 
 /// A site-horizon profile: the operator's local obstructions encoded as a
 /// series of (azimuth, altitude) samples, interpolated linearly around the
-/// compass (with wrap-around at 360°).
-///
-/// This is the Rust port of the Dart `HorizonProfile.minAltitudeAt`
-/// algorithm. The two implementations MUST agree so a profile authored in
-/// the planner behaves identically when the behavior-tree scheduler
-/// consults it at runtime. `samples` is never empty by construction
-/// (see [`HorizonProfile::new`]); the empty case fails closed.
+/// compass (with wrap-around at 360°). `samples` is never empty by
+/// construction (see [`HorizonProfile::new`]).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HorizonProfile {
     pub samples: Vec<HorizonSample>,
@@ -175,10 +198,9 @@ impl HorizonProfile {
 
     /// Minimum altitude (degrees) at the given azimuth, by linear
     /// interpolation between bracketing samples with wrap-around at 360°.
-    ///
-    /// Mirrors `HorizonProfile.minAltitudeAt` in Dart line-for-line so the
-    /// two stay in lockstep. With a single sample the profile is a flat
-    /// horizon at that altitude.
+    /// With a single sample the profile is a flat horizon at that altitude.
+    /// The app's `AltitudeFloor` answers the same cases
+    /// (`test_fixtures/altitude_floor/cases.json`).
     pub fn min_altitude_at(&self, azimuth_deg: f64) -> f64 {
         // By construction `samples` is non-empty; `flat` / `new` enforce it.
         // Defence in depth: if a hand-edited payload somehow produced an
@@ -247,7 +269,7 @@ pub struct TwilightBracket {
     pub astronomical_dawn: Option<i64>,
 }
 
-/// Per-axis + total score for one target. Mirrors `TargetScore` in Dart.
+/// Per-axis + total score for one target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TargetScore {
     pub target_id: String,
@@ -272,7 +294,7 @@ pub struct TargetScore {
     pub priority: i32,
 }
 
-/// Score one target. Mirrors `TargetScoringService.scoreTarget` in Dart.
+/// Score one target at `observer.now`.
 pub fn score_target(
     target: &TargetInput,
     observer: &ObserverContext,
@@ -312,13 +334,13 @@ pub fn score_target(
     let darkness_score = score_darkness(observer.twilight.as_ref(), observer.now.timestamp());
     let airmass_score = score_airmass(am);
 
-    let denom = weights.sum().max(f64::EPSILON);
-    let total = (alt_score * weights.altitude_weight
-        + moon_score * weights.moon_distance_weight
-        + transit_score * weights.transit_proximity_weight
-        + darkness_score * weights.darkness_weight
-        + airmass_score * weights.airmass_weight)
-        / denom;
+    let total = weights.weighted_mean(
+        alt_score,
+        moon_score,
+        transit_score,
+        darkness_score,
+        airmass_score,
+    );
 
     // Hard runnable filters.
     let now_ts = observer.now.timestamp();
@@ -354,11 +376,8 @@ pub fn score_target(
             }
         }
     }
-    // Per-azimuth horizon mask. A target that clears the flat per-target
-    // floor can still be blocked by a tree or roof at its current
-    // azimuth. Consult the site horizon profile (Rust mirror of the Dart
-    // `HorizonProfile.minAltitudeAt(az)`) and reject when the target sits
-    // below the local obstruction, naming the azimuth in the skip reason.
+    // A target that clears its own floor can still be behind a tree or roof
+    // at its current azimuth.
     if runnable {
         if let Some(horizon) = observer.horizon.as_ref() {
             let horizon_min = horizon.min_altitude_at(az);
@@ -455,9 +474,9 @@ pub fn pick_best(
         .find(|s| s.runnable && s.total_score >= min_score)
 }
 
-// Per-axis scorers — verbatim from `target_scoring.dart`.
+// Per-axis scores, 0..=100. The night form reads the same ones.
 
-fn score_altitude(altitude: f64) -> f64 {
+pub(super) fn score_altitude(altitude: f64) -> f64 {
     if altitude < 0.0 {
         return 0.0;
     }
@@ -473,10 +492,7 @@ fn score_altitude(altitude: f64) -> f64 {
     100.0
 }
 
-fn score_moon_distance(distance: f64, illumination: f64) -> f64 {
-    // Clamped for parity with the Dart twin (`_scoreMoonDistance`), which clamps
-    // before use. An out-of-range illumination would otherwise push
-    // `best_achievable` above 100 or below 0 here but not there.
+pub(super) fn score_moon_distance(distance: f64, illumination: f64) -> f64 {
     let moon_factor = (illumination / 100.0).clamp(0.0, 1.0);
     if illumination < 10.0 {
         // New moon - distance doesn't matter much.
@@ -484,19 +500,8 @@ fn score_moon_distance(distance: f64, illumination: f64) -> f64 {
     }
     let min_good_dist = 30.0 + 70.0 * moon_factor;
 
-    // The best achievable moon score falls as the moon brightens. Returning a
-    // flat 100.0 for "far enough away" meant a FULL moon at 120 deg scored
-    // 100.0 while a NEW moon at the same separation scored 96.7 — the factor
-    // literally rewarded the worse night. Moonlight raises the sky background
-    // over the whole hemisphere, so no separation earns a perfect moon score
-    // under a bright moon.
-    //
-    // This is a line-for-line port of the Dart fix in
-    // `skotiq_astro/lib/src/planning/target_scoring.dart`. The Dart
-    // side was corrected and this twin was not, which silently broke the
-    // cross-language parity contract stated at the top of this file — and it is
-    // the copy that matters most at runtime, because `score_targets` here is
-    // what the in-run target scheduler calls to pick what to image next.
+    // Moonlight raises the sky background over the whole hemisphere, so no
+    // separation earns a perfect moon score under a bright moon.
     let best_achievable = 100.0 - 22.0 * moon_factor;
 
     if distance >= min_good_dist {
@@ -557,7 +562,7 @@ fn score_darkness(twilight: Option<&TwilightBracket>, now_ts: i64) -> f64 {
     10.0
 }
 
-fn score_airmass(airmass: f64) -> f64 {
+pub(super) fn score_airmass(airmass: f64) -> f64 {
     if airmass.is_infinite() {
         return 0.0;
     }
@@ -584,12 +589,8 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
 
-    /// Parity fixture mirroring `target_scoring_test.dart`. The Dart numbers
-    /// below were captured by running the same observer+target inputs through
-    /// `TargetScoringService.scoreTarget` (see
-    /// `packages/skotiq_astro/test/planning/target_scoring_parity_test.dart`).
     #[test]
-    fn altitude_score_breakpoints_match_dart() {
+    fn altitude_score_breakpoints() {
         // 0° → 0
         assert!((score_altitude(0.0) - 0.0).abs() < 1e-9);
         // 7.5° → 15 (linear 0..30 over [0,15))
@@ -604,7 +605,7 @@ mod tests {
     }
 
     #[test]
-    fn airmass_score_breakpoints_match_dart() {
+    fn airmass_score_breakpoints() {
         assert_eq!(score_airmass(f64::INFINITY), 0.0);
         assert_eq!(score_airmass(1.0), 100.0);
         assert_eq!(score_airmass(1.5), 90.0);
@@ -662,7 +663,7 @@ mod tests {
     fn hard_moon_gate_marks_targets_near_an_up_bright_moon_unrunnable() {
         let now = Utc.with_ymd_and_hms(2026, 1, 15, 6, 0, 0).unwrap();
         // Place the moon at M42's position (known to be UP from 40N at this
-        // time, per the parity test below) so the gate's "moon above horizon"
+        // time) so the gate's "moon above horizon"
         // check is satisfied.
         let moon_up = (83.82, -5.39);
         let target = |ra: f64, dec: f64| TargetInput {
@@ -879,80 +880,13 @@ mod tests {
     }
 
     #[test]
-    fn horizon_matches_dart_reference_algorithm() {
-        // Cross-check the Rust port against the Dart `minAltitudeAt`
-        // reference, re-implemented inline here. Random-ish azimuths must
-        // agree to 1e-9 — this is the parity contract with
-        // `services/scheduler/horizon_profile.dart`.
-        let samples = vec![
-            HorizonSample::new(30.0, 15.0),
-            HorizonSample::new(120.0, 45.0),
-            HorizonSample::new(200.0, 10.0),
-            HorizonSample::new(300.0, 25.0),
-        ];
-        let h = HorizonProfile::new(samples.clone()).unwrap();
-        let dart = |az: f64| -> f64 {
-            let wrap = |a: f64| {
-                let mut v = a % 360.0;
-                if v < 0.0 {
-                    v += 360.0;
-                }
-                v
-            };
-            let az = wrap(az);
-            let mut sorted = samples.clone();
-            sorted.sort_by(|a, b| a.azimuth_deg.partial_cmp(&b.azimuth_deg).unwrap());
-            let mut lower = *sorted.last().unwrap();
-            let mut upper = sorted[0];
-            let mut lower_az = wrap(lower.azimuth_deg) - 360.0;
-            let mut upper_az = wrap(upper.azimuth_deg);
-            for i in 0..sorted.len() {
-                let next = sorted[i];
-                let next_az = wrap(next.azimuth_deg);
-                if next_az >= az {
-                    upper = next;
-                    upper_az = next_az;
-                    if i == 0 {
-                        lower = *sorted.last().unwrap();
-                        lower_az = wrap(lower.azimuth_deg) - 360.0;
-                    } else {
-                        lower = sorted[i - 1];
-                        lower_az = wrap(lower.azimuth_deg);
-                    }
-                    break;
-                }
-                lower = next;
-                lower_az = next_az;
-                if i == sorted.len() - 1 {
-                    upper = sorted[0];
-                    upper_az = wrap(sorted[0].azimuth_deg) + 360.0;
-                }
-            }
-            let span = upper_az - lower_az;
-            if span <= 0.0 {
-                return lower.altitude_deg;
-            }
-            let t = (az - lower_az) / span;
-            lower.altitude_deg + t * (upper.altitude_deg - lower.altitude_deg)
-        };
-        for az in [0.0, 15.0, 45.0, 90.0, 121.0, 199.0, 250.0, 305.0, 359.9] {
-            assert!(
-                (h.min_altitude_at(az) - dart(az)).abs() < 1e-9,
-                "az={az}: rust={}, dart={}",
-                h.min_altitude_at(az),
-                dart(az)
-            );
-        }
-    }
-
-    #[test]
     fn horizon_empty_samples_rejected() {
         assert!(HorizonProfile::new(vec![]).is_none());
     }
 
     #[test]
     fn horizon_gate_rejects_target_behind_obstruction() {
-        // M42 from 40N at this instant is up (~40° per the parity test).
+        // M42 from 40N at this instant is up (~40°).
         // Build a horizon that is high (60°) at M42's current azimuth so
         // the target is blocked, and verify the skip reason names the
         // azimuth. Then drop the horizon to a low flat 5° and confirm the
