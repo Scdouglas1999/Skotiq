@@ -77,16 +77,14 @@ impl CameraOps for SimCooledCamera {
             height: 16,
             data: vec![500; 256],
             bits_per_pixel: 16,
-            exposure_secs: request.duration_secs,
-            gain: request.gain,
-            offset: request.offset,
-            temperature: Some(self.sensor_now()),
-            filter: None,
-            timestamp: chrono::Utc::now().timestamp(),
-            sensor_type: Some("Monochrome".to_string()),
-            color_filter: None,
-            camera_file: None,
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: request.duration_secs,
+                gain: request.gain,
+                offset: request.offset,
+                temperature: Some(self.sensor_now()),
+                ..Default::default()
+            },
+            ..Default::default()
         })
     }
     async fn camera_abort_exposure(&self, _id: &str) -> DeviceResult<()> {

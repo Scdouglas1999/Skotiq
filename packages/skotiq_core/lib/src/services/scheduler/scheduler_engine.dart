@@ -17,10 +17,10 @@ import '../../models/scheduler/target_constraint.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/site/altitude_floor.dart';
 import '../../models/site/site_horizon_profile.dart';
-import 'horizon_profile.dart';
+import '../../models/site/horizon_profile.dart';
 import 'rejection_labels.dart';
 import 'scheduler_log.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 part 'scheduler_engine/contracts.dart';
 part 'scheduler_engine/evaluation.dart';
@@ -599,8 +599,32 @@ class SchedulerEngine {
         : pending.isEmpty
         ? const <IntegrationGoalProgress>[]
         : [pending.first];
+    // On a motorized wheel the plan rotates through every filter still
+    // needed, one exposure each in turn, so a night cut short leaves every
+    // filter with frames.
+    final rotation = [
+      for (final progress in goalProgress)
+        if (pending.contains(progress) &&
+            progress.goal.filter.trim().isNotEmpty)
+          progress,
+    ];
 
-    if (rowsToDispatch.isEmpty) {
+    if (!c.isMosaicTarget && c.rotatesFilters && rotation.length > 1) {
+      final expId = uuid.v4();
+      exposureIds.add(expId);
+      nodes[expId] = SmartExposureNode(
+        id: expId,
+        name: 'Smart Exposure: ${rotation.map((p) => p.goal.filter).join('+')}',
+        plans: [
+          for (final row in rotation)
+            FilterPlan(
+              filterName: row.goal.filter,
+              count: row.remainingFrames,
+              durationSecs: row.goal.exposureSeconds,
+            ),
+        ],
+      );
+    } else if (rowsToDispatch.isEmpty) {
       // No goals or all complete; build a one-shot 30s luminance to keep
       // the operator productive. This is rare because the engine rejects
       // candidates with no usable goals, but we handle it defensively.

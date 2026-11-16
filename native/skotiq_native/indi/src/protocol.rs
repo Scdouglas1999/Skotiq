@@ -94,10 +94,14 @@ pub mod names {
     pub const AZ: &str = "AZ";
     pub const DEC: &str = "DEC";
     pub const EQUATORIAL_COORD: &str = "EQUATORIAL_COORD";
+    pub const ELEV: &str = "ELEV";
     pub const EQUATORIAL_EOD_COORD: &str = "EQUATORIAL_EOD_COORD";
+    pub const GEOGRAPHIC_COORD: &str = "GEOGRAPHIC_COORD";
     pub const GO: &str = "GO";
     pub const HOME_POSITION: &str = "HOME_POSITION";
     pub const HORIZONTAL_COORD: &str = "HORIZONTAL_COORD";
+    pub const LAT: &str = "LAT";
+    pub const LONG: &str = "LONG";
     pub const MOTION_EAST: &str = "MOTION_EAST";
     pub const MOTION_NORTH: &str = "MOTION_NORTH";
     pub const MOTION_SOUTH: &str = "MOTION_SOUTH";
@@ -127,6 +131,7 @@ pub mod names {
     pub const TELESCOPE_TRACK_MODE: &str = "TELESCOPE_TRACK_MODE";
     pub const TELESCOPE_TRACK_RATE: &str = "TELESCOPE_TRACK_RATE";
     pub const TELESCOPE_TRACK_STATE: &str = "TELESCOPE_TRACK_STATE";
+    pub const TIME_UTC: &str = "TIME_UTC";
     pub const TIMED_GUIDE_E: &str = "TIMED_GUIDE_E";
     pub const TIMED_GUIDE_N: &str = "TIMED_GUIDE_N";
     pub const TIMED_GUIDE_S: &str = "TIMED_GUIDE_S";
@@ -136,6 +141,8 @@ pub mod names {
     pub const TRACK_ON: &str = "TRACK_ON";
     pub const TRACK_RATE_DE: &str = "TRACK_RATE_DE";
     pub const TRACK_RATE_RA: &str = "TRACK_RATE_RA";
+    /// `TIME_UTC` element; its other element is [`OFFSET`].
+    pub const UTC: &str = "UTC";
 
     // Focuser
     pub const ABS_FOCUS_POSITION: &str = "ABS_FOCUS_POSITION";

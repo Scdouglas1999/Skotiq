@@ -1,5 +1,5 @@
 import 'package:skotiq_astro/format.dart';
-import '../../database/daos/settings_dao.dart';
+import '../../models/focuser_backlash_calibration.dart';
 
 /// Where the backlash figure autofocus will use came from. Ordered best-first:
 /// this is the resolution chain.

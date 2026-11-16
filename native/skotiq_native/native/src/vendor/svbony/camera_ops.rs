@@ -333,19 +333,17 @@ impl CameraDriver for SvbonyCamera {
             1 => 8,
             _ => self.core.sensor_info.bit_depth,
         };
-        Ok(Frame {
-            gain,
-            offset,
-            temperature,
-            ..self.core.frame(
-                roi_dimension("SVBony", "width", width)?,
-                roi_dimension("SVBony", "height", height)?,
-                data,
-                bits_per_pixel,
-                self.core.sensor_info.bayer_pattern,
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            roi_dimension("SVBony", "width", width)?,
+            roi_dimension("SVBony", "height", height)?,
+            data,
+            bits_per_pixel,
+            self.core.sensor_info.bayer_pattern,
+        );
+        image.metadata.gain = Some(gain);
+        image.metadata.offset = Some(offset);
+        image.metadata.temperature = temperature;
+        Ok(image)
     }
 
     async fn set_cooler(

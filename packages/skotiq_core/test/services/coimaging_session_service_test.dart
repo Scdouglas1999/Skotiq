@@ -23,6 +23,7 @@ import 'package:http/testing.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// No horizon set and a 20 degree minimum altitude.
 const _minimum20 = AltitudeFloor(horizon: null, minimumDeg: 20);

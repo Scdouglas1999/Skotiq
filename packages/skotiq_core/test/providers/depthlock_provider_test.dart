@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/roles/depthlock_backend.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/depthlock/depthlock_models.dart';
-import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/providers/depthlock_provider.dart';
 
 /// A [DepthLockBackend] that records what it was asked and answers from a

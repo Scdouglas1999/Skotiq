@@ -43,7 +43,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:skotiq_relay/skotiq_relay.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// One row in the persisted saved-server list.
 ///

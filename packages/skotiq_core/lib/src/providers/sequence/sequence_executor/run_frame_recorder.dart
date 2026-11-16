@@ -11,7 +11,7 @@ import '../../../models/imaging/gain_kind.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
@@ -483,8 +483,16 @@ class RunFrameRecorder {
           eccentricity: eccentricity,
           qualityScore: qualityScore,
           logger: logger,
-          sidecarService: sidecarService,
         );
+        // The row is kept whatever happens to its sidecar: a missing one is
+        // written on the next thumbnail read.
+        if (filePath.isNotEmpty && isAccepted) {
+          sidecarService.scheduleSidecarWrite(
+            imageId: rowId,
+            fitsPath: filePath,
+            imagesDao: dao,
+          );
+        }
         if (science != null && scienceAssessment != null) {
           unawaited(
             _science.queue(

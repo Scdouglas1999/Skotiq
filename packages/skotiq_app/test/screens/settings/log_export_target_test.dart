@@ -14,7 +14,6 @@ import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/log_viewer.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

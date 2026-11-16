@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/alerts/transient_alert.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// An enabled transient-alert source could not provide a trustworthy result.
 class TransientAlertFetchException implements Exception {

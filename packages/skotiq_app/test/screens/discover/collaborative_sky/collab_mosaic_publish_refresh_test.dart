@@ -20,6 +20,7 @@ import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_controller.dar
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 const _published = CollabMosaic(
   mosaicId: 'mos-1',

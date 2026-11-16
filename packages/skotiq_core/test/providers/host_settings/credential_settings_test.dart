@@ -8,8 +8,8 @@ import 'package:skotiq_core/src/models/notification/notification_categories.dart
 import 'package:skotiq_core/src/providers/host_settings/credential_settings.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart'
     show AppSettingsNotifier;
-import 'package:skotiq_core/src/services/sync/sync_service.dart';
 import 'package:skotiq_core/src/settings/setting.dart';
+import 'package:skotiq_core/src/models/sync/sync_models.dart';
 
 void main() {
   test('the settings declared as credentials are credentials', () {

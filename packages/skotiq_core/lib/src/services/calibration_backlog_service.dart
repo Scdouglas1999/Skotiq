@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -22,8 +22,8 @@ import 'dark_library_service.dart';
 import 'darkroom_build_service.dart' show observingNight, flatSetupKey;
 import 'flat_library_service.dart';
 import 'frame_header.dart';
-import 'logging_service.dart';
-import '../models/imaging/frame_gain.dart';
+import '../utils/logging_service.dart';
+import '../database/rows/frame_gain.dart';
 import '../providers/calibration_library_service_providers.dart';
 import '../providers/calibration_master_builder_provider.dart';
 import '../providers/flat_library_service_provider.dart';

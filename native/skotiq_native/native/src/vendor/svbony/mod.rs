@@ -8,7 +8,7 @@
 //! through an `SdkGuard`, which holds the SDK lock for as long as it lives.
 
 use crate::camera_core::{
-    bayer_from_asi_index, roi_dimension, unpack_samples, CameraCore, Frame, SampleLayout,
+    bayer_from_asi_index, roi_dimension, unpack_samples, CameraCore, SampleLayout,
 };
 use crate::utils::calculate_buffer_size_i32;
 use async_trait::async_trait;

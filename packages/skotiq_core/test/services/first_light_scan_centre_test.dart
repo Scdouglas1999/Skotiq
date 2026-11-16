@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as dbm;
+import 'package:skotiq_core/utils.dart';
 
 /// Atlas fold seam that records the frame WCS the fold was dispatched with.
 class _RecordingFoldSeam implements SkyAtlasSeam {

@@ -2,10 +2,10 @@ import 'dart:async';
 
 import '../../../models/sequence/sequence_models.dart';
 import '../../../services/live_stacking_broadcast_service.dart';
-import '../../../services/live_stacking_service.dart' show LiveStackingConfig;
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../live_stacking_provider.dart';
 import '../../../backend/bridge_events.dart' show SequencerEvent_FrameAccepted;
+import '../../../models/imaging/live_stacking_models.dart';
 
 /// Feeds a run's accepted frames to the live stacker and its LAN broadcast.
 ///

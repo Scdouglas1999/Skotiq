@@ -126,16 +126,14 @@ fn fixture(name: &str) -> ImageData {
         height: image.height,
         data: image.as_u16().expect("16-bit frame"),
         bits_per_pixel: 16,
-        exposure_secs: 180.0,
-        gain: Some(139),
-        offset: Some(21),
-        temperature: Some(-10.0),
-        filter: None,
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 180.0,
+            gain: Some(139),
+            offset: Some(21),
+            temperature: Some(-10.0),
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 
@@ -443,7 +441,7 @@ async fn replay(
     });
     sequence.root_node_id = Some("lights".to_string());
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.start().await.expect("run starts");
 
     let messages = Arc::new(Mutex::new(Vec::new()));
@@ -479,6 +477,7 @@ async fn replay(
     let first_light = rig.first_light.as_ref().unwrap_or(&rig.lights[0]);
     let first_light_hfr = shape(first_light).expect("measurable").hfr;
     executor
+        .handle()
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
             ts.latches.baseline_hfr = Some(first_light_hfr);

@@ -1,4 +1,3 @@
-import '../../database/database.dart' show ImagingSession;
 import '../sequence/sequence_run_status.dart';
 
 /// The status of an imaging session, as its `imaging_sessions.status` row
@@ -74,8 +73,3 @@ enum SessionStatus {
   };
 }
 
-/// A session row's status, typed.
-extension ImagingSessionStatus on ImagingSession {
-  /// Null for a value no build writes.
-  SessionStatus? get sessionStatus => SessionStatus.tryParse(status);
-}

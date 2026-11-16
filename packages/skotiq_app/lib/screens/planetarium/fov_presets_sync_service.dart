@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// SharedPreferences key under which the planetarium FOV framing presets are
 /// persisted as a JSON string ([FovPresetsState.toJsonString]).

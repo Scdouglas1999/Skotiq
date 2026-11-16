@@ -18,6 +18,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_core/src/services/science/period_analysis_service.dart';
+import 'package:skotiq_core/src/models/science/period_analysis_models.dart';
 
 const _periodMinutes = 20.0;
 const _periodDays = _periodMinutes / 1440.0;

@@ -370,7 +370,7 @@ async fn a_timed_frame_records_the_exposure_and_iso_the_camera_made() {
         "the raw file's own record"
     );
     assert_eq!(
-        Some(frame.metadata.gain),
+        frame.metadata.gain,
         iso.map(|i| i.round() as i32),
         "the raw file's ISO"
     );

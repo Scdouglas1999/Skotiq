@@ -6,11 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Regression guard for `GET /api/mount/status`.
 ///

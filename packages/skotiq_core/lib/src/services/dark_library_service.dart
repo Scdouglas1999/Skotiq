@@ -10,7 +10,7 @@ import 'calibration/calibration_frame_groups.dart';
 import 'calibration/calibration_selection.dart';
 import 'calibration_master_builder.dart';
 import 'frame_header.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Service for managing dark frame library operations.
 ///

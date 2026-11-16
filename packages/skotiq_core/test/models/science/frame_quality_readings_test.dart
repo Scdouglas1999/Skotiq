@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
-import 'package:skotiq_core/models.dart';
 
 ScienceFrameQualityMetricsRow _row(double uniformityCv) =>
     ScienceFrameQualityMetricsRow(

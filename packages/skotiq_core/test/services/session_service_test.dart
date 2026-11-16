@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Insert the row a process killed mid-session leaves behind, as the boot sweep
 /// leaves it: `interrupted`, with an end time.

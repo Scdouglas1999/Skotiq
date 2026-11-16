@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:csv/csv.dart';

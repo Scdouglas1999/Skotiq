@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A fake [CollaborativeMosaicService] whose `refreshStatus` mirrors a
 /// caller-controlled hub status into `collab_status` (so the next sweep sees the

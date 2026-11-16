@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Recording fake seam: serves `coverage` (one tile in cone) and `info`
 /// (post-merge index refresh), and records every `mergeDelta` call so the test

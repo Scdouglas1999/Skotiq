@@ -9,9 +9,9 @@ use skotiq_sequencer::{DecisionCategory, DecisionEvent, RunNotice, SequenceExecu
 #[tokio::test]
 async fn executor_emit_decision_round_trips_through_channel() {
     let executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
+    let mut rx = executor.handle().subscribe_decisions();
 
-    executor.set_active_sequence_run_id(Some(42));
+    executor.handle().set_active_sequence_run_id(Some(42));
     let event = DecisionEvent::new(
         DecisionCategory::SchedulerPick,
         "picked M27",
@@ -29,7 +29,7 @@ async fn executor_emit_decision_round_trips_through_channel() {
 #[tokio::test]
 async fn disabling_logging_short_circuits_emit() {
     let executor = SequenceExecutor::new();
-    let _rx = executor.subscribe_decisions();
+    let _rx = executor.handle().subscribe_decisions();
     executor
         .handle()
         .update_run_config(|config| config.decision_logging_enabled = false)
@@ -46,7 +46,7 @@ async fn disabling_logging_short_circuits_emit() {
 #[tokio::test]
 async fn a_row_the_operator_is_notified_from_goes_out_with_logging_off() {
     let executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
+    let mut rx = executor.handle().subscribe_decisions();
     executor
         .handle()
         .update_run_config(|config| config.decision_logging_enabled = false)
@@ -104,8 +104,8 @@ async fn category_wire_keys_are_distinct() {
 #[tokio::test]
 async fn active_run_id_is_stamped_when_emit_does_not_set_one() {
     let executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
-    executor.set_active_sequence_run_id(Some(99));
+    let mut rx = executor.handle().subscribe_decisions();
+    executor.handle().set_active_sequence_run_id(Some(99));
 
     let event = DecisionEvent::new(
         DecisionCategory::FrameAccepted,
@@ -126,12 +126,12 @@ async fn active_run_id_is_stamped_when_emit_does_not_set_one() {
 #[tokio::test]
 async fn manual_intervention_decisions_emit_from_command_helpers() {
     let executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
-    executor.set_active_sequence_run_id(Some(7));
+    let mut rx = executor.handle().subscribe_decisions();
+    executor.handle().set_active_sequence_run_id(Some(7));
 
     // pause() emits a ManualIntervention even without an active command
     // channel (the helper is called as a side-effect of the public method).
-    let _ = executor.pause().await;
+    let _ = executor.handle().pause().await;
     let received = rx
         .recv()
         .await
@@ -149,7 +149,7 @@ async fn manual_intervention_decisions_emit_from_command_helpers() {
 async fn stop_origin_selects_the_decision_category() {
     // Scheduler origin -> SystemEvent "Autopilot: stop".
     let mut executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
+    let mut rx = executor.handle().subscribe_decisions();
     let _ = executor
         .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(Some("scheduler")))
         .await;
@@ -160,7 +160,7 @@ async fn stop_origin_selects_the_decision_category() {
 
     // Operator (None) origin -> ManualIntervention, even with logging OFF.
     let mut executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
+    let mut rx = executor.handle().subscribe_decisions();
     executor
         .handle()
         .update_run_config(|config| config.decision_logging_enabled = false)
@@ -173,7 +173,7 @@ async fn stop_origin_selects_the_decision_category() {
 
     // Rollback origin -> gated SystemEvent; silenced when logging is off.
     let mut executor = SequenceExecutor::new();
-    let mut rx = executor.subscribe_decisions();
+    let mut rx = executor.handle().subscribe_decisions();
     executor
         .handle()
         .update_run_config(|config| config.decision_logging_enabled = false)

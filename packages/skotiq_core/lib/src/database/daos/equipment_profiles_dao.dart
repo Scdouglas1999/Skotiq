@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/host_records.dart';
+import '../stores/host_records.dart';
 import '../database.dart';
 import '../tables/equipment_profiles.dart';
 

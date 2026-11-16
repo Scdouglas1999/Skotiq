@@ -19,7 +19,6 @@ const Set<String> hostTelemetryEventTypes = {
   'FocuserPositionChanged',
   'FilterWheelPositionChanged',
   'InstructionProgress',
-  'InstructionProgressStructured',
   'AutofocusProgress',
   'IntegrationProgress',
   'Progress',

@@ -2,7 +2,7 @@
 
 use super::exposure::{recorded_exposure, MadeExposure, ShutterSpeeds};
 use super::*;
-use crate::camera_core::{CameraCore, Frame};
+use crate::camera_core::CameraCore;
 
 /// An exposure in progress, or made and not yet read.
 #[derive(Debug, Default)]
@@ -1310,36 +1310,34 @@ impl GPhoto2Camera {
             ..
         } = frame;
 
-        Ok(Frame {
-            exposure_time,
-            gain,
-            temperature: metadata.temperature.map(|t| t.celsius as f64),
-            vendor_data: VendorFeatures {
-                custom_data: {
-                    let mut map = std::collections::HashMap::new();
-                    map.insert(
-                        "camera_model".to_string(),
-                        serde_json::Value::String(self.core.name.clone()),
-                    );
-                    map
-                },
-                ..Default::default()
+        let mut image = self
+            .core
+            .frame(width, height, data, bits_per_pixel, Some(bayer_pattern));
+        image.metadata.exposure_time = exposure_time;
+        image.metadata.gain = Some(gain);
+        image.metadata.temperature = metadata.temperature.map(|t| t.celsius as f64);
+        image.metadata.vendor_data = VendorFeatures {
+            custom_data: {
+                let mut map = std::collections::HashMap::new();
+                map.insert(
+                    "camera_model".to_string(),
+                    serde_json::Value::String(self.core.name.clone()),
+                );
+                map
             },
-            camera_file: Some(skotiq_device::CameraFile {
-                // A body that names no file still gets the extension its
-                // bytes are in.
-                file_name: if camera_file.extension().is_some() {
-                    camera_file.file_name.clone()
-                } else {
-                    format!("frame.{extension}")
-                },
-                bytes: camera_file.bytes.clone(),
-            }),
-            ..self
-                .core
-                .frame(width, height, data, bits_per_pixel, Some(bayer_pattern))
-        }
-        .into_image())
+            ..Default::default()
+        };
+        image.metadata.camera_file = Some(skotiq_device::CameraFile {
+            // A body that names no file still gets the extension its
+            // bytes are in.
+            file_name: if camera_file.extension().is_some() {
+                camera_file.file_name.clone()
+            } else {
+                format!("frame.{extension}")
+            },
+            bytes: camera_file.bytes.clone(),
+        });
+        Ok(image)
     }
 }
 

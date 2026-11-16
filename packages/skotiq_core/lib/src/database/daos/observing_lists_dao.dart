@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/observing_lists_store.dart';
+import '../stores/observing_lists_store.dart';
 import '../database.dart';
 import '../tables/observing_lists.dart';
 

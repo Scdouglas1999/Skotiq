@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../models/weather/weather_models.dart';
-import '../../../models/weather/cloud_cover_forecast.dart';
 import '../radar_provider.dart';
 import '../transient_http_retry.dart';
 
@@ -172,70 +171,6 @@ class MetNoCloudProvider extends RadarProvider {
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
     // This provider doesn't have map tiles — cloud cover is stored as opacity.
     return '';
-  }
-
-  /// Fetches the current cloud cover percentage (0-100) at [lat]/[lon].
-  ///
-  /// Used as a same-endpoint fallback for the real-time cloud-cover signal that
-  /// feeds the weather-safety triggers. Returns the `cloud_area_fraction` of
-  /// the timeseries entry nearest to now, but only if that entry is within
-  /// ±90 minutes (MET Norway's near-term cadence is hourly, so a wider gap
-  /// means we'd be reporting stale data). Returns null on any failure.
-  static Future<double?> fetchCurrentCloudCover(
-    http.Client client,
-    double lat,
-    double lon,
-  ) async => (await fetchCurrentCloudForecast(client, lat, lon))?.percent;
-
-  static Future<CloudCoverForecast?> fetchCurrentCloudForecast(
-    http.Client client,
-    double lat,
-    double lon,
-  ) async {
-    try {
-      final uri = Uri.parse(_baseUrl).replace(
-        queryParameters: {'lat': lat.toString(), 'lon': lon.toString()},
-      );
-      final response = await getWithTransientRetry(
-        client,
-        uri,
-        headers: const {'User-Agent': _userAgent},
-      );
-      if (response.statusCode != 200) return null;
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final properties = json['properties'];
-      if (properties is! Map<String, dynamic>) return null;
-      final timeseries = properties['timeseries'];
-      if (timeseries is! List) return null;
-
-      final now = DateTime.now().toUtc();
-      double? nearestCover;
-      DateTime? nearestTime;
-      Duration? nearestGap;
-      for (final entry in timeseries) {
-        final cover = _cloudCoverFraction(entry);
-        if (cover == null) continue;
-        final time = _entryTime(entry);
-        if (time == null) continue;
-        final gap = time.difference(now).abs();
-        if (nearestGap == null || gap < nearestGap) {
-          nearestGap = gap;
-          nearestCover = cover;
-          nearestTime = time;
-        }
-      }
-
-      if (nearestCover == null || nearestGap == null) return null;
-      if (nearestGap > const Duration(minutes: 90)) return null;
-      return CloudCoverForecast(
-        percent: nearestCover.clamp(0.0, 100.0),
-        source: 'MET Norway',
-        validAt: nearestTime,
-      );
-    } catch (_) {
-      return null;
-    }
   }
 
   @override

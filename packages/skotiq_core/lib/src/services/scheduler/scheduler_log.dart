@@ -20,7 +20,7 @@
 // diagnostic export (`LoggingService.exportLogs` appends the in-memory Dart
 // entries after the native files).
 
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// Severity of a scheduler diagnostic, in the engine's own vocabulary so the
 /// pure-logic core does not depend on the logging stack.

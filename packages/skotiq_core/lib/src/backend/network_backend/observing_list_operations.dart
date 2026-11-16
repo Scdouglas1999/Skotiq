@@ -14,7 +14,7 @@ part of '../network_backend.dart';
 /// the host so they persist on the master. They are NOT part of the abstract
 /// [SkotiqBackend] surface — only a slave calls them, through the
 /// `ObservingListsStore` that `backend.remoteHost` hands out.
-mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
+mixin _NetworkBackendObservingListOperations on NetworkBackendTransport {
   /// GET /api/observing-lists — every observing list on the host, ordered by
   /// sortOrder.
   Future<List<ObservingList>> getObservingLists() async {

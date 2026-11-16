@@ -15,6 +15,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_discovery_handlers.d
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Fake [DeviceBackend] that records every `discoverDevices` call and returns
 /// scripted per-type results / failures. Only the discovery surface is modeled;

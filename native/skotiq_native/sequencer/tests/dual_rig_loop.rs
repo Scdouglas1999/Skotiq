@@ -70,20 +70,18 @@ impl CameraOps for RecordingOps {
             height: 100,
             data: vec![0u16; 100 * 100],
             bits_per_pixel: 16,
-            exposure_secs: duration_secs,
-            gain,
-            offset,
-            temperature: Some(-5.0),
-            filter: None,
-            timestamp: 0,
-            sensor_type: Some("Monochrome".to_string()),
-            color_filter: None,
-            // As a DSLR delivers it; written only when the run keeps camera files.
-            camera_file: Some(skotiq_device::CameraFile {
-                file_name: "IMG_0001.NEF".to_string(),
-                bytes: Arc::new(b"nef bytes".to_vec()),
-            }),
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: duration_secs,
+                gain,
+                offset,
+                temperature: Some(-5.0),
+                camera_file: Some(skotiq_device::CameraFile {
+                    file_name: "IMG_0001.NEF".to_string(),
+                    bytes: Arc::new(b"nef bytes".to_vec()),
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
         })
     }
     async fn camera_abort_exposure(&self, c: &str) -> DeviceResult<()> {

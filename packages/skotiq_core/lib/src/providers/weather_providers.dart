@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/weather/weather_models.dart';
-import '../models/weather/cloud_cover_forecast.dart';
+import '../models/weather/current_sky.dart';
 
-import '../services/weather/location_cloud_forecast_service.dart';
+import '../services/weather/current_sky_service.dart';
 import '../services/weather/weather_radar_service.dart';
 import '../services/weather/cloud_motion_analyzer.dart';
 import '../services/weather/weather_alert_service.dart';
@@ -13,7 +13,7 @@ import '../backend/remote_host.dart';
 import 'host_role.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 export 'weather_safety_provider.dart';
 
@@ -421,29 +421,26 @@ RadarProviderType _parseProviderType(String providerString) {
   }
 }
 
-/// The numerical projection used by existing forecast consumers.
+/// Cloud cover over the site now, percent: the one figure the screens, the
+/// alerts and weather safety read (see [CurrentSky.percent]).
 final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
-  return (await ref.watch(cloudCoverForecastProvider.future))?.percent;
+  return (await ref.watch(currentSkyProvider.future))?.percent;
 });
 
-/// The location-aware source policy shared by current and hourly forecasts.
-final locationCloudForecastServiceProvider =
-    Provider<LocationCloudForecastService>((ref) {
-      final service = LocationCloudForecastService();
-      ref.onDispose(service.dispose);
-      return service;
-    });
+final currentSkyServiceProvider = Provider<CurrentSkyService>((ref) {
+  final service = CurrentSkyService();
+  ref.onDispose(service.dispose);
+  return service;
+});
 
-/// Forecast cloud cover with its source and valid time, independent of imagery.
-final cloudCoverForecastProvider = FutureProvider<CloudCoverForecast?>((ref) {
+/// The sky over the site now with its sources; null without a site or when
+/// no station or model answers.
+final currentSkyProvider = FutureProvider<CurrentSky?>((ref) {
   final location = ref.watch(appObserverLocationProvider);
   if (location == null) return null;
   return ref
-      .watch(locationCloudForecastServiceProvider)
-      .fetchCurrentCloudForecast(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
+      .watch(currentSkyServiceProvider)
+      .fetch(latitude: location.latitude, longitude: location.longitude);
 });
 
 /// Provider for radar frames that triggers fetching automatically.
@@ -688,7 +685,6 @@ final evaluateWeatherConditionsProvider =
       );
       final motion = await ref.watch(analyzeCloudMotionProvider.future);
 
-      // Read the model estimate for the site, independent of satellite imagery.
       final cloudCoverPercent = await ref.watch(
         cloudCoverPercentageProvider.future,
       );

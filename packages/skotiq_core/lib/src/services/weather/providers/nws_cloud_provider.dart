@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../../../models/weather/cloud_cover_forecast.dart';
 import '../../../models/weather/radar_frame.dart';
 import '../radar_provider.dart';
 import '../transient_http_retry.dart';
@@ -75,30 +74,6 @@ class NwsCloudProvider {
       return RadarFetchResult.success(frames, providerName: name);
     } on _NwsUnavailable catch (error) {
       return RadarFetchResult.error(error.message);
-    }
-  }
-
-  /// The interval containing now, never a nearest point outside its coverage.
-  /// A null result leaves another provider free to answer; it is not 0% cloud.
-  Future<CloudCoverForecast?> fetchCurrentCloudForecast({
-    required double latitude,
-    required double longitude,
-  }) async {
-    try {
-      final intervals = await _intervals(latitude, longitude);
-      final now = _clock().toUtc();
-      for (final interval in intervals) {
-        if (!now.isBefore(interval.start) && now.isBefore(interval.end)) {
-          return CloudCoverForecast(
-            percent: interval.percent,
-            source: name,
-            validAt: interval.start,
-          );
-        }
-      }
-      return null;
-    } on _NwsUnavailable {
-      return null;
     }
   }
 

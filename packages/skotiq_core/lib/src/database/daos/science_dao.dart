@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/science_products.dart';
+import '../stores/science_products.dart';
 import '../../models/science/science_models.dart' as science;
 import '../database.dart';
 import '../tables/science.dart';

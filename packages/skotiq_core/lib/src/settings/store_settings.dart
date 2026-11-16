@@ -15,8 +15,8 @@ import '../models/notification/notification_categories.dart'
     show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingThumbnailSize;
-import '../services/sync/sync_service.dart' show SyncSettingsKeys;
 import 'setting.dart';
+import '../models/sync/sync_models.dart';
 
 abstract final class StoreSettings {
   // How this screen presents the app. Each computer keeps its own.

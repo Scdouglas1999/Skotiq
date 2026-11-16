@@ -266,82 +266,47 @@ impl CameraOps for UnifiedDeviceOps {
                 return Err(error);
             }
         }
-        let exposure_secs = if native_image.metadata.exposure_time > 0.0 {
-            native_image.metadata.exposure_time
-        } else {
-            duration_secs
-        };
-        // The frame's gain and offset, decided here once for the file's cards,
-        // its database row and the last-frame store alike.
-        let gain = crate::device_manager::ops::camera::frame_setting(
+        // What the camera layer knows of the frame beside the camera's report:
+        // when the exposure started, its length where the camera did not say,
+        // and the gain and offset, decided here once for the file's cards, its
+        // database row and the last-frame store alike.
+        let mut frame = native_image;
+        frame.metadata.timestamp = started_at;
+        if frame.metadata.exposure_time <= 0.0 {
+            frame.metadata.exposure_time = duration_secs;
+        }
+        frame.metadata.gain = crate::device_manager::ops::camera::frame_setting(
             camera_status.as_ref().map(|status| status.can_set_gain),
-            native_image.metadata.gain,
+            frame.metadata.gain,
             gain,
         );
-        let offset = crate::device_manager::ops::camera::frame_setting(
+        frame.metadata.offset = crate::device_manager::ops::camera::frame_setting(
             camera_status.as_ref().map(|status| status.can_set_offset),
-            native_image.metadata.offset,
+            frame.metadata.offset,
             offset,
         );
         // The display, statistics and stars are ready in the store before the
         // exposure is announced complete, so whoever reacts to the event finds them.
-        if let Err(e) = crate::last_frame::store(
-            camera_id,
-            crate::last_frame::RawFrame {
-                width: native_image.width,
-                height: native_image.height,
-                data: native_image.data.clone(),
-                bayer_pattern: native_image.bayer_pattern,
-                camera_file: native_image.metadata.camera_file.clone(),
-                exposure: crate::last_frame::ExposureRecord {
-                    started_at,
-                    exposure_secs,
-                    gain,
-                    offset,
-                    temperature: native_image.metadata.temperature,
-                    bits_per_pixel: native_image.bits_per_pixel,
-                    readout_mode: native_image.metadata.readout_mode.clone(),
-                },
-            },
-            duration_secs,
-        )
-        .await
-        {
+        if let Err(e) = crate::last_frame::store(camera_id, frame.clone(), duration_secs).await {
             let error: DeviceError = e.to_string().into();
             exposure.fail(&error);
             return Err(error);
         }
 
-        let sensor_type = crate::last_frame::sensor_type(native_image.bayer_pattern.as_ref());
-
         exposure.complete();
 
-        // Why: log-only formatting; "unknown" when the
-        // camera SDK did not surface a sensor-type string matches the UI
-        // label used in the Equipment panel.
         tracing::info!(
-            "Exposure complete: {}x{} image, {} sensor",
-            native_image.width,
-            native_image.height,
-            sensor_type.as_deref().unwrap_or("unknown")
+            "Exposure complete: {}x{} {} image",
+            frame.width,
+            frame.height,
+            if frame.bayer_pattern.is_some() {
+                "color"
+            } else {
+                "monochrome"
+            }
         );
 
-        Ok(ImageData {
-            width: native_image.width,
-            height: native_image.height,
-            data: native_image.data,
-            bits_per_pixel: native_image.bits_per_pixel,
-            exposure_secs,
-            gain,
-            offset,
-            temperature: native_image.metadata.temperature,
-            filter: None,
-            timestamp: native_image.metadata.timestamp.timestamp(),
-            sensor_type,
-            color_filter: native_image.bayer_pattern,
-            camera_file: native_image.metadata.camera_file,
-            readout_mode: native_image.metadata.readout_mode,
-        })
+        Ok(frame)
     }
 
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {

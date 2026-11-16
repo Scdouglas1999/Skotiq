@@ -5,7 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'shell_exit_recorder.dart';
 import 'widgets/window_chrome_desktop.dart' as chrome_impl;
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 typedef OnCloseRequested = Future<bool> Function();
 

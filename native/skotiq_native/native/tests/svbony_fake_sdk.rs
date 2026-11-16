@@ -163,7 +163,10 @@ mod scenario {
         assert_eq!(frame.data.len(), 24 * 14);
         assert!(frame.data.iter().all(|&px| px == 1001), "frame 1");
         assert_eq!(frame.metadata.exposure_time, 0.01);
-        assert_eq!((frame.metadata.gain, frame.metadata.offset), (44, 7));
+        assert_eq!(
+            (frame.metadata.gain, frame.metadata.offset),
+            (Some(44), Some(7))
+        );
         assert_eq!((frame.metadata.bin_x, frame.metadata.bin_y), (2, 2));
         assert_eq!(frame.metadata.temperature, Some(-9.5));
 
@@ -286,7 +289,10 @@ mod scenario {
         )
         .await
         .expect("frame at the camera's own gain and offset");
-        assert_eq!((frame.metadata.gain, frame.metadata.offset), (120, 10));
+        assert_eq!(
+            (frame.metadata.gain, frame.metadata.offset),
+            (Some(120), Some(10))
+        );
     }
 
     #[tokio::test]

@@ -147,16 +147,20 @@ String _filterExp(String? filter, double durationSecs) {
   return '$filter ${secs}s';
 }
 
-/// The filter names a SmartExposure rotates through, e.g. `L R G B`. A plan
-/// with no name is identified by its 1-based wheel position, matching
-/// `nodeSummary`'s treatment of the same field.
+/// The filters a SmartExposure rotates through: the set's usual name when it
+/// has one (`LRGB`, `SHO`), which fits the column where `Ha OIII SII` does
+/// not, else the names in rotation order. A plan with no name is identified by
+/// its 1-based wheel position, matching `nodeSummary`'s treatment of the same
+/// field.
 String _smartFilters(SmartExposureNode node) {
   if (node.plans.isEmpty) return '';
-  return node.plans
-      .map((plan) => plan.filterName.isEmpty
+  final names = [
+    for (final plan in node.plans)
+      plan.filterName.isEmpty
           ? '#${(plan.filterIndex ?? 0) + 1}'
-          : plan.filterName)
-      .join(' ');
+          : plan.filterName,
+  ];
+  return filterSetName(names) ?? names.join(' ');
 }
 
 /// The Count column for a planned capture.

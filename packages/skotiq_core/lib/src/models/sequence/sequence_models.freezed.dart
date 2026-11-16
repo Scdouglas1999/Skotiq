@@ -2338,9 +2338,9 @@ mixin _$FilterPlan {
  double get durationSecs;/// Optional gain override. null means "use camera/profile default".
  int? get gain;/// Optional offset override.
  int? get offset;/// Binning for this filter. Defaults to 1x1.
-@BinningModeJsonConverter() BinningMode get binning;/// Per-plan dither cadence (every N frames). null disables dithering for
-/// this filter regardless of any global default. 0 is treated as "no
-/// dither" — matches `ExposureNode.ditherEvery`.
+@BinningModeJsonConverter() BinningMode get binning;/// Dither cadence: after this row's frame, dither when the Smart
+/// Exposure step has taken a multiple of N frames, counted across all
+/// its filters. null (or 0) never dithers after this row's frames.
  int? get ditherEvery;/// Optional DepthLock binding. When set, the executor asks the goal
 /// store for a verdict before each batch of this plan and treats an
 /// achieved goal (with automatic completion enabled) as the plan being
@@ -2580,9 +2580,9 @@ class _FilterPlan extends FilterPlan {
 @override final  int? offset;
 /// Binning for this filter. Defaults to 1x1.
 @override@JsonKey()@BinningModeJsonConverter() final  BinningMode binning;
-/// Per-plan dither cadence (every N frames). null disables dithering for
-/// this filter regardless of any global default. 0 is treated as "no
-/// dither" — matches `ExposureNode.ditherEvery`.
+/// Dither cadence: after this row's frame, dither when the Smart
+/// Exposure step has taken a multiple of N frames, counted across all
+/// its filters. null (or 0) never dithers after this row's frames.
 @override final  int? ditherEvery;
 /// Optional DepthLock binding. When set, the executor asks the goal
 /// store for a verdict before each batch of this plan and treats an

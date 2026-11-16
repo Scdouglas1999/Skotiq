@@ -437,7 +437,7 @@ async fn test_svbony_camera_exposure() {
         "Should have exposure time"
     );
     println!(
-        "Metadata: exposure={:.3}s, gain={}, offset={}",
+        "Metadata: exposure={:.3}s, gain={:?}, offset={:?}",
         image.metadata.exposure_time, image.metadata.gain, image.metadata.offset
     );
 
@@ -1151,8 +1151,8 @@ mod fake_sdk_contract {
         assert_eq!((image.width, image.height), (24, 14));
         assert_eq!(image.bits_per_pixel, 14);
         assert_eq!(image.data[0], 1001);
-        assert_eq!(image.metadata.gain, 44);
-        assert_eq!(image.metadata.offset, 7);
+        assert_eq!(image.metadata.gain, Some(44));
+        assert_eq!(image.metadata.offset, Some(7));
         camera.abort_exposure().await.expect("SVBONY abort");
         camera.disconnect().await.expect("SVBONY disconnect");
 
@@ -1586,7 +1586,7 @@ mod fake_sdk_contract {
         // The fake's top-left sensor pixel of its second frame: on Windows the SDK
         // starts bottom row first, so this also proves the driver asked for top first.
         assert_eq!(image.data[0], 102);
-        assert_eq!(image.metadata.gain, 260);
+        assert_eq!(image.metadata.gain, Some(260));
         // 200 ms in the fake's whole 15 us lines.
         assert!((image.metadata.exposure_time - 0.199995).abs() < 1e-9);
         cooled

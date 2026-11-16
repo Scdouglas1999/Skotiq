@@ -34,10 +34,10 @@ SkotiqEvent _seq(String type, Map<String, dynamic> data) => SkotiqEvent(
   data: data,
 );
 
-/// `SequencerEvent::InstructionProgressStructured` exactly as the bridge
+/// `SequencerEvent::InstructionProgress` exactly as the bridge
 /// delivers it: `detail_json` is a JSON **String**.
 SkotiqEvent _exposureProgress(String nodeId, int frame, int total) =>
-    _seq('InstructionProgressStructured', {
+    _seq('InstructionProgress', {
       'node_id': nodeId,
       'instruction': 'Exposure',
       'progress_percent': frame / total * 100.0,
@@ -71,7 +71,7 @@ void main() {
     final tally = RunRecordNotifier();
     _applyTally(
       tally,
-      _seq('InstructionProgressStructured', {
+      _seq('InstructionProgress', {
         'node_id': node1,
         'detail_kind': 'Exposure',
         'detail_json': 'not json at all',
@@ -126,7 +126,7 @@ void main() {
     _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     _applyTally(
       tally,
-      _seq('InstructionProgressStructured', {
+      _seq('InstructionProgress', {
         'instruction': 'Exposure',
         'detail_kind': 'Exposure',
         'detail_json': jsonEncode({'frame': 2, 'total': 4}),

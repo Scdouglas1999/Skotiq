@@ -177,7 +177,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     unawaited(() async {
       ProviderSubscription<AsyncValue<WeatherAlert>>? subscription;
       try {
-        _ref.invalidate(cloudCoverForecastProvider);
+        _ref.invalidate(currentSkyProvider);
         _ref.invalidate(cloudCoverPercentageProvider);
         _cloudCoverFetchedAt = _clock();
         subscription = _ref.listen<AsyncValue<WeatherAlert>>(
@@ -218,7 +218,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
           ? WeatherSafetyNotifier._cloudCoverTtl
           : WeatherSafetyNotifier._cloudCoverErrorRetryTtl;
       if (now.difference(fetchedAt) > ttl) {
-        _ref.invalidate(cloudCoverForecastProvider);
+        _ref.invalidate(currentSkyProvider);
         _ref.invalidate(cloudCoverPercentageProvider);
         _cloudCoverFetchedAt = now;
       }

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/science/astrometric_residuals.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 // The rig's NGC 891 frame (see test/fixtures/wcs/ngc891_l0001_solve.json):
 // Gaia DR3 stars, Skotiq's own detections, and ASTAP's solve with and without

@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
-import '../backend/skotiq_exception.dart' show SkotiqException;
+import '../errors/skotiq_exception.dart' show SkotiqException;
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
@@ -13,6 +13,7 @@ import 'database_provider.dart';
 import 'focuser_backlash_provider.dart';
 import '../models/backend/backend_types.dart';
 import 'device_service_providers.dart';
+import '../errors/skotiq_error.dart';
 
 /// Live state of a focuser backlash calibration run.
 class FocuserBacklashCalibrationState {

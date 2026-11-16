@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 void main() {
   group('GnomonicProjection.worldToPixel', () {

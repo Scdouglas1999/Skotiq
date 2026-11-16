@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_desktop/host/host_server.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../headless_api/handler_test_helpers.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A linked client pins the fingerprint it paired with and refuses a host
 /// that answers with another one, so a host restarted on the same data
