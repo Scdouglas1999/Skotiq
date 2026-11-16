@@ -13,6 +13,7 @@ import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_panel_parts.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/database.dart' show EquipmentProfilesCompanion;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -335,5 +336,29 @@ void main() {
     expect(survey.left, greaterThan(1100 - 260),
         reason: 'the panel should now be about 250 px wide');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'the Camera title row offers every equipment profile to switch to',
+      variant: _desktop, (tester) async {
+    final handle = await pumpColumn(tester);
+    expect(find.byType(SkotiqMenuChip<int>), findsNothing,
+        reason: 'one profile or none: nothing to switch to');
+
+    for (final name in ['Backyard 80ED', 'Travel Newt']) {
+      await handle.database
+          .into(handle.database.equipmentProfiles)
+          .insert(EquipmentProfilesCompanion.insert(name: name));
+    }
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final chip = find.byType(SkotiqMenuChip<int>);
+    expect(chip, findsOneWidget);
+    await tap(tester, chip);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Backyard 80ED'), findsOneWidget);
+    expect(find.text('Travel Newt'), findsOneWidget);
   });
 }

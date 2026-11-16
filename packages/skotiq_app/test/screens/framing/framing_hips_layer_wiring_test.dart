@@ -1,25 +1,12 @@
-// Component C8b — guards + visual lock for the framing-screen HiPS layer wiring.
+// The framing survey credit ([FramingSurveyCredit]) for the HiPS tile path.
 //
-// What these pin (the composition contract this wiring is responsible for):
-//
-//   * GATING: when the layer is inactive for the current survey (feature flag
-//     off, or the survey has no verified HiPS pyramid) the wiring contributes
-//     NOTHING — no HiPS tile layer, no attribution badge — so the framing
-//     canvas's existing single survey snapshot / starfield is the only
-//     background, exactly the pre-HiPS behaviour. It must never throw resolving
-//     an un-tile-capable survey.
-//   * Z-ORDER / COMPOSITION: when active the wiring mounts the C8
-//     [HipsAttributionBadge] as top chrome. The streamed mosaic itself
-//     ([HipsTileLayer]) is composed INSIDE [FramingCanvas]'s own Stack — above
-//     the single-cutout snapshot and UNDER the grid / FOV / equipment overlays —
-//     so the imagery never hides the FOV reticle; this wiring therefore does NOT
-//     mount the tile layer (only the attribution credit).
-//   * ATTRIBUTION VISIBILITY (a licence requirement): the credit badge is shown
-//     ONLY while HiPS imagery is actually on screen. No imagery resident → no
-//     credit; imagery resident + a published credit → the credit is rendered.
-//   * PLATFORM INDEPENDENCE: the wiring never reads any planetarium
-//     rendering-platform provider; it is a Flutter-side framing-render-path layer
-//     that works regardless of the rendering platform.
+//   * When the tile layer is inactive for the survey (feature off, or no
+//     verified HiPS pyramid) and no cutout is on screen it shows nothing and
+//     never throws resolving an un-tile-capable survey. It never mounts the
+//     tile layer itself; that lives inside [FramingCanvas] under the reticle.
+//   * The credit is a license requirement and shows only while HiPS imagery
+//     is on screen: none resident -> no credit; resident with a published
+//     credit -> the credit is shown.
 //
 // A `flutter test --update-goldens` run also writes the visual lock golden and a
 // human-inspectable sample under the repo-root `.hips_verify/` directory (the
@@ -38,7 +25,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_app/screens/framing/framing_hips_layer_wiring.dart';
+import 'package:skotiq_app/screens/framing/widgets/framing_survey_credit.dart';
 import 'package:skotiq_app/widgets/hips/hips_attribution_badge.dart';
 import 'package:skotiq_app/screens/framing/widgets/hips_tile_layer.dart';
 import 'package:skotiq_core/models.dart';
@@ -199,7 +186,7 @@ void main() {
           body: SizedBox(
             width: 800,
             height: 600,
-            child: FramingHipsLayerWiring(),
+            child: FramingSurveyCredit(),
           ),
         ),
       ),
@@ -343,7 +330,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
 
     await expectLater(
-      find.byType(FramingHipsLayerWiring),
+      find.byType(FramingSurveyCredit),
       matchesGoldenFile('goldens/framing_hips_layer_wiring.png'),
     );
 
@@ -368,10 +355,10 @@ void main() {
   });
 }
 
-/// Captures the nearest repaint boundary enclosing the [FramingHipsLayerWiring]
+/// Captures the nearest repaint boundary enclosing the [FramingSurveyCredit]
 /// subtree to a [ui.Image] for the human-inspectable sample.
 Future<ui.Image> _captureSample(WidgetTester tester) async {
-  final element = find.byType(FramingHipsLayerWiring).evaluate().single;
+  final element = find.byType(FramingSurveyCredit).evaluate().single;
   RenderObject? node = element.renderObject;
   while (node != null && node is! RenderRepaintBoundary) {
     node = node.parent;

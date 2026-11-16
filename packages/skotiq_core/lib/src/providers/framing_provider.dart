@@ -510,16 +510,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     state = state.copyWith(showGuideStars: !state.showGuideStars);
   }
 
-  void toggleOpticalConfigPanel() {
-    state = state.copyWith(
-      showOpticalConfigPanel: !state.showOpticalConfigPanel,
-    );
-  }
-
-  void setOpticalConfigPanelVisible(bool visible) {
-    state = state.copyWith(showOpticalConfigPanel: visible);
-  }
-
   void setCustomEquipment(FramingEquipment equipment) {
     state = state.copyWith(
       customEquipment: equipment,

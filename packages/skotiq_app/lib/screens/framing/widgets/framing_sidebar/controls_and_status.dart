@@ -127,7 +127,7 @@ class FramingSkyViewSection extends ConsumerWidget {
             ),
             NightPanelButton(
               label: 'Labels',
-              semanticLabel: 'Show object labels',
+              semanticLabel: 'Show the target label',
               selected: framingState.showLabels,
               onPressed: notifier.toggleLabels,
             ),
