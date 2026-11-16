@@ -6,7 +6,7 @@ import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
 import '../../database/database.dart' show DbCapturedImage;
 
 import '../../models/annotation_data.dart';
-import 'gnomonic_projection.dart';
+import '../../models/imaging/gnomonic_projection.dart';
 import '../../models/imaging/sip_terms.dart';
 
 /// The annotation model of a solve, carrying the solver's CD matrix and SIP

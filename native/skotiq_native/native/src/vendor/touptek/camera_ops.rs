@@ -1,7 +1,7 @@
 //! `DeviceDriver` / `CameraDriver` / `Drop` implementations for `TouptekCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, Frame, SampleLayout};
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 /// What connect negotiated with the camera before the stream started.
 struct StreamSetup {
@@ -957,20 +957,18 @@ impl CameraDriver for TouptekCamera {
                 None
             });
 
-        Ok(Frame {
-            exposure_time,
-            gain,
-            offset,
-            temperature,
-            ..self.core.frame(
-                info.width,
-                info.height,
-                data,
-                self.core.sensor_info.bit_depth,
-                self.core.sensor_info.bayer_pattern,
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            info.width,
+            info.height,
+            data,
+            self.core.sensor_info.bit_depth,
+            self.core.sensor_info.bayer_pattern,
+        );
+        image.metadata.exposure_time = exposure_time;
+        image.metadata.gain = Some(gain);
+        image.metadata.offset = Some(offset);
+        image.metadata.temperature = temperature;
+        Ok(image)
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {

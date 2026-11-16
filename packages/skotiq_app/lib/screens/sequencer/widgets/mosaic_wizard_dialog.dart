@@ -39,6 +39,7 @@ import '../../../widgets/gated_action.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import 'mosaic_wizard_dialog/mosaic_project_creation_controller.dart';
 import '../../../router/app_routes.dart';
+import 'package:skotiq_core/utils.dart';
 part 'mosaic_wizard_dialog/config_controls.dart';
 part 'mosaic_wizard_dialog/panel_position.dart';
 part 'mosaic_wizard_dialog/visual_planner.dart';

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../analytics_providers.dart';
 import '../../widgets/image_thumbnail_strip.dart';
 import '../night_entry.dart';
+import 'package:skotiq_core/database.dart';
 
 /// The Frames of a night: every frame of the session as a graded tile. A tile
 /// opens the frame; right-click or long-press rejects or restores it.

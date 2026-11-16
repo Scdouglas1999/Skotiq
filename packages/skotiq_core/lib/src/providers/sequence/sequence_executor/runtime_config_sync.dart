@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/sequence/sequence_models.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../../services/session_handoff_service.dart'
     show SessionCarryOver, SessionHandoffDecision;
 import '../../defect_map_provider.dart' show seedDefectMapRuntimeForSequence;

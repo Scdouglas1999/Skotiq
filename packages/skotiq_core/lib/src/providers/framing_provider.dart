@@ -33,7 +33,7 @@ import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
 import 'mosaic_project_service_provider.dart';
 import 'target_library_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';

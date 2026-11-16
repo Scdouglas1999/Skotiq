@@ -42,9 +42,6 @@ export 'src/providers/sequence/session_report_presentation.dart';
 export 'src/providers/sequence/node_exposure_tally.dart';
 // Thumbnail — inline frame thumbnails in the sequence tree.
 export 'src/providers/sequence/exposure_node_thumbnails_provider.dart';
-// Plugin-node dispatcher abstraction. The app entry
-// point overrides this provider with the real PluginNodeExecutor
-// (from skotiq_plugins) via `pluginNodeDispatcherOverride()`.
 export 'src/providers/plugin_node_dispatcher.dart';
 export 'src/providers/session_report_provider.dart';
 export 'src/providers/secondary_rig_provider.dart';
@@ -186,6 +183,7 @@ export 'src/providers/home_assistant_provider.dart';
 export 'src/providers/notes_provider.dart';
 export 'src/providers/forensics_provider.dart';
 export 'src/providers/replay_debug_provider.dart';
+export 'src/providers/filter_set_preferences_provider.dart';
 export 'src/providers/smart_night_draft_provider.dart';
 export 'src/providers/conversational_builder_provider.dart';
 export 'src/providers/usb_disconnect_log_provider.dart';

@@ -7,7 +7,7 @@ import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../services/push_notification_service.dart';
 import '../database/daos/settings_dao.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Notifier that manages push notification configuration, persisted to database
 class PushNotificationConfigNotifier

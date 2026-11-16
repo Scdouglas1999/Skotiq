@@ -5,7 +5,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// GOES satellite infrared imagery provider for cloud cover visualization.
 ///

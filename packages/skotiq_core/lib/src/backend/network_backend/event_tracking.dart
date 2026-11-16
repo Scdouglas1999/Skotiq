@@ -1,6 +1,6 @@
 part of '../network_backend.dart';
 
-extension _NetworkBackendEventTracking on _NetworkBackendTransport {
+extension _NetworkBackendEventTracking on NetworkBackendTransport {
   void _handleEventSideEffects(SkotiqEvent event) {
     if (event.category == EventCategory.equipment &&
         event.eventType == 'PropertyChanged' &&

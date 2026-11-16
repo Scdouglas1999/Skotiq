@@ -149,10 +149,9 @@ pub(crate) async fn apply_defect_map_if_configured(
     let pixels_slice = image_data.data.as_mut_slice();
     let width = image_data.width;
     let height = image_data.height;
-    // The sequencer's ImageData is mono u16 (camera output before
-    // debayering). channels = 1 is enforced by the capture-side
-    // contract; if a driver ever returns a multi-channel buffer we
-    // skip correction rather than slice into the wrong storage.
+    // A camera frame is one plane of u16 samples (the mosaic before
+    // debayering); a buffer of another length is left uncorrected rather
+    // than sliced into the wrong storage.
     let channels = 1u32;
     let expected_len = (width as usize) * (height as usize) * (channels as usize);
     if pixels_slice.len() != expected_len {
@@ -470,14 +469,12 @@ pub(crate) async fn emit_grade_progress(
                 save_path: Some(full_path.display().to_string()),
                 capture: capture.clone(),
             };
-            let detail_text = structured.detail_text();
             if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
                     progress_percent: 100.0 * frame as f64 / total.max(1) as f64,
-                    detail: detail_text,
-                    structured_detail: Some(Box::new(structured)),
+                    detail: Box::new(structured),
                 });
             }
             // Replay Debug — record a FrameAccepted decision so
@@ -609,14 +606,12 @@ pub(crate) async fn emit_grade_progress(
                 },
             )
             .await;
-            let detail_text = structured.detail_text();
             if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
                     progress_percent: 100.0 * frame as f64 / total.max(1) as f64,
-                    detail: detail_text,
-                    structured_detail: Some(Box::new(structured)),
+                    detail: Box::new(structured),
                 });
             }
             // Replay Debug — record a FrameRejected decision so

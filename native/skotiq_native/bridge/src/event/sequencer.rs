@@ -296,7 +296,10 @@ pub enum SequencerEvent {
         trigger_name: String,
         action: SequencerTriggerAction,
     },
-    /// Progress update for long-running instructions (cooling, autofocus, slewing)
+    /// A step's progress (cooling, autofocus, slewing, a frame of a burst).
+    /// A frame verdict, scheduler decision, integration budget, adapted
+    /// exposure, plugin payload or photometry result is also its own typed
+    /// event below, which is what readers of that fact subscribe to.
     InstructionProgress {
         /// Node ID for mapping progress to the correct tree node
         node_id: String,
@@ -304,34 +307,26 @@ pub enum SequencerEvent {
         instruction: String,
         /// Progress percentage (0.0 to 100.0)
         progress_percent: f64,
-        /// Detailed status message
+        /// The step's words, as the run's line and the node row show them.
         detail: String,
-    },
-    /// Structured progress update for long-running instructions. This is
-    /// emitted alongside `InstructionProgress` so legacy consumers keep their
-    /// string detail while newer UI panels can bind to explicit fields.
-    InstructionProgressStructured {
-        /// Node ID for mapping progress to the correct tree node
-        node_id: String,
-        /// Name of the instruction (e.g., "Cool Camera", "Autofocus")
-        instruction: String,
-        /// Progress percentage (0.0 to 100.0)
-        progress_percent: f64,
         /// `ProgressDetail` variant name (e.g. `Exposure`, `Autofocus`)
         detail_kind: String,
         /// JSON-stringified inner payload for the variant.
         detail_json: String,
     },
+    /// One dither the run performed: by a node, or by the Dither Interval
+    /// trigger when `node_id` is `None`.
+    DitherPerformed {
+        node_id: Option<String>,
+    },
+    /// What the frame watch measured of a saved light frame, or a confirmed
+    /// obstruction it met: `kind` is `FrameAssessed` or `HorizonObstruction`,
+    /// and `payload_json` is that report's fields.
+    FrameWatchReport {
+        kind: String,
+        payload_json: String,
+    },
 
-    // Typed progress payloads.
-    //
-    // The image-grading and target-scheduler details
-    // (`ProgressDetail::FrameAccepted/FrameRejected/Scheduler/IntegrationBudget`)
-    // are first-class typed variants rather than strings the Dart side has to
-    // regex out of `InstructionProgress.detail`. `run_sequencer_event_loop`
-    // matches on the structured `ProgressDetail` and emits the typed variant; the
-    // legacy `InstructionProgress` is emitted alongside it, so the typed variants
-    // are additional, not replacements, and unmigrated subscribers keep working.
     /// A Smart Exposure plan finished early because its bound DepthLock
     /// goal was achieved. Mirrors `ExecutorEvent::DepthGoalCompleted`; the
     /// numbers are the evidence the verdict rested on, so the run history
@@ -480,8 +475,7 @@ pub enum SequencerEvent {
     // (`PhotometryFrame`, `PhotometryCadenceBroken`, `PhotometrySummary` — see
     // `skotiq_sequencer::node::progress`) so the Dart light-curve panel binds
     // to explicit floats (SNR / FWHM / airmass) instead of recovering them from a
-    // formatted `detail` string. As with the progress payloads above, they are
-    // emitted alongside the legacy `InstructionProgress`, not in place of it.
+    // formatted `detail` string.
     /// Science: per-frame photometry payload from the
     /// `SciencePhotometryInstruction`. Mirrors
     /// `ProgressDetail::PhotometryFrame`. The Dart science pipeline writes a row
@@ -559,13 +553,7 @@ pub enum SequencerEvent {
 
     // Recovery Mode — typed entry / progress / exit events
     //
-    // Pre-Wave-4.5, the Rust executor's `ExecutorEvent::Recovery*` events
-    // were routed through the legacy `InstructionProgress` channel with
-    // `node_id == "_recovery"` and a JSON-encoded context blob shoved in
-    // `detail`. The Dart side string-prefix-matched on `instruction` and
-    // jsonDecoded `detail` — fragile, lossy, and silently dropped fields
-    // that didn't fit. promotes the four variants to first-class
-    // typed payloads. All `context_*` fields are denormalised flat
+    // All `context_*` fields are denormalised flat
     // primitives so FRB doesn't need to bridge the chrono-dependent
     // `RecoveryContext` struct. The Dart side rebuilds a `RecoveryStatus`
     // from these flat fields in `_recoveryStatusFromTypedEvent`.

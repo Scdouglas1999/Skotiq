@@ -6,7 +6,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/mount_state_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Provider to fetch camera capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities

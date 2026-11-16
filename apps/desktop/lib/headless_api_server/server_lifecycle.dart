@@ -574,6 +574,8 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
   }
 
   Future<void> _stopServer() async {
+    _webSocketHeartbeatTimer?.cancel();
+    _webSocketHeartbeatTimer = null;
     _unsubscribeFromHostMutationEvents();
     await _eventSubscription?.cancel();
     _eventSubscription = null;
@@ -603,8 +605,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     if (remote != null) {
       await remote.dispose();
     }
-    _webSocketHeartbeatTimer?.cancel();
-    _webSocketHeartbeatTimer = null;
     // stop the periodic token sweep before tearing down the DB, and
     // clear the revocation listener so it does not retain a reference to
     // `this` past disposal.
@@ -656,6 +656,11 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     await _liveViewStreamHub.dispose();
     await _server?.close(force: true);
     _server = null;
+    final subscriptions = _socketSubscriptions.values.toList();
+    _socketSubscriptions.clear();
+    for (final subscription in subscriptions) {
+      await subscription.cancel();
+    }
     for (final socket in List.of(_sockets)) {
       await socket.sink.close();
     }

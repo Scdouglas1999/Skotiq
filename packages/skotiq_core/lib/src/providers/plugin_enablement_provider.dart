@@ -1,52 +1,18 @@
-// Plugin enablement persistence.
+// The user's per-plugin enable/disable choices, kept as one `app_settings`
+// JSON document, [StoreSettings.pluginEnablement]. A plugin id absent from the
+// map reads as enabled, the same default as the plugin package's
+// [AllEnabledPluginEnablementStore], so the bundled integrations start on and
+// a user's explicit "off" is the only thing written.
 //
-// Persists the user's per-plugin enable/disable choices as ONE `app_settings`
-// JSON document, [StoreSettings.pluginEnablement].
-//
-// Default policy: a plugin id that is ABSENT from the persisted map reads as
-// ENABLED. The four bundled integrations therefore start on; a user must
-// explicitly disable one (which writes `<id>: false`). This matches the C3
-// package's [AllEnabledPluginEnablementStore] fallback so the app- and
-// package-level defaults never diverge.
-//
-// This is the seam where `skotiq_core` meets `skotiq_plugins`:
-//   * C3 (`skotiq_plugins/plugin_registration.dart`) defines the abstract
-//     [PluginEnablementStore] contract and a settings-agnostic
-//     `AllEnabledPluginEnablementStore` default.
-//   * C4 (this file) implements that contract against the settings database
-//     and exposes the live enabled-set to the UI.
-//
-// Dependency direction: `skotiq_core` depends on `skotiq_plugins`
-// (not the reverse — `skotiq_plugins` has no `skotiq_core` import, so
-// there is no cycle). Core implements the plugins-package interface; the app
-// wires it by overriding `pluginEnablementStoreProvider` (defined in C3) with
-// [settingsPluginEnablementStoreProvider] from here.
+// [SettingsPluginEnablementStore] implements the plugin package's
+// [PluginEnablementStore]; each application installs it over
+// `pluginEnablementStoreProvider` at startup.
 
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
-// C3 ships the [PluginEnablementStore] contract and the canonical
-// [kUserFacingExamplePlugins] list in `plugin_registration.dart`. That file is
-// C3's public seam for exactly this app-layer wiring (its doc comments name
-// "C4 / the app layer" as the intended implementor), but it is not surfaced
-// through the package barrel, so we must import it by path. The
-// implementation_imports lint is suppressed deliberately: our concrete
-// SettingsPluginEnablementStore MUST be a subtype of C3's exact
-// PluginEnablementStore type for the app's `pluginEnablementStoreProvider`
-// override to typecheck, so there is no barrel-only alternative.
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_registration.dart';
-// The live [PluginHost] is the authoritative runtime for the bundled plugins.
-// `setEnabled` must drive it (run onEnable/onDisable, register/unregister the
-// plugin's sequence nodes) so the persisted choice and the running session
-// never diverge — persisting the bit alone would leave a "disabled" plugin
-// still firing for the rest of the session. `pluginHostProvider` lives in
-// `plugin_host.dart`, which is exported through the package barrel, but we
-// import it by path alongside `plugin_registration.dart` so this seam reaches
-// exactly the same host the registration pipeline populated.
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_host.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
@@ -126,7 +92,7 @@ Set<String> _enabledSetFor(
 
 /// The full set of plugin ids whose enablement this layer manages.
 ///
-/// Sourced from the C3 canonical list so the two packages never disagree on
+/// Sourced from the plugin package's bundled list so the two never disagree on
 /// "which plugins exist". Exposed as a provider so tests can override it with a
 /// fixed id set without touching the package-level list.
 final managedPluginIdsProvider = Provider<List<String>>((ref) {
@@ -255,9 +221,9 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
   }
 }
 
-/// Settings-backed [PluginEnablementStore] for the C3 registration pipeline.
+/// Settings-backed [PluginEnablementStore] for the plugin registration.
 ///
-/// C3 (`plugin_registration.dart`) asks this at startup, per plugin, whether to
+/// The registration asks this at startup, per plugin, whether to
 /// register the plugin in the enabled state. We answer from the persisted
 /// choice map with the same default-enabled policy as [PluginEnablementNotifier]
 /// so the registration-time decision and the live UI set are always consistent.

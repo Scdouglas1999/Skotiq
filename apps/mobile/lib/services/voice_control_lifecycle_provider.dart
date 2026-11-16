@@ -22,7 +22,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'voice_control_service.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Bridges Riverpod sequence state -> native voice cache and back.
 class VoiceControlLifecycleController {

@@ -28,7 +28,7 @@
 //! methods mutate are crate-private; only sibling executor modules can
 //! see them (Rust child-module privacy), which is exactly what we want.
 
-use super::{ExecutorEvent, SequenceExecutor};
+use super::{ExecutorEvent, ExecutorHandle, SequenceExecutor};
 use crate::device_ops::SharedDeviceOps;
 use crate::triggers::{TriggerManager, TriggerState};
 use std::sync::atomic::Ordering;
@@ -36,28 +36,6 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 
 impl SequenceExecutor {
-    /// Shared handle to the trigger manager. Cloned `Arc` — callers
-    /// hold their own reference for the lifetime they need it. The
-    /// bridge uses this to apply user-edited trigger configs after
-    /// `set_*` device wiring and before `start()`.
-    pub fn trigger_manager(&self) -> Arc<RwLock<TriggerManager>> {
-        self.trigger_manager.clone()
-    }
-
-    /// Run a closure against the live [`TriggerState`] inside the
-    /// trigger manager. Holds the write lock for the duration of the
-    /// closure so callers can atomically update multiple fields without
-    /// risking a concurrent evaluator read seeing a partial mutation.
-    pub async fn update_trigger_state<F>(&self, updater: F)
-    where
-        F: FnOnce(&mut TriggerState),
-    {
-        let manager = self.trigger_manager.read().await;
-        let state_lock = manager.state();
-        let mut state = state_lock.write().await;
-        updater(&mut state);
-    }
-
     /// Set the device operations handler.
     ///
     /// This MUST be called before [`SequenceExecutor::start`], otherwise
@@ -117,6 +95,48 @@ impl SequenceExecutor {
         self.save_path = path;
     }
 
+    /// Reset the executor back to its `Idle` state.
+    ///
+    /// Drops the command channel (so subsequent lifecycle calls hit the
+    /// "not running" path), clears the cancellation flag, wipes
+    /// [`super::SequenceProgress`] back to default, and resets every
+    /// node in the runtime tree if one is loaded. The sequence
+    /// definition itself is retained so the same tree can be re-run
+    /// without re-loading.
+    pub async fn reset(&mut self) {
+        self.commands.set(None);
+        self.is_cancelled.store(false, Ordering::Relaxed);
+        self.run_state.reset();
+
+        if let Some(ref mut node) = self.root_node {
+            node.reset();
+        }
+    }
+}
+
+impl ExecutorHandle {
+    /// Shared handle to the trigger manager. Cloned `Arc` — callers
+    /// hold their own reference for the lifetime they need it. The
+    /// bridge uses this to apply user-edited trigger configs after
+    /// `set_*` device wiring and before `start()`.
+    pub fn trigger_manager(&self) -> Arc<RwLock<TriggerManager>> {
+        self.trigger_manager.clone()
+    }
+
+    /// Run a closure against the live [`TriggerState`] inside the
+    /// trigger manager. Holds the write lock for the duration of the
+    /// closure so callers can atomically update multiple fields without
+    /// risking a concurrent evaluator read seeing a partial mutation.
+    pub async fn update_trigger_state<F>(&self, updater: F)
+    where
+        F: FnOnce(&mut TriggerState),
+    {
+        let manager = self.trigger_manager.read().await;
+        let state_lock = manager.state();
+        let mut state = state_lock.write().await;
+        updater(&mut state);
+    }
+
     /// Subscribe to the executor event broadcast.
     ///
     /// Each subscriber gets a back-pressure buffer of 256 events; a
@@ -136,23 +156,5 @@ impl SequenceExecutor {
     /// entry point was called.
     pub fn event_subscriber_count(&self) -> usize {
         self.run_state.events().receiver_count()
-    }
-
-    /// Reset the executor back to its `Idle` state.
-    ///
-    /// Drops the command channel (so subsequent lifecycle calls hit the
-    /// "not running" path), clears the cancellation flag, wipes
-    /// [`super::SequenceProgress`] back to default, and resets every
-    /// node in the runtime tree if one is loaded. The sequence
-    /// definition itself is retained so the same tree can be re-run
-    /// without re-loading.
-    pub async fn reset(&mut self) {
-        self.commands.set(None);
-        self.is_cancelled.store(false, Ordering::Relaxed);
-        self.run_state.reset();
-
-        if let Some(ref mut node) = self.root_node {
-            node.reset();
-        }
     }
 }

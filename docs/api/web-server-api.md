@@ -733,7 +733,9 @@ older clients consuming `RADistanceRaw` / `DECDistanceRaw` continue to work.
 | `ExposureCompleted` | `{ "frame": int, "total": int, "duration_secs": number }` |
 | `Error` | `{ "message": string }` |
 | `TriggerFired` | `{ "trigger_id": string, "trigger_name": string, "action": string }` |
-| `InstructionProgress` | `{ "node_id": string, "instruction": string, "progress_percent": number, "detail": string }` |
+| `InstructionProgress` | `{ "node_id": string, "instruction": string, "progress_percent": number, "detail": string, "detail_kind": string, "detail_json": string }`: one per step update; `detail` is the step's words, `detail_kind` its report kind (`Exposure`, `Autofocus`, `Center`, `Generic`, ...) and `detail_json` that report's fields |
+| `DitherPerformed` | `{ "node_id": string? }`: `null` when the Dither Interval trigger dithered |
+| `FrameWatchReport` | `{ "kind": "FrameAssessed"\|"HorizonObstruction", "payload_json": string }` |
 
 #### `category: imaging`
 

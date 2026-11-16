@@ -12,6 +12,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/models.dart';
 
 SkotiqDatabase _openInMemory() {
   return SkotiqDatabase.forTesting(NativeDatabase.memory());

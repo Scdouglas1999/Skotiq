@@ -43,13 +43,15 @@ Future<void> _pumpWeather(
         (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
       ),
       appSettingsProvider.overrideWith(_SiteSettingsNotifier.new),
-      cloudCoverForecastProvider.overrideWith(
+      currentSkyProvider.overrideWith(
         (ref) async => cloudPercent == null
             ? null
-            : CloudCoverForecast(
-                percent: cloudPercent,
-                source: 'Open-Meteo',
-                validAt: DateTime.utc(2026, 11, 14, 2, 45),
+            : CurrentSky(
+                model: CloudCoverForecast(
+                  percent: cloudPercent,
+                  source: 'Open-Meteo',
+                  validAt: DateTime.utc(2026, 11, 14, 2, 45),
+                ),
               ),
       ),
       weatherStatusProvider.overrideWithValue(
@@ -77,7 +79,7 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
     expect(find.textContaining('Weather data unavailable'), findsNothing,
         reason: 'the empty state already says the data did not come');
-    expect(find.text('FORECAST CLOUD COVER'), findsNothing);
+    expect(find.text('CLOUD COVER NOW'), findsNothing);
   });
 
   testWidgets('with no source the safety policy stays on screen',
@@ -98,7 +100,7 @@ void main() {
     await _pumpWeather(tester, frames: const [], cloudPercent: 40);
 
     expect(find.text('No weather source'), findsNothing);
-    expect(find.text('FORECAST CLOUD COVER'), findsOneWidget);
+    expect(find.text('CLOUD COVER NOW'), findsOneWidget);
   });
 
   testWidgets('an unknown cloud cover is left out of the headline',
@@ -106,7 +108,7 @@ void main() {
     await _pumpWeather(tester, frames: [_frame()]);
 
     expect(find.text('No weather source'), findsNothing);
-    expect(find.text('FORECAST CLOUD COVER'), findsNothing,
+    expect(find.text('CLOUD COVER NOW'), findsNothing,
         reason: 'a dash in the headline slot reads as a value');
   });
 }

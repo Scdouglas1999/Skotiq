@@ -50,18 +50,12 @@ void main() {
     return [sequencerEventOf(event)!, sequencerEventOf(remote(event))!];
   }
 
-  bridge.SequencerEvent_InstructionProgressStructured report(
-    String kind,
-    Object? json,
-  ) =>
-      bridge.SequencerEvent.instructionProgressStructured(
-            nodeId: 'n1',
-            instruction: 'Frame watch',
-            progressPercent: 100.0,
-            detailKind: kind,
-            detailJson: jsonEncode(json),
+  bridge.SequencerEvent_FrameWatchReport report(String kind, Object? json) =>
+      bridge.SequencerEvent.frameWatchReport(
+            kind: kind,
+            payloadJson: jsonEncode(json),
           )
-          as bridge.SequencerEvent_InstructionProgressStructured;
+          as bridge.SequencerEvent_FrameWatchReport;
 
   test('a non-sequencer event has no sequencer form', () {
     expect(
@@ -98,19 +92,39 @@ void main() {
     expect(of(''), isNull, reason: 'no status is no verdict');
   });
 
-  test('a performed dither is its own report on both transports', () {
-    for (final e in both(report(ditherPerformedDetailKind, {}))) {
-      expect(e, isA<bridge.SequencerEvent_InstructionProgressStructured>());
-      final structured =
-          e as bridge.SequencerEvent_InstructionProgressStructured;
-      expect(structured.reportsDither, isTrue);
-      expect(structured.frameAssessment, isNull);
+  test('a performed dither is its own event on both transports', () {
+    for (final e in both(const bridge.SequencerEvent.ditherPerformed())) {
+      expect(e, isA<bridge.SequencerEvent_DitherPerformed>());
+      expect((e as bridge.SequencerEvent_DitherPerformed).nodeId, isNull);
+    }
+    for (final e in both(
+      const bridge.SequencerEvent.ditherPerformed(nodeId: 'burst'),
+    )) {
+      expect((e as bridge.SequencerEvent_DitherPerformed).nodeId, 'burst');
+    }
+  });
+
+  test('a step progress carries its words and its report on both transports',
+      () {
+    for (final e in both(
+      const bridge.SequencerEvent.instructionProgress(
+        nodeId: 'n1',
+        instruction: 'Change Filter',
+        progressPercent: 100.0,
+        detail: 'Ha (pos 3)',
+        detailKind: 'Filter',
+        detailJson: '{"name":"Ha","position":3}',
+      ),
+    )) {
+      final step = e as bridge.SequencerEvent_InstructionProgress;
+      expect(step.detail, 'Ha (pos 3)');
+      expect(step.changedFilterName, 'Ha');
     }
   });
 
   test('a frame assessment is read on both transports', () {
     for (final e in both(
-      report(frameAssessedDetailKind, {
+      report(frameAssessedReportKind, {
         'save_path': r'C:\data\NGC0891\B_0120.fits',
         'filter': 'B',
         'exposure_secs': 120,
@@ -135,8 +149,7 @@ void main() {
       }),
     )) {
       final assessment =
-          (e as bridge.SequencerEvent_InstructionProgressStructured)
-              .frameAssessment!;
+          (e as bridge.SequencerEvent_FrameWatchReport).frameAssessment!;
       expect(assessment.savePath, r'C:\data\NGC0891\B_0120.fits');
       expect(assessment.exposureSecs, 120.0);
       expect(assessment.solvedRaDeg, 35.64);
@@ -149,7 +162,7 @@ void main() {
 
   test('a horizon obstruction is read, and one without a position is not', () {
     for (final e in both(
-      report(horizonObstructionDetailKind, {
+      report(horizonObstructionReportKind, {
         'altitude_deg': 64.0,
         'azimuth_deg': 286.2,
         'target_name': 'NGC 891',
@@ -161,13 +174,12 @@ void main() {
       }),
     )) {
       final obstruction =
-          (e as bridge.SequencerEvent_InstructionProgressStructured)
-              .horizonObstruction!;
+          (e as bridge.SequencerEvent_FrameWatchReport).horizonObstruction!;
       expect(obstruction.azimuthDeg, 286.2);
       expect(obstruction.action, 'next_target');
       expect(obstruction.latitude, 43.1);
     }
-    expect(report(horizonObstructionDetailKind, {}).horizonObstruction, isNull);
+    expect(report(horizonObstructionReportKind, {}).horizonObstruction, isNull);
   });
 
   test('graded frames carry capture truth and paths on both transports', () {

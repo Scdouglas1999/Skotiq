@@ -39,7 +39,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'skotiq_data_directory.dart' show skotiqDataDirEnv;
-import '../services/logging_service.dart';
+import 'logging_service.dart';
 
 // --- Pre-rename literals ----------------------------------------------------
 // These strings describe where the OLD product stored things. They must not

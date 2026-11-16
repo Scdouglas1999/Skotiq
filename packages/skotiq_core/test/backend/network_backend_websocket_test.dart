@@ -8,8 +8,8 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
-import 'package:skotiq_core/src/models/errors/server_error.dart';
-import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
+import 'package:skotiq_core/src/errors/server_error.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 
 void main() {
@@ -584,7 +584,7 @@ void main() {
                 'timestamp': 1700000000001,
                 'severity': 'info',
                 'category': 'sequencer',
-                'eventType': 'InstructionProgressStructured',
+                'eventType': 'InstructionProgress',
                 'data': {
                   'node_id': 'exp-1',
                   'instruction': 'Take Exposure',
@@ -616,7 +616,7 @@ void main() {
         );
         final eventFuture = backend.eventStream
             .firstWhere(
-              (event) => event.eventType == 'InstructionProgressStructured',
+              (event) => event.eventType == 'InstructionProgress',
             )
             .timeout(const Duration(seconds: 2));
 

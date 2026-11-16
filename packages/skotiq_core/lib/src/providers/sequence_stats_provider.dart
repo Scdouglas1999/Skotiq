@@ -11,7 +11,7 @@ import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
 import 'package:skotiq_astro/format.dart';
-import '../backend/roles/host_data/host_records.dart';
+import '../database/stores/host_records.dart';
 import 'database_provider.dart';
 import 'sequence/run_record.dart';
 import '../models/sequence/run_stop_classification.dart';

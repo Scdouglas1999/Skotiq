@@ -45,6 +45,12 @@ class SchedulerCandidate {
   /// True when the target represents a multi-panel mosaic plan.
   final bool isMosaicTarget;
 
+  /// Whether the rig takes one exposure per filter in turn
+  /// (`smartNightRotatesFilters`: a motorized wheel). The dispatched plan
+  /// then rotates through every filter its goals still need; otherwise it
+  /// images the most-needed filter alone.
+  final bool rotatesFilters;
+
   SchedulerCandidate({
     required this.targetId,
     required this.name,
@@ -57,6 +63,7 @@ class SchedulerCandidate {
     required this.horizonProfiles,
     required this.availableFilters,
     this.isMosaicTarget = false,
+    this.rotatesFilters = false,
   }) {
     if (capturedCounts.length != goals.length) {
       throw ArgumentError(

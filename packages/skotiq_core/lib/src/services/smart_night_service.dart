@@ -13,7 +13,7 @@ import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/site/altitude_floor.dart';
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
 import 'smart_night/camera_capture_defaults.dart';
 import 'plan_timer.dart';
@@ -275,7 +275,7 @@ class SmartNightService {
   ///
   /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
   /// [strategy] is the filter set for every target; null chooses each
-  /// target's own ([chooseFilters]). [targetStrategies] holds sets the user
+  /// target's own ([chooseFilters]). [targetSets] holds sets the user
   /// picked for single targets, by target id; they win over both.
   /// [planTimer] (`planTimerProvider`) times the night for its warnings and
   /// run length, with the dawn park and autofocus runs the pre-flight counts.
@@ -296,7 +296,7 @@ class SmartNightService {
     SmartNightExposureContext? exposureContext,
     SmartNightFlatPlan? flatPlan,
     Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
-    Map<int, SmartNightStrategy> targetStrategies = const {},
+    Map<int, FilterSet> targetSets = const {},
   }) {
     _validateInputs(
       profile: profile,
@@ -435,12 +435,14 @@ class SmartNightService {
         availableFilters: planningFilters,
         exposureContext: exposureContext,
       );
-      final targetStrategy =
-          targetStrategies[suggestion.targetId] ?? strategy ?? choice.strategy;
+      final targetSet =
+          targetSets[suggestion.targetId] ??
+          (strategy == null
+              ? choice.recommended
+              : FilterSet.preset(strategy, choice.filtersFor(strategy)));
       final filterPlans = _composeFilterPlans(
-        suggestion: suggestion,
-        strategy: targetStrategy,
-        activeFilters: choice.filtersFor(targetStrategy),
+        timeShares: targetSet.timeShares,
+        activeFilters: targetSet.filters,
         windowSecs: windowSecs,
         profile: profile,
         cameraSpec: cameraSpec,
@@ -477,8 +479,8 @@ class SmartNightService {
             filterPlans: filterPlans,
             windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
           ),
-          filterReason: choice.reasonFor(targetStrategy),
-          filterSuggestion: choice.suggestionFor(targetStrategy),
+          filterReason: choice.reasonFor(targetSet),
+          filterSuggestion: choice.suggestionFor(targetSet),
         ),
       );
       cursor = clampedEnd;
@@ -643,7 +645,7 @@ class SmartNightService {
     SmartNightExposureContext? exposureContext,
     SmartNightSettings settings = const SmartNightSettings(),
     List<IntegrationGoalProgress>? integrationGoalProgress,
-    SmartNightStrategy? strategy,
+    FilterSet? filterSet,
   }) {
     final planningFilters = smartNightPlanningFilters(availableFilters);
     final choice = chooseFilters(
@@ -651,8 +653,8 @@ class SmartNightService {
       availableFilters: planningFilters,
       exposureContext: exposureContext,
     );
-    final resolvedStrategy = strategy ?? choice.strategy;
-    final activeFilters = choice.filtersFor(resolvedStrategy);
+    final set = filterSet ?? choice.recommended;
+    final activeFilters = set.filters;
     if (activeFilters.isEmpty) return null;
 
     final pixelSizeUm =
@@ -692,8 +694,7 @@ class SmartNightService {
     if (windowSecs <= 0) return null;
 
     final filterPlans = _composeFilterPlans(
-      suggestion: suggestion,
-      strategy: resolvedStrategy,
+      timeShares: set.timeShares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,
@@ -725,11 +726,9 @@ class SmartNightService {
       usableWindowHours: usableWindowHours,
       subExposureSecs: filterPlans.first.durationSecs,
       filterNames: filterPlans.map((p) => p.filterName).toList(),
-      filterReason: choice.reasonFor(resolvedStrategy),
-      filterSuggestion: choice.suggestionFor(resolvedStrategy),
-      suggestedStrategy: choice.suggestionFor(resolvedStrategy) == null
-          ? null
-          : choice.suggested,
+      filterReason: choice.reasonFor(set),
+      filterSuggestion: choice.suggestionFor(set),
+      suggestedSet: choice.suggestionFor(set) == null ? null : choice.suggested,
     );
   }
 
@@ -746,7 +745,7 @@ class SmartNightService {
     required double longitudeDeg,
     SmartNightExposureContext? exposureContext,
     SmartNightSettings settings = const SmartNightSettings(),
-    SmartNightStrategy? strategy,
+    FilterSet? filterSet,
     double? integrationBudgetHours,
     List<IntegrationGoalProgress>? integrationGoalProgress,
     bool includeSessionPreamble = false,
@@ -759,12 +758,11 @@ class SmartNightService {
       availableFilters: planningFilters,
       exposureContext: exposureContext,
     );
-    final resolvedStrategy = strategy ?? choice.strategy;
-    final activeFilters = choice.filtersFor(resolvedStrategy);
+    final set = filterSet ?? choice.recommended;
+    final activeFilters = set.filters;
     if (activeFilters.isEmpty) {
       throw SmartNightBuildException(
-        'The wheel has no filters for '
-        '${smartNightStrategyLabel(resolvedStrategy)} '
+        'The wheel has no filters for ${set.label} '
         '(${availableFilters.join(", ")}). Pick another filter set.',
       );
     }
@@ -816,8 +814,7 @@ class SmartNightService {
     );
 
     final filterPlans = _composeFilterPlans(
-      suggestion: suggestion,
-      strategy: resolvedStrategy,
+      timeShares: set.timeShares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,
@@ -858,8 +855,8 @@ class SmartNightService {
         filterPlans: filterPlans,
         windowSecs: clampedEnd.difference(usable.$1).inSeconds.toDouble(),
       ),
-      filterReason: choice.reasonFor(resolvedStrategy),
-      filterSuggestion: choice.suggestionFor(resolvedStrategy),
+      filterReason: choice.reasonFor(set),
+      filterSuggestion: choice.suggestionFor(set),
     );
 
     final context = SmartNightContext(
@@ -882,10 +879,61 @@ class SmartNightService {
 
     return SingleTargetSequenceResult(
       sequence: sequence,
-      strategy: resolvedStrategy,
+      filterSet: set,
       filterPlans: filterPlans,
       plannedTarget: planned,
     );
+  }
+
+  /// The Smart Exposure rows for imaging [filterSet] for [plannedSecs] in
+  /// all on a rig with [profile], as the Filters picker fills a step: each
+  /// filter's sub length from the exposure calculator, the time split into
+  /// frame counts by the set's shares ([FilterSet.timeShares]), and the
+  /// camera's gain and offset for each filter. The rows dither every
+  /// [SmartNightSettings.ditherEveryFrames] frames.
+  ///
+  /// Throws [SmartNightBuildException] when the profile lacks the optics or
+  /// pixel size the calculator needs.
+  List<FilterPlan> smartExposureRows({
+    required EquipmentProfileModel profile,
+    required FilterSet filterSet,
+    required double plannedSecs,
+    SmartNightExposureContext? exposureContext,
+    SmartNightSettings settings = const SmartNightSettings(),
+  }) {
+    final pixelSizeUm =
+        exposureContext?.pixelSizeMicrons ?? _pixelSize(profile);
+    final focalLength = profile.focalLength > 0
+        ? profile.focalLength
+        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
+    final aperture = profile.aperture > 0
+        ? profile.aperture
+        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
+    if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
+      throw SmartNightBuildException(
+        'Equipment profile "${profile.name}" is missing aperture, focal '
+        'length, or pixel size. These are required to compute exposure '
+        'recommendations.',
+      );
+    }
+    final plans = _composeFilterPlans(
+      timeShares: filterSet.timeShares,
+      activeFilters: filterSet.filters,
+      windowSecs: plannedSecs,
+      profile: profile,
+      cameraSpec: exposureContext?.camera ?? _cameraSpecFromProfile(profile),
+      focalLengthMm: focalLength,
+      apertureMm: aperture,
+      pixelSizeUm: pixelSizeUm,
+      bortleClass: exposureContext?.bortleClass ?? 5,
+      recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
+      recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
+      settings: settings,
+    );
+    return [
+      for (final plan in plans)
+        _smartExposureRow(profile: profile, plan: plan, settings: settings),
+    ];
   }
 
   /// Validate the hard requirements. Failing fast at the input boundary
@@ -992,8 +1040,7 @@ class SmartNightService {
 
   /// Compose per-filter plans — delegates to the public helper.
   List<SmartNightFilterPlan> _composeFilterPlans({
-    required TargetSuggestion suggestion,
-    required SmartNightStrategy strategy,
+    required Map<String, double> timeShares,
     required List<String> activeFilters,
     required double windowSecs,
     required EquipmentProfileModel profile,
@@ -1009,8 +1056,7 @@ class SmartNightService {
     List<String>? availableFiltersForGoals,
   }) {
     return composeSmartNightFilterPlans(
-      suggestion: suggestion,
-      strategy: strategy,
+      timeShares: timeShares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
       profile: profile,

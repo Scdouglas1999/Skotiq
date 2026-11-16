@@ -161,3 +161,28 @@ String? matchingFilterName(String requested, Iterable<String> available) {
   final index = matchingFilterIndex(requested, names);
   return index == null ? null : names[index];
 }
+
+/// The filter sets astrophotographers name by their letters, by the bands of
+/// their filters (one band each).
+const Map<String, String> _namedSets = {
+  'B+G+L+R': 'LRGB',
+  'B+G+R': 'RGB',
+  'B+G+HA+L+R': 'HaLRGB',
+  'HA+OIII+SII': 'SHO',
+  'HA+OIII': 'HOO',
+};
+
+/// The usual name of the set [filters] make ("LRGB", "SHO", "HOO"), or null
+/// when they are not one of those sets: a filter that passes several bands, a
+/// filter listed twice or a set with no common name.
+String? filterSetName(Iterable<String> filters) {
+  final bands = <String>[];
+  for (final filter in filters) {
+    final identity = filterIdentity(filter);
+    if (identity.isEmpty || identity.contains('+')) return null;
+    bands.add(identity);
+  }
+  final distinct = bands.toSet();
+  if (distinct.length != bands.length) return null;
+  return _namedSets[(distinct.toList()..sort()).join('+')];
+}

@@ -14,7 +14,7 @@
 //! Device ids, the save path and the device handlers are wiring, not
 //! settings; they are in [`super::setup`].
 
-use super::{DefectMapApplyState, ExecutorEvent, RunConfigStore, SequenceExecutor};
+use super::{DefectMapApplyState, ExecutorEvent, ExecutorHandle, RunConfigStore, SequenceExecutor};
 use crate::node::context::{CloudMotionSnapshot, TransparencyBackupPlan};
 use std::collections::HashMap;
 
@@ -52,6 +52,10 @@ impl SequenceExecutor {
         });
     }
 
+    // The live sky feed
+}
+
+impl ExecutorHandle {
     /// The defect map applied to lights during capture, loaded by the host;
     /// `None` turns correction off. Applies from the next exposure.
     pub async fn update_defect_map(&self, state: Option<DefectMapApplyState>) {
@@ -70,8 +74,6 @@ impl SequenceExecutor {
         *self.defect_map_apply.write().await = state;
         self.announce_feed("defect_map");
     }
-
-    // The live sky feed
 
     fn announce_feed(&self, what: &str) {
         self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {

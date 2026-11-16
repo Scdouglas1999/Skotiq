@@ -34,10 +34,10 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
         ..ExposureConfig::default()
     };
 
-    let burst = std::pin::pin!(execute_exposure_with_renderer(
+    let burst = std::pin::pin!(execute_exposure(
         &config,
         &ctx,
-        None,
+        frame_namer_for(&ctx, &config),
         &control,
         |_, _, _| {}
     ));
@@ -80,7 +80,7 @@ async fn dropped_exposure_instruction_aborts_camera() {
         ..ExposureConfig::default()
     };
 
-    let task = tokio::spawn(async move { execute_exposure(&config, &ctx, |_, _, _| {}).await });
+    let task = tokio::spawn(async move { expose_burst(&config, &ctx, |_, _, _| {}).await });
     while ops.camera_exposure_calls.load(Ordering::SeqCst) == 0 {
         tokio::task::yield_now().await;
     }
@@ -112,7 +112,7 @@ async fn requested_filter_without_wheel_fails_before_capture() {
         ..ExposureConfig::default()
     };
 
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Failure);
     assert!(
@@ -178,8 +178,7 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     // Run the burst concurrently and give it room to reach the wheel if it is
     // going to.
     let burst_ctx = ctx;
-    let burst =
-        tokio::spawn(async move { execute_exposure(&config, &burst_ctx, |_, _, _| {}).await });
+    let burst = tokio::spawn(async move { expose_burst(&config, &burst_ctx, |_, _, _| {}).await });
     tokio::time::sleep(std::time::Duration::from_millis(400)).await;
 
     assert!(
@@ -253,7 +252,7 @@ mod dither_cadence {
             dither_every: Some(dither_every),
             ..ExposureConfig::default()
         };
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
         assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), count);
         let dithers = ops.dithers_after_frame.lock().unwrap().clone();
@@ -306,16 +305,12 @@ mod light_frame_grading {
             ..ExposureConfig::default()
         };
 
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 
         let mut verdict = None;
         while let Ok(event) = event_rx.try_recv() {
-            if let crate::executor::ExecutorEvent::NodeProgress {
-                structured_detail: Some(detail),
-                ..
-            } = event
-            {
+            if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
                 match *detail {
                     crate::node::ProgressDetail::FrameAccepted { .. } => verdict = Some(Ok(())),
                     crate::node::ProgressDetail::FrameRejected {
@@ -402,10 +397,10 @@ mod light_frame_grading {
             ..ExposureConfig::default()
         };
 
-        let burst = execute_exposure_with_renderer(
+        let burst = execute_exposure(
             &config,
             &ctx,
-            None,
+            frame_namer_for(&ctx, &config),
             &BurstControl::default(),
             |_, _, _| {},
         )
@@ -465,15 +460,11 @@ mod light_frame_grading {
                     quality_check: Some(grading),
                     ..ExposureConfig::default()
                 };
-                let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+                let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
                 assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
                 let mut rejects = Vec::new();
                 while let Ok(event) = event_rx.try_recv() {
-                    if let crate::executor::ExecutorEvent::NodeProgress {
-                        structured_detail: Some(detail),
-                        ..
-                    } = event
-                    {
+                    if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
                         if let crate::node::ProgressDetail::FrameRejected { reason, .. } = *detail {
                             rejects.push(reason);
                         }
@@ -529,7 +520,7 @@ mod in_burst_dither_failure {
             dither_every: Some(1),
             ..ExposureConfig::default()
         };
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
             if let crate::executor::ExecutorEvent::Warning { message }
@@ -605,7 +596,7 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
         ..ExposureConfig::default()
     };
 
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 4);
@@ -639,7 +630,7 @@ async fn a_burst_skips_its_dither_while_the_run_holds_the_guider_stopped() {
         ..ExposureConfig::default()
     };
 
-    let result = execute_exposure(&config, &ctx, |frame, _, _| {
+    let result = expose_burst(&config, &ctx, |frame, _, _| {
         if frame == 1 {
             state
                 .try_write()
@@ -677,7 +668,7 @@ async fn a_burst_dither_tells_the_guider_it_is_settling_after_a_dither() {
         ..ExposureConfig::default()
     };
 
-    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
@@ -778,7 +769,7 @@ mod settle_ran_out_with_the_star_held {
             ..ExposureConfig::default()
         };
 
-        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
 
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
         assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
@@ -811,7 +802,13 @@ async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     };
     let result = tokio::time::timeout(
         Duration::from_secs(1),
-        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+        execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {},
+        ),
     )
     .await;
     assert!(result.is_err(), "the exposure must remain held");
@@ -854,12 +851,16 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     let (events, mut rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = ctx;
     ctx.run.event_tx = Some(events);
-    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
-        .await
-        .result;
-    let rejected_files = std::fs::read_dir(dir.join("Reject"))
-        .map(|entries| entries.count())
-        .unwrap_or(0);
+    let result = execute_exposure(
+        &config,
+        &ctx,
+        frame_namer_for(&ctx, &config),
+        &control,
+        |_, _, _| {},
+    )
+    .await
+    .result;
+    let rejected_files = files_in_reject_folders(&dir);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ec.run.grading.frames_rejected.load(Ordering::SeqCst), 1);
@@ -927,13 +928,17 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
                 }
             })
         };
-        let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
-            .await
-            .result;
+        let result = execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {},
+        )
+        .await
+        .result;
         stopper.await.expect("stopper");
-        let rejected_files = std::fs::read_dir(dir.join("Reject"))
-            .map(|entries| entries.count())
-            .unwrap_or(0);
+        let rejected_files = files_in_reject_folders(&dir);
         let _ = std::fs::remove_dir_all(&dir);
 
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
@@ -987,10 +992,10 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
         duration_secs: 0.0,
         ..Default::default()
     };
-    let mut burst = std::pin::pin!(execute_exposure_with_renderer(
+    let mut burst = std::pin::pin!(execute_exposure(
         &config,
         &ctx,
-        None,
+        frame_namer_for(&ctx, &config),
         &control,
         |_, _, _| {}
     ));
@@ -1042,7 +1047,13 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
     tokio::time::advance(crate::instructions::guiding::UNGUIDED_RETRY_INTERVAL).await;
     let result = tokio::time::timeout(
         Duration::from_secs(600),
-        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+        execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {},
+        ),
     )
     .await
     .expect("the frame runs")
@@ -1081,10 +1092,10 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
         duration_secs: 0.0,
         ..Default::default()
     };
-    let mut burst = std::pin::pin!(execute_exposure_with_renderer(
+    let mut burst = std::pin::pin!(execute_exposure(
         &config,
         &ctx,
-        None,
+        frame_namer_for(&ctx, &config),
         &control,
         |_, _, _| {}
     ));
@@ -1136,7 +1147,7 @@ async fn a_light_frame_starts_on_focus_corrected_for_the_temperature() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
     let ctx = compensating_ctx(ops.clone()).await;
 
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(*ops.focuser_moves.lock().unwrap(), vec![31_718]);
@@ -1152,7 +1163,7 @@ async fn a_calibration_frame_does_not_move_the_focuser() {
         ..one_light()
     };
 
-    let result = execute_exposure(&dark, &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&dark, &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert!(ops.focuser_moves.lock().unwrap().is_empty());
@@ -1165,7 +1176,7 @@ async fn a_run_without_compensation_leaves_the_focuser_alone() {
     let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
     ctx.run.rig.focuser_id = Some("focuser-1".to_string());
 
-    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+    let result = expose_burst(&one_light(), &ctx, |_, _, _| {}).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert!(ops.focuser_moves.lock().unwrap().is_empty());

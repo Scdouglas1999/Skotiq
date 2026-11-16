@@ -119,13 +119,15 @@ class SmartNightFilterPlan {
 /// Result of [SmartNightService.buildSingleTargetSequence].
 class SingleTargetSequenceResult {
   final Sequence sequence;
-  final SmartNightStrategy strategy;
+
+  /// The filters the plan images through.
+  final FilterSet filterSet;
   final List<SmartNightFilterPlan> filterPlans;
   final SmartNightPlannedTarget plannedTarget;
 
   const SingleTargetSequenceResult({
     required this.sequence,
-    required this.strategy,
+    required this.filterSet,
     required this.filterPlans,
     required this.plannedTarget,
   });
@@ -152,7 +154,7 @@ class TargetIntegrationPreview {
   /// A set offered beside the estimated one, and the set itself
   /// ([SmartNightFilterChoice.suggestion], [SmartNightFilterChoice.suggested]).
   final String? filterSuggestion;
-  final SmartNightStrategy? suggestedStrategy;
+  final FilterSet? suggestedSet;
 
   const TargetIntegrationPreview({
     required this.estimatedIntegrationHours,
@@ -161,7 +163,7 @@ class TargetIntegrationPreview {
     required this.filterNames,
     required this.filterReason,
     this.filterSuggestion,
-    this.suggestedStrategy,
+    this.suggestedSet,
   });
 }
 

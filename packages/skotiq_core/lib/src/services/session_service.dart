@@ -3,9 +3,10 @@ import 'dart:async';
 
 import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/session_orphan_sweep.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../backend/roles/host_data/imaging_records.dart';
+import '../database/rows/imaging_session_status.dart';
 
 class SessionCheckpointConfig {
   /// Re-persist the current statistics on this interval even when no frame has

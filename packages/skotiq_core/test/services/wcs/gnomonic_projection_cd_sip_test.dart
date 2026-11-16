@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 // Self-consistency tests for the CD-matrix + SIP path. They assert the new
 // code reduces to the isotropic path when CD/SIP are absent and round-trips

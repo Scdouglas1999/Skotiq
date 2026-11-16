@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../utils/skotiq_data_directory.dart';
 import '../notification/secrets_store.dart' show SecureKeyValueStore;
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// The imaging computer this desktop links to, as remembered between launches.
 ///

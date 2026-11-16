@@ -17,7 +17,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../errors/error_text.dart';
 import '../color_calibration_service.dart' show StarConeSearch;
 import '../frame_header.dart';
-import '../wcs/gnomonic_projection.dart';
+import '../../models/imaging/gnomonic_projection.dart';
 import 'dawn_master_resolver.dart';
 
 /// The catalogue stars for one master's field, or the reason there are none.

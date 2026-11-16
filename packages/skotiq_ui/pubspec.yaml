@@ -41,11 +41,17 @@ flutter:
     - family: SplineSansMono
       fonts:
         - asset: assets/fonts/SplineSansMono-VF.ttf
-    #   Sora — the wordmark face only ("skotiq", SemiBold). Chosen for the
-    #            rebrand; nothing else should set it.
+    #   Sora — the wordmark face ("skotiq", SemiBold), and the typography's
+    #            first fallback for the primes.
     - family: Sora
       fonts:
         - asset: assets/fonts/Sora-VF.ttf
+    #   SkotiqSymbols — fallback only: a Noto subset for the Greek, signs,
+    #            arrows and symbols the UI faces lack
+    #            (tools/fonts/build_skotiq_symbols.py).
+    - family: SkotiqSymbols
+      fonts:
+        - asset: assets/fonts/SkotiqSymbols-Regular.ttf
 
 
 

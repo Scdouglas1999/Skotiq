@@ -98,7 +98,7 @@ impl SequenceExecutor {
             target,
             hour_angle
         );
-        self.emit_manual_intervention(
+        self.handle().emit_manual_intervention(
             "request_meridian_flip",
             serde_json::json!({ "target": target, "hour_angle_hours": hour_angle }),
         );

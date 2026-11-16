@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show listEquals, setEquals;
 import '../../../database/daos/observation_logs_dao.dart';
 import '../../../database/database.dart' show ObservationLogEntry;
 import '../../network_backend.dart';
-import '../../roles/host_data/observation_log.dart';
+import '../../../database/stores/observation_log.dart';
 import 'host_poll.dart';
 
 /// The observation log of a linked host, read through its notes journal

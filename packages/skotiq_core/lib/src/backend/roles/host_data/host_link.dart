@@ -1,3 +1,5 @@
+import 'package:skotiq_remote_protocol/wire_models.dart';
+
 import '../../../models/backend/backend_connection_state.dart';
 
 /// The connection from this client to its imaging host.
@@ -43,6 +45,14 @@ abstract interface class HostLink {
   void pauseWebSocketHeartbeatForAppLifecycle();
 
   void resumeWebSocketHeartbeatForAppLifecycle();
+
+  /// Waits for a job the host queued (a catalog download, an autofocus run, a
+  /// plate solve) to reach a terminal state.
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout,
+    Duration pollInterval,
+  });
 }
 
 extension HostLinkAddress on HostLink {

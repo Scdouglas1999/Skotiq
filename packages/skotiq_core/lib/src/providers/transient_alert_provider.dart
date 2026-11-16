@@ -8,7 +8,7 @@ import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/alerts/transient_alert.dart';
 import '../models/target/target_models.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../services/notification/secrets_store.dart';
 import '../services/transients/transient_alert_mapper.dart';
 import '../settings/setting.dart';

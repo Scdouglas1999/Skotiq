@@ -64,7 +64,7 @@ sk_events.SkotiqEvent _triggerFired(DateTime at) => _wire(at, 'TriggerFired', {
     });
 
 sk_events.SkotiqEvent _attemptFailed(DateTime at, int n, int delay) =>
-    _wire(at, 'InstructionProgressStructured', {
+    _wire(at, 'InstructionProgress', {
       'node_id': 'trigger:meridian_flip',
       'instruction': 'MeridianFlip',
       'progress_percent': 25.0 * n,

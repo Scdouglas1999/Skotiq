@@ -13,9 +13,8 @@ class _TargetDetailColumn extends ConsumerWidget {
 
   final VoidCallback onFrameIt;
 
-  /// Opens the Build sequence recipe, on [strategy] when the user took an
-  /// offered set ("Add Ha").
-  final void Function({SmartNightStrategy? strategy}) onBuildSequence;
+  /// Opens the Build sequence recipe on the set the Filters picker shows.
+  final VoidCallback onBuildSequence;
 
   const _TargetDetailColumn({
     required this.target,
@@ -41,11 +40,10 @@ class _TargetDetailColumn extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     final visibility = target.visibility;
-    // Why Image tonight and Build sequence use these filters.
-    final preview = ref
-        .watch(plannerTargetIntegrationPreviewProvider(target.targetId))
-        .valueOrNull;
-    final filterReason = preview?.filterReason;
+    // The filters Image tonight and Build sequence image through, and why.
+    final filterChoice =
+        ref.watch(targetFilterChoiceProvider(target)).valueOrNull;
+    final filterSet = ref.watch(targetFilterSetProvider(target)).valueOrNull;
 
     final content = <Widget>[
       SizedBox(
@@ -101,36 +99,22 @@ class _TargetDetailColumn extends ConsumerWidget {
       ),
       const SizedBox(height: SkotiqTokens.spaceMd),
       KeyValueList(rows: _facts(context, ref)),
-      if (filterReason != null && filterReason.isNotEmpty) ...[
-        const SizedBox(height: SkotiqTokens.spaceXs),
-        Text(
-          filterReason,
-          style: SkotiqTypography.bodySm.copyWith(
-            color: colors.textSecondary,
-          ),
-        ),
-      ],
-      if ((preview?.filterSuggestion, preview?.suggestedStrategy)
-          case (final offer?, final set?)) ...[
-        const SizedBox(height: SkotiqTokens.spaceXs),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                offer,
-                style: SkotiqTypography.bodySm.copyWith(
-                  color: colors.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SkotiqButton(
-              label: 'Add Ha',
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              onPressed: () => onBuildSequence(strategy: set),
-            ),
-          ],
+      if ((filterChoice, filterSet) case (final choice?, final set?)) ...[
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        FilterSetPicker(
+          label: 'Filters',
+          choice: choice,
+          value: set,
+          dense: true,
+          onChanged: (picked) => ref
+              .read(filterSetPreferencesProvider.notifier)
+              .choose(target, picked, recommended: choice.recommended)
+              .catchError((Object e) {
+            if (context.mounted) {
+              context.showErrorSnackBar(
+                  'Could not keep the filter set: ${userFacingError(e)}');
+            }
+          }),
         ),
       ],
       // The sensor the exposure above was computed from, and where each of its

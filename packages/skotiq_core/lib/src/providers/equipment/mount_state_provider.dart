@@ -5,7 +5,7 @@ import '../../models/backend/device_types.dart' show DeviceType, PierSide;
 import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
 import '../backend_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.

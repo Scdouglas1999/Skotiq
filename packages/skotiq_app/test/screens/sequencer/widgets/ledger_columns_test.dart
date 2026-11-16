@@ -122,7 +122,8 @@ void main() {
       );
     });
 
-    test('smart exposure: plan filters joined, total frames counted', () {
+    test('smart exposure: a named set reads by its name, total frames counted',
+        () {
       final smart = SmartExposureNode(
         name: 'LRGB',
         plans: const [
@@ -144,8 +145,32 @@ void main() {
         rollup: const Duration(minutes: 50),
       );
 
-      expect(columns.filterExp, 'L R G B');
+      expect(columns.filterExp, 'LRGB');
       expect(columns.count, '50');
+    });
+
+    test('smart exposure: narrowband reads as SHO, an unnamed set as its list',
+        () {
+      String filtersOf(List<String> names) {
+        final smart = SmartExposureNode(
+          plans: [
+            for (final name in names)
+              FilterPlan(filterName: name, count: 12, durationSecs: 300),
+          ],
+        );
+        final sequence = Sequence.create(
+          name: 'T',
+          nodes: {smart.id: smart},
+          rootNodeId: smart.id,
+        );
+        return ledgerColumnsFor(smart, sequence, rollup: Duration.zero)
+            .filterExp;
+      }
+
+      expect(filtersOf(['Ha', 'OIII', 'SII']), 'SHO');
+      expect(filtersOf(['Ha 7nm', 'SII 7nm', 'OIII 7nm']), 'SHO');
+      expect(filtersOf(['Ha', 'OIII']), 'HOO');
+      expect(filtersOf(['L', 'Ha']), 'L Ha');
     });
 
     test('unnamed smart plans fall back to wheel position', () {

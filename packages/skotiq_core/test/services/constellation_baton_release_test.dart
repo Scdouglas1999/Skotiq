@@ -20,6 +20,7 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _Seam implements SkyAtlasSeam {
   @override

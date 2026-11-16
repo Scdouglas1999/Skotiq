@@ -97,7 +97,7 @@ void main() {
     String nodeId, {
     int step = 5,
     int totalSteps = 9,
-  }) => sequencerEvent('InstructionProgressStructured', {
+  }) => sequencerEvent('InstructionProgress', {
     'node_id': nodeId,
     'instruction': 'Autofocus',
     'progress_percent': step / totalSteps * 100.0,
@@ -172,7 +172,7 @@ void main() {
       final (container, executor) = build();
 
       executor.handleSequencerEventForTest(
-        sequencerEvent('InstructionProgressStructured', {
+        sequencerEvent('InstructionProgress', {
           'node_id': 'slew-node',
           'instruction': 'Slew to Target',
           'progress_percent': 100.0,
@@ -242,7 +242,7 @@ void main() {
         );
 
         executor.handleSequencerEventForTest(
-          sequencerEvent('InstructionProgressStructured', {
+          sequencerEvent('InstructionProgress', {
             'node_id': 'filter-node',
             'instruction': 'Change Filter',
             'progress_percent': 100.0,
@@ -278,7 +278,7 @@ void main() {
       // burst publishing what it resolved, this side of the bridge still
       // held "L" and recorded the same frame under L.
       executor.handleSequencerEventForTest(
-        sequencerEvent('InstructionProgressStructured', {
+        sequencerEvent('InstructionProgress', {
           'node_id': 'filter-node',
           'instruction': 'Change Filter',
           'progress_percent': 100.0,
@@ -289,7 +289,7 @@ void main() {
       // Exactly the payload `ExposeInstruction` now emits once per burst —
       // note the instruction is "Exposure", not "Change Filter".
       executor.handleSequencerEventForTest(
-        sequencerEvent('InstructionProgressStructured', {
+        sequencerEvent('InstructionProgress', {
           'node_id': 'expose-node',
           'instruction': 'Exposure',
           'progress_percent': 0.0,

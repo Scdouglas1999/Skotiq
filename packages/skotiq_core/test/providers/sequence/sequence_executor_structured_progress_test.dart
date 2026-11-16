@@ -56,27 +56,14 @@ void main() {
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: backend_events.EventSeverity.info,
         category: backend_events.EventCategory.sequencer,
-        eventType: 'InstructionProgressStructured',
-        data: const {
-          'node_id': 'exposure-1',
-          'instruction': 'TakeExposure',
-          'progress_percent': 42.0,
-          'detail_kind': 'Exposure',
-          'detail_json': '{"frame": 4, "total": 10, "duration_secs": 180}',
-        },
-      ),
-    );
-    executor.handleSequencerEventForTest(
-      backend_events.SkotiqEvent(
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        severity: backend_events.EventSeverity.info,
-        category: backend_events.EventCategory.sequencer,
         eventType: 'InstructionProgress',
         data: const {
           'node_id': 'exposure-1',
           'instruction': 'TakeExposure',
           'progress_percent': 42.0,
           'detail': 'Frame 4/10 (180.0s)',
+          'detail_kind': 'Exposure',
+          'detail_json': '{"frame": 4, "total": 10, "duration_secs": 180}',
         },
       ),
     );
@@ -115,21 +102,30 @@ void main() {
     }
 
     send('InstructionProgress', {
-      'node_id': 'guide-1',
-      'instruction': 'Start Guiding',
-      'progress_percent': 20.0,
-      'detail': 'Connecting to guider',
+      'node_id': 'af-1',
+      'instruction': 'Autofocus',
+      'progress_percent': 40.0,
+      'detail': 'step 4/9 HFR 2.75',
+      'detail_kind': 'Autofocus',
+      'detail_json': '{"step": 4, "total_steps": 9, "current_hfr": 2.75}',
     });
-    send('InstructionProgressStructured', {
-      'node_id': 'guide-1',
-      'instruction': 'Start Guiding',
-      'progress_percent': 60.0,
+    send('InstructionProgress', {
+      'node_id': 'af-1',
+      'instruction': 'Autofocus',
+      'progress_percent': 50.0,
+      'detail': 'Moving the focuser',
       'detail_kind': 'Generic',
-      'detail_json': 'Waiting for guiding to stabilize',
+      'detail_json': '"Moving the focuser"',
     });
 
     final progress = container.read(sequenceProgressProvider);
-    expect(progress.message, 'Start Guiding: Connecting to guider');
-    expect(progress.nodeProgressPercent['guide-1'], 60);
+    expect(progress.message, 'Autofocus: Moving the focuser');
+    expect(progress.nodeProgressDetail['af-1'], 'Moving the focuser');
+    expect(progress.nodeProgressPercent['af-1'], 50);
+    expect(
+      progress.nodeProgressStructuredDetail['af-1'],
+      isA<AutofocusInstructionProgressDetail>(),
+      reason: 'words between two readings keep the last reading',
+    );
   });
 }

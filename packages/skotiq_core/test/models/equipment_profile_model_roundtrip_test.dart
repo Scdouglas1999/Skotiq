@@ -3,6 +3,7 @@ import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
+import 'package:skotiq_core/src/database/rows/equipment_profile_rows.dart';
 
 /// The slave-side UI model [EquipmentProfileModel] round-trips every field the
 /// slave edits losslessly through the REST wire model in BOTH directions —
@@ -75,7 +76,7 @@ void main() {
       expect(wire.safetyMonitorName, model.safetyMonitorName);
       expect(wire.switchName, model.switchName);
 
-      final back = EquipmentProfileModel.fromRemoteProfile(wire);
+      final back = equipmentProfileFromRemote(wire);
       expect(back.meridianFlipOverrides, model.meridianFlipOverrides);
       expect(back.safetyMonitorName, model.safetyMonitorName);
       expect(back.switchName, model.switchName);
@@ -85,7 +86,7 @@ void main() {
       'toRemoteProfile -> fromRemoteProfile preserves the full field set',
       () {
         final model = _sampleModel();
-        final back = EquipmentProfileModel.fromRemoteProfile(
+        final back = equipmentProfileFromRemote(
           model.toRemoteProfile(),
         );
 
@@ -188,7 +189,7 @@ void main() {
         isActive: false,
       );
 
-      final wire = EquipmentProfileModel.fromDatabase(row).toRemoteProfile();
+      final wire = row.toModel().toRemoteProfile();
       expect(wire.meridianFlipOverrides, '{"enabled":false}');
       expect(wire.safetyMonitorName, 'Roof Switch Safety');
       expect(wire.switchName, 'Mains');
@@ -203,7 +204,7 @@ void main() {
       final wire = cleared.toRemoteProfile();
       expect(wire.meridianFlipOverrides, isNull);
 
-      final back = EquipmentProfileModel.fromRemoteProfile(wire);
+      final back = equipmentProfileFromRemote(wire);
       expect(back.meridianFlipOverrides, isNull);
     });
 

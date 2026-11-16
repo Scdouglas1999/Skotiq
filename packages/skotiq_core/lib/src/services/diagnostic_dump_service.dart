@@ -23,7 +23,7 @@ import '../providers/equipment/safety_monitor_state_provider.dart';
 import '../providers/equipment/weather_state_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/sequence_provider.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import '../utils/skotiq_data_directory.dart';
 import '../providers/logging_service_provider.dart';
 

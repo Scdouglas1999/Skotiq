@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/optical_train_limits.dart';
+import 'package:skotiq_core/src/models/optical_train_limits.dart';
 
 /// Rejecting only `<= 0` accepts focal length `999999999` mm and aperture
 /// `0.0001` mm, and the first-run wizard step renders `f/9999999990000.00`.

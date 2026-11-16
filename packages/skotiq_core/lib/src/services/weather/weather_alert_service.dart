@@ -139,7 +139,7 @@ class WeatherAlertService {
   }) {
     switch (level) {
       case AlertLevel.clear:
-        return 'Forecast cloud cover: ${densityPercent.toStringAsFixed(0)}%. '
+        return 'Cloud cover now: ${densityPercent.toStringAsFixed(0)}%. '
             'Local conditions may differ.';
 
       case AlertLevel.watch:

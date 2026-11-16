@@ -13,6 +13,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/models.dart';
 
 class _StubCatalogSource implements CatalogOverlaySource {
   _StubCatalogSource({this.dsos = const []});

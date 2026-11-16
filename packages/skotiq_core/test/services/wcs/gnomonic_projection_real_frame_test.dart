@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 // A real rig frame (NGC 891, 4656 x 3520, a Newtonian, so mirrored parity)
 // solved by ASTAP with SIP. The truth pixels come from astropy's

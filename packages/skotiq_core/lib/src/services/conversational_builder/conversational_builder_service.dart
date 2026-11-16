@@ -47,7 +47,7 @@ import '../../models/sequence/sequence_models.dart';
 import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import '../../models/sequence/validation/structural_rules.dart';
 import '../../models/sequence/validation/validation_issue.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../sequence_file_service.dart';
 import 'llm_provider.dart';
 import 'system_prompt_builder.dart';
