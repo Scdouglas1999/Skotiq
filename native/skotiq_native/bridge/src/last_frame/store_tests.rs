@@ -1,4 +1,4 @@
-use super::{frames, put, ExposureRecord, RawFrame, StoredFrame, STORE_CAPACITY};
+use super::{frames, put, StoredFrame, STORE_CAPACITY};
 use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
 
 fn fixture_display() -> CapturedImageResult {
@@ -27,21 +27,17 @@ fn fixture_display() -> CapturedImageResult {
 fn fixture_frame(marker: u16) -> StoredFrame {
     StoredFrame {
         display: fixture_display(),
-        raw: RawFrame {
+        raw: skotiq_device::ImageData {
             width: 1,
             height: 1,
             data: vec![marker],
-            bayer_pattern: None,
-            camera_file: None,
-            exposure: ExposureRecord {
-                started_at: chrono::Utc::now(),
-                exposure_secs: 0.1,
-                gain: None,
-                offset: None,
-                temperature: None,
-                bits_per_pixel: 16,
-                readout_mode: None,
+            bits_per_pixel: 16,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: 0.1,
+                timestamp: chrono::Utc::now(),
+                ..Default::default()
             },
+            ..Default::default()
         },
         stars: Default::default(),
     }

@@ -213,8 +213,8 @@ async fn a_binned_subframe_arrives_upright_with_the_cameras_metadata() {
         );
     }
     assert!((image.metadata.exposure_time - 0.3).abs() < 0.05);
-    assert_eq!(image.metadata.gain, 400);
-    assert_eq!(image.metadata.offset, 12);
+    assert_eq!(image.metadata.gain, Some(400));
+    assert_eq!(image.metadata.offset, Some(12));
     assert_eq!((image.metadata.bin_x, image.metadata.bin_y), (2, 2));
 }
 

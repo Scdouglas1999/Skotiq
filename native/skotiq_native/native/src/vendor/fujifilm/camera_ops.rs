@@ -514,19 +514,16 @@ impl CameraDriver for FujifilmCamera {
 
         let metadata = ImageMetadata {
             exposure_time: self.exposure_duration.as_secs_f64(),
-            gain: self.current_iso,
-            offset: self.current_offset,
+            gain: Some(self.current_iso),
+            offset: Some(self.current_offset),
             bin_x: 1,
             bin_y: 1,
             temperature: frame.metadata.temperature.map(|t| t.celsius as f64),
-            timestamp: chrono::Utc::now(),
-            subframe: None,
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
             camera_file: Some(skotiq_device::CameraFile {
                 file_name: "frame.RAF".to_string(),
                 bytes: std::sync::Arc::new(buffer),
             }),
+            ..Default::default()
         };
 
         Ok(ImageData {

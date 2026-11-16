@@ -341,7 +341,7 @@ fn the_offset_is_the_black_level() {
         params.offset = Some(120);
         let image = take(&mut camera, params).await;
         assert_eq!(fake.get(cam, "blacklevel"), 120);
-        assert_eq!(image.metadata.offset, 120);
+        assert_eq!(image.metadata.offset, Some(120));
         let mut params = exposure(1, None);
         params.offset = Some(497);
         assert!(camera.start_exposure(params).await.is_err());

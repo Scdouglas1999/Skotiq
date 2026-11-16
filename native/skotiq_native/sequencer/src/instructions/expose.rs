@@ -645,7 +645,7 @@ async fn take_burst(
                 index_in_burst: frame,
                 burst_total: config.count,
                 started_at: exposure_started_at,
-                sensor_temp_c: image_data.temperature,
+                sensor_temp_c: image_data.metadata.temperature,
             }) {
                 Ok((dir, name)) => (Some(dir), Some(name)),
                 Err(msg) => {
@@ -1010,7 +1010,7 @@ async fn take_burst(
         // planned.
         let recorded_secs = crate::instructions::recorded_exposure_secs(
             config.duration_secs,
-            image_data.exposure_secs,
+            image_data.metadata.exposure_time,
         );
         progress_callback(frame, config.count, recorded_secs);
 

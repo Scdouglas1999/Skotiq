@@ -185,12 +185,11 @@ fn download_frame(
     commanded_secs: Option<f64>,
     commanded_bin: Option<(i32, i32)>,
 ) -> Result<ImageData, DriverError> {
-    use skotiq_device::UNKNOWN_CAMERA_SETTING;
     let (data, width, height) = cam
         .image_array()
         .map_err(|e| DriverError::SdkError(format!("Failed to download image: {e}")))?;
     let read_setting = |read: skotiq_ascom::AscomResult<i32>, control: &CameraControl| {
-        read.map_or(UNKNOWN_CAMERA_SETTING, |wire| control.from_wire(wire))
+        read.ok().map(|wire| control.from_wire(wire))
     };
     Ok(ImageData {
         width: width as u32,
@@ -210,11 +209,8 @@ fn download_frame(
             bin_x: bin_or_commanded("BinX", cam.bin_x(), commanded_bin.map(|bin| bin.0)),
             bin_y: bin_or_commanded("BinY", cam.bin_y(), commanded_bin.map(|bin| bin.1)),
             temperature: cam.ccd_temperature().ok(),
-            timestamp: chrono::Utc::now(),
-            subframe: None,
             readout_mode: readout_mode_name(cam.readout_mode().ok(), cam.readout_modes().ok()),
-            vendor_data: VendorFeatures::default(),
-            camera_file: None,
+            ..Default::default()
         },
     })
 }

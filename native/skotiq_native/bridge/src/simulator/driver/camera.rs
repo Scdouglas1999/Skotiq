@@ -187,12 +187,11 @@ impl Camera for SimCamera {
             bayer_pattern: None,
             metadata: skotiq_device::ImageMetadata {
                 exposure_time: request.secs,
-                gain: sim.gain.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
-                offset: sim.offset.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
+                gain: sim.gain,
+                offset: sim.offset,
                 bin_x: sim.bin_x,
                 bin_y: sim.bin_y,
                 temperature: sim.sensor_temp,
-                timestamp: chrono::Utc::now(),
                 subframe: request.subframe.map(|(start_x, start_y, width, height)| {
                     skotiq_device::SubFrame {
                         start_x,
@@ -201,9 +200,7 @@ impl Camera for SimCamera {
                         height,
                     }
                 }),
-                readout_mode: None,
-                vendor_data: skotiq_device::VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }

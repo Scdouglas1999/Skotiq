@@ -141,16 +141,12 @@ impl CameraDriver for SettingsCamera {
             bayer_pattern: None,
             metadata: ImageMetadata {
                 exposure_time: 1.0,
-                gain: sensor.gain,
-                offset: sensor.offset,
+                gain: Some(sensor.gain),
+                offset: Some(sensor.offset),
                 bin_x,
                 bin_y,
-                temperature: None,
                 timestamp: chrono::Utc::now(),
-                subframe: None,
-                readout_mode: None,
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }

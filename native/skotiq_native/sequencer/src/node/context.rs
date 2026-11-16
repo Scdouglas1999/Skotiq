@@ -267,9 +267,6 @@ pub struct ExecutionContext {
     /// When the time CoolCamera gave the cooler to reach `set_temp_c` runs
     /// out.
     pub set_point_settle_by: Option<tokio::time::Instant>,
-    /// Bayer pattern string ("RGGB", "BGGR", etc.) reported by the camera.
-    /// None for monochrome sensors.
-    pub bayer_pattern: Option<String>,
     /// What the run's exposure triggers did, keyed by node id and trigger
     /// position.
     pub exposure_triggers: Arc<parking_lot::Mutex<ExposureTriggerMemory>>,
@@ -510,7 +507,6 @@ impl ExecutionContext {
             current_filter_index: None,
             set_temp_c: None,
             set_point_settle_by: None,
-            bayer_pattern: None,
             exposure_triggers: Arc::default(),
             // production path uses the real wall clock; tests
             // override via `with_clock` to pin time.
@@ -968,7 +964,6 @@ impl ExecutionContext {
             current_binning: self.current_binning,
             set_temp_c: self.set_temp_c,
             set_point_settle_by: self.set_point_settle_by,
-            bayer_pattern: self.bayer_pattern.clone(),
             cancellation_token: self.is_cancelled.clone(),
         }
     }
