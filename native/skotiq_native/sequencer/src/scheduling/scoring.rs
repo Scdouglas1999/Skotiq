@@ -214,12 +214,23 @@ impl HorizonProfile {
             return self.samples[0].altitude_deg;
         }
 
-        let mut sorted = self.samples.clone();
-        sorted.sort_by(|a, b| {
-            a.azimuth_deg
-                .partial_cmp(&b.azimuth_deg)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // The app sends samples in compass order; only an unordered profile
+        // (hand-edited JSON) pays for a sorted copy. A night ranking asks
+        // this hundreds of thousands of times.
+        let sorted: std::borrow::Cow<'_, [HorizonSample]> = if self
+            .samples
+            .is_sorted_by(|a, b| a.azimuth_deg <= b.azimuth_deg)
+        {
+            std::borrow::Cow::Borrowed(&self.samples)
+        } else {
+            let mut owned = self.samples.clone();
+            owned.sort_by(|a, b| {
+                a.azimuth_deg
+                    .partial_cmp(&b.azimuth_deg)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            std::borrow::Cow::Owned(owned)
+        };
 
         let last = *sorted.last().unwrap();
         let first = sorted[0];
@@ -877,6 +888,29 @@ mod tests {
             "north wrap got {}",
             h.min_altitude_at(0.0)
         );
+    }
+
+    #[test]
+    fn horizon_samples_out_of_compass_order_answer_as_sorted_ones() {
+        let sorted = HorizonProfile::new(vec![
+            HorizonSample::new(30.0, 15.0),
+            HorizonSample::new(120.0, 45.0),
+            HorizonSample::new(300.0, 25.0),
+        ])
+        .unwrap();
+        let shuffled = HorizonProfile::new(vec![
+            HorizonSample::new(300.0, 25.0),
+            HorizonSample::new(30.0, 15.0),
+            HorizonSample::new(120.0, 45.0),
+        ])
+        .unwrap();
+        for az in [0.0, 29.0, 75.0, 200.0, 359.0] {
+            assert_eq!(
+                sorted.min_altitude_at(az),
+                shuffled.min_altitude_at(az),
+                "az {az}"
+            );
+        }
     }
 
     #[test]
