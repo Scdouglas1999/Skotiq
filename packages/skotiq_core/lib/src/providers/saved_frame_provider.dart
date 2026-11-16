@@ -19,7 +19,7 @@ import '../errors/error_text.dart';
 import '../models/backend/image_result.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/capture_preview_loader.dart' show imageStatsFromResult;
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import 'backend_provider.dart';
 import 'current_frame_analysis_provider.dart';
 

@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart' show SolvedWcs;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/preview_transform.dart';
