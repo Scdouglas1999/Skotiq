@@ -209,4 +209,42 @@ void main() {
     expect(pill.dx - canvas.dx, lessThan(40));
     expect(pill.dy - canvas.dy, lessThan(40));
   });
+
+  // The rig on 2026-11-15 at 23:31: the end-of-night calibration's dark read
+  // "Dark · 3.0 s ... 4 stars · REJECT", graded as if it were a light.
+  testWidgets('a calibration frame carries no accept or reject verdict',
+      (tester) async {
+    await pumpAppScreen(
+      tester,
+      const _PreviewHost(),
+      size: const Size(1280, 800),
+      settle: false,
+      extraOverrides: <Override>[
+        scienceSettingsProvider.overrideWith(
+          () => _FakeScienceNotifier(
+            const ScienceSettings(autoFrameGradingEnabled: true),
+          ),
+        ),
+      ],
+    ).then((handle) async {
+      const stats = ImageStats(hfr: 2.77, starCount: 4, mean: 300);
+      handle.container.read(lastImageStatsProvider.notifier).state = stats;
+      handle.container.read(currentImageProvider.notifier).state = _frame(
+        stats: stats,
+        settings: const ExposureSettings(
+          exposureTime: 3,
+          gain: 0,
+          offset: 0,
+          frameType: FrameType.dark,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    });
+
+    expect(find.text('Dark · 3.0 s'), findsOneWidget);
+    expect(find.text('REJECT'), findsNothing);
+    expect(find.text('ACCEPT'), findsNothing);
+  });
 }
