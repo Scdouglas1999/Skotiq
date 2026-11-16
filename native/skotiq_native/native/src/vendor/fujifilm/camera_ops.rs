@@ -5,11 +5,11 @@ use super::*;
 #[async_trait]
 impl DeviceDriver for FujifilmCamera {
     fn id(&self) -> &str {
-        &self.id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
@@ -21,7 +21,7 @@ impl DeviceDriver for FujifilmCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.session.is_some()
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
@@ -30,6 +30,7 @@ impl DeviceDriver for FujifilmCamera {
         }
         let sdk = FujifilmSdk::lock().await?;
         let session = session::join(&sdk, &self.address).await?;
+        self.core.begin_connection();
         let camera_handle = session.handle();
         self.firmware_version = session.firmware().to_string();
         let actual_name = session.product().to_string();
@@ -44,10 +45,10 @@ impl DeviceDriver for FujifilmCamera {
             // Depth deliberately dropped here: `refresh_raw_depth` below picks
             // it from the highest-authority source available.
             let (width, height, pixel_size, _) = self.model.sensor_specs();
-            self.sensor_info.width = width;
-            self.sensor_info.height = height;
-            self.sensor_info.pixel_size_x = pixel_size;
-            self.sensor_info.pixel_size_y = pixel_size;
+            self.core.sensor_info.width = width;
+            self.core.sensor_info.height = height;
+            self.core.sensor_info.pixel_size_x = pixel_size;
+            self.core.sensor_info.pixel_size_y = pixel_size;
         }
 
         // 2. Ask the body which RAW output depth it is set to. A GFX switched
@@ -90,7 +91,8 @@ impl DeviceDriver for FujifilmCamera {
         //    frame, a calibration nobody chose, and a frame that arrives long
         //    after the download stops waiting. The owner's NINA plugin turns it
         //    off by default; so does this driver, and says so.
-        self.long_exposure_nr = switch_off_long_exposure_nr(camera_handle, &sdk, &self.id);
+        self.long_exposure_nr =
+            switch_off_long_exposure_nr(camera_handle, &sdk, &self.core.device_id);
 
         // 4. Query ISO capabilities
         let mut iso_count: c_long = 0;
@@ -117,15 +119,16 @@ impl DeviceDriver for FujifilmCamera {
         let mut current_iso: c_long = 0;
         // SAFETY: `camera_handle` valid; `&mut current_iso` is a valid stack out-pointer to c_long; XSDK_GetSensitivity writes the current ISO value per XAPI.h.
         unsafe { (sdk.get_sensitivity)(camera_handle, &mut current_iso) };
-        self.current_iso = current_iso as i32;
+        self.core.gain = current_iso as i32;
 
         // 6. Frames left from before this session would be downloaded as ours.
         discard_buffered_frames(camera_handle, &sdk);
 
         self.session = Some(session);
+        self.core.connected = true;
         tracing::info!(
             "Connected to Fujifilm {} ({})",
-            self.name,
+            self.core.name,
             self.firmware_version
         );
 
@@ -147,7 +150,7 @@ impl DeviceDriver for FujifilmCamera {
             if let Err(e) = self.stop_bulb_exposure(&sdk).await {
                 tracing::error!(
                     "Fujifilm {}: failed to close the bulb shutter before disconnect: {}. The shutter may still be open; power-cycle the camera if the exposure does not end.",
-                    self.id,
+                    self.core.device_id,
                     e
                 );
             }
@@ -155,13 +158,14 @@ impl DeviceDriver for FujifilmCamera {
 
         self.end_live_view(&sdk).await;
         self.session = None;
+        self.core.connected = false;
         session::leave(&sdk, &session);
-        self.is_exposing = false;
+        self.core.end_exposure();
         self.is_bulb_mode = false;
         // The next connection asks the body for bulb again.
         self.bulb_refused = false;
 
-        tracing::info!("Disconnected from Fujifilm {}", self.name);
+        tracing::info!("Disconnected from Fujifilm {}", self.core.name);
 
         Ok(())
     }
@@ -216,7 +220,7 @@ impl FujifilmCamera {
     /// or HEIF companions of a RAW+JPEG shot. Returns the RAF bytes and the
     /// bit depth the SDK reported for them.
     async fn wait_for_raw_frame(&self) -> Result<(Vec<u8>, c_long), DriverError> {
-        let wait = frame_wait(self.exposure_duration.as_secs_f64(), self.long_exposure_nr);
+        let wait = frame_wait(self.core.exposure_duration, self.long_exposure_nr);
         let deadline = Instant::now() + wait;
         let mut skipped = 0;
         loop {
@@ -289,18 +293,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     fn capabilities(&self) -> CameraCapabilities {
-        CameraCapabilities {
-            can_cool: false,        // No cooling in mirrorless
-            can_set_gain: true,     // ISO control
-            can_set_offset: false,  // No offset control
-            can_set_binning: false, // No binning in DSLR/mirrorless
-            can_subframe: false,    // Full sensor only
-            has_shutter: true,      // Mechanical shutter
-            has_guider_port: false, // No ST-4
-            max_bin_x: 1,
-            max_bin_y: 1,
-            supports_readout_modes: false,
-        }
+        self.core.capabilities.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
@@ -311,37 +304,22 @@ impl CameraDriver for FujifilmCamera {
         // unplugged or switched off shows up as lost: the SDK reports that
         // only as the error of the next call it gets (SDK Programming
         // Reference 4.1.2.2, Note).
-        if !self.is_exposing {
+        if !self.is_exposing() {
             let sdk = FujifilmSdk::lock().await?;
             frames_in_buffer(self.handle(), &sdk)?;
         }
 
-        let state = if self.is_exposing {
-            CameraState::Exposing
-        } else {
-            CameraState::Idle
-        };
-
-        let exposure_remaining = if self.is_exposing {
-            self.exposure_start.map(|start| {
-                let elapsed = start.elapsed();
-                (self.exposure_duration.as_secs_f64() - elapsed.as_secs_f64()).max(0.0)
-            })
-        } else {
-            None
-        };
-
         Ok(CameraStatus {
-            state,
+            state: self.core.state,
             sensor_temp: None,
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: self.current_iso,
-            offset: self.current_offset,
+            gain: self.core.gain,
+            offset: self.core.offset,
             bin_x: 1,
             bin_y: 1,
-            exposure_remaining,
+            exposure_remaining: self.core.exposure_remaining(),
         })
     }
 
@@ -362,7 +340,7 @@ impl CameraDriver for FujifilmCamera {
         if stale > 0 {
             tracing::warn!(
                 "Fujifilm {}: discarded {} frame(s) left in the camera before the exposure",
-                self.id,
+                self.core.device_id,
                 stale
             );
         }
@@ -411,7 +389,7 @@ impl CameraDriver for FujifilmCamera {
                              that needs bulb is taken with the nearest shutter speed the camera \
                              has. For bulb, set the shutter speed dial to B or T. What the \
                              camera said: {refusal}",
-                            self.name
+                            self.core.name
                         ),
                     });
                 }
@@ -421,7 +399,7 @@ impl CameraDriver for FujifilmCamera {
         if (seconds - params.duration_secs).abs() > f64::EPSILON {
             tracing::info!(
                 "Fujifilm {}: {} s requested; the nearest shutter speed is {} s, which the frame records",
-                self.id,
+                self.core.device_id,
                 params.duration_secs,
                 seconds
             );
@@ -446,9 +424,7 @@ impl CameraDriver for FujifilmCamera {
             return Err(sdk_error(self.handle(), &sdk, "releasing the shutter"));
         }
 
-        self.exposure_start = Some(Instant::now());
-        self.exposure_duration = Duration::from_secs_f64(seconds);
-        self.is_exposing = true;
+        self.core.begin_exposure(seconds);
 
         Ok(())
     }
@@ -458,15 +434,11 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.is_exposing {
-            return Ok(true);
-        }
-
-        if let Some(start) = self.exposure_start {
-            Ok(start.elapsed() >= self.exposure_duration)
-        } else {
-            Ok(true)
-        }
+        Ok(!self.is_exposing()
+            || self
+                .core
+                .exposure_remaining()
+                .is_none_or(|left| left <= 0.0))
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
@@ -480,7 +452,7 @@ impl CameraDriver for FujifilmCamera {
         }
 
         let downloaded = self.wait_for_raw_frame().await;
-        self.is_exposing = false;
+        self.core.end_exposure();
         let (buffer, sdk_bit_depth) = downloaded?;
 
         // The SDK fills lImageBitDepth (XAPI.H:123) on every XSDK_ReadImageInfo
@@ -510,30 +482,19 @@ impl CameraDriver for FujifilmCamera {
         }
         self.refresh_raw_depth();
 
-        let bayer_pattern = Some(frame.cfa);
-
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration.as_secs_f64(),
-            gain: Some(self.current_iso),
-            offset: Some(self.current_offset),
-            bin_x: 1,
-            bin_y: 1,
-            temperature: frame.metadata.temperature.map(|t| t.celsius as f64),
-            camera_file: Some(skotiq_device::CameraFile {
-                file_name: "frame.RAF".to_string(),
-                bytes: std::sync::Arc::new(buffer),
-            }),
-            ..Default::default()
-        };
-
-        Ok(ImageData {
-            width: frame.width,
-            height: frame.height,
-            bits_per_pixel: frame.bits_per_pixel,
-            data: frame.data,
-            bayer_pattern,
-            metadata,
-        })
+        let mut image = self.core.frame(
+            frame.width,
+            frame.height,
+            frame.data,
+            frame.bits_per_pixel,
+            Some(frame.cfa),
+        );
+        image.metadata.temperature = frame.metadata.temperature.map(|t| t.celsius as f64);
+        image.metadata.camera_file = Some(skotiq_device::CameraFile {
+            file_name: "frame.RAF".to_string(),
+            bytes: std::sync::Arc::new(buffer),
+        });
+        Ok(image)
     }
 
     async fn set_cooler(
@@ -562,7 +523,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
-        Ok(self.current_iso)
+        Ok(self.core.gain)
     }
 
     async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
@@ -578,7 +539,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
