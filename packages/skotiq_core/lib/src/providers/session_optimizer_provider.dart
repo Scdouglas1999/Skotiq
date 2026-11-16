@@ -18,6 +18,7 @@ import 'capability_provider.dart';
 import '../services/logging_service.dart';
 import 'database_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
+import 'filter_set_preferences_provider.dart';
 import 'profiles_provider.dart';
 import 'session_report_provider.dart';
 import 'settings_provider.dart';
@@ -460,12 +461,16 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
         subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
         subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
       );
+      final filterSet = await ref.watch(
+        targetFilterSetProvider(suggestion).future,
+      );
 
       return ref
           .read(smartNightServiceProvider)
           .previewTargetIntegration(
             profile: profile,
             suggestion: suggestion,
+            filterSet: filterSet,
             windowStart: window.start,
             windowEnd: window.end,
             availableFilters: filters,

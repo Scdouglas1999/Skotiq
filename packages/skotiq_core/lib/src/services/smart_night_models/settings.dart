@@ -6,8 +6,7 @@ part of '../smart_night_models.dart';
 /// [resolveSmartNightFilterSet] names the wheel slots a set means. The recipe
 /// review and the Smart Night wizard let the user pick a different one.
 enum SmartNightStrategy {
-  /// L, R, G and B with twice the time on L. Any of the four that the wheel
-  /// has; a wheel with only R, G and B images RGB.
+  /// L, R, G and B with twice the time on L. Needs all four on the wheel.
   autoLrgb,
 
   /// Ha and OIII. Needs both on the wheel.
@@ -20,15 +19,27 @@ enum SmartNightStrategy {
   /// whose wheel names no known band.
   oscOneShot,
 
-  /// L, R, G and B with equal time on each.
+  /// L, R, G and B with equal time on each. Needs all four on the wheel.
   monoLrgb,
 
   /// Ha alone. Needs Ha on the wheel.
   narrowbandHa,
 
-  /// L, R, G and B, plus Ha for the emission in the field. Needs Ha and at
-  /// least one of L, R, G and B on the wheel.
+  /// L, R, G and B, plus Ha for the emission in the field. Needs all five on
+  /// the wheel.
   haLrgb,
+
+  /// R, G and B with equal time on each. Needs all three on the wheel.
+  rgb,
+
+  /// L alone. Needs L on the wheel.
+  luminance,
+
+  /// OIII alone. Needs OIII on the wheel.
+  narrowbandOiii,
+
+  /// SII alone. Needs SII on the wheel.
+  narrowbandSii,
 }
 
 /// AF cadence policy.
@@ -86,6 +97,10 @@ class SmartNightSettings {
   /// Explicit recipe edits override the camera library for this build.
   final int? gainOverride;
   final int? offsetOverride;
+
+  /// One exposure per filter in turn (true) or each filter's frames together
+  /// (false); null follows the rig ([smartNightRotatesFilters]).
+  final bool? rotateFilters;
 
   /// Whether to append automatic flats at end-of-session when the profile
   /// has a cover calibrator.
@@ -183,6 +198,7 @@ class SmartNightSettings {
     this.useExposurePresets = false,
     this.gainOverride,
     this.offsetOverride,
+    this.rotateFilters,
     this.includeFlatsAtEnd = true,
     this.flatCountPerFilter = 20,
     this.useSchedulerForMultiTarget = true,
@@ -211,6 +227,7 @@ class SmartNightSettings {
     bool? useExposurePresets,
     int? gainOverride,
     int? offsetOverride,
+    bool? rotateFilters,
     bool? includeFlatsAtEnd,
     int? flatCountPerFilter,
     bool? useSchedulerForMultiTarget,
@@ -240,6 +257,7 @@ class SmartNightSettings {
       useExposurePresets: useExposurePresets ?? this.useExposurePresets,
       gainOverride: gainOverride ?? this.gainOverride,
       offsetOverride: offsetOverride ?? this.offsetOverride,
+      rotateFilters: rotateFilters ?? this.rotateFilters,
       includeFlatsAtEnd: includeFlatsAtEnd ?? this.includeFlatsAtEnd,
       flatCountPerFilter: flatCountPerFilter ?? this.flatCountPerFilter,
       useSchedulerForMultiTarget:
@@ -276,6 +294,7 @@ class SmartNightSettings {
     'useExposurePresets': useExposurePresets,
     if (gainOverride != null) 'gainOverride': gainOverride,
     if (offsetOverride != null) 'offsetOverride': offsetOverride,
+    if (rotateFilters != null) 'rotateFilters': rotateFilters,
     'includeFlatsAtEnd': includeFlatsAtEnd,
     'flatCountPerFilter': flatCountPerFilter,
     'useSchedulerForMultiTarget': useSchedulerForMultiTarget,
@@ -314,6 +333,7 @@ class SmartNightSettings {
       useExposurePresets: json['useExposurePresets'] as bool? ?? false,
       gainOverride: (json['gainOverride'] as num?)?.toInt(),
       offsetOverride: (json['offsetOverride'] as num?)?.toInt(),
+      rotateFilters: json['rotateFilters'] as bool?,
       includeFlatsAtEnd: json['includeFlatsAtEnd'] as bool? ?? true,
       flatCountPerFilter: _jsonInt(json['flatCountPerFilter'], 20),
       useSchedulerForMultiTarget:

@@ -16,4 +16,5 @@ part 'smart_night_models/context_and_plan.dart';
 part 'smart_night_models/planned_target_results.dart';
 part 'smart_night_models/strategy_helpers.dart';
 part 'smart_night_models/filter_choice.dart';
+part 'smart_night_models/filter_sets.dart';
 part 'smart_night_models/json_helpers.dart';

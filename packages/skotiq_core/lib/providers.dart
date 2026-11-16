@@ -186,6 +186,7 @@ export 'src/providers/home_assistant_provider.dart';
 export 'src/providers/notes_provider.dart';
 export 'src/providers/forensics_provider.dart';
 export 'src/providers/replay_debug_provider.dart';
+export 'src/providers/filter_set_preferences_provider.dart';
 export 'src/providers/smart_night_draft_provider.dart';
 export 'src/providers/conversational_builder_provider.dart';
 export 'src/providers/usb_disconnect_log_provider.dart';
