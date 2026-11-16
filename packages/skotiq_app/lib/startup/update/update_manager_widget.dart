@@ -13,7 +13,7 @@ import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../../services/app_update.dart';
 import 'update_dialogs.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Widget that manages the update UI flow.
 ///

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// What the phone's own network link is: Wi-Fi, mobile data, both or none.
 class NetworkServiceState {

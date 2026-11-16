@@ -123,6 +123,8 @@ flutter:
   # Loaded at runtime via [SampleSequenceService] from rootBundle.
   assets:
     - assets/sample_sequences/
-    # OpenNGC, installed on first start (see built_in_catalogs.dart).
+    # OpenNGC, installed on first start, and the nebula light table that
+    # refines its nebula types (see built_in_catalogs.dart).
     - assets/catalogs/NGC.csv
+    - assets/catalogs/nebula_light.csv
     - assets/catalogs/NOTICE.txt

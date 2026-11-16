@@ -14,7 +14,7 @@ import 'package:http/http.dart' as http;
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 const String _telegramApiBase = 'https://api.telegram.org';
 

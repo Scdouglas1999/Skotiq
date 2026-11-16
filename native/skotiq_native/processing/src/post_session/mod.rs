@@ -28,9 +28,9 @@
 
 use crate::post_session::report::{report, PassReport};
 
-pub use helpers::LightCalibration;
+pub use light_calibration::{CalibratedLight, LightCalibration, CALIBRATION_PEDESTAL};
 
-mod args;
+pub(crate) mod args;
 mod calibration_master;
 mod calibration_report;
 pub(crate) mod cancel;
@@ -40,6 +40,7 @@ pub(crate) mod delivery;
 pub mod entrypoints;
 pub(crate) mod helpers;
 mod integrate;
+mod light_calibration;
 #[cfg(test)]
 mod light_calibration_tests;
 mod master_cards;

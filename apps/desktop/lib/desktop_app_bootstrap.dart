@@ -312,6 +312,7 @@ Future<void> initialiseCatalogManager(LoggingService logger) async {
     await CatalogManager.instance.initialize(
       catalogDir,
       builtIn: builtInCatalogs,
+      nebulaLight: builtInNebulaLight,
     );
     logger.info('Catalog manager initialized', source: _logSource);
   } catch (e) {

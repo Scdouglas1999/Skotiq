@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import '../../../models/imaging/imaging_models.dart' show FrameType;
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../../services/science/science_processing_service.dart';
 import '../../../models/sequence/run_frame_assessment.dart';
 

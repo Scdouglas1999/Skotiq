@@ -22,7 +22,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
-import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/errors.dart';
 
 /// Show a SnackBar describing an API error.
 ///

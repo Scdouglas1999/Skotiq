@@ -107,16 +107,11 @@ fn load_frame(path: &str) -> Result<ImageData, String> {
         height: image.height,
         data,
         bits_per_pixel: 16,
-        exposure_secs: header.get_float("EXPTIME").unwrap_or(0.0),
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: header.get_string("FILTER").map(|s| s.to_string()),
-        timestamp: 0,
-        sensor_type: None,
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: header.get_float("EXPTIME").unwrap_or(0.0),
+            ..Default::default()
+        },
+        ..Default::default()
     })
 }
 

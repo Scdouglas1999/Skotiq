@@ -9,7 +9,7 @@ import 'package:skotiq_core/src/models/imaging/star_photometry.dart';
 import 'package:skotiq_core/src/services/color_calibration_service.dart';
 import 'package:skotiq_core/src/services/master_annotation_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 class _NoSeam implements PostSessionSeam {
   @override

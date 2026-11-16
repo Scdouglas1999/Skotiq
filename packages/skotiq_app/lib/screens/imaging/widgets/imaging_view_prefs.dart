@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 const String _crosshairKey = 'imaging.showCrosshair';
 const String _starOverlayKey = 'imaging.showStarOverlay';

@@ -753,9 +753,10 @@ fn cmos_gain_goes_through_camera_options_and_the_frame_records_what_the_camera_t
         "the preset gave way to the custom setting"
     );
     let image = camera.take_frame(&sdk).unwrap();
-    assert_eq!(image.metadata.gain, 45);
+    assert_eq!(image.metadata.gain, Some(45));
     assert_eq!(
-        image.metadata.offset, 10,
+        image.metadata.offset,
+        Some(10),
         "the custom offset applies with the custom gain"
     );
 
@@ -784,7 +785,7 @@ fn a_ccd_without_gain_exposes_when_a_gain_is_asked_for() {
     camera
         .begin_exposure(&sdk, &params)
         .expect("the exposure starts");
-    assert_eq!(camera.take_frame(&sdk).unwrap().metadata.gain, 0);
+    assert_eq!(camera.take_frame(&sdk).unwrap().metadata.gain, Some(0));
 }
 
 #[test]

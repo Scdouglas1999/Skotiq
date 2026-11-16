@@ -11,7 +11,7 @@ import '../../../router/app_routes.dart';
 import '../../../widgets/run_status/sequence_status_visuals.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Persistent app-shell mini-player for a running sequence.
 ///

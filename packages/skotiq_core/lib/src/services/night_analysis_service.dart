@@ -1,5 +1,5 @@
 import '../models/imaging/imaging_models.dart' show FrameType;
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -13,7 +13,7 @@ import '../models/imaging/night_report.dart';
 import '../models/site/location_settings.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 part 'night_analysis_service/detectors.dart';
 part 'night_analysis_service/night_data.dart';
 part 'night_analysis_service/moon_ephemeris.dart';

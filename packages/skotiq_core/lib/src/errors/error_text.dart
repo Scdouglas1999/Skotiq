@@ -22,11 +22,11 @@ import 'dart:io';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' as http;
 
-import '../backend/bridge_error_message.dart';
-import '../backend/device_connect_exception.dart';
-import '../backend/skotiq_exception.dart' as backend;
-import '../models/errors/server_error.dart';
-import '../models/errors/skotiq_error.dart';
+import 'bridge_error_message.dart';
+import 'device_connect_exception.dart';
+import 'skotiq_exception.dart';
+import 'server_error.dart';
+import 'skotiq_error.dart';
 
 /// What a person reads about a failure.
 class ErrorText {
@@ -114,7 +114,7 @@ String? _typedMessage(Object error) {
   final bridged = bridgeErrorMessage(error);
   if (bridged != null) return bridged;
   if (error is SkotiqError) return error.userMessage;
-  if (error is backend.SkotiqException) return error.userMessage;
+  if (error is SkotiqException) return error.userMessage;
   if (error is ServerError) return error.message;
   if (error is StateError) return error.message;
   // The unsupported-operation family shares this authored-message field.

@@ -54,7 +54,7 @@ import 'package:http/http.dart' as http;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_remote_protocol/wire.dart'
     show LinkVersion, PushApi, skotiqRelease;
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Registers this device's push token (APNs on iOS, FCM on Android) with a
 /// paired desktop server so the server can deliver off-LAN critical alerts.

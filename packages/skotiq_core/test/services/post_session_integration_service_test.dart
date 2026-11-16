@@ -21,7 +21,7 @@ import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/post_session_integration_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
 /// Records the args of every call and returns scriptable results, so the
 /// orchestration services run end-to-end without native code.
@@ -609,6 +609,66 @@ void main() {
       expect(calibration['cosmeticCorrection'], isTrue);
     },
   );
+
+  Future<void> addLibraryFrame(String path, String type, double seconds) =>
+      DarkLibraryDao(db).addEntry(
+        DarkLibraryCompanion.insert(
+          filePath: path,
+          exposureTime: seconds,
+          frameType: Value(type),
+          temperature: const Value(-10.0),
+          gain: const Value(100),
+          offset: const Value(10),
+          binX: const Value(1),
+          binY: const Value(1),
+          masterDarkPath: Value(path),
+          masterFrameCount: const Value(20),
+        ),
+      );
+
+  test('a dark of another exposure goes with the library bias and is scaled '
+      'to the subs', () async {
+    await addLibraryFrame('/cal/dark_300.fits', 'dark', 300);
+    await addLibraryFrame('/cal/bias.fits', 'bias', 0.001);
+    final subs = [await insertSub(path: '/l/a.fits', filter: 'L')];
+    final outcomes = await service.integrate(
+      subs: subs,
+      settings: IntegrationSettings.defaults,
+      outputFitsPathBuilder: (bucket) => '/out/$bucket.fits',
+    );
+
+    final calibration =
+        seam.integrateCalls.single['calibration'] as Map<String, dynamic>;
+    expect(calibration['dark'], '/cal/dark_300.fits');
+    expect(calibration['bias'], '/cal/bias.fits');
+    expect(calibration['scaleDark'], isTrue);
+    expect(
+      outcomes.single.calibrationWarnings,
+      contains('The 300 s dark is scaled to 120 s using the bias.'),
+    );
+  });
+
+  test('a dark of another exposure with no bias to scale it is left out and '
+      'the operator told', () async {
+    await addLibraryFrame('/cal/dark_300.fits', 'dark', 300);
+    final subs = [await insertSub(path: '/l/a.fits', filter: 'L')];
+    final outcomes = await service.integrate(
+      subs: subs,
+      settings: IntegrationSettings.defaults,
+      outputFitsPathBuilder: (bucket) => '/out/$bucket.fits',
+    );
+
+    final calibration =
+        seam.integrateCalls.single['calibration'] as Map<String, dynamic>;
+    expect(calibration.containsKey('dark'), isFalse);
+    expect(
+      outcomes.single.calibrationWarnings,
+      contains(
+        'Dark exposure differs and there is no bias to scale it with; '
+        'no dark will be applied.',
+      ),
+    );
+  });
 
   test(
     'an unmatched master surfaces the library matcher warning on the outcome '

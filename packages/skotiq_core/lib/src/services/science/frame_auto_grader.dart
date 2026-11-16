@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;

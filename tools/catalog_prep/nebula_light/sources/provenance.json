@@ -1,0 +1,132 @@
+{
+  "retrieved": "2026-11-16",
+  "mirror_note": "Fetched from the VizieR mirror at the Harvard-Smithsonian CfA (vizier.cfa.harvard.edu), which serves the CDS archive unchanged; cdsarc.cds.unistra.fr did not answer that day. The CDS landing page of each catalog is under 'landing'.",
+  "terms_of_use": "VizieR rules of usage (https://cds.unistra.fr/vizier-org/licences_vizier.html, read 2026-11-16): the data are free of usage in a scientific context, the original authors and publication must be cited, and commercial usage is subject to rules that depend on the origin of the data (the journal's policy when the ReadMe states no copyright). None of these ReadMe files states a copyright.",
+  "sources": [
+    {
+      "id": "sharpless_1959",
+      "vizier": "VizieR VII/20",
+      "citation": "Sharpless S. 1959, A Catalogue of H II Regions, ApJS 4, 257 (1959ApJS....4..257S)",
+      "landing": "https://cdsarc.cds.unistra.fr/viz-bin/cat/VII/20",
+      "classifies": "every entry is an HII (emission) region",
+      "license": "VizieR rules of usage; the paper is in an AAS journal, whose tables CDS lists under CC BY-NC (free with attribution, not for commercial use). Machine-readable version from the NASA ADC Selected Astronomical Catalogs Vol. 1 CD-ROM (1992).",
+      "data": "catalog.dat.gz",
+      "files": [
+        {
+          "name": "ReadMe",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/20/ReadMe",
+          "bytes": 4083,
+          "sha256": "33f43604a70374b32bc23af1362f7c5e9f3d69e52393dfddd28cae0f7c766989",
+          "retrieved": "2026-11-16T16:13:31Z"
+        },
+        {
+          "name": "catalog.dat.gz",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/20/catalog.dat.gz",
+          "bytes": 8137,
+          "sha256": "7ef4f74a2dfe6ebbb5237de101a6432d1af1491a39a10bdd93372122df1b896b",
+          "retrieved": "2026-11-16T16:13:31Z"
+        }
+      ]
+    },
+    {
+      "id": "rcw_1960",
+      "vizier": "VizieR VII/216",
+      "citation": "Rodgers A.W., Campbell C.T., Whiteoak J.B. 1960, A catalogue of H-alpha emission regions in the southern Milky Way, MNRAS 121, 103 (1960MNRAS.121..103R)",
+      "landing": "https://cdsarc.cds.unistra.fr/viz-bin/cat/VII/216",
+      "classifies": "every entry is an H-alpha emission region",
+      "license": "VizieR rules of usage; the paper is in MNRAS (Oxford University Press for the RAS). Electronic version prepared by Raymond Bruton (2000) 'for the plotting of star charts'.",
+      "data": "rcw.dat.gz",
+      "files": [
+        {
+          "name": "ReadMe",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/216/ReadMe",
+          "bytes": 5505,
+          "sha256": "d0fcf4bd792d0721d9bf8036500cb7cef1ea1e3827e344a1c77255d6dbb53c04",
+          "retrieved": "2026-11-16T16:13:31Z"
+        },
+        {
+          "name": "rcw.dat.gz",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/216/rcw.dat.gz",
+          "bytes": 3949,
+          "sha256": "fe641303e9608adc7162015cb4e931790ea8ee34dbd5ba4b90bb165134037646",
+          "retrieved": "2026-11-16T16:13:31Z"
+        }
+      ]
+    },
+    {
+      "id": "wise_hii_2014",
+      "vizier": "VizieR J/ApJS/212/1",
+      "citation": "Anderson L.D., Bania T.M., Balser D.S., Cunningham V., Wenger T.V., Johnstone B.M., Armentrout W.P. 2014, The WISE catalog of Galactic HII regions, ApJS 212, 1 (2014ApJS..212....1A); VizieR doi:10.26093/cds/vizier.22120001",
+      "landing": "https://cdsarc.cds.unistra.fr/viz-bin/cat/J/ApJS/212/1",
+      "classifies": "class K (known): ionized gas detected by radio recombination line or H-alpha spectroscopy; classes G, C and Q (group member, candidate, radio quiet) are not used",
+      "license": "VizieR rules of usage; the paper is in an AAS journal, whose tables CDS lists under CC BY-NC (free with attribution, not for commercial use).",
+      "data": "wisecat.tsv",
+      "files": [
+        {
+          "name": "wisecat.tsv",
+          "url": "https://vizier.cfa.harvard.edu/viz-bin/asu-tsv?-source=J/ApJS/212/1/wisecat&-out=WISE,Cl,GLON,GLAT,Rad,HIIName&-out.max=unlimited",
+          "retrieved": "2026-11-16T16:18:30Z",
+          "bytes": 361252,
+          "sha256": "dd5bd3dea5505a38b30b6d149b58fe98ceb6d60aeb173be65339cbec8aecadca",
+          "note": "VizieR's tab-separated export of the identifier, class, galactic position, radius and HII region name columns of every row (the mirror does not serve the raw J/ files)."
+        }
+      ]
+    },
+    {
+      "id": "cederblad_1946",
+      "vizier": "VizieR VII/231",
+      "citation": "Cederblad S. 1946, Studies of bright diffuse galactic nebulae with special regard to their spatial distribution, Medd. Lunds Astron. Obs. Ser. II, 119, 1 (1946MeLu2.119....1C)",
+      "landing": "https://cdsarc.cds.unistra.fr/viz-bin/cat/VII/231",
+      "classifies": "nebular spectrum E/e (emission, observed/inferred) or C/c (continuous, that is reflection)",
+      "license": "VizieR rules of usage; published by Lund Observatory; prepared by OCR at CDS (2001).",
+      "data": "catalog.dat",
+      "files": [
+        {
+          "name": "ReadMe",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/231/ReadMe",
+          "bytes": 13499,
+          "sha256": "efb147ffbbdcebc3d766e16ff44b16e280c4a3aff2023f524f34937b6ded9f79",
+          "retrieved": "2026-11-16T16:13:31Z"
+        },
+        {
+          "name": "catalog.dat",
+          "url": "https://vizier.cfa.harvard.edu/ftp/cats/VII/231/catalog.dat",
+          "bytes": 48681,
+          "sha256": "c79f04862369fbaafeffb07768fb53215aab40e651d57dd62d6d7b3c504e5fec",
+          "retrieved": "2026-11-16T16:13:31Z"
+        }
+      ]
+    },
+    {
+      "id": "magakian_2003",
+      "vizier": "VizieR J/A+A/399/141",
+      "citation": "Magakian T.Yu. 2003, Merged catalogue of reflection nebulae, A&A 399, 141 (2003A&A...399..141M); VizieR doi:10.26093/cds/vizier.33990141",
+      "landing": "https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/399/141",
+      "classifies": "class C (continuous spectrum) or CN (cometary) is reflection; a class with an E component also has emission. Merges van den Bergh 1966 (VizieR VII/21), Dorschner & Gurtler 1963, Rozhkovsky & Kurchakov 1968, van den Bergh & Herbst 1975 and Bernes 1977 with J2000 positions.",
+      "license": "VizieR rules of usage; CDS lists A&A tables as free for scientific usage.",
+      "data": "table1.tsv",
+      "files": [
+        {
+          "name": "table1.tsv",
+          "url": "https://vizier.cfa.harvard.edu/viz-bin/asu-tsv?-source=J/A%2BA/399/141/table1&-out.all&-out.max=unlimited",
+          "bytes": 187766,
+          "sha256": "6b0a44094b0af29aeebaa8649aa6f3906f060bfa51e877c5a27ff16c0bb61d21",
+          "note": "VizieR's tab-separated export of the whole table (the mirror does not serve the raw J/ files); its header carries the column descriptions.",
+          "retrieved": "2026-11-16T16:13:31Z"
+        }
+      ]
+    }
+  ],
+  "not_used": [
+    {
+      "vizier": "VizieR VII/21",
+      "citation": "van den Bergh S. 1966, Catalogue of Reflection Nebulae, AJ 71, 990",
+      "reason": "Every entry is in Magakian 2003 with a J2000 position; VII/21 itself gives only galactic coordinates to 0.1 degree."
+    },
+    {
+      "vizier": "VizieR VII/9",
+      "citation": "Lynds B.T. 1965, Catalogue of Bright Nebulae, ApJS 12, 163",
+      "reason": "Gives a blue/red plate color index, not a classification as emission or reflection."
+    }
+  ]
+}

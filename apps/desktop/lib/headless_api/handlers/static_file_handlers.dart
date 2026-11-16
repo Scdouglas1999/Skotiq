@@ -29,13 +29,13 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Maps file extensions to the response `content-type` value.
 ///

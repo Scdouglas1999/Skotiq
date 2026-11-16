@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/science/science_models.dart';
 import '../services/science/period_analysis_service.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
+import '../models/science/period_analysis_models.dart';
 
 final periodAnalysisServiceProvider = Provider<PeriodAnalysisService>((ref) {
   return const PeriodAnalysisService();

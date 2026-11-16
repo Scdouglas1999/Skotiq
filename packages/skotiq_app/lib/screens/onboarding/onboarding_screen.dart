@@ -9,7 +9,6 @@ import 'package:skotiq_app/utils/confirm_dialog.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show catalogStateProvider, skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';

@@ -19,7 +19,7 @@ import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/imaging_service.dart';
 import '../services/plate_solve_service.dart';
-import '../services/wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart';
 import '../models/imaging/sip_terms.dart';
 import '../backend/remote_host.dart';

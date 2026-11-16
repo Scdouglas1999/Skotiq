@@ -6,6 +6,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'host_startup.dart';
+import 'package:skotiq_core/utils.dart';
 
 const _logSource = 'HostAutoConnect';
 

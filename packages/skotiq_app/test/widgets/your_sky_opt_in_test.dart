@@ -16,6 +16,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/mock_database.dart' show mockDatabase;
+import 'package:skotiq_core/utils.dart';
 
 class _Science extends ScienceSettingsNotifier {
   _Science(this._value);

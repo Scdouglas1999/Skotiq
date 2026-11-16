@@ -6,7 +6,7 @@
 /// uses, so the Narrator ingests for exactly as long as a session is running.
 library;
 
-import '../models/imaging/integration_by_filter.dart';
+import '../database/rows/integration_by_filter.dart';
 import '../database/daos/narrator_events_dao.dart';
 import 'dart:async';
 

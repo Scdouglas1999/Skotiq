@@ -4,13 +4,13 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Handlers for the DepthLock goal store (`/api/depthlock/*`).
 ///

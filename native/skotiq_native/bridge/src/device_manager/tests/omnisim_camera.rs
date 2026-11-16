@@ -99,10 +99,13 @@ async fn capabilities_report_the_cameras_own_controls() {
     let manager = build_device_manager();
     let id = connected_camera(&manager, &base_url).await;
 
-    let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) =
-        crate::device_capabilities::get_device_capabilities(&id)
-            .await
-            .expect("capabilities")
+    let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) = manager
+        .handle(&id)
+        .await
+        .expect("handle")
+        .capabilities(&id)
+        .await
+        .expect("capabilities")
     else {
         panic!("not a camera");
     };
@@ -116,6 +119,7 @@ async fn capabilities_report_the_cameras_own_controls() {
     );
     assert!(caps.can_set_ccd_temperature && caps.can_set_cooler && caps.can_get_cooler_power);
     assert!(caps.is_color);
+    assert_eq!(caps.bayer_pattern.as_deref(), Some("GRBG"));
     assert_eq!((caps.max_width, caps.max_height), (1200, 800));
 }
 
@@ -213,8 +217,8 @@ async fn a_binned_subframe_arrives_upright_with_the_cameras_metadata() {
         );
     }
     assert!((image.metadata.exposure_time - 0.3).abs() < 0.05);
-    assert_eq!(image.metadata.gain, 400);
-    assert_eq!(image.metadata.offset, 12);
+    assert_eq!(image.metadata.gain, Some(400));
+    assert_eq!(image.metadata.offset, Some(12));
     assert_eq!((image.metadata.bin_x, image.metadata.bin_y), (2, 2));
 }
 

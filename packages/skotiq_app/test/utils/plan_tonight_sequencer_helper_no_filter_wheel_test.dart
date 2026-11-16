@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_core/utils.dart';
 
 class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
   @override

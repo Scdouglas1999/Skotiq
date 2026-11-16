@@ -24,6 +24,70 @@ class DarkSelection {
   final bool temperatureFellBack;
 }
 
+/// How far a dark's exposure may be from the lights', as a fraction of
+/// theirs, and still be of the lights' exposure. The native light
+/// calibration uses the same fraction: it scales a dark further away to the
+/// lights' exposure, which needs a bias to tell the dark's thermal signal
+/// from its pedestal.
+const darkExposureFraction = 0.01;
+
+/// The dark and bias handed to the light calibration for a set of lights.
+class LightDarkAndBias {
+  const LightDarkAndBias({
+    this.darkPath,
+    this.biasPath,
+    this.scaleDark = false,
+    this.warning,
+  });
+
+  final String? darkPath;
+  final String? biasPath;
+
+  /// [darkPath] is of another exposure and is scaled with [biasPath].
+  final bool scaleDark;
+
+  /// What the operator is told about the dark, when anything.
+  final String? warning;
+}
+
+/// What the light calibration applies of [dark] and the bias at [biasPath]
+/// for lights of [exposureSeconds]. A dark of the lights' exposure is
+/// subtracted as it is and needs no bias. A dark of another exposure is
+/// scaled with the bias; with no bias, or no exposure on the dark, it is
+/// left out and the operator told.
+LightDarkAndBias lightDarkAndBias({
+  required CalibrationMasterRecord? dark,
+  required String? biasPath,
+  required double exposureSeconds,
+}) {
+  if (dark == null) return LightDarkAndBias(biasPath: biasPath);
+  final darkSeconds = dark.exposureSeconds;
+  if (darkSeconds != null &&
+      (darkSeconds - exposureSeconds).abs() <=
+          darkExposureFraction * exposureSeconds) {
+    return LightDarkAndBias(darkPath: dark.filePath);
+  }
+  if (darkSeconds != null && biasPath != null) {
+    return LightDarkAndBias(
+      darkPath: dark.filePath,
+      biasPath: biasPath,
+      scaleDark: true,
+      warning:
+          'The ${_seconds(darkSeconds)} s dark is scaled to '
+          '${_seconds(exposureSeconds)} s using the bias.',
+    );
+  }
+  return LightDarkAndBias(
+    biasPath: biasPath,
+    warning:
+        'Dark exposure differs and there is no bias to scale it with; '
+        'no dark will be applied.',
+  );
+}
+
+String _seconds(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
 extension DarkLibraryEntryFile on DarkLibraryEntry {
   /// The file to subtract: the stacked master when the row has one.
   String get calibrationPath => masterDarkPath ?? filePath;

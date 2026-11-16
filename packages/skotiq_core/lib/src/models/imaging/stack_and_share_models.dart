@@ -1,5 +1,5 @@
 import 'package:skotiq_astro/format.dart';
-import '../../services/live_stacking_service.dart';
+import 'live_stacking_models.dart';
 
 /// Models for the **Stack-and-Share Loop** — the workflow that takes a set of
 /// captured light frames, optionally calibrates them, live-stacks them into a

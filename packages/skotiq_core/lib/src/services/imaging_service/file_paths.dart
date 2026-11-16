@@ -134,10 +134,8 @@ extension _ImagingServiceFilePaths on ImagingService {
     try {
       if (basePath == null || basePath.isEmpty) return fallback;
 
-      final backend = _ref.read(backendProvider);
-      final hostPaths = _ref.read(isRemoteModeProvider)
-          ? hostPathContext(basePath)
-          : null;
+      final hostRecords = _hostRecords;
+      final hostPaths = hostRecords != null ? hostPathContext(basePath) : null;
       final namingPattern = _ref.read(namingPatternProvider);
       // `nowUtc()`, not `now().toUtc()`: the latter re-converts an already
       // zone-shifted rendering and lands offset+hostOffset away, so the
@@ -163,11 +161,8 @@ extension _ImagingServiceFilePaths on ImagingService {
       if (renderFor(fallback) == renderFor(fallback + 1)) return fallback;
 
       final Future<bool> Function(String) exists;
-      if (hostPaths != null) {
-        final taken = await _hostTakenKeeperPaths(
-          backend as NetworkBackend,
-          hostPaths,
-        );
+      if (hostRecords != null && hostPaths != null) {
+        final taken = await _hostTakenKeeperPaths(hostRecords, hostPaths);
         exists = (p) async => taken.contains(_hostPathKey(hostPaths, p));
       } else {
         exists = (p) => File(p).exists();

@@ -11,7 +11,7 @@ library;
 
 import 'dart:convert';
 
-import '../services/optical_train_limits.dart';
+import 'optical_train_limits.dart';
 import 'equipment_profile.dart';
 import 'meridian_flip_settings.dart';
 

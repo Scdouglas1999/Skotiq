@@ -7,9 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_core/models.dart';
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend backend) {

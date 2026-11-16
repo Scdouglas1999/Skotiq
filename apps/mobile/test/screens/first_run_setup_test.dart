@@ -23,6 +23,7 @@ import 'package:skotiq_mobile/screens/setup/first_run_setup_screen.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/errors.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

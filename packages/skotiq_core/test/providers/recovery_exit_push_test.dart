@@ -28,13 +28,7 @@ import 'package:skotiq_core/src/providers/recovery_provider.dart';
 import 'package:skotiq_core/src/providers/push_notification_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart';
-// Import only the wire frame + severity const from the (stable) LAN push
-// module. We deliberately do NOT import the protocol barrel or
-// `remote_push_delivery.dart` so this routing test is decoupled from the
-// FCM/APNs transport work landing in parallel — the routing area's contract is
-// "produce the right critical PushNotificationFrame", which is exactly what
-// the recording delivery below asserts.
-import 'package:skotiq_remote_protocol/src/push/lan_push_broadcaster.dart'
+import 'package:skotiq_remote_protocol/host.dart'
     show PushNotificationFrame, kLanPushSeverityCritical;
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 

@@ -94,16 +94,13 @@ impl CameraDriver for FixedFrameCamera {
             bayer_pattern: self.bayer_pattern,
             metadata: ImageMetadata {
                 exposure_time: 2.0,
-                gain: 139,
-                offset: 21,
+                gain: Some(139),
+                offset: Some(21),
                 bin_x: 1,
                 bin_y: 1,
                 temperature: Some(-10.0),
                 timestamp: chrono::Utc::now(),
-                subframe: None,
-                readout_mode: None,
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }
@@ -351,10 +348,7 @@ async fn a_mono_frame_publishes_the_same_measurements_from_either_entry_point() 
         ("manual mono", &manual, MONO),
         ("sequence mono", &sequence, MONO),
     ]);
-    assert_eq!(
-        (returned.sensor_type.as_deref(), returned.color_filter),
-        (Some("Monochrome"), None)
-    );
+    assert_eq!(returned.bayer_pattern, None);
 }
 
 #[tokio::test]
@@ -373,10 +367,7 @@ async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point()
         ("manual color", &manual, COLOR),
         ("sequence color", &sequence, COLOR),
     ]);
-    assert_eq!(
-        (returned.sensor_type.as_deref(), returned.color_filter),
-        (Some("Color"), Some(BayerPattern::Grbg.into()))
-    );
+    assert_eq!(returned.bayer_pattern, Some(BayerPattern::Grbg.into()));
 }
 
 #[tokio::test]

@@ -1,6 +1,6 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
+mixin _NetworkBackendGuidingOperations on NetworkBackendTransport {
   @override
   Future<bool> isPhd2Running({
     String host = 'localhost',

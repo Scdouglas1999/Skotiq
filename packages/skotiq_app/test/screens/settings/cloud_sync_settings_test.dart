@@ -47,6 +47,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// In-memory [SyncService] double. The super-constructor deps are inert: the
 /// database is never queried (so no drift async escapes the fake-async zone),

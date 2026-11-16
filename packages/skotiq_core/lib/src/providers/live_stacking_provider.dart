@@ -9,12 +9,13 @@ import '../errors/error_text.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/live_stacking_service.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
-import '../models/backend/backend_types.dart';
 import 'live_stacking_service_provider.dart';
 import 'logging_service_provider.dart';
+import '../models/imaging/live_stacking_models.dart';
+import '../errors/server_error.dart';
 
 /// Current state of the live stacking session.
 enum LiveStackingStatus {

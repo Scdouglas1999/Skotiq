@@ -12,7 +12,7 @@ import '../../providers/equipment_provider.dart';
 import '../../providers/imaging_provider.dart';
 import '../annotation_service.dart';
 import '../imaging_service.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../plate_solve_service.dart';
 import '../wcs/plate_solve_data_from_result.dart';
 import '../../providers/annotation_service_provider.dart';

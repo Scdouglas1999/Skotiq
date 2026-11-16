@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show listEquals;
 import '../../../database/daos/images_dao.dart'
     show ProducingNodeThumbnail, StoredWcsDistortion;
 import '../../../database/database.dart' as db;
-import '../../roles/host_data/host_imaging_records.dart';
+import '../../network_backend.dart';
 import '../../roles/host_data/imaging_records.dart';
 import 'host_poll.dart';
 import 'wire_rows.dart';

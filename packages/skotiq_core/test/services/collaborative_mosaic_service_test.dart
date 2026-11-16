@@ -25,6 +25,7 @@ import 'package:skotiq_astro/skotiq_astro.dart' show MosaicStartCorner;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show FrameWcs;
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A minimal FITS primary header carrying a WCS solution so the service's
 /// `_fitsHeaderHasWcs` probe (and stitchProject's gate) accept the panel.

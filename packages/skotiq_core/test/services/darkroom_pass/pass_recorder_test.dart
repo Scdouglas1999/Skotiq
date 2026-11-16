@@ -110,7 +110,10 @@ void main() {
     recorder.report('run/1', PassKinds.referenceChoosing);
     now = now.add(const Duration(seconds: 1));
     recorder.report('run/1', PassKinds.passEnded, {'ok': true});
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    final records = await recorder.records();
+    expect(records.single.target, 'NGC 891');
+    expect(records.single.ended, isTrue);
 
     final file = File(p.join(base.path, 'passes', 'run_1.json'));
     expect(file.existsSync(), isTrue);
@@ -120,10 +123,6 @@ void main() {
 
     final rates = await recorder.storedRates();
     expect(rates['calibrate'], closeTo(1.0, 1e-9));
-
-    final records = await recorder.records();
-    expect(records.single.target, 'NGC 891');
-    expect(records.single.ended, isTrue);
 
     final loaded = await DarkroomPassRecorder(
       events: const Stream<SkotiqEvent>.empty(),

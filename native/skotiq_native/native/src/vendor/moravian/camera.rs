@@ -545,18 +545,16 @@ impl MoravianCamera {
         self.exposure = None;
         self.core.exposure_started_at = None;
         self.core.state = CameraState::Idle;
-        Ok(Frame {
-            temperature,
-            exposure_time,
-            ..self.core.frame(
-                width,
-                height,
-                pixels,
-                self.core.sensor_info.bit_depth,
-                bayer.map(Into::into),
-            )
-        }
-        .into_image())
+        let mut image = self.core.frame(
+            width,
+            height,
+            pixels,
+            self.core.sensor_info.bit_depth,
+            bayer.map(Into::into),
+        );
+        image.metadata.temperature = temperature;
+        image.metadata.exposure_time = exposure_time;
+        Ok(image)
     }
 
     /// Stop the exposure and discard its frame.

@@ -70,6 +70,20 @@ Settings > About > Open-source licenses. That data license does not replace
 the license for Skotiq's program code. The HYG star database (also CC BY-SA
 4.0) is not bundled; the app downloads it when the user asks.
 
+The apps also include `nebula_light.csv`, which says which OpenNGC nebulae
+are emission or reflection nebulae. It is derived from OpenNGC (so it carries
+CC BY-SA 4.0) and computed from catalogs retrieved from VizieR (CDS,
+Strasbourg): Sharpless 1959 (VII/20), Rodgers, Campbell & Whiteoak 1960
+(VII/216), Anderson et al. 2014 (J/ApJS/212/1), Cederblad 1946 (VII/231) and
+Magakian 2003 (J/A+A/399/141). The table holds only OpenNGC names and the
+source designations that support each class, not the source catalogs. The
+same `NOTICE.txt` credits them. The raw source files are kept in the
+repository as build inputs (`tools/catalog_prep/nebula_light/sources/`), with
+each file's URL, checksum, citation and terms of use in `provenance.json`.
+VizieR's rules allow free use with citation in a scientific context, and
+commercial use depends on each catalog's origin (CDS lists tables from AAS
+journals as CC BY-NC). Skotiq does not sell these data.
+
 No JPL ephemeris kernel is bundled or redistributed. Sun and moon positions
 are computed from the Astronomical Almanac low-precision series in
 `native/skotiq_native/sequencer/src/scheduling/ephemeris.rs`.

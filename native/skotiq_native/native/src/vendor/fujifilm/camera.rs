@@ -4,8 +4,9 @@ use super::*;
 
 #[derive(Debug)]
 pub struct FujifilmCamera {
-    pub(crate) id: String,
-    pub(crate) name: String,
+    /// Identity, connection, the sensor description, the ISO (the core's
+    /// gain), offset 0 and the exposure clock.
+    pub(crate) core: CameraCore,
     /// What the open session is joined by: the serial number, or the product
     /// name of a body that lists none.
     pub(crate) address: String,
@@ -18,10 +19,9 @@ pub struct FujifilmCamera {
     pub(crate) session: Option<Arc<Session>>,
 
     pub(crate) firmware_version: String,
-    pub(crate) sensor_info: SensorInfo,
 
     // RAW sample-depth provenance. `refresh_raw_depth` folds these into
-    // `sensor_info.bit_depth` / `sensor_info.max_adu`, preferring
+    // `core.sensor_info.bit_depth` / `core.sensor_info.max_adu`, preferring
     // measured-from-frame over SDK-reported over the model table.
     /// Bit depth the camera reports for itself: `XSDK_GetProp` with
     /// `API_CODE_GetRAWOutputDepth` (XAPIOpt.H:229) at connect, then
@@ -34,21 +34,16 @@ pub struct FujifilmCamera {
     /// i.e. LibRaw's `color.maximum` saturation level.
     pub(crate) measured_white_level: Option<u32>,
 
-    pub(crate) is_exposing: bool,
     pub(crate) is_bulb_mode: bool,
     /// The body refused to open its shutter for bulb on this connection, so
     /// later exposures that need bulb take the nearest timed speed.
     pub(crate) bulb_refused: bool,
     /// What the user is to be told; see `CameraDriver::take_notices`.
     pub(crate) notices: Vec<skotiq_device::DriverNotice>,
-    pub(crate) exposure_start: Option<Instant>,
-    pub(crate) exposure_duration: Duration,
 
     /// Shared with the task that stops live view once nobody watches it.
     pub(crate) live_view: Arc<Mutex<LiveViewDemand>>,
 
-    pub(crate) current_iso: i32,
-    pub(crate) current_offset: i32,
     /// The fixed ISO values the body reported, lowest first.
     pub(crate) supported_isos: Vec<i32>,
     /// Whether long exposure noise reduction is still on after connect tried
@@ -64,47 +59,59 @@ impl FujifilmCamera {
             .unwrap_or_else(|| device_info.name.clone());
         let (width, height, pixel_size, bit_depth) = device_info.model.sensor_specs();
 
+        let mut core = CameraCore::new(
+            format!("native:fujifilm:{}", address),
+            device_info.name.clone(),
+        );
+        core.capabilities = CameraCapabilities {
+            can_set_gain: true,
+            has_shutter: true,
+            max_bin_x: 1,
+            max_bin_y: 1,
+            ..Default::default()
+        };
+        core.sensor_info = SensorInfo {
+            width,
+            height,
+            pixel_size_x: pixel_size,
+            pixel_size_y: pixel_size,
+            // Pre-first-frame estimate. Superseded by the camera-reported
+            // depth at connect and by the decoded frame's measured white
+            // level thereafter — see `refresh_raw_depth`.
+            max_adu: resolve_max_adu(None, bit_depth),
+            bit_depth,
+            color: true,
+            bayer_pattern: if device_info.model.is_xtrans() {
+                None // X-Trans is not Bayer
+            } else {
+                Some(BayerPattern::Rggb.into()) // GFX uses standard Bayer
+            },
+            saturation_adu: None,
+        };
+        core.gain = 800;
         Self {
-            id: format!("native:fujifilm:{}", address),
-            name: device_info.name.clone(),
+            core,
             address,
             serial_number: device_info.serial_number.clone(),
             model: device_info.model,
             session: None,
             firmware_version: String::new(),
-            sensor_info: SensorInfo {
-                width,
-                height,
-                pixel_size_x: pixel_size,
-                pixel_size_y: pixel_size,
-                // Pre-first-frame estimate. Superseded by the camera-reported
-                // depth at connect and by the decoded frame's measured white
-                // level thereafter — see `refresh_raw_depth`.
-                max_adu: resolve_max_adu(None, bit_depth),
-                bit_depth,
-                color: true,
-                bayer_pattern: if device_info.model.is_xtrans() {
-                    None // X-Trans is not Bayer
-                } else {
-                    Some(BayerPattern::Rggb.into()) // GFX uses standard Bayer
-                },
-                saturation_adu: None,
-            },
             sdk_reported_bit_depth: None,
             measured_bit_depth: None,
             measured_white_level: None,
-            is_exposing: false,
             is_bulb_mode: false,
             bulb_refused: false,
             notices: Vec::new(),
-            exposure_start: None,
-            exposure_duration: Duration::ZERO,
             live_view: Arc::default(),
-            current_iso: 800,
-            current_offset: 0,
             supported_isos: Vec::new(),
             long_exposure_nr: false,
         }
+    }
+
+    /// Whether an exposure is under way: started and not yet read, aborted
+    /// or lost.
+    pub(crate) fn is_exposing(&self) -> bool {
+        self.core.state == CameraState::Exposing
     }
 
     /// The body's SDK handle; null while disconnected.
@@ -134,8 +141,8 @@ impl FujifilmCamera {
             self.sdk_reported_bit_depth,
             self.model.sensor_specs().3,
         );
-        self.sensor_info.bit_depth = bit_depth;
-        self.sensor_info.max_adu = resolve_max_adu(self.measured_white_level, bit_depth);
+        self.core.sensor_info.bit_depth = bit_depth;
+        self.core.sensor_info.max_adu = resolve_max_adu(self.measured_white_level, bit_depth);
     }
 
     /// Set the shutter speed (`code`, or bulb when `bulb` is 1), repeating
@@ -179,7 +186,7 @@ impl FujifilmCamera {
         if iso != requested {
             tracing::info!(
                 "Fujifilm {}: ISO {} is not one of the camera's fixed values; using ISO {}",
-                self.id,
+                self.core.device_id,
                 requested,
                 iso
             );
@@ -189,7 +196,7 @@ impl FujifilmCamera {
         if result != XSDK_COMPLETE {
             return Err(sdk_error(self.handle(), sdk, &format!("setting ISO {iso}")));
         }
-        self.current_iso = iso;
+        self.core.command_gain(iso);
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok(())
     }
@@ -210,7 +217,7 @@ impl FujifilmCamera {
         if result != XSDK_COMPLETE || count <= 0 {
             tracing::warn!(
                 "Fujifilm {}: the camera reported no shutter speeds (result {}); exposures of a second or more use bulb",
-                self.id,
+                self.core.device_id,
                 result
             );
             return ShutterSpeeds::default();
@@ -296,9 +303,7 @@ impl FujifilmCamera {
         }
 
         self.is_bulb_mode = true;
-        self.exposure_start = Some(Instant::now());
-        self.exposure_duration = Duration::from_secs_f64(duration_secs);
-        self.is_exposing = true;
+        self.core.begin_exposure(duration_secs);
 
         Ok(())
     }
@@ -328,8 +333,8 @@ impl FujifilmCamera {
                 "closing the shutter of the bulb exposure",
             ));
         }
-        if let Some(opened) = self.exposure_start {
-            self.exposure_duration = opened.elapsed();
+        if let Some(opened) = self.core.exposure_started_at {
+            self.core.exposure_duration = opened.elapsed().as_secs_f64();
         }
 
         self.is_bulb_mode = false;
@@ -343,7 +348,7 @@ impl FujifilmCamera {
     /// left there it would be downloaded as the next exposure's frame
     /// (measured on a GFX100S II, owner's NINA plugin 3.1.0.0).
     pub(crate) async fn end_exposure_and_discard_frame(&mut self) -> Result<(), DriverError> {
-        if !self.is_exposing {
+        if !self.is_exposing() {
             return Ok(());
         }
         let sdk = FujifilmSdk::lock().await?;
@@ -364,14 +369,13 @@ impl FujifilmCamera {
             if result != XSDK_COMPLETE {
                 tracing::warn!(
                     "Fujifilm {}: the camera refused to cancel the timed exposure ({}); it runs to the end and its frame is discarded before the next exposure",
-                    self.id,
+                    self.core.device_id,
                     sdk_error(self.handle(), &sdk, "cancelling the exposure")
                 );
             }
         }
         drop(sdk);
-        self.is_exposing = false;
-        self.exposure_start = None;
+        self.core.end_exposure();
 
         // The frame appears once the body has read out the sensor.
         let mut discarded = 0;
@@ -385,7 +389,7 @@ impl FujifilmCamera {
         }
         tracing::info!(
             "Fujifilm {}: exposure ended early; discarded {} frame(s) it left in the camera",
-            self.id,
+            self.core.device_id,
             discarded
         );
         Ok(())
@@ -395,7 +399,7 @@ impl FujifilmCamera {
     /// is not running.
     pub(crate) async fn live_view_frame(&self) -> Result<Vec<u8>, DriverError> {
         let session = self.session.as_ref().ok_or(DriverError::NotConnected)?;
-        if self.is_exposing {
+        if self.is_exposing() {
             return Err(DriverError::SdkError(
                 "Fujifilm camera: live view pauses while the camera takes an exposure".into(),
             ));
@@ -405,9 +409,9 @@ impl FujifilmCamera {
             if lock(&self.live_view).request(Instant::now()) {
                 start_live_view(session.handle(), &sdk)?;
                 let start = lock(&self.live_view).started();
-                tracing::info!("Fujifilm {}: live view started", self.id);
+                tracing::info!("Fujifilm {}: live view started", self.core.device_id);
                 stop_when_unwatched(
-                    self.id.clone(),
+                    self.core.device_id.clone(),
                     session.clone(),
                     self.live_view.clone(),
                     start,
@@ -438,7 +442,7 @@ impl FujifilmCamera {
         if !lock(&self.live_view).is_running() {
             return;
         }
-        stop_live_view(self.handle(), sdk, &self.id);
+        stop_live_view(self.handle(), sdk, &self.core.device_id);
         lock(&self.live_view).stopped();
         // The owner's NINA plugin pauses as long before the body takes
         // another command.

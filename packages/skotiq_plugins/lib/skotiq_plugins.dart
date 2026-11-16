@@ -58,6 +58,10 @@ export 'src/plugin_host.dart';
 
 export 'src/plugin_context.dart';
 
+// The bundled plugins, their registration and the persisted enabled-set
+// contract an application implements.
+export 'src/plugin_registration.dart';
+
 // Sequence-node registry + executor (the bridge between SequencePlugin
 // authors and the sequence-editor / sequence-executor consumers).
 export 'src/plugin_node_registry.dart';

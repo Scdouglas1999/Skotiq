@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,10 +16,11 @@ import 'frame_header.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'disk_space_service.dart';
+import 'calibration/calibration_selection.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../models/imaging/frame_gain.dart';
+import '../database/rows/frame_gain.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
 
@@ -361,17 +362,11 @@ class DarkroomBuildService {
               f.binY,
             )] ??
             matches.flat?.record.filePath;
-        final dark = matches.dark?.record;
-        final exactDark =
-            dark != null && dark.exposureSeconds == f.exposureDuration;
-        final bias = matches.bias?.record.filePath;
-        // A dark of another exposure is scaled to the lights' exposure, which
-        // needs the bias to separate the dark current from the offset.
-        final scaledDark =
-            dark != null &&
-            dark.exposureSeconds != null &&
-            !exactDark &&
-            bias != null;
+        final darkAndBias = lightDarkAndBias(
+          dark: matches.dark?.record,
+          biasPath: matches.bias?.record.filePath,
+          exposureSeconds: f.exposureDuration,
+        );
         result.add(
           DarkroomBuildGroup(
             label: label,
@@ -380,18 +375,15 @@ class DarkroomBuildService {
             equipment: '${camera(f)} · ${optics(f)}',
             frames: cluster,
             calibration: {
-              if (exactDark || scaledDark) 'dark': dark.filePath,
-              if (scaledDark) 'scaleDark': true,
+              if (darkAndBias.darkPath != null) 'dark': darkAndBias.darkPath,
+              if (darkAndBias.scaleDark) 'scaleDark': true,
               if (flat != null) 'flat': flat,
-              if (!exactDark && bias != null) 'bias': bias,
+              if (darkAndBias.biasPath != null) 'bias': darkAndBias.biasPath,
               'cosmeticCorrection': true,
             },
             warnings: [
               ...matches.allWarnings,
-              if (scaledDark)
-                'The ${_seconds(dark.exposureSeconds!)} s dark is scaled to ${_seconds(f.exposureDuration)} s using the bias.',
-              if (dark != null && !exactDark && !scaledDark)
-                'Dark exposure differs and there is no bias to scale it with; no dark will be applied.',
+              if (darkAndBias.warning != null) darkAndBias.warning!,
             ],
           ),
         );

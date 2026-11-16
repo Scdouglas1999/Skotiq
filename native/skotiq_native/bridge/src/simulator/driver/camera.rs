@@ -3,7 +3,6 @@
 //! through connect answers exactly as the connected one does, and the
 //! simulator's own gate says whether the camera is connected.
 
-use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::rig::camera::{Camera, ExposureAborts};
 use crate::device_manager::rig::RigDriver;
 use crate::dispatch::error::DeviceOpError;
@@ -187,12 +186,11 @@ impl Camera for SimCamera {
             bayer_pattern: None,
             metadata: skotiq_device::ImageMetadata {
                 exposure_time: request.secs,
-                gain: sim.gain.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
-                offset: sim.offset.unwrap_or(skotiq_device::UNKNOWN_CAMERA_SETTING),
+                gain: sim.gain,
+                offset: sim.offset,
                 bin_x: sim.bin_x,
                 bin_y: sim.bin_y,
                 temperature: sim.sensor_temp,
-                timestamp: chrono::Utc::now(),
                 subframe: request.subframe.map(|(start_x, start_y, width, height)| {
                     skotiq_device::SubFrame {
                         start_x,
@@ -201,9 +199,7 @@ impl Camera for SimCamera {
                         height,
                     }
                 }),
-                readout_mode: None,
-                vendor_data: skotiq_device::VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
         })
     }
@@ -297,11 +293,15 @@ impl Camera for SimCamera {
         Ok(())
     }
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    async fn describe(
+        &self,
+        device_id: &str,
+    ) -> Result<skotiq_device::CameraDescription, SkotiqError> {
         if !get_sim_camera_for(device_id).read().await.status.connected {
             return Err(crate::simulator::gate::not_connected_camera().into());
         }
-        let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
-        crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
+        Ok(crate::simulator::capabilities::camera_description(
+            device_id,
+        ))
     }
 }

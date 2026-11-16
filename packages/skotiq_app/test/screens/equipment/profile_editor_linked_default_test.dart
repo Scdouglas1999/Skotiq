@@ -12,6 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_core/database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -57,7 +58,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final profile = EquipmentProfileModel.fromRemoteProfile(_hosted);
+    final profile = equipmentProfileFromRemote(_hosted);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

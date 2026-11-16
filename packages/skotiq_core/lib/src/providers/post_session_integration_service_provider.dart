@@ -4,7 +4,7 @@ import 'database_provider.dart';
 import 'darkroom_pass/pass_providers.dart' show passReporterProvider;
 import '../services/color_calibration_service.dart';
 import '../services/plate_solve_service.dart';
-import '../services/wcs/gnomonic_projection.dart';
+import '../models/imaging/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart'
     show solvedWcsFromResult;
 import '../services/post_session_integration_service.dart';

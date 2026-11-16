@@ -20,12 +20,12 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_attempt_tracker.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   group('pairing code operator channel', () {

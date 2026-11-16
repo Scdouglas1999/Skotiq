@@ -110,17 +110,21 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     final explicitBias = (biasPath != null && biasPath.trim().isNotEmpty)
         ? biasPath
         : null;
+    final darkAndBias = lightDarkAndBias(
+      dark: matchSet.dark?.record,
+      biasPath: explicitBias ?? matchSet.bias?.record.filePath,
+      exposureSeconds: anchor.exposureDuration,
+    );
     return ResolvedCalibration(
-      darkPath: matchSet.dark?.record.filePath,
+      darkPath: darkAndBias.darkPath,
       flatPath: matchSet.flat?.record.filePath,
-      // An explicit bias override wins; otherwise only auto-fill the bias
-      // when no dark matched (a matched dark already carries the bias
-      // signal — supplying both would double-subtract the pedestal).
-      biasPath:
-          explicitBias ??
-          (matchSet.dark == null ? matchSet.bias?.record.filePath : null),
+      biasPath: darkAndBias.biasPath,
+      scaleDark: darkAndBias.scaleDark,
       cosmeticCorrection: cosmeticCorrection,
-      warnings: matchSet.allWarnings,
+      warnings: [
+        ...matchSet.allWarnings,
+        if (darkAndBias.warning != null) darkAndBias.warning!,
+      ],
     );
   }
 

@@ -18,6 +18,8 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'backup_restore_support.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// In-memory [SyncTarget]: a flat map of path -> bytes plus a directory
 /// set. Records uploads so prune behaviour can be asserted.

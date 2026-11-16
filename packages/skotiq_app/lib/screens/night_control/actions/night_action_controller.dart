@@ -29,6 +29,7 @@ import '../data/session/before_you_start_provider.dart'
     show nightSolverStatusProvider;
 import '../data/session/camera_exposure_provider.dart';
 import 'solve_and_sync.dart';
+import 'package:skotiq_core/utils.dart';
 
 const _logSource = 'NightActions';
 

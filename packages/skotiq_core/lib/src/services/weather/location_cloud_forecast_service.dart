@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../models/weather/cloud_cover_forecast.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'providers/metno_cloud_provider.dart';
 import 'providers/nws_cloud_provider.dart';
 import 'providers/openmeteo_cloud_provider.dart';

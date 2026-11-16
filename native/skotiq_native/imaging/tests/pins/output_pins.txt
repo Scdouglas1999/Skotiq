@@ -30,10 +30,7 @@ calibration/f32.full dd4e306ba648ac79
 calibration/master_flat.default dbaa9b57d42a6060
 calibration/master_flat.median_u16 7cda08c12fcc61dd
 calibration/normalize_raw_flat 12139d5346155969
-calibration/samples_f64 ccf6f7085ed6e5f7
-calibration/u16.dark_flat_bias 095dc01db0437ab9
-calibration/u16.dark_only 2c5cc561365beda8
-calibration/u16.divide_flat d8c2c4598fb7e10c
+calibration/samples_f64 71165966470d629c
 dark_240s.fits/detect_stars 09612b07b5ecb5a5
 dark_240s.fits/detect_stars_for_selection 09612b07b5ecb5a5
 dark_240s.fits/detect_stars_with_stats 399713daea0d9a84

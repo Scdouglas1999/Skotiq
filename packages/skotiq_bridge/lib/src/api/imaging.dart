@@ -381,6 +381,10 @@ Future<Uint8List> apiGenerateFitsThumbnail({
 /// ([`LightCalibration`](skotiq_processing::post_session::LightCalibration))
 /// and write the result to `output_path`. An absent or empty master path
 /// skips that correction.
+///
+/// A frame keeps the light's sample format: a float light gives a float
+/// frame, any other a 16-bit one. Either carries the calibration pedestal,
+/// stated in its `PEDESTAL` card.
 Future<void> apiCalibrateImageFile({
   required String lightPath,
   String? darkPath,
@@ -396,7 +400,8 @@ Future<void> apiCalibrateImageFile({
 );
 
 /// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`].
+/// given paths, by the same rule as [`api_calibrate_image_file`]. Every
+/// returned sample carries the calibration pedestal.
 Future<Uint16List> apiCalibrateImageData({
   required int width,
   required int height,

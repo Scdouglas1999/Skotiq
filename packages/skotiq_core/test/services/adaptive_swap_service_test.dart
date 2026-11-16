@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/services.dart';
 
 void main() {
@@ -285,7 +286,7 @@ void main() {
           'configured_hysteresis_secs': 180.0,
         },
       });
-      final snap = AdaptiveSwapDriver.decodeSnapshotJson(raw);
+      final snap = AdaptiveSwapSnapshot.decodeSnapshotJson(raw);
       expect(snap, isNotNull);
       expect(snap!.score!.score, 45.0);
       expect(snap.state.currentTargetId, 'm27');
@@ -295,9 +296,9 @@ void main() {
     });
 
     test('returns null for empty or invalid JSON', () {
-      expect(AdaptiveSwapDriver.decodeSnapshotJson(null), isNull);
-      expect(AdaptiveSwapDriver.decodeSnapshotJson(''), isNull);
-      expect(AdaptiveSwapDriver.decodeSnapshotJson('not json'), isNull);
+      expect(AdaptiveSwapSnapshot.decodeSnapshotJson(null), isNull);
+      expect(AdaptiveSwapSnapshot.decodeSnapshotJson(''), isNull);
+      expect(AdaptiveSwapSnapshot.decodeSnapshotJson('not json'), isNull);
     });
 
     test('toJson round-trips the remote dashboard wire shape', () {

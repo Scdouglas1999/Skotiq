@@ -5,7 +5,7 @@ import '../../../models/weather/weather_models.dart';
 import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
-import '../../logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// Radar provider implementation using the RainViewer global radar service.
 ///

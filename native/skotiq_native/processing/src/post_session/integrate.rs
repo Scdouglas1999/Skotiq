@@ -14,12 +14,14 @@ use crate::post_session::helpers::{
     aligned_quality, build_integration_config, build_master_header, build_normalization_config,
     build_registration_config, build_weight_formula, choose_reference, collect_master_provenance,
     derive_luma_f64, exposures_per_light, extract_channel, header_string, image_to_f64,
-    reference_wcs_from_fits, write_channel, LightCalibration,
+    reference_wcs_from_fits, write_channel,
+};
+use crate::post_session::light_calibration::{
+    light_exposure, LightCalibration, CALIBRATION_PEDESTAL,
 };
 use crate::post_session::telemetry::{
     elapsed_ms, emit_pass_telemetry, file_name, master_noise, report_normalized, RunningPreview,
 };
-use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::frame_weighting::{
     weight_frames, CullPolicy, FrameQuality, FrameQualityConfig,
 };
@@ -57,12 +59,14 @@ pub(crate) fn run_integration(
     check_stage(&cancel, "calibrating", None, None)?;
     let run_id = args.run_id.clone();
 
-    // Load calibration masters once (shared across all lights).
-    let masters = LightCalibration::load(
-        &args.calibration.dark,
-        &args.calibration.flat,
-        &args.calibration.bias,
-    )?;
+    let masters = LightCalibration::for_lights(&args.calibration)?;
+    // Calibrated lights are registered and measured as their 16-bit copies;
+    // the pedestal those carry leaves each sub once it is on the grid.
+    let pedestal = if masters.is_empty() {
+        0.0
+    } else {
+        f64::from(CALIBRATION_PEDESTAL)
+    };
 
     // What the masters above actually are, measured against the group's anchor
     // sub — the same first-sub anchor the Dart matcher selects on.
@@ -77,9 +81,9 @@ pub(crate) fn run_integration(
             "names": args.light_paths.iter().map(|p| file_name(p)).collect::<Vec<_>>(),
             "exposures": exposures,
             "calibration": {
-                "dark": masters.dark.is_some(),
-                "flat": masters.flat.is_some(),
-                "bias": masters.bias.is_some(),
+                "dark": masters.has_dark(),
+                "flat": masters.has_flat(),
+                "bias": masters.has_bias(),
                 "cosmetic": args.calibration.cosmetic_correction,
             },
         }),
@@ -94,6 +98,7 @@ pub(crate) fn run_integration(
         Some(total_lights),
     );
     let mut loaded: Vec<LoadedLight> = Vec::with_capacity(args.light_paths.len());
+    let mut dark_scales: Vec<f64> = Vec::new();
     for (i, path) in args.light_paths.iter().enumerate() {
         check_stage(&cancel, "calibrating", Some(i as u32), Some(total_lights))?;
         let read =
@@ -107,19 +112,14 @@ pub(crate) fn run_integration(
             ));
         }
         if !masters.is_empty() {
-            image = masters
-                .apply(&image)
-                .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
-        }
-        if args.calibration.cosmetic_correction {
-            // Self-derived hot/cold transient repair (cosmic rays, residual hot
-            // pixels). Operates per-channel in place; the RETURNED REPORT is
-            // advisory, but the error is not: the calibration report stamps
-            // `cosmetic correction: applied` straight off this request flag
-            // (`build_calibration_report`), so a swallowed failure here writes a
-            // master that claims a repair it never ran.
-            cosmetic_correct_transient(&mut image, CosmeticConfig::default())
-                .map_err(|e| format!("cosmetic correction of '{path}' failed: {e}"))?;
+            let calibrated = masters
+                .apply(&image, light_exposure(Some(exposures[i]), &source_header))
+                .map_err(|e| format!("'{path}': {e}"))?;
+            let k = calibrated.dark_scale;
+            if (k - 1.0).abs() > 1e-9 && !dark_scales.iter().any(|s| (s - k).abs() < 1e-9) {
+                dark_scales.push(k);
+            }
+            image = calibrated.sixteen_bit;
         }
         // `exposures_per_light` guaranteed one entry per light, so `i` is in range.
         loaded.push(LoadedLight {
@@ -254,9 +254,9 @@ pub(crate) fn run_integration(
 
         if i == ref_index {
             // The reference aligns to itself by identity; flatten directly.
-            let pixels = image_to_f64(&light.image);
             let coverage = CoverageMask::full(width as usize, height as usize);
-            let quality = aligned_quality(&light.image, &q_cfg);
+            let pixels = without_pedestal(image_to_f64(&light.image), &coverage, chan, pedestal);
+            let quality = measured(aligned_quality(&light.image, &q_cfg), pedestal);
             registered.push(Registered {
                 path: light.path.clone(),
                 pixels,
@@ -289,7 +289,8 @@ pub(crate) fn run_integration(
                     width as usize,
                     height as usize,
                 );
-                let quality = aligned_quality(&reg.aligned, &q_cfg);
+                let pixels = without_pedestal(pixels, &coverage, chan, pedestal);
+                let quality = measured(aligned_quality(&reg.aligned, &q_cfg), pedestal);
                 registered.push(Registered {
                     path: light.path.clone(),
                     pixels,
@@ -516,7 +517,7 @@ pub(crate) fn run_integration(
         .map(|&i| loaded[i].exposure_sec)
         .collect();
     let provenance = collect_master_provenance(&accepted_headers, &accepted_exposures);
-    let header = build_master_header(
+    let mut header = build_master_header(
         sub_count,
         &args.settings.integration,
         &int_cfg.reject,
@@ -524,6 +525,9 @@ pub(crate) fn run_integration(
         reference_wcs.as_ref(),
         &calibration_report,
     );
+    for k in &dark_scales {
+        header.add_history(&format!("Dark scaled by the exposure ratio {k:.4}"));
+    }
     write_fits(master_path, &output.master, &header)
         .map_err(|e| format!("failed to write master FITS: {e:?}"))?;
 
@@ -669,5 +673,32 @@ pub(crate) fn run_integration(
         channels,
         per_frame_stats,
         calibration: calibration_report,
+    })
+}
+
+/// A sub's pixels on the grid with the calibration pedestal taken out where
+/// the sub covers it.
+fn without_pedestal(
+    mut pixels: Vec<f64>,
+    coverage: &CoverageMask,
+    channels: usize,
+    pedestal: f64,
+) -> Vec<f64> {
+    if pedestal != 0.0 {
+        for (i, v) in pixels.iter_mut().enumerate() {
+            if coverage.is_valid_at(i / channels) {
+                *v -= pedestal;
+            }
+        }
+    }
+    pixels
+}
+
+/// A quality measured on a calibrated 16-bit copy, its background stated
+/// without the pedestal.
+fn measured(quality: Option<FrameQuality>, pedestal: f64) -> Option<FrameQuality> {
+    quality.map(|q| FrameQuality {
+        background: q.background - pedestal,
+        ..q
     })
 }

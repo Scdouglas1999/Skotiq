@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'notification_router_provider.dart';
 import 'settings_provider.dart';
 import '../services/notification_service.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService(

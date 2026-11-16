@@ -14,6 +14,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 import 'backup_restore_support.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
