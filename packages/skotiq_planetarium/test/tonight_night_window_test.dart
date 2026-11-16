@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_astro/testing.dart';
 
 const _lat = 40.0;
 const _lon = -105.0;
@@ -114,7 +115,12 @@ void main() {
       ];
 
       final container = ProviderContainer(
-        overrides: [loadedDsosProvider.overrideWith((ref) async => dsos)],
+        overrides: [
+          loadedDsosProvider.overrideWith((ref) async => dsos),
+          planetariumNightScorerProvider.overrideWith(
+            (ref) => ScriptedNightScorer().call,
+          ),
+        ],
       );
       addTearDown(container.dispose);
       container

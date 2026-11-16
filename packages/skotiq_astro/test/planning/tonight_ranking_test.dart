@@ -3,7 +3,7 @@
 import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../support/scripted_night_scorer.dart';
+import 'package:skotiq_astro/testing.dart';
 
 void main() {
   const latitude = 40.0;

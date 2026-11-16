@@ -1,4 +1,4 @@
-import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../skotiq_astro.dart';
 
 /// A [NightScorer] that answers with scripted figures instead of scoring:
 /// the scoring itself is the native sequencer's and is tested there.
