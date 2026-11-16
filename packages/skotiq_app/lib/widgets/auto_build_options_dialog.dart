@@ -199,11 +199,15 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
         widget.saved['exposures'] as Map<String, dynamic>? ?? {};
     for (final filter in smartNightPlanningFilters(widget.filters)) {
       final spec = FilterExposureSpec.fromName(filter);
-      final seconds = savedExposures[filter] ??
+      final num seconds = savedExposures[filter] as num? ??
           widget.suggestedSeconds[filter]?.round() ??
           const SmartNightSettings().defaultFrameDurationSecs[spec.name] ??
           180;
-      _durations[filter] = TextEditingController(text: '$seconds');
+      // Whole seconds read as "300", not "300.0".
+      _durations[filter] = TextEditingController(
+          text: seconds == seconds.roundToDouble()
+              ? '${seconds.round()}'
+              : '$seconds');
     }
   }
 

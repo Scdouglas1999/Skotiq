@@ -206,6 +206,8 @@ void main() {
     await open(const {});
     expect(find.text('Narrowband SHO: NGC7380 is an emission nebula.'),
         findsOneWidget);
+    // Whole seconds read as "300", not "300.0".
+    expect(find.text('300'), findsNWidgets(3));
     tester
         .widget<DropdownButtonFormField<SmartNightStrategy>>(
             find.byType(DropdownButtonFormField<SmartNightStrategy>))
