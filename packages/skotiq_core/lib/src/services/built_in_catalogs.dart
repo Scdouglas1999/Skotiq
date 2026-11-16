@@ -19,6 +19,15 @@ final Map<SkyCatalog, Future<List<int>> Function()> builtInCatalogs = {
   },
 };
 
+/// Asset key of the nebula light table: which OpenNGC nebulae published
+/// catalogs class as emission or reflection (see `assets/catalogs/README.md`).
+const String builtInNebulaLightAsset =
+    'packages/skotiq_core/assets/catalogs/nebula_light.csv';
+
+/// Reads the nebula light table, for [CatalogManager.initialize].
+Future<String> builtInNebulaLight() =>
+    rootBundle.loadString(builtInNebulaLightAsset);
+
 /// Attribution and license of the built-in catalog data.
 const String builtInCatalogNoticeAsset =
     'packages/skotiq_core/assets/catalogs/NOTICE.txt';
@@ -33,6 +42,7 @@ void listBuiltInCatalogLicenses() {
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(const [
       'OpenNGC (catalog data)',
+      'Nebula light table (catalog data)',
     ], await rootBundle.loadString(builtInCatalogNoticeAsset));
   });
 }

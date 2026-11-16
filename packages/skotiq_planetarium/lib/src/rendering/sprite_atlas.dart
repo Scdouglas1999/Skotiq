@@ -469,6 +469,8 @@ class SkySpriteAtlas {
       case DsoType.reflectionNebula:
       case DsoType.hiiRegion:
       case DsoType.clusterWithNebulosity:
+      case DsoType.clusterWithEmissionNebula:
+      case DsoType.clusterWithReflectionNebula:
       case DsoType.darkNebula:
         return _DsoGlyph.nebula;
 
