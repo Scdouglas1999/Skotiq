@@ -308,7 +308,11 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
             minScale: effectiveMinScale,
             maxScale: widget.maxScale,
             boundaryMargin: const EdgeInsets.all(double.infinity),
-            child: Center(
+            // At the origin: the fit transform does the centering, so a
+            // centered child was offset twice when the image was smaller than
+            // the view in either direction.
+            child: Align(
+              alignment: Alignment.topLeft,
               child: imageWidget,
             ),
           ),
