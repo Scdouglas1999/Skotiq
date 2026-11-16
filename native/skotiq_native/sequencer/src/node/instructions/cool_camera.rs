@@ -31,18 +31,19 @@ impl InstructionNode for CoolCameraInstruction {
             "Cool Camera",
         );
 
+        let asked_at = tokio::time::Instant::now();
         let status = execute_cool_camera(config, &ctx, Some(&progress_fn))
             .await
             .settle("Cool Camera", &ctx)
             .await;
 
-        // stamp the cooler set-point onto the ExecutionContext so
-        // every subsequent TakeExposure's FITS header carries SET-TEMP.
-        // This sticks until another CoolCamera / WarmCamera changes it.
-        // We populate on Success only — a failed cool command should not
-        // claim we know the cooler set-point.
+        // The set-point sticks until another CoolCamera / WarmCamera changes
+        // it: every later frame's SET-TEMP, and the set-point darks and bias
+        // hold to, with the time the cooler was given to reach it. Only a
+        // cool step that succeeded knows the set-point.
         if status == NodeStatus::Success {
             context.set_temp_c = Some(target_temp);
+            context.set_point_settle_by = Some(asked_at + config.settle_budget());
             tracing::debug!(
                 "ExecutionContext.set_temp_c updated to {:.1}°C after CoolCamera success",
                 target_temp

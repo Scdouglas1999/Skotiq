@@ -271,6 +271,7 @@ void main() {
       biasCount: 50,
       biasExposureSecs: 0.001,
       cameraCanCool: true,
+      sensorTempC: null,
     );
     final result = await evaluateAt(
       _dawn().subtract(const Duration(minutes: 20)),

@@ -110,15 +110,7 @@ pub async fn execute_cool_camera(
     // within the deadline is reported, never passed off as "Target reached";
     // whether it also stops the run is the operator's quality setting, and a
     // sensor warming under its cooler stops it either way (see below).
-    //
-    // When no duration is configured the wait is still bounded by a generous
-    // default so a stuck cooler cannot hang the sequence forever.
-    const DEFAULT_COOL_TIMEOUT_SECS: f64 = 900.0; // 15 min — ample for any TEC ramp
-    const POLL_SECS: f64 = 10.0;
-    let deadline_secs = config
-        .duration_mins
-        .map(|m| (m * 60.0).max(0.0))
-        .unwrap_or(DEFAULT_COOL_TIMEOUT_SECS);
+    let deadline_secs = config.settle_budget().as_secs_f64();
     let mut elapsed_secs = 0.0_f64;
 
     loop {
@@ -239,20 +231,124 @@ pub async fn execute_cool_camera(
             return InstructionResult::success_with_message(msg);
         }
 
-        sleep(Duration::from_secs_f64(POLL_SECS)).await;
-        elapsed_secs += POLL_SECS;
+        sleep(THERMAL_POLL).await;
+        elapsed_secs += THERMAL_POLL.as_secs_f64();
     }
 }
 
+/// How often a step waiting on the sensor temperature reads it.
+const THERMAL_POLL: Duration = Duration::from_secs(10);
+
 /// Read jitter of a settled TEC sensor (ZWO, QHY and PlayerOne report about
 /// ±0.3 °C) that still counts as at the set-point.
-const SETPOINT_TOLERANCE_C: f64 = 0.5;
+pub(crate) const SETPOINT_TOLERANCE_C: f64 = 0.5;
 
 /// Whether a sensor under a running cooler is where the cool step wants it.
-/// Colder than the set-point counts: on a night colder than the set-point
-/// the sensor starts below it, and a cooler cannot warm it up to it.
+/// Colder than the set-point counts: lights record the temperature they were
+/// taken at, and on a night colder than the set-point the sensor starts below
+/// it and a cooler cannot warm it up to it. Frames matched by temperature
+/// hold to [`hold_for_set_point`] instead.
 fn is_cold_enough(sensor_temp: f64, target_temp: f64) -> bool {
     sensor_temp < target_temp + SETPOINT_TOLERANCE_C
+}
+
+/// How long a sensor that came to its set-point must stay within tolerance
+/// before frames matched by temperature start: a sensor still moving can
+/// pass through the window on its way past the set-point.
+const SET_POINT_STABLE: Duration = Duration::from_secs(30);
+
+/// Whether the sensor is at the cooler's set-point for a frame matched to
+/// lights by temperature (a dark, a bias, a dark flat).
+#[derive(Debug)]
+pub(crate) enum SetPointHold {
+    /// Within tolerance and steady: take the frame.
+    Ready,
+    /// The set-point's settle budget ran out with the sensor still outside
+    /// the tolerance; `reason` says where it was, in the operator's words.
+    NotReached {
+        reason: String,
+    },
+    Cancelled(InstructionResult),
+}
+
+/// Hold a frame matched by temperature until the sensor is within
+/// `tolerance_c` of `set_point_c`, from either side, and steady.
+///
+/// A frame taken off its set-point carries the set-point in SET-TEMP and
+/// another temperature in CCD-TEMP; matched to lights by either, it adds the
+/// wrong dark current. So the frame waits, a warmer set-point included (the
+/// cooler only stops pulling and the sensor warms up to it), until
+/// `settle_by`, the time the cool step gave the cooler. A sensor already
+/// within tolerance on the first read is taken to be settled.
+pub(crate) async fn hold_for_set_point(
+    ctx: &InstructionContext,
+    camera_id: &str,
+    set_point_c: f64,
+    tolerance_c: f64,
+    settle_by: tokio::time::Instant,
+    report: &(dyn Fn(&str) + Send + Sync),
+) -> SetPointHold {
+    let mut within_since: Option<tokio::time::Instant> = None;
+    let mut waited = false;
+    loop {
+        if let Some(result) = ctx.check_cancelled() {
+            return SetPointHold::Cancelled(result);
+        }
+        let sensor_c = match ctx.run.device_ops.camera_get_temperature(camera_id).await {
+            Ok(value) => value,
+            Err(error) => {
+                return SetPointHold::NotReached {
+                    reason: format!("the sensor temperature could not be read ({error})"),
+                }
+            }
+        };
+        let now = tokio::time::Instant::now();
+        if (sensor_c - set_point_c).abs() <= tolerance_c {
+            if !waited {
+                return SetPointHold::Ready;
+            }
+            let since = *within_since.get_or_insert(now);
+            if now.duration_since(since) >= SET_POINT_STABLE {
+                tracing::info!(
+                    "Sensor settled at {:.1}°C, within ±{:.1}°C of the {:.1}°C set-point",
+                    sensor_c,
+                    tolerance_c,
+                    set_point_c
+                );
+                return SetPointHold::Ready;
+            }
+        } else {
+            within_since = None;
+        }
+        if now >= settle_by {
+            return SetPointHold::NotReached {
+                reason: format!(
+                    "the sensor read {sensor_c:.1}°C, more than {tolerance_c:.1}°C from the \
+                     {set_point_c:.1}°C set-point, when the time given to the cooler ran out"
+                ),
+            };
+        }
+        if !waited {
+            tracing::info!(
+                "Waiting for the sensor to reach the {:.1}°C set-point (now {:.1}°C, \
+                 tolerance ±{:.1}°C)",
+                set_point_c,
+                sensor_c,
+                tolerance_c
+            );
+        }
+        waited = true;
+        report(&format!(
+            "Waiting for the sensor to reach {set_point_c:.1}°C (now {sensor_c:.1}°C)"
+        ));
+        let pause = THERMAL_POLL.min(settle_by.saturating_duration_since(now));
+        tokio::select! {
+            _ = sleep(pause.max(Duration::from_millis(1))) => {}
+            _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                return SetPointHold::Cancelled(InstructionResult::cancelled("Exposure cancelled"));
+            }
+        }
+    }
 }
 
 /// How far past its starting temperature, away from the set-point, a cooled

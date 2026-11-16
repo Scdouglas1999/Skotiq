@@ -264,6 +264,9 @@ pub struct ExecutionContext {
     /// Cooler target temperature in °C, set by CoolCamera. None when the
     /// cooler is off or has never been commanded.
     pub set_temp_c: Option<f64>,
+    /// When the time CoolCamera gave the cooler to reach `set_temp_c` runs
+    /// out.
+    pub set_point_settle_by: Option<tokio::time::Instant>,
     /// Bayer pattern string ("RGGB", "BGGR", etc.) reported by the camera.
     /// None for monochrome sensors.
     pub bayer_pattern: Option<String>,
@@ -506,6 +509,7 @@ impl ExecutionContext {
             mosaic_panel: None,
             current_filter_index: None,
             set_temp_c: None,
+            set_point_settle_by: None,
             bayer_pattern: None,
             exposure_triggers: Arc::default(),
             // production path uses the real wall clock; tests
@@ -963,6 +967,7 @@ impl ExecutionContext {
             current_filter_index: self.current_filter_index,
             current_binning: self.current_binning,
             set_temp_c: self.set_temp_c,
+            set_point_settle_by: self.set_point_settle_by,
             bayer_pattern: self.bayer_pattern.clone(),
             cancellation_token: self.is_cancelled.clone(),
         }

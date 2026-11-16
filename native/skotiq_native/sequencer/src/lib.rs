@@ -2037,6 +2037,12 @@ impl FrameType {
     pub fn is_calibration(self) -> bool {
         !self.is_sky_frame()
     }
+
+    /// Matched to lights by the sensor temperature it was taken at, so it is
+    /// taken only with the sensor at the cooler's set-point.
+    pub fn is_matched_by_sensor_temperature(self) -> bool {
+        matches!(self, Self::Dark | Self::Bias | Self::DarkFlat)
+    }
 }
 
 impl Serialize for FrameType {
@@ -2502,6 +2508,21 @@ impl Default for CoolConfig {
         Self {
             target_temp: -10.0,
             duration_mins: Some(10.0),
+        }
+    }
+}
+
+impl CoolConfig {
+    /// How long the cooler has to bring the sensor to the set-point: the
+    /// step's duration, else 15 minutes, ample for any TEC ramp, so a stuck
+    /// cooler cannot hold the run forever.
+    pub fn settle_budget(&self) -> std::time::Duration {
+        const DEFAULT_SETTLE: std::time::Duration = std::time::Duration::from_secs(900);
+        const LONGEST_SETTLE: std::time::Duration = std::time::Duration::from_secs(24 * 3600);
+        match self.duration_mins {
+            None => DEFAULT_SETTLE,
+            Some(mins) => std::time::Duration::try_from_secs_f64((mins * 60.0).max(0.0))
+                .map_or(DEFAULT_SETTLE, |budget| budget.min(LONGEST_SETTLE)),
         }
     }
 }

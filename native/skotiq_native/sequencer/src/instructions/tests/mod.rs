@@ -1535,6 +1535,7 @@ fn pid_is_running(pid: u32) -> bool {
 }
 
 mod autofocus;
+mod calibration_set_point;
 mod center;
 mod cooling;
 mod daylight_gate;

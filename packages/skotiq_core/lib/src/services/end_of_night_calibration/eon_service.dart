@@ -83,6 +83,10 @@ abstract class EonRig {
     CalibrationMasterBuildRequest request,
   );
 
+  /// How far, in °C, a dark's sensor temperature may be from a light's and
+  /// still calibrate it: the dark library's tolerance.
+  Future<double> darkTemperatureToleranceC();
+
   /// Add a master to the dark library; returns its row id.
   Future<int> registerMaster(
     CalibrationMasterBuildResult built,
@@ -426,6 +430,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       biasCount: config.biasCount,
       biasExposureSecs: _biasExposure(camera),
       cameraCanCool: camera.canCool,
+      sensorTempC: camera.sensorTempC,
       darkSlot: darkSlot,
     );
     final plannedText = [
@@ -476,7 +481,15 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
         : await _rig.framesOfRun(result.runId!);
     report.framesCaptured = frames.length;
     _set(EonPhase.buildingMasters, 'Building masters', report);
-    await _buildMasters(frames, needs, config, report);
+    await _buildMasters(
+      frames,
+      needs,
+      config,
+      report,
+      toleranceC: camera.canCool
+          ? await _rig.darkTemperatureToleranceC()
+          : null,
+    );
 
     if (_cancelRequested) return _cancelled(report);
     final built = report.masters.where((m) => m.built).length;
@@ -626,26 +639,68 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     return false;
   }
 
+  /// Build one master per frame type, exposure, gain, offset, binning and
+  /// set-point. A frame belongs to the planned set-point nearest its measured
+  /// sensor temperature; one more than [toleranceC] from every set-point it
+  /// could belong to was taken off its set-point and is left out, so a master
+  /// never mixes temperatures the library would not match together. A camera
+  /// that cannot cool holds no set-point ([toleranceC] null): its frames
+  /// group without one.
   Future<void> _buildMasters(
     List<DbCapturedImage> frames,
     EonFrameNeeds needs,
     EonSettings config,
-    EonReport report,
-  ) async {
+    EonReport report, {
+    required double? toleranceC,
+  }) async {
     final groups =
-        <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
+        <(String, int, int?, int?, int, int, double?), List<DbCapturedImage>>{};
+    var offSetPoint = 0;
     for (final frame in frames) {
       final type = frame.recordedFrameType;
       if (type != FrameType.dark && type != FrameType.bias) continue;
+      final exposureMs = (frame.exposureDuration * 1000).round();
+      final planned = type == FrameType.dark
+          ? {
+              for (final d in needs.darks)
+                if ((d.exposureSecs * 1000).round() == exposureMs &&
+                    d.gain == frame.gain &&
+                    d.offset == frame.offset &&
+                    d.binX == frame.binX &&
+                    d.binY == frame.binY)
+                  d.setPointC,
+            }
+          : {
+              for (final b in needs.bias)
+                if (b.gain == frame.gain &&
+                    b.offset == frame.offset &&
+                    b.binX == frame.binX &&
+                    b.binY == frame.binY)
+                  b.setPointC,
+            };
+      final owner = toleranceC == null
+          ? (setPointC: null)
+          : _setPointOwning(frame.sensorTemp, planned, toleranceC);
+      if (owner == null) {
+        offSetPoint++;
+        continue;
+      }
       final key = (
         type!.record,
-        (frame.exposureDuration * 1000).round(),
+        exposureMs,
         frame.gain,
         frame.offset,
         frame.binX,
         frame.binY,
+        owner.setPointC,
       );
       (groups[key] ??= []).add(frame);
+    }
+    if (offSetPoint > 0) {
+      report.problems.add(
+        '$offSetPoint frames read more than ${_trimTemp(toleranceC!)} °C from '
+        'their set-point and were left out of the masters',
+      );
     }
     for (final dark in needs.darks) {
       final key = (
@@ -655,6 +710,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
         dark.offset,
         dark.binX,
         dark.binY,
+        toleranceC == null ? null : dark.setPointC,
       );
       if (!groups.containsKey(key)) {
         report.problems.add('No darks were taken for ${dark.label}');
@@ -663,7 +719,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final stamp = _stamp(report.startedAt);
     for (final entry in groups.entries) {
       if (_cancelRequested) return;
-      final (type, exposureMs, gain, offset, binX, binY) = entry.key;
+      final (type, exposureMs, gain, offset, binX, binY, setPointC) = entry.key;
       final group = entry.value;
       final exposure = exposureMs / 1000;
       final temps = [
@@ -697,7 +753,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       final name =
           '${type == 'bias' ? 'MasterBias' : 'MasterDark_${_trim(exposure)}s'}'
           '${gain == null ? '' : '_g$gain'}${offset == null ? '' : '_o$offset'}'
-          '_${_tempTag(temp)}_bin$binX'
+          '_${_tempTag(setPointC ?? temp)}_bin$binX'
           '_$stamp.fits';
       final output = p.join(p.dirname(group.first.filePath), 'Masters', name);
       try {
@@ -744,6 +800,38 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       }
     }
   }
+
+  /// The set-point of [planned] a frame read at [sensorTempC] was taken at:
+  /// the nearest within [toleranceC]. Null when it is outside the tolerance
+  /// of all of them, or carries no reading and more than one could own it.
+  /// A frame of a group the plan did not name forms its own, uncooled.
+  static ({double? setPointC})? _setPointOwning(
+    double? sensorTempC,
+    Set<double?> planned,
+    double toleranceC,
+  ) {
+    if (planned.isEmpty) return (setPointC: null);
+    if (planned.length == 1 && planned.single == null) {
+      return (setPointC: null);
+    }
+    if (sensorTempC == null) {
+      return planned.length == 1 ? (setPointC: planned.single) : null;
+    }
+    double? best;
+    for (final setPoint in planned) {
+      if (setPoint == null) continue;
+      if (best == null ||
+          (setPoint - sensorTempC).abs() < (best - sensorTempC).abs()) {
+        best = setPoint;
+      }
+    }
+    if (best == null || (best - sensorTempC).abs() > toleranceC) return null;
+    return (setPointC: best);
+  }
+
+  static String _trimTemp(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
 
   static String _trim(double value) {
     if (value == value.roundToDouble()) return value.toStringAsFixed(0);

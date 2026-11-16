@@ -101,6 +101,11 @@ pub struct RunConfig {
     pub camera_file_saving: CameraFileSaving,
     /// The file format captured frames are written in.
     pub frame_format: FrameFormat,
+    /// How far, in °C, a dark's sensor temperature may be from a light's and
+    /// still calibrate it: the dark library's tolerance. A dark, bias or dark
+    /// flat is taken only with the sensor this close to the cooler's
+    /// set-point. `None` holds them to the set-point's read jitter.
+    pub calibration_temperature_tolerance_c: Option<f64>,
 }
 
 /// What is saved for a frame from a camera that delivers its own file (a
@@ -232,6 +237,7 @@ impl Default for RunConfig {
             decision_logging_enabled: true,
             camera_file_saving: CameraFileSaving::default(),
             frame_format: FrameFormat::default(),
+            calibration_temperature_tolerance_c: None,
         }
     }
 }
@@ -318,6 +324,9 @@ impl RunConfig {
         }
         self.device_retry = self.device_retry.clamped();
         self.reject_folder_path = non_blank(self.reject_folder_path);
+        self.calibration_temperature_tolerance_c = self
+            .calibration_temperature_tolerance_c
+            .filter(|tolerance| tolerance.is_finite() && *tolerance >= 0.0);
         let profile = &mut self.observer_profile;
         for name in [
             &mut profile.observer_name,
@@ -370,10 +379,11 @@ pub(crate) enum Section {
     DecisionLogging,
     CameraFileSaving,
     FrameFormat,
+    CalibrationTemperatureTolerance,
 }
 
 impl Section {
-    const ALL: [Section; 23] = [
+    const ALL: [Section; 24] = [
         Section::Dither,
         Section::Autofocus,
         Section::AutofocusInterval,
@@ -397,6 +407,7 @@ impl Section {
         Section::DecisionLogging,
         Section::CameraFileSaving,
         Section::FrameFormat,
+        Section::CalibrationTemperatureTolerance,
     ];
 
     /// The name the change is announced under in
@@ -426,6 +437,7 @@ impl Section {
             Section::DecisionLogging => "decision_logging",
             Section::CameraFileSaving => "camera_file_saving",
             Section::FrameFormat => "frame_format",
+            Section::CalibrationTemperatureTolerance => "calibration_temperature_tolerance",
         }
     }
 }
@@ -458,6 +470,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         decision_logging_enabled,
         camera_file_saving,
         frame_format,
+        calibration_temperature_tolerance_c,
     } = new;
     [
         (Section::Dither, *dither != old.dither),
@@ -531,6 +544,10 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
             *camera_file_saving != old.camera_file_saving,
         ),
         (Section::FrameFormat, *frame_format != old.frame_format),
+        (
+            Section::CalibrationTemperatureTolerance,
+            *calibration_temperature_tolerance_c != old.calibration_temperature_tolerance_c,
+        ),
     ]
     .into_iter()
     .filter_map(|(section, changed)| changed.then_some(section))
