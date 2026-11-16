@@ -104,13 +104,21 @@ List<Override> _readyRig({
       ),
       nightDiskProjectionProvider.overrideWithValue(null),
       nightCaptureFreeBytesProvider.overrideWithValue(639 * (1 << 30)),
-      nightForecastCloudProvider.overrideWithValue(null),
+      nightSkyNowProvider.overrideWithValue(null),
       nightSafetyReadingProvider.overrideWithValue(
         const NightSafetyReading(monitoring: true, safe: true),
       ),
       clockProvider.overrideWithValue(const SystemClock()),
       nightSessionNowProvider.overrideWithValue(DateTime(2026, 10, 19, 18, 36)),
     ];
+
+CurrentSky _modelSky(double percent) => CurrentSky(
+      model: CloudCoverForecast(
+        percent: percent,
+        source: 'Open-Meteo',
+        validAt: DateTime.utc(2026, 10, 19, 22, 30),
+      ),
+    );
 
 Future<List<ChecklistItemVm>> _checklist(SessionHarness h) async {
   await h.settle(appSettingsProvider);
@@ -130,24 +138,59 @@ void main() {
       expect(vm.metrics, isEmpty);
     });
 
-    test('forecast cloud cover alone is labeled as a forecast', () async {
+    test('a model-only sky says it is a model estimate', () async {
       final h = await sessionHarness(
         overrides: <Override>[
           ..._readyRig(),
-          nightForecastCloudProvider.overrideWithValue(12),
+          nightSkyNowProvider.overrideWithValue(_modelSky(12)),
         ],
       );
       final vm = h.read(nightConditionsProvider);
-      expect(vm.source, ConditionsSource.forecast);
-      expect(vm.metrics.single.label.key, 'nightSessionCloudsForecast');
+      expect(vm.source, ConditionsSource.internet);
+      expect(vm.metrics.single.label.key, 'nightSessionCloudsNow');
       expect(vm.metrics.single.value, '12%');
+      expect(vm.notes.first.key, 'nightSkyModelOnly');
+      expect(vm.notes.first.params['source'], 'Open-Meteo');
+    });
+
+    test('a station report is shown with its station and a disagreement',
+        () async {
+      final h = await sessionHarness(
+        overrides: <Override>[
+          ..._readyRig(),
+          nightSkyNowProvider.overrideWithValue(
+            CurrentSky(
+              station: StationSky(
+                stationId: 'KOQN',
+                stationName: 'West Chester',
+                distanceKm: 15.4,
+                observedAt: DateTime.utc(2026, 11, 16, 17, 15),
+                amount: CloudAmount.clear,
+                seesUpToFeet: 12000,
+              ),
+              model: CloudCoverForecast(
+                percent: 62,
+                source: 'Open-Meteo',
+                validAt: DateTime.utc(2026, 11, 16, 17),
+              ),
+            ),
+          ),
+        ],
+      );
+      final vm = h.read(nightConditionsProvider);
+      expect(vm.metrics.single.value, '0%');
+      expect(vm.notes[0].key, 'nightSkyStation');
+      expect(vm.notes[0].params['station'], 'KOQN');
+      expect(vm.notes[0].params['distance'], '15');
+      expect(vm.notes[1].key, 'nightSkyDisagree');
+      expect(vm.notes[1].params, {'station': '0%', 'model': '62%'});
     });
 
     test('a weather device reports only what it measures', () async {
       final h = await sessionHarness(
         overrides: <Override>[
           ..._readyRig(),
-          nightForecastCloudProvider.overrideWithValue(80),
+          nightSkyNowProvider.overrideWithValue(_modelSky(80)),
           weatherStateProvider.overrideWith(
             (ref) => FixedWeather(
               ref,
@@ -191,7 +234,7 @@ void main() {
       final h = await sessionHarness(
         overrides: <Override>[
           ..._readyRig(),
-          nightForecastCloudProvider.overrideWithValue(4),
+          nightSkyNowProvider.overrideWithValue(_modelSky(4)),
           nightSafetyReadingProvider.overrideWithValue(
             const NightSafetyReading(monitoring: true, hostUnknown: true),
           ),
@@ -200,7 +243,10 @@ void main() {
       final vm = h.read(nightConditionsProvider);
       expect(vm.verdictUnknown, isTrue);
       expect(vm.safe, isNull);
-      expect(vm.notes.map((n) => n.key), ['nightWeatherHostUnknown']);
+      expect(
+        vm.notes.map((n) => n.key),
+        ['nightSkyModelOnly', 'nightWeatherHostUnknown'],
+      );
       expect(vm.skyOverride, NightSkyOverride.none);
     });
   });

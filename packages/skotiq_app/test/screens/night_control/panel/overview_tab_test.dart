@@ -210,17 +210,17 @@ void main() {
     expect(find.text('Clouds'), findsNothing);
   });
 
-  testWidgets('a forecast-only source is labeled as one', (tester) async {
+  testWidgets('an internet-only source is labeled as one', (tester) async {
     await pumpPanel(
       tester,
       child: const NightOverviewTab(),
       overrides: panelOverrides(
         board: NightFixtures.running(),
         conditions: const NightConditionsVm(
-          source: ConditionsSource.forecast,
+          source: ConditionsSource.internet,
           metrics: <MetricVm>[
             MetricVm(
-              label: NightText('nightSessionCloudsForecast'),
+              label: NightText('nightSessionCloudsNow'),
               value: '20%',
             ),
           ],
@@ -228,8 +228,8 @@ void main() {
       ),
     );
 
-    expect(find.text('forecast only'), findsOneWidget);
-    expect(find.text('Clouds (forecast)'), findsOneWidget);
+    expect(find.text('internet only'), findsOneWidget);
+    expect(find.text('Clouds now'), findsOneWidget);
     expect(find.text('Safe'), findsNothing);
   });
 
