@@ -88,8 +88,8 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
 
   /// Fill missing camera id / temperature / filter from the master's frame
   /// header, caching the camera id in `calibration_tags`; for a local dark or
-  /// bias master also its read mode and whether its frames were off its
-  /// set-point ([masterOffSetPoint]). Best-effort: returns the record
+  /// bias master also its read mode, its set-point and whether its frames
+  /// were off it ([masterOffSetPoint]). Best-effort: returns the record
   /// unchanged when the file is missing or unreadable.
   Future<CalibrationMasterRecord> _enrich(
     CalibrationMasterRecord record,
@@ -144,6 +144,9 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       temperature: temperature,
       filter: filterName,
       readoutMode: judged ? header.string('READOUTM') : null,
+      setPointC: judged
+          ? header.firstNumber(const ['SET-TEMP', 'SET_TEMP'])
+          : null,
       offSetPoint: judged
           ? masterOffSetPoint(
               header,

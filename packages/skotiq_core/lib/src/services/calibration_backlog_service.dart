@@ -558,8 +558,9 @@ class CalibrationBacklogService {
   /// Whether a library master already stands for [group]: same kind and
   /// capture setting, created after the group's last frame, not built off
   /// its set-point ([CalibrationMasterRecord.offSetPoint]), and for darks and
-  /// bias within [toleranceC] of the group's temperature, the tolerance the
-  /// matcher picks masters by.
+  /// bias at the group's set-point when both state one, otherwise within
+  /// [toleranceC] of the group's temperature, the tolerance the matcher picks
+  /// masters by.
   static bool isCovered(
     CalibrationBacklogGroup group,
     List<CalibrationMasterRecord> masters,
@@ -592,7 +593,9 @@ class CalibrationBacklogService {
             continue;
           }
       }
-      if (group.kind != CalibrationFrameKind.flat &&
+      if (group.setPointC != null && m.setPointC != null) {
+        if ((group.setPointC! - m.setPointC!).abs() > 0.05) continue;
+      } else if (group.kind != CalibrationFrameKind.flat &&
           group.temperature != null &&
           m.temperature != null &&
           (m.temperature! - group.temperature!).abs() > toleranceC) {

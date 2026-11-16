@@ -377,31 +377,61 @@ void main() {
     },
   );
 
-  test('a master built off its set-point covers nothing', () async {
-    await addFrames('dark', 20, start: night);
-    final group = (await service.pending()).single;
-    CalibrationMasterRecord master({String? offSetPoint}) =>
-        CalibrationMasterRecord(
-          type: CalibrationMasterType.dark,
-          id: 1,
-          filePath: '/m.fits',
-          isMaster: true,
-          exposureSeconds: 90,
-          temperature: -10,
-          gain: 76,
-          offset: 15,
-          offSetPoint: offSetPoint,
-          createdAt: night.add(const Duration(days: 1)),
-        );
+  test(
+    'a master covers only its own set-point, and never when built off it',
+    () async {
+      await addFrames(
+        'dark',
+        6,
+        start: night,
+        exposure: 3,
+        temps: spread(-6.2, -5.0, 6),
+        setPoint: -6,
+      );
+      final minusSix = (await service.pending()).single;
+      CalibrationMasterRecord master({
+        required double setPoint,
+        required double mean,
+        String? offSetPoint,
+      }) => CalibrationMasterRecord(
+        type: CalibrationMasterType.dark,
+        id: 1,
+        filePath: '/m.fits',
+        isMaster: true,
+        exposureSeconds: 3,
+        temperature: mean,
+        setPointC: setPoint,
+        gain: 76,
+        offset: 15,
+        offSetPoint: offSetPoint,
+        createdAt: night.add(const Duration(days: 1)),
+      );
 
-    expect(CalibrationBacklogService.isCovered(group, [master()], 2), isTrue);
-    expect(
-      CalibrationBacklogService.isCovered(group, [
-        master(offSetPoint: 'Built from frames that read -7.6 °C on average'),
-      ], 2),
-      isFalse,
-    );
-  });
+      expect(
+        CalibrationBacklogService.isCovered(minusSix, [
+          master(setPoint: -6, mean: -5.6),
+        ], 2),
+        isTrue,
+      );
+      // The rig's -4 °C master read -4.75 on average, inside 2 °C of -6.
+      expect(
+        CalibrationBacklogService.isCovered(minusSix, [
+          master(setPoint: -4, mean: -4.75),
+        ], 2),
+        isFalse,
+      );
+      expect(
+        CalibrationBacklogService.isCovered(minusSix, [
+          master(
+            setPoint: -6,
+            mean: -5.6,
+            offSetPoint: 'Built from frames that read -9 °C on average',
+          ),
+        ], 2),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'a master built after the frames covers them; an older one does not',
