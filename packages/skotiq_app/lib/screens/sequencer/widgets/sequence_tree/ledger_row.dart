@@ -536,7 +536,11 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       filterExp: base.filterExp,
       count: base.count,
       duration: base.duration,
-      eta: eta == null ? '' : ClockFormat.hm(eta.start.toLocal()),
+      eta: eta == null
+          ? ''
+          : ClockFormat.hm(
+              ref.watch(clockProvider).fromUtc(eta.start.toUtc()),
+            ),
     );
     // A projected ETA for a node the run has already passed is stale — once
     // the run's NodeStarted events arrive they replace the projection, but

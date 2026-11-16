@@ -10,6 +10,9 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../night_control/data/plan/night_plan_inputs.dart'
+    show planStartProvider;
+
 final timelineVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Timer-free twilight lookup for sequencer pre-session simulation.
@@ -31,6 +34,8 @@ final preSessionTwilightTimesProvider =
   );
 });
 
+/// The open sequence simulated from [planStartProvider], the start Tonight
+/// times the plan from, or from now when nothing fixes the start.
 final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return null;
@@ -38,7 +43,8 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final twilight = ref.watch(preSessionTwilightTimesProvider);
   return ref.watch(planTimerProvider).simulate(
         sequence,
-        start: ref.watch(clockProvider).instant,
+        start: ref.watch(planStartProvider) ??
+            ref.watch<Clock>(clockProvider).instant,
         darkWindowStart: twilight?.astronomicalDusk,
         darkWindowEnd: twilight?.astronomicalDawn,
       );

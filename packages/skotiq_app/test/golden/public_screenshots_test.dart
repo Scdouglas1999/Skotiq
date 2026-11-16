@@ -8,12 +8,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/shell/shell_chrome.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show CelestialCoordinate;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show SkyViewNotifier, skyViewStateProvider;
 
 import 'public_screenshots/shot_capture.dart';
+import 'public_screenshots/shot_darkroom.dart';
+import 'public_screenshots/shot_drive.dart';
 import 'public_screenshots/shot_flats.dart';
+import 'public_screenshots/shot_framing.dart';
 import 'public_screenshots/shot_night.dart';
 import 'public_screenshots/shot_rig.dart';
 import 'public_screenshots/shot_tonight.dart';
+import 'public_screenshots/shot_weather.dart';
 
 /// The product screenshots in `assets/screenshots/`, rendered from the real
 /// app (router, shell, screens) over one seeded night: see [ShotNight].
@@ -34,9 +41,11 @@ import 'public_screenshots/shot_tonight.dart';
 /// Each run renders only its half of the set. `SKOTIQ_SHOTS=tonight,guiding`
 /// narrows a run to the files whose names contain one of the words.
 ///
-/// Framing, Planetarium and Weather are not in the set: they need survey
-/// tiles, the star catalog and radar imagery that a widget test does not
-/// have, and rendered here they show their no-data states.
+/// What a widget test has no network or disk for comes from fixtures, as an
+/// install would have it: the HYG star catalog in the catalog folder, recorded
+/// basemap tiles for the Weather map, an SDSS cutout for Framing, the rig's
+/// `D:` drive as a scratch folder, and Darkroom previews from the owner's subs
+/// (see `test/fixtures/README.md`).
 final shots = <Shot>[
   Shot(
     fileName: 'tonight.png',
@@ -71,6 +80,28 @@ final shots = <Shot>[
     description: 'Plan > Targets: the three targets with progress toward '
         'their goals, tonight\'s windows and M31\'s detail.',
   ),
+  Shot(
+    fileName: 'framing.png',
+    location: '/planner?tab=framing',
+    description: 'Plan > Framing on NGC 7331 with the rig\'s field over the '
+        'SDSS color survey; Stephan\'s Quintet sits in the same field.',
+    loadTime: const Duration(seconds: 3),
+    overrides: framingOverrides(),
+  ),
+  Shot(
+    fileName: 'planetarium.png',
+    location: '/planner?tab=planetarium',
+    description: 'Plan > Planetarium over Andromeda, Cassiopeia and Perseus '
+        'at the scene\'s now, with the HYG star catalog installed.',
+    loadTime: const Duration(seconds: 4),
+    overrides: [
+      skyViewStateProvider.overrideWith(
+        (ref) => SkyViewNotifier()
+          ..lookAt(const CelestialCoordinate(ra: 1.45, dec: 47))
+          ..setFieldOfView(70),
+      ),
+    ],
+  ),
   const Shot(
     fileName: 'sequencer.png',
     location: '/sequencer?tab=builder',
@@ -81,6 +112,13 @@ final shots = <Shot>[
     fileName: 'imaging.png',
     location: '/imaging',
     description: 'Imaging > Live view with the latest M31 frame.',
+  ),
+  const Shot(
+    fileName: 'weather.png',
+    location: '/weather',
+    description: 'Weather: a clear night over the site, the GOES satellite '
+        'frame, the alert radius and the forecast.',
+    loadTime: Duration(seconds: 2),
   ),
   const Shot(
     fileName: 'guiding.png',
@@ -111,6 +149,13 @@ final shots = <Shot>[
     fileName: 'night-page.png',
     location: '/analytics?tab=history&night=${ShotNight.lastNight.sessionId}',
     description: 'A night page: last night\'s summary.',
+  ),
+  const Shot(
+    fileName: 'darkroom.png',
+    location: '/darkroom',
+    description: 'Darkroom > Targets: the L, R, G and B masters built this '
+        'morning for the run\'s three targets.',
+    loadTime: Duration(seconds: 6),
   ),
   Shot(
     fileName: 'flat-wizard.png',
@@ -153,8 +198,36 @@ void main() {
       tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(pathProvider, null);
     });
-    // Decoding the frame and parsing the catalog need real async, which
-    // `pump` does not give them.
+    // Map tiles come from the recorded basemap, never the network.
+    final tiles = MapTileServer();
+    final previousOverrides = HttpOverrides.current;
+    HttpOverrides.global = tiles;
+    addTearDown(() {
+      HttpOverrides.global = previousOverrides;
+      if (missingCutouts.isNotEmpty) {
+        // ignore: avoid_print
+        print('survey cutouts not in the fixture: ${missingCutouts.join(' ')}');
+      }
+      if (tiles.missing.isNotEmpty) {
+        // ignore: avoid_print
+        print('basemap tiles not in the fixture: ${tiles.missing.join(' ')}');
+      }
+    });
+    // Timing the plan, decoding the frame and parsing the catalog need real
+    // async, which `pump` does not give them.
+    await tester.runAsync(planTonightFromApp);
+    // The rig's D: drive, with the frames, masters and calibration files the
+    // database names.
+    final drive = RigDrive(scratch.path)
+      ..put([
+        for (final night in ShotNight.nights)
+          for (final f in night.frames) ShotNight.filePath(f),
+        ...masterPaths(),
+        ...calibrationPaths(),
+      ]);
+    final previousIo = IOOverrides.current;
+    IOOverrides.global = drive;
+    addTearDown(() => IOOverrides.global = previousIo);
     await tester.runAsync(() async {
       capturedFrame = await loadCapturedFrame();
       await installBuiltInCatalog('${scratch.path}/catalogs');
@@ -170,7 +243,8 @@ void main() {
         stubBackend: stubRigBackend,
         seed: (db) async {
           await ShotNight.seed(db);
-          await seedDarkLibrary(db);
+          await seedCalibration(db);
+          await seedDarkroom(db);
         },
       );
       expect(file.lengthSync(), greaterThan(16 * 1024), reason: shot.fileName);

@@ -23,6 +23,8 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
+            fontFamily: SkotiqTypography.fontFamily,
+            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
             color: color.withValues(alpha: 0.5),
             fontSize: SkotiqTypography.fontSize10,
           ),
@@ -30,6 +32,8 @@ class _StatItem extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
+            fontFamily: SkotiqTypography.fontFamily,
+            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
             color: color,
             fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w600,
@@ -106,6 +110,8 @@ class _AltitudeGraphPainter extends CustomPainter {
         text: TextSpan(
           text: ccLabel,
           style: TextStyle(
+            fontFamily: SkotiqTypography.fontFamily,
+            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
             color: labelColor.withValues(alpha: 0.7),
             fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w500,
@@ -236,6 +242,8 @@ class _AirmassChartPainter extends CustomPainter {
 
     final gridColor = txtColor.withValues(alpha: 0.15);
     final labelStyle = TextStyle(
+      fontFamily: SkotiqTypography.fontFamily,
+      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
       color: txtColor.withValues(alpha: 0.4),
       fontSize: SkotiqTypography.fontSize9,
     );
@@ -404,6 +412,8 @@ class _AirmassChartPainter extends CustomPainter {
         text: const TextSpan(
           text: 'best',
           style: TextStyle(
+            fontFamily: SkotiqTypography.fontFamily,
+            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
             color: SkyPlotColors.good,
             fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w600,

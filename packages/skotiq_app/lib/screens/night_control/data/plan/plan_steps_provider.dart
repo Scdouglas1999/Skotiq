@@ -95,7 +95,7 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
   final tally = ref.watch(nodeExposureTallyProvider);
   final active = ref.watch(nightActiveStepProvider);
   final timing = ref.watch(nightPlanTimingProvider);
-  final recorded = ref.watch(nightNodeEventTimesProvider);
+  final recorded = ref.watch(runNodeTimesProvider);
   final clock = ref.watch(clockProvider);
 
   final lag = ref.watch(nightPlanLagProvider);

@@ -133,5 +133,6 @@ final performanceMonitorProvider = ChangeNotifierProvider<PerformanceMonitor>((
 ///
 /// Available in release builds so performance can be diagnosed on real target
 /// hardware (the timing data from [PerformanceMonitor] is collected in release;
-/// this only controls whether the readout is painted).
-final showPerfHudProvider = StateProvider<bool>((ref) => false);
+/// this only controls whether the readout is painted). On by default in a
+/// debug build.
+final showPerfHudProvider = StateProvider<bool>((ref) => kDebugMode);

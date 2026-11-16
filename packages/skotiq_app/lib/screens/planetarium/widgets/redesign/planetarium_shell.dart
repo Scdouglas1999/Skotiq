@@ -192,7 +192,7 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  if (kDebugMode || ref.watch(showPerfHudProvider))
+                  if (ref.watch(showPerfHudProvider))
                     Positioned(
                       top: 12,
                       right: 12,

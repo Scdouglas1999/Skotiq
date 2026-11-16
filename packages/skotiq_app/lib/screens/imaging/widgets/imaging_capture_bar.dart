@@ -26,6 +26,55 @@ const loopSaveFramesToggleKey = Key('imaging.loopSaveFramesToggle');
 /// panels ended up drawn on top of each other. Zero until the first layout.
 final captureBarWidthProvider = StateProvider<double>((ref) => 0);
 
+/// The camera is exposing for a running sequence, not for a snapshot or loop
+/// started on this screen.
+final runIsExposingProvider = Provider<bool>((ref) {
+  return ref.watch(sequenceExecutionStateProvider.select((s) => s.isBusy)) &&
+      ref.watch(cameraStateProvider.select((c) => c.isExposing)) &&
+      !ref.watch(manualCaptureControllerProvider.select((m) => m.isSnapshot)) &&
+      !ref.watch(manualLoopStatusProvider.select((l) => l.looping));
+});
+
+/// What the Snapshot button shows for the capture in flight.
+///
+/// While a run exposes, the frame is the run's: the button says so, and is
+/// not the page's primary while it cannot be pressed.
+({String label, IconData icon, bool loading, ButtonVariant variant})
+    snapshotButtonFace({
+  required bool isSingleCapture,
+  required bool isSavingCapture,
+  required bool isStoppingCapture,
+  required bool runIsExposing,
+  String hostSuffix = '',
+}) {
+  if (runIsExposing) {
+    return (
+      label: 'Run capturing',
+      icon: SkotiqIcons.camera,
+      loading: false,
+      variant: ButtonVariant.secondary,
+    );
+  }
+  if (!isSingleCapture) {
+    return (
+      label: 'Snapshot$hostSuffix',
+      icon: SkotiqIcons.camera,
+      loading: false,
+      variant: ButtonVariant.primary,
+    );
+  }
+  return (
+    label: isStoppingCapture
+        ? 'Stopping…'
+        : isSavingCapture
+            ? 'Saving…'
+            : 'Taking…',
+    icon: SkotiqIcons.loading,
+    loading: true,
+    variant: ButtonVariant.primary,
+  );
+}
+
 /// The glass capture bar, docked bottom-centre over the frame (06 §Imaging).
 ///
 /// `[primary Snapshot] [secondary Loop] | [2.0 s] [G 100] [filter] | [Save]
@@ -141,13 +190,13 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
 
     final snapshotEnabled = isConnected && !isCapturing;
     final loopEnabled = isConnected && !isSingleCapture && !isStoppingCapture;
-    final snapshotLabel = isSingleCapture
-        ? (isStoppingCapture
-            ? 'Stopping…'
-            : isSavingCapture
-                ? 'Saving…'
-                : 'Taking…')
-        : 'Snapshot$hostSuffix';
+    final snapshot = snapshotButtonFace(
+      isSingleCapture: isSingleCapture,
+      isSavingCapture: isSavingCapture,
+      isStoppingCapture: isStoppingCapture,
+      runIsExposing: ref.watch(runIsExposingProvider),
+      hostSuffix: hostSuffix,
+    );
     final loopLabel = isStoppingCapture
         ? 'Stopping…'
         : isLooping
@@ -191,16 +240,15 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                   // disconnected. The role and the enabled state are published here so
                   // this bar's contract is pinned by its own test.
                   _BarAction(
-                    label: snapshotLabel,
+                    label: snapshot.label,
                     enabled: snapshotEnabled,
                     onTap: onSnapshot,
                     child: SkotiqButton(
                       key: TourTarget.imagingSnapshotButton.key,
-                      label: snapshotLabel,
-                      icon: isSingleCapture
-                          ? SkotiqIcons.loading
-                          : SkotiqIcons.camera,
-                      isLoading: isSingleCapture,
+                      label: snapshot.label,
+                      icon: snapshot.icon,
+                      variant: snapshot.variant,
+                      isLoading: snapshot.loading,
                       semanticsHint: isConnected
                           ? null
                           : 'Connect a camera in Equipment first',

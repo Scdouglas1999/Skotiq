@@ -283,7 +283,7 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
 
 /// Local Sidereal Time **now**, at the observing site.
 ///
-/// From the wall clock, not from [observationTimeProvider]. The shell status
+/// From the clock ([skyNowProvider]), not from [observationTimeProvider]. The shell status
 /// bar renders this beside a real clock, and sidereal time is what an imager
 /// reads to decide what is transiting, so a scrubbed one has to stay inside
 /// the screen simulating it — see [observationSiderealTimeProvider].
@@ -298,7 +298,7 @@ final localSiderealTimeProvider = Provider<double?>((ref) {
   final site = ref.watch(observerLocationProvider).site;
   if (site == null) return null;
   final lst = AstronomyCalculations.localSiderealTime(
-    DateTime.now(),
+    ref.watch(skyNowProvider)(),
     site.longitude,
   );
   final nextMinute = Timer(untilNextSiderealMinute(lst), ref.invalidateSelf);

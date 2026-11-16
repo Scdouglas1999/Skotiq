@@ -187,6 +187,7 @@ export 'src/services/equipment_health_service.dart';
 export 'src/services/usb_disconnect_log.dart';
 export 'src/services/session_handoff_service.dart';
 export 'src/services/weather/weather_radar_service.dart';
+export 'src/services/weather/radar_provider.dart' show RadarFetchResult;
 export 'src/services/weather/cloud_motion_analyzer.dart';
 export 'src/services/weather/weather_alert_service.dart';
 export 'src/services/weather/location_cloud_forecast_service.dart';

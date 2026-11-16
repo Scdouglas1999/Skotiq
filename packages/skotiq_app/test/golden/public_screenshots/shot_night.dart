@@ -134,7 +134,8 @@ class ShotNightRun {
     required this.frames,
     required this.autofocusRuns,
     required this.sessionId,
-  });
+    DateTime? runStart,
+  }) : _runStart = runStart;
 
   /// 0 is tonight, -1 last night.
   final int dayOffset;
@@ -143,12 +144,19 @@ class ShotNightRun {
   final List<ShotAutofocus> autofocusRuns;
   final int sessionId;
 
-  DateTime get start => slots.first.start;
+  final DateTime? _runStart;
+
+  /// When the run started: before its first target, when it unparks and
+  /// cools.
+  DateTime get start => _runStart ?? slots.first.start;
 
   /// The sequence the night ran.
   String get runName {
     final names = [for (final s in slots) s.target];
-    if (names.every(ShotNight.targets.contains)) return ShotNight.sequenceName;
+    if (names.length == ShotNight.targets.length &&
+        names.every(ShotNight.targets.contains)) {
+      return ShotNight.sequenceName;
+    }
     final narrowband = names.first.plan.frames.containsKey('Ha');
     return '${names.map((t) => t.name).join(' + ')} '
         '${narrowband ? 'SHO' : 'LRGB'}';
@@ -246,7 +254,7 @@ abstract final class ShotNight {
     plan: ShotFilterPlan(
       exposureSecs: 60,
       frames: {'L': 60, 'R': 20, 'G': 20, 'B': 20},
-      goalFrames: {'L': 360, 'R': 120, 'G': 120, 'B': 120},
+      goalFrames: {'L': 720, 'R': 240, 'G': 240, 'B': 240},
     ),
   );
 
@@ -263,7 +271,7 @@ abstract final class ShotNight {
     plan: ShotFilterPlan(
       exposureSecs: 30,
       frames: {'L': 160, 'R': 60, 'G': 60, 'B': 60},
-      goalFrames: {'L': 1440, 'R': 480, 'G': 480, 'B': 480},
+      goalFrames: {'L': 2400, 'R': 900, 'G': 900, 'B': 900},
     ),
   );
 
@@ -370,6 +378,44 @@ abstract final class ShotNight {
   static DateTime get astroDawn => at(0, 5, 34);
   static DateTime get sunrise => at(0, 7, 8);
 
+  /// When tonight's run started.
+  static DateTime get runStart => at(0, 18, 40);
+
+  static List<ShotSlot>? _plannedTonight;
+  static Map<String, DateTime> _plannedStarts = const {};
+  static Map<String, DateTime> _plannedEnds = const {};
+  static DateTime? _plannedEnd;
+
+  /// Tonight's target windows and step starts as the app's own plan estimate
+  /// gives them from [runStart], so the frames, Tonight and the Sequencer's
+  /// ETA column tell one story. Set before anything reads [nights].
+  static void planTonight({
+    required List<ShotSlot> windows,
+    required Map<String, DateTime> stepStarts,
+    required Map<String, DateTime> stepEnds,
+    required DateTime end,
+  }) {
+    if (_nightsBuilt) {
+      throw StateError('planTonight after the nights were built');
+    }
+    _plannedTonight = windows;
+    _plannedStarts = stepStarts;
+    _plannedEnds = stepEnds;
+    _plannedEnd = end;
+  }
+
+  /// When the estimate starts the step [nodeId] tonight.
+  static DateTime? plannedStart(String nodeId) => _plannedStarts[nodeId];
+
+  /// When the estimate ends the step [nodeId] tonight.
+  static DateTime? plannedEnd(String nodeId) => _plannedEnds[nodeId];
+
+  /// The steps of tonight's plan, in run order.
+  static Iterable<String> get plannedSteps => _plannedStarts.keys;
+
+  /// When tonight's plan ends, park included.
+  static DateTime get tonightPlanEnd => _plannedEnd ?? tonight.slots.last.end;
+
   /// The slots of a full night.
   static List<ShotSlot> fullNight(int day) => [
         ShotSlot(ngc7331, at(day, 18, 40), at(day, 21, 4)),
@@ -388,23 +434,39 @@ abstract final class ShotNight {
   static List<ShotNightRun> get pastNights =>
       nights.sublist(0, nights.length - 1);
 
+  static bool _nightsBuilt = false;
+
   static List<ShotNightRun> _buildNights() {
+    _nightsBuilt = true;
     final specs = <(int, List<ShotSlot>)>[
       (
         -27,
         [
-          ShotSlot(m33, at(-27, 19, 40), at(-27, 23, 50)),
-          ShotSlot(ngc891, at(-27, 23, 56), at(-27, 4, 50)),
+          ShotSlot(ngc7331, at(-27, 19, 40), at(-27, 22, 40)),
+          ShotSlot(m31, at(-27, 22, 46), at(-27, 4, 50)),
         ]
       ),
-      (-24, [ShotSlot(ic1805, at(-24, 19, 20), at(-24, 4, 40))]),
-      (-21, [ShotSlot(ngc891, at(-21, 20, 10), at(-21, 4, 20))]),
-      (-18, [ShotSlot(ic1805, at(-18, 19, 10), at(-18, 3, 50))]),
+      (-24, [ShotSlot(m31, at(-24, 19, 20), at(-24, 4, 40))]),
+      (
+        -21,
+        [
+          ShotSlot(ngc7331, at(-21, 19, 10), at(-21, 21, 50)),
+          ShotSlot(m31, at(-21, 21, 56), at(-21, 4, 20)),
+        ]
+      ),
+      (
+        -18,
+        [
+          ShotSlot(m31, at(-18, 19, 10), at(-18, 0, 50)),
+          ShotSlot(m1, at(-18, 0, 56), at(-18, 5, 30)),
+        ]
+      ),
       (
         -13,
         [
-          ShotSlot(m33, at(-13, 19, 0), at(-13, 23, 20)),
-          ShotSlot(ngc891, at(-13, 23, 26), at(-13, 4, 30)),
+          ShotSlot(ngc7331, at(-13, 19, 0), at(-13, 21, 30)),
+          ShotSlot(m31, at(-13, 21, 36), at(-13, 1, 20)),
+          ShotSlot(m1, at(-13, 1, 26), at(-13, 5, 20)),
         ]
       ),
       (-9, [ShotSlot(m31, at(-9, 20, 50), at(-9, 1, 10))]),
@@ -417,7 +479,7 @@ abstract final class ShotNight {
         ]
       ),
       (-1, fullNight(-1)),
-      (0, fullNight(0)),
+      (0, _plannedTonight ?? fullNight(0)),
     ];
     final runs = <ShotNightRun>[];
     for (final (i, (day, slots)) in specs.indexed) {
@@ -435,6 +497,7 @@ abstract final class ShotNight {
           frames: frames,
           autofocusRuns: focus,
           sessionId: i + 1,
+          runStart: day == 0 && _plannedTonight != null ? runStart : null,
         ),
       );
     }
@@ -474,14 +537,18 @@ abstract final class ShotNight {
       }
     }
     const overheadSecs = 6;
-    var t = slot.start.add(const Duration(minutes: 3));
+    final key = slot.target.folder.toLowerCase();
+    final planned = day == 0;
+    var t = (planned ? plannedStart('$key-focus') : null) ??
+        slot.start.add(const Duration(minutes: 3));
     // Autofocus at the start of each target, then on a 1 degree drop.
     var temp = ambientAt(day, t);
     var focusTemp = temp;
     var position = _focusPosition(temp);
     focus.add(ShotAutofocus(t, position, 2.08 + random.nextDouble() * 0.08,
         double.parse(temp.toStringAsFixed(1))));
-    t = t.add(const Duration(minutes: 3));
+    t = (planned ? plannedStart('$key-lrgb') : null) ??
+        t.add(const Duration(minutes: 3));
     var number = 0;
     for (final filter in order) {
       final end = t.add(
@@ -636,11 +703,13 @@ abstract final class ShotNight {
     throw StateError('not a seeded frame');
   }
 
+  /// Where [f] was saved, by the app's default naming pattern
+  /// (`$TARGET_$FILTER_$DATE_$SEQ`, the date in UTC).
   static String filePath(ShotFrame f) {
-    final folder = f.target.folder;
-    final name = '${folder}_${f.filter}_'
-        '${f.exposureSecs.round()}s_${f.frameNumber.toString().padLeft(4, '0')}.fits';
-    return 'D:\\Astro\\Skotiq\\$folder\\${f.filter}\\$name';
+    final date = f.capturedAt.toUtc().toIso8601String().substring(0, 10);
+    final name = '${f.target.folder}_${f.filter}_${date}_'
+        '${f.frameNumber.toString().padLeft(4, '0')}.fits';
+    return 'D:\\Astro\\Skotiq\\$name';
   }
 
   /// Writes the targets, goals, past nights and their frames.

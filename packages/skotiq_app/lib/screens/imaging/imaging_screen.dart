@@ -620,18 +620,19 @@ class _SheetSnapshotButton extends ConsumerWidget {
     final connected = ref.watch(cameraStateProvider).connectionState ==
         DeviceConnectionState.connected;
     final enabled = connected && !isSingleCapture && !isLooping;
+    final face = snapshotButtonFace(
+      isSingleCapture: isSingleCapture,
+      isSavingCapture: isSavingCapture,
+      isStoppingCapture: isStoppingCapture,
+      runIsExposing: ref.watch(runIsExposingProvider),
+    );
     return SkotiqButton(
       key: TourTarget.imagingSnapshotButton.key,
-      label: isSingleCapture
-          ? (isStoppingCapture
-              ? 'Stopping…'
-              : isSavingCapture
-                  ? 'Saving…'
-                  : 'Taking…')
-          : 'Snapshot',
-      icon: isSingleCapture ? SkotiqIcons.loading : SkotiqIcons.camera,
+      label: face.label,
+      icon: face.icon,
       size: ButtonSize.large,
-      isLoading: isSingleCapture,
+      variant: face.variant,
+      isLoading: face.loading,
       semanticsHint: connected ? null : 'Connect a camera in Equipment first',
       onPressed: enabled ? onSnapshot : null,
     );
