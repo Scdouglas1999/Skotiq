@@ -87,8 +87,19 @@ pub struct ImagingTrainHold {
     pub expected_remaining_secs: f64,
     /// Seconds until the claim lapses on its own. This is the bound on how long
     /// a wait for this claim can last, derived from the in-flight operation
-    /// rather than fixed.
-    pub max_remaining_secs: f64,
+    /// rather than fixed. `None` while a live trigger guard holds the claim:
+    /// it lasts until that action ends.
+    pub max_remaining_secs: Option<f64>,
+}
+
+impl ImagingTrainHold {
+    /// How long the wait can last, for the operator.
+    pub fn bound(&self) -> String {
+        match self.max_remaining_secs {
+            Some(secs) => format!("at most {secs:.0}s"),
+            None => format!("until {} ends", self.holder),
+        }
+    }
 }
 
 /// Who holds the imaging train. Lives on the trigger state so the capture
@@ -182,11 +193,7 @@ impl ImagingTrain {
         Some(ImagingTrainHold {
             holder: claim.holder,
             expected_remaining_secs: ((claim.expected_finish_ms - now_ms).max(0)) as f64 / 1000.0,
-            max_remaining_secs: if guarded {
-                f64::INFINITY
-            } else {
-                max_remaining_ms as f64 / 1000.0
-            },
+            max_remaining_secs: (!guarded).then(|| max_remaining_ms as f64 / 1000.0),
         })
     }
 
@@ -284,11 +291,11 @@ pub(crate) async fn claim_camera_for_trigger_action(
             // own request and told the operator nothing.
             tracing::info!(
                 "Holding trigger-fired {} for ~{:.0}s ({} holds the camera and filter wheel; \
-                 at most {:.0}s): starting now would destroy the frame and fight for the wheel",
+                 {}): starting now would destroy the frame and fight for the wheel",
                 action,
                 hold.expected_remaining_secs,
                 hold.holder,
-                hold.max_remaining_secs
+                hold.bound()
             );
         }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -415,5 +422,30 @@ impl Drop for TriggerCameraClaim {
                 label
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod hold_tests {
+    use super::*;
+
+    /// The rig on 2026-11-16 at 02:16: "Holding the next exposure for ~545s:
+    /// meridian flip is using the camera and filter wheel (at most infs)".
+    #[test]
+    fn a_hold_a_live_action_owns_is_bounded_by_that_action() {
+        let mut train = ImagingTrain::default();
+        let token = train
+            .try_claim("meridian flip", 545.0)
+            .expect("a free train is claimed");
+        let owner = Arc::new(());
+        train.guard_with(token, &owner);
+        let hold = train.hold().expect("the claim holds");
+        assert_eq!(hold.bound(), "until meridian flip ends");
+
+        let mut train = ImagingTrain::default();
+        train.try_claim("light frame", 30.0).expect("claimed");
+        let bound = train.hold().expect("the claim holds").bound();
+        assert!(bound.starts_with("at most "), "{bound}");
+        assert!(bound.ends_with('s'), "{bound}");
     }
 }

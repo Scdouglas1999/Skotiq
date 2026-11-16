@@ -532,7 +532,10 @@ async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
     let control = BurstControl::default();
     let ha = hour_angle.clone();
     let gate = wait_for_meridian_flip_window_at(&ctx, 90.0, &control, &move || ha()).await;
-    assert!(gate.is_none(), "the frame proceeds after the flip: {gate:?}");
+    assert!(
+        gate.is_none(),
+        "the frame proceeds after the flip: {gate:?}"
+    );
     stop.store(true, Ordering::SeqCst);
     let flips = monitor.await.expect("monitor");
 
@@ -544,7 +547,8 @@ async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
         "{flips:?}"
     );
     let calls = ops.calls();
-    let flip_slew = first_call(&calls, 0, |c| c.starts_with("mount_slew:")).expect("the flip slewed");
+    let flip_slew =
+        first_call(&calls, 0, |c| c.starts_with("mount_slew:")).expect("the flip slewed");
     assert!(
         first_call(&calls, 0, |c| c == "guider_stop").is_some_and(|stop| stop < flip_slew),
         "guiding stops before the flip slew: {calls:?}"
@@ -558,7 +562,10 @@ async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
         .rposition(|c| c.starts_with("mount_slew:") || c.starts_with("mount_sync:"))
         .unwrap();
     assert_eq!(
-        calls.iter().filter(|c| c.starts_with("mount_sync:")).count(),
+        calls
+            .iter()
+            .filter(|c| c.starts_with("mount_sync:"))
+            .count(),
         2,
         "two corrections: {calls:?}"
     );
@@ -575,7 +582,10 @@ async fn guiding_stays_stopped_through_the_flip_and_its_recenter() {
     );
     assert!(ops.guiding.load(Ordering::SeqCst));
     let state = trigger_state.read().await;
-    assert!(state.guiding.is_enabled(), "the run's guiding is armed again");
+    assert!(
+        state.guiding.is_enabled(),
+        "the run's guiding is armed again"
+    );
     assert!(!state.guiding.resume_pending());
     assert_eq!(state.guiding.motion_depth(), 0);
 }
@@ -596,7 +606,13 @@ async fn a_guider_started_during_the_flip_recenter_is_stopped_before_each_correc
     let operator = tokio::spawn(async move {
         // Guiding is started during each of the first two recenter frames.
         for frames in 1..=2 {
-            while ops.calls().iter().filter(|c| *c == "camera_exposure").count() < frames {
+            while ops
+                .calls()
+                .iter()
+                .filter(|c| *c == "camera_exposure")
+                .count()
+                < frames
+            {
                 sleep(Duration::from_millis(100)).await;
             }
             ops.guiding.store(true, Ordering::SeqCst);
@@ -614,7 +630,10 @@ async fn a_guider_started_during_the_flip_recenter_is_stopped_before_each_correc
 
     let calls = night.ops.calls();
     assert!(
-        matches!(result, crate::meridian_flip_executor::FlipResult::Success { .. }),
+        matches!(
+            result,
+            crate::meridian_flip_executor::FlipResult::Success { .. }
+        ),
         "{result:?}: {calls:?}"
     );
     assert_eq!(

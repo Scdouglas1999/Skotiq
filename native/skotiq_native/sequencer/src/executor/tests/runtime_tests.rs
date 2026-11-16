@@ -831,7 +831,7 @@ async fn an_overrunning_exposure_keeps_the_imaging_train() {
         "the estimate has passed, and the hold says so honestly"
     );
     assert!(
-        hold.max_remaining_secs > 0.0,
+        hold.max_remaining_secs.is_some_and(|secs| secs > 0.0),
         "but the claim has NOT lapsed, so the camera cannot be taken mid-frame"
     );
     assert!(
