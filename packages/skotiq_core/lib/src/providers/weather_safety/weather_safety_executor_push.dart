@@ -196,6 +196,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
       } finally {
         subscription?.close();
         _forecastRefreshInFlight = false;
+        _forecastTried = true;
         if (mounted) _evaluateAllSources();
       }
     }());

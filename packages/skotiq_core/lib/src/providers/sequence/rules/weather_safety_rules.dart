@@ -71,9 +71,10 @@ class WeatherSafetyNoSourceRule implements RefAwareSequenceValidator {
         title: 'Weather Safety Will Abort This Run',
         description:
             'Weather safety is enabled and set to fail closed, but no weather '
-            'device or safety monitor is connected. With no reading to trust, '
-            'the safety gate treats conditions as unsafe and the run will park '
-            'and abort shortly after it starts.',
+            'device or safety monitor is connected. An internet forecast is '
+            'not a reading at the site and does not count. With no reading to '
+            'trust, the safety gate treats conditions as unsafe and the run '
+            'will park and abort shortly after it starts.',
         resolutionHint:
             'Connect a weather device or safety monitor, switch the safety fail '
             'mode to fail open in Settings > Automation & Safety, or turn '
