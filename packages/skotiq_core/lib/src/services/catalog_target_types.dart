@@ -32,9 +32,11 @@ Future<List<db.DbTarget>> withCatalogObjectTypes(
 }
 
 /// The installed deep-sky catalog by designation. Empty with no catalog
-/// installed; a catalog that cannot be read is logged and gives none, so
-/// targets read with their stored types.
-Future<DsoDesignations> installedDsoDesignations(LoggingService logging) async {
+/// installed; a catalog that cannot be read is logged (to [logging], else the
+/// app log) and gives none, so targets read with their stored types.
+Future<DsoDesignations> installedDsoDesignations([
+  LoggingService? logging,
+]) async {
   final manager = CatalogManager.instance;
   if (!manager.isInitialized) return DsoDesignations.empty;
   try {
@@ -43,11 +45,14 @@ Future<DsoDesignations> installedDsoDesignations(LoggingService logging) async {
     }
     return await manager.dsos.designations();
   } catch (e) {
-    logging.error(
-      'The deep-sky catalog could not be read, so targets show the object '
-      'types saved with them: $e',
-      source: 'CatalogTargetTypes',
-    );
+    const message =
+        'The deep-sky catalog could not be read, so targets show the object '
+        'types saved with them';
+    if (logging != null) {
+      logging.error('$message: $e', source: 'CatalogTargetTypes');
+    } else {
+      Log.error('$message: $e', source: 'CatalogTargetTypes');
+    }
     return DsoDesignations.empty;
   }
 }

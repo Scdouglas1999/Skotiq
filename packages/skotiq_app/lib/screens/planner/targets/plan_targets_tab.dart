@@ -28,7 +28,7 @@ import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../analytics/widgets/campaign_rollup_dialog.dart';
 import '../../darkroom/targets/darkroom_targets_model.dart'
-    show normalizeDarkroomTargetName, compareDarkroomFilters;
+    show compareDarkroomFilters;
 import '../../discover/mosaic/mosaic_format.dart';
 import '../../discover/mosaic/mosaic_project_controller.dart';
 import '../../discover/mosaic/mosaic_project_screen.dart'

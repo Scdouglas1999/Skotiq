@@ -19,6 +19,7 @@ import 'darkroom_image.dart';
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'nights_strip.dart';
+import 'target_tidy.dart';
 import 'tile_crop.dart';
 import 'package:skotiq_core/providers.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -73,6 +74,7 @@ class DarkroomTargetDetail extends ConsumerWidget {
               _JobBanner(job: ownJob),
               const SizedBox(height: SkotiqTokens.spaceLg),
             ],
+            DarkroomTargetSuggestions(target: target),
             _Hero(
               target: target,
               job: job,
@@ -301,13 +303,19 @@ class _Hero extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          darkroomHeroOverline(target),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: SkotiqTypography.monoXs.copyWith(
-                            color: colors.textSecondary,
-                            letterSpacing: 1.3,
+                        Padding(
+                          // Clear of the menu in the corner.
+                          padding: const EdgeInsets.only(
+                            right: SkotiqTokens.space2xl,
+                          ),
+                          child: Text(
+                            darkroomHeroOverline(target),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SkotiqTypography.monoXs.copyWith(
+                              color: colors.textSecondary,
+                              letterSpacing: 1.3,
+                            ),
                           ),
                         ),
                         Column(
@@ -379,6 +387,11 @@ class _Hero extends ConsumerWidget {
                   ],
                 ],
               ),
+            ),
+            Positioned(
+              top: SkotiqTokens.spaceSm,
+              right: SkotiqTokens.spaceSm,
+              child: DarkroomTargetMenu(target: target),
             ),
           ],
         ),

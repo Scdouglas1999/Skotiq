@@ -273,6 +273,10 @@ class IntegratedMastersDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  /// Files master [id] under the saved target [targetId].
+  Future<int> setTarget(int id, int? targetId) =>
+      _write(id, IntegratedMastersCompanion(targetId: Value(targetId)));
+
   /// Delete a master (cascades to its `integrated_master_frames` rows via the FK).
   Future<int> deleteMaster(int id) =>
       (delete(integratedMasters)..where((m) => m.id.equals(id))).go();
