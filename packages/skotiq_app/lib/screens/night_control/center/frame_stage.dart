@@ -484,8 +484,10 @@ class _LiveFrame extends ConsumerWidget {
     final colors = context.skotiqColors;
     final viewer = ref.watch(imagingViewerStateProvider);
     final showStars = viewer.showStarOverlay;
-    final stars =
-        showStars ? ref.watch(currentFrameStarsProvider).valueOrNull : null;
+    // Never the previous frame's stars while this frame is being detected.
+    final stars = showStars
+        ? ref.watch(currentFrameStarsProvider).unwrapPrevious().valueOrNull
+        : null;
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final fitScale =
         previewFitScale(viewportSize: viewport, imageSize: imageSize);

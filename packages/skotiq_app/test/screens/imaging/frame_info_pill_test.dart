@@ -1,6 +1,7 @@
 // The live view's one frame-info pill: what the frame is, when it landed, HFR
 // and stars, and the badges that qualify it — including the accept / reject
 // verdict, which used to float in its own box in another corner.
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/sub_quality_badge.dart';
+import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -47,7 +49,9 @@ class _FakeScienceNotifier extends ScienceSettingsNotifier {
 }
 
 class _PreviewHost extends StatelessWidget {
-  const _PreviewHost();
+  const _PreviewHost({this.showStarOverlay = false});
+
+  final bool showStarOverlay;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +60,7 @@ class _PreviewHost extends StatelessWidget {
       zoomLevel: 1.0,
       panOffset: Offset.zero,
       showCrosshair: false,
-      showStarOverlay: false,
+      showStarOverlay: showStarOverlay,
       isStoppingCapture: false,
       onZoomIn: () {},
       onZoomOut: () {},
@@ -246,5 +250,68 @@ void main() {
     expect(find.text('Dark · 3.0 s'), findsOneWidget);
     expect(find.text('REJECT'), findsNothing);
     expect(find.text('ACCEPT'), findsNothing);
+  });
+
+  // The rig on 2026-11-15 at 23:31: about 150 star markers of an earlier
+  // light were drawn over a dark while the dark's own detection had not
+  // given an answer.
+  testWidgets('the star overlay never draws the previous frame\'s stars',
+      (tester) async {
+    final pending = Completer<StarDetectionResult>();
+    final handle = await pumpAppScreen(
+      tester,
+      const _PreviewHost(showStarOverlay: true),
+      size: const Size(1280, 800),
+      settle: false,
+      extraOverrides: <Override>[
+        frameStarDetectorProvider.overrideWithValue(
+          (path) => path == '/frames/light.fits'
+              ? Future.value(const StarDetectionResult(
+                  stars: [
+                    DetectedStar(
+                      x: 10,
+                      y: 10,
+                      flux: 1000,
+                      hfr: 2,
+                      fwhm: 4,
+                      peak: 900,
+                      background: 100,
+                      snr: 50,
+                    ),
+                  ],
+                  starCount: 1,
+                  medianHfr: 2,
+                  medianFwhm: 4,
+                  medianSnr: 50,
+                  background: 100,
+                  noise: 5,
+                ))
+              : pending.future,
+        ),
+      ],
+    );
+    Iterable<CustomPaint> starPaints() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .where((paint) => paint.painter is StarOverlayPainter);
+
+    handle.container.read(currentImageProvider.notifier).state =
+        _frame().copyWith(filePath: '/frames/light.fits');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(starPaints(), hasLength(1), reason: 'the light shows its stars');
+
+    handle.container.read(currentImageProvider.notifier).state = _frame(
+      settings: const ExposureSettings(
+        exposureTime: 3,
+        gain: 0,
+        offset: 0,
+        frameType: FrameType.dark,
+      ),
+    ).copyWith(filePath: '/frames/dark.fits');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(starPaints(), isEmpty);
   });
 }
