@@ -16,10 +16,9 @@ class AltitudeChart extends ConsumerStatefulWidget {
   final double decDegrees;
   final String? targetName;
 
-  /// Test seam for the wall clock. Production always uses [DateTime.now];
-  /// the astronomy here needs the true instant, so it deliberately does NOT
-  /// go through `clockProvider` (that clock returns the operator's *chosen*
-  /// timezone rendering, which would skew rise/transit/set math).
+  /// Test seam for now. Production reads the true instant through
+  /// `clockProvider` ([ClockInstant.instant], not the operator's display
+  /// zone, which would skew the rise/transit/set math).
   final DateTime Function()? nowOverride;
 
   /// The Framing column's form: no title or Alt/Airmass chips (the section
@@ -36,13 +35,14 @@ class AltitudeChart extends ConsumerStatefulWidget {
     this.compact = false,
   });
 
-  DateTime nowValue() => nowOverride?.call() ?? DateTime.now();
-
   @override
   ConsumerState<AltitudeChart> createState() => _AltitudeChartState();
 }
 
 class _AltitudeChartState extends ConsumerState<AltitudeChart> {
+  DateTime _now() =>
+      widget.nowOverride?.call() ?? ref.read(clockProvider).instant;
+
   List<FlSpot> _altitudeData = [];
 
   /// The site's altitude floor in the direction the target stands at each
@@ -122,7 +122,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     // refresh them to.
     if (!settings.hasObserverLocation) return;
 
-    final now = widget.nowValue();
+    final now = _now();
     // Left open past the end of the plotted night: the whole solve is stale,
     // not just the marker, so redo it rather than moving a dot around a window
     // that has finished.
@@ -167,7 +167,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       return;
     }
 
-    final now = widget.nowValue();
+    final now = _now();
     final raDeg = widget.raHours * 15.0;
     final decDeg = widget.decDegrees;
 
@@ -601,7 +601,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
   }
 
   Widget _buildChart(SkotiqColors colors, {double preferredHeight = 140}) {
-    final now = widget.nowValue();
+    final now = _now();
     final nowX = now.difference(_startTime).inMinutes.toDouble();
     final totalMinutes = _endTime.difference(_startTime).inMinutes.toDouble();
 
