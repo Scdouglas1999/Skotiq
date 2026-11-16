@@ -271,30 +271,6 @@ mixin HostPlanningData on NetworkBackendTransport implements TargetScoring {
     );
     return response;
   }
-}
-
-extension _HostPlanningDataNumbers on NetworkBackendTransport {
-  int _requiredPlanningInt(
-    Map<String, dynamic> response,
-    String key,
-    String request,
-  ) {
-    final value = response[key];
-    if (value is! num) {
-      throw FormatException('$request returned no numeric `$key` field');
-    }
-    return value.toInt();
-  }
-}
-
-extension _HostPlanningDataLists on NetworkBackendTransport {
-  List<T> _listFrom<T>(
-    Map<String, dynamic> response,
-    String key,
-    T Function(Map<String, dynamic>) fromJson,
-  ) {
-    return _rowsFromJson(response[key], fromJson);
-  }
 
   /// POST /api/suggestions/score-now
   @override
@@ -340,5 +316,29 @@ extension _HostPlanningDataLists on NetworkBackendTransport {
     return TargetScoringWire.readNightResponse(
       response['scores'] as List<dynamic>,
     );
+  }
+}
+
+extension _HostPlanningDataNumbers on NetworkBackendTransport {
+  int _requiredPlanningInt(
+    Map<String, dynamic> response,
+    String key,
+    String request,
+  ) {
+    final value = response[key];
+    if (value is! num) {
+      throw FormatException('$request returned no numeric `$key` field');
+    }
+    return value.toInt();
+  }
+}
+
+extension _HostPlanningDataLists on NetworkBackendTransport {
+  List<T> _listFrom<T>(
+    Map<String, dynamic> response,
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    return _rowsFromJson(response[key], fromJson);
   }
 }

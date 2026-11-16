@@ -19,7 +19,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show AltitudeFloorSamples;
 import 'package:skotiq_core/services.dart'
-    show HorizonProfile, SchedulerTarget, SchedulerTargetScore;
+    show SchedulerTarget, SchedulerTargetScore;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_property_widgets.dart';

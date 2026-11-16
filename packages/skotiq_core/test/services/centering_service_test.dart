@@ -15,7 +15,6 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart' show RemoteJob;
 
 import '../harness/in_memory_database.dart';
-import 'package:skotiq_core/utils.dart';
 
 /// A Center step that plays [steps] and records what it was asked.
 class _ScriptedRunner implements CenteringRunner {
