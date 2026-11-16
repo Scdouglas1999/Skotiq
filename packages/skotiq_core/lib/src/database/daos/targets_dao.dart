@@ -119,17 +119,21 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     required double decDegrees,
   }) async {
     final trimmed = name.trim();
-    final existing =
-        await (select(targets)
-              ..where((t) => t.name.lower().equals(trimmed.toLowerCase()))
-              ..limit(1))
-            .getSingleOrNull();
+    final existing = await getTargetByName(trimmed);
     if (existing != null) return existing.id;
 
     return createTarget(
       TargetsCompanion.insert(name: trimmed, ra: raHours, dec: decDegrees),
     );
   }
+
+  /// The target named [name], ignoring case and surrounding space: the rule a
+  /// run binds a typed-in target by.
+  Future<DbTarget?> getTargetByName(String name) =>
+      (select(targets)
+            ..where((t) => t.name.lower().equals(name.trim().toLowerCase()))
+            ..limit(1))
+          .getSingleOrNull();
 
   Future<bool> updateTarget(DbTarget target) {
     return update(targets).replace(target);

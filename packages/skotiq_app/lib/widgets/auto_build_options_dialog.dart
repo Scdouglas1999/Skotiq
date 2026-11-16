@@ -10,6 +10,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/held_future.dart';
+import 'filter_set_picker.dart';
+import 'sensitivity_field.dart';
 
 enum AutoBuildEnd {
   integration('Integration budget'),
@@ -23,7 +25,11 @@ enum AutoBuildEnd {
 }
 
 class AutoBuildOptions {
-  final SmartNightStrategy strategy;
+  final FilterSet filterSet;
+
+  /// One exposure per filter in turn (true), or each filter's frames
+  /// together.
+  final bool rotateFilters;
   final AutoBuildEnd end;
   final double hours;
   final bool useCalculator;
@@ -33,7 +39,8 @@ class AutoBuildOptions {
   final bool shutdown;
 
   const AutoBuildOptions({
-    required this.strategy,
+    required this.filterSet,
+    required this.rotateFilters,
     this.end = AutoBuildEnd.astronomical,
     this.hours = 4,
     this.useCalculator = false,
@@ -46,14 +53,14 @@ class AutoBuildOptions {
 
 /// A single recipe review shared by Plan and Framing. Does not run equipment.
 ///
-/// [strategy] opens the recipe on a set the user already took (the planner's
-/// "Add Ha"), counted as their choice.
+/// The recipe opens on [filterSet] when given (the set the planner's picker
+/// shows), else on the set remembered for [target] or Skotiq's choice. A
+/// set picked here is remembered for the target when the sequence is built.
 Future<AutoBuildOptions?> showAutoBuildOptions(
   BuildContext context,
   WidgetRef ref,
   TargetSuggestion target, {
-  Map<String, double> suggestedSeconds = const {},
-  SmartNightStrategy? strategy,
+  FilterSet? filterSet,
 }) async {
   final profile = ref.read(activeEquipmentProfileProvider);
   if (profile == null) {
@@ -74,7 +81,17 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       .matchCameraByName(cameraName, exactOnly: true);
   final dao = ref.read(settingsDaoProvider);
   final raw = await dao.getSetting(key);
-  final filterChoice = await _tonightFilterChoice(ref, target, filters);
+  final filterChoice = await readHeld(ref, targetFilterChoiceProvider(target));
+  final initialSet = filterSet ??
+      await readHeld<FilterSet>(ref, targetFilterSetProvider(target));
+  final exposureContext =
+      await readHeld(ref, smartNightExposureContextProvider);
+  final calculatedSeconds = _calculatedSubLengths(
+    ref.read(smartNightServiceProvider),
+    profile.copyWith(cameraName: cameraName),
+    smartNightPlanningFilters(filters),
+    exposureContext,
+  );
   if (!context.mounted ||
       (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
@@ -90,13 +107,17 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       profile: profile,
       cameraName: cameraName,
       cameraPreset: preset,
+      sensitivity: ref.read(cameraSensitivityProvider),
       filters: filters,
       filterChoice: filterChoice,
-      strategy: strategy,
+      initialSet: initialSet,
       target: target,
       saved: saved,
-      suggestedSeconds: suggestedSeconds,
+      calculatedSeconds: calculatedSeconds,
       onSave: (recipe) => dao.setSetting(key, jsonEncode(recipe)),
+      onFilterSetChosen: (set) => ref
+          .read(filterSetPreferencesProvider.notifier)
+          .choose(target, set, recommended: filterChoice.recommended),
     ),
   );
   if (!context.mounted ||
@@ -108,55 +129,73 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   return result;
 }
 
-/// The filter set Skotiq would pick for [target], the same choice the
-/// builder makes when the recipe keeps it.
-Future<SmartNightFilterChoice> _tonightFilterChoice(
-  WidgetRef ref,
-  TargetSuggestion target,
+/// The exposure calculator's sub length for each of [filters], the length
+/// the recipe fills in for a filter it has no length for. Empty when the
+/// profile lacks the optics or pixel size the calculator needs; the recipe
+/// then falls back to its fixed lengths.
+Map<String, double> _calculatedSubLengths(
+  SmartNightService service,
+  EquipmentProfileModel profile,
   List<String> filters,
-) async {
-  final exposureContext =
-      await readHeld(ref, smartNightExposureContextProvider);
-  return ref.read(smartNightServiceProvider).chooseFilters(
-        suggestion: target,
-        availableFilters: smartNightPlanningFilters(filters),
-        exposureContext: exposureContext,
-      );
+  SmartNightExposureContext? exposureContext,
+) {
+  try {
+    return {
+      for (final filter in filters)
+        filter: service
+            .smartExposureRows(
+              profile: profile,
+              filterSet: FilterSet.single(filter),
+              plannedSecs: 3600,
+              exposureContext: exposureContext,
+            )
+            .single
+            .durationSecs,
+    };
+  } on SmartNightBuildException {
+    return const {};
+  }
 }
 
 class AutoBuildOptionsDialog extends StatefulWidget {
   final EquipmentProfileModel profile;
   final String? cameraName;
   final CameraDefaultsPreset? cameraPreset;
+
+  /// The camera's gain or ISO range: a DSLR's recipe asks for ISO.
+  final ExposureSensitivity sensitivity;
   final List<String> filters;
 
-  /// The filter set Skotiq picks for [target] on this rig; the dialog opens
-  /// on it unless the user picked another for this target before.
+  /// Skotiq's filter choice for [target] on this rig.
   final SmartNightFilterChoice filterChoice;
 
-  /// A set the user already took for this recipe; opens on it.
-  final SmartNightStrategy? strategy;
+  /// The set the recipe opens on.
+  final FilterSet initialSet;
   final TargetSuggestion target;
   final Map<String, dynamic> saved;
   final Future<void> Function(Map<String, dynamic>) onSave;
 
-  /// The planner's suggested sub length per filter, which fills a filter the
-  /// saved recipe has no length for: the detail pane said "Suggested
-  /// exposure 55 s" and Build pre-filled L 120 s.
-  final Map<String, double> suggestedSeconds;
+  /// Remembers the set the sequence was built with for [target].
+  final Future<void> Function(FilterSet) onFilterSetChosen;
+
+  /// The exposure calculator's sub length per filter, for a filter the saved
+  /// recipe has no length for.
+  final Map<String, double> calculatedSeconds;
 
   const AutoBuildOptionsDialog(
       {super.key,
       required this.profile,
       this.cameraName,
       this.cameraPreset,
+      this.sensitivity = const GainSensitivity(),
       required this.filters,
       required this.filterChoice,
-      this.strategy,
+      required this.initialSet,
       required this.target,
       required this.saved,
-      this.suggestedSeconds = const {},
-      required this.onSave});
+      this.calculatedSeconds = const {},
+      required this.onSave,
+      required this.onFilterSetChosen});
 
   @override
   State<AutoBuildOptionsDialog> createState() => _AutoBuildOptionsDialogState();
@@ -165,7 +204,8 @@ class AutoBuildOptionsDialog extends StatefulWidget {
 class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   final _form = GlobalKey<FormState>();
   final _durations = <String, TextEditingController>{};
-  late SmartNightStrategy _strategy;
+  late FilterSet _set;
+  late bool _rotate;
   late AutoBuildEnd _end;
   late bool _calculator;
   late bool _shutdown;
@@ -179,13 +219,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   @override
   void initState() {
     super.initState();
-    final strategyName =
-        (widget.saved['strategies'] as Map<String, dynamic>?)?[_targetKey];
-    final capturable = widget.filterChoice.capturable;
-    _strategy = capturable.contains(widget.strategy)
-        ? widget.strategy!
-        : capturable.firstWhere((s) => s.name == strategyName,
-            orElse: () => widget.filterChoice.strategy);
+    _set = widget.initialSet;
+    _rotate = smartNightRotatesFilters(widget.profile);
     _end = AutoBuildEnd.values.firstWhere((e) => e.name == widget.saved['end'],
         orElse: () => AutoBuildEnd.astronomical);
     _calculator = widget.saved['calculator'] == true;
@@ -202,7 +237,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     for (final filter in smartNightPlanningFilters(widget.filters)) {
       final spec = FilterExposureSpec.fromName(filter);
       final num seconds = savedExposures[filter] as num? ??
-          widget.suggestedSeconds[filter]?.round() ??
+          widget.calculatedSeconds[filter]?.round() ??
           const SmartNightSettings().defaultFrameDurationSecs[spec.name] ??
           180;
       // Whole seconds read as "300", not "300.0".
@@ -221,25 +256,21 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     super.dispose();
   }
 
-  String get _targetKey => widget.target.catalogId ?? widget.target.targetName;
+  List<String> get _filters => _set.filters;
 
-  List<String> get _filters => widget.filterChoice.filtersFor(_strategy);
-
-  /// The offer of another set beside Skotiq's choice, while it is kept.
-  String? get _suggestion => widget.filterChoice.suggestionFor(_strategy);
-
-  void _choose(SmartNightStrategy set) {
+  void _choose(FilterSet set) {
     _rememberCaptureSettings();
     setState(() {
-      _strategy = set;
+      _set = set;
+      for (final filter in set.filters) {
+        _durations.putIfAbsent(
+            filter,
+            () => TextEditingController(
+                text: '${(widget.calculatedSeconds[filter] ?? 180).round()}'));
+      }
       _loadCaptureSettings();
     });
   }
-
-  /// Why these filters, in one line.
-  String get _filterReason => _strategy == widget.filterChoice.strategy
-      ? widget.filterChoice.reason
-      : 'Your choice. Skotiq would pick ${widget.filterChoice.reason}';
 
   CaptureFilterGroup get _filterGroup => captureFilterGroup(_filters.first);
 
@@ -290,153 +321,13 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Build sequence · ${widget.target.targetName}'),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Form(
-              key: _form,
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                        'Frame center: ${CoordinateFormat.raReadout(widget.target.raHours)} '
-                        '${CoordinateFormat.decReadout(widget.target.decDegrees)}'),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<SmartNightStrategy>(
-                      // Rebuilt when "Add Ha" changes the set.
-                      key: ValueKey(_strategy),
-                      isExpanded: true,
-                      initialValue: _strategy,
-                      decoration: const InputDecoration(
-                        labelText: 'Filters',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                      ),
-                      items: widget.filterChoice.capturable
-                          .map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(switch (s) {
-                                SmartNightStrategy.autoLrgb =>
-                                  'LRGB · more luminance',
-                                SmartNightStrategy.monoLrgb =>
-                                  'LRGB · equal time',
-                                SmartNightStrategy.narrowbandHoo =>
-                                  'HOO · Ha + OIII',
-                                SmartNightStrategy.narrowbandSho =>
-                                  'SHO · SII + Ha + OIII',
-                                SmartNightStrategy.narrowbandHa => 'Ha only',
-                                SmartNightStrategy.haLrgb =>
-                                  'LRGB + Ha · starlight and emission',
-                                SmartNightStrategy.oscOneShot =>
-                                  'Single filter / OSC',
-                              })))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) _choose(v);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(_filterReason),
-                    if (_suggestion case final offer?) ...[
-                      const SizedBox(height: 8),
-                      Row(children: [
-                        Expanded(child: Text(offer)),
-                        const SizedBox(width: 12),
-                        SkotiqButton(
-                            label: 'Add Ha',
-                            variant: ButtonVariant.secondary,
-                            size: ButtonSize.small,
-                            onPressed: () =>
-                                _choose(widget.filterChoice.suggested!)),
-                      ]),
-                    ],
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Calculate exposure lengths'),
-                        subtitle: const Text(
-                            'Off uses your per-filter recipe below.'),
-                        value: _calculator,
-                        onChanged: (v) => setState(() => _calculator = v)),
-                    if (!_calculator) ...[
-                      const SizedBox(height: 16),
-                      for (final filter in _filters)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _number(
-                              '${smartNightFilterLabel(filter)} exposure (seconds)',
-                              _durations[filter]!),
-                        ),
-                    ],
-                    const SizedBox(height: 8),
-                    Text(
-                        '${widget.cameraName ?? widget.profile.cameraName ?? 'Equipment profile'} · ${_filterGroup.name} gain / offset'),
-                    const SizedBox(height: 16),
-                    LayoutBuilder(builder: (context, constraints) {
-                      final gain =
-                          _number('Gain', _gain, optional: true, integer: true);
-                      final offset = _number('Offset', _offset,
-                          optional: true, integer: true);
-                      if (constraints.maxWidth < 340) {
-                        return Column(children: [
-                          gain,
-                          const SizedBox(height: 16),
-                          offset,
-                        ]);
-                      }
-                      return Row(children: [
-                        Expanded(child: gain),
-                        const SizedBox(width: 16),
-                        Expanded(child: offset),
-                      ]);
-                    }),
-                    const SizedBox(height: 8),
-                    const Text('Leave blank to use camera defaults.'),
-                    const SizedBox(height: 24),
-                    DropdownButtonFormField<AutoBuildEnd>(
-                      isExpanded: true,
-                      initialValue: _end,
-                      decoration: const InputDecoration(
-                        labelText: 'Image until',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                      ),
-                      items: AutoBuildEnd.values
-                          .map((e) =>
-                              DropdownMenuItem(value: e, child: Text(e.label)))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _end = v);
-                      },
-                    ),
-                    if (_end == AutoBuildEnd.integration) ...[
-                      const SizedBox(height: 16),
-                      _number('Integration hours', _hours),
-                    ],
-                    const SizedBox(height: 12),
-                    const Text(
-                        'The target can finish earlier if it drops below your minimum altitude. Dawn times apply to this night.'),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title:
-                            const Text('Warm camera and park mount at the end'),
-                        subtitle: const Text(
-                            'Park uses the mount driver’s configured park position.'),
-                        value: _shutdown,
-                        onChanged: (v) => setState(() => _shutdown = v)),
-                    if (_error != null)
-                      Text(_error!,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.error)),
-                  ])),
-        ),
-      ),
+    final colors = context.skotiqColors;
+    final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
+    final iso = widget.sensitivity is IsoSensitivity;
+    final multiFilter = _filters.length > 1;
+    return SkotiqDialog(
+      title: 'Build sequence · ${widget.target.targetName}',
+      closeEnabled: !_saving,
       actions: [
         SkotiqButton(
             label: 'Cancel',
@@ -447,13 +338,127 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
             isLoading: _saving,
             onPressed: _saving ? null : _accept),
       ],
+      child: Form(
+          key: _form,
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                    'Frame center: ${CoordinateFormat.raReadout(widget.target.raHours)} '
+                    '${CoordinateFormat.decReadout(widget.target.decDegrees)}',
+                    style: muted),
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                FilterSetPicker(
+                  label: 'Filters',
+                  choice: widget.filterChoice,
+                  value: _set,
+                  onChanged: _choose,
+                ),
+                if (multiFilter) ...[
+                  const SizedBox(height: SkotiqTokens.spaceMd),
+                  FilterOrderControl(
+                    label: 'Order',
+                    rotate: _rotate,
+                    onChanged: (v) => setState(() => _rotate = v),
+                  ),
+                ],
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                SkotiqSwitchRow(
+                    label: 'Calculate exposure lengths',
+                    subtitle: 'Off uses your per-filter recipe below.',
+                    value: _calculator,
+                    onChanged: (v) => setState(() => _calculator = v)),
+                if (!_calculator) ...[
+                  const SizedBox(height: SkotiqTokens.spaceLg),
+                  for (final filter in _filters)
+                    Padding(
+                      key: ValueKey('recipe-exposure-$filter'),
+                      padding:
+                          const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+                      child: _number(
+                          '${smartNightFilterLabel(filter)} exposure (seconds)',
+                          _durations[filter]!),
+                    ),
+                ],
+                const SizedBox(height: SkotiqTokens.spaceSm),
+                Text(
+                    '${widget.cameraName ?? widget.profile.cameraName ?? 'Equipment profile'} · ${_filterGroup.name} ${iso ? 'ISO' : 'gain / offset'}',
+                    style: muted),
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                LayoutBuilder(builder: (context, constraints) {
+                  final gain = SensitivityField(
+                    sensitivity: widget.sensitivity,
+                    value: int.tryParse(_gain.text.trim()),
+                    onChanged: (v) => setState(() => _gain.text = '$v'),
+                    unsetHint: 'Camera default',
+                    labelled: true,
+                    gainField: (_) =>
+                        _number('Gain', _gain, optional: true, integer: true),
+                  );
+                  if (!widget.sensitivity.hasOffset) return gain;
+                  final offset =
+                      _number('Offset', _offset, optional: true, integer: true);
+                  if (constraints.maxWidth < 340) {
+                    return Column(children: [
+                      gain,
+                      const SizedBox(height: SkotiqTokens.spaceLg),
+                      offset,
+                    ]);
+                  }
+                  return Row(children: [
+                    Expanded(child: gain),
+                    const SizedBox(width: SkotiqTokens.spaceLg),
+                    Expanded(child: offset),
+                  ]);
+                }),
+                const SizedBox(height: SkotiqTokens.spaceSm),
+                Text('Leave blank to use camera defaults.', style: muted),
+                const SizedBox(height: SkotiqTokens.space2xl),
+                FormRow(
+                  label: 'Image until',
+                  child: SkotiqDropdown(
+                    value: _end.name,
+                    items: [for (final e in AutoBuildEnd.values) e.name],
+                    itemLabels: [for (final e in AutoBuildEnd.values) e.label],
+                    isExpanded: true,
+                    onChanged: (name) {
+                      final picked = AutoBuildEnd.values
+                          .where((e) => e.name == name)
+                          .firstOrNull;
+                      if (picked != null) setState(() => _end = picked);
+                    },
+                  ),
+                ),
+                if (_end == AutoBuildEnd.integration) ...[
+                  const SizedBox(height: SkotiqTokens.spaceLg),
+                  _number('Integration hours', _hours),
+                ],
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                Text(
+                    'The target can finish earlier if it drops below your minimum altitude. Dawn times apply to this night.',
+                    style: muted),
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                SkotiqSwitchRow(
+                    label: 'Warm camera and park mount at the end',
+                    subtitle:
+                        'Park uses the mount driver’s configured park position.',
+                    value: _shutdown,
+                    onChanged: (v) => setState(() => _shutdown = v)),
+                if (_error != null)
+                  Text(_error!,
+                      style: SkotiqTypography.bodySm
+                          .copyWith(color: colors.error)),
+                const SizedBox(height: SkotiqTokens.spaceLg),
+              ])),
     );
   }
 
   Future<void> _accept() async {
     if (!_form.currentState!.validate()) return;
     final options = AutoBuildOptions(
-        strategy: _strategy,
+        filterSet: _set,
+        rotateFilters: _rotate,
         end: _end,
         hours: double.tryParse(_hours.text) ?? 4,
         useCalculator: _calculator,
@@ -462,19 +467,14 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
             f: double.tryParse(_durations[f]!.text) ?? 180
         },
         gain: int.tryParse(_gain.text.trim()),
-        offset: int.tryParse(_offset.text.trim()),
+        offset: widget.sensitivity.hasOffset
+            ? int.tryParse(_offset.text.trim())
+            : null,
         shutdown: _shutdown);
     _rememberCaptureSettings();
     setState(() => _saving = true);
     try {
       await widget.onSave({
-        // Only a set the user picked over Skotiq's choice is remembered, so
-        // the target follows the automatic choice until then.
-        'strategies': {
-          ...?widget.saved['strategies'] as Map<String, dynamic>?,
-          _targetKey: _strategy.name
-        }..removeWhere((key, _) =>
-            key == _targetKey && _strategy == widget.filterChoice.strategy),
         'end': _end.name,
         'hours': options.hours,
         'calculator': _calculator,
@@ -486,6 +486,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
         'captureSettings': _captureSettings,
         'shutdown': _shutdown
       });
+      await widget.onFilterSetChosen(_set);
       if (mounted) Navigator.pop(context, options);
     } catch (e) {
       if (mounted) {

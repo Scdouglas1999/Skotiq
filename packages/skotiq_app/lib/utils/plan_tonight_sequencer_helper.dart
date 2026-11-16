@@ -117,6 +117,10 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final settings = await readHeld(ref, appSettingsProvider);
   final exposureContext =
       await readHeld(ref, smartNightExposureContextProvider);
+  // The recipe's set, else the one the user picked for the target before,
+  // else Skotiq's choice.
+  final filterSet = options?.filterSet ??
+      await readHeld<FilterSet>(ref, targetFilterSetProvider(target));
 
   final now = ref.read(clockProvider).instant;
   final window = ref.read(smartNightServiceProvider).calculateWindow(
@@ -167,6 +171,7 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final smartNightSettings = SmartNightSettings(
     gainOverride: options?.gain,
     offsetOverride: options?.offset,
+    rotateFilters: options?.rotateFilters,
     useExposurePresets: options != null && !options.useCalculator,
     defaultFrameDurationSecs: options?.exposures ??
         const SmartNightSettings().defaultFrameDurationSecs,
@@ -190,7 +195,7 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
         longitudeDeg: settings.longitude,
         exposureContext: exposureContext,
         settings: smartNightSettings,
-        strategy: options?.strategy,
+        filterSet: filterSet,
         fillWindow: fillWindow,
         includeSessionShutdown: options?.shutdown,
         integrationBudgetHours: integrationBudgetHours,
@@ -621,7 +626,7 @@ SingleTargetSequenceResult _withFramingRotation(
   nodes[targetHeader.id] = targetHeader.copyWith(rotation: rotationDegrees);
   return SingleTargetSequenceResult(
     sequence: result.sequence.copyWith(nodes: nodes),
-    strategy: result.strategy,
+    filterSet: result.filterSet,
     filterPlans: result.filterPlans,
     plannedTarget: result.plannedTarget,
   );

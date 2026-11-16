@@ -295,9 +295,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                     target: selected,
                     plan: plan,
                     onFrameIt: () => _sendToFraming(context, ref, selected),
-                    onBuildSequence: ({strategy}) => _createSequence(
-                        context, colors, selected, plan,
-                        strategy: strategy),
+                    onBuildSequence: () =>
+                        _createSequence(context, colors, selected, plan),
                   ),
                 ),
               ),
@@ -319,9 +318,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                   target: selected,
                   plan: plan,
                   onFrameIt: () => _sendToFraming(context, ref, selected),
-                  onBuildSequence: ({strategy}) => _createSequence(
-                      context, colors, selected, plan,
-                      strategy: strategy),
+                  onBuildSequence: () =>
+                      _createSequence(context, colors, selected, plan),
                 ),
         ),
       ],
@@ -332,29 +330,10 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     BuildContext context,
     SkotiqColors colors,
     TargetSuggestion target,
-    SessionOptimizationPlan plan, {
-    SmartNightStrategy? strategy,
-  }) async {
+    SessionOptimizationPlan plan,
+  ) async {
     try {
-      final estimate = ref
-          .read(plannerTargetIntegrationPreviewProvider(target.targetId))
-          .valueOrNull;
-      final filter = plan.recommendedFilterName;
-      final options = await showAutoBuildOptions(
-        context,
-        ref,
-        target,
-        strategy: strategy,
-        suggestedSeconds: estimate != null &&
-                estimate.filterNames.isNotEmpty &&
-                estimate.subExposureSecs > 0
-            ? {estimate.filterNames.first: estimate.subExposureSecs}
-            : plan.primaryTarget?.targetId == target.targetId &&
-                    filter != null &&
-                    plan.recommendedExposureSeconds > 0
-                ? {filter: plan.recommendedExposureSeconds}
-                : const {},
-      );
+      final options = await showAutoBuildOptions(context, ref, target);
       if (options == null || !context.mounted) return;
       final built = await buildPlanTonightTargetSequence(
         ref: ref,

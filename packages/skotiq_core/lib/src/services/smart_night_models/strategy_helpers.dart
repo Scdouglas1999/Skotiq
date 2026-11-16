@@ -35,30 +35,22 @@ List<String> smartNightPlanningFilters(List<String> availableFilters) {
 String smartNightFilterLabel(String filterName) =>
     filterName.trim().isEmpty ? 'no filter' : filterName;
 
-/// Share of the window each filter of [strategy] gets, by filter identity
-/// (`filterIdentity`); a filter not listed gets 1. LRGB gives luminance
-/// twice a color's time; LRGB + Ha gives Ha a color's share, as it is
-/// blended into the red and luminance like one more color.
-Map<String, double> _smartNightFilterRatios(SmartNightStrategy strategy) =>
-    switch (strategy) {
-      SmartNightStrategy.autoLrgb ||
-      SmartNightStrategy.haLrgb => const {'L': 2.0},
-      SmartNightStrategy.monoLrgb ||
-      SmartNightStrategy.narrowbandHa ||
-      SmartNightStrategy.narrowbandHoo ||
-      SmartNightStrategy.narrowbandSho ||
-      SmartNightStrategy.oscOneShot => const {},
-    };
+/// Whether an automatic plan on a rig with [profile] takes one exposure per
+/// filter in turn: yes with a motorized filter wheel, so a night cut short
+/// still holds every filter; no without one, where a person changes the
+/// filter and each filter's frames are taken together.
+bool smartNightRotatesFilters(EquipmentProfileModel profile) =>
+    profile.filterWheelId?.trim().isNotEmpty ?? false;
 
 /// Compose per-filter (count, durationSecs) using the exposure calculator,
-/// strategy ratios, and integration window budget.
+/// the filter set's [timeShares] ([FilterSet.timeShares]), and the
+/// integration window budget.
 ///
 /// When [integrationGoalProgress] contains goals with remaining frames, those
 /// rows take precedence for matching filters. Other strategy filters without
 /// goals (or with zero remaining) are filled from the leftover window budget.
 List<SmartNightFilterPlan> composeSmartNightFilterPlans({
-  required TargetSuggestion suggestion,
-  required SmartNightStrategy strategy,
+  required Map<String, double> timeShares,
   required List<String> activeFilters,
   required double windowSecs,
   required EquipmentProfileModel profile,
@@ -116,7 +108,7 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
     final budgetPlans = budgetFilters.isEmpty || remainingWindowSecs <= 0
         ? const <SmartNightFilterPlan>[]
         : _composeBudgetFilterPlans(
-            strategy: strategy,
+            timeShares: timeShares,
             activeFilters: budgetFilters,
             windowSecs: remainingWindowSecs,
             cameraSpec: cameraSpec,
@@ -138,7 +130,7 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
   }
 
   return _composeBudgetFilterPlans(
-    strategy: strategy,
+    timeShares: timeShares,
     activeFilters: activeFilters,
     windowSecs: windowSecs,
     cameraSpec: cameraSpec,
@@ -195,7 +187,7 @@ List<SmartNightFilterPlan> _mergeFilterPlansInStrategyOrder({
 }
 
 List<SmartNightFilterPlan> _composeBudgetFilterPlans({
-  required SmartNightStrategy strategy,
+  required Map<String, double> timeShares,
   required List<String> activeFilters,
   required double windowSecs,
   required CameraExposureSpec cameraSpec,
@@ -210,7 +202,7 @@ List<SmartNightFilterPlan> _composeBudgetFilterPlans({
 }) {
   if (activeFilters.isEmpty) return const [];
 
-  final ratios = _smartNightFilterRatios(strategy);
+  final ratios = timeShares;
   final sumRatios = activeFilters.fold<double>(
     0,
     (sum, f) => sum + (ratios[filterIdentity(f)] ?? 1.0),
