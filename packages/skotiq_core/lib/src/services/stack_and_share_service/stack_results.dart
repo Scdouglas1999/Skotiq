@@ -126,7 +126,7 @@ class _RawFrame {
     required this.width,
     required this.height,
     required this.data,
-    this.pedestal = 0,
+    required this.pedestal,
   });
 
   /// Number of pixels (`width * height`), i.e. the calibration-frame length a

@@ -404,40 +404,47 @@ Future<void> apiCalibrateImageFile({
   outputPath: outputPath,
 );
 
-/// Calibrate a single-plane u16 light in memory with the masters at the
-/// given paths, by the same rule as [`api_calibrate_image_file`].
-Future<ApiCalibratedFrame> apiCalibrateImageData({
-  required int width,
-  required int height,
-  required List<int> lightData,
+/// The single-plane light at `light_path` calibrated with the masters at the
+/// given paths, by the same rule as [`api_calibrate_image_file`]. A light
+/// whose header says it is already calibrated comes back as it is.
+Future<ApiCalibratedPixels> apiCalibratedLightPixels({
+  required String lightPath,
   String? darkPath,
   String? flatPath,
   String? biasPath,
-}) => RustLib.instance.api.crateApiImagingApiCalibrateImageData(
-  width: width,
-  height: height,
-  lightData: lightData,
+}) => RustLib.instance.api.crateApiImagingApiCalibratedLightPixels(
+  lightPath: lightPath,
   darkPath: darkPath,
   flatPath: flatPath,
   biasPath: biasPath,
 );
 
-/// A light calibrated in memory: its 16-bit samples and the output pedestal,
+/// A single-plane light's calibrated 16-bit samples and the output pedestal,
 /// in ADU, they carry (0 for none).
-class ApiCalibratedFrame {
+class ApiCalibratedPixels {
+  final int width;
+  final int height;
   final Uint16List data;
   final double pedestal;
 
-  const ApiCalibratedFrame({required this.data, required this.pedestal});
+  const ApiCalibratedPixels({
+    required this.width,
+    required this.height,
+    required this.data,
+    required this.pedestal,
+  });
 
   @override
-  int get hashCode => data.hashCode ^ pedestal.hashCode;
+  int get hashCode =>
+      width.hashCode ^ height.hashCode ^ data.hashCode ^ pedestal.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ApiCalibratedFrame &&
+      other is ApiCalibratedPixels &&
           runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height &&
           data == other.data &&
           pedestal == other.pedestal;
 }

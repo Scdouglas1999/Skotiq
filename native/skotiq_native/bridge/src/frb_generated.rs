@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 240918111;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -52255907;
 
 // Section: executor
 
@@ -353,44 +353,6 @@ fn wire__crate__api__imaging__api_calculate_auto_stretch_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_calibrate_image_data_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    width: impl CstDecode<u32>,
-    height: impl CstDecode<u32>,
-    light_data: impl CstDecode<Vec<u16>>,
-    dark_path: impl CstDecode<Option<String>>,
-    flat_path: impl CstDecode<Option<String>>,
-    bias_path: impl CstDecode<Option<String>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_calibrate_image_data",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_width = width.cst_decode();
-            let api_height = height.cst_decode();
-            let api_light_data = light_data.cst_decode();
-            let api_dark_path = dark_path.cst_decode();
-            let api_flat_path = flat_path.cst_decode();
-            let api_bias_path = bias_path.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_calibrate_image_data(
-                        api_width,
-                        api_height,
-                        api_light_data,
-                        api_dark_path,
-                        api_flat_path,
-                        api_bias_path,
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__imaging__api_calibrate_image_file_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     light_path: impl CstDecode<String>,
@@ -419,6 +381,38 @@ fn wire__crate__api__imaging__api_calibrate_image_file_impl(
                         api_flat_path,
                         api_bias_path,
                         api_output_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__imaging__api_calibrated_light_pixels_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    light_path: impl CstDecode<String>,
+    dark_path: impl CstDecode<Option<String>>,
+    flat_path: impl CstDecode<Option<String>>,
+    bias_path: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_calibrated_light_pixels",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_light_path = light_path.cst_decode();
+            let api_dark_path = dark_path.cst_decode();
+            let api_flat_path = flat_path.cst_decode();
+            let api_bias_path = bias_path.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::imaging::api_calibrated_light_pixels(
+                        api_light_path,
+                        api_dark_path,
+                        api_flat_path,
+                        api_bias_path,
                     )?;
                     Ok(output_ok)
                 })())
@@ -7603,12 +7597,16 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiCalibratedFrame {
+impl SseDecode for crate::api::imaging::ApiCalibratedPixels {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
         let mut var_data = <Vec<u16>>::sse_decode(deserializer);
         let mut var_pedestal = <f64>::sse_decode(deserializer);
-        return crate::api::imaging::ApiCalibratedFrame {
+        return crate::api::imaging::ApiCalibratedPixels {
+            width: var_width,
+            height: var_height,
             data: var_data,
             pedestal: var_pedestal,
         };
@@ -12918,9 +12916,11 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiAcquisitionSett
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiCalibratedFrame {
+impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiCalibratedPixels {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
             self.data.into_into_dart().into_dart(),
             self.pedestal.into_into_dart().into_dart(),
         ]
@@ -12928,13 +12928,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiCalibratedFrame {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiCalibratedFrame
+    for crate::api::imaging::ApiCalibratedPixels
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiCalibratedFrame>
-    for crate::api::imaging::ApiCalibratedFrame
+impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiCalibratedPixels>
+    for crate::api::imaging::ApiCalibratedPixels
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiCalibratedFrame {
+    fn into_into_dart(self) -> crate::api::imaging::ApiCalibratedPixels {
         self
     }
 }
@@ -17641,9 +17641,11 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiCalibratedFrame {
+impl SseEncode for crate::api::imaging::ApiCalibratedPixels {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
         <Vec<u16>>::sse_encode(self.data, serializer);
         <f64>::sse_encode(self.pedestal, serializer);
     }
@@ -21782,10 +21784,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiCalibratedFrame> for wire_cst_api_calibrated_frame {
+    impl CstDecode<crate::api::imaging::ApiCalibratedPixels> for wire_cst_api_calibrated_pixels {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiCalibratedFrame {
-            crate::api::imaging::ApiCalibratedFrame {
+        fn cst_decode(self) -> crate::api::imaging::ApiCalibratedPixels {
+            crate::api::imaging::ApiCalibratedPixels {
+                width: self.width.cst_decode(),
+                height: self.height.cst_decode(),
                 data: self.data.cst_decode(),
                 pedestal: self.pedestal.cst_decode(),
             }
@@ -25499,15 +25503,17 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_api_calibrated_frame {
+    impl NewWithNullPtr for wire_cst_api_calibrated_pixels {
         fn new_with_null_ptr() -> Self {
             Self {
+                width: Default::default(),
+                height: Default::default(),
                 data: core::ptr::null_mut(),
                 pedestal: Default::default(),
             }
         }
     }
-    impl Default for wire_cst_api_calibrated_frame {
+    impl Default for wire_cst_api_calibrated_pixels {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -27737,21 +27743,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_data(
-        port_: i64,
-        width: u32,
-        height: u32,
-        light_data: *mut wire_cst_list_prim_u_16_loose,
-        dark_path: *mut wire_cst_list_prim_u_8_strict,
-        flat_path: *mut wire_cst_list_prim_u_8_strict,
-        bias_path: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__imaging__api_calibrate_image_data_impl(
-            port_, width, height, light_data, dark_path, flat_path, bias_path,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_file(
         port_: i64,
         light_path: *mut wire_cst_list_prim_u_8_strict,
@@ -27767,6 +27758,19 @@ mod io {
             flat_path,
             bias_path,
             output_path,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrated_light_pixels(
+        port_: i64,
+        light_path: *mut wire_cst_list_prim_u_8_strict,
+        dark_path: *mut wire_cst_list_prim_u_8_strict,
+        flat_path: *mut wire_cst_list_prim_u_8_strict,
+        bias_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__imaging__api_calibrated_light_pixels_impl(
+            port_, light_path, dark_path, flat_path, bias_path,
         )
     }
 
@@ -31222,7 +31226,9 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_api_calibrated_frame {
+    pub struct wire_cst_api_calibrated_pixels {
+        width: u32,
+        height: u32,
         data: *mut wire_cst_list_prim_u_16_strict,
         pedestal: f64,
     }

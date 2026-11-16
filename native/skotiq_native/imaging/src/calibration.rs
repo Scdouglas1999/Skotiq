@@ -54,6 +54,33 @@ pub fn automatic_pedestal(samples: &[f64]) -> f64 {
 pub const PEDESTAL_REMOVED_HISTORY: &str =
     "Each frame's output pedestal removed before integration";
 
+/// Whether `header` says its frame is already calibrated: a `CALSTAT` card
+/// (written by Skotiq and MaxIm DL) or the HISTORY PixInsight's
+/// ImageCalibration writes. A calibrated frame is never calibrated again.
+pub fn is_calibrated(header: &FitsHeader) -> bool {
+    header
+        .get_string("CALSTAT")
+        .is_some_and(|value| !value.trim().is_empty())
+        || header
+            .history
+            .iter()
+            .any(|line| line.starts_with("Calibration with ImageCalibration"))
+}
+
+/// `image` with `pedestal` (ADU) taken out of every sample, as `F32`; the
+/// image itself when there is none.
+pub fn without_pedestal(image: ImageData, pedestal: f64) -> ImageData {
+    if pedestal == 0.0 {
+        return image;
+    }
+    let data: Vec<f32> = image
+        .samples_f64()
+        .iter()
+        .map(|v| (v - pedestal) as f32)
+        .collect();
+    ImageData::from_f32(image.width, image.height, image.channels, &data)
+}
+
 /// State `pedestal` (ADU) in `header`: a `PEDESTAL` card when the frame
 /// carries one, and no card when it carries none.
 pub fn state_pedestal(header: &mut FitsHeader, pedestal: f64) {
@@ -427,6 +454,19 @@ mod tests {
         assert_eq!(stated_pedestal(&header), 0.0);
         header.set_float(PEDESTAL_KEYWORD, -100.0);
         assert_eq!(stated_pedestal(&header), 100.0);
+    }
+
+    /// Skotiq's and MaxIm DL's `CALSTAT` and PixInsight's ImageCalibration
+    /// HISTORY mark a calibrated frame; a raw frame carries neither.
+    #[test]
+    fn a_calibrated_frame_is_known_by_its_header() {
+        let mut header = FitsHeader::new();
+        assert!(!is_calibrated(&header));
+        header.set_string("CALSTAT", "BDF");
+        assert!(is_calibrated(&header));
+        let mut header = FitsHeader::new();
+        header.add_history("Calibration with ImageCalibration process");
+        assert!(is_calibrated(&header));
     }
 
     #[test]

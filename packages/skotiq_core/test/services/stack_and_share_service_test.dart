@@ -1060,21 +1060,25 @@ void main() {
 
   group('calibration path split (e)', () {
     test(
-      'calibration on uses the data path (readLinearFrame + startData)',
+      'calibration on calibrates each light by its path and feeds the data',
       () async {
         final engine = _FakeStackingEngine();
         final live = _FakeLiveStacking(
           followerCounts: const [2],
           finalResult: _integrated(stackedFrameCount: 2),
         );
-        // No dark/flat/bias is configured (the real in-memory DB has no
-        // calibration settings), and the selection's image ids have no captured-
-        // images rows, so the dark match resolves to none and `calibrateData`
-        // becomes a pure pass-through. That still proves the DATA path is taken:
-        // each frame's linear pixels are read and fed via startData / addData.
+        // No dark/flat/bias is configured and the selection's image ids have
+        // no captured-images rows, so no master is handed over; each light
+        // still goes through the calibration rule and is fed as data.
+        final calibration = <String>[];
         final c = container(
           selection: _selection(followerCount: 1),
           liveStacking: live,
+          extra: [
+            calibrationServiceProvider.overrideWith(
+              (ref) => _RecordingCalibration(ref, calibration),
+            ),
+          ],
         );
         addTearDown(c.dispose);
         final service = StackAndShareService(
@@ -1090,9 +1094,9 @@ void main() {
           ),
         );
 
-        // The reference is read + started via the DATA path, and the follower is
-        // read + added via the DATA path. No file-path calls.
-        expect(engine.calls, contains('read:/lights/1.fits'));
+        // The reference is started and the follower added via the DATA path.
+        // No file-path calls.
+        expect(calibration, ['flat null bias null', 'flat null bias null']);
         expect(engine.calls, contains('startData:2x2'));
         expect(engine.calls.any((c) => c.startsWith('startFile')), isFalse);
         expect(live.addCalls, contains('addData:2x2'));
@@ -1546,17 +1550,17 @@ class _RecordingCalibration extends CalibrationService {
   static const double pedestal = 11;
 
   @override
-  Future<bridge.ApiCalibratedFrame> calibrateData({
-    required int width,
-    required int height,
-    required List<int> lightData,
+  Future<bridge.ApiCalibratedPixels> calibrateData({
+    required String lightPath,
     String? darkPath,
     String? flatPath,
     String? biasPath,
   }) async {
     calls.add('flat $flatPath bias $biasPath');
-    return bridge.ApiCalibratedFrame(
-      data: Uint16List.fromList(lightData),
+    return bridge.ApiCalibratedPixels(
+      width: 2,
+      height: 2,
+      data: Uint16List(4),
       pedestal: pedestal,
     );
   }

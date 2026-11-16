@@ -27,7 +27,7 @@ use skotiq_imaging::drizzle::{
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
 use skotiq_imaging::{
-    read_color_filter_array, read_frame, write_fits, FitsHeader, ImageData, PixelType,
+    read_color_filter_array, read_frame, write_fits, FitsHeader, PixelType,
 };
 use std::path::Path;
 
@@ -199,20 +199,17 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             }
         }
 
-        if !calibration.is_empty() {
-            let calibrated = calibration
-                .apply(&image, header.get_float("EXPTIME"))
-                .map_err(|e| format!("'{}': {e}", fa.fits_path))?;
-            buffers.push(calibrated.image.samples_f64());
-        } else {
-            let mut pixels = decode_image_f64(&image, &fa.fits_path)?;
-            let pedestal = skotiq_imaging::calibration::stated_pedestal(&header);
-            if pedestal != 0.0 {
-                pixels.iter_mut().for_each(|v| *v -= pedestal);
-                pedestal_removed = true;
-            }
-            buffers.push(pixels);
+        if !matches!(image.pixel_type, PixelType::U16 | PixelType::F32) {
+            return Err(format!(
+                "'{}' is {:?}; drizzle requires a U16 or F32 frame",
+                fa.fits_path, image.pixel_type
+            ));
         }
+        pedestal_removed |= skotiq_imaging::calibration::stated_pedestal(&header) != 0.0;
+        let calibrated = calibration
+            .apply(&image, &header, None)
+            .map_err(|e| format!("'{}': {e}", fa.fits_path))?;
+        buffers.push(calibrated.image.samples_f64());
         dims.push((image.width, image.height, image.channels));
         transforms.push(transform);
     }
@@ -418,25 +415,12 @@ fn transform_from_row_major(m: &[f64]) -> Result<TransformModel, String> {
     })
 }
 
-/// Decode an [`ImageData`] (the linear masters / mosaics the pipeline emits,
-/// `U16` and `F32`) into a flat channel-interleaved `f64` buffer.
-///
-/// Any other pixel type is a hard error: drizzle needs the real linear samples,
-/// and silently producing an empty buffer would mis-size the integration.
-fn decode_image_f64(image: &ImageData, path: &str) -> Result<Vec<f64>, String> {
-    match image.pixel_type {
-        PixelType::U16 | PixelType::F32 => Ok(image.samples_f64()),
-        other => Err(format!(
-            "'{path}' is {other:?}; drizzle requires a U16 or F32 frame"
-        )),
-    }
-}
-
 // Shared helpers
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use skotiq_imaging::ImageData;
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs

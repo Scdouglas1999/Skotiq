@@ -17,7 +17,8 @@ use crate::post_session::calibration_report::DARK_MAX_EXPOSURE_FRACTION;
 use crate::post_session::master_cards::fits_header_of;
 use crate::post_session::masters::flat_pedestal_state;
 use skotiq_imaging::calibration::{
-    automatic_pedestal, calibrate_frame_f32, FlatPedestal, FloatCalibration,
+    automatic_pedestal, calibrate_frame_f32, is_calibrated, stated_pedestal, without_pedestal,
+    FlatPedestal, FloatCalibration,
 };
 use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::{read_image, FitsHeader, ImageData};
@@ -62,6 +63,9 @@ pub struct CalibratedLight {
     pub sixteen_bit: ImageData,
     /// The multiplier applied to the dark's thermal signal.
     pub dark_scale: f64,
+    /// The light's header said it was already calibrated, so no master was
+    /// applied to it.
+    pub already_calibrated: bool,
 }
 
 impl CalibratedLight {
@@ -119,14 +123,29 @@ impl LightCalibration {
         self.flat.is_some()
     }
 
-    /// Calibrate `light`, `exposure` seconds long when known. A dark of
-    /// another exposure is scaled to it, which needs a master bias to tell
-    /// the dark's thermal signal from its pedestal.
+    /// Calibrate `light`, read with `header`. As PixInsight's ImageCalibration
+    /// by default, the pedestal the header states leaves first. A light whose
+    /// header says it is calibrated is not calibrated again. The exposure is
+    /// `stated_exposure` when positive, else the header's `EXPTIME`; a dark of
+    /// another exposure is scaled to it, which needs a master bias to tell the
+    /// dark's thermal signal from its pedestal.
     pub fn apply(
         &self,
         light: &ImageData,
-        exposure: Option<f64>,
+        header: &FitsHeader,
+        stated_exposure: Option<f64>,
     ) -> Result<CalibratedLight, String> {
+        let input_pedestal = stated_pedestal(header);
+        if is_calibrated(header) {
+            let data: Vec<f32> = light
+                .samples_f64()
+                .iter()
+                .map(|v| (v - input_pedestal) as f32)
+                .collect();
+            let image = ImageData::from_f32(light.width, light.height, light.channels, &data);
+            return Ok(Self::finished(image, 1.0, true));
+        }
+        let exposure = light_exposure(stated_exposure, header);
         let dark_scale = self.dark_scale(exposure)?;
         if self.scale_dark
             && self.dark.is_some()
@@ -146,20 +165,27 @@ impl LightCalibration {
                 .as_deref()
                 .map_or(FlatPedestal::Removed, |f| f.pedestal),
         };
+        let light = without_pedestal(light.clone(), input_pedestal);
         let mut image =
-            calibrate_frame_f32(light, &cal).map_err(|e| format!("calibration failed: {e}"))?;
+            calibrate_frame_f32(&light, &cal).map_err(|e| format!("calibration failed: {e}"))?;
         if self.cosmetic_correction {
             cosmetic_correct_transient(&mut image, CosmeticConfig::default())
                 .map_err(|e| format!("cosmetic correction failed: {e}"))?;
         }
+        Ok(Self::finished(image, dark_scale, false))
+    }
+
+    /// A zero-based `F32` frame with its automatic pedestal and 16-bit copy.
+    fn finished(image: ImageData, dark_scale: f64, already_calibrated: bool) -> CalibratedLight {
         let pedestal = automatic_pedestal(&image.samples_f64()) as f32;
         let sixteen_bit = sixteen_bit_copy(&image, pedestal);
-        Ok(CalibratedLight {
+        CalibratedLight {
             image,
             pedestal,
             sixteen_bit,
             dark_scale,
-        })
+            already_calibrated,
+        }
     }
 
     /// The dark multiplier for a light of `light_exposure` seconds: the
@@ -187,7 +213,7 @@ impl LightCalibration {
 
 /// A light's exposure: the one the caller states when positive, else the
 /// light's `EXPTIME`.
-pub(crate) fn light_exposure(stated: Option<f64>, header: &FitsHeader) -> Option<f64> {
+fn light_exposure(stated: Option<f64>, header: &FitsHeader) -> Option<f64> {
     stated
         .filter(|s| *s > 0.0)
         .or_else(|| header.get_float("EXPTIME"))
@@ -233,11 +259,9 @@ impl MasterCache {
         if let Some(image) = self.images.get(path) {
             return Ok(Some(Arc::clone(image)));
         }
-        let image = Arc::new(
-            read_image(Path::new(path))
-                .map_err(|e| format!("failed to read {label} master '{path}': {e}"))?
-                .image,
-        );
+        let read = read_image(Path::new(path))
+            .map_err(|e| format!("failed to read {label} master '{path}': {e}"))?;
+        let image = Arc::new(without_pedestal(read.image, stated_pedestal(&read.header)));
         self.images.insert(path.to_string(), Arc::clone(&image));
         Ok(Some(image))
     }
@@ -256,9 +280,10 @@ impl MasterCache {
         }
         let read = read_image(Path::new(key))
             .map_err(|e| format!("failed to read flat master '{key}': {e}"))?;
+        let image = without_pedestal(read.image, stated_pedestal(&read.header));
         let flat = Arc::new(FlatMaster {
-            pedestal: flat_pedestal_state(&read.image, Some(&read.header)),
-            image: read.image,
+            pedestal: flat_pedestal_state(&image, Some(&read.header)),
+            image,
         });
         self.flats.insert(key.to_string(), Arc::clone(&flat));
         Ok(Some(flat))

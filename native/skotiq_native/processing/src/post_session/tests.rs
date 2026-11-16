@@ -2167,3 +2167,92 @@ fn integrate_session_keeps_a_faint_sky_at_its_level() {
         "the master's sky reads {median} ADU; the subs hold {sky} ADU over the bias"
     );
 }
+
+/// Lights for the input-header rules: faint-sky subs at `1000 + sky` ADU with
+/// the given extra header cards, and a flat master bias at `bias` ADU.
+fn lights_with_cards(
+    name: &str,
+    sky: f64,
+    cards: &[(&str, &str)],
+    bias: u16,
+) -> (TempDir, Vec<String>, PathBuf, PathBuf) {
+    let dir = temp_dir(name);
+    let size = 128u32;
+    let stars = base_stars(size as f64);
+    let mut light_paths = Vec::new();
+    for (i, (dx, dy)) in [(0.0, 0.0), (3.0, -2.0), (-2.0, 4.0)].iter().enumerate() {
+        let field = faint_sky_light(size, &shift_stars(&stars, *dx, *dy), sky, i);
+        let p = dir.join(format!("light{i}.fits"));
+        let mut h = FitsHeader::new();
+        h.set_string("IMAGETYP", "LIGHT");
+        set_frame_metadata(&mut h, "2026-08-14T21:00:00", -10.0, 60.0);
+        for (key, value) in cards {
+            match value.parse::<f64>() {
+                Ok(v) => h.set_float(key, v),
+                Err(_) => h.set_string(key, value),
+            }
+        }
+        write_fits(&p, &field, &h).expect("write light");
+        light_paths.push(p.to_string_lossy().to_string());
+    }
+    let bias_path = dir.join("bias.fits");
+    let image = ImageData::from_u16(size, size, 1, &vec![bias; (size * size) as usize]);
+    let mut h = FitsHeader::new();
+    h.set_string("FRAMETYP", "MASTER");
+    set_frame_metadata(&mut h, "2026-08-14T19:00:00", -10.0, 0.0);
+    write_fits(&bias_path, &image, &h).expect("write bias");
+    let master = dir.join("master.fits");
+    (dir, light_paths, bias_path, master)
+}
+
+/// The median sample of the frame at `path`.
+fn median_of(path: &Path) -> f64 {
+    let (frame, _) = read_frame(path).expect("read frame");
+    let mut samples = frame.samples_f64();
+    samples.sort_by(f64::total_cmp);
+    samples[samples.len() / 2]
+}
+
+/// A sub whose header says it is calibrated is integrated as it is: the
+/// masters are not applied a second time, and only its stated pedestal leaves.
+#[test]
+fn integrate_session_does_not_calibrate_a_calibrated_sub_again() {
+    let (_dir, lights, bias, master) = lights_with_cards(
+        "calibrated_subs",
+        400.0,
+        &[("CALSTAT", "calibrated by Skotiq"), ("PEDESTAL", "100")],
+        1000,
+    );
+    let result = run_integration(
+        &lights,
+        &master,
+        serde_json::json!({ "bias": bias.to_string_lossy(), "cosmeticCorrection": false }),
+    );
+    assert_eq!(result.frames_integrated, 3);
+    let median = median_of(&master);
+    let expected = median_of(Path::new(&lights[0])) - 100.0;
+    assert!(
+        (median - expected).abs() < 2.0,
+        "the subs hold {expected} ADU over their 100 ADU pedestal; the master reads {median}"
+    );
+}
+
+/// A raw light's stated pedestal leaves before calibration (PixInsight's
+/// default input pedestal), so the bias is taken from the light's own level.
+#[test]
+fn integrate_session_takes_a_light_pedestal_out_before_calibration() {
+    let (_dir, lights, bias, master) =
+        lights_with_cards("input_pedestal", 400.0, &[("PEDESTAL", "50")], 950);
+    let result = run_integration(
+        &lights,
+        &master,
+        serde_json::json!({ "bias": bias.to_string_lossy(), "cosmeticCorrection": false }),
+    );
+    assert_eq!(result.frames_integrated, 3);
+    let median = median_of(&master);
+    let expected = median_of(Path::new(&lights[0])) - 50.0 - 950.0;
+    assert!(
+        (median - expected).abs() < 2.0,
+        "the subs less a 50 ADU pedestal less a 950 ADU bias read {expected}; the master reads {median}"
+    );
+}
