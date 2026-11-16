@@ -312,7 +312,6 @@ class _FilterSetBuilderDialogState
                     child: SkotiqTextField(
                       key: ValueKey('filter-set-share-$filter'),
                       controller: field,
-                      suffix: '%',
                       dense: true,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,

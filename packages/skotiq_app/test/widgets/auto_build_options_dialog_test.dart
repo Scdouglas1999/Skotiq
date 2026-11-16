@@ -315,17 +315,19 @@ void main() {
             ]);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, 'Share (%)'), findsNWidgets(4));
+    expect(find.widgetWithText(TextFormField, 'Share'), findsNWidgets(4));
     expect(find.text('25'), findsNWidgets(4));
-    expect(find.text('25 × 60 s · 0 h 25 m'), findsNWidgets(4));
+    expect(
+        find.text('25 × 60 s · 0 h 25 m · 25% of the time'), findsNWidgets(4));
 
-    final lShare = find.widgetWithText(TextFormField, 'Share (%)').first;
+    final lShare = find.widgetWithText(TextFormField, 'Share').first;
     await tester.ensureVisible(lShare);
     await tester.enterText(lShare, '40');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
-    expect(find.text('40 × 60 s · 0 h 40 m'), findsOneWidget);
-    expect(find.text('25 × 60 s · 0 h 25 m'), findsNWidgets(3));
+    expect(find.text('40 × 60 s · 0 h 40 m · 35% of the time'), findsOneWidget);
+    expect(
+        find.text('25 × 60 s · 0 h 25 m · 22% of the time'), findsNWidgets(3));
 
     await _build(tester);
     expect(recipe.result!.filterSet.shares,

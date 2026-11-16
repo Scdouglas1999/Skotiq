@@ -223,7 +223,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
   final _form = GlobalKey<FormState>();
   final _durations = <String, TextEditingController>{};
 
-  /// Each filter's share of the time, in percent, for the current set.
+  /// Each filter's share of the time for the current set, opening as
+  /// percent; the shares are weights, so they need not add up to 100.
   final _shares = <String, TextEditingController>{};
   Timer? _previewTimer;
   int _previewRun = 0;
@@ -377,6 +378,13 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     });
   }
 
+  /// [plan]'s part of the planned time, in whole percent.
+  int _percentOfPlan(SmartNightFilterPlan plan) {
+    final total =
+        _preview.values.fold<double>(0, (sum, p) => sum + p.integrationSecs);
+    return total <= 0 ? 0 : (plan.integrationSecs / total * 100).round();
+  }
+
   /// "24 × 300 s · 2 h 0 m" for [plan].
   static String _frames(SmartNightFilterPlan plan) {
     final secs = plan.durationSecs;
@@ -515,7 +523,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                               const SizedBox(width: SkotiqTokens.spaceMd),
                               SizedBox(
                                 width: 104,
-                                child: _number('Share (%)', _shares[filter]!,
+                                child: _number('Share', _shares[filter]!,
                                     preview: true),
                               ),
                             ],
@@ -523,7 +531,11 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                         ),
                         if (_preview[filter] case final plan?) ...[
                           const SizedBox(height: SkotiqTokens.spaceXs),
-                          Text(_frames(plan), style: muted),
+                          Text(
+                              multiFilter
+                                  ? '${_frames(plan)} · ${_percentOfPlan(plan)}% of the time'
+                                  : _frames(plan),
+                              style: muted),
                         ],
                       ],
                     ),
