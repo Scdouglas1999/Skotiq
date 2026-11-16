@@ -1,6 +1,6 @@
 part of '../network_backend.dart';
 
-extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
+extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// Identity broadcast on every `collaboration.join` frame sent
   /// after the WS handshake succeeds. Call this BEFORE [connect] (or
   /// before the auto-reconnect timer fires) so the very first join after
@@ -91,7 +91,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
     final headers = <String, String>{
       LinkVersion.header: skotiqRelease,
-      _NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
+      NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
     };
     // The handshake probe gets a fixed short ceiling regardless of the
     // request-timeout tuning: it runs before we commit to the connection, so a
@@ -598,7 +598,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         4,
         8,
         16,
-        _NetworkBackendTransport._maxReconnectDelay,
+        NetworkBackendTransport._maxReconnectDelay,
       ][_reconnectAttempt.clamp(0, 5)],
     );
 

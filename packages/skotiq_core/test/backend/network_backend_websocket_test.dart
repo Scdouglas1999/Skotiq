@@ -8,8 +8,8 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
-import 'package:skotiq_core/src/models/errors/server_error.dart';
-import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
+import 'package:skotiq_core/src/errors/server_error.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 
 void main() {

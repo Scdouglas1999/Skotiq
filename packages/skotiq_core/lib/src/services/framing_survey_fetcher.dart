@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Staggers the primary, its optional mirror, and the independent fallback.
 /// A slow mirror never extends the fallback's head start deadline. The first

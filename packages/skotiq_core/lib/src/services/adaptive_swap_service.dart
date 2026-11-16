@@ -19,8 +19,7 @@
 // unavailable.
 
 import 'dart:async';
-import 'dart:convert';
-
+import '../backend/roles/sequencer_backend.dart' show AdaptiveSwapBackend;
 import '../models/sequence/sequence_models.dart';
 
 /// Inputs the composer consumes. Each axis is optional: when `null` the
@@ -233,21 +232,6 @@ class AdaptiveSwapService {
   }
 }
 
-/// Backend-agnostic adapter for pushing the composed score into the
-/// Rust executor and reading the dashboard snapshot back. Implemented
-/// by `FfiBackend` (local Rust), `NetworkBackend` (remote control), and
-/// `DisconnectedBackend` (clear not-connected failure).
-abstract class AdaptiveSwapBackend {
-  /// Push the composed score (or `null` to clear) to the executor's
-  /// `ExecutorCommand::UpdateConditionsScore` handler.
-  Future<void> sequencerUpdateConditionsScore(ConditionsScore? score);
-
-  /// Pull the executor's current adaptive-swap snapshot for the Run
-  /// Dashboard panel. Returns `null` when no telemetry has been pushed
-  /// since startup.
-  Future<AdaptiveSwapSnapshot?> sequencerGetAdaptiveSwapSnapshot();
-}
-
 /// Helper that builds an [AdaptiveSwapInputs] from common inputs +
 /// composes a score + pushes it to the backend. Designed to be called
 /// from a periodic timer in the imaging service.
@@ -276,22 +260,4 @@ class AdaptiveSwapDriver {
 
   Future<AdaptiveSwapSnapshot?> pullSnapshot() =>
       backend.sequencerGetAdaptiveSwapSnapshot();
-
-  /// Decode a raw JSON string (as returned by
-  /// `api_sequencer_get_adaptive_swap_json`) into an
-  /// [AdaptiveSwapSnapshot]. Surfaces parse errors as `null` (with a
-  /// descriptive throw deferred to the caller via [error]) so a malformed
-  /// snapshot doesn't crash the dashboard timer.
-  static AdaptiveSwapSnapshot? decodeSnapshotJson(String? raw) {
-    if (raw == null || raw.isEmpty) return null;
-    try {
-      final decoded = json.decode(raw);
-      if (decoded is Map<String, dynamic>) {
-        return AdaptiveSwapSnapshot.fromJson(decoded);
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
 }

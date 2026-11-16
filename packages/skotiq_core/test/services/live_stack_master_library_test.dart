@@ -7,7 +7,7 @@ import 'package:skotiq_core/src/database/daos/integrated_masters_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/integrated_master.dart';
 import 'package:skotiq_core/src/services/live_stack_master_library.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 void main() {
   late SkotiqDatabase db;

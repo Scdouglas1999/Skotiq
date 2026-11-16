@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/run_timers.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockGuard extends Mock implements DiskSpaceGuardService {}
 

@@ -19,7 +19,7 @@ import 'calibration/calibration_frame_groups.dart';
 import 'calibration/calibration_selection.dart';
 import 'frame_header.dart';
 import 'calibration/shared_calibration_library.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';

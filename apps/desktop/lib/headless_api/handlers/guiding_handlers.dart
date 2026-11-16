@@ -13,6 +13,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// Handlers for the guiding endpoints. `/api/guider/*` drives the host's
 /// guider, PHD2 or the built-in guider as its profile names; `/api/phd2/*` is

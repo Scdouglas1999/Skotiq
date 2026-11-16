@@ -13,7 +13,7 @@ import '../providers/dark_library_provider.dart';
 import 'calibration/calibration_selection.dart';
 import 'dark_library_service.dart';
 import 'flat_library_service.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 import 'post_session_seam.dart';
 
 /// The clause the native side puts in every refusal of an accumulator sidecar

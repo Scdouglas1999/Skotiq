@@ -103,16 +103,15 @@ impl CameraOps for NullDeviceOps {
             height: 2822,
             data: vec![0u16; 4144 * 2822],
             bits_per_pixel: 16,
-            exposure_secs: duration_secs,
-            gain,
-            offset,
-            temperature: Some(-10.0),
-            filter: None,
-            timestamp: chrono::Utc::now().timestamp(),
-            sensor_type: Some("Monochrome".to_string()), // Default to Mono
-            color_filter: None,
-            camera_file: None,
-            readout_mode: None,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: duration_secs,
+                gain,
+                offset,
+                temperature: Some(-10.0),
+                timestamp: chrono::Utc::now(),
+                ..Default::default()
+            },
+            ..Default::default()
         })
     }
 

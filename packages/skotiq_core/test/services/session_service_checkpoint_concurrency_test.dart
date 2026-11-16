@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 Future<void> _waitUntil(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 1));

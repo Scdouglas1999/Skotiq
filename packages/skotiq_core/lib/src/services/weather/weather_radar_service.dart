@@ -9,7 +9,7 @@ import 'providers/metno_cloud_provider.dart';
 import 'providers/noaa_radar_provider.dart';
 import 'providers/openmeteo_cloud_provider.dart';
 import 'providers/rainviewer_radar_provider.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// Central service for coordinating weather radar data fetching.
 ///

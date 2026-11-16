@@ -13,7 +13,7 @@ import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/sequence/sequence_run_status.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
 import '../../frame_watch_settings_provider.dart';

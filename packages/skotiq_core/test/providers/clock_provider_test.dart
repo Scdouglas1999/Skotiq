@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 import 'package:skotiq_core/src/providers/logging_service_provider.dart';

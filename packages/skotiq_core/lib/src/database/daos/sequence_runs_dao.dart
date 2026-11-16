@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../backend/roles/host_data/host_records.dart';
+import '../stores/host_records.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../database.dart';
 import '../tables/sequence_runs.dart';

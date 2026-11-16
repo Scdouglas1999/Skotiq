@@ -9,6 +9,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/in_memory_database.dart';
+import 'package:skotiq_core/errors.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

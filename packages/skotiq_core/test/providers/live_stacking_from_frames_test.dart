@@ -13,6 +13,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockLocalBackend extends Mock implements SkotiqBackend {}
 

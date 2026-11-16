@@ -27,7 +27,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Channel name shared with the iOS AppDelegate and Android MainActivity.
 /// Kept here as the single source of truth.

@@ -62,7 +62,7 @@ Future<EquipmentProfileModel> _seedReducedProfile(
     ),
   );
   final row = await dao.getProfileById(id);
-  return EquipmentProfileModel.fromDatabase(row!);
+  return row!.toModel();
 }
 
 Future<void> _openEditor(

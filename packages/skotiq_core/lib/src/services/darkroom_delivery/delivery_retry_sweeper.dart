@@ -55,7 +55,7 @@ library;
 
 import 'dart:async';
 
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'delivery_service.dart';
 
 /// Periodically re-attempts the delivery rows whose retry is due, so an

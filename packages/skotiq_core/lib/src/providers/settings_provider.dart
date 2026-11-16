@@ -29,7 +29,7 @@ import '../models/focuser_backlash_calibration.dart'
 import '../database/daos/settings_dao.dart';
 import '../models/backend/backend_types.dart';
 import 'plate_solve_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 // Section parts: AppSettingsNotifier is one notifier split across `part` files
 // under `settings_sections/`, one per UI / domain section. `part` rather than

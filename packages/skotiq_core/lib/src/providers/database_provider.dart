@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
-import '../backend/roles/host_data/host_records.dart';
+import '../database/stores/host_records.dart';
 import '../database/database.dart' as db;
-import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
+import '../models/imaging/gnomonic_projection.dart' show SolvedWcs;
 import '../services/wcs/plate_solve_data_from_result.dart'
     show solvedWcsFromStored;
 import '../database/daos/equipment_profiles_dao.dart';

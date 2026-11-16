@@ -21,7 +21,6 @@
 /// only handles the post-pairing browser-credential lifecycle.
 library;
 
-import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../auth/auth_cookie.dart';
@@ -31,6 +30,7 @@ import '../request_context.dart';
 import '../response_helpers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Resolves a bearer token to its [HeadlessTokenScope], or null if the
 /// token is unknown. The auth middleware uses a constant-time

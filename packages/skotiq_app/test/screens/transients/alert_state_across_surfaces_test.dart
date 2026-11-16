@@ -19,6 +19,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockSettingsDao extends Mock implements SettingsDao {}
 

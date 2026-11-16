@@ -15,6 +15,8 @@ import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Records what the coordinator asks the stacker to do, without touching FFI.
 class _FakeStackingService extends LiveStackingService {

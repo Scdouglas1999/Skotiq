@@ -15,7 +15,7 @@ import '../router/app_routes.dart';
 import 'tour.dart';
 import 'tour_runner.dart';
 import '../utils/snackbar_helper.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'overlay/card.dart';
 part 'overlay/coach_marks.dart';

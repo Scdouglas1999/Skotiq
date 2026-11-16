@@ -254,7 +254,7 @@ fn a_timed_frame_records_the_speed_and_iso_the_camera_used() {
             "{}",
             frame.metadata.exposure_time
         );
-        assert_eq!(frame.metadata.gain, 1600);
+        assert_eq!(frame.metadata.gain, Some(1600));
         assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb.into()));
         assert_eq!((frame.width, frame.height), (64, 48));
         assert_eq!(camera.get_sensor_info().pixel_size_x, 6.54);
@@ -280,7 +280,11 @@ fn a_sub_second_request_between_speeds_takes_the_nearest_speed_not_bulb() {
             "{}",
             frame.metadata.exposure_time
         );
-        assert_eq!(frame.metadata.gain, 800, "the frame records the body's ISO");
+        assert_eq!(
+            frame.metadata.gain,
+            Some(800),
+            "the frame records the body's ISO"
+        );
     });
 }
 
@@ -325,7 +329,7 @@ fn nikon_bulb_uses_the_bulb_toggle_with_shutterspeed2_on_bulb() {
             log.contains("set bulb=1") && log.contains("set bulb=0"),
             "{log}"
         );
-        assert_eq!(frame.metadata.gain, 400);
+        assert_eq!(frame.metadata.gain, Some(400));
         let t = frame.metadata.exposure_time;
         assert!((1.15..1.5).contains(&t), "{t}");
         assert_eq!(camera.get_sensor_info().pixel_size_x, 4.35);

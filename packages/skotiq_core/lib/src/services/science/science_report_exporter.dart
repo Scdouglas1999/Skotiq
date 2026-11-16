@@ -1,5 +1,5 @@
 import '../../models/imaging/imaging_models.dart' show FrameType;
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -11,8 +11,8 @@ import '../../database/daos/science_dao.dart';
 import '../../database/daos/sessions_dao.dart';
 import '../../database/daos/targets_dao.dart';
 import '../../database/database.dart';
-import 'period_analysis_service.dart';
 import '../../utils/skotiq_data_directory.dart';
+import '../../models/science/period_analysis_models.dart';
 
 /// Markdown science-report exporter.
 ///

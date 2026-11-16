@@ -8,7 +8,7 @@ import 'linked_host.dart';
 import '../errors/error_text.dart';
 import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 import '../services/stack_and_share_service.dart';
 import 'backend_provider.dart';
 import 'logging_service_provider.dart';

@@ -2710,16 +2710,14 @@ mod tests {
                 height: 100,
                 data: vec![0u16; 100 * 100],
                 bits_per_pixel: 16,
-                exposure_secs: duration_secs,
-                gain,
-                offset,
-                temperature: Some(-10.0),
-                filter: None,
-                timestamp: chrono::Utc::now().timestamp(),
-                sensor_type: Some("Monochrome".to_string()),
-                color_filter: None,
-                camera_file: None,
-                readout_mode: None,
+                metadata: skotiq_device::ImageMetadata {
+                    exposure_time: duration_secs,
+                    gain,
+                    offset,
+                    temperature: Some(-10.0),
+                    ..Default::default()
+                },
+                ..Default::default()
             })
         }
 

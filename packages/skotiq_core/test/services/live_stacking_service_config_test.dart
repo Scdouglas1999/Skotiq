@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 // barrel transitively pulls in the OSC seam/orchestrator wiring (sibling
 // components), so importing it here would couple this value-type test to
 // unrelated source. Same direct-path convention as the other service tests.
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 void main() {
   group('LiveStackingConfig color fields', () {

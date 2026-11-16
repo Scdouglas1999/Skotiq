@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 
 void main() {
   test('initializes lazily once and auto-starts on log', () async {

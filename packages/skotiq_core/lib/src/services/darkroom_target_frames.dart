@@ -1,9 +1,9 @@
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../database/database.dart';
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'frame_header.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// A sub further than this from a target's catalog position is not of that
 /// target: drawn as off target on the nights strip, and never attributed to

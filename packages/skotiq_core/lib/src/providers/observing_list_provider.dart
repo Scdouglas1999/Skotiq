@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
 
-import '../backend/roles/host_data/observing_lists_store.dart';
+import '../database/stores/observing_lists_store.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/observing_lists_dao.dart';
 import '../database/database.dart';
@@ -9,7 +9,7 @@ import '../errors/error_text.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
-import '../models/backend/backend_types.dart';
+import '../errors/server_error.dart';
 
 const _observingListNotProvided = Object();
 

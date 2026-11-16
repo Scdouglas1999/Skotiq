@@ -10,7 +10,7 @@ import '../../../tours/tour_overlay.dart';
 import '../../../tours/tour_runner.dart';
 import '../shell_navigation.dart';
 import 'window_chrome.dart' show commandPaletteShortcutLabel;
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Where "Open the manual" goes.
 ///

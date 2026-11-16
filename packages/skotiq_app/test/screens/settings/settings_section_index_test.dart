@@ -35,8 +35,6 @@ import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
-// ignore: implementation_imports
-import 'package:skotiq_plugins/src/plugin_registration.dart';
 
 import '../../harness/harness.dart';
 

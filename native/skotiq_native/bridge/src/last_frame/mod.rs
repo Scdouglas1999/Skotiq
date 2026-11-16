@@ -8,82 +8,17 @@
 
 use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
 use crate::error::SkotiqError;
-use skotiq_cfa::ColorFilterArray;
+use skotiq_device::ImageData;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
-
-/// A frame as the camera delivered it.
-#[derive(Debug, Clone)]
-pub(crate) struct RawFrame {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u16>,
-    /// `None` for a monochrome sensor.
-    pub bayer_pattern: Option<ColorFilterArray>,
-    pub exposure: ExposureRecord,
-    /// The camera's own file for the frame, when it delivered one.
-    pub camera_file: Option<skotiq_device::CameraFile>,
-}
-
-/// What the camera layer recorded about the exposure behind a frame: the
-/// facts a FITS header takes from the camera rather than from the caller.
-#[derive(Debug, Clone)]
-pub(crate) struct ExposureRecord {
-    /// When the exposure was started.
-    pub started_at: chrono::DateTime<chrono::Utc>,
-    /// Seconds, as the camera reported them.
-    pub exposure_secs: f64,
-    pub gain: Option<i32>,
-    pub offset: Option<i32>,
-    /// Sensor temperature in Celsius.
-    pub temperature: Option<f64>,
-    pub bits_per_pixel: u32,
-    /// The camera's name for the read mode the frame was read out in.
-    pub readout_mode: Option<String>,
-}
-
-impl RawFrame {
-    /// The frame as the sequencer's device layer hands frames around, for
-    /// the code a manual save shares with a sequence's.
-    pub(crate) fn into_image_data(self) -> skotiq_sequencer::ImageData {
-        let sensor_type = sensor_type(self.bayer_pattern.as_ref());
-        skotiq_sequencer::ImageData {
-            width: self.width,
-            height: self.height,
-            data: self.data,
-            bits_per_pixel: self.exposure.bits_per_pixel,
-            exposure_secs: self.exposure.exposure_secs,
-            gain: self.exposure.gain,
-            offset: self.exposure.offset,
-            temperature: self.exposure.temperature,
-            filter: None,
-            timestamp: self.exposure.started_at.timestamp(),
-            sensor_type,
-            color_filter: self.bayer_pattern,
-            camera_file: self.camera_file,
-            readout_mode: self.exposure.readout_mode,
-        }
-    }
-}
-
-/// The sequencer's `ImageData` sensor type for a frame's color filter.
-pub(crate) fn sensor_type(pattern: Option<&ColorFilterArray>) -> Option<String> {
-    Some(
-        if pattern.is_some() {
-            "Color"
-        } else {
-            "Monochrome"
-        }
-        .to_string(),
-    )
-}
 
 /// One camera's last frame: what the screens draw, and the samples it was
 /// drawn from (for FITS saves, star crops and quality maps).
 #[derive(Debug, Clone)]
 pub(crate) struct StoredFrame {
     pub display: CapturedImageResult,
-    pub raw: RawFrame,
+    /// The frame as the camera layer delivered it.
+    pub raw: ImageData,
     /// The detection `display`'s star numbers come from.
     pub stars: Arc<Vec<skotiq_imaging::DetectedStar>>,
 }
@@ -115,7 +50,7 @@ fn frames() -> &'static Store {
 /// the device heartbeats and the headless HTTP handlers.
 pub(crate) async fn store(
     camera_id: &str,
-    raw: RawFrame,
+    raw: ImageData,
     exposure_secs: f64,
 ) -> Result<(), SkotiqError> {
     let frame = tokio::task::spawn_blocking(move || {
@@ -134,7 +69,7 @@ pub(crate) async fn store(
 
 /// What the screens show for one frame, and the stars detected in it.
 pub(crate) fn measure(
-    raw: &RawFrame,
+    raw: &ImageData,
     exposure_secs: f64,
 ) -> (CapturedImageResult, Vec<skotiq_imaging::DetectedStar>) {
     let image = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
@@ -166,7 +101,7 @@ pub(crate) fn measure(
         // The end of the exposure: the start the header records as DATE-OBS
         // plus the commanded time, so a caller that subtracts the exposure
         // lands on the same start.
-        timestamp: (raw.exposure.started_at
+        timestamp: (raw.metadata.timestamp
             + chrono::Duration::microseconds((exposure_secs.max(0.0) * 1e6).round() as i64))
         .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         is_color: raw.bayer_pattern.is_some(),
@@ -201,7 +136,7 @@ pub(crate) async fn frame(camera_id: &str) -> Option<StoredFrame> {
 }
 
 /// A copy of `camera_id`'s last frame as the camera delivered it.
-pub(crate) async fn raw(camera_id: &str) -> Option<RawFrame> {
+pub(crate) async fn raw(camera_id: &str) -> Option<ImageData> {
     frames().lock().await.get(camera_id).map(|f| f.raw.clone())
 }
 
