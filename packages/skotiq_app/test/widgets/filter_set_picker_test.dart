@@ -181,6 +181,45 @@ void main() {
         picker.itemDetails![picker.itemLabels!.indexOf('HaRGB')], 'R G B Ha');
   });
 
+  testWidgets(
+      'a share that is blank, zero or not a number blocks saving instead of '
+      'giving that filter almost no time', (tester) async {
+    final (container, picked) = await pump(tester);
+    dropdown(tester).onChanged!('filter-set-builder');
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('filter-set-name')),
+      'HaRGB',
+    );
+    for (final filter in ['B', 'Ha', 'R', 'G']) {
+      await tester.tap(find.text(filter).last);
+    }
+    await tester.pumpAndSettle();
+    SkotiqButton save() => tester.widget<SkotiqButton>(
+        find.widgetWithText(SkotiqButton, 'Save set'));
+    for (final bad in ['', '0', 'abc', '-5']) {
+      await tester.enterText(
+        find.byKey(const ValueKey('filter-set-share-Ha')),
+        bad,
+      );
+      await tester.pumpAndSettle();
+      expect(save().onPressed, isNull, reason: 'share "$bad"');
+      expect(find.text('Each share must be a number above 0.'), findsOneWidget);
+    }
+    await tester.enterText(
+      find.byKey(const ValueKey('filter-set-share-Ha')),
+      '40',
+    );
+    await tester.pumpAndSettle();
+    expect(save().onPressed, isNotNull);
+    expect(find.text('Each share must be a number above 0.'), findsNothing);
+    expect(picked, isEmpty);
+    expect(
+      container.read(filterSetPreferencesProvider).requireValue.custom,
+      isEmpty,
+    );
+  });
+
   testWidgets('a saved set can be deleted from the builder', (tester) async {
     final (container, _) = await pump(
       tester,

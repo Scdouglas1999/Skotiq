@@ -208,28 +208,32 @@ class _FilterSetBuilderDialogState
     });
   }
 
+  /// The share typed for [filter], or null when it is not a number above 0.
+  double? _shareOf(String filter) {
+    final text = _shares[filter]?.text.trim();
+    final share = text == null ? null : double.tryParse(text);
+    return share != null && share.isFinite && share > 0 ? share : null;
+  }
+
+  bool get _sharesValid => _ticked.every((f) => _shareOf(f) != null);
+
   bool get _canSave =>
-      !_saving && _name.text.trim().isNotEmpty && _ticked.isNotEmpty;
+      !_saving &&
+      _name.text.trim().isNotEmpty &&
+      _ticked.isNotEmpty &&
+      _sharesValid;
 
   Future<void> _save() async {
     final filters = [
       for (final filter in widget.wheelFilters)
         if (_ticked.contains(filter)) filter,
     ];
-    final shares = {
-      for (final filter in filters)
-        filter: double.tryParse(_shares[filter]?.text.trim() ?? '') ?? 0,
-    };
+    final shares = {for (final filter in filters) filter: _shareOf(filter)!};
     final even = shares.values.toSet().length <= 1;
     final set = CustomFilterSet(
       name: _name.text.trim(),
       filters: filters,
-      shares: even
-          ? const {}
-          : {
-              for (final MapEntry(key: filter, value: share) in shares.entries)
-                if (share > 0) filter: share,
-            },
+      shares: even ? const {} : shares,
     );
     setState(() {
       _saving = true;
@@ -313,6 +317,7 @@ class _FilterSetBuilderDialogState
                       key: ValueKey('filter-set-share-$filter'),
                       controller: field,
                       dense: true,
+                      onChanged: (_) => setState(() {}),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -327,6 +332,13 @@ class _FilterSetBuilderDialogState
             'part of the planned time.',
             style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
+          if (!_sharesValid) ...[
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            Text(
+              'Each share must be a number above 0.',
+              style: SkotiqTypography.bodySm.copyWith(color: colors.error),
+            ),
+          ],
           if (saved.isNotEmpty) ...[
             const SizedBox(height: SkotiqTokens.space2xl),
             Text(
