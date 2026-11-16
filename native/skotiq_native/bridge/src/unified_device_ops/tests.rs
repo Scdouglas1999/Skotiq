@@ -125,20 +125,17 @@ impl CameraDriver for InstantCompleteCamera {
             height: 2,
             data: vec![100, 200, 300, 400],
             bits_per_pixel: 16,
-            bayer_pattern: None,
             metadata: ImageMetadata {
                 exposure_time: 0.5,
-                gain: 0,
-                offset: 0,
+                gain: Some(0),
+                offset: Some(0),
                 bin_x: 1,
                 bin_y: 1,
-                temperature: None,
                 timestamp: chrono::Utc::now(),
-                subframe: None,
                 readout_mode: self.readout_mode.clone(),
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
+            ..Default::default()
         })
     }
 
@@ -328,7 +325,11 @@ async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
             .await;
         cleanup_test_camera(mgr, &device_id).await;
         let image = image.expect("exposure");
-        assert_eq!((image.gain, image.offset), expected, "{device_id}");
+        assert_eq!(
+            (image.metadata.gain, image.metadata.offset),
+            expected,
+            "{device_id}"
+        );
 
         let rig = skotiq_sequencer::RunRig::default();
         let identity = skotiq_sequencer::FrameIdentity::default();
@@ -344,7 +345,6 @@ async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
                 filter: (None, None),
                 target_name: None,
                 set_temp_c: None,
-                bayer_pattern: None,
             },
             &image,
         )
@@ -402,7 +402,7 @@ async fn a_frame_records_the_read_mode_it_was_read_out_in() {
     let last = crate::last_frame::raw(&device_id).await;
     cleanup_test_camera(mgr, &device_id).await;
     let image = image.expect("exposure");
-    let saved_by_hand = last.expect("the frame is kept").into_image_data();
+    let saved_by_hand = last.expect("the frame is kept");
 
     let ctx = skotiq_sequencer::scheduling::FrameContext::default();
     for frame in [&image, &saved_by_hand] {

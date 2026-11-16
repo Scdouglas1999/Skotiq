@@ -140,20 +140,16 @@ impl CameraDriver for SlowCamera {
             height: 1,
             data: vec![1, 2],
             bits_per_pixel: 16,
-            bayer_pattern: None,
             metadata: ImageMetadata {
                 exposure_time: 1.0,
-                gain: 0,
-                offset: 0,
+                gain: Some(0),
+                offset: Some(0),
                 bin_x: 1,
                 bin_y: 1,
-                temperature: None,
                 timestamp: chrono::Utc::now(),
-                subframe: None,
-                readout_mode: None,
-                vendor_data: VendorFeatures::default(),
-                camera_file: None,
+                ..Default::default()
             },
+            ..Default::default()
         })
     }
     async fn set_cooler(

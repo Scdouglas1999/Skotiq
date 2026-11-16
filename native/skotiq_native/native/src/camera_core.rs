@@ -3,9 +3,9 @@
 //! [`CameraCore`] is the state each driver embeds (identity, connection,
 //! gain/offset and who chose them, binning/subframe, what is known of the
 //! cooler, the exposure clock, capabilities and sensor description), with the
-//! one connected check. [`Frame`] is the one
-//! place a downloaded frame becomes [`ImageData`]; the free functions are the
-//! pixel unpacking and SDK-value conversions the drivers share.
+//! one connected check. [`CameraCore::frame`] is the one place a downloaded
+//! frame becomes [`ImageData`]; the free functions are the pixel unpacking and
+//! SDK-value conversions the drivers share.
 //!
 //! Rules that differ between vendors are inputs here, never decided here: each
 //! driver names its byte order, its 8-bit rule and the metadata values that
@@ -14,9 +14,9 @@
 
 use skotiq_cfa::{BayerPattern, ColorFilterArray};
 use skotiq_device::camera::{
-    CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame, VendorFeatures,
+    CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
 };
-use skotiq_device::{CameraFile, DriverError, ExposureAbort};
+use skotiq_device::{DriverError, ExposureAbort};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -196,8 +196,8 @@ impl CameraCore {
 
     /// A frame described by the cached state: exposure time, gain, offset,
     /// binning, subframe and read mode as last set, no temperature, no vendor
-    /// data. A driver overrides the fields its SDK reports for the frame
-    /// itself.
+    /// data. A driver sets the fields its SDK reports
+    /// for the frame itself.
     pub(crate) fn frame(
         &self,
         width: u32,
@@ -205,68 +205,22 @@ impl CameraCore {
         data: Vec<u16>,
         bits_per_pixel: u32,
         bayer_pattern: Option<ColorFilterArray>,
-    ) -> Frame {
-        Frame {
+    ) -> ImageData {
+        ImageData {
             width,
             height,
             data,
             bits_per_pixel,
             bayer_pattern,
-            exposure_time: self.exposure_duration,
-            gain: self.gain,
-            offset: self.offset,
-            bin_x: self.bin_x,
-            bin_y: self.bin_y,
-            temperature: None,
-            subframe: self.subframe.clone(),
-            readout_mode: self.readout_mode.clone(),
-            vendor_data: VendorFeatures::default(),
-            camera_file: None,
-        }
-    }
-}
-
-/// Everything a driver knows about one downloaded frame.
-pub(crate) struct Frame {
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) data: Vec<u16>,
-    pub(crate) bits_per_pixel: u32,
-    pub(crate) bayer_pattern: Option<ColorFilterArray>,
-    pub(crate) exposure_time: f64,
-    pub(crate) gain: i32,
-    pub(crate) offset: i32,
-    pub(crate) bin_x: i32,
-    pub(crate) bin_y: i32,
-    pub(crate) temperature: Option<f64>,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) readout_mode: Option<String>,
-    pub(crate) vendor_data: VendorFeatures,
-    /// The raw file a DSLR or mirrorless body wrote for the frame.
-    pub(crate) camera_file: Option<CameraFile>,
-}
-
-impl Frame {
-    /// The frame hand-off. The timestamp is the moment of the hand-off.
-    pub(crate) fn into_image(self) -> ImageData {
-        ImageData {
-            width: self.width,
-            height: self.height,
-            data: self.data,
-            bits_per_pixel: self.bits_per_pixel,
-            bayer_pattern: self.bayer_pattern,
             metadata: ImageMetadata {
-                exposure_time: self.exposure_time,
-                gain: self.gain,
-                offset: self.offset,
+                exposure_time: self.exposure_duration,
+                gain: Some(self.gain),
+                offset: Some(self.offset),
                 bin_x: self.bin_x,
                 bin_y: self.bin_y,
-                temperature: self.temperature,
-                timestamp: chrono::Utc::now(),
-                subframe: self.subframe,
-                readout_mode: self.readout_mode,
-                vendor_data: self.vendor_data,
-                camera_file: self.camera_file,
+                subframe: self.subframe.clone(),
+                readout_mode: self.readout_mode.clone(),
+                ..Default::default()
             },
         }
     }
@@ -584,7 +538,7 @@ mod tests {
     }
 
     #[test]
-    fn a_frame_takes_cached_state_unless_the_driver_overrides_it() {
+    fn a_frame_takes_cached_state_unless_the_driver_sets_it() {
         let mut core = CameraCore::new("native:test:0".into(), "Test".into());
         core.gain = 120;
         core.offset = 30;
@@ -598,19 +552,16 @@ mod tests {
             height: 8,
         });
         core.readout_mode = Some("High Gain Mode".into());
-        let image = Frame {
-            gain: 121,
-            temperature: Some(-9.5),
-            ..core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg.into()))
-        }
-        .into_image();
+        let mut image = core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg.into()));
+        image.metadata.gain = Some(121);
+        image.metadata.temperature = Some(-9.5);
         assert_eq!((image.width, image.height), (2, 1));
         assert_eq!(image.data, vec![7, 9]);
         assert_eq!(image.bits_per_pixel, 12);
         assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg.into()));
         assert_eq!(image.metadata.exposure_time, 12.5);
-        assert_eq!(image.metadata.gain, 121);
-        assert_eq!(image.metadata.offset, 30);
+        assert_eq!(image.metadata.gain, Some(121));
+        assert_eq!(image.metadata.offset, Some(30));
         assert_eq!((image.metadata.bin_x, image.metadata.bin_y), (2, 2));
         assert_eq!(image.metadata.temperature, Some(-9.5));
         assert_eq!(image.metadata.subframe.map(|s| s.width), Some(16));
@@ -630,7 +581,7 @@ mod mosaic_pattern_tests {
         let core = CameraCore::new("test".to_string(), "Mosaic camera".to_string());
         for letters in ["GBRG", "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG"] {
             let cfa = ColorFilterArray::parse(letters).unwrap();
-            let frame = core.frame(6, 6, vec![123; 36], 14, Some(cfa)).into_image();
+            let frame = core.frame(6, 6, vec![123; 36], 14, Some(cfa));
             assert_eq!(frame.bayer_pattern, Some(cfa));
             assert_eq!(frame.bayer_pattern.unwrap().letters(), letters);
         }

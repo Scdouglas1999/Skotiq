@@ -35,7 +35,6 @@ pub(crate) use com::ComCamera;
 
 use super::RigDriver;
 use crate::device::DriverType;
-use crate::device_capabilities::types::DeviceCapabilities;
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -119,7 +118,12 @@ pub(crate) trait Camera: RigDriver {
         target_temp: Option<f64>,
     ) -> Result<(), DeviceOpError>;
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError>;
+    /// What the camera can do and how its sensor is built, as its driver
+    /// reads it now.
+    async fn describe(
+        &self,
+        device_id: &str,
+    ) -> Result<skotiq_device::CameraDescription, SkotiqError>;
 }
 
 /// What asking a camera for a read mode came to.
@@ -134,6 +138,52 @@ pub(crate) enum ReadModeUse {
     NotListed(Vec<String>),
     /// The camera has one read mode; there is nothing to choose.
     NoModes,
+}
+
+/// What a status poll of a camera shows the application, for every driver.
+pub(crate) fn camera_status(
+    report: skotiq_device::CameraReport,
+    connected: bool,
+) -> crate::device::CameraStatus {
+    use crate::device::CameraState;
+    use crate::device_manager::ops::camera::camera_setting_or_unknown;
+    let (status, sensor) = (report.status, report.sensor);
+    crate::device::CameraStatus {
+        connected,
+        state: match status.state {
+            skotiq_device::CameraState::Idle => CameraState::Idle,
+            skotiq_device::CameraState::Waiting => CameraState::Waiting,
+            skotiq_device::CameraState::Exposing => CameraState::Exposing,
+            skotiq_device::CameraState::Reading => CameraState::Reading,
+            skotiq_device::CameraState::Downloading => CameraState::Download,
+            skotiq_device::CameraState::Error => CameraState::Error,
+        },
+        sensor_temp: status.sensor_temp,
+        cooler_power: status.cooler_power,
+        target_temp: status.target_temp,
+        cooler_on: status.cooler_on,
+        gain: camera_setting_or_unknown(status.gain),
+        offset: camera_setting_or_unknown(status.offset),
+        bin_x: status.bin_x,
+        bin_y: status.bin_y,
+        sensor_width: sensor.width,
+        sensor_height: sensor.height,
+        pixel_size_x: sensor.pixel_size_x,
+        pixel_size_y: sensor.pixel_size_y,
+        // The driver owns this value: it is the largest value in the
+        // delivered pixels, not `2^bit_depth - 1` (see
+        // `skotiq_device::SensorInfo`). 0 is a driver that never filled it
+        // in; 65535 is the container's ceiling.
+        max_adu: if sensor.max_adu == 0 {
+            65535
+        } else {
+            sensor.max_adu
+        },
+        saturation_adu: sensor.saturation_adu,
+        can_cool: report.can_cool,
+        can_set_gain: report.can_set_gain,
+        can_set_offset: report.can_set_offset,
+    }
 }
 
 /// The one rule for a read mode, whatever the protocol: find the mode by the

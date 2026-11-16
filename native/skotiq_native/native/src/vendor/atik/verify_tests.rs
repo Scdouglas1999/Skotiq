@@ -924,7 +924,10 @@ fn a_horizon_in_a_preset_reports_the_preset_and_a_set_gain_switches_to_custom() 
     assert_eq!(device(0).preset_mode, 0);
     assert_eq!(last_exposure().gain, Some(25));
     assert_eq!(last_exposure().offset, Some(100));
-    assert_eq!((image.metadata.gain, image.metadata.offset), (25, 100));
+    assert_eq!(
+        (image.metadata.gain, image.metadata.offset),
+        (Some(25), Some(100))
+    );
 
     let mut params = exposure(FrameType::Light);
     params.gain = Some(61);
@@ -978,7 +981,7 @@ fn a_te_camera_in_its_low_noise_readout_takes_offset_through_adc1() {
         Some(300),
         "the offset the sensor was read with"
     );
-    assert_eq!(image.metadata.offset, 300);
+    assert_eq!(image.metadata.offset, Some(300));
 }
 
 #[test]
@@ -998,7 +1001,8 @@ fn a_te_camera_in_its_low_noise_readout_does_not_claim_a_gain() {
     assert_eq!(last_exposure().gain, None);
     assert_eq!(device(0).custom_gain.2, 5, "the ADC2 gain was left alone");
     assert_ne!(
-        image.metadata.gain, 40,
+        image.metadata.gain,
+        Some(40),
         "the frame records a gain that was not applied"
     );
 }
@@ -1019,7 +1023,10 @@ fn a_te_camera_in_its_preview_readout_takes_the_custom_gain_and_offset() {
 
     assert_eq!(last_exposure().gain, Some(40));
     assert_eq!(last_exposure().offset, Some(200));
-    assert_eq!((image.metadata.gain, image.metadata.offset), (40, 200));
+    assert_eq!(
+        (image.metadata.gain, image.metadata.offset),
+        (Some(40), Some(200))
+    );
 }
 
 #[test]

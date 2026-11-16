@@ -51,8 +51,6 @@ pub struct CaptureFacts<'a> {
     /// What the cooler was last set to hold, for a camera that does not
     /// report its own setpoint.
     pub set_temp_c: Option<f64>,
-    /// The sensor's color filter pattern when the frame itself does not say.
-    pub bayer_pattern: Option<&'a str>,
 }
 
 /// The longest one device read may hold up a frame's save. A read that takes
@@ -114,7 +112,7 @@ pub async fn sample_frame_context(
     // the wait for it, and an over-report is a driver fault that keeps the
     // commanded value. A shorter report (an aborted exposure) is kept.
     let commanded_secs = facts.commanded_secs;
-    let reported_secs = image_data.exposure_secs;
+    let reported_secs = image_data.metadata.exposure_time;
     let longest_believable = commanded_secs * 1.05 + 1.0;
     frame_ctx.duration_secs = recorded_exposure_secs(commanded_secs, reported_secs);
     if reported_secs > longest_believable {
@@ -141,22 +139,15 @@ pub async fn sample_frame_context(
     // The camera layer has already decided these (the camera's report, the
     // commanded value standing in for one it could not read, nothing for a
     // camera without the control); a frame records them as they are.
-    frame_ctx.gain = image_data.gain;
-    frame_ctx.offset = image_data.offset;
-    frame_ctx.sensor_temp_c = image_data.temperature;
+    frame_ctx.gain = image_data.metadata.gain;
+    frame_ctx.offset = image_data.metadata.offset;
+    frame_ctx.sensor_temp_c = image_data.metadata.temperature;
     frame_ctx.set_temp_c = facts.set_temp_c;
 
     // The camera says whether the frame is a color mosaic and where its
-    // pattern starts; the caller's pattern only fills in for a driver that
-    // reports color without an offset. A monochrome frame has none, whatever
-    // an earlier camera left configured.
-    frame_ctx.bayer_pattern = match image_data.sensor_type.as_deref() {
-        Some(s) if s.eq_ignore_ascii_case("Monochrome") || s.eq_ignore_ascii_case("Mono") => None,
-        _ => image_data
-            .color_filter
-            .map(|pattern| pattern.letters())
-            .or(facts.bayer_pattern.map(str::to_string)),
-    };
+    // pattern starts; a monochrome frame has none, whatever an earlier
+    // camera left configured.
+    frame_ctx.bayer_pattern = image_data.bayer_pattern.map(|pattern| pattern.letters());
 
     frame_ctx.observer_name = identity.observer_name.clone();
     frame_ctx.site_latitude_deg = rig.latitude;
@@ -333,7 +324,6 @@ pub(crate) async fn build_frame_context_for_save(
             // The running target, not the "untargeted" label file names use.
             target_name: ctx.target_name.as_deref(),
             set_temp_c: ctx.set_temp_c,
-            bayer_pattern: ctx.bayer_pattern.as_deref(),
         },
         image_data,
     )
