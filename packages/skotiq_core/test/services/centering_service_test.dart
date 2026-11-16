@@ -12,6 +12,7 @@ import 'package:skotiq_core/services.dart';
 
 import 'centering_service_test.mocks.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Fake backend that lets each test control the `getMountStatus` behavior
 /// for the post-slew settle poll loop. The centering service only touches

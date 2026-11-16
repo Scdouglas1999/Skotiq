@@ -1,6 +1,6 @@
 part of '../network_backend.dart';
 
-mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
+mixin _NetworkBackendRemoteLiveViewOperations on NetworkBackendTransport {
   // Live-view stream: client surface for the push-based
   // live-view WebSocket at `/ws/live-view`. Server protocol is documented
   // alongside the handler in

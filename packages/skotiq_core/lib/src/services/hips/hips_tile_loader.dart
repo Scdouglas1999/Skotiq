@@ -84,7 +84,7 @@ import '../../models/framing_models.dart' show FramingTarget;
 import 'hips_tile_cache.dart';
 import 'hips_tile_fetcher.dart';
 import 'hips_tile_selection.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 part 'hips_tile_loader/contracts.dart';
 

@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/database/database.dart'
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../fakes/fake_network_client.dart';
+import 'package:skotiq_core/errors.dart';
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {

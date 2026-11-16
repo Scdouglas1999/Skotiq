@@ -11,6 +11,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../services/imaging_service_test.dart' show makeCapturedImageResult;
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

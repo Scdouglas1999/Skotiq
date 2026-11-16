@@ -1,5 +1,5 @@
 import '../../models/imaging/imaging_models.dart' show FrameType;
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -40,6 +40,7 @@ import '../calibration_library_service_providers.dart';
 import '../calibration_master_builder_provider.dart';
 import '../device_service_providers.dart';
 import '../notification_service_provider.dart';
+import '../../models/calibration/eon_status.dart';
 
 /// [EonRig] over the app's providers.
 class ProviderEonRig implements EonRig {

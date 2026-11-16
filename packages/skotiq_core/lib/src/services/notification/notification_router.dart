@@ -34,7 +34,7 @@ import 'notification_template.dart';
 import 'stop_push_arbiter.dart';
 import 'transports/notification_transport.dart';
 import 'transports/system_push_transport.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// What one routed message actually did.
 ///

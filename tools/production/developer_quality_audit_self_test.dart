@@ -223,7 +223,7 @@ Future<void> _writeFailingFixture(Directory root) async {
   );
   await _writeFile(
     root,
-    'packages/skotiq_core/lib/src/services/logging_service.dart',
+    'packages/skotiq_core/lib/src/utils/logging_service.dart',
     'class LoggingService {}',
   );
 }
@@ -231,7 +231,7 @@ Future<void> _writeFailingFixture(Directory root) async {
 Future<void> _writeStructuredLoggingFixture(Directory root) async {
   await _writeFile(
     root,
-    'packages/skotiq_core/lib/src/services/logging_service.dart',
+    'packages/skotiq_core/lib/src/utils/logging_service.dart',
     '''
 class LogEntry {
   final Map<String, Object?> fields;

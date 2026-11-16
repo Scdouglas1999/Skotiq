@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_app/services/app_update.dart'
     show updateControllerProvider;
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';

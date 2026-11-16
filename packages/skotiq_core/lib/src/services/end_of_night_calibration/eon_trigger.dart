@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,13 +17,13 @@ import '../../providers/sequence_stats_provider.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/settings_provider.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../providers/end_of_night_calibration/eon_providers.dart';
-import 'eon_service.dart' show EonReport;
 import 'eon_settings.dart';
 import '../../providers/end_of_night_calibration/eon_deferral_provider.dart';
 import '../../providers/logging_service_provider.dart';
+import '../../models/calibration/eon_status.dart';
 
 /// Why the night's imaging ended.
 enum EonEndReason {

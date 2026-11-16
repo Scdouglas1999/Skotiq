@@ -9,7 +9,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 part 'notes_panel/target_notes_dialog.dart';
 part 'notes_panel/note_tile.dart';

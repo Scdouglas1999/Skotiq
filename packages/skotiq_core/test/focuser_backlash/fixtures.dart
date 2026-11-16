@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/models/focuser_backlash_calibration.dart';
 
 /// A stored record matching the owner's real 2026-09-14 measurement.

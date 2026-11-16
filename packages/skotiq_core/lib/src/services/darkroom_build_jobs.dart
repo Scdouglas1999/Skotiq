@@ -1,4 +1,4 @@
-import '../models/imaging/frame_type_record.dart';
+import '../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -18,7 +18,7 @@ import '../providers/output_locations_provider.dart';
 import '../providers/darkroom_state_store_provider.dart';
 import '../providers/notification_service_provider.dart';
 import '../providers/post_session_seam_provider.dart';
-import 'logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Where a master build is.
 enum DarkroomJobStage {

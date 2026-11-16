@@ -13,7 +13,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'profiles_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// The rig's raw camera-spec settings: everything under `science.` and
 /// `smart_night.`, from the host that owns the camera when paired.

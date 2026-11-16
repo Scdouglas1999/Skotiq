@@ -1,4 +1,4 @@
-import '../../models/imaging/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'frame_camera_noise.dart';
 import 'dart:io';
@@ -18,10 +18,10 @@ import '../local_imaging_records.dart';
 import '../../providers/science_provider.dart';
 import '../../providers/science_status_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
-import '../wcs/gnomonic_projection.dart';
+import '../../models/imaging/gnomonic_projection.dart';
 import '../../models/imaging/sip_terms.dart';
 import 'aperture_photometry.dart';
 import '../../models/imaging/fits_keyword_write.dart';

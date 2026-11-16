@@ -143,7 +143,7 @@ async fn the_offset_reaches_the_camera_and_the_frame_records_it() {
         },
     )
     .await;
-    assert_eq!(frame.metadata.offset, 9);
+    assert_eq!(frame.metadata.offset, Some(9));
     assert_eq!(camera.get_offset().await.unwrap(), 9);
     camera.disconnect().await.unwrap();
 
@@ -158,7 +158,8 @@ async fn the_offset_reaches_the_camera_and_the_frame_records_it() {
     )
     .await;
     assert_eq!(
-        frame.metadata.offset, 0,
+        frame.metadata.offset,
+        Some(0),
         "the camera has no black level to set"
     );
     camera.disconnect().await.unwrap();

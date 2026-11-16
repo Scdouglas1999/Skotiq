@@ -56,7 +56,7 @@ import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Serializes persistence operations while still returning an independent
 /// future to each caller. Notification settings are edited from several

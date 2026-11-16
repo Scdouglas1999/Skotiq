@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../services/logging_service.dart';
+import '../../utils/logging_service.dart';
 
 /// Sky reference frame a HiPS survey is tiled in.
 ///

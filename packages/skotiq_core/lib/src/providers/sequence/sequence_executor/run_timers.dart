@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../../services/disk_space_guard.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 
 /// The periodic work a run owns: the 1 s elapsed-time ticker, the 30 s
 /// checkpoint saver and the disk-space watchdog. Started once per run and

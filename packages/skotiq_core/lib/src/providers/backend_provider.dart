@@ -18,9 +18,9 @@ import 'sequence/sequence_progress.dart';
 import '../services/device_service_lifecycle.dart';
 import '../services/remote_sequence_editor_sync_lifecycle.dart';
 import 'thumbnail_sidecar_provider.dart';
-import '../models/backend/backend_types.dart';
 import '../models/backend/backend_connection_state.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
+import '../errors/skotiq_error.dart';
 
 /// Factory seam for remote backends. Production uses [NetworkBackend.new];
 /// tests can provide controllable candidates without opening sockets.
@@ -386,20 +386,21 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
   }
 }
 
-/// Provider for the backend implementation
-///
-/// This is now a dynamic provider that can switch between:
-/// - DisconnectedBackend (default for mobile)
-/// - NetworkBackend (when mobile connects to server)
-/// - FfiBackend (default for desktop/headless)
+/// The backend of this process: [FfiBackend] where the rig is this machine
+/// (desktop, headless host), [NetworkBackend] while linked to an imaging host,
+/// and [DisconnectedBackend] on a client that is not linked (the phone's
+/// start).
 final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
   ref,
 ) {
   return BackendNotifier(ref);
 });
 
-/// Provider to check if we're in remote (network) mode
-/// When true, file paths refer to the server filesystem, not local
+/// True while this process is linked to an imaging host on another machine.
+///
+/// For what a control says or whether a local-only action is offered. Which
+/// store serves host data is a [hostRoleProvider] (`host_role.dart`), never a
+/// test of this flag.
 final isRemoteModeProvider = Provider<bool>(
   (ref) => ref.watch(backendProvider).linksToHost,
 );
@@ -428,14 +429,9 @@ final isRemoteClientProvider = Provider<bool>((ref) {
       ref.watch(isRemoteModeProvider);
 });
 
-// Role-specific providers
-// Each role provider exposes the active backend narrowed to the role
-// interface it owns. New consumers SHOULD depend on the smallest role they
-// need so the migration toward per-role consumers can proceed
-// opportunistically without forcing every existing call site to change at
-// once. All role providers `watch` the same [backendProvider] so swapping
-// the underlying backend (FFI <-> Network <-> Disconnected) cascades to
-// every role-typed dependent through the standard Riverpod graph.
+// The active backend narrowed to one role interface. A consumer depends on
+// the smallest role it needs; every role provider watches [backendProvider],
+// so replacing the backend reaches every dependent.
 
 /// Device-control slice of the active backend. See [DeviceBackend].
 final deviceBackendProvider = Provider<DeviceBackend>((ref) {

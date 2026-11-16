@@ -30,7 +30,7 @@ import 'package:skotiq_core/src/services/backup_service.dart';
 import 'backup_restore_support.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/profile_service.dart';
@@ -41,6 +41,7 @@ import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/local_sequence_repository.dart';
+import 'package:skotiq_core/models.dart';
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 

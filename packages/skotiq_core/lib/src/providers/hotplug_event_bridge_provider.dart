@@ -28,7 +28,7 @@ import 'backend_provider.dart';
 import 'unified_discovery_provider.dart';
 import 'device_service_providers.dart';
 import 'logging_service_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Bridge that watches the backend event stream for hot-plug arrivals /
 /// removals and invalidates the per-class discovery providers so the next

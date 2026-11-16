@@ -16,6 +16,7 @@ import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_controller.dar
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A [MosaicProjectService] spy: it never calls the real integration / stitch
 /// path, only records the calls and (for integrate) links a canned per-panel

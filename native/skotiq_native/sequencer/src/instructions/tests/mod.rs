@@ -832,19 +832,19 @@ impl CameraOps for ScriptedDomeRotatorOps {
         // from what was commanded. Overriding it here is what lets a test
         // tell the two apart.
         if let Some(secs) = self.scripted_reported_exposure_secs {
-            image.exposure_secs = secs;
+            image.metadata.exposure_time = secs;
         }
         if self.scripted_gain.is_some() {
-            image.gain = self.scripted_gain;
+            image.metadata.gain = self.scripted_gain;
         }
         if self.scripted_offset.is_some() {
-            image.offset = self.scripted_offset;
+            image.metadata.offset = self.scripted_offset;
         }
         if self.scripted_sensor_temp_c.is_some() {
-            image.temperature = self.scripted_sensor_temp_c;
+            image.metadata.temperature = self.scripted_sensor_temp_c;
         }
         if self.scripted_camera_file.is_some() {
-            image.camera_file = self.scripted_camera_file.clone();
+            image.metadata.camera_file = self.scripted_camera_file.clone();
         }
         Ok(image)
     }

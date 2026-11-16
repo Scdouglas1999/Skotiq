@@ -81,6 +81,10 @@ class DarkroomPassRecorder implements PassReporter {
     unawaited(save.whenComplete(() => _saving.remove(save)));
   }
 
+  /// Completes when every save started so far has finished, so a read never
+  /// misses a pass that has already ended.
+  Future<void> _settled() => Future.wait(_saving.toList());
+
   /// The run id of each report as it lands.
   Stream<String> get changes => _changes.stream;
 
@@ -199,7 +203,7 @@ class DarkroomPassRecorder implements PassReporter {
       if (finished) {
         final rates = PassTimeline.fromLog(log).stageRates();
         if (rates.isNotEmpty) {
-          final merged = <String, double>{...await storedRates(), ...rates};
+          final merged = <String, double>{...await _readRates(), ...rates};
           _rates = merged;
           await File(
             p.join(dir.path, 'rates.json'),
@@ -215,6 +219,11 @@ class DarkroomPassRecorder implements PassReporter {
 
   /// Seconds per stage from the last finished passes.
   Future<Map<String, double>> storedRates() async {
+    await _settled();
+    return _readRates();
+  }
+
+  Future<Map<String, double>> _readRates() async {
     final cached = _rates;
     if (cached != null) return cached;
     try {
@@ -233,6 +242,7 @@ class DarkroomPassRecorder implements PassReporter {
 
   /// Every recorded pass, newest first. A running pass is listed from memory.
   Future<List<PassRecordSummary>> records() async {
+    await _settled();
     final out = <String, PassRecordSummary>{};
     try {
       final dir = await _passesDirectory();
@@ -275,6 +285,7 @@ class DarkroomPassRecorder implements PassReporter {
   Future<PassLog?> load(String runId) async {
     final live = _logs[runId];
     if (live != null) return live;
+    await _settled();
     try {
       final dir = await _passesDirectory();
       return _read(p.join(dir.path, '${_fileStem(runId)}.json'));

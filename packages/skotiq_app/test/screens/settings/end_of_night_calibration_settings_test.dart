@@ -10,6 +10,7 @@ import 'package:skotiq_core/database.dart' as db;
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart';
 
 /// A rig with tonight's lights, a camera and a wheel without a dark slot, so
 /// the step stops to ask for a cap.

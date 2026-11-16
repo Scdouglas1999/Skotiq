@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show listEquals;
 
 import '../../../models/notes/journal_note.dart';
-import '../../roles/host_data/host_notes.dart';
+import '../../network_backend.dart';
 import '../../roles/host_data/notes_journal.dart';
 import 'host_poll.dart';
 

@@ -32,6 +32,7 @@ import 'atomic_file_write.dart';
 import 'delivery_artifact.dart';
 import 'delivery_failure.dart';
 import 'delivery_naming.dart';
+import '../../models/disk_space.dart';
 
 /// Free space left on the destination after a night's delivery, when the
 /// destination row does not name its own figure.

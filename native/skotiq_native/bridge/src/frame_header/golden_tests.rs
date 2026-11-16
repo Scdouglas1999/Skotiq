@@ -78,16 +78,11 @@ fn seq_frame(width: u32, height: u32) -> SeqImageData {
         height,
         data: vec![1000; (width * height) as usize],
         bits_per_pixel: 16,
-        exposure_secs: 0.0,
-        gain: None,
-        offset: None,
-        temperature: None,
-        filter: None,
-        timestamp: 0,
-        sensor_type: None,
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        bayer_pattern: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 0.0,
+            ..Default::default()
+        },
     }
 }
 
@@ -227,20 +222,19 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
     let device_id = "golden_last_capture_no_rig";
     crate::last_frame::store(
         device_id,
-        crate::last_frame::RawFrame {
+        skotiq_device::ImageData {
             width: 8,
             height: 8,
             data: vec![1000; 64],
+            bits_per_pixel: 16,
             bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg.into()),
-            camera_file: None,
-            exposure: crate::last_frame::ExposureRecord {
-                started_at: at("2026-03-14T03:21:09.250Z"),
-                exposure_secs: 60.0,
+            metadata: skotiq_device::ImageMetadata {
+                exposure_time: 60.0,
                 gain: Some(100),
                 offset: Some(50),
                 temperature: Some(-10.5),
-                bits_per_pixel: 16,
-                readout_mode: None,
+                timestamp: at("2026-03-14T03:21:09.250Z"),
+                ..Default::default()
             },
         },
         60.0,
@@ -550,23 +544,22 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
     let store = || async {
         crate::last_frame::store(
             device_id,
-            crate::last_frame::RawFrame {
+            skotiq_device::ImageData {
                 width: 8,
                 height: 8,
                 data: vec![1000; 64],
+                bits_per_pixel: 14,
                 bayer_pattern: Some(skotiq_device::BayerPattern::Rggb.into()),
-                camera_file: Some(skotiq_device::CameraFile {
-                    file_name: "IMG_0042.CR3".to_string(),
-                    bytes: std::sync::Arc::new(camera_bytes.clone()),
-                }),
-                exposure: crate::last_frame::ExposureRecord {
-                    started_at: at("2026-03-14T03:21:09.250Z"),
-                    exposure_secs: 30.0,
+                metadata: skotiq_device::ImageMetadata {
+                    exposure_time: 30.0,
                     gain: Some(800),
-                    offset: None,
                     temperature: Some(21.0),
-                    bits_per_pixel: 14,
-                    readout_mode: None,
+                    timestamp: at("2026-03-14T03:21:09.250Z"),
+                    camera_file: Some(skotiq_device::CameraFile {
+                        file_name: "IMG_0042.CR3".to_string(),
+                        bytes: std::sync::Arc::new(camera_bytes.clone()),
+                    }),
+                    ..Default::default()
                 },
             },
             30.0,

@@ -17,10 +17,10 @@ import '../../models/scheduler/target_constraint.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/site/altitude_floor.dart';
 import '../../models/site/site_horizon_profile.dart';
-import 'horizon_profile.dart';
+import '../../models/site/horizon_profile.dart';
 import 'rejection_labels.dart';
 import 'scheduler_log.dart';
-import '../logging_service.dart';
+import '../../utils/logging_service.dart';
 
 part 'scheduler_engine/contracts.dart';
 part 'scheduler_engine/evaluation.dart';

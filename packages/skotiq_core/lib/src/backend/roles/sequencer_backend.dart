@@ -3,7 +3,21 @@ import 'dart:async';
 import '../../models/backend/backend_types.dart';
 import '../../models/sequence/sequence_models.dart'
     show AdaptiveSwapSnapshot, ConditionsScore;
-import '../../services/adaptive_swap_service.dart' show AdaptiveSwapBackend;
+
+/// Backend-agnostic adapter for pushing the composed score into the
+/// Rust executor and reading the dashboard snapshot back. Implemented
+/// by `FfiBackend` (local Rust), `NetworkBackend` (remote control), and
+/// `DisconnectedBackend` (clear not-connected failure).
+abstract class AdaptiveSwapBackend {
+  /// Push the composed score (or `null` to clear) to the executor's
+  /// `ExecutorCommand::UpdateConditionsScore` handler.
+  Future<void> sequencerUpdateConditionsScore(ConditionsScore? score);
+
+  /// Pull the executor's current adaptive-swap snapshot for the Run
+  /// Dashboard panel. Returns `null` when no telemetry has been pushed
+  /// since startup.
+  Future<AdaptiveSwapSnapshot?> sequencerGetAdaptiveSwapSnapshot();
+}
 
 /// Role interface covering sequencer execution, recovery, and checkpoint state.
 ///

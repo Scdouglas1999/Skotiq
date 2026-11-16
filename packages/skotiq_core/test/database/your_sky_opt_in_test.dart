@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   late Directory dir;

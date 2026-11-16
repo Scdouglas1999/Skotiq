@@ -16,10 +16,11 @@ import 'src/audit_scope.dart';
 ///   node-dispatch       No new per-node-type dispatch (a switch, `is` chain
 ///                       or Rust `match` naming [_dispatchThreshold] or more
 ///                       node types) outside the node table.
-///   core-layers         skotiq_core's backend/, database/, models/ and
-///                       services/ do not import providers/; a service that
-///                       needs a Riverpod Ref is listed in the baseline with
-///                       the reason.
+///   core-layers         skotiq_core's `lib/src/` directories are layered
+///                       ([_coreLayers], lowest first) and a file imports
+///                       only its own layer and the layers below it; a
+///                       service that needs a Riverpod Ref is listed in the
+///                       baseline with the reason.
 ///   core-barrels        skotiq_core has one barrel per `lib/src/` directory
 ///                       and no union of them: a barrel exports only its own
 ///                       directory, nothing under `src/` re-exports another
@@ -280,10 +281,6 @@ const _dispatchInstead =
 const _coreLib = 'packages/skotiq_core/lib/';
 const _coreSrc = '${_coreLib}src/';
 
-/// The barrel of the provider layer: importing it from a layer below
-/// providers/ is the same dependency as importing a provider file.
-const _coreProvidersBarrel = '${_coreLib}providers.dart';
-
 /// Barrels that are not named after a `lib/src/` directory, and the directory
 /// each exports.
 const _coreExtraBarrels = {'bridge_events': 'backend'};
@@ -297,16 +294,31 @@ const _coreBarrelsInstead =
     're-export from another layer. When two layers want the same name, '
     'rename one where it is declared; do not hide it at the import.';
 
-/// The layers of skotiq_core that sit below the provider layer.
-const _coreBelowProviders = {'backend', 'database', 'models', 'services'};
+/// The layers of skotiq_core, one per `lib/src/` directory, lowest first. A
+/// file may import its own layer and the layers before it. Importing a
+/// layer's barrel (`package:skotiq_core/<layer>.dart`) is the same dependency
+/// as importing one of its files.
+const _coreLayers = [
+  'utils',
+  'errors',
+  'models',
+  'settings',
+  'database',
+  'backend',
+  'services',
+  'providers',
+];
 
 const _coreLayersInstead =
-    'Plain values (data classes, enums, result types, pure functions of '
-    'values) live under models/ or the domain folder that owns them, and '
-    'backend/, database/, models/ and services/ import them from there; '
-    'Riverpod providers are declared under providers/. A service that needs '
-    'a Riverpod Ref may import providers/ only with a coreLayers entry in the '
-    'baseline that says what it reads.';
+    'skotiq_core is layered utils, errors, models, settings, database, '
+    'backend, services, providers (lowest first), and a file imports only its '
+    'own layer and the ones below. A value type, enum or pure function that a '
+    'lower layer needs moves down to the lowest layer that uses it (plain '
+    'values to models/); an interface moves down to the layer of its lowest '
+    'implementer; a call upward becomes a parameter or a callback the higher '
+    'layer passes in. A service that needs a Riverpod Ref may import '
+    'providers/ only with a coreLayers entry in the baseline that says what it '
+    'reads.';
 
 const _appLib = 'packages/skotiq_app/lib/';
 
@@ -514,7 +526,7 @@ enum _Rule {
   ),
   coreLayers(
     'core-layers',
-    'Core layers below providers/ do not import the provider layer.',
+    'A core layer imports only itself and the layers below it.',
     _coreLayersInstead,
   ),
   hostStore(
@@ -840,7 +852,8 @@ List<_Site> _backendClassSites(List<String> files) {
 const _hostStoreInstead =
     'Declare the data set with hostRoleProvider '
     '(packages/skotiq_core/lib/src/providers/host_role.dart): an interface '
-    'in backend/roles/host_data/ with a local and a remote implementation, '
+    'with a local and a remote implementation (database/stores/ when a DAO '
+    'is the local side, backend/roles/host_data/ when a service is), '
     'which providers, services and widgets watch without asking which side '
     'they got. A yes/no question that is not about data reads '
     'isRemoteModeProvider. See .claude/skills/skotiq-dev/SKILL.md section 3.8.';
@@ -964,27 +977,41 @@ List<_Site> _coreLayerSites(List<String> files) {
   for (final path in files) {
     if (!path.startsWith(_coreSrc)) continue;
     final layer = path.substring(_coreSrc.length).split('/').first;
-    if (!_coreBelowProviders.contains(layer)) continue;
+    final rank = _coreLayers.indexOf(layer);
+    if (rank < 0) continue;
     final lines = _readLines(path);
     for (var i = 0; i < lines.length; i++) {
       final m = _directiveUri.firstMatch(lines[i]);
       if (m == null) continue;
       final target = _coreTarget(path, m.group(1)!);
       if (target == null) continue;
-      if (target != _coreProvidersBarrel &&
-          !target.startsWith('${_coreSrc}providers/')) {
+      final targetLayer = _coreLayerOf(target);
+      if (targetLayer == null || _coreLayers.indexOf(targetLayer) <= rank) {
         continue;
       }
       out.add(
         _Site(
           '$layer/${_basename(path)}',
           '$path:${i + 1}',
-          'imports ${target.substring(_coreLib.length)}',
+          'imports ${target.substring(_coreLib.length)} '
+              '($layer/ is below $targetLayer/)',
         ),
       );
     }
   }
   return out;
+}
+
+/// The layer a skotiq_core library path belongs to: its `lib/src/` directory,
+/// or the directory a barrel exports. Null for anything else.
+String? _coreLayerOf(String path) {
+  if (path.startsWith(_coreSrc)) {
+    final layer = path.substring(_coreSrc.length).split('/').first;
+    return _coreLayers.contains(layer) ? layer : null;
+  }
+  final name = _basename(path).replaceFirst(RegExp(r'\.dart$'), '');
+  final layer = _coreExtraBarrels[name] ?? name;
+  return _coreLayers.contains(layer) ? layer : null;
 }
 
 /// The repository path [uri] names when imported from [from], for URIs into

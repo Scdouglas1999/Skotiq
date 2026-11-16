@@ -4,7 +4,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Mirrors the persisted observer location into the planetarium provider and the
 /// Rust backend. Settings is the single source of truth; this only fans changes

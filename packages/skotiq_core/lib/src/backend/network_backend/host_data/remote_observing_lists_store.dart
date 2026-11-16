@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show listEquals, setEquals;
 
 import '../../../database/database.dart' show ObservingList, ObservingListItem;
 import '../../network_backend.dart';
-import '../../roles/host_data/observing_lists_store.dart';
+import '../../../database/stores/observing_lists_store.dart';
 import 'host_poll.dart';
 
 /// Observing lists on a linked host. The host does not push list changes, so

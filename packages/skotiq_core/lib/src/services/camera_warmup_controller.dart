@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 
 import '../backend/skotiq_backend.dart';
-import '../backend/skotiq_exception.dart'
+import '../errors/skotiq_exception.dart'
     show ConnectionException, DeviceBusyException;
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart'

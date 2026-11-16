@@ -126,16 +126,14 @@ fn fixture(name: &str) -> ImageData {
         height: image.height,
         data: image.as_u16().expect("16-bit frame"),
         bits_per_pixel: 16,
-        exposure_secs: 180.0,
-        gain: Some(139),
-        offset: Some(21),
-        temperature: Some(-10.0),
-        filter: None,
-        timestamp: 0,
-        sensor_type: Some("Monochrome".to_string()),
-        color_filter: None,
-        camera_file: None,
-        readout_mode: None,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 180.0,
+            gain: Some(139),
+            offset: Some(21),
+            temperature: Some(-10.0),
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 

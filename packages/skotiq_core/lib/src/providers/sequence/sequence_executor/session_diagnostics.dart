@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/equipment/equipment_models.dart';
-import '../../../services/logging_service.dart';
+import '../../../utils/logging_service.dart';
 import '../../../services/optical_train_diagnostics_service.dart'
     show OpticalTrainDiagnostics;
 import '../../../services/smart_night/guide_rms_collector.dart';

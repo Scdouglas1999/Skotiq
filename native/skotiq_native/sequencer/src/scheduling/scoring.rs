@@ -103,7 +103,7 @@ pub struct ObserverContext {
     /// altitude is below the horizon's min-altitude at the target's current
     /// azimuth is marked `runnable = false` regardless of its score — the
     /// Rust mirror of the Dart `HorizonProfile.minAltitudeAt(az)`
-    /// constraint (`services/scheduler/horizon_profile.dart`). `None` keeps
+    /// constraint (`models/site/horizon_profile.dart`). `None` keeps
     /// the pre-existing flat-floor-only behaviour. Matches NINA/SGP/Ekos
     /// horizon profiles.
     pub horizon: Option<HorizonProfile>,
@@ -112,7 +112,7 @@ pub struct ObserverContext {
 /// One azimuth/altitude pair defining a tree, building, or roof outline.
 ///
 /// Rust mirror of the Dart `HorizonSample`
-/// (`services/scheduler/horizon_profile.dart`). The JSON shape
+/// (`models/site/horizon_profile.dart`). The JSON shape
 /// (`{"az": .., "alt": ..}`) matches the Dart `toJson`/`fromJson` so a
 /// profile authored on either side round-trips through the sequence
 /// payload unchanged.
@@ -883,7 +883,7 @@ mod tests {
         // Cross-check the Rust port against the Dart `minAltitudeAt`
         // reference, re-implemented inline here. Random-ish azimuths must
         // agree to 1e-9 — this is the parity contract with
-        // `services/scheduler/horizon_profile.dart`.
+        // `models/site/horizon_profile.dart`.
         let samples = vec![
             HorizonSample::new(30.0, 15.0),
             HorizonSample::new(120.0, 45.0),

@@ -34,8 +34,8 @@ import '../notification/transports/mqtt_transport.dart' show MqttSocketOpener;
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'ha_discovery_payloads.dart';
 import 'ha_mqtt_session_client.dart';
-import 'home_assistant_discovery_config.dart';
-import '../logging_service.dart';
+import '../../models/notification/home_assistant_discovery_config.dart';
+import '../../utils/logging_service.dart';
 
 const _logName = 'HomeAssistantDiscovery';
 

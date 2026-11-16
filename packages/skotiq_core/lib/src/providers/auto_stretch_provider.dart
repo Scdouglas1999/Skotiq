@@ -14,7 +14,7 @@ import '../services/imaging_service.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'imaging_provider.dart';
-import '../services/logging_service.dart';
+import '../utils/logging_service.dart';
 
 /// Provider that renders the current captured image for the screen.
 ///

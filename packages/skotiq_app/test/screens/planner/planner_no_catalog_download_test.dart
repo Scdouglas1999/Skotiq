@@ -15,13 +15,13 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'scheduler_test_doubles.dart';
 import '../../harness/provider_teardown.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockSettingsDao extends Mock implements SettingsDao {}
 

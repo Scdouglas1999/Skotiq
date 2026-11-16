@@ -23,6 +23,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// A co-imaging service whose JOIN succeeds without a hub, so the widget test
 /// exercises the screen's post-join consent routing in isolation.

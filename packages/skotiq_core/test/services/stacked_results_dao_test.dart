@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/stacked_results_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
-import 'package:skotiq_core/src/services/live_stacking_service.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 /// Round-trip tests for [StackedResultsDao] (Stack-and-Share Loop, C3) against
 /// a fresh in-memory database. The DAO is exercised end-to-end:

@@ -81,12 +81,8 @@ pub(crate) fn emit_preview<I>(
 {
     // An X-Trans frame has no 2x2 cell to demosaic with; it previews as
     // luminance.
-    let is_color = image_data.sensor_type.as_deref() == Some("Color")
-        && !matches!(
-            image_data.color_filter,
-            Some(skotiq_cfa::ColorFilterArray::XTrans(_))
-        );
     let bayer_pattern = image_data.bayer_cell();
+    let is_color = bayer_pattern.is_some();
 
     let packed_data: Vec<u8> = image_data
         .data
