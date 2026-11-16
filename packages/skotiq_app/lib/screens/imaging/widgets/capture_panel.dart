@@ -272,6 +272,7 @@ class CapturePanel extends ConsumerWidget {
           FormRow(
             // Remote paths live on the imaging host; browse via the API.
             label: isRemoteMode ? 'Save to (host)' : 'Save to',
+            stacked: true,
             child: Row(
               children: [
                 Expanded(
@@ -282,7 +283,6 @@ class CapturePanel extends ConsumerWidget {
                     mono: !savePathUnset,
                     muted: savePathUnset,
                     isPath: !savePathUnset,
-                    // A Windows capture folder never fits the field.
                     showFullValueOnHover: !savePathUnset,
                   ),
                 ),
@@ -298,6 +298,7 @@ class CapturePanel extends ConsumerWidget {
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Name',
+            stacked: true,
             child: ReadOnlyField(
               value: namingPattern.pattern,
               mono: true,
