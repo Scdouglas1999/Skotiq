@@ -282,15 +282,16 @@ final skyViewStateProvider =
       final notifier = SkyViewNotifier();
       // First paint opens on the zenith, the same home the reset action uses.
       //
-      // Homed from the wall clock rather than from [skyViewHomeCenterProvider]
-      // deliberately: that provider watches the 1 Hz observation clock, and
-      // reaching it from here would make merely READING the view pose start
-      // that clock's periodic timer. "Now" is the right instant anyway — at
+      // Homed from the clock ([skyNowProvider]) rather than from
+      // [skyViewHomeCenterProvider] deliberately: that provider watches the
+      // 1 Hz observation clock, and reaching it from here would make merely
+      // READING the view pose start that clock's periodic timer. "Now" is the right instant anyway — at
       // first build nothing has time-travelled yet, and the reset control (which
       // does watch the observation clock) covers the time-travelled case.
+      final now = ref.read(skyNowProvider);
       final home = skyViewHomeCenterAt(
         ref.read(observerLocationProvider),
-        DateTime.now(),
+        now(),
       );
       if (home != null) notifier.adoptHomeCenter(home);
       // The observing site is pushed in from the app's settings sync, which can
@@ -299,7 +300,7 @@ final skyViewStateProvider =
       // every minute) keeps an untouched view still rather than slowly tracking
       // the zenith.
       ref.listen<PlanetariumObserver>(observerLocationProvider, (_, observer) {
-        final center = skyViewHomeCenterAt(observer, DateTime.now());
+        final center = skyViewHomeCenterAt(observer, now());
         if (center != null) notifier.adoptHomeCenter(center);
       });
       return notifier;
