@@ -615,9 +615,7 @@ void main() {
           webSocketHeartbeatTimeout: const Duration(milliseconds: 250),
         );
         final eventFuture = backend.eventStream
-            .firstWhere(
-              (event) => event.eventType == 'InstructionProgress',
-            )
+            .firstWhere((event) => event.eventType == 'InstructionProgress')
             .timeout(const Duration(seconds: 2));
 
         try {

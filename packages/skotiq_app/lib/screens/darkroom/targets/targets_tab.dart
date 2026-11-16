@@ -373,7 +373,9 @@ class _OthersHeader extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        open ? SkotiqIcons.chevronDown : SkotiqIcons.chevronRight,
+                        open
+                            ? SkotiqIcons.chevronDown
+                            : SkotiqIcons.chevronRight,
                         size: SkotiqTokens.iconSm,
                         color: colors.textSecondary,
                       ),

@@ -72,4 +72,3 @@ enum SessionStatus {
     active || error => null,
   };
 }
-

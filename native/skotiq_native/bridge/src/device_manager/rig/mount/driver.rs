@@ -399,10 +399,7 @@ impl Mount for DriverMount {
 
     async fn site(&self) -> Result<MountSite, DeviceOpError> {
         let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        let site = mount
-            .get_site()
-            .await
-            .map_err(DeviceOpError::from)?;
+        let site = mount.get_site().await.map_err(DeviceOpError::from)?;
         Ok(MountSite {
             latitude_deg: site.latitude_deg,
             longitude_deg: site.longitude_deg,
@@ -424,10 +421,7 @@ impl Mount for DriverMount {
 
     async fn time(&self) -> Result<MountTimeInfo, DeviceOpError> {
         let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        let clock = mount
-            .get_clock()
-            .await
-            .map_err(DeviceOpError::from)?;
+        let clock = mount.get_clock().await.map_err(DeviceOpError::from)?;
         Ok(MountTimeInfo {
             utc_unix_seconds: clock.utc_unix_seconds,
             utc_offset_hours: clock.utc_offset_hours,

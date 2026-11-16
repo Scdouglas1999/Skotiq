@@ -195,8 +195,8 @@ void main() {
       await tester.tap(find.text(filter).last);
     }
     await tester.pumpAndSettle();
-    SkotiqButton save() => tester.widget<SkotiqButton>(
-        find.widgetWithText(SkotiqButton, 'Save set'));
+    SkotiqButton save() => tester
+        .widget<SkotiqButton>(find.widgetWithText(SkotiqButton, 'Save set'));
     for (final bad in ['', '0', 'abc', '-5']) {
       await tester.enterText(
         find.byKey(const ValueKey('filter-set-share-Ha')),

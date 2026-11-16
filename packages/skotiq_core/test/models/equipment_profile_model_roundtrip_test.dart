@@ -86,9 +86,7 @@ void main() {
       'toRemoteProfile -> fromRemoteProfile preserves the full field set',
       () {
         final model = _sampleModel();
-        final back = equipmentProfileFromRemote(
-          model.toRemoteProfile(),
-        );
+        final back = equipmentProfileFromRemote(model.toRemoteProfile());
 
         expect(back.id, model.id);
         expect(back.name, model.name);

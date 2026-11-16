@@ -104,23 +104,25 @@ void main() {
     }
   });
 
-  test('a step progress carries its words and its report on both transports',
-      () {
-    for (final e in both(
-      const bridge.SequencerEvent.instructionProgress(
-        nodeId: 'n1',
-        instruction: 'Change Filter',
-        progressPercent: 100.0,
-        detail: 'Ha (pos 3)',
-        detailKind: 'Filter',
-        detailJson: '{"name":"Ha","position":3}',
-      ),
-    )) {
-      final step = e as bridge.SequencerEvent_InstructionProgress;
-      expect(step.detail, 'Ha (pos 3)');
-      expect(step.changedFilterName, 'Ha');
-    }
-  });
+  test(
+    'a step progress carries its words and its report on both transports',
+    () {
+      for (final e in both(
+        const bridge.SequencerEvent.instructionProgress(
+          nodeId: 'n1',
+          instruction: 'Change Filter',
+          progressPercent: 100.0,
+          detail: 'Ha (pos 3)',
+          detailKind: 'Filter',
+          detailJson: '{"name":"Ha","position":3}',
+        ),
+      )) {
+        final step = e as bridge.SequencerEvent_InstructionProgress;
+        expect(step.detail, 'Ha (pos 3)');
+        expect(step.changedFilterName, 'Ha');
+      }
+    },
+  );
 
   test('a frame assessment is read on both transports', () {
     for (final e in both(

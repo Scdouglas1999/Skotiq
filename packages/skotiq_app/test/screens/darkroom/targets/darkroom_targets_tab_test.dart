@@ -1002,7 +1002,8 @@ void main() {
       expect(find.text('No target recorded'), findsOneWidget);
     });
 
-    testWidgets('hiding a project moves it to Other captures, Undo puts it back',
+    testWidgets(
+        'hiding a project moves it to Other captures, Undo puts it back',
         (tester) async {
       final h = await _pump(tester);
       await tester.tap(find.byKey(const ValueKey('darkroom_target_menu')));

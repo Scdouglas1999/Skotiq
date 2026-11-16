@@ -176,9 +176,7 @@ void main() {
     test('the client derives the same optics from the wire as the host does '
         'from the row', () {
       final onHost = row.toModel();
-      final onClient = equipmentProfileFromRemote(
-        dbProfileToRemote(row),
-      );
+      final onClient = equipmentProfileFromRemote(dbProfileToRemote(row));
 
       expect(onHost.focalLength, 800);
       expect(onClient.focalLength, onHost.focalLength);
@@ -187,9 +185,7 @@ void main() {
 
     test('every wire field reads the same on both sides', () {
       final onHost = row.toModel();
-      final onClient = equipmentProfileFromRemote(
-        dbProfileToRemote(row),
-      );
+      final onClient = equipmentProfileFromRemote(dbProfileToRemote(row));
       expect(
         onClient.toRemoteProfile().toJson(),
         onHost.toRemoteProfile().toJson(),

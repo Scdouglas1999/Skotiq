@@ -281,7 +281,10 @@ async fn simulator_mount_site_and_clock_round_trip() {
     })
     .await;
     let read = mount.get_clock().await.expect("clock");
-    println!("mount clock {} offset {}", read.utc_unix_seconds, read.utc_offset_hours);
+    println!(
+        "mount clock {} offset {}",
+        read.utc_unix_seconds, read.utc_offset_hours
+    );
 
     disconnect(&client, MOUNT).await;
 }

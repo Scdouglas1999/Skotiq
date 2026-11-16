@@ -92,9 +92,8 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       try {
         final remoteProfiles = await host.getProfiles();
         final activeRemote = await host.getActiveProfile();
-        final profiles =
-            remoteProfiles.map(equipmentProfileFromRemote).toList()
-              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        final profiles = remoteProfiles.map(equipmentProfileFromRemote).toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
         EquipmentProfileModel? active;
         if (activeRemote != null) {
@@ -133,9 +132,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     final profiles = databaseProfiles
         .map((profile) => profile.toModel())
         .toList();
-    final active = databaseActive == null
-        ? null
-        : databaseActive.toModel();
+    final active = databaseActive == null ? null : databaseActive.toModel();
 
     return EquipmentProfilesState(profiles: profiles, activeProfile: active);
   }

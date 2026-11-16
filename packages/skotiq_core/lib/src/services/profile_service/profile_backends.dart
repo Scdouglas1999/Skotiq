@@ -35,9 +35,7 @@ extension _ProfileServiceBackends on ProfileService {
     if (host != null) {
       final active = await host.getActiveProfile();
       _requireAuthority(operation);
-      return active != null
-          ? equipmentProfileFromRemote(active)
-          : null;
+      return active != null ? equipmentProfileFromRemote(active) : null;
     }
 
     final cached = _ref.read(activeEquipmentProfileProvider);
@@ -71,9 +69,7 @@ extension _ProfileServiceBackends on ProfileService {
         }
       }
       final chosen = defaultProfile ?? activeProfile;
-      return chosen == null
-          ? null
-          : equipmentProfileFromRemote(chosen);
+      return chosen == null ? null : equipmentProfileFromRemote(chosen);
     }
 
     final dao = _ref.read(equipmentProfilesDaoProvider);

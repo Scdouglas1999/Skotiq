@@ -53,11 +53,10 @@ bridge_event.SkotiqEvent _graded({
   capture: testCapture(exposureSecs: secs),
 );
 
-bridge_event.SkotiqEvent _assessed(Map<String, Object?> detail) =>
-    _event('FrameWatchReport', {
-      'kind': frameAssessedReportKind,
-      'payload_json': jsonEncode(detail),
-    });
+bridge_event.SkotiqEvent _assessed(Map<String, Object?> detail) => _event(
+  'FrameWatchReport',
+  {'kind': frameAssessedReportKind, 'payload_json': jsonEncode(detail)},
+);
 
 bridge_event.SkotiqEvent _autofocus(String nodeId) =>
     _event('InstructionProgress', {

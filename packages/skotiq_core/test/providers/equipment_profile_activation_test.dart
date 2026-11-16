@@ -112,9 +112,7 @@ void main() {
             final row = await dao.getProfileById(id);
             await container
                 .read(equipmentProfilesProvider.notifier)
-                .saveProfile(
-                  row!.toModel().copyWith(focalLength: 1000),
-                );
+                .saveProfile(row!.toModel().copyWith(focalLength: 1000));
           } else {
             await container
                 .read(profileServiceProvider)

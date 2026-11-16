@@ -282,9 +282,8 @@ class DarkroomTarget {
       lights: frames.length,
       keptLights: kept.length,
       keptSeconds: kept.fold<double>(0, (s, f) => s + f.exposureDuration),
-      runLights: frames
-          .where((f) => f.producingRunId?.isNotEmpty == true)
-          .length,
+      runLights:
+          frames.where((f) => f.producingRunId?.isNotEmpty == true).length,
     );
   }
 

@@ -755,9 +755,8 @@ mod tests {
     /// clock.
     #[test]
     fn time_variables_without_an_override_read_the_run_clock() {
-        let ctx = ctx_with_target().with_clock(crate::scheduling::MockClock::at(
-            "2001-09-09T01:46:40Z",
-        ));
+        let ctx =
+            ctx_with_target().with_clock(crate::scheduling::MockClock::at("2001-09-09T01:46:40Z"));
         let frame = EvaluationFrame::default();
         let out = interpolate(
             "${session.date} ${time.now} ${time.date} ${time.clock}",

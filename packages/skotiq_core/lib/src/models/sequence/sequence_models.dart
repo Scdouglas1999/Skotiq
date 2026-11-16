@@ -28,8 +28,7 @@ import '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
-import '../site/horizon_profile.dart'
-    show HorizonProfile, HorizonSample;
+import '../site/horizon_profile.dart' show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';
 import 'sequence_tree_index.dart';

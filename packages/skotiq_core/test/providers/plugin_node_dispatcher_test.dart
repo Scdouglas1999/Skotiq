@@ -15,55 +15,76 @@ void main() {
 
   group('pluginNodeDispatcherProvider', () {
     test(
-        'request resolves through registry → executor → plugin execute → result',
-        () async {
-      final container = ProviderContainer(overrides: [
-        databaseProvider.overrideWithValue(
-          SkotiqDatabase.forTesting(NativeDatabase.memory()),
-        ),
-      ]);
-      addTearDown(container.dispose);
+      'request resolves through registry → executor → plugin execute → result',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(
+              SkotiqDatabase.forTesting(NativeDatabase.memory()),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // Register a test plugin through the host the override uses.
-      final host = container.read(pluginHostProvider);
-      final plugin = _CapturingPlugin();
-      await host.registerPlugin(plugin);
+        // Register a test plugin through the host the override uses.
+        final host = container.read(pluginHostProvider);
+        final plugin = _CapturingPlugin();
+        await host.registerPlugin(plugin);
 
-      // Read the dispatcher through the same provider the sequence
-      // executor uses in production.
-      final dispatcher = container.read(pluginNodeDispatcherProvider);
+        // Read the dispatcher through the same provider the sequence
+        // executor uses in production.
+        final dispatcher = container.read(pluginNodeDispatcherProvider);
 
-      final result = await dispatcher(
-        const PluginNodeDispatchRequest(
-          nodeId: 'rt-node-1',
-          pluginId: 'com.example.capture',
-          nodeTypeId: 'capture.echo',
-          configJson: '{"message":"hello"}',
-          displayName: 'Capture',
-          timeoutSecs: 10,
-        ),
-      );
+        final result = await dispatcher(
+          const PluginNodeDispatchRequest(
+            nodeId: 'rt-node-1',
+            pluginId: 'com.example.capture',
+            nodeTypeId: 'capture.echo',
+            configJson: '{"message":"hello"}',
+            displayName: 'Capture',
+            timeoutSecs: 10,
+          ),
+        );
 
-      expect(result.success, isTrue,
-          reason: 'plugin reported success → verdict success');
-      expect(plugin.lastNode, isNotNull,
-          reason: 'plugin.createNode must have been invoked');
-      expect(plugin.lastNode!.receivedMessage, equals('hello'),
-          reason: 'config_json must be parsed and forwarded to createNode');
-      expect(plugin.lastNode!.executed, isTrue,
-          reason: 'execute() must have been called');
-      expect(result.structuredDetailJson, isNotNull,
-          reason: 'wiring must attach a structured detail JSON for the '
-              'dashboard plugin-node panel');
-      expect(result.structuredDetailJson, contains('com.example.capture'));
-    });
+        expect(
+          result.success,
+          isTrue,
+          reason: 'plugin reported success → verdict success',
+        );
+        expect(
+          plugin.lastNode,
+          isNotNull,
+          reason: 'plugin.createNode must have been invoked',
+        );
+        expect(
+          plugin.lastNode!.receivedMessage,
+          equals('hello'),
+          reason: 'config_json must be parsed and forwarded to createNode',
+        );
+        expect(
+          plugin.lastNode!.executed,
+          isTrue,
+          reason: 'execute() must have been called',
+        );
+        expect(
+          result.structuredDetailJson,
+          isNotNull,
+          reason:
+              'wiring must attach a structured detail JSON for the '
+              'dashboard plugin-node panel',
+        );
+        expect(result.structuredDetailJson, contains('com.example.capture'));
+      },
+    );
 
     test('unknown plugin returns a structured failure (not a throw)', () async {
-      final container = ProviderContainer(overrides: [
-        databaseProvider.overrideWithValue(
-          SkotiqDatabase.forTesting(NativeDatabase.memory()),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       final dispatcher = container.read(pluginNodeDispatcherProvider);
@@ -84,11 +105,13 @@ void main() {
     });
 
     test('plugin returning false maps to dispatcher success=false', () async {
-      final container = ProviderContainer(overrides: [
-        databaseProvider.overrideWithValue(
-          SkotiqDatabase.forTesting(NativeDatabase.memory()),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       final host = container.read(pluginHostProvider);
@@ -112,11 +135,13 @@ void main() {
     });
 
     test('malformed config fails without executing the plugin', () async {
-      final container = ProviderContainer(overrides: [
-        databaseProvider.overrideWithValue(
-          SkotiqDatabase.forTesting(NativeDatabase.memory()),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       final host = container.read(pluginHostProvider);
@@ -136,16 +161,21 @@ void main() {
 
       expect(result.success, isFalse);
       expect(result.message, contains('Invalid plugin node configuration'));
-      expect(plugin.lastNode, isNull,
-          reason: 'Malformed input must not be replaced with default params.');
+      expect(
+        plugin.lastNode,
+        isNull,
+        reason: 'Malformed input must not be replaced with default params.',
+      );
     });
 
     test('non-object JSON config fails without executing the plugin', () async {
-      final container = ProviderContainer(overrides: [
-        databaseProvider.overrideWithValue(
-          SkotiqDatabase.forTesting(NativeDatabase.memory()),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       final host = container.read(pluginHostProvider);
@@ -192,20 +222,20 @@ class _CapturingPlugin extends SequencePlugin {
 
   @override
   List<SequenceNodeDefinition> get nodeDefinitions => [
-        SequenceNodeDefinition(
-          id: 'capture.echo',
-          name: 'Echo',
-          category: 'Test',
-          description: 'Echoes the message back through the dispatcher',
-          createNode: (params) {
-            final node = _CapturingPluginNode(
-              receivedMessage: params['message'] as String? ?? '',
-            );
-            lastNode = node;
-            return node;
-          },
-        ),
-      ];
+    SequenceNodeDefinition(
+      id: 'capture.echo',
+      name: 'Echo',
+      category: 'Test',
+      description: 'Echoes the message back through the dispatcher',
+      createNode: (params) {
+        final node = _CapturingPluginNode(
+          receivedMessage: params['message'] as String? ?? '',
+        );
+        lastNode = node;
+        return node;
+      },
+    ),
+  ];
 }
 
 class _CapturingPluginNode implements PluginSequenceNode {
@@ -244,14 +274,14 @@ class _AlwaysFailsPlugin extends SequencePlugin {
 
   @override
   List<SequenceNodeDefinition> get nodeDefinitions => [
-        SequenceNodeDefinition(
-          id: 'fail.always',
-          name: 'Always Fails',
-          category: 'Test',
-          description: 'Returns false from execute()',
-          createNode: (_) => _AlwaysFailsNode(),
-        ),
-      ];
+    SequenceNodeDefinition(
+      id: 'fail.always',
+      name: 'Always Fails',
+      category: 'Test',
+      description: 'Returns false from execute()',
+      createNode: (_) => _AlwaysFailsNode(),
+    ),
+  ];
 }
 
 class _AlwaysFailsNode implements PluginSequenceNode {

@@ -160,9 +160,7 @@ class ProfileService {
       _requireAuthority(authority);
       exportData = profiles
           .map(
-            (p) => ProfileExportData.fromModel(
-              equipmentProfileFromRemote(p),
-            ),
+            (p) => ProfileExportData.fromModel(equipmentProfileFromRemote(p)),
           )
           .toList();
     } else {

@@ -324,7 +324,10 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
 fn frames_named_in(dir: &std::path::Path) -> skotiq_sequencer::FrameSavePathRenderer {
     let dir = dir.to_path_buf();
     Box::new(move |frame: &skotiq_sequencer::FrameToName| {
-        Ok((dir.clone(), format!("frame_{:04}.fits", frame.index_in_burst)))
+        Ok((
+            dir.clone(),
+            format!("frame_{:04}.fits", frame.index_in_burst),
+        ))
     })
 }
 
