@@ -26,13 +26,9 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
       )..orderBy([(s) => OrderingTerm.asc(s.id)])).get();
 
       if (rows.isEmpty) {
-        await into(weatherSettings).insert(
-          WeatherSettingsCompanion.insert(
-            id: const Value(1),
-            // Weather gating is opt-in (see WeatherSettings.weatherSafetyEnabled).
-            weatherSafetyEnabled: const Value(false),
-          ),
-        );
+        await into(
+          weatherSettings,
+        ).insert(WeatherSettingsCompanion.insert(id: const Value(1)));
         return (await (select(
           weatherSettings,
         )..where((s) => s.id.equals(1))).getSingle());
@@ -141,13 +137,9 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<void> resetToDefaults() async {
     await transaction(() async {
       await delete(weatherSettings).go();
-      await into(weatherSettings).insert(
-        WeatherSettingsCompanion.insert(
-          id: const Value(1),
-          // Weather gating is opt-in (see WeatherSettings.weatherSafetyEnabled).
-          weatherSafetyEnabled: const Value(false),
-        ),
-      );
+      await into(
+        weatherSettings,
+      ).insert(WeatherSettingsCompanion.insert(id: const Value(1)));
     });
   }
 

@@ -68,6 +68,11 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   bool _remoteFetchInFlight = false;
   bool _forecastRefreshInFlight = false;
   DateTime? _lastForecastRefreshAt;
+
+  /// Whether a forecast fetch has finished, with a forecast or without one,
+  /// since the app started or weather safety was switched on. Until then a
+  /// missing forecast means "not fetched yet", not "no weather data".
+  bool _forecastTried = false;
   bool _evaluationInFlight = false;
   DateTime? _evaluationStartedAt;
 
@@ -233,6 +238,10 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
           );
         }
       } else if (now == true && was == false) {
+        // Weather safety does not refresh the forecast while it is off, so the
+        // one held now may be old or missing: wait for a fresh one.
+        _forecastTried = false;
+        _lastForecastRefreshAt = null;
         unawaited(_pushOperatorClear(0, 'Weather safety switched on'));
       }
       _scheduleSourceChangeEvaluation();
@@ -443,6 +452,23 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
           unreachableWarning ?? 'No weather data sources available';
     }
 
+    // The forecast is the only source and has not been fetched yet. That is
+    // not missing data: fetch it and act on nothing until the fetch finishes,
+    // which its own timeout bounds. Then the fail mode decides as usual.
+    if (useFailMode &&
+        unreachableWarning == null &&
+        !_forecastTried &&
+        weatherSettings.weatherSafetyEnabled &&
+        state.status != WeatherSafetyStatus.snoozed) {
+      _awaitFirstForecast(
+        hardwareWeatherReading: hardwareWeatherReading,
+        safetyMonitorReading: safetyMonitorReading,
+        autoParkArmed: shouldAutoPark,
+        autoResumeArmed: weatherSettings.autoResumeEnabled,
+      );
+      return;
+    }
+
     final sensorsSafe = hardwareWeatherSafe && safetyMonitorSafe;
 
     WeatherSafetyStatus finalStatus;
@@ -636,6 +662,27 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     // Snoozed: leave the latch as-is. A snooze means the operator explicitly
     // suppressed enforcement; if it expires back to unsafe the latch state
     // already reflects whether we enforced for this episode.
+  }
+
+  /// Fetch the first forecast and hold the verdict as not yet evaluated: no
+  /// pause, park or notice, and nothing sent to the sequencer.
+  void _awaitFirstForecast({
+    required SafetySourceReading hardwareWeatherReading,
+    required SafetySourceReading safetyMonitorReading,
+    required bool autoParkArmed,
+    required bool autoResumeArmed,
+  }) {
+    const waiting = 'Waiting for the first weather forecast';
+    _requestForecastRefresh();
+    state = WeatherSafetyState.initial().copyWith(
+      actions: const WeatherSafetyActions(reason: waiting),
+      failModeWarning: waiting,
+      hardwareWeatherReading: hardwareWeatherReading,
+      safetyMonitorReading: safetyMonitorReading,
+      autoParkArmed: autoParkArmed,
+      autoResumeArmed: autoResumeArmed,
+    );
+    unawaited(_pushWeatherVerdict(null));
   }
 
   /// Tell the operator once per episode that a forecast says cloudy and is

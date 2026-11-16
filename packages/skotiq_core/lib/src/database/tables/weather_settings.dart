@@ -9,8 +9,11 @@ class WeatherSettings extends Table {
   RealColumn get cloudDensityThreshold =>
       real().withDefault(const Constant(60.0))();
   IntColumn get leadTimeMinutes => integer().withDefault(const Constant(15))();
+
+  /// Off until the operator turns it on: with no weather device or safety
+  /// monitor, fail closed would hold every run.
   BoolColumn get weatherSafetyEnabled =>
-      boolean().withDefault(const Constant(true))();
+      boolean().withDefault(const Constant(false))();
   RealColumn get maxHumidityPercent =>
       real().withDefault(const Constant(90.0))();
   RealColumn get maxWindSpeedKph => real().withDefault(const Constant(30.0))();

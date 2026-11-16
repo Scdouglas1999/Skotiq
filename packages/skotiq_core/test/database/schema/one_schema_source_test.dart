@@ -9,8 +9,8 @@
 //   * a v64 database that never ran the services that used to create their
 //     own tables gets those tables in the shape the services gave them.
 //
-// Later schema versions that change a table on purpose are applied to the
-// base explicitly (`_withV67`), so nothing else can change unnoticed.
+// Later schema versions that rebuild a table on purpose are applied to the
+// base explicitly (`_withRebuilds`), so nothing else can change unnoticed.
 //
 // `fixtures/README.md` says how the fixtures were made.
 import 'dart:convert';
@@ -70,34 +70,45 @@ Map<dynamic, dynamic> _asOfBase(Map<dynamic, dynamic> tables) => {
           },
 };
 
-/// What schema 67 changed since the base build: a calibration library's gain
-/// and offset may be empty (a camera without those controls), so the two
-/// tables are rebuilt with the columns nullable and without a default.
-const _v67NullableColumns = {
-  'dark_library': {'gain', 'offset'},
-  'flat_library': {'gain', 'offset'},
+/// What schema steps after the base build changed in the tables they
+/// rebuilt, by table and column. Schema 67: a calibration library's gain and
+/// offset may be empty (a camera without those controls), so they are
+/// nullable without a default. Schema 72: weather safety defaults off.
+const _rebuiltColumns = <String, Map<String, Map<String, Object?>>>{
+  'dark_library': {
+    'gain': {'notnull': 0, 'default': null},
+    'offset': {'notnull': 0, 'default': null},
+  },
+  'flat_library': {
+    'gain': {'notnull': 0, 'default': null},
+    'offset': {'notnull': 0, 'default': null},
+  },
+  'weather_settings': {
+    'weather_safety_enabled': {'default': '0'},
+  },
 };
 
-/// [tables] (a `dumpSchema` table map) as schema 67 leaves it.
-Map<dynamic, dynamic> _withV67(Map<dynamic, dynamic> tables) {
+/// [tables] (a `dumpSchema` table map) as the later rebuilds leave it.
+Map<dynamic, dynamic> _withRebuilds(Map<dynamic, dynamic> tables) {
   final out = jsonDecode(jsonEncode(tables)) as Map;
-  _v67NullableColumns.forEach((table, columns) {
+  _rebuiltColumns.forEach((table, columns) {
     for (final column in (out[table] as Map)['columns'] as List) {
-      if (columns.contains((column as Map)['name'])) {
-        column['notnull'] = 0;
-        column['default'] = null;
-      }
+      final change = columns[(column as Map)['name']];
+      if (change != null) column.addAll(change);
     }
   });
   return out;
 }
 
-/// `dumpMasterSql` without the rows of the tables schema 67 rebuilt.
-Map<String, String?> _outsideV67(Map<String, String?> master, raw.Database db) {
+/// `dumpMasterSql` without the rows of the tables later steps rebuilt.
+Map<String, String?> _outsideRebuilt(
+  Map<String, String?> master,
+  raw.Database db,
+) {
+  final names = _rebuiltColumns.keys.map((t) => "'$t'").join(', ');
   final rebuilt = {
     for (final row in db.select(
-      'SELECT type, name FROM sqlite_master WHERE tbl_name IN '
-      "('dark_library', 'flat_library')",
+      'SELECT type, name FROM sqlite_master WHERE tbl_name IN ($names)',
     ))
       '${row['type']}:${row['name']}',
   };
@@ -145,7 +156,7 @@ void main() {
       final file = _unpackPopulatedFixture(dir);
       final masterBefore = _withRaw(
         file,
-        (db) => _outsideV67(dumpMasterSql(db), db),
+        (db) => _outsideRebuilt(dumpMasterSql(db), db),
       );
       final tablesBefore = _withRaw(file, dumpSchema)['tables']! as Map;
       final countsBefore = _withRaw(file, dumpRowCounts);
@@ -160,17 +171,17 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [71]);
+        expect(db.select('PRAGMA user_version').first.values, [72]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
-      // altered or added but the two tables schema 67 rebuilt, which keep
-      // their structure apart from the nullable columns, and the tables later
+      // altered or added but the tables later steps rebuilt, which keep their
+      // structure apart from the columns they changed, and the tables later
       // steps add columns to.
       bool kept(String key) =>
           !_columnsAddedAfterBase.keys.contains(key.split(':').last);
       final masterAfter = _withRaw(
         file,
-        (db) => _outsideV67(dumpMasterSql(db), db),
+        (db) => _outsideRebuilt(dumpMasterSql(db), db),
       );
       expect(
         {
@@ -189,9 +200,9 @@ void main() {
                 ),
               )
               as Map;
-      final expected = _withV67(tablesBefore);
+      final expected = _withRebuilds(tablesBefore);
       for (final table in [
-        ..._v67NullableColumns.keys,
+        ..._rebuiltColumns.keys,
         ..._columnsAddedAfterBase.keys,
       ]) {
         expect(tablesAfter[table], expected[table], reason: table);
@@ -366,7 +377,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [71]);
+      expect(db.select('PRAGMA user_version').first.values, [72]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(
@@ -392,7 +403,7 @@ void main() {
               as Map<String, dynamic>;
 
       final freshTables = _asOfBase(fresh['tables']! as Map);
-      final baseTables = _withV67(base['tables'] as Map);
+      final baseTables = _withRebuilds(base['tables'] as Map);
       expect(freshTables.keys.toSet(), {
         ...baseTables.keys,
         ..._onceLazyTables,

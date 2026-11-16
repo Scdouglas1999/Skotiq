@@ -158,6 +158,7 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
     await _upgradeSchemaV69(m, from);
     await _upgradeSchemaV70(m, from);
     await _upgradeSchemaV71(m, from);
+    await _upgradeSchemaV72(m, from);
 
     // Whatever the steps above did not create: a table or index declared in
     // drift needs no step of its own to reach an upgraded database.
