@@ -305,7 +305,7 @@ impl Run {
         });
         sequence.root_node_id = Some("wait".to_string());
         executor.load_sequence(sequence).expect("sequence loads");
-        let mut events = executor.subscribe();
+        let mut events = executor.handle().subscribe();
         executor.start().await.expect("run starts");
 
         let messages = Arc::new(Mutex::new(Vec::new()));
@@ -406,7 +406,7 @@ async fn run_trigger_autofocus(
 ) -> Outcome {
     let run = Run::start(rig, 0.01).await;
     run.wait_for_guider_polls().await;
-    run.executor.update_trigger_state(seed).await;
+    run.executor.handle().update_trigger_state(seed).await;
     run.wait_until_judged().await;
     run.finish().await
 }
@@ -493,6 +493,7 @@ async fn stopping_during_a_trigger_autofocus_never_parks() {
     let rig = Arc::new(DeadGuiderRig::unguided());
     let mut run = Run::start(rig.clone(), 2.0).await;
     run.executor
+        .handle()
         .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
         .await;
     wait_until(
@@ -528,6 +529,7 @@ async fn a_trigger_autofocus_turned_away_at_the_gate_never_parks() {
     let held = skotiq_sequencer::try_admit_autofocus_run()
         .expect("nothing else in this binary holds the gate");
     run.executor
+        .handle()
         .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
         .await;
     wait_until(
@@ -586,6 +588,7 @@ async fn no_light_starts_after_a_trigger_autofocus_leaves_the_guider_dead() {
     })
     .await;
     run.executor
+        .handle()
         .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
         .await;
     run.wait_until_judged().await;
@@ -626,6 +629,7 @@ async fn stopping_while_the_guider_is_awaited_after_a_sweep_is_prompt() {
     let mut run = Run::start(rig.clone(), 0.01).await;
     run.wait_for_guider_polls().await;
     run.executor
+        .handle()
         .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
         .await;
     wait_until(

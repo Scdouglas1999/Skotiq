@@ -1897,7 +1897,7 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
             crate::RecoveryAction::Autofocus,
         ));
     }
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -1969,7 +1969,7 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(ReacquireGuiderOps::new(false, false)));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -1978,7 +1978,7 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
         assert!(std::time::Instant::now() < deadline, "run never started");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    executor.pause().await.expect("pause accepted");
+    executor.handle().pause().await.expect("pause accepted");
     while executor.get_state().await != ExecutorState::Paused {
         assert!(std::time::Instant::now() < deadline, "run never paused");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -1990,7 +1990,7 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
         }
     }
 
-    executor.update_weather_verdict(Some(true)).await;
+    executor.handle().update_weather_verdict(Some(true)).await;
 
     let fired = tokio::time::timeout(std::time::Duration::from_secs(15), async {
         loop {
@@ -2048,7 +2048,7 @@ async fn a_trigger_dropped_under_a_pause_fires_on_the_first_tick_after_resume() 
         )
         .with_cooldown(600),
     );
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -2057,7 +2057,7 @@ async fn a_trigger_dropped_under_a_pause_fires_on_the_first_tick_after_resume() 
         assert!(std::time::Instant::now() < deadline, "run never started");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    executor.pause().await.expect("pause accepted");
+    executor.handle().pause().await.expect("pause accepted");
     while executor.get_state().await != ExecutorState::Paused {
         assert!(std::time::Instant::now() < deadline, "run never paused");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -2077,7 +2077,7 @@ async fn a_trigger_dropped_under_a_pause_fires_on_the_first_tick_after_resume() 
         }
     }
 
-    executor.resume().await.expect("resume accepted");
+    executor.handle().resume().await.expect("resume accepted");
     let fired = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
             match events.recv().await {
@@ -2190,7 +2190,7 @@ async fn a_guider_already_guiding_at_start_does_not_arm_the_guiding_triggers() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .load_sequence(guided_delay_sequence(false))
         .expect("sequence loads");
@@ -2259,7 +2259,7 @@ async fn a_stopped_guided_run_does_not_leave_the_next_run_armed() {
     // PHD2 is looping, not guiding.
     guiding.store(false, Ordering::Relaxed);
 
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .load_sequence(guided_delay_sequence(false))
         .expect("run 2 loads");
@@ -2292,7 +2292,7 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
         .update_run_config(|config| config.stop_on_quality_problems = true)
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .load_sequence(guided_delay_sequence(true))
         .expect("sequence loads");
@@ -2333,7 +2333,7 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
     // the session report reads that episode back from the executor.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     let history = loop {
-        let history = executor.recovery_history();
+        let history = executor.handle().recovery_history();
         if !history.is_empty() || std::time::Instant::now() > deadline {
             break history;
         }
@@ -2400,7 +2400,7 @@ async fn a_notify_only_lost_star_logs_the_notice_it_sends() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .load_sequence(guided_delay_sequence(true))
         .expect("sequence loads");
@@ -2529,8 +2529,8 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
             crate::RecoveryAction::Autofocus,
         ));
     }
-    let mut events = executor.subscribe();
-    let mut decision_rx = executor.subscribe_decisions();
+    let mut events = executor.handle().subscribe();
+    let mut decision_rx = executor.handle().subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -2824,8 +2824,8 @@ async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocus
         .update_run_config(|config| config.decision_logging_enabled = decision_logging)
         .await
         .expect("decision logging setting applies");
-    let mut events = executor.subscribe();
-    let mut decision_rx = executor.subscribe_decisions();
+    let mut events = executor.handle().subscribe();
+    let mut decision_rx = executor.handle().subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -3337,7 +3337,7 @@ async fn run_with_bad_guiding_trigger(
         .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
         .await
         .unwrap();
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
     crate::executor::scenario_sim_tests::arm_run_guiding(&executor).await;
@@ -3466,8 +3466,8 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
         .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
         .await
         .unwrap();
-    let mut events = executor.subscribe();
-    let mut decision_rx = executor.subscribe_decisions();
+    let mut events = executor.handle().subscribe();
+    let mut decision_rx = executor.handle().subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
     {
@@ -3669,7 +3669,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
             .with_cooldown(1),
         );
     }
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
     let state_lock = executor.trigger_manager.read().await.state();
@@ -3793,7 +3793,7 @@ fn waiting_sequence() -> SequenceDefinition {
 /// The dither settle the trigger state carries after a push, and the
 /// `RuntimeConfigUpdated` announcements the push produced.
 async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSettle, Vec<String>) {
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor
         .handle()
         .update_run_config(|config| {

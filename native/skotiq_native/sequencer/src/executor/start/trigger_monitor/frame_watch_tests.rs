@@ -191,8 +191,7 @@ impl Harness {
             node_id: "lights".to_string(),
             instruction: "Exposure".to_string(),
             progress_percent: 100.0,
-            detail: String::new(),
-            structured_detail: Some(Box::new(detail)),
+            detail: Box::new(detail),
         });
     }
 

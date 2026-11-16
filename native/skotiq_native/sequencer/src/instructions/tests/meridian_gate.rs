@@ -138,7 +138,13 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
 
     let result = tokio::time::timeout(
         Duration::from_secs(20),
-        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+        execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {},
+        ),
     )
     .await;
 
@@ -228,7 +234,13 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
 
     let result = tokio::time::timeout(
         Duration::from_secs(20),
-        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+        execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {},
+        ),
     )
     .await;
 
@@ -737,10 +749,10 @@ async fn a_requested_flip_holds_a_snapshot_but_not_a_dark() {
         };
         let _ = tokio::time::timeout(
             Duration::from_secs(2),
-            execute_exposure_with_renderer(
+            execute_exposure(
                 &config,
                 &ctx,
-                None,
+                frame_namer_for(&ctx, &config),
                 &BurstControl::default(),
                 |_, _, _| {},
             ),

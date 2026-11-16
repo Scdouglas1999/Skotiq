@@ -94,7 +94,7 @@ void main() {
     );
 
     SkotiqEvent center(int attempt) =>
-        event(EventCategory.sequencer, 'InstructionProgressStructured', {
+        event(EventCategory.sequencer, 'InstructionProgress', {
           'instruction': 'Center',
           'detail_kind': 'Center',
           'detail_json': '{"attempt":$attempt,"max_attempts":5}',

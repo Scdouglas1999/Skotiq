@@ -96,12 +96,9 @@ bridge_event.SkotiqEvent _assessed(
   String path, {
   required bool solveAttempted,
   required bool solved,
-}) => _event('InstructionProgressStructured', {
-  'node_id': _nodeId,
-  'instruction': 'Frame watch',
-  'progress_percent': 100.0,
-  'detail_kind': frameAssessedDetailKind,
-  'detail_json': jsonEncode({
+}) => _event('FrameWatchReport', {
+  'kind': frameAssessedReportKind,
+  'payload_json': jsonEncode({
     'save_path': path,
     'filter': 'L',
     'exposure_secs': 120,

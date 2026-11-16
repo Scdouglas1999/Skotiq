@@ -88,8 +88,6 @@ class AutofocusPreviewFeeder {
         _flipping = true;
       case (EventCategory.sequencer, 'InstructionProgress'):
         _flipping = event.data['instruction'] == 'MeridianFlip';
-      case (EventCategory.sequencer, 'InstructionProgressStructured'):
-        _flipping = event.data['instruction'] == 'MeridianFlip';
         if (event.data['detail_kind'] == 'Center') {
           final detail = _jsonObject(event.data['detail_json']);
           final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;

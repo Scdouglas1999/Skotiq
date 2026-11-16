@@ -1512,8 +1512,7 @@ test('a render that throws degrades instead of freezing silently', async () => {
 // D4-04 — the Recent-events feed carries events, not a progress read-out
 //
 // Measured against the release bundle during one live sim sequence: 327 events
-// in 60 s on /api/run-watch/events, of which ExposureProgress 84, Progress 53,
-// InstructionProgress 46 and InstructionProgressStructured 46. Sampling the
+// in 60 s on /api/run-watch/events, 229 of them progress ticks. Sampling the
 // page every 2 s for 50 s of that run, 104 of 125 row slots held a progress
 // tick and not one of the 25 samples showed a FrameAccepted row or a node
 // transition — the five-row cap was spent before anything discrete could be
@@ -1547,8 +1546,8 @@ function foldRowText(doc) {
 test('the progress families the server emits at ~Hz are recognised as ticks', () => {
   const { api } = loadRunWatch();
   for (const t of ['ExposureProgress', 'Progress', 'InstructionProgress',
-    'InstructionProgressStructured']) {
-    assert.equal(api.isProgressTickEvent(t), true, t + ' is a progress tick');
+    'FrameWatchReport', 'DitherPerformed']) {
+    assert.equal(api.isProgressTickEvent(t), true, t + ' is folded with the ticks');
   }
   for (const t of ['FrameAccepted', 'NodeStarted', 'NodeCompleted',
     'ExposureCompleted', 'DecisionLogged', 'SchedulerDecision']) {

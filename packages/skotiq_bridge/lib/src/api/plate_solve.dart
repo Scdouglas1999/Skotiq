@@ -7,19 +7,14 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `acquire_solve_gate`, `apply_saved_preference_to_imaging`, `arcsec_per_px`, `arcsec_per_px`, `coalesced_solve`, `empty_solve_result`, `gather_solve_hints_for_camera`, `gather_solve_hints`, `implied_focal_length_mm`, `in_flight_solves`, `into_pref`, `ladder_radii`, `log_scale`, `missing_scale_input`, `plate_solve_blind_inner`, `plate_solve_blind_scaled`, `plate_solve_gate`, `plate_solve_near_inner`, `plate_solve_near_scaled`, `record_measured_scale`, `remembered_arcsec_per_px`, `resolve_solve_scale`, `rung_timeout`, `solve_frame_header`, `solve_in_flight`, `solve_ladder`, `split_solve_budget`, `validate_solver_timeout`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `InFlightGuard`, `SolveBudget`, `SolvePosition`, `SolvePreference`, `SolveScale`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `into_pref`, `solve_file`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Get the path to the installed plate solver
 String? apiGetPlateSolverPath() =>
     RustLib.instance.api.crateApiPlateSolveApiGetPlateSolverPath();
 
-/// Plate solve an image file (blind solve)
-///
-/// FFI entry point; its signature is fixed by the generated bridge. Rust
-/// callers that already measured the field scale call
-/// [`plate_solve_blind_scaled`] instead of re-deriving it.
+/// Blind solve of the image file at `file_path`, told the field scale.
 Future<PlateSolveResult> apiPlateSolveBlind({
   required String filePath,
   int? timeoutSecs,
@@ -28,10 +23,8 @@ Future<PlateSolveResult> apiPlateSolveBlind({
   timeoutSecs: timeoutSecs,
 );
 
-/// Plate solve an image with hint coordinates
-///
-/// FFI entry point; its signature is fixed by the generated bridge. Rust
-/// callers with a measured field scale call [`plate_solve_near_scaled`].
+/// Solve of the image file at `file_path` within `search_radius` degrees of
+/// RA `hint_ra`, Dec `hint_dec` (degrees), widening to blind if that fails.
 Future<PlateSolveResult> apiPlateSolveNear({
   required String filePath,
   required double hintRa,
@@ -291,51 +284,4 @@ class PlateSolverInfo {
           path == other.path &&
           flavour == other.flavour &&
           versionLine == other.versionLine;
-}
-
-/// The field-scale facts a solve can be told up front.
-///
-/// A solver given no scale has to find one. ASTAP sweeps its field-of-view
-/// ladder downward from ~9.5°, and on a narrow field that sweep is the
-/// difference between a 0.3 s solve and five consecutive failures on the same
-/// frames, same catalogs, same sensor. Both numbers here are measured rather
-/// than assumed — the focal length is the operator's own profile entry and the
-/// pitch is what the camera reports — so a rig that reports neither contributes
-/// no card and the solver behaves exactly as it did before.
-///
-/// Gather once per solve with [`gather_solve_hints`] and hand the result to
-/// whichever writer stamps the frame the solver will read: the solver never
-/// sees these values as flags, it reads them out of the FITS header.
-class SolveHints {
-  /// Telescope focal length in millimetres (FITS `FOCALLEN`).
-  final double? focalLengthMm;
-
-  /// UNBINNED sensor pixel pitch in microns, `(x, y)` (FITS `PIXSIZE1/2`).
-  final (double, double)? pixelSizeUm;
-
-  /// Binning the frame was taken at. `XPIXSZ`/`YPIXSZ` are the pitch scaled
-  /// by it, which is what a solver needs to derive the plate scale.
-  final (int, int) binning;
-
-  const SolveHints({
-    this.focalLengthMm,
-    this.pixelSizeUm,
-    required this.binning,
-  });
-
-  static Future<SolveHints> default_() =>
-      RustLib.instance.api.crateApiPlateSolveSolveHintsDefault();
-
-  @override
-  int get hashCode =>
-      focalLengthMm.hashCode ^ pixelSizeUm.hashCode ^ binning.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SolveHints &&
-          runtimeType == other.runtimeType &&
-          focalLengthMm == other.focalLengthMm &&
-          pixelSizeUm == other.pixelSizeUm &&
-          binning == other.binning;
 }

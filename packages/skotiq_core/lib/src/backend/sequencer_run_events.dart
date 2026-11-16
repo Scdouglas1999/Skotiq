@@ -1,8 +1,8 @@
 /// The run's sequencer events as their readers take them, beside the codec
 /// that decodes them: the typed event a wire event carries, the events that
-/// end a run, a step's verdict, and what a structured step progress reports
-/// (one frame's assessment, a confirmed horizon obstruction, a dither, or the
-/// step's own progress).
+/// end a run, a step's verdict, what a step's progress reports, and what the
+/// frame watch reports (one frame's assessment, a confirmed horizon
+/// obstruction).
 library;
 
 import 'dart:convert';
@@ -71,32 +71,16 @@ Object? decodeStructuredProgressJson(String raw) {
   }
 }
 
-extension StepReport on SequencerEvent_InstructionProgressStructured {
+extension StepReport on SequencerEvent_InstructionProgress {
   /// The decoded `detail_json`.
   Object? get detailValue => decodeStructuredProgressJson(detailJson);
 
   /// What the step reports, read by its kind.
-  InstructionProgressDetail get detail =>
+  InstructionProgressDetail get report =>
       InstructionProgressDetail.fromStructuredData(
         detailKind: detailKind,
         detailJson: detailValue,
       );
-
-  /// One dither the run performed, whoever asked for it.
-  bool get reportsDither => detailKind == ditherPerformedDetailKind;
-
-  /// The native frame watch's verdict on one saved frame; null for any other
-  /// report.
-  FrameAssessment? get frameAssessment => detailKind == frameAssessedDetailKind
-      ? FrameAssessment.fromJson(detailValue)
-      : null;
-
-  /// A confirmed obstruction the run met; null for any other report, or one
-  /// that does not say where on the sky it began.
-  HorizonObstruction? get horizonObstruction =>
-      detailKind == horizonObstructionDetailKind
-      ? HorizonObstruction.fromJson(detailValue)
-      : null;
 
   /// The running filter's name, which only a Change Filter instruction puts
   /// on the wire; null for every other report.
@@ -107,6 +91,22 @@ extension StepReport on SequencerEvent_InstructionProgressStructured {
     final name = json['name'];
     return name is String && name.isNotEmpty ? name : null;
   }
+}
+
+extension FrameWatchReading on SequencerEvent_FrameWatchReport {
+  Object? get _payload => decodeStructuredProgressJson(payloadJson);
+
+  /// The frame watch's verdict on one saved frame; null for any other report.
+  FrameAssessment? get frameAssessment => kind == frameAssessedReportKind
+      ? FrameAssessment.fromJson(_payload)
+      : null;
+
+  /// A confirmed obstruction the run met; null for any other report, or one
+  /// that does not say where on the sky it began.
+  HorizonObstruction? get horizonObstruction =>
+      kind == horizonObstructionReportKind
+      ? HorizonObstruction.fromJson(_payload)
+      : null;
 }
 
 /// A frame the grader ruled on: `FrameAccepted` or `FrameRejected`.

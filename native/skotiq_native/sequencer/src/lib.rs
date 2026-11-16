@@ -77,6 +77,7 @@ pub use dual_rig::{
     SecondaryRigState, SecondaryRigStatus, DEFAULT_DITHER_MAX_WAIT_SECS,
 };
 pub use executor::*;
+pub use frame_naming::{FrameSavePathRenderer, FrameToName};
 // interpolation engine — surface the most common entry points so
 // callers outside the sequencer (bridge, integration tests) can build
 // templates without pathing through `expressions::resolver`.

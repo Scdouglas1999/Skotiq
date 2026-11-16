@@ -16,7 +16,8 @@ class NightEventLog {
   final List<SkotiqEvent> _events = [];
 
   /// Event types left out: per-tick telemetry that says nothing once it is
-  /// old (and, for autofocus, carries star crops).
+  /// old (and, for autofocus, carries star crops), and the per-frame and
+  /// per-dither reports the run's own record keeps.
   static const Set<String> _telemetryTypes = {
     'ExposureProgress',
     'GuideStep',
@@ -26,7 +27,8 @@ class NightEventLog {
     'FocuserPositionChanged',
     'FilterWheelPositionChanged',
     'InstructionProgress',
-    'InstructionProgressStructured',
+    'DitherPerformed',
+    'FrameWatchReport',
     'AutofocusProgress',
     'Progress',
     'ProgressUpdated',

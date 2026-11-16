@@ -441,7 +441,7 @@ async fn replay(
     });
     sequence.root_node_id = Some("lights".to_string());
     executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
+    let mut events = executor.handle().subscribe();
     executor.start().await.expect("run starts");
 
     let messages = Arc::new(Mutex::new(Vec::new()));
@@ -477,6 +477,7 @@ async fn replay(
     let first_light = rig.first_light.as_ref().unwrap_or(&rig.lights[0]);
     let first_light_hfr = shape(first_light).expect("measurable").hfr;
     executor
+        .handle()
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
             ts.latches.baseline_hfr = Some(first_light_hfr);
