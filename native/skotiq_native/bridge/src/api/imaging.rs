@@ -876,8 +876,17 @@ pub struct QualityMapsResultApi {
 #[cfg(test)]
 mod linear_decode_tests;
 
-/// Read a FITS file from disk
+/// A frame file decoded for the screen at full resolution: its pixels through
+/// the app's display stretch, with its histogram, statistics and header facts.
+/// The decode runs on the blocking pool, so a 16-megapixel read and stretch
+/// holds no async worker and no Dart isolate.
 pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, SkotiqError> {
+    tokio::task::spawn_blocking(move || read_fits_file_blocking(&file_path))
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
+}
+
+fn read_fits_file_blocking(file_path: &str) -> Result<FitsReadResult, SkotiqError> {
     use std::path::Path;
 
     tracing::info!("Reading FITS file: {}", file_path);
@@ -1151,9 +1160,18 @@ impl Default for StarDetectionConfigApi {
     }
 }
 
-/// Detect stars in a FITS file
+/// Detect stars in a frame file, on the blocking pool.
 pub async fn api_detect_stars_in_file(
     file_path: String,
+    config: Option<StarDetectionConfigApi>,
+) -> Result<StarDetectionResultApi, SkotiqError> {
+    tokio::task::spawn_blocking(move || detect_stars_in_file_blocking(&file_path, config))
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
+}
+
+fn detect_stars_in_file_blocking(
+    file_path: &str,
     config: Option<StarDetectionConfigApi>,
 ) -> Result<StarDetectionResultApi, SkotiqError> {
     use std::path::Path;
