@@ -2,9 +2,9 @@
 //
 // Sliders for the five scoring weights (+ a one-tap normalise button), min
 // score-to-run threshold, recompute cadence, and finish-iteration-on-switch
-// toggle. Includes a live preview that re-runs the planetarium-side scorer
-// against the current children so the user can see "M42 73 / M101 56 / NGC
-// 7000 42" without leaving the editor.
+// toggle. Includes a live preview that ranks the current children with the
+// app's target scorer, as the step will, so the user can see "M42 73 / M101
+// 56 / NGC 7000 42" without leaving the editor.
 //
 // Respects [canEditSequenceProvider]: the entire subtree
 // is wrapped in `IgnorePointer` so every control reads as disabled while the
@@ -17,10 +17,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-// `TargetScore` exists in both packages — alias the planetarium import so
-// the preview row can refer to the planetarium variant explicitly without
-// shadowing the core scheduling decision type.
-import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
+import 'package:skotiq_astro/skotiq_astro.dart' show AltitudeFloorSamples;
+import 'package:skotiq_core/services.dart'
+    show HorizonProfile, SchedulerTarget, SchedulerTargetScore;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_property_widgets.dart';
@@ -710,12 +709,11 @@ class _TierOrderIndicator extends StatelessWidget {
   }
 }
 
-/// Walks the scheduler's child TargetHeader nodes and ranks them via the
-/// planetarium-side [TargetScoringService] using the editor's current
-/// weights. The Rust executor uses the same math (see the parity test in
-/// `target_scheduler/scoring.rs`), so the preview is faithful to what will
-/// actually run.
-class _LiveRankingPreview extends ConsumerWidget {
+/// The step's TargetHeader children ranked now by the app's one target
+/// scorer, with the step's weights and floor (its own horizon when it has
+/// one, else the site's): the same ranking the step makes when it decides,
+/// refreshed as the sky moves.
+class _LiveRankingPreview extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final TargetSchedulerNode node;
   final Sequence sequence;
@@ -729,9 +727,21 @@ class _LiveRankingPreview extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LiveRankingPreview> createState() =>
+      _LiveRankingPreviewState();
+}
+
+class _LiveRankingPreviewState extends ConsumerState<_LiveRankingPreview> {
+  Object? _inputs;
+  Future<List<SchedulerTargetScore>>? _ranking;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final node = widget.node;
+    final location = widget.location;
     final children = node.childIds
-        .map((id) => sequence.nodes[id])
+        .map((id) => widget.sequence.nodes[id])
         .whereType<TargetHeaderNode>()
         .toList();
 
@@ -748,78 +758,81 @@ class _LiveRankingPreview extends ConsumerWidget {
       );
     }
 
-    // Bind to the shared 30s ticker so rankings refresh as the sky moves,
-    // not just when the user edits a weight (without this the preview's
-    // DateTime.now() went stale because the widget only rebuilt on edits).
     final tick = ref.watch(tickerProvider(TickerCadence.thirtySeconds));
-    final observationTime = (tick.valueOrNull ?? DateTime.now()).toUtc();
-
-    final weights = planetarium.ScoringWeights(
-      altitudeWeight: node.altitudeWeight,
-      moonDistanceWeight: node.moonDistanceWeight,
-      transitProximityWeight: node.transitProximityWeight,
-      darknessWeight: node.darknessWeight,
-      airmassWeight: node.airmassWeight,
-    );
-    final service = planetarium.TargetScoringService(
-      latitude: location!.latitude,
-      longitude: location!.longitude,
-      observationTime: observationTime,
-      weights: weights,
-    );
-
-    // Convert TargetHeaderNode -> CelestialObject for the scoring service.
-    // `CelestialCoordinate.ra` is in HOURS, not degrees — TargetHeaderNode
-    // already stores raHours so we pass it through unchanged.
-    final scores = children.map((header) {
-      final obj = _SchedulerPreviewTarget(
-        id: header.id,
-        name: header.targetName,
-        coordinates: planetarium.CelestialCoordinate(
-          ra: header.raHours,
-          dec: header.decDegrees,
-        ),
+    final now = (tick.valueOrNull ?? DateTime.now()).toUtc();
+    final ownHorizon = node.horizonProfile;
+    final floor = ownHorizon == null
+        ? ref.watch(altitudeFloorProvider).asSamples()
+        : _samplesOf(ownHorizon);
+    final scorer = ref.watch(targetScorerProvider);
+    final inputs = (node, children, now, location, floor, scorer);
+    if (_inputs != inputs) {
+      _inputs = inputs;
+      _ranking = scorer.rankSchedulerTargets(
+        latitudeDeg: location.latitude,
+        longitudeDeg: location.longitude,
+        now: now,
+        targets: [
+          for (final header in children)
+            SchedulerTarget(
+              id: header.id,
+              name: header.targetName,
+              raHours: header.raHours,
+              decDegrees: header.decDegrees,
+              minAltitudeDeg: header.minAltitude,
+              startAfter: header.startAfter,
+              endBefore: header.endBefore,
+              priority: header.priority,
+            ),
+        ],
+        weights: node.scoringWeights,
+        minMoonSeparationDeg: node.minMoonSeparationDeg,
+        floor: floor,
       );
-      return service.scoreTarget(obj);
-    }).toList()
-      ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final s in scores)
-          _ScoreRow(colors: colors, score: s, threshold: node.minScoreToRun),
-      ],
+    return FutureBuilder<List<SchedulerTargetScore>>(
+      future: _ranking,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _PreviewPlaceholder(
+            colors: colors,
+            message: 'Could not rank the targets: ${snapshot.error}',
+          );
+        }
+        final scores = snapshot.data;
+        if (scores == null) {
+          return _PreviewPlaceholder(colors: colors, message: 'Ranking...');
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final s in scores)
+              _ScoreRow(
+                colors: colors,
+                score: s,
+                threshold: node.minScoreToRun,
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
-/// Minimal `CelestialObject` adapter used by the live-ranking preview. The
-/// public `Star` / `DeepSkyObject` types carry more fields than the
-/// scheduler needs; this private impl strips them to just id, name,
-/// coordinates so we don't have to invent magnitudes or DSO types we don't
-/// have for arbitrary user targets.
-class _SchedulerPreviewTarget implements planetarium.CelestialObject {
-  @override
-  final String id;
-  @override
-  final String name;
-  @override
-  final planetarium.CelestialCoordinate coordinates;
-
-  const _SchedulerPreviewTarget({
-    required this.id,
-    required this.name,
-    required this.coordinates,
-  });
-
-  @override
-  double? get magnitude => null;
+/// A step's own horizon as the floor by azimuth, samples in compass order.
+AltitudeFloorSamples _samplesOf(HorizonProfile horizon) {
+  final samples = [...horizon.samples]
+    ..sort((a, b) => a.azimuthDegrees.compareTo(b.azimuthDegrees));
+  return AltitudeFloorSamples(
+    [for (final s in samples) s.azimuthDegrees],
+    [for (final s in samples) s.altitudeDegrees],
+  );
 }
 
 class _ScoreRow extends StatelessWidget {
   final SkotiqColors colors;
-  final planetarium.TargetScore score;
+  final SchedulerTargetScore score;
   final double threshold;
   const _ScoreRow({
     required this.colors,
@@ -829,8 +842,9 @@ class _ScoreRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final passes = score.totalScore >= threshold;
+    final passes = score.runnable && score.totalScore >= threshold;
     final fillColor = passes ? colors.success : colors.warning;
+    final airmass = score.airmass;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -863,14 +877,22 @@ class _ScoreRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'alt ${score.visibility.currentAltitude.toStringAsFixed(0)}° • '
-                  'airmass ${score.visibility.airmass.isFinite ? score.visibility.airmass.toStringAsFixed(2) : '∞'} • '
-                  'moon ${score.visibility.moonDistance.toStringAsFixed(0)}°',
+                  'alt ${score.altitudeDeg.toStringAsFixed(0)}° • '
+                  'airmass ${airmass == null ? '∞' : airmass.toStringAsFixed(2)} • '
+                  'moon ${score.moonDistanceDeg.toStringAsFixed(0)}°',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 10),
                     color: colors.textSecondary,
                   ),
                 ),
+                if (score.skipReason case final reason?)
+                  Text(
+                    'Will not run now: $reason',
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 10),
+                      color: colors.warning,
+                    ),
+                  ),
               ],
             ),
           ),

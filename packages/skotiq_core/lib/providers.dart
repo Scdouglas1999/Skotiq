@@ -121,6 +121,7 @@ export 'src/providers/operation_progress_provider.dart';
 export 'src/providers/current_screen_provider.dart';
 export 'src/providers/polar_alignment_provider.dart';
 export 'src/providers/template_snippet_provider.dart';
+export 'src/providers/target_scorer_provider.dart';
 export 'src/providers/target_suggestion_provider.dart';
 export 'src/providers/suggestion_filter_provider.dart';
 export 'src/providers/transient_alert_provider.dart';

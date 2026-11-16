@@ -15,12 +15,15 @@ import 'profiles_provider.dart';
 import 'scheduler_provider.dart' show altitudeFloorProvider;
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
+import 'target_scorer_provider.dart';
 
 final targetSuggestionServiceProvider = Provider<TargetSuggestionService>((
   ref,
 ) {
-  final logging = ref.watch(loggingServiceProvider);
-  return TargetSuggestionService(loggingService: logging);
+  return TargetSuggestionService(
+    loggingService: ref.watch(loggingServiceProvider),
+    scorer: ref.watch(targetScorerProvider),
+  );
 });
 
 /// Smart Night, planning against the site's altitude floor.

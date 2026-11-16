@@ -3,6 +3,8 @@
 import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../support/scripted_night_scorer.dart';
+
 void main() {
   const latitude = 40.0;
   const longitude = -105.0;
@@ -25,101 +27,15 @@ void main() {
   double raThatTransitsAt(DateTime instant) =>
       AstronomyCalculations.localSiderealTime(instant, longitude) * 15.0;
 
-  test('a target that only culminates in daylight cannot head the list', () {
-    // Mid-morning: the sun is well up in August at 40N.
-    final daylight = DateTime(
-      nightDate.year,
-      nightDate.month,
-      nightDate.day,
-      10,
-    );
+  // Equal night scores for every target, so the catalog fit decides.
+  final scorer = ScriptedNightScorer();
+
+  test('rise/transit/set are reported against the 30° floor', () async {
     final darkMid = window.start.add(
       Duration(seconds: window.duration.inSeconds ~/ 2),
     );
-
-    // Index 0: transits at 10:00 with dec == latitude, i.e. straight through
-    // the zenith — the shape a transit-altitude sort maximises (~90°).
-    // Index 1: transits in the middle of the dark window, and lower (~70°).
-    final ranked = rankTonightTargets(
-      raDeg: [raThatTransitsAt(daylight), raThatTransitsAt(darkMid)],
-      decDeg: [40.0, 20.0],
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      nightDate: nightDate,
-      floor: floor,
-    );
-
-    expect(ranked, isNotEmpty);
-    expect(
-      ranked.first.index,
-      1,
-      reason:
-          'the target usable during darkness must outrank the zenith '
-          'object that culminates at 10:00',
-    );
-    // A transit-altitude sort genuinely disagrees here, so this is not a
-    // no-op assertion.
-    expect(ranked.first.visibility.transitAltitude, lessThan(85));
-  });
-
-  test('every ranked target has usable time inside the darkness window', () {
-    final daylight = DateTime(
-      nightDate.year,
-      nightDate.month,
-      nightDate.day,
-      13,
-    );
-    final ranked = rankTonightTargets(
-      raDeg: [
-        for (var hourOffset = 0; hourOffset < 24; hourOffset++)
-          (raThatTransitsAt(daylight) + hourOffset * 15.0) % 360.0,
-      ],
-      decDeg: [for (var i = 0; i < 24; i++) 35.0],
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      nightDate: nightDate,
-      floor: floor,
-    );
-
-    expect(ranked, isNotEmpty);
-    for (final entry in ranked) {
-      expect(
-        entry.hoursInDarkness,
-        greaterThan(0),
-        reason: 'index ${entry.index} was recommended with no dark time',
-      );
-      expect(entry.peakTime, isNotNull);
-      expect(entry.peakTime!.isBefore(window.start), isFalse);
-      expect(entry.peakTime!.isAfter(window.end), isFalse);
-    }
-
-    // Ranked list is ordered by dark hours' worth of score, so the first entry
-    // must not be beaten on usable time by the last.
-    expect(
-      ranked.first.hoursInDarkness,
-      greaterThanOrEqualTo(ranked.last.hoursInDarkness),
-    );
-  });
-
-  test('an object that never clears the floor at all is dropped', () {
-    // Deep south from 40N: never rises.
-    final ranked = rankTonightTargets(
-      raDeg: [0.0],
-      decDeg: [-80.0],
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      nightDate: nightDate,
-      floor: floor,
-    );
-
-    expect(ranked, isEmpty);
-  });
-
-  test('rise/transit/set are reported against the 30° floor', () {
-    final darkMid = window.start.add(
-      Duration(seconds: window.duration.inSeconds ~/ 2),
-    );
-    final ranked = rankTonightTargets(
+    final ranked = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [raThatTransitsAt(darkMid)],
       decDeg: [20.0],
       latitudeDeg: latitude,
@@ -138,9 +54,67 @@ void main() {
     expect(hoursUp, greaterThan(7));
   });
 
-  test('catalog magnitude breaks neutral geometry ties', () {
+  test('a target the scorer leaves out is not listed', () async {
+    final ranked = await rankTonightTargets(
+      scorer: ScriptedNightScorer(byIndex: {0: null}).call,
+      raDeg: [10, 20],
+      decDeg: [20, 20],
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
+      nightDate: nightDate,
+      floor: floor,
+    );
+    expect(ranked.map((entry) => entry.index), [1]);
+  });
+
+  test('the scorer is asked about the darkness window, its Moon in the '
+      'catalog frame and the floor', () async {
+    final asked = ScriptedNightScorer();
+    await rankTonightTargets(
+      scorer: asked.call,
+      raDeg: [10],
+      decDeg: [20],
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
+      nightDate: nightDate,
+      floor: floor,
+    );
+    final request = asked.requests.single;
+    expect(request.nightStart, window.start);
+    expect(request.nightEnd, window.end);
+    final (moonRaOfDate, moonDecOfDate, _) = AstronomyCalculations.moonPosition(
+      darkMid,
+    );
+    final moonJ2000 = AstronomyCalculations.precessFromDateToJ2000(
+      raDeg: moonRaOfDate,
+      decDeg: moonDecOfDate,
+      dt: darkMid,
+    );
+    expect(request.moon, moonJ2000);
+    expect(request.floor, same(floor));
+    expect(request.targets.single.coordinates.raDegrees, closeTo(10, 1e-9));
+  });
+
+  test('a night with no darkness asks the scorer nothing', () async {
+    final asked = ScriptedNightScorer();
+    final ranked = await rankTonightTargets(
+      scorer: asked.call,
+      raDeg: [10],
+      decDeg: [20],
+      // Midsummer near the pole: the sun never sets.
+      latitudeDeg: 78,
+      longitudeDeg: 15,
+      nightDate: DateTime(2026, 6, 21),
+      floor: floor,
+    );
+    expect(ranked, isEmpty);
+    expect(asked.requests, isEmpty);
+  });
+
+  test('catalog magnitude breaks neutral geometry ties', () async {
     final ra = raThatTransitsAt(darkMid);
-    final ranked = rankTonightTargets(
+    final ranked = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -152,9 +126,10 @@ void main() {
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
   });
 
-  test('catalog type breaks neutral geometry ties', () {
+  test('catalog type breaks neutral geometry ties', () async {
     final ra = raThatTransitsAt(darkMid);
-    final ranked = rankTonightTargets(
+    final ranked = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -166,9 +141,10 @@ void main() {
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
   });
 
-  test('target size is scored against the active field of view', () {
+  test('target size is scored against the active field of view', () async {
     final ra = raThatTransitsAt(darkMid);
-    final narrow = rankTonightTargets(
+    final narrow = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -179,7 +155,8 @@ void main() {
       fovWidthDeg: 0.57,
       fovHeightDeg: 0.57,
     );
-    final wide = rankTonightTargets(
+    final wide = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -194,9 +171,10 @@ void main() {
     expect(wide.first.index, 1);
   });
 
-  test('missing catalog metadata is neutral and deterministic', () {
+  test('missing catalog metadata is neutral and deterministic', () async {
     final ra = raThatTransitsAt(darkMid);
-    final withNoMetadata = rankTonightTargets(
+    final withNoMetadata = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -204,7 +182,8 @@ void main() {
       nightDate: nightDate,
       floor: floor,
     );
-    final explicitNulls = rankTonightTargets(
+    final explicitNulls = await rankTonightTargets(
+      scorer: scorer.call,
       raDeg: [ra, ra],
       decDeg: [20, 20],
       latitudeDeg: latitude,
@@ -226,7 +205,7 @@ void main() {
   });
 
   group('darknessWindowOf', () {
-    test('prefers astronomical night', () {
+    test('prefers astronomical night', () async {
       final w = darknessWindowOf(
         TwilightTimes(
           sunset: DateTime(2026, 8, 2, 20),
@@ -259,7 +238,7 @@ void main() {
       },
     );
 
-    test('midnight sun has no window at all', () {
+    test('midnight sun has no window at all', () async {
       expect(darknessWindowOf(const TwilightTimes()), isNull);
     });
   });
@@ -271,16 +250,14 @@ void main() {
   // number is those hours. The blend stays; the words shown to the operator
   // match it.
   group('the ranking key and the words shown for it agree', () {
-    test('catalog fit can outrank a clearly better night score', () {
-      // A (index 0): transits mid-darkness at dec == latitude, but faint.
-      // B (index 1): near the edge of the window and low, but bright.
-      final raA = raThatTransitsAt(darkMid);
-      final raB = raThatTransitsAt(
-        window.start.add(const Duration(minutes: 20)),
-      );
-
-      final ranked = rankTonightTargets(
-        raDeg: [raA, raB],
+    test('catalog fit can outrank a clearly better night score', () async {
+      // A (index 0): the better night, but faint. B (index 1): a poorer night
+      // with fewer usable hours, but bright.
+      final ranked = await rankTonightTargets(
+        scorer: ScriptedNightScorer(
+          byIndex: {0: (total: 90, hours: 8), 1: (total: 70, hours: 3)},
+        ).call,
+        raDeg: [raThatTransitsAt(darkMid), raThatTransitsAt(darkMid)],
         decDeg: [40.0, 0.0],
         magnitudes: [14.5, 5.0],
         latitudeDeg: latitude,
@@ -289,50 +266,8 @@ void main() {
         floor: floor,
       );
       expect(ranked, hasLength(2));
-
-      // The planner's own scorer prefers the OTHER one...
-      final mid = window.start.add(
-        Duration(seconds: window.duration.inSeconds ~/ 2),
-      );
-      final (moonRaOfDate, moonDecOfDate, _) =
-          AstronomyCalculations.moonPosition(mid);
-      final (moonRa, moonDec) = AstronomyCalculations.precessFromDateToJ2000(
-        raDeg: moonRaOfDate,
-        decDeg: moonDecOfDate,
-        dt: mid,
-      );
-      final scorer = TargetScoringService(
-        latitude: latitude,
-        longitude: longitude,
-        observationTime: mid,
-        moonPosition: (moonRa, moonDec),
-        moonIllumination: AstronomyCalculations.moonIllumination(mid),
-        twilight: twilight,
-        floorAt: floor.at,
-      );
-      double nightScore(double raDeg, double decDeg) => scorer
-          .scoreTargetForNight(
-            target: DeepSkyObject(
-              id: 'x',
-              name: 'x',
-              coordinates: CelestialCoordinate.fromDegrees(
-                raDegrees: raDeg,
-                decDegrees: decDeg,
-              ),
-              type: DsoType.other,
-            ),
-            nightStart: window.start,
-            nightEnd: window.end,
-          )
-          .totalScore;
-
-      expect(
-        nightScore(raA, 40.0),
-        greaterThan(nightScore(raB, 0.0)),
-        reason: 'the planner prefers the well-placed faint one',
-      );
-      // ...and the panel still puts the bright one first, and even shows it
-      // with fewer usable hours than the row below it.
+      // The panel puts the bright one first, and shows it with fewer usable
+      // hours than the row below it.
       expect(ranked.first.index, 1);
       expect(
         ranked.first.hoursInDarkness,
@@ -340,24 +275,27 @@ void main() {
       );
     });
 
-    test('the tooltip states that rule instead of claiming planner parity', () {
-      expect(kTonightCatalogFitWeight, greaterThan(0));
-      // The disclosed split has to be the split the code actually applies.
-      expect(
-        kTonightRankingTooltip,
-        contains('${(kTonightConditionsWeight * 100).round()}%'),
-      );
-      expect(
-        kTonightRankingTooltip,
-        contains('${(kTonightCatalogFitWeight * 100).round()}%'),
-      );
-      expect(kTonightRankingTooltip.toLowerCase(), contains('brightness'));
-      expect(kTonightRankingTooltip.toLowerCase(), contains('field of view'));
-      // The claim that started this: the key is NOT the planner's score.
-      expect(
-        kTonightRankingTooltip.toLowerCase(),
-        isNot(contains('same score the planner')),
-      );
-    });
+    test(
+      'the tooltip states that rule instead of claiming planner parity',
+      () async {
+        expect(kTonightCatalogFitWeight, greaterThan(0));
+        // The disclosed split has to be the split the code actually applies.
+        expect(
+          kTonightRankingTooltip,
+          contains('${(kTonightConditionsWeight * 100).round()}%'),
+        );
+        expect(
+          kTonightRankingTooltip,
+          contains('${(kTonightCatalogFitWeight * 100).round()}%'),
+        );
+        expect(kTonightRankingTooltip.toLowerCase(), contains('brightness'));
+        expect(kTonightRankingTooltip.toLowerCase(), contains('field of view'));
+        // The claim that started this: the key is NOT the planner's score.
+        expect(
+          kTonightRankingTooltip.toLowerCase(),
+          isNot(contains('same score the planner')),
+        );
+      },
+    );
   });
 }

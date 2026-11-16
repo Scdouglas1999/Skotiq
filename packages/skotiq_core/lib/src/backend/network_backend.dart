@@ -4,6 +4,15 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiFloorSample,
+        ApiNightScore,
+        ApiNightSky,
+        ApiNightTarget,
+        ApiSchedulerTarget,
+        ApiScoringWeights,
+        ApiTargetScoreNow;
 import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/backend/host_runtime_update.dart';
@@ -44,6 +53,7 @@ import '../services/scheduler/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
 import '../services/sync/sync_service.dart';
 import 'roles/host_data/host_backups.dart';
+import 'target_scoring.dart';
 import 'roles/host_data/host_calibration_frames.dart';
 import 'roles/host_data/host_calibration_tools.dart';
 import 'roles/host_data/host_catalogs.dart';

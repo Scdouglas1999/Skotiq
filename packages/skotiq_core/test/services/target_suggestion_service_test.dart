@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import '../fakes/fake_target_scoring.dart';
 import 'package:skotiq_core/src/database/database.dart'
     show DbTarget, ImagingSession;
 
@@ -20,7 +21,10 @@ void main() {
 
     setUp(() {
       mockLogger = MockLoggingService();
-      service = TargetSuggestionService(loggingService: mockLogger);
+      service = TargetSuggestionService(
+        loggingService: mockLogger,
+        scorer: TargetScorer(FakeTargetScoring()),
+      );
     });
 
     /// Helper to create a test target

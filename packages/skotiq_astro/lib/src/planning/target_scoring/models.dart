@@ -1,7 +1,6 @@
 import '../../celestial_object.dart';
-import '../weighted_score.dart';
 
-/// Scoring criteria weights for target prioritization
+/// The weight of each axis of the target score.
 class ScoringWeights {
   final double altitudeWeight;
   final double moonDistanceWeight;
@@ -16,48 +15,6 @@ class ScoringWeights {
     this.darknessWeight = 0.15,
     this.airmassWeight = 0.15,
   });
-
-  /// Build the ordered five-axis [WeightedFactor] list for the shared
-  /// [WeightedScore] aggregator. Factor ORDER (altitude, moonDistance,
-  /// transitProximity, darkness, airmass) is the pinned cross-language
-  /// contract — it matches the Rust `scoring::ScoringWeights` field order and
-  /// the `TargetSchedulerNode` field order. Callers pass the five `0..100`
-  /// axis scores in the same order.
-  List<WeightedFactor> factors({
-    required double altitudeScore,
-    required double moonDistanceScore,
-    required double transitProximityScore,
-    required double darknessScore,
-    required double airmassScore,
-  }) {
-    return [
-      WeightedFactor(
-        name: 'altitude',
-        value: altitudeScore,
-        weight: altitudeWeight,
-      ),
-      WeightedFactor(
-        name: 'moonDistance',
-        value: moonDistanceScore,
-        weight: moonDistanceWeight,
-      ),
-      WeightedFactor(
-        name: 'transitProximity',
-        value: transitProximityScore,
-        weight: transitProximityWeight,
-      ),
-      WeightedFactor(
-        name: 'darkness',
-        value: darknessScore,
-        weight: darknessWeight,
-      ),
-      WeightedFactor(
-        name: 'airmass',
-        value: airmassScore,
-        weight: airmassWeight,
-      ),
-    ];
-  }
 }
 
 class TargetScore {
@@ -96,17 +53,25 @@ class TargetVisibilityInfo {
   final double airmass;
   final double moonDistance;
 
-  /// Peak altitude during the night window (populated by scoreTargetForNight)
+  /// Peak altitude during the night window (night scores only)
   final double? peakAltitude;
 
-  /// Azimuth at peak altitude during the night (populated by scoreTargetForNight)
+  /// Azimuth at peak altitude during the night (night scores only)
   final double? peakAzimuth;
 
-  /// Time when peak altitude occurs during the night (populated by scoreTargetForNight)
+  /// Time when peak altitude occurs during the night (night scores only)
   final DateTime? peakAltitudeTime;
 
-  /// Hours the target is above minimum imaging altitude during the night
+  /// Hours the target is above the altitude floor during the night
   final double? hoursAboveMinAlt;
+
+  /// The first moment of the night the target is above the floor (night
+  /// scores only).
+  final DateTime? firstUsableTime;
+
+  /// The lowest airmass the target reaches above the floor during the night;
+  /// null when it never clears it (night scores only).
+  final double? bestAirmass;
 
   const TargetVisibilityInfo({
     required this.currentAltitude,
@@ -123,6 +88,8 @@ class TargetVisibilityInfo {
     this.peakAzimuth,
     this.peakAltitudeTime,
     this.hoursAboveMinAlt,
+    this.firstUsableTime,
+    this.bestAirmass,
   });
 }
 

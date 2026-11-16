@@ -192,6 +192,7 @@ export 'src/services/weather/cloud_motion_analyzer.dart';
 export 'src/services/weather/weather_alert_service.dart';
 export 'src/services/weather/location_cloud_forecast_service.dart';
 export 'src/services/smart_notification_service.dart';
+export 'src/services/target_scorer.dart';
 export 'src/services/target_suggestion_service.dart';
 export 'src/services/transient_alert_service.dart';
 export 'src/services/sequence_time_estimator.dart';

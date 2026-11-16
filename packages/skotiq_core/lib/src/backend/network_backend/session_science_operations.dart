@@ -616,6 +616,50 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
+  /// POST /api/suggestions/score-now
+  Future<List<ApiTargetScoreNow>> rankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required int nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) async {
+    final response = await _post(
+      SuggestionApi.scoreTargetsNow,
+      body: TargetScoringWire.rankRequest(
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+        nowUnixMs: nowUnixMs,
+        targets: targets,
+        weights: weights,
+        floor: floor,
+      ),
+    );
+    return TargetScoringWire.readRankResponse(
+      response['scores'] as List<dynamic>,
+    );
+  }
+
+  /// POST /api/suggestions/score-night
+  Future<List<ApiNightScore>> scoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) async {
+    final response = await _post(
+      SuggestionApi.scoreTargetsForNight,
+      body: TargetScoringWire.nightRequest(
+        sky: sky,
+        targets: targets,
+        weights: weights,
+      ),
+    );
+    return TargetScoringWire.readNightResponse(
+      response['scores'] as List<dynamic>,
+    );
+  }
+
   /// Tonight's ranking as the host computes it for its own Plan screen:
   /// catalog candidates, the host's optics and horizon, and target progress.
   ///

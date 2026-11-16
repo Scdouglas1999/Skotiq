@@ -45,4 +45,3 @@ export 'src/fov/mosaic_planner.dart';
 
 export 'src/planning/target_scoring.dart';
 export 'src/planning/tonight_ranking.dart';
-export 'src/planning/weighted_score.dart';

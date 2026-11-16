@@ -139,6 +139,9 @@ abstract final class ApiBodyLimit {
 
   /// A star catalog.
   static const int catalog = 1024 * _oneMiB;
+
+  /// Catalog positions sent to the host's target scorer for a night ranking.
+  static const int scoring = 8 * _oneMiB;
 }
 
 class ApiRoute {

@@ -29,41 +29,48 @@ class TonightTarget {
   });
 }
 
+/// The app's target scorer, for Best Targets Tonight. The planetarium cannot
+/// reach the native sequencer the scorer runs in, so the app supplies it
+/// (`skotiq_app/lib/startup/location_sync_service.dart`); until then the
+/// list is not ranked.
+final planetariumNightScorerProvider = StateProvider<NightScorer?>(
+  (ref) => null,
+);
+
 /// Tonight's best imaging targets, ranked by [rankTonightTargets] — usable
 /// hours inside the darkness window scored with the app's own night scorer.
 ///
 /// Anchored on the night DATE rather than the current instant so the list does
 /// not flicker as the clock ticks.
 ///
-/// Null with no site on record: what is up tonight, and for how long, is a
-/// question about a place. An empty list would read as "nothing is up".
+/// Null with no site on record, or before the app has supplied its scorer:
+/// what is up tonight, and for how long, is a question about a place. An
+/// empty list would read as "nothing is up".
 final bestTargetsProvider = FutureProvider<List<TonightTarget>?>((ref) async {
   final site = ref.watch(observerLocationProvider).site;
   if (site == null) return null;
+  final scorer = ref.watch(planetariumNightScorerProvider);
+  if (scorer == null) return null;
   final dsos = await ref.watch(loadedDsosProvider.future);
   // The night in progress, so this list and the sidebar's Info tab (which reads
   // selectedObjectVisibilityProvider) describe the SAME night.
   final nightDate = ref.watch(_currentNightDateProvider);
+  final fov = ref.watch(equipmentFOVProvider).fov;
 
-  // Ranking the full ~12k-DSO catalog against the whole darkness window is
-  // heavy; run it in an isolate so the first read (e.g. the first time the side
-  // panel opens) doesn't block/freeze the UI thread. Only the coordinate arrays
-  // are sent across (cheap) — not the DSO objects. Twilight and the moon are
-  // derived inside the isolate from the site + night date, so this provider
-  // does NOT depend on any per-minute provider that would re-run it.
-  final args = _BestTargetsArgs(
+  final ranked = await rankTonightTargets(
     raDeg: [for (final d in dsos) d.coordinates.raDegrees],
     decDeg: [for (final d in dsos) d.coordinates.dec],
     magnitudes: [for (final d in dsos) d.magnitude],
     sizesArcMin: [for (final d in dsos) d.sizeArcMin],
     objectTypes: [for (final d in dsos) d.type.index],
-    fov: ref.watch(equipmentFOVProvider).fov,
+    fovWidthDeg: fov?.$1,
+    fovHeightDeg: fov?.$2,
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
     nightDate: nightDate,
     floor: ref.watch(planetariumAltitudeFloorProvider),
+    scorer: scorer,
   );
-  final ranked = await compute(_rankTonightTargetsOffThread, args);
   return [
     for (final r in ranked)
       TonightTarget(
@@ -76,59 +83,3 @@ final bestTargetsProvider = FutureProvider<List<TonightTarget>?>((ref) async {
       ),
   ];
 });
-
-/// Inputs for the off-thread best-targets computation. Only primitives + plain
-/// coordinate lists so the payload is cheap to send to the isolate.
-class _BestTargetsArgs {
-  final List<double> raDeg;
-  final List<double> decDeg;
-  final List<double?> magnitudes;
-  final List<double?> sizesArcMin;
-  final List<int?> objectTypes;
-  final (double width, double height)? fov;
-  final double latitudeDeg;
-  final double longitudeDeg;
-
-  /// The DATE of the night being planned, not an instant within it.
-  ///
-  /// [AstronomyCalculations.calculateObjectVisibility] scans local noon of this
-  /// date to the following noon. Passing astronomical dusk here instead put the
-  /// whole list a night late at every site where dusk falls after local
-  /// midnight (mid-summer, or the west edge of a timezone), so every transit
-  /// time was one sidereal day (~4 min) off and the sidebar's own Info tab
-  /// disagreed with its Best Targets card for the same object.
-  final DateTime nightDate;
-
-  /// The site's altitude floor by azimuth.
-  final AltitudeFloorSamples floor;
-
-  const _BestTargetsArgs({
-    required this.raDeg,
-    required this.decDeg,
-    required this.magnitudes,
-    required this.sizesArcMin,
-    required this.objectTypes,
-    required this.fov,
-    required this.latitudeDeg,
-    required this.longitudeDeg,
-    required this.nightDate,
-    required this.floor,
-  });
-}
-
-/// Isolate entry point for [rankTonightTargets].
-List<TonightRanking> _rankTonightTargetsOffThread(_BestTargetsArgs a) {
-  return rankTonightTargets(
-    raDeg: a.raDeg,
-    decDeg: a.decDeg,
-    magnitudes: a.magnitudes,
-    sizesArcMin: a.sizesArcMin,
-    objectTypes: a.objectTypes,
-    fovWidthDeg: a.fov?.$1,
-    fovHeightDeg: a.fov?.$2,
-    latitudeDeg: a.latitudeDeg,
-    longitudeDeg: a.longitudeDeg,
-    nightDate: a.nightDate,
-    floor: a.floor,
-  );
-}

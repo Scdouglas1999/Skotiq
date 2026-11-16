@@ -8,11 +8,12 @@ import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/site/altitude_floor.dart';
 import 'logging_service.dart';
+import 'target_scorer.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
 ///
-/// Uses [TargetScoringService] from skotiq_astro to score targets
-/// based on altitude, moon distance, transit proximity, darkness, and airmass.
+/// Scores targets over the night with the app's [TargetScorer] (altitude,
+/// moon distance, transit timing, usable hours and airmass).
 /// Also factors in data collection progress to prioritize incomplete targets.
 ///
 /// SCOPE (architecture-unification plan, subsystem 1): this is the whole-night
@@ -27,11 +28,15 @@ import 'logging_service.dart';
 /// outlook beneath the autopilot banner, never as a competing live decider.
 class TargetSuggestionService {
   final LoggingService _logging;
+  final TargetScorer _scorer;
 
   static const String _source = 'TargetSuggestionService';
 
-  TargetSuggestionService({required LoggingService loggingService})
-    : _logging = loggingService;
+  TargetSuggestionService({
+    required LoggingService loggingService,
+    required TargetScorer scorer,
+  }) : _logging = loggingService,
+       _scorer = scorer;
 
   /// Generate target suggestions for tonight based on the full night window.
   ///
@@ -65,7 +70,9 @@ class TargetSuggestionService {
       'Generating suggestions for ${targets.length} targets at lat=$latitude, lon=$longitude',
       source: _source,
     );
-    final result = await compute(_scoreTonight, (
+    final scorer = _TonightSuggestionScorer();
+    final suggestions = await scorer.score(
+      scorer: _scorer,
       config: config,
       latitude: latitude,
       longitude: longitude,
@@ -74,56 +81,57 @@ class TargetSuggestionService {
       observationTime: observationTime ?? DateTime.now(),
       opticalConfig: opticalConfig,
       floor: floor,
-    ), debugLabel: 'tonight-target-scoring');
+    );
+    final result = (suggestions: suggestions, warnings: scorer.warnings);
     for (final warning in result.warnings) {
       _logging.warning(warning, source: _source);
     }
     _logging.info(
       'Generated ${result.suggestions.length} suggestions from ${targets.length} '
-      'targets in ${elapsed.elapsedMilliseconds}ms (background scoring)',
+      'targets in ${elapsed.elapsedMilliseconds}ms',
       source: _source,
     );
     return result.suggestions;
   }
 }
 
-typedef _SuggestionRequest = ({
+typedef _SuggestionBuild = ({
+  List<({DbTarget target, TargetScore score})> scored,
   TargetSuggestionConfig config,
+  List<ImagingSession> sessions,
+  _NightWindow night,
+  DateTime center,
   double latitude,
   double longitude,
-  List<DbTarget> targets,
-  List<ImagingSession> sessions,
-  DateTime observationTime,
+  double moonIllumination,
   OpticalConfig? opticalConfig,
-  AltitudeFloor floor,
-});
-
-typedef _SuggestionResult = ({
-  List<TargetSuggestion> suggestions,
-  List<String> warnings,
 });
 
 // A top-level callback keeps UI services and logging handles out of the worker.
-_SuggestionResult _scoreTonight(_SuggestionRequest request) {
-  final scorer = _TonightSuggestionScorer();
-  final suggestions = scorer.score(
+({List<TargetSuggestion> suggestions, List<String> warnings}) _buildSuggestions(
+  _SuggestionBuild request,
+) {
+  final builder = _TonightSuggestionScorer();
+  final suggestions = builder.build(
+    scored: request.scored,
     config: request.config,
+    sessions: request.sessions,
+    nightWindow: request.night,
+    nightMid: request.center,
     latitude: request.latitude,
     longitude: request.longitude,
-    targets: request.targets,
-    sessions: request.sessions,
-    observationTime: request.observationTime,
+    moonIllumination: request.moonIllumination,
     opticalConfig: request.opticalConfig,
-    floor: request.floor,
   );
-  return (suggestions: suggestions, warnings: scorer.warnings);
+  return (suggestions: suggestions, warnings: builder.warnings);
 }
 
 class _TonightSuggestionScorer {
   final warnings = <String>[];
   static const double _typicalExposureSecs = 300.0;
 
-  List<TargetSuggestion> score({
+  Future<List<TargetSuggestion>> score({
+    required TargetScorer scorer,
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
@@ -132,34 +140,78 @@ class _TonightSuggestionScorer {
     required DateTime observationTime,
     OpticalConfig? opticalConfig,
     required AltitudeFloor floor,
-  }) {
+  }) async {
     final now = observationTime;
 
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
 
-    // Get moon position at the midpoint of the night (moon moves slowly)
+    // The Moon at the middle of the night (it moves slowly), in the catalog's
+    // J2000 frame like the targets it is measured from.
     final nightMid = nightWindow.start.add(
       Duration(
         seconds: nightWindow.end.difference(nightWindow.start).inSeconds ~/ 2,
       ),
     );
-    final moonPos = AstronomyCalculations.moonPosition(nightMid);
-    final moonRaDeg = moonPos.$1;
-    final moonDecDeg = moonPos.$2;
+    final (moonRaOfDate, moonDecOfDate, _) = AstronomyCalculations.moonPosition(
+      nightMid,
+    );
+    final moonJ2000 = AstronomyCalculations.precessFromDateToJ2000(
+      raDeg: moonRaOfDate,
+      decDeg: moonDecOfDate,
+      dt: nightMid,
+    );
     final moonIllumination = AstronomyCalculations.moonIllumination(nightMid);
 
-    // "Hours above the floor" and the peak altitude are measured against
-    // the site's altitude floor in the direction the target stands.
-    final scoringService = TargetScoringService(
+    final dbTargetOf = Map<CelestialObject, DbTarget>.identity();
+    for (final target in targets) {
+      dbTargetOf[_targetToCelestialObject(target)] = target;
+    }
+    // Only targets above the floor at some point of the night come back.
+    final scores = await scorer.scoreForNight(
+      NightScoringRequest(
+        latitudeDeg: latitude,
+        longitudeDeg: longitude,
+        now: now,
+        nightStart: nightWindow.start,
+        nightEnd: nightWindow.end,
+        moon: moonJ2000,
+        moonIlluminationPercent: moonIllumination,
+        floor: floor.asSamples(),
+        targets: dbTargetOf.keys.toList(growable: false),
+      ),
+    );
+    // Building a suggestion (rise and set, progress, reasoning) for thousands
+    // of catalog targets would stall the UI, so it runs in the background.
+    final built = await compute(_buildSuggestions, (
+      scored: [
+        for (final score in scores)
+          if (dbTargetOf[score.target] case final target?)
+            (target: target, score: score),
+      ],
+      config: config,
+      sessions: sessions,
+      night: nightWindow,
+      center: nightMid,
       latitude: latitude,
       longitude: longitude,
-      observationTime: now,
-      moonPosition: (moonRaDeg, moonDecDeg),
       moonIllumination: moonIllumination,
-      twilight: nightWindow.twilight,
-      floorAt: floor.atAzimuth,
-    );
+      opticalConfig: opticalConfig,
+    ), debugLabel: 'tonight-suggestions');
+    warnings.addAll(built.warnings);
+    return built.suggestions;
+  }
 
+  List<TargetSuggestion> build({
+    required List<({DbTarget target, TargetScore score})> scored,
+    required TargetSuggestionConfig config,
+    required List<ImagingSession> sessions,
+    required _NightWindow nightWindow,
+    required DateTime nightMid,
+    required double latitude,
+    required double longitude,
+    required double moonIllumination,
+    OpticalConfig? opticalConfig,
+  }) {
     // Compute FOV short axis in arcminutes if optical config is available
     double? fovShortAxisArcmin;
     final fov = opticalConfig?.fieldOfView;
@@ -169,19 +221,7 @@ class _TonightSuggestionScorer {
 
     final suggestions = <TargetSuggestion>[];
 
-    final scores = scoringService.scoreTargetsForNight(
-      targets: targets.map(_targetToCelestialObject),
-      nightStart: nightWindow.start,
-      nightEnd: nightWindow.end,
-    );
-    for (final (index, score) in scores.indexed) {
-      final target = targets[index];
-
-      // Skip targets that never clear the altitude floor during the night.
-      if ((score.visibility.hoursAboveMinAlt ?? 0.0) <= 0.0) {
-        continue;
-      }
-
+    for (final (:target, :score) in scored) {
       if (score.totalScore < config.minScore) {
         continue;
       }
@@ -209,6 +249,14 @@ class _TonightSuggestionScorer {
       }
 
       final dataProgress = _calculateDataProgress(target.id, target, sessions);
+      final shown = _withRiseSetAndWarnings(
+        score,
+        nightWindow,
+        center: nightMid,
+        latitude: latitude,
+        longitude: longitude,
+        moonIllumination: moonIllumination,
+      );
 
       double adjustedTotalScore = score.totalScore;
       double? framingFitScore;
@@ -234,7 +282,7 @@ class _TonightSuggestionScorer {
       }
 
       final reasoning = _generateNightReasoning(
-        score,
+        shown,
         dataProgress,
         nightWindow,
         moonIllumination: moonIllumination,
@@ -260,8 +308,8 @@ class _TonightSuggestionScorer {
         decDegrees: target.dec,
         totalScore: adjustedTotalScore,
         scoreBreakdown: scoreBreakdown,
-        warnings: score.warnings,
-        visibility: score.visibility,
+        warnings: shown.warnings,
+        visibility: shown.visibility,
         reasoning: reasoning,
         dataProgress: dataProgress,
         objectType: target.objectType,
@@ -277,6 +325,65 @@ class _TonightSuggestionScorer {
     _sortSuggestions(suggestions, config.sortMode, config.prioritizeIncomplete);
 
     return suggestions;
+  }
+
+  /// [score] with the rise, culmination and set nearest [center] by the app's
+  /// visibility rule, and the warnings they and the night's figures call for.
+  TargetScore _withRiseSetAndWarnings(
+    TargetScore score,
+    _NightWindow night, {
+    required DateTime center,
+    required double latitude,
+    required double longitude,
+    required double moonIllumination,
+  }) {
+    final figures = score.visibility;
+    final pass = AstronomyCalculations.calculateObjectVisibilityAround(
+      raDeg: score.target.coordinates.raDegrees,
+      decDeg: score.target.coordinates.dec,
+      center: center,
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
+    );
+    final peak = figures.peakAltitude ?? figures.currentAltitude;
+    return TargetScore(
+      target: score.target,
+      totalScore: score.totalScore,
+      altitudeScore: score.altitudeScore,
+      moonDistanceScore: score.moonDistanceScore,
+      transitProximityScore: score.transitProximityScore,
+      darknessScore: score.darknessScore,
+      airmassScore: score.airmassScore,
+      warnings: nightWarnings(
+        peakAlt: peak,
+        bestAirmass: figures.bestAirmass ?? double.infinity,
+        moonDist: figures.moonDistance,
+        moonIllumination: moonIllumination,
+        visibility: pass,
+        hoursAboveMin: figures.hoursAboveMinAlt ?? 0,
+        nightStart: night.start,
+        nightEnd: night.end,
+        firstObservableTime: figures.firstUsableTime,
+      ),
+      visibility: TargetVisibilityInfo(
+        currentAltitude: figures.currentAltitude,
+        currentAzimuth: figures.currentAzimuth,
+        transitAltitude: pass.transitAltitude,
+        riseTime: pass.riseTime,
+        transitTime: pass.transitTime,
+        setTime: pass.setTime,
+        isCircumpolar: pass.isCircumpolar,
+        neverRises: pass.neverRises,
+        airmass: figures.airmass,
+        moonDistance: figures.moonDistance,
+        peakAltitude: figures.peakAltitude,
+        peakAzimuth: figures.peakAzimuth,
+        peakAltitudeTime: figures.peakAltitudeTime,
+        hoursAboveMinAlt: figures.hoursAboveMinAlt,
+        firstUsableTime: figures.firstUsableTime,
+        bestAirmass: figures.bestAirmass,
+      ),
+    );
   }
 
   CelestialObject _targetToCelestialObject(DbTarget target) {
@@ -376,11 +483,7 @@ class _TonightSuggestionScorer {
     );
     final bounds = _extractNightBounds(night);
     if (bounds != null) {
-      return _NightWindow(
-        start: bounds.start,
-        end: bounds.end,
-        twilight: night,
-      );
+      return _NightWindow(start: bounds.start, end: bounds.end);
     }
 
     // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
@@ -394,7 +497,7 @@ class _TonightSuggestionScorer {
       // If we're past 5 AM, shift to tonight
       defaultEnd = defaultEnd.add(const Duration(days: 1));
     }
-    return _NightWindow(start: defaultStart, end: defaultEnd, twilight: night);
+    return _NightWindow(start: defaultStart, end: defaultEnd);
   }
 
   /// Extract the best available night bounds from twilight times.
@@ -668,11 +771,6 @@ class _TonightSuggestionScorer {
 class _NightWindow {
   final DateTime start;
   final DateTime end;
-  final TwilightTimes twilight;
 
-  const _NightWindow({
-    required this.start,
-    required this.end,
-    required this.twilight,
-  });
+  const _NightWindow({required this.start, required this.end});
 }

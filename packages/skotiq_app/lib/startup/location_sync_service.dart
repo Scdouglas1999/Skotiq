@@ -123,3 +123,15 @@ final planetariumAltitudeFloorSyncProvider = Provider<void>((ref) {
     );
   }, fireImmediately: true);
 });
+
+/// The planetarium cannot reach the native sequencer, so the app hands it its
+/// target scorer for Best Targets Tonight: this process's, or the linked
+/// host's.
+final planetariumNightScorerSyncProvider = Provider<void>((ref) {
+  ref.listen<TargetScorer>(targetScorerProvider, (previous, next) {
+    Future.microtask(
+      () => ref.read(planetariumNightScorerProvider.notifier).state =
+          next.scoreForNight,
+    );
+  }, fireImmediately: true);
+});

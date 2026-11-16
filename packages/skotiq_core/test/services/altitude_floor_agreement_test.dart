@@ -11,6 +11,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/scheduler/scheduler_engine.dart';
+import '../fakes/fake_target_scoring.dart';
 
 class _Logging extends Mock implements LoggingService {}
 
@@ -197,6 +198,7 @@ void main() {
           SmartNightService(
             suggestionService: TargetSuggestionService(
               loggingService: _Logging(),
+              scorer: TargetScorer(FakeTargetScoring()),
             ),
             logging: _Logging(),
             floor: floor,
@@ -259,36 +261,36 @@ void main() {
       isFavorite: false,
     );
 
-    Future<double> hours(AltitudeFloor floor, _Target target) async {
-      final suggestions =
-          await TargetSuggestionService(
-            loggingService: _Logging(),
-          ).getSuggestionsForTonight(
-            config: const TargetSuggestionConfig(minScore: 0),
-            latitude: _latitude,
-            longitude: _longitude,
-            targets: [row(1, target)],
-            sessions: const [],
-            observationTime: _night,
-            floor: floor,
-          );
-      return suggestions.single.visibility.hoursAboveMinAlt!;
-    }
-
-    test(
-      'the eastern target loses the time it spends behind the trees',
-      () async {
-        final open = await hours(
-          const AltitudeFloor(horizon: null, minimumDeg: 0),
-          _east,
-        );
-        expect(await hours(trees, _east), lessThan(open - 1));
-      },
-    );
+    test('the scorer is asked to hold the night to the site floor', () async {
+      final scoring = FakeTargetScoring();
+      await TargetSuggestionService(
+        loggingService: _Logging(),
+        scorer: TargetScorer(scoring),
+      ).getSuggestionsForTonight(
+        config: const TargetSuggestionConfig(minScore: 0),
+        latitude: _latitude,
+        longitude: _longitude,
+        targets: [row(1, _east)],
+        sessions: const [],
+        observationTime: _night,
+        floor: trees,
+      );
+      final samples = trees.asSamples();
+      expect(
+        scoring.nightRequests.single.sky.floor.map(
+          (s) => (s.azimuthDeg, s.altitudeDeg),
+        ),
+        [
+          for (var i = 0; i < samples.azimuths.length; i++)
+            (samples.azimuths[i], samples.altitudes[i]),
+        ],
+      );
+    });
 
     test('Best Targets reports the eastern target rising when it clears the '
-        'trees', () {
-      final ranked = rankTonightTargets(
+        'trees', () async {
+      final ranked = await rankTonightTargets(
+        scorer: TargetScorer(FakeTargetScoring()).scoreForNight,
         raDeg: [_east.raHours * 15],
         decDeg: [_east.decDegrees],
         latitudeDeg: _latitude,

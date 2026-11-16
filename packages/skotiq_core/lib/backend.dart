@@ -9,6 +9,7 @@ export 'src/backend/ffi_backend.dart';
 export 'src/backend/network_backend.dart';
 export 'src/backend/disconnected_backend.dart';
 export 'src/backend/remote_host.dart';
+export 'src/backend/target_scoring.dart';
 export 'src/backend/roles/host_data/calibration_library.dart';
 export 'src/backend/roles/host_data/notes_journal.dart';
 export 'src/backend/roles/host_data/observation_log.dart';

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:shelf/shelf.dart';
 
@@ -18,6 +18,8 @@ class SuggestionHandlers implements RouteSource {
     SuggestionApi.getRankedSuggestions: handleGetRankedSuggestions,
     SuggestionApi.getConfig: handleGetConfig,
     SuggestionApi.getTargetScore: handleGetTargetScore,
+    SuggestionApi.scoreTargetsNow: handleScoreTargetsNow,
+    SuggestionApi.scoreTargetsForNight: handleScoreTargetsForNight,
   };
 
   final ProviderContainer container;
@@ -38,6 +40,58 @@ class SuggestionHandlers implements RouteSource {
       throw BadRequestError(field: field, expected: 'integer');
     }
     return parsed;
+  }
+
+  /// A linked client's TargetScheduler preview, ranked by this host's scorer.
+  Future<Response> handleScoreTargetsNow(Request request) async {
+    final ranking = _readScoringRequest(
+      await readJsonObject(request),
+      TargetScoringWire.readRankRequest,
+    );
+    final scores = await const NativeTargetScoring().rankSchedulerTargets(
+      latitudeDeg: ranking.latitudeDeg,
+      longitudeDeg: ranking.longitudeDeg,
+      nowUnixMs: ranking.nowUnixMs,
+      targets: ranking.targets,
+      weights: ranking.weights,
+      floor: ranking.floor,
+    );
+    return jsonOk({'scores': TargetScoringWire.rankResponse(scores)});
+  }
+
+  /// A linked client's night ranking, scored by this host's scorer.
+  Future<Response> handleScoreTargetsForNight(Request request) async {
+    final night = _readScoringRequest(
+      await readJsonObject(request),
+      TargetScoringWire.readNightRequest,
+    );
+    final scores = await const NativeTargetScoring().scoreTargetsForNight(
+      sky: night.sky,
+      targets: night.targets,
+      weights: night.weights,
+    );
+    return jsonOk({'scores': TargetScoringWire.nightResponse(scores)});
+  }
+
+  T _readScoringRequest<T>(
+    Map<String, dynamic> body,
+    T Function(Map<String, dynamic>) read,
+  ) {
+    try {
+      return read(body);
+    } on FormatException catch (e) {
+      throw BadRequestError(
+        field: 'body',
+        expected: 'object',
+        message: e.message,
+      );
+    } on TypeError {
+      throw BadRequestError(
+        field: 'body',
+        expected: 'object',
+        message: 'The scoring request has a field of the wrong type',
+      );
+    }
   }
 
   Future<Response> handleGetSuggestionsForTonight(Request request) async {
@@ -93,10 +147,7 @@ class SuggestionHandlers implements RouteSource {
       preferredObjectTypes: preferredObjectTypes,
     );
 
-    final loggingService = container.read(loggingServiceProvider);
-    final suggestionService = TargetSuggestionService(
-      loggingService: loggingService,
-    );
+    final suggestionService = container.read(targetSuggestionServiceProvider);
 
     final suggestions = await suggestionService.getSuggestionsForTonight(
       config: config,
@@ -215,10 +266,7 @@ class SuggestionHandlers implements RouteSource {
 
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);
 
-    final loggingService = container.read(loggingServiceProvider);
-    final suggestionService = TargetSuggestionService(
-      loggingService: loggingService,
-    );
+    final suggestionService = container.read(targetSuggestionServiceProvider);
 
     const config = TargetSuggestionConfig(
       minScore: -1000, // Include all scores

@@ -5,13 +5,14 @@ import '../../../models/scheduler/integration_goal.dart';
 import '../../../models/scheduler/scheduler_decision.dart';
 import '../../../models/scheduler/target_constraint.dart';
 import '../../../services/scheduler/horizon_profile.dart';
+import '../../target_scoring.dart';
 
 /// Projects, integration goals, target constraints and the scheduler queue
-/// kept in a linked imaging host's database.
+/// kept in a linked imaging host's database, and the host's target scorer.
 ///
 /// The remote half of a feature whose local half is a service or DAO in this
 /// process; reached through `backend.remoteHost`, which is null locally.
-abstract interface class HostPlanningData {
+abstract interface class HostPlanningData implements TargetScoring {
   Future<CampaignProgress> getProjectProgress(int projectId);
 
   Future<List<Project>> getProjects();

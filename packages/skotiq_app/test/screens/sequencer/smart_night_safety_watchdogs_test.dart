@@ -7,6 +7,16 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiFloorSample,
+        ApiNightScore,
+        ApiNightSky,
+        ApiNightTarget,
+        ApiSchedulerTarget,
+        ApiScoringWeights,
+        ApiTargetScoreNow;
+import 'package:skotiq_core/backend.dart' show TargetScoring;
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
@@ -235,6 +245,7 @@ void main() {
       service = SmartNightService(
         suggestionService: TargetSuggestionService(
           loggingService: _MockLoggingService(),
+          scorer: const TargetScorer(_NoScoring()),
         ),
         logging: _MockLoggingService(),
         floor: const AltitudeFloor(horizon: null, minimumDeg: -90),
@@ -357,4 +368,29 @@ void main() {
       expect(hasWeatherWatchdog, emittedWeatherRecoveries(plan) > 0);
     });
   });
+}
+
+/// A target scorer that is never asked: these tests plan from suggestions
+/// they hand in themselves.
+class _NoScoring implements TargetScoring {
+  const _NoScoring();
+
+  @override
+  Future<List<ApiNightScore>> scoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<ApiTargetScoreNow>> rankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required int nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) async =>
+      const [];
 }

@@ -10,6 +10,16 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        ApiFloorSample,
+        ApiNightScore,
+        ApiNightSky,
+        ApiNightTarget,
+        ApiSchedulerTarget,
+        ApiScoringWeights,
+        ApiTargetScoreNow;
+import 'package:skotiq_core/backend.dart' show TargetScoring;
 
 class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
   @override
@@ -182,8 +192,10 @@ void main() {
     final nodes = result.sequence.nodes.values;
     final header = nodes.whereType<TargetHeaderNode>().single;
     final window = SmartNightService(
-            suggestionService:
-                TargetSuggestionService(loggingService: LoggingService()),
+            suggestionService: TargetSuggestionService(
+              loggingService: LoggingService(),
+              scorer: const TargetScorer(_NoScoring()),
+            ),
             logging: LoggingService(),
             floor: openSky)
         .calculateWindow(
@@ -265,4 +277,29 @@ void main() {
       },
     );
   });
+}
+
+/// A target scorer that is never asked: these tests plan from suggestions
+/// they hand in themselves.
+class _NoScoring implements TargetScoring {
+  const _NoScoring();
+
+  @override
+  Future<List<ApiNightScore>> scoreTargetsForNight({
+    required ApiNightSky sky,
+    required List<ApiNightTarget> targets,
+    required ApiScoringWeights weights,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<ApiTargetScoreNow>> rankSchedulerTargets({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required int nowUnixMs,
+    required List<ApiSchedulerTarget> targets,
+    required ApiScoringWeights weights,
+    required List<ApiFloorSample> floor,
+  }) async =>
+      const [];
 }

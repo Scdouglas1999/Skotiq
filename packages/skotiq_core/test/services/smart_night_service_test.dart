@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import '../fakes/fake_target_scoring.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show CelestialCoordinate, DeepSkyObject, DsoType, TargetVisibilityInfo;
 
@@ -37,6 +38,7 @@ void main() {
       service = SmartNightService(
         suggestionService: TargetSuggestionService(
           loggingService: _MockLoggingService(),
+          scorer: TargetScorer(FakeTargetScoring()),
         ),
         logging: _MockLoggingService(),
         floor: _openSky,
@@ -2254,6 +2256,7 @@ void main() {
       service = SmartNightService(
         suggestionService: TargetSuggestionService(
           loggingService: _MockLoggingService(),
+          scorer: TargetScorer(FakeTargetScoring()),
         ),
         logging: _MockLoggingService(),
         floor: _openSky,
@@ -2488,6 +2491,7 @@ void main() {
       service = SmartNightService(
         suggestionService: TargetSuggestionService(
           loggingService: _MockLoggingService(),
+          scorer: TargetScorer(FakeTargetScoring()),
         ),
         logging: _MockLoggingService(),
         floor: _openSky,
