@@ -99,10 +99,13 @@ async fn capabilities_report_the_cameras_own_controls() {
     let manager = build_device_manager();
     let id = connected_camera(&manager, &base_url).await;
 
-    let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) =
-        crate::device_capabilities::get_device_capabilities(&id)
-            .await
-            .expect("capabilities")
+    let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) = manager
+        .handle(&id)
+        .await
+        .expect("handle")
+        .capabilities(&id)
+        .await
+        .expect("capabilities")
     else {
         panic!("not a camera");
     };
