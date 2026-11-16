@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import '../database/daos/settings_dao.dart';
-
 /// Letters and digits only, upper case: `NGC 891`, `ngc891` and `NGC_891`
 /// are one name; `ngc0891` stays distinct where its characters differ.
 String normalizeDarkroomTargetName(String name) =>
@@ -49,28 +47,24 @@ class ProjectRule {
   final int minKeptMinutes;
   final int minKeptFrames;
 
-  static Future<ProjectRule> load(SettingsDao dao) async {
+  /// The rule the stored settings hold; a missing or unreadable value is
+  /// its default.
+  factory ProjectRule.fromSettings({String? minutes, String? frames}) {
     int read(String? raw, int fallback) {
       final value = int.tryParse(raw ?? '');
       return value == null || value < 0 ? fallback : value;
     }
 
     return ProjectRule(
-      minKeptMinutes: read(
-        await dao.getSetting(minKeptMinutesKey),
-        defaultMinKeptMinutes,
-      ),
-      minKeptFrames: read(
-        await dao.getSetting(minKeptFramesKey),
-        defaultMinKeptFrames,
-      ),
+      minKeptMinutes: read(minutes, defaultMinKeptMinutes),
+      minKeptFrames: read(frames, defaultMinKeptFrames),
     );
   }
 
-  Future<void> save(SettingsDao dao) => dao.setSettings({
+  Map<String, String> toSettings() => {
     minKeptMinutesKey: '$minKeptMinutes',
     minKeptFramesKey: '$minKeptFrames',
-  });
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -136,14 +130,14 @@ String captureReason(
 }) {
   if (placement == TargetPlacement.hidden) return 'Hidden by you';
   if (captures.lights == 0) return 'Calibration frames only';
-  if (captures.keptLights == 0) return 'No kept lights';
+  if (captures.keptLights == 0) return 'No kept subs';
   if (captures.onlySnapshots && captures.keptLights < rule.minKeptFrames) {
     return 'Snapshots taken by hand';
   }
   if (captures.keptLights < rule.minKeptFrames) {
-    return 'Fewer than ${rule.minKeptFrames} kept lights';
+    return 'Fewer than ${rule.minKeptFrames} kept subs';
   }
-  return 'Under ${_minutes(rule.minKeptMinutes)} of kept light';
+  return 'Under ${_minutes(rule.minKeptMinutes)} of kept subs';
 }
 
 String _minutes(int minutes) =>
@@ -175,8 +169,8 @@ class TargetPlacements {
   TargetPlacements renamed(String from, String to) =>
       withPlacement(to, of(from)).withPlacement(from, TargetPlacement.auto);
 
-  static Future<TargetPlacements> load(SettingsDao dao) async {
-    final raw = await dao.getSetting(settingsKey);
+  /// The placements stored as [raw]; none when nothing is stored.
+  static TargetPlacements decode(String? raw) {
     if (raw == null || raw.isEmpty) return const TargetPlacements();
     final decoded = jsonDecode(raw);
     if (decoded is! Map) {
@@ -190,10 +184,7 @@ class TargetPlacements {
     });
   }
 
-  Future<void> save(SettingsDao dao) => dao.setSetting(
-    settingsKey,
-    jsonEncode({
-      for (final MapEntry(:key, :value) in _byName.entries) key: value.name,
-    }),
-  );
+  String encode() => jsonEncode({
+    for (final MapEntry(:key, :value) in _byName.entries) key: value.name,
+  });
 }

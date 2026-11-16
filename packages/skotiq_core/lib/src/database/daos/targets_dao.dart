@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 import '../stores/host_records.dart';
 import '../database.dart';
 import '../tables/targets.dart';
-import '../../services/target_standing.dart';
+import '../../models/darkroom/target_standing.dart';
 
 part 'targets_dao.g.dart';
 

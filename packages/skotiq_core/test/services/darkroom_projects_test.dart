@@ -186,9 +186,9 @@ void main() {
         expect(targetStanding(c, rule), TargetStanding.capture);
       }
       expect(captureReason(snapshots, rule), 'Snapshots taken by hand');
-      expect(captureReason(handful, rule), 'Fewer than 10 kept lights');
+      expect(captureReason(handful, rule), 'Fewer than 10 kept subs');
       expect(captureReason(calibration, rule), 'Calibration frames only');
-      expect(captureReason(rejected, rule), 'No kept lights');
+      expect(captureReason(rejected, rule), 'No kept subs');
     });
 
     test('a target with nothing captured is unused', () {
@@ -201,10 +201,10 @@ void main() {
     test('the minimums are the user\'s settings', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      expect(await ProjectRule.load(db.settingsDao), const ProjectRule());
+      expect(await db.settingsDao.readProjectRule(), const ProjectRule());
       const short = ProjectRule(minKeptMinutes: 5, minKeptFrames: 2);
-      await short.save(db.settingsDao);
-      final loaded = await ProjectRule.load(db.settingsDao);
+      await db.settingsDao.writeProjectRule(short);
+      final loaded = await db.settingsDao.readProjectRule();
       expect(loaded, short);
       const twoSnapshots = TargetCaptures(
         frames: 2,
@@ -355,15 +355,15 @@ void main() {
 
     test('hide and unhide a target, and undo', () async {
       final hidden = await edits.place('NGC0891', TargetPlacement.hidden);
-      var placements = await TargetPlacements.load(owner.db.settingsDao);
+      var placements = await owner.db.settingsDao.readTargetPlacements();
       expect(placements.of('NGC0891'), TargetPlacement.hidden);
       expect(placements.of('ngc 0891'), TargetPlacement.hidden);
       await edits.undo(hidden);
-      placements = await TargetPlacements.load(owner.db.settingsDao);
+      placements = await owner.db.settingsDao.readTargetPlacements();
       expect(placements.of('NGC0891'), TargetPlacement.auto);
       await edits.place('NGC0891', TargetPlacement.hidden);
       await edits.place('NGC0891', TargetPlacement.auto);
-      placements = await TargetPlacements.load(owner.db.settingsDao);
+      placements = await owner.db.settingsDao.readTargetPlacements();
       expect(placements.of('NGC0891'), TargetPlacement.auto);
     });
 
@@ -417,9 +417,9 @@ void main() {
       grouped = await _group(owner.db);
       expect(grouped['Deer Lick test']!.length, 2);
       expect(
-        (await TargetPlacements.load(
-          owner.db.settingsDao,
-        )).of('Deer Lick test'),
+        (await owner.db.settingsDao.readTargetPlacements()).of(
+          'Deer Lick test',
+        ),
         TargetPlacement.project,
       );
       await expectLater(

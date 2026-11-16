@@ -17,13 +17,13 @@ final darkroomFrameHeaderReaderProvider = Provider<FrameHeaderReader>(
 
 /// The user's project rule settings.
 final darkroomProjectRuleProvider = FutureProvider.autoDispose<ProjectRule>(
-  (ref) => ProjectRule.load(ref.watch(settingsDaoProvider)),
+  (ref) => ref.watch(settingsDaoProvider).readProjectRule(),
 );
 
 /// The user's corrections to where targets are listed.
 final darkroomTargetPlacementsProvider =
     FutureProvider.autoDispose<TargetPlacements>(
-  (ref) => TargetPlacements.load(ref.watch(settingsDaoProvider)),
+  (ref) => ref.watch(settingsDaoProvider).readTargetPlacements(),
 );
 
 /// Every imaged target with its nights and masters, most recently imaged

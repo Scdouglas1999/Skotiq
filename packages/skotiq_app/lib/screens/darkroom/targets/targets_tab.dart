@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -23,7 +24,6 @@ const double _listWidthNarrow = 248;
 const double _narrowWidth = 1100;
 
 const double _thumbSize = 56;
-const double _thumbSizeCompact = 40;
 
 /// The Targets tab: every imaged target, and the selected one's detail or its
 /// framing check.
@@ -346,15 +346,14 @@ class _OthersHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
-    final lights = others.fold<int>(0, (n, t) => n + t.frames.length);
-    final count = '${others.length} '
-        '${others.length == 1 ? 'group' : 'groups'} · '
-        '$lights light${lights == 1 ? '' : 's'}';
+    final subs = others.fold<int>(0, (n, t) => n + t.frames.length);
+    final count = '${others.length} · $subs sub${subs == 1 ? '' : 's'}';
     return Row(
       children: [
         Expanded(
           child: Semantics(
             button: true,
+            enabled: true,
             expanded: open,
             label: 'Other captures, $count',
             onTap: onToggle,
@@ -391,9 +390,10 @@ class _OthersHeader extends StatelessWidget {
                                 ),
                               ),
                               TextSpan(
-                                text: '  $count',
-                                style: SkotiqTypography.caption.copyWith(
+                                text: '  ${count.toUpperCase()}',
+                                style: SkotiqTypography.monoXs.copyWith(
                                   color: colors.textMuted,
+                                  letterSpacing: 1.1,
                                 ),
                               ),
                             ],
@@ -427,8 +427,8 @@ class _TargetRow extends StatefulWidget {
   final bool selected;
   final DarkroomBuildJob? job;
 
-  /// An other capture: a smaller picture, and why it is not a project in
-  /// place of its build status.
+  /// An other capture: its sub count, and why it is not a project in place
+  /// of its build status.
   final bool compact;
 
   @override
@@ -445,9 +445,9 @@ class _TargetRowState extends State<_TargetRow> {
     var (status, tone) = darkroomTargetStatus(t, widget.job, colors);
     if (widget.compact) (status, tone) = (t.otherReason, colors.textMuted);
     final nights = t.nights.length;
-    final lights = t.frames.length;
+    final subs = t.frames.length;
     final meta = [
-      if (widget.compact) '$lights light${lights == 1 ? '' : 's'}',
+      if (widget.compact) '$subs sub${subs == 1 ? '' : 's'}',
       '$nights night${nights == 1 ? '' : 's'}',
       if (t.filters.isNotEmpty) darkroomFilterSummary(t.filters),
       if (t.keptSeconds > 0) describeIntegration(t.keptSeconds),
@@ -487,7 +487,7 @@ class _TargetRowState extends State<_TargetRow> {
                 ClipRRect(
                   borderRadius: SkotiqTokens.borderRadiusSm,
                   child: SizedBox.square(
-                    dimension: widget.compact ? _thumbSizeCompact : _thumbSize,
+                    dimension: _thumbSize,
                     child: DarkroomPreviewImage(
                       path: t.heroImagePath,
                       alignment: const Alignment(.4, 0),

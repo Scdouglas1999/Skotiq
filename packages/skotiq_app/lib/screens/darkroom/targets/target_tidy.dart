@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -143,8 +144,9 @@ class _DarkroomProjectRuleDialogState
       _error = null;
     });
     try {
-      await ProjectRule(minKeptMinutes: minutes, minKeptFrames: frames)
-          .save(ref.read(settingsDaoProvider));
+      await ref.read(settingsDaoProvider).writeProjectRule(
+            ProjectRule(minKeptMinutes: minutes, minKeptFrames: frames),
+          );
       ref.invalidate(darkroomProjectRuleProvider);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -187,8 +189,8 @@ class _DarkroomProjectRuleDialogState
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'A target is listed as a project once its kept lights reach both '
-            'minimums, and moves there by itself as a run adds lights. '
+            'A target is listed as a project once its kept subs reach both '
+            'minimums, and moves there by itself as a run adds subs. '
             'Everything else is under Other captures. Nothing is deleted.',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
@@ -199,7 +201,7 @@ class _DarkroomProjectRuleDialogState
             const ShimmerLoading(child: SkeletonText(width: 240, height: 14))
           else ...[
             FormRow(
-              label: 'Kept light',
+              label: 'Kept time',
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: SizedBox(
@@ -217,7 +219,7 @@ class _DarkroomProjectRuleDialogState
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
             FormRow(
-              label: 'Kept lights',
+              label: 'Kept subs',
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: SizedBox(
@@ -270,7 +272,7 @@ class DarkroomTargetMenu extends ConsumerWidget {
           const SkotiqMenuChoice(_TargetAction.list, 'List as a project'),
         SkotiqMenuChoice(
           _TargetAction.rename,
-          t.identified ? 'Rename…' : 'Name these lights…',
+          t.identified ? 'Rename…' : 'Name these subs…',
         ),
         SkotiqMenuChoice(
           _TargetAction.merge,
@@ -281,7 +283,7 @@ class DarkroomTargetMenu extends ConsumerWidget {
           _TargetAction.delete,
           t.identified
               ? 'Delete target and its files…'
-              : 'Delete these lights and their files…',
+              : 'Delete these subs and their files…',
           destructive: true,
         ),
       ],
@@ -415,7 +417,7 @@ class _NameDialogState extends State<_NameDialog> {
   Widget build(BuildContext context) {
     final t = widget.target;
     return SkotiqDialog(
-      title: t.identified ? 'Rename ${t.key}' : 'Name these lights',
+      title: t.identified ? 'Rename ${t.key}' : 'Name these subs',
       width: SkotiqDialog.widthConfirm,
       actions: [
         SkotiqButton(
@@ -435,7 +437,7 @@ class _NameDialogState extends State<_NameDialog> {
         children: [
           if (!t.identified) ...[
             Text(
-              'The ${t.frames.length} lights become a saved target of this '
+              'The ${t.frames.length} subs become a saved target of this '
               'name, placed where they were taken.',
               style: SkotiqTypography.bodySm.copyWith(
                 color: context.skotiqColors.textSecondary,
@@ -501,7 +503,7 @@ class _MergeDialogState extends State<_MergeDialog> {
     return SkotiqDialog(
       title: from.identified
           ? 'Merge ${from.key} into another target'
-          : 'File these lights under a target',
+          : 'File these subs under a target',
       width: SkotiqDialog.widthConfirm,
       actions: [
         SkotiqButton(
@@ -523,11 +525,11 @@ class _MergeDialogState extends State<_MergeDialog> {
           Text(
             from.identified
                 ? 'For one object saved under two names. Its '
-                    '${from.frames.length} lights and ${from.masters.length} '
+                    '${from.frames.length} subs and ${from.masters.length} '
                     'masters are filed under the target you pick; '
                     '${from.key} stays in your target list with nothing '
                     'captured. You can undo this right after.'
-                : 'The ${from.frames.length} lights are filed under the '
+                : 'The ${from.frames.length} subs are filed under the '
                     'target you pick. You can undo this right after.',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
@@ -554,7 +556,7 @@ class _MergeDialogState extends State<_MergeDialog> {
               key: ValueKey('darkroom_merge_choice_${t.key}'),
               title: t.key,
               subtitle: [
-                '${t.frames.length} lights',
+                '${t.frames.length} subs',
                 if (t.keptSeconds > 0) _kept(t.keptSeconds),
                 if (near.contains(t)) 'same position',
               ].join(' · '),
@@ -583,7 +585,7 @@ class _DeleteDialog extends StatelessWidget {
     final masters = target.masters.length;
     final kept = target.keptSeconds;
     final lines = [
-      '$lights light frame${lights == 1 ? '' : 's'}'
+      '$lights sub${lights == 1 ? '' : 's'}'
           '${kept > 0 ? ' (${_kept(kept)} kept)' : ''}: '
           '${plan.lightFiles.length} file'
           '${plan.lightFiles.length == 1 ? '' : 's'}',
@@ -597,7 +599,7 @@ class _DeleteDialog extends StatelessWidget {
     return SkotiqDialog(
       title: target.identified
           ? 'Delete ${target.key} and its files?'
-          : 'Delete these lights and their files?',
+          : 'Delete these subs and their files?',
       width: SkotiqDialog.widthConfirm,
       actions: [
         SkotiqButton(
@@ -688,7 +690,7 @@ class DarkroomTargetSuggestions extends ConsumerWidget {
       banners.add(
         const SkotiqBanner(
           key: ValueKey('darkroom_other_reason'),
-          title: 'These lights name no target.',
+          title: 'These subs name no target.',
           message: 'They were taken without a target, a run or a plate solve '
               'that places them on one. Name them, or file them under a '
               'target from the menu.',
@@ -703,11 +705,11 @@ class DarkroomTargetSuggestions extends ConsumerWidget {
         banners.add(
           SkotiqBanner(
             key: ValueKey('darkroom_field_${row.name}'),
-            title: '$count of these lights were taken on '
+            title: '$count of these subs were taken on '
                 '${row.name}\'s field.',
             message: byHand && runTarget
                 ? 'They were taken by hand. Filed under ${row.name}, they go '
-                    'into its masters with its run\'s lights.'
+                    'into its masters with its run\'s subs.'
                 : 'File them under ${row.name} to keep them with it.',
             action: SkotiqButton(
               label: 'File under ${row.name}',
@@ -732,8 +734,8 @@ class DarkroomTargetSuggestions extends ConsumerWidget {
           message: hidden
               ? 'It stays there until you list it as a project.'
               : 'It moves to the projects by itself once it has at least '
-                  '${_minutes(t.rule.minKeptMinutes)} of kept light and '
-                  '${t.rule.minKeptFrames} kept lights.',
+                  '${t.rule.minKeptFrames} kept subs adding up to '
+                  '${_minutes(t.rule.minKeptMinutes)}.',
           action: SkotiqButton(
             key: const ValueKey('darkroom_list_as_project'),
             label: 'List as a project',

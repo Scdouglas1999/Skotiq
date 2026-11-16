@@ -984,7 +984,7 @@ void main() {
       final fold = find.byKey(const ValueKey('darkroom_other_captures'));
       expect(fold, findsOneWidget);
       expect(
-        find.textContaining('2 groups · 5 lights', findRichText: true),
+        find.textContaining('2 · 5 SUBS', findRichText: true),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('darkroom_target_row_NGC 7331')),
@@ -1011,7 +1011,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('0 PROJECTS · LAST IMAGED'), findsOneWidget);
-      final placements = await TargetPlacements.load(h.owner.db.settingsDao);
+      final placements = await h.owner.db.settingsDao.readTargetPlacements();
       expect(placements.of('NGC 891'), TargetPlacement.hidden);
       expect(
         find.textContaining('You moved this to Other captures.',

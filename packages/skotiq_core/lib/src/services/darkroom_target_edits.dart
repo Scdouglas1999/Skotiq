@@ -5,7 +5,8 @@ import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import 'darkroom_target_frames.dart';
 import 'file_trash.dart';
-import 'target_standing.dart';
+import '../models/darkroom/target_standing.dart';
+import 'target_standing_settings.dart';
 
 /// One target as the Darkroom lists it: its name, its saved target row when
 /// it has one, its lights and its masters.
@@ -97,8 +98,10 @@ class DarkroomTargetEdits {
 
   /// Lists [key] as [placement] says: a project, hidden, or by the rule.
   Future<TargetEdit> place(String key, TargetPlacement placement) async {
-    final before = await TargetPlacements.load(_db.settingsDao);
-    await before.withPlacement(key, placement).save(_db.settingsDao);
+    final before = await _db.settingsDao.readTargetPlacements();
+    await _db.settingsDao.writeTargetPlacements(
+      before.withPlacement(key, placement),
+    );
     return TargetEdit(
       summary: switch (placement) {
         TargetPlacement.hidden => 'Moved $key to Other captures.',
@@ -121,8 +124,10 @@ class DarkroomTargetEdits {
         'instead.',
       );
     }
-    final placements = await TargetPlacements.load(_db.settingsDao);
-    await placements.renamed(group.key, to).save(_db.settingsDao);
+    final placements = await _db.settingsDao.readTargetPlacements();
+    await _db.settingsDao.writeTargetPlacements(
+      placements.renamed(group.key, to),
+    );
     final row = group.row;
     if (row != null) {
       await _db.targetsDao.updateTarget(
@@ -136,7 +141,7 @@ class DarkroomTargetEdits {
     }
     final created = await _createRowFor(to, group.frames);
     return TargetEdit(
-      summary: 'Named these lights $to.',
+      summary: 'Named these subs $to.',
       frameTargets: await _moveFrames(group.frames, created),
       createdRow: created,
       placementsBefore: placements,
@@ -177,7 +182,7 @@ class DarkroomTargetEdits {
     final count = frames.length;
     return TargetEdit(
       summary:
-          'Filed $count light${count == 1 ? '' : 's'} under '
+          'Filed $count sub${count == 1 ? '' : 's'} under '
           '${into.name}.',
       frameTargets: await _moveFrames(frames, into.id),
     );
@@ -204,7 +209,10 @@ class DarkroomTargetEdits {
       }
       final created = edit.createdRow;
       if (created != null) await _db.targetsDao.deleteTarget(created);
-      await edit.placementsBefore?.save(_db.settingsDao);
+      final placementsBefore = edit.placementsBefore;
+      if (placementsBefore != null) {
+        await _db.settingsDao.writeTargetPlacements(placementsBefore);
+      }
     });
   }
 
@@ -260,10 +268,10 @@ class DarkroomTargetEdits {
           await _db.targetsDao.deleteTarget(row.id);
         }
       }
-      final placements = await TargetPlacements.load(_db.settingsDao);
-      await placements
-          .withPlacement(deletion.group.key, TargetPlacement.auto)
-          .save(_db.settingsDao);
+      final placements = await _db.settingsDao.readTargetPlacements();
+      await _db.settingsDao.writeTargetPlacements(
+        placements.withPlacement(deletion.group.key, TargetPlacement.auto),
+      );
     });
     return failed.toList();
   }
