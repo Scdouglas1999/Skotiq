@@ -476,7 +476,7 @@ mod guiding_through_a_move {
             ScriptedDomeRotatorOps::new()
                 .with_guiding(true)
                 .with_off_target_solves(1)
-                .with_mount_slewing_states(vec![true, false])
+                .with_mount_slewing_states(vec![false, true, false])
                 .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
         );
         let ctx = slew_ctx(ops.clone(), false).await;
@@ -503,7 +503,7 @@ mod guiding_through_a_move {
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
                 .with_off_target_solves(1)
-                .with_mount_slewing_states(vec![true, false])
+                .with_mount_slewing_states(vec![false, true, false])
                 .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
         );
         let ctx = slew_ctx(ops.clone(), false).await;

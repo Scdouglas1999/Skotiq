@@ -24,6 +24,72 @@ async fn centering_waits_for_slew_startup_before_accepting_idle() {
     );
 }
 
+/// A Center started while a Go to is still moving the mount (the Go to and
+/// Center buttons) takes its first frame only once the mount has stopped: a
+/// frame taken while it moves trails and the solve fails or misleads.
+#[tokio::test(start_paused = true)]
+async fn a_center_waits_for_a_slew_in_progress_before_its_first_frame() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_mount_slewing_states(vec![true, true, true, false])
+            .with_scripted_mount_coordinates(0.712, 41.27),
+    );
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.camera_id = Some("cam-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
+    ctx.target_ra = Some(0.712);
+    ctx.target_dec = Some(41.27);
+    let watch = {
+        let ops = ops.clone();
+        tokio::spawn(async move {
+            while ops.camera_exposure_calls.load(Ordering::SeqCst) == 0 {
+                sleep(Duration::from_millis(50)).await;
+            }
+            ops.mount_slew_state_calls.load(Ordering::SeqCst)
+        })
+    };
+    let config = crate::CenterConfig {
+        max_attempts: 1,
+        exposure_duration: 0.01,
+        ..Default::default()
+    };
+
+    let _ = execute_center(&config, &ctx, None).await;
+
+    assert_eq!(
+        watch.await.unwrap(),
+        4,
+        "the first frame waits until the mount reports it has stopped"
+    );
+}
+
+/// With no plate solver installed a Center fails on its first frame with
+/// that reason, instead of spending every attempt on frames it cannot solve.
+#[tokio::test(start_paused = true)]
+async fn a_center_without_a_plate_solver_fails_at_once_saying_so() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().without_plate_solver());
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.camera_id = Some("cam-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
+    ctx.target_ra = Some(0.712);
+    ctx.target_dec = Some(41.27);
+    let config = crate::CenterConfig {
+        max_attempts: 3,
+        exposure_duration: 0.01,
+        ..Default::default()
+    };
+
+    let result = execute_center(&config, &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
+    assert!(
+        result.message.as_deref().is_some_and(|m| m.contains("No plate solver")),
+        "{:?}",
+        result.message
+    );
+}
+
 /// What a Center node did with a sky that would not solve.
 struct CenterNodeRun {
     status: NodeStatus,
@@ -124,7 +190,7 @@ async fn a_center_node_reports_the_attempt_it_is_on() {
     let ops = Arc::new(
         ScriptedDomeRotatorOps::new()
             .with_off_target_solves(1)
-            .with_mount_slewing_states(vec![true, false]),
+            .with_mount_slewing_states(vec![false, true, false]),
     );
     let mut context = crate::node::context::ExecutionContext::new_for_test("center".to_string());
     context.run.device_ops = ops;

@@ -146,6 +146,7 @@ struct ScriptedDomeRotatorOps {
     guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
+    no_plate_solver: bool,
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
     /// `true` to prove a parked exposure is never daylight-gated.
@@ -295,6 +296,7 @@ impl ScriptedDomeRotatorOps {
             guider_stop_error: None,
             guider_absent: false,
             plate_solve_fails: false,
+            no_plate_solver: false,
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
@@ -528,6 +530,12 @@ impl ScriptedDomeRotatorOps {
     /// A solver that finds no solution in any frame.
     fn with_plate_solve_failing(mut self) -> Self {
         self.plate_solve_fails = true;
+        self
+    }
+
+    /// A computer with no plate solver installed.
+    fn without_plate_solver(mut self) -> Self {
+        self.no_plate_solver = true;
         self
     }
 
@@ -1153,6 +1161,9 @@ impl PlateSolveOps for ScriptedDomeRotatorOps {
         s: Option<f64>,
     ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
         self.plate_solve_hints.lock().unwrap().push((ra, dec));
+        if self.no_plate_solver {
+            return Err(crate::device_ops::DeviceError::NO_PLATE_SOLVER);
+        }
         if self.plate_solve_fails {
             return Err("no solution: too few stars".into());
         }

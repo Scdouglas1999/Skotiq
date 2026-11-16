@@ -114,12 +114,21 @@ pub(crate) async fn wait_for_centering_correction_slew(
         sleep(CENTER_CORRECTION_SLEW_POLL_INTERVAL).await;
     }
 
+    wait_until_mount_stops(mount_id, ctx).await
+}
+
+/// Wait for the mount to report it is no longer slewing, aborting the slew
+/// when centering is cancelled or the slew overruns its completion timeout.
+pub(crate) async fn wait_until_mount_stops(
+    mount_id: &str,
+    ctx: &InstructionContext,
+) -> Result<(), InstructionResult> {
     let complete_deadline = tokio::time::Instant::now() + CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT;
     loop {
         if let Some(result) = ctx.check_cancelled() {
             if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
                 tracing::warn!(
-                    "Centering: abort-slew failed while cancelling the in-progress correction \
+                    "Centering: abort-slew failed while cancelling the in-progress \
                      slew ({}); the mount may still be moving",
                     error
                 );
@@ -145,7 +154,8 @@ pub(crate) async fn wait_for_centering_correction_slew(
                 );
             }
             return Err(InstructionResult::failure(format!(
-                "Centering correction slew did not complete within {}s",
+                "The mount was still slewing after {}s; centering stopped instead of \
+                 taking a frame while it moved",
                 CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT.as_secs()
             )));
         }
@@ -237,6 +247,21 @@ async fn center(
     // run can leave loaded.
     if let Err(result) = select_step_filter(ctx, "Center", config.filter.as_deref()).await {
         return result;
+    }
+
+    // A Go to that hands over to centering may still be moving: a frame taken
+    // then trails.
+    match ctx.run.device_ops.mount_is_slewing(&mount_id).await {
+        Ok(false) => {}
+        Ok(true) => {
+            if let Err(result) = wait_until_mount_stops(&mount_id, ctx).await {
+                return result;
+            }
+        }
+        Err(error) => tracing::warn!(
+            "Centering: could not read whether the mount is slewing ({}); starting anyway",
+            error
+        ),
     }
 
     let target_ra_deg = target_ra_hours * 15.0;
@@ -349,6 +374,9 @@ async fn center(
                     Ok(Ok(_)) => {
                         tracing::warn!("Plate solve failed on attempt {}", attempt);
                         continue;
+                    }
+                    Ok(Err(e @ crate::device_ops::DeviceError::NO_PLATE_SOLVER)) => {
+                        return InstructionResult::failure(e.to_string()).caused_by(&e);
                     }
                     Ok(Err(e)) => {
                         tracing::warn!("Plate solve error on attempt {}: {}", attempt, e);
