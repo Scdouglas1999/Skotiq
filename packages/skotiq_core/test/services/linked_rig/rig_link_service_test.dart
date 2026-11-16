@@ -43,10 +43,10 @@ class _FakeClient extends RemotePairingClient {
 }
 
 final _host = DiscoveredServer(
-  host: '192.168.1.32',
+  host: '192.168.1.50',
   webPort: 8099,
   name: 'Skotiq',
-  hostName: 'DESKTOP-MMAJGAK',
+  hostName: 'DESKTOP-OBS01',
   fingerprint: 'dc2f2611',
   platform: 'windows',
   version: '8.2.1',
@@ -83,7 +83,7 @@ void main() {
     expect(client.calls.single['id'], startsWith('desktop:'));
 
     final rig = await service.remember(_host, pairing);
-    expect(rig.name, 'DESKTOP-MMAJGAK');
+    expect(rig.name, 'DESKTOP-OBS01');
     expect(rig.fingerprint, 'dc2f2611');
     expect(await service.store.readToken(), 'tok');
   });

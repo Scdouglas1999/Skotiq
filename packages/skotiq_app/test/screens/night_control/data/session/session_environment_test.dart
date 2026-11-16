@@ -162,7 +162,7 @@ void main() {
             CurrentSky(
               station: StationSky(
                 stationId: 'KOQN',
-                stationName: 'West Chester',
+                stationName: 'Flagstaff',
                 distanceKm: 15.4,
                 observedAt: DateTime.utc(2026, 11, 16, 17, 15),
                 amount: CloudAmount.clear,

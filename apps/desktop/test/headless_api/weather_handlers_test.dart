@@ -306,7 +306,7 @@ void main() {
           () async => CurrentSky(
             station: StationSky(
               stationId: 'KOQN',
-              stationName: 'West Chester',
+              stationName: 'Flagstaff',
               distanceKm: 15,
               observedAt: observedAt,
               amount: CloudAmount.clear,

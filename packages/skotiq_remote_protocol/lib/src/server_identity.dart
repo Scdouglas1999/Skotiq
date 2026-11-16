@@ -45,7 +45,7 @@ enum SkotiqHostMode {
 }
 
 /// The computer name a host advertises in discovery and `/api/info`, as a
-/// person would recognize it: `DESKTOP-MMAJGAK`, `observatory-pi`. A trailing
+/// person would recognize it: `DESKTOP-OBS01`, `observatory-pi`. A trailing
 /// `.local` (macOS) or domain suffix is dropped. Falls back to `Skotiq` when
 /// the OS reports nothing.
 String hostComputerName([String? raw]) {

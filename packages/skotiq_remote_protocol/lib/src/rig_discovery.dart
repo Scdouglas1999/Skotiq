@@ -347,7 +347,7 @@ class RigDiscovery {
     return out;
   }
 
-  /// `DESKTOP-MMAJGAK.local` → `DESKTOP-MMAJGAK`. Null for an empty target.
+  /// `DESKTOP-OBS01.local` → `DESKTOP-OBS01`. Null for an empty target.
   static String? mdnsTargetComputerName(String target) {
     var name = target.trim();
     if (name.endsWith('.')) name = name.substring(0, name.length - 1);

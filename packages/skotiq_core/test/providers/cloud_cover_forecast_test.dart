@@ -23,7 +23,7 @@ void main() {
                   'obsTime': now.millisecondsSinceEpoch ~/ 1000 - 300,
                   'lat': 39.99,
                   'lon': -75.58,
-                  'name': 'West Chester',
+                  'name': 'Flagstaff',
                   'cover': 'CLR',
                   'clouds': <Object>[],
                   'rawOb': 'METAR KOQN 161715Z AUTO 34005KT 10SM CLR',

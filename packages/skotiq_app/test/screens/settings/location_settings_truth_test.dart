@@ -109,8 +109,8 @@ void main() {
 
     const wifiFix = PositioningAttempt(
       fix: PositioningResult(
-        latitude: 39.9817,
-        longitude: -75.4072,
+        latitude: 35.1983,
+        longitude: -111.6513,
         accuracyMetres: 40,
         source: PositioningSource.wifiScan,
         provider: 'beaconDB',
@@ -121,8 +121,8 @@ void main() {
 
     const ipFix = PositioningAttempt(
       fix: PositioningResult(
-        latitude: 39.9817,
-        longitude: -75.4072,
+        latitude: 35.1983,
+        longitude: -111.6513,
         source: PositioningSource.ipAddress,
         provider: 'ipinfo.io',
         locationName: 'Newtown Square, Pennsylvania',
@@ -219,7 +219,7 @@ void main() {
       await consentAndDetect(tester);
 
       final settings = handle.container.read(appSettingsProvider).requireValue;
-      expect(settings.latitude, closeTo(39.9817, 1e-6));
+      expect(settings.latitude, closeTo(35.1983, 1e-6));
       // 1234 m came from Seattle; Pennsylvania's highest point is 979 m.
       expect(settings.elevation, 0);
       expect(find.textContaining('Elevation cleared to 0 m'), findsOneWidget);
@@ -304,7 +304,7 @@ void main() {
 
       await tester.tap(find.widgetWithText(SkotiqButton, 'Use this location'));
       await tester.pumpAndSettle();
-      expect(latitude(), closeTo(39.9817, 1e-6));
+      expect(latitude(), closeTo(35.1983, 1e-6));
     });
 
     testWidgets('a declined estimate leaves the site as it was', (

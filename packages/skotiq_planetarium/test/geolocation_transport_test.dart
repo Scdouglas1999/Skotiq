@@ -229,7 +229,7 @@ void main() {
     GeolocationService.clientFactory = () => MockClient((request) async {
       expect(request.url, WifiPositioningProvider.beaconDbEndpoint);
       return http.Response(
-        '{"location":{"lat":39.9817,"lng":-75.4072},"accuracy":40}',
+        '{"location":{"lat":35.1983,"lng":-111.6513},"accuracy":40}',
         200,
       );
     });
@@ -368,7 +368,7 @@ void main() {
           return http.Response('{"error":{"code":403}}', 403);
         }
         return http.Response(
-          '{"location":{"lat":39.9817,"lng":-75.4072},"accuracy":55}',
+          '{"location":{"lat":35.1983,"lng":-111.6513},"accuracy":55}',
           200,
         );
       });
@@ -505,7 +505,7 @@ void main() {
     );
     GeolocationService.clientFactory = () => MockClient((request) async {
       return http.Response(
-        '{"location":{"lat":39.9817,"lng":-75.4072},"accuracy":38}',
+        '{"location":{"lat":35.1983,"lng":-111.6513},"accuracy":38}',
         200,
       );
     });
@@ -629,7 +629,7 @@ void main() {
     );
     GeolocationService.clientFactory = () => MockClient((request) async {
       return http.Response(
-        '{"location":{"lat":39.9817,"lng":-75.4072},"accuracy":60}',
+        '{"location":{"lat":35.1983,"lng":-111.6513},"accuracy":60}',
         200,
       );
     });

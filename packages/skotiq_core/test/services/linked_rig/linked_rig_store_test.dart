@@ -36,9 +36,9 @@ class _HeldKeyring extends InMemorySecureKeyValueStore {
 }
 
 LinkedRig _rig({bool active = true, String scope = 'control'}) => LinkedRig(
-  host: '192.168.1.32',
+  host: '192.168.1.50',
   port: 8099,
-  name: 'DESKTOP-MMAJGAK',
+  name: 'DESKTOP-OBS01',
   fingerprint: 'dc2f261109b13423',
   platform: 'windows',
   version: '8.2.1',
@@ -67,8 +67,8 @@ void main() {
 
     expect(where, LinkedRigTokenStorage.keyring);
     final loaded = await storeWith(keyring).load();
-    expect(loaded!.name, 'DESKTOP-MMAJGAK');
-    expect(loaded.address, '192.168.1.32:8099');
+    expect(loaded!.name, 'DESKTOP-OBS01');
+    expect(loaded.address, '192.168.1.50:8099');
     expect(loaded.fingerprint, 'dc2f261109b13423');
     expect(loaded.active, isTrue);
     expect(loaded.hasFullAccess, isFalse);

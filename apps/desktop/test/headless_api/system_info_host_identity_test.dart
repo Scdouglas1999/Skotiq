@@ -59,7 +59,7 @@ void main() {
         tailscaleHost: () => null,
         relayApplianceId: () => null,
         hostMode: mode,
-        hostName: 'DESKTOP-MMAJGAK',
+        hostName: 'DESKTOP-OBS01',
       ),
     );
     final response = await handlers.handleInfo(
@@ -70,8 +70,8 @@ void main() {
 
   test('a GUI host says so and names the computer', () async {
     final info = await infoFor(SkotiqHostMode.gui);
-    expect(info['name'], 'DESKTOP-MMAJGAK');
-    expect(info['hostName'], 'DESKTOP-MMAJGAK');
+    expect(info['name'], 'DESKTOP-OBS01');
+    expect(info['hostName'], 'DESKTOP-OBS01');
     expect(info['hostMode'], 'gui');
     expect(info['mode'], 'gui');
     expect(info['apiOnlyMode'], isFalse);

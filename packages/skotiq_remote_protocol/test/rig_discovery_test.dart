@@ -31,8 +31,8 @@ void main() {
 
     test('names the computer from the SRV target', () {
       expect(
-        RigDiscovery.mdnsTargetComputerName('DESKTOP-MMAJGAK.local'),
-        'DESKTOP-MMAJGAK',
+        RigDiscovery.mdnsTargetComputerName('DESKTOP-OBS01.local'),
+        'DESKTOP-OBS01',
       );
       expect(RigDiscovery.mdnsTargetComputerName('pi.local.'), 'pi');
       expect(RigDiscovery.mdnsTargetComputerName(''), isNull);
@@ -42,36 +42,33 @@ void main() {
   group('DiscoveredServer.displayName', () {
     DiscoveredServer server({String name = 'Skotiq', String? hostName}) =>
         DiscoveredServer(
-          host: '192.168.1.32',
+          host: '192.168.1.50',
           webPort: 8099,
           name: name,
           hostName: hostName,
         );
 
     test('prefers the computer name', () {
-      expect(
-        server(hostName: 'DESKTOP-MMAJGAK').displayName,
-        'DESKTOP-MMAJGAK',
-      );
+      expect(server(hostName: 'DESKTOP-OBS01').displayName, 'DESKTOP-OBS01');
     });
 
     test('ignores the product names old hosts advertised', () {
-      expect(server().displayName, '192.168.1.32');
-      expect(server(name: 'Skotiq Headless').displayName, '192.168.1.32');
+      expect(server().displayName, '192.168.1.50');
+      expect(server(name: 'Skotiq Headless').displayName, '192.168.1.50');
       expect(server(name: 'observatory').displayName, 'observatory');
     });
 
     test('/api/info fills the host identity', () {
       final merged = EnhancedSkotiqDiscovery.mergeServerInfo(server(), {
-        'name': 'DESKTOP-MMAJGAK',
-        'hostName': 'DESKTOP-MMAJGAK',
+        'name': 'DESKTOP-OBS01',
+        'hostName': 'DESKTOP-OBS01',
         'hostMode': 'gui',
         'platform': 'windows',
         'version': '8.2.2',
         'lanPairing': true,
         'fingerprint': 'abc',
       });
-      expect(merged.hostName, 'DESKTOP-MMAJGAK');
+      expect(merged.hostName, 'DESKTOP-OBS01');
       expect(merged.hostMode, 'gui');
       expect(merged.platform, 'windows');
       expect(merged.lanPairing, isTrue);

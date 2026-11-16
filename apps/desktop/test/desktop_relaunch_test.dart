@@ -8,7 +8,7 @@ void main() {
   test('role flags are dropped and the old pid is passed on', () {
     expect(
       relaunchArguments([
-        '--remote-host=192.168.1.32',
+        '--remote-host=192.168.1.50',
         '--remote-port=8099',
         '--remote-token=secret',
         '--serve',

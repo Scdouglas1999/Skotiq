@@ -191,10 +191,10 @@ void main() {
           inMemoryDatabaseOverride(),
           remoteLaunchTargetProvider.overrideWithValue(
             const RemoteLaunchTarget(
-              host: '192.168.1.32',
+              host: '192.168.1.50',
               port: 8099,
               token: 'paired',
-              name: 'DESKTOP-MMAJGAK',
+              name: 'DESKTOP-OBS01',
               expectedFingerprint: 'dc2f261109b13423',
               remembered: true,
             ),
@@ -224,13 +224,13 @@ void main() {
 
   test('a remembered rig is named in its messages', () {
     const target = RemoteLaunchTarget(
-      host: '192.168.1.32',
+      host: '192.168.1.50',
       port: 8099,
-      name: 'DESKTOP-MMAJGAK',
+      name: 'DESKTOP-OBS01',
     );
     expect(
       remoteLaunchFailureMessage(target, RemoteLaunchFailure.unreachable),
-      "Can't reach the imaging host at DESKTOP-MMAJGAK (192.168.1.32:8099).",
+      "Can't reach the imaging host at DESKTOP-OBS01 (192.168.1.50:8099).",
     );
   });
 }

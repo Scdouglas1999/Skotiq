@@ -83,10 +83,10 @@ class _FixedStatus extends RemoteLaunchStatusNotifier {
 }
 
 final _host = DiscoveredServer(
-  host: '192.168.1.32',
+  host: '192.168.1.50',
   webPort: 8099,
   name: 'Skotiq',
-  hostName: 'DESKTOP-MMAJGAK',
+  hostName: 'DESKTOP-OBS01',
   platform: 'windows',
   version: skotiqRelease,
   fingerprint:
@@ -108,9 +108,9 @@ final _headless = DiscoveredServer(
 );
 
 final _rig = LinkedRig(
-  host: '192.168.1.32',
+  host: '192.168.1.50',
   port: 8099,
-  name: 'DESKTOP-MMAJGAK',
+  name: 'DESKTOP-OBS01',
   tokenScope: 'control',
   pairedAt: DateTime.utc(2026, 11, 7),
 );
@@ -174,8 +174,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('DESKTOP-MMAJGAK'), findsOneWidget);
-    expect(find.text('Windows · Skotiq $skotiqRelease · 192.168.1.32:8099'),
+    expect(find.text('DESKTOP-OBS01'), findsOneWidget);
+    expect(find.text('Windows · Skotiq $skotiqRelease · 192.168.1.50:8099'),
         findsOneWidget);
     expect(find.text('Identity dc2f 2611 09b1 3423'), findsOneWidget);
     // Nothing on the screen asks for a token.
@@ -186,8 +186,8 @@ void main() {
       await untilRelaunched(tester);
     });
 
-    expect(service.calls.single, startsWith('oneTap:192.168.1.32:Skotiq on'));
-    expect(relauncher.reasons, ['Linked to DESKTOP-MMAJGAK']);
+    expect(service.calls.single, startsWith('oneTap:192.168.1.50:Skotiq on'));
+    expect(relauncher.reasons, ['Linked to DESKTOP-OBS01']);
     final saved = await tester.runAsync(store.load);
     expect(saved!.active, isTrue);
     expect(saved.fingerprint, _host.fingerprint);
@@ -200,7 +200,7 @@ void main() {
     await setSize(tester);
     service.oneTapFailure = const RigPairingFailure(
       RigPairingFailureKind.unreachable,
-      'DESKTOP-MMAJGAK did not answer.',
+      'DESKTOP-OBS01 did not answer.',
     );
     await tester.pumpWidget(
       app(LinkRigDialog(request: LinkRigRequest.pair(_host))),
@@ -214,7 +214,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text("Can't reach DESKTOP-MMAJGAK at 192.168.1.32:8099."),
+      find.text("Can't reach DESKTOP-OBS01 at 192.168.1.50:8099."),
       findsOneWidget,
     );
     expect(relauncher.reasons, isEmpty, reason: 'nothing restarts linked');
@@ -297,7 +297,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('is not paired with DESKTOP-MMAJGAK yet'),
+      find.textContaining('is not paired with DESKTOP-OBS01 yet'),
       findsOneWidget,
     );
   });
@@ -324,9 +324,9 @@ void main() {
       'release mismatch', (tester) async {
     await setSize(tester);
     final remembered = LinkedRig(
-      host: '192.168.1.32',
+      host: '192.168.1.50',
       port: 8099,
-      name: 'DESKTOP-MMAJGAK',
+      name: 'DESKTOP-OBS01',
       version: '0.0.1',
       tokenScope: 'control',
       pairedAt: DateTime.utc(2026, 11, 7),
@@ -338,7 +338,7 @@ void main() {
           rigInfoFetcherProvider.overrideWithValue(
             (host) async => ServerRead(
               host,
-              const LinkProblem.unreachable('192.168.1.32:8099'),
+              const LinkProblem.unreachable('192.168.1.50:8099'),
             ),
           ),
         ],
@@ -354,7 +354,7 @@ void main() {
     expect(find.byKey(const ValueKey('link.versionMismatch')), findsNothing);
     expect(find.byKey(const ValueKey('link.updateHost')), findsNothing);
     expect(
-      find.textContaining('No answer from 192.168.1.32:8099'),
+      find.textContaining('No answer from 192.168.1.50:8099'),
       findsOneWidget,
     );
   });
@@ -377,7 +377,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      find.text('DESKTOP-MMAJGAK asks for a pairing code. Type the code it '
+      find.text('DESKTOP-OBS01 asks for a pairing code. Type the code it '
           'shows below.'),
       findsOneWidget,
     );
@@ -448,8 +448,8 @@ void main() {
   });
 
   test('an address typed with its port is split', () {
-    expect(splitHostAndPort(' 192.168.1.32:8099 '),
-        (host: '192.168.1.32', port: 8099));
+    expect(splitHostAndPort(' 192.168.1.50:8099 '),
+        (host: '192.168.1.50', port: 8099));
     expect(splitHostAndPort('observatory-pi'),
         (host: 'observatory-pi', port: null));
     expect(splitHostAndPort('fe80::1'), (host: 'fe80::1', port: null));
@@ -533,7 +533,7 @@ void main() {
       await tester.pump();
     }
     await tester.pump();
-    expect(find.text('Linked before: DESKTOP-MMAJGAK'), findsOneWidget);
+    expect(find.text('Linked before: DESKTOP-OBS01'), findsOneWidget);
     expect(find.text('Link again'), findsOneWidget);
   });
 
@@ -547,9 +547,9 @@ void main() {
         extra: [
           remoteLaunchTargetProvider.overrideWithValue(
             const RemoteLaunchTarget(
-              host: '192.168.1.32',
+              host: '192.168.1.50',
               port: 8099,
-              name: 'DESKTOP-MMAJGAK',
+              name: 'DESKTOP-OBS01',
               remembered: true,
             ),
           ),
@@ -558,7 +558,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.textContaining('Linked to DESKTOP-MMAJGAK'), findsOneWidget);
+    expect(find.textContaining('Linked to DESKTOP-OBS01'), findsOneWidget);
     expect(find.byKey(const ValueKey('linkRig.fullAccess')), findsOneWidget);
     expect(find.text('Pair again'), findsOneWidget);
 
@@ -577,9 +577,9 @@ void main() {
           backendProvider.overrideWith(_DisconnectedNotifier.new),
           remoteLaunchTargetProvider.overrideWithValue(
             const RemoteLaunchTarget(
-              host: '192.168.1.32',
+              host: '192.168.1.50',
               port: 8099,
-              name: 'DESKTOP-MMAJGAK',
+              name: 'DESKTOP-OBS01',
               remembered: true,
             ),
           ),

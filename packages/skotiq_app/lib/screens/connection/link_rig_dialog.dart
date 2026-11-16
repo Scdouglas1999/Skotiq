@@ -186,7 +186,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   }
 
   Future<void> _checkManualAddress() async {
-    // "192.168.1.32:8099" typed whole: the port goes to its own field.
+    // "192.168.1.50:8099" typed whole: the port goes to its own field.
     final typed = splitHostAndPort(_manualHost.text);
     if (typed.port != null) {
       _manualHost.text = typed.host;
@@ -544,7 +544,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
               child: SkotiqTextField(
                 key: const ValueKey('link.manual.host'),
                 controller: _manualHost,
-                hint: 'Computer name or IP, for example 192.168.1.32',
+                hint: 'Computer name or IP, for example 192.168.1.50',
                 prefixIcon: LucideIcons.monitor,
                 dense: true,
                 onSubmitted: (_) => _checkManualAddress(),
@@ -874,7 +874,7 @@ String describeCodeWhereabouts(
   return '$lead Read it on $name from ${places.join(', or from ')}.';
 }
 
-/// "Windows · Skotiq 8.2.1 · 192.168.1.32:8099"
+/// "Windows · Skotiq 8.2.1 · 192.168.1.50:8099"
 @visibleForTesting
 String describeDiscoveredHost(DiscoveredServer host) {
   final parts = <String>[];

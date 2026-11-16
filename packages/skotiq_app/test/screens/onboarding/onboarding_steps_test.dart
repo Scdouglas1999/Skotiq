@@ -473,8 +473,7 @@ void main() {
       final container = await pumpSiteStep(
         tester,
         db,
-        approximateLocation: () async =>
-            (39.9817, -75.4072, 'West Chester, PA'),
+        approximateLocation: () async => (35.1983, -111.6513, 'Flagstaff, AZ'),
       );
 
       await requestIpEstimate(tester);
@@ -493,8 +492,8 @@ void main() {
       await tester.pumpAndSettle();
 
       settings = await container.read(appSettingsProvider.future);
-      expect(settings.latitude, closeTo(39.9817, 0.0001));
-      expect(settings.longitude, closeTo(-75.4072, 0.0001));
+      expect(settings.latitude, closeTo(35.1983, 0.0001));
+      expect(settings.longitude, closeTo(-111.6513, 0.0001));
     });
 
     testWidgets('no suggestion is shown when the lookup fails offline',
@@ -527,7 +526,7 @@ void main() {
           overrides: [
             databaseProvider.overrideWithValue(db),
             onboardingApproximateLocationProvider.overrideWithValue(
-              () async => (39.9817, -75.4072, 'West Chester, Pennsylvania'),
+              () async => (35.1983, -111.6513, 'Flagstaff, Arizona'),
             ),
           ],
           child: MaterialApp(
@@ -564,7 +563,7 @@ void main() {
         db,
         approximateLocation: () async {
           calls++;
-          return (39.9817, -75.4072, 'West Chester, PA');
+          return (35.1983, -111.6513, 'Flagstaff, AZ');
         },
       );
 
@@ -605,8 +604,8 @@ void main() {
           calls++;
           return const PositioningAttempt(
             fix: PositioningResult(
-              latitude: 39.9817,
-              longitude: -75.4072,
+              latitude: 35.1983,
+              longitude: -111.6513,
               locationName: 'Newtown Square, PA',
               source: PositioningSource.ipAddress,
               provider: 'ipinfo.io',
@@ -632,7 +631,7 @@ void main() {
       await tester.tap(find.widgetWithText(SkotiqButton, 'Use this'));
       await tester.pumpAndSettle();
       final settings = await container.read(appSettingsProvider.future);
-      expect(settings.latitude, closeTo(39.9817, 0.0001));
+      expect(settings.latitude, closeTo(35.1983, 0.0001));
       expect(
         settings.elevation,
         0.0,

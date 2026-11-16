@@ -56,9 +56,9 @@ class DiscoveredServer {
   /// forcing the operator to read it off the headless daemon's log.
   final String? relayApplianceId;
 
-  /// The host's computer name (for example `DESKTOP-MMAJGAK` or `observatory`).
+  /// The host's computer name (for example `DESKTOP-OBS01` or `observatory`).
   /// Filled from `/api/info` (`hostName`) on hosts that report it, or from the
-  /// mDNS SRV target (`DESKTOP-MMAJGAK.local`) on older ones. Null when neither
+  /// mDNS SRV target (`DESKTOP-OBS01.local`) on older ones. Null when neither
   /// source has answered.
   final String? hostName;
 

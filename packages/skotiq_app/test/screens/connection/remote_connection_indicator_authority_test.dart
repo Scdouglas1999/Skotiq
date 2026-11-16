@@ -262,9 +262,9 @@ void main() {
           ),
           remoteLaunchTargetProvider.overrideWithValue(
             const RemoteLaunchTarget(
-              host: '192.168.1.32',
+              host: '192.168.1.50',
               port: 8099,
-              name: 'DESKTOP-MMAJGAK',
+              name: 'DESKTOP-OBS01',
               remembered: true,
             ),
           ),
@@ -277,7 +277,7 @@ void main() {
 
     expect(
       find.bySemanticsLabel(
-        RegExp(r'^Imaging host link: Server unreachable · 192\.168\.1\.32'),
+        RegExp(r'^Imaging host link: Server unreachable · 192\.168\.1\.50'),
       ),
       findsOneWidget,
     );

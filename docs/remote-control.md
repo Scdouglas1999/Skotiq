@@ -33,7 +33,7 @@ works, enter the host's address by hand.
 
 | Field | Meaning |
 |-------|---------|
-| `name`, `hostName` | The computer's name, for example `DESKTOP-MMAJGAK` |
+| `name`, `hostName` | The computer's name, for example `DESKTOP-OBS01` |
 | `hostMode` (and `mode`) | `gui` for the desktop app, `headless` for the service |
 | `apiOnlyMode` | `true` only for the headless service |
 | `platform` | `windows`, `linux`, `macos` |
