@@ -608,11 +608,14 @@ fn filter_plan_binding_is_optional_on_the_wire() {
     assert_eq!(round.depth_goal, Some(binding()));
 }
 
+/// Both filters dither every 3 frames, as every automatic plan writes it.
 fn dithering_sequence(l_count: u32, r_count: u32, rotate_filters: bool) -> SequenceDefinition {
     let mut sequence = two_filter_sequence(l_count, r_count, None, rotate_filters);
     for node in &mut sequence.nodes {
         if let NodeType::SmartExposure(config) = &mut node.node_type {
-            config.plans[0].dither_every = Some(3);
+            for plan in &mut config.plans {
+                plan.dither_every = Some(3);
+            }
         }
     }
     sequence
@@ -631,18 +634,106 @@ fn with_sub_length(mut sequence: SequenceDefinition, secs: f64) -> SequenceDefin
     sequence
 }
 
-/// A plan's dither cadence counts its frames across visits. Rotating one
-/// frame per visit, a burst counting its own frames never reached 3, and a
-/// whole night ran without a dither (rig, 2026-10-20). The cadence that falls
-/// due on L's third frame runs at L's next visit, after the filter move, and
-/// the node's last frame leaves no dither behind.
+/// "Dither every 3" counts the node's frames across its filters. Counted per
+/// filter, a rotation through L, R, G and B dithered on four frames in a row
+/// and then not for eight (rig, 2026-11-15). The dither that falls due on the
+/// third frame runs at the next visit, after the filter move, and the node's
+/// last frame leaves no dither behind.
 #[tokio::test]
-async fn rotation_dithers_every_n_frames_of_the_plan() {
+async fn rotation_dithers_every_n_frames_across_filters() {
     let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
-    let outcome = run(dithering_sequence(6, 2, true), ops.clone(), None).await;
+    let outcome = run(dithering_sequence(4, 4, true), ops.clone(), None).await;
 
     assert_eq!(outcome.state, ExecutorState::Completed);
-    assert_eq!(ops.timeline(), "L R L R L dither L L L");
+    assert_eq!(ops.timeline(), "L R L dither R L R dither L R");
+}
+
+/// A plan left at "off" dithers after none of its own frames, but its frames
+/// still count toward the node's cadence.
+#[tokio::test]
+async fn a_plan_without_a_cadence_counts_toward_the_nodes() {
+    let mut sequence = two_filter_sequence(6, 2, None, true);
+    for node in &mut sequence.nodes {
+        if let NodeType::SmartExposure(config) = &mut node.node_type {
+            config.plans[0].dither_every = Some(3);
+        }
+    }
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L R L dither R L L dither L L");
+}
+
+/// Rotation is what keeps a night cut short balanced: whenever the target's
+/// window closes, every filter has as many frames as the others, give or
+/// take the one in turn.
+#[tokio::test]
+async fn a_rotation_ended_early_leaves_every_filter_balanced() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let mut sequence = two_filter_sequence(16, 16, None, true);
+    let ends_at = chrono::Utc::now().timestamp() + 3;
+    for node in &mut sequence.nodes {
+        match &mut node.node_type {
+            NodeType::TargetHeader(config) => {
+                config.end_when = Some(crate::scheduling::TargetTrigger::TimeAfter(ends_at));
+            }
+            NodeType::SmartExposure(config) => {
+                for plan in &mut config.plans {
+                    plan.duration_secs = 0.4;
+                }
+            }
+            _ => {}
+        }
+    }
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let (l, r) = (ops.exposures("L"), ops.exposures("R"));
+    assert!(
+        l + r < 32,
+        "the window ended the node early: {}",
+        ops.timeline()
+    );
+    assert!(l.abs_diff(r) <= 1, "L {l}, R {r}: {}", ops.timeline());
+}
+
+/// A rotating node's filter moves raise no filter-change edge, so a Filter
+/// Change trigger set to autofocus does not refocus before every frame; a
+/// draining node's do, once per filter.
+#[tokio::test]
+async fn only_a_draining_node_raises_the_filter_change_edge() {
+    use crate::node::registry::InstructionNode;
+    for (rotate, edge) in [(true, false), (false, true)] {
+        let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+        let mut context = crate::node::ExecutionContext::new("smart".to_string(), ops.clone());
+        context.run.rig.camera_id = Some("cam-1".to_string());
+        context.run.rig.filterwheel_id = Some("fw-1".to_string());
+        let dir = std::env::temp_dir().join(format!("sk-rotation-{}", uuid::Uuid::new_v4()));
+        context.run.rig.save_path = Some(dir.clone());
+        let state = Arc::new(tokio::sync::RwLock::new(
+            crate::triggers::TriggerState::new(),
+        ));
+        context.run.trigger_state = Some(state.clone());
+        let NodeType::SmartExposure(config) = two_filter_sequence(2, 2, None, rotate)
+            .nodes
+            .remove(1)
+            .node_type
+        else {
+            unreachable!("the second node is the Smart Exposure");
+        };
+
+        let status = crate::node::instructions::smart_exposure::SmartExposureInstruction
+            .execute("smart", &NodeType::SmartExposure(config), &mut context)
+            .await;
+
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(status, crate::NodeStatus::Success, "{}", ops.timeline());
+        let state = state.read().await;
+        assert_eq!(state.latches.filter_changed, edge, "rotate {rotate}");
+        assert_eq!(state.latches.current_filter.as_deref(), Some("R"));
+        assert_eq!(state.latches.filter_rotation_owners, 0);
+    }
 }
 
 /// Draining a plan in one burst still dithers between its frames, and not
@@ -664,12 +755,12 @@ async fn a_drained_plan_dithers_inside_the_burst() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_dither_interval_trigger_stands_down_while_the_node_owns_the_cadence() {
     let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
-    let sequence = with_sub_length(dithering_sequence(6, 2, true), 1.2);
+    let sequence = with_sub_length(dithering_sequence(4, 4, true), 1.2);
     let outcome = run(sequence, ops.clone(), None).await;
 
     assert_eq!(outcome.state, ExecutorState::Completed);
-    assert_eq!(ops.timeline(), "L R L R L dither L L L");
-    assert_eq!(outcome.dithers_reported, vec!["smart".to_string()]);
+    assert_eq!(ops.timeline(), "L R L dither R L R dither L R");
+    assert_eq!(outcome.dithers_reported, vec!["smart".to_string(); 2]);
 }
 
 /// A node that sets no cadence leaves dithering to the trigger, which still

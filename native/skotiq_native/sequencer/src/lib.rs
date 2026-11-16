@@ -1010,9 +1010,10 @@ pub struct FilterPlan {
     /// Binning for this filter. Defaults to 1x1.
     #[serde(default)]
     pub binning: Binning,
-    /// Per-plan dither cadence (every N frames). None disables dithering
-    /// for this filter regardless of any global default. Some(0) is
-    /// treated as "no dither" — matches `ExposureConfig::dither_every`.
+    /// Dither cadence: after this plan's frame, dither when the Smart
+    /// Exposure node has taken a multiple of N frames, counted across all
+    /// its filters. None (or Some(0)) never dithers after this plan's
+    /// frames.
     #[serde(default)]
     pub dither_every: Option<u32>,
     /// Optional DepthLock binding. When set, Smart Exposure asks the host's
