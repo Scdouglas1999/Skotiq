@@ -102,7 +102,7 @@
         "reason": "Holds a Riverpod Ref; reads backendProvider, currentImageProvider, lastImageStatsProvider."
       },
       "services/centering_service.dart": {
-        "count": 9,
+        "count": 4,
         "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider."
       },
       "services/darkroom_build_jobs.dart": {
