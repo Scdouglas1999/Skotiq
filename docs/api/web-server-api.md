@@ -73,6 +73,7 @@ Get server information and capabilities.
     "GET /api/status",
     "GET /api/self-test",
     "GET /api/openapi.json",
+    "POST /api/devices/discover",
     "GET /api/devices",
     "POST /api/devices/connect",
     "POST /api/devices/disconnect",
@@ -233,31 +234,41 @@ and excludes WebSocket-only routes.
 
 ## Device Management
 
-### GET /api/devices
+### POST /api/devices/discover
 
-List all available and connected devices.
+Discover the host's devices now, optionally only `?deviceType=camera` (or
+another type). This is a scan the user asked for: it asks every vendor SDK
+and probes the serial ports that no connected device holds (none while a
+mount connected through ASCOM, Alpaca or INDI is connected). Types whose
+discovery failed are listed in `discoveryErrors`.
 
 **Response:**
 ```json
 {
   "devices": [
     {
-      "id": "camera-1",
+      "id": "native:zwo:0",
       "name": "ZWO ASI294MC Pro",
       "deviceType": "camera",
       "driverType": "native",
-      "description": "ZWO Camera",
-      "driverVersion": "1.0.0"
+      "description": "ZWO native driver"
     }
   ],
-  "connected": {
-    "camera": "camera-1",
-    "mount": null,
-    "focuser": null,
-    "filterWheel": null,
-    "rotator": null
-  },
-  "available": [...]
+  "discoveryErrors": { "mount": "..." }
+}
+```
+
+### GET /api/devices
+
+What the last `POST /api/devices/discover` found, optionally only
+`?deviceType=`, without discovering. `discoveredAt` is null before the first
+discovery.
+
+**Response:**
+```json
+{
+  "devices": [ ... ],
+  "discoveredAt": "2026-11-16T05:53:52.649Z"
 }
 ```
 

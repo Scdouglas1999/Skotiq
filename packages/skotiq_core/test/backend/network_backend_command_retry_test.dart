@@ -18,7 +18,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
-import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
 
@@ -251,20 +250,17 @@ void main() {
     test('idempotent GET still retries 3x on a transient 5xx '
         '(retry policy preserved)', () async {
       fake.setResponse(
-        '/api/devices',
+        '/api/devices/connected',
         method: 'GET',
         status: 500,
         body: 'upstream unavailable',
       );
       final backend = buildBackend();
 
-      await expectLater(
-        backend.discoverDevices(DeviceType.camera),
-        throwsA(isA<Object>()),
-      );
+      await expectLater(backend.getConnectedDevices(), throwsA(isA<Object>()));
 
       expect(
-        fake.requestsFor('/api/devices'),
+        fake.requestsFor('/api/devices/connected'),
         hasLength(3),
         reason: 'GET/idempotent retry behavior must be preserved',
       );

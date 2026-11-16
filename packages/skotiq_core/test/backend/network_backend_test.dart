@@ -64,11 +64,11 @@ void main() {
     });
 
     test(
-      'discoverDevices issues a GET /api/devices and decodes the body',
+      'discoverDevices issues a POST /api/devices/discover and decodes the body',
       () async {
         fake.setResponse(
-          '/api/devices',
-          method: 'GET',
+          '/api/devices/discover',
+          method: 'POST',
           body:
               '{"devices":[{"id":"sim:cam:0","name":"Sim Camera",'
               '"deviceType":"camera","driverType":"simulator",'
@@ -82,9 +82,9 @@ void main() {
         expect(devices.single.id, 'sim:cam:0');
         expect(devices.single.driverType, DriverType.simulator);
 
-        final issued = fake.requestsFor('/api/devices');
+        final issued = fake.requestsFor('/api/devices/discover');
         expect(issued, hasLength(1));
-        expect(issued.single.method, 'GET');
+        expect(issued.single.method, 'POST');
       },
     );
 
@@ -93,8 +93,8 @@ void main() {
       // 401 is non-transient, so we expect exactly one request and an
       // immediate failure.
       fake.setResponse(
-        '/api/devices',
-        method: 'GET',
+        '/api/devices/discover',
+        method: 'POST',
         status: 401,
         body: '{"error":"unauthorized","message":"missing pairing token"}',
       );
@@ -111,7 +111,7 @@ void main() {
               .having((e) => e.httpStatus, 'httpStatus', 401),
         ),
       );
-      expect(fake.requestsFor('/api/devices'), hasLength(1));
+      expect(fake.requestsFor('/api/devices/discover'), hasLength(1));
     });
 
     test('a folder outside the host\'s folders is the host\'s refusal, with '
@@ -139,8 +139,8 @@ void main() {
 
     test('refreshes auth token once after 401 and retries discovery', () async {
       fake.setResponseSequence(
-        '/api/devices',
-        method: 'GET',
+        '/api/devices/discover',
+        method: 'POST',
         responses: [
           (
             status: 401,
@@ -171,7 +171,7 @@ void main() {
 
       expect(devices, hasLength(1));
       expect(refreshCount, 1);
-      final requests = fake.requestsFor('/api/devices');
+      final requests = fake.requestsFor('/api/devices/discover');
       expect(requests, hasLength(2));
       expect(
         _headerValue(requests.first.headers, 'Authorization'),
@@ -186,7 +186,7 @@ void main() {
     test('a 500 response that is not the host\'s own error body is retried '
         'and surfaces with its status', () async {
       fake.setResponse(
-        '/api/devices',
+        '/api/devices/connected',
         method: 'GET',
         status: 500,
         body: 'upstream unavailable',
@@ -194,7 +194,7 @@ void main() {
       backend = _buildBackend(fake);
 
       await expectLater(
-        backend.discoverDevices(DeviceType.camera),
+        backend.getConnectedDevices(),
         throwsA(
           isA<ServerError>()
               .having((e) => e.code, 'code', 'internal_error')
@@ -204,14 +204,14 @@ void main() {
       );
 
       // The retry policy fires 3 attempts for transient failures.
-      expect(fake.requestsFor('/api/devices'), hasLength(3));
+      expect(fake.requestsFor('/api/devices/connected'), hasLength(3));
     });
 
     test('malformed JSON in a 200 response is surfaced, not returned as '
         'empty', () async {
       fake.setResponse(
-        '/api/devices',
-        method: 'GET',
+        '/api/devices/discover',
+        method: 'POST',
         body: '{this is not valid json',
       );
       backend = _buildBackend(fake);
@@ -266,12 +266,16 @@ void main() {
     test(
       'request headers include the pairing token when authToken is set',
       () async {
-        fake.setResponse('/api/devices', method: 'GET', body: '{"devices":[]}');
+        fake.setResponse(
+          '/api/devices/discover',
+          method: 'POST',
+          body: '{"devices":[]}',
+        );
         backend = _buildBackend(fake, authToken: 'secret-token-abc');
 
         await backend.discoverDevices(DeviceType.camera);
 
-        final captured = fake.requestsFor('/api/devices').single;
+        final captured = fake.requestsFor('/api/devices/discover').single;
         // Why: `package:http` normalises header names to lowercase on the
         // wire, so we look up case-insensitively. The header *value* is
         // load-bearing — it carries the pairing token.
@@ -336,12 +340,16 @@ void main() {
     test(
       'omits the Authorization header when no authToken is configured',
       () async {
-        fake.setResponse('/api/devices', method: 'GET', body: '{"devices":[]}');
+        fake.setResponse(
+          '/api/devices/discover',
+          method: 'POST',
+          body: '{"devices":[]}',
+        );
         backend = _buildBackend(fake);
 
         await backend.discoverDevices(DeviceType.camera);
 
-        final captured = fake.requestsFor('/api/devices').single;
+        final captured = fake.requestsFor('/api/devices/discover').single;
         // Why: anonymous callers must not send an empty/bogus Authorization
         // header — the headless server treats presence-but-empty as a
         // misconfigured client.

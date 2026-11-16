@@ -64,7 +64,7 @@ void main() {
       'device discovery requires the advertised collection and identity',
       () async {
         final missingFake = FakeNetworkClient()
-          ..setResponse('/api/devices', body: '{}');
+          ..setResponse('/api/devices/discover', method: 'POST', body: '{}');
         final missingBackend = _backend(missingFake);
         addTearDown(missingBackend.dispose);
         await expectLater(
@@ -74,7 +74,8 @@ void main() {
 
         final malformedFake = FakeNetworkClient()
           ..setResponse(
-            '/api/devices',
+            '/api/devices/discover',
+            method: 'POST',
             body:
                 '{"devices":[{"id":"camera","name":"Camera",'
                 '"driverType":"simulator"}]}',

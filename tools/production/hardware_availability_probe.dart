@@ -76,10 +76,15 @@ void main(List<String> args) async {
       final response = await _request(
         client,
         baseUri,
-        '/api/devices?deviceType=${entry.key}',
+        '/api/devices/discover?deviceType=${entry.key}',
         token: _adminToken,
+        method: 'POST',
       );
-      _expectStatus('/api/devices?deviceType=${entry.key}', response, 200);
+      _expectStatus(
+        'POST /api/devices/discover?deviceType=${entry.key}',
+        response,
+        200,
+      );
       final rawDevices = (response.json['devices'] as List? ?? const []);
       final devices = rawDevices
           .whereType<Map>()
@@ -233,8 +238,9 @@ Future<_HttpResponseBody> _request(
   Uri baseUri,
   String path, {
   String? token,
+  String method = 'GET',
 }) async {
-  final request = await client.getUrl(baseUri.resolve(path));
+  final request = await client.openUrl(method, baseUri.resolve(path));
   request.headers.contentType = ContentType.json;
   request.headers.set('x-skotiq-version', _skotiqRelease);
   if (token != null) {
