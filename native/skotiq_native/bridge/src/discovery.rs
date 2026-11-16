@@ -1209,19 +1209,16 @@ pub(crate) mod tests {
             DriverType::Ascom,
         );
 
-        {
-            let mut cache = cache().lock().await;
-            cache.insert(
-                key,
-                CacheEntry {
-                    result: Ok(vec![sentinel.clone()]),
-                    timestamp: Instant::now(),
-                },
-            );
-        }
+        let mut cache = cache().lock().await;
+        cache.insert(
+            key,
+            CacheEntry {
+                result: Ok(vec![sentinel.clone()]),
+                timestamp: Instant::now(),
+            },
+        );
 
         // Read back through the same lookup logic discover_devices uses.
-        let cache = cache().lock().await;
         let entry = cache.get(&key).expect("entry should be present");
         assert!(
             entry.timestamp.elapsed() < CACHE_TTL,
@@ -1243,23 +1240,20 @@ pub(crate) mod tests {
         let stale_time = Instant::now()
             .checked_sub(CACHE_TTL * 2)
             .expect("system uptime should exceed 2*TTL");
-        {
-            let mut cache = cache().lock().await;
-            cache.insert(
-                key,
-                CacheEntry {
-                    result: Ok(vec![make_device(
-                        "ascom:test:stale",
-                        "Stale Focuser",
-                        DeviceType::Focuser,
-                        DriverType::Ascom,
-                    )]),
-                    timestamp: stale_time,
-                },
-            );
-        }
+        let mut cache = cache().lock().await;
+        cache.insert(
+            key,
+            CacheEntry {
+                result: Ok(vec![make_device(
+                    "ascom:test:stale",
+                    "Stale Focuser",
+                    DeviceType::Focuser,
+                    DriverType::Ascom,
+                )]),
+                timestamp: stale_time,
+            },
+        );
 
-        let cache = cache().lock().await;
         let entry = cache.get(&key).expect("entry should be present");
         assert!(
             entry.timestamp.elapsed() >= CACHE_TTL,
@@ -1286,27 +1280,23 @@ pub(crate) mod tests {
             DriverType::Alpaca,
         );
 
-        {
-            let mut cache = cache().lock().await;
-            // ASCOM errored.
-            cache.insert(
-                ascom_key,
-                CacheEntry {
-                    result: Err("ASCOM COM init failed".to_string()),
-                    timestamp: Instant::now(),
-                },
-            );
-            // Alpaca succeeded with a real device.
-            cache.insert(
-                alpaca_key,
-                CacheEntry {
-                    result: Ok(vec![alpaca_dev.clone()]),
-                    timestamp: Instant::now(),
-                },
-            );
-        }
-
-        let cache = cache().lock().await;
+        let mut cache = cache().lock().await;
+        // ASCOM errored.
+        cache.insert(
+            ascom_key,
+            CacheEntry {
+                result: Err("ASCOM COM init failed".to_string()),
+                timestamp: Instant::now(),
+            },
+        );
+        // Alpaca succeeded with a real device.
+        cache.insert(
+            alpaca_key,
+            CacheEntry {
+                result: Ok(vec![alpaca_dev.clone()]),
+                timestamp: Instant::now(),
+            },
+        );
 
         // ASCOM entry still holds its error — retry-after-TTL semantics.
         let ascom_entry = cache.get(&ascom_key).expect("ascom entry present");
@@ -1330,18 +1320,15 @@ pub(crate) mod tests {
     async fn error_entry_respects_ttl_for_retry_throttling() {
         let key = (DeviceType::Dome, DriverType::Indi);
 
-        {
-            let mut cache = cache().lock().await;
-            cache.insert(
-                key,
-                CacheEntry {
-                    result: Err("INDI server unreachable".to_string()),
-                    timestamp: Instant::now(),
-                },
-            );
-        }
+        let mut cache = cache().lock().await;
+        cache.insert(
+            key,
+            CacheEntry {
+                result: Err("INDI server unreachable".to_string()),
+                timestamp: Instant::now(),
+            },
+        );
 
-        let cache = cache().lock().await;
         let entry = cache.get(&key).expect("error entry present");
         // Still within TTL: discover_devices treats this as a cache hit
         // (returns the error without rescanning).
@@ -1465,35 +1452,34 @@ pub(crate) mod tests {
         let cam_key = (DeviceType::Camera, DriverType::Native);
         let mount_key = (DeviceType::Mount, DriverType::Native);
 
-        {
-            let mut cache = cache().lock().await;
-            cache.insert(
-                cam_key,
-                CacheEntry {
-                    result: Ok(vec![make_device(
-                        "native:cam:1",
-                        "Native Cam",
-                        DeviceType::Camera,
-                        DriverType::Native,
-                    )]),
-                    timestamp: Instant::now(),
-                },
-            );
-            cache.insert(
-                mount_key,
-                CacheEntry {
-                    result: Ok(vec![make_device(
-                        "native:mnt:1",
-                        "Native Mount",
-                        DeviceType::Mount,
-                        DriverType::Native,
-                    )]),
-                    timestamp: Instant::now(),
-                },
-            );
-        }
+        // One lock scope: another test may forget the shared cache between a
+        // separate write and read.
+        let mut cache = cache().lock().await;
+        cache.insert(
+            cam_key,
+            CacheEntry {
+                result: Ok(vec![make_device(
+                    "native:cam:1",
+                    "Native Cam",
+                    DeviceType::Camera,
+                    DriverType::Native,
+                )]),
+                timestamp: Instant::now(),
+            },
+        );
+        cache.insert(
+            mount_key,
+            CacheEntry {
+                result: Ok(vec![make_device(
+                    "native:mnt:1",
+                    "Native Mount",
+                    DeviceType::Mount,
+                    DriverType::Native,
+                )]),
+                timestamp: Instant::now(),
+            },
+        );
 
-        let cache = cache().lock().await;
         let cam = cache.get(&cam_key).unwrap().result.as_ref().unwrap();
         let mnt = cache.get(&mount_key).unwrap().result.as_ref().unwrap();
         assert_eq!(cam.len(), 1);
