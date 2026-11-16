@@ -161,12 +161,10 @@ class _WeatherConditions extends ConsumerWidget {
 
 /// Where the cloud figure comes from and how old it is: the station report,
 /// the model beside it, and a warning when the two disagree.
-class _SkyNowSources extends StatelessWidget {
+class _SkyNowSources extends ConsumerWidget {
   final CurrentSky sky;
 
   const _SkyNowSources({required this.sky});
-
-  static String _utc(DateTime time) => '${ClockFormat.hm(time.toUtc())} UTC';
 
   static String _amount(CloudAmount amount) => switch (amount) {
         CloudAmount.clear => 'clear',
@@ -178,7 +176,9 @@ class _SkyNowSources extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final clock = ref.watch(clockProvider);
+    String at(DateTime time) => ClockFormat.hm(clock.fromUtc(time.toUtc()));
     final colors = SkotiqColors.of(context);
     final muted = SkotiqTypography.caption.copyWith(color: colors.textMuted);
     final secondary =
@@ -195,7 +195,7 @@ class _SkyNowSources extends StatelessWidget {
           Text(
             '${station.stationId} station · '
             '${station.distanceKm.toStringAsFixed(0)} km · '
-            'observed ${_utc(station.observedAt)} '
+            'observed ${at(station.observedAt)} '
             '(${RelativeTime.ago(station.observedAt)})',
             style: muted,
           ),
@@ -213,7 +213,7 @@ class _SkyNowSources extends StatelessWidget {
           Text(
             '${station == null ? '' : 'Model: '}${model.source} '
             '${model.percent.toStringAsFixed(0)} % · '
-            '${modelValidAt == null ? 'time unknown' : _utc(modelValidAt)}',
+            '${modelValidAt == null ? 'time unknown' : at(modelValidAt)}',
             style: muted,
           ),
         if (station == null)

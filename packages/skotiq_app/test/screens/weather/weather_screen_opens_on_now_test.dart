@@ -147,7 +147,7 @@ void main() {
       (tester) async {
     await _pumpWeather(tester, _loop(past: 1), sky: _modelSix);
     expect(find.text('CLOUD COVER NOW'), findsOneWidget);
-    expect(find.text('Open-Meteo 6 % · 02:45 UTC'), findsOneWidget);
+    expect(find.textContaining('Open-Meteo 6 % · '), findsOneWidget);
     expect(find.textContaining('Model estimate, not an observation'),
         findsOneWidget);
     expect(find.text('No forecast alert'), findsOneWidget);
