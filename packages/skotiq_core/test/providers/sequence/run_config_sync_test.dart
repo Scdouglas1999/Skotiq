@@ -238,6 +238,20 @@ void main() {
       );
     });
 
+    test('does not start on a minimum altitude it could not read', () async {
+      await SettingsDao(
+        db,
+      ).write(StoreSettings.schedulerConfig, '{"minAltitudeDegrees": ');
+      build();
+      final sync = container.read(runConfigSyncProvider);
+      await settle();
+      await expectLater(
+        sync.beginRun(onSendFailure: (_) {}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(backend.runConfigs, isEmpty);
+    });
+
     test(
       'puts a change the executor refuses on the run, not in silence',
       () async {

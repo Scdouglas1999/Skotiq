@@ -251,10 +251,8 @@ class RunConfigSync {
     await _ref.read(replayDebugEnabledProvider.future);
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
     await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
-    // The minimum altitude; the floor falls back to the default without it.
-    try {
-      await _ref.read(schedulerPersistedConfigProvider.future);
-    } catch (_) {}
+    // The minimum altitude the altitude floor is made from.
+    await _ref.read(schedulerPersistedConfigProvider.future);
   }
 
   void _listenToSources() {
