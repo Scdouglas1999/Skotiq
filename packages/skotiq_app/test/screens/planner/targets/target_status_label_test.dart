@@ -65,8 +65,7 @@ void main() {
       expect(
         code.contains(forbidden),
         isFalse,
-        reason:
-            'target_list.dart must not classify rejection reasons itself; '
+        reason: 'target_list.dart must not classify rejection reasons itself; '
             'use schedulerRejectionChipLabel() from skotiq_core',
       );
     }

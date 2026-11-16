@@ -315,7 +315,8 @@ class _ObservingListEditorDialogState
     if (!success) {
       setState(() => _saving = false);
       final state = ref.read(observingListNotifierProvider);
-      context.showErrorSnackBar(state.errorMessage ?? 'Could not save the list');
+      context
+          .showErrorSnackBar(state.errorMessage ?? 'Could not save the list');
       return;
     }
 

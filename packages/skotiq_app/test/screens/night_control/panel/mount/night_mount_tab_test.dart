@@ -366,8 +366,8 @@ void main() {
     final handle = await pumpPanelTab(tester, const NightMountTab(),
         overrides: panelOverrides());
     const sidereal = ValueKey<String>('nightMount.rate.sidereal');
-    expect(tester.widget<NightPanelButton>(find.byKey(sidereal)).selected,
-        isTrue);
+    expect(
+        tester.widget<NightPanelButton>(find.byKey(sidereal)).selected, isTrue);
 
     await tester.tap(find.byKey(sidereal));
     await tester.pump();

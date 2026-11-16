@@ -225,7 +225,9 @@ void main() {
   test('a key is either set or merged, not both', () async {
     const key = 'imaging_capture_settings_profile_1';
     final response = await post({
-      'settings': {key: jsonEncode({'gain': 1})},
+      'settings': {
+        key: jsonEncode({'gain': 1}),
+      },
       'merge': {
         key: {'gain': 2},
       },

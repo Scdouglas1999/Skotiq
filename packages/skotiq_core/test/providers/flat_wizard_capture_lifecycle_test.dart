@@ -531,7 +531,10 @@ void main() {
 
     final state = container.read(flatWizardProvider);
     expect(state.errorMessage, isNull);
-    expect(state.filterSettings.single.status, FilterCalibrationStatus.complete);
+    expect(
+      state.filterSettings.single.status,
+      FilterCalibrationStatus.complete,
+    );
     expect(state.filterSettings.single.capturedCount, 2);
     // No filter subfolder: the frames sit in the chosen folder itself.
     expect(backend.savedPaths, hasLength(2));
@@ -544,10 +547,7 @@ void main() {
     )..where((t) => t.frameType.equals('flat'))).get();
     expect(rows, hasLength(2));
     expect(rows.map((r) => r.filter), everyElement(isNull));
-    expect(
-      container.read(flatRunOutputProvider).filters.keys,
-      ['No filter'],
-    );
+    expect(container.read(flatRunOutputProvider).filters.keys, ['No filter']);
   });
 
   test(

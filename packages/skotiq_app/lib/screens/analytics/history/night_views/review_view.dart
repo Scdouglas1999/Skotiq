@@ -135,8 +135,7 @@ class _NightReviewViewState extends ConsumerState<NightReviewView> {
         Expanded(
           child: state.loading
               ? const Center(
-                  child:
-                      SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                 )
               // The two views pad themselves by one step; the rest of the
               // page gutter is added here so they line up with the header.
@@ -145,7 +144,8 @@ class _NightReviewViewState extends ConsumerState<NightReviewView> {
                     horizontal: MediaQuery.sizeOf(context).width <
                             BreakpointTokens.breakpointPhone
                         ? 0
-                        : SkotiqTokens.screenPadding.left - SkotiqTokens.spaceLg,
+                        : SkotiqTokens.screenPadding.left -
+                            SkotiqTokens.spaceLg,
                   ),
                   child: widget.workbench
                       ? WorkbenchView(scope: scope)

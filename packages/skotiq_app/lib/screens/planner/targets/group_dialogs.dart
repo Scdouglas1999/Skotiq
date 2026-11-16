@@ -241,8 +241,9 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
                     );
                   }
                   return EmptyState.compact(
-                    icon:
-                        _query.isEmpty ? LucideIcons.search : LucideIcons.searchX,
+                    icon: _query.isEmpty
+                        ? LucideIcons.search
+                        : LucideIcons.searchX,
                     title: _query.isEmpty
                         ? 'Search for an object'
                         : 'Nothing matches "$_query"',

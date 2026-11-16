@@ -24,7 +24,8 @@ void main() {
     end: started.add(const Duration(minutes: 10)),
   );
 
-  ReplayDecision decision(int seconds, DecisionCategory category, String text) =>
+  ReplayDecision decision(
+          int seconds, DecisionCategory category, String text) =>
       ReplayDecision(
         id: seconds,
         sequenceRunId: 1,
@@ -50,7 +51,8 @@ void main() {
       loadFrames: () async => [
         frame(1, sessionId: 4, at: started.add(const Duration(seconds: 60))),
         // A frame stamped a moment before the run row is not part of it.
-        frame(2, sessionId: 4, at: started.subtract(const Duration(seconds: 1))),
+        frame(2,
+            sessionId: 4, at: started.subtract(const Duration(seconds: 1))),
       ],
       loadDecisions: () async => [
         decision(120, DecisionCategory.frameRejected, 'Rejected: trailed'),
@@ -88,8 +90,10 @@ void main() {
         overrides: [
           dbSessionImagesProvider.overrideWith(
             (ref, id) => Stream.value([
-              frame(1, sessionId: 4, at: started.add(const Duration(seconds: 60))),
-              frame(2, sessionId: 4, at: started.add(const Duration(seconds: 180))),
+              frame(1,
+                  sessionId: 4, at: started.add(const Duration(seconds: 60))),
+              frame(2,
+                  sessionId: 4, at: started.add(const Duration(seconds: 180))),
             ]),
           ),
           decisionsForRunProvider.overrideWith(

@@ -268,13 +268,9 @@ void main() {
   test('the run is sent the altitude floor by azimuth, and again when the '
       'horizon changes', () async {
     // East behind trees to 40 degrees, the west open.
-    const trees =
-        '{"samples":[[0,0],[44,0],[45,40],[135,40],[136,0],[359,0]]}';
+    const trees = '{"samples":[[0,0],[44,0],[45,40],[135,40],[136,0],[359,0]]}';
     build(
-      settings: const AppSettingsState().copyWith(
-        latitude: 40,
-        longitude: -75,
-      ),
+      settings: const AppSettingsState().copyWith(latitude: 40, longitude: -75),
     );
     await settle();
     // No horizon: the minimum altitude, the same all round.

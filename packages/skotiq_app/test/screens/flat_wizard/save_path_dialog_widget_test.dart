@@ -23,7 +23,8 @@ class _SwappableBackendNotifier extends BackendNotifier {
 }
 
 void main() {
-  testWidgets('manual path edits immediately update Use this folder availability',
+  testWidgets(
+      'manual path edits immediately update Use this folder availability',
       (tester) async {
     await pumpAppScreen(tester, const SavePathDialog());
 

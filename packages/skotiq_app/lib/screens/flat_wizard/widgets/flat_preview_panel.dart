@@ -221,8 +221,8 @@ class _ImagePreview extends StatelessWidget {
             children: [
               Text(
                 'HISTOGRAM',
-                style: SkotiqTypography.eyebrow
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
               ),
               Text(
                 'mean ${result.stats.mean.toStringAsFixed(0)} ADU',

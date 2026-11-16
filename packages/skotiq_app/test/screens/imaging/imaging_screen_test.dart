@@ -322,8 +322,7 @@ void main() {
       find.byKey(TourTarget.imagingSnapshotButton.key),
     );
     expect(disconnectedBtn.onPressed, isNull,
-        reason:
-            'Snapshot button must be disabled when no camera is connected. '
+        reason: 'Snapshot button must be disabled when no camera is connected. '
             'Firing _takeSnapshot would call the imaging service against null.');
     addTearDown(() async {
       await disconnectedHandle.database.close();

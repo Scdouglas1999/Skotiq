@@ -96,8 +96,7 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
         '${_formatSeconds(last.exposure)} / '
         '${last.adu.round()} ADU without settling on the $targetPercent '
         'target.',
-    nextStep:
-        'Raise "${FlatWizardService.attemptsSettingName}" or widen the '
+    nextStep: 'Raise "${FlatWizardService.attemptsSettingName}" or widen the '
         'tolerance.',
   );
 }

@@ -97,9 +97,7 @@ class NightRef {
 
   @override
   bool operator ==(Object other) =>
-      other is NightRef &&
-      other.sessionId == sessionId &&
-      other.runId == runId;
+      other is NightRef && other.sessionId == sessionId && other.runId == runId;
 
   @override
   int get hashCode => Object.hash(sessionId, runId);

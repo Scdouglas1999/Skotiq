@@ -1419,7 +1419,8 @@ void main() {
     var state = handle.container.read(darkroomControllerProvider(scope));
     expect(state.renderError, contains('No such file or directory'));
     expect(state.renderError, contains('restore the master at that path'));
-    expect(state.renderError, contains('integrate this night again on its Workbench'));
+    expect(state.renderError,
+        contains('integrate this night again on its Workbench'));
 
     // A step failure names no file, so it keeps the engine's sentence and is
     // not sent off to rebuild a master that is perfectly fine.

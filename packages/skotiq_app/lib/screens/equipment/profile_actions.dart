@@ -470,8 +470,7 @@ Future<void> restoreDeletedProfile(
   if (container.read(profileMutationEpochProvider) != epochAtDelete) {
     messenger
       ..hideCurrentSnackBar()
-      ..showWarningSnackBar(
-          'Undo expired: profiles changed after the delete.');
+      ..showWarningSnackBar('Undo expired: profiles changed after the delete.');
     return;
   }
 

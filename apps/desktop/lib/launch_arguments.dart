@@ -45,11 +45,7 @@ const _headless = {LaunchMode.headless};
 /// the app opens a window, a database or a device.
 const launchOptions = <LaunchOption>[
   LaunchOption('--help', help: 'Print this help and exit.', modes: _both),
-  LaunchOption(
-    '--version',
-    help: 'Print the version and exit.',
-    modes: _both,
-  ),
+  LaunchOption('--version', help: 'Print the version and exit.', modes: _both),
   LaunchOption(
     '--headless',
     help: 'Run as a host with no window (also SKOTIQ_HEADLESS=1).',

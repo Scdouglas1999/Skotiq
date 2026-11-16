@@ -248,8 +248,9 @@ class MountState extends Equatable implements DeviceSlotState<MountState> {
       // Like the horizon frame, a mount that stops reporting its side of pier
       // needs [clearSideOfPier]: a null argument means "leave unchanged".
       sideOfPier: clearSideOfPier ? null : (sideOfPier ?? this.sideOfPier),
-      trackingRate:
-          clearTrackingRate ? null : (trackingRate ?? this.trackingRate),
+      trackingRate: clearTrackingRate
+          ? null
+          : (trackingRate ?? this.trackingRate),
       canSetTrackingRate: canSetTrackingRate ?? this.canSetTrackingRate,
       canPark: canPark ?? this.canPark,
       lastError: clearError ? null : (lastError ?? this.lastError),

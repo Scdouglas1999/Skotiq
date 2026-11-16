@@ -251,9 +251,8 @@ void main() {
         nameOf(tester),
         unavailableControlName('Open in Darkroom', kDarkroomHostOnlyRefusal),
       );
-      final data = tester
-          .getSemantics(find.byKey(_darkroomButton))
-          .getSemanticsData();
+      final data =
+          tester.getSemantics(find.byKey(_darkroomButton)).getSemanticsData();
       expect(data.hasFlag(SemanticsFlag.isButton), isTrue);
       expect(data.hasFlag(SemanticsFlag.hasEnabledState), isTrue);
       expect(data.hasFlag(SemanticsFlag.isEnabled), isFalse);

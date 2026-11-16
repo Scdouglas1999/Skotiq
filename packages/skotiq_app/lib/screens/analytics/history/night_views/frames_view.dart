@@ -13,7 +13,8 @@ import '../night_entry.dart';
 /// The Frames of a night: every frame of the session as a graded tile. A tile
 /// opens the frame; right-click or long-press rejects or restores it.
 class NightFramesView extends ConsumerWidget {
-  const NightFramesView({super.key, required this.entry, required this.padding});
+  const NightFramesView(
+      {super.key, required this.entry, required this.padding});
 
   final NightEntry entry;
   final EdgeInsets padding;

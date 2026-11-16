@@ -88,8 +88,7 @@ String? darkroomHostOnlyRefusal(WidgetRef ref) =>
 /// The em dash is the separator the rest of this build already uses for the
 /// same job (`Compare — <reason>`, `Move Crop up — it is already first in the
 /// stack (1 of 4)`), so the whole app states a refusal one way.
-String unavailableControlName(String label, String reason) =>
-    '$label: $reason';
+String unavailableControlName(String label, String reason) => '$label: $reason';
 
 /// [darkroomHostOnlyRefusal] for a control that is being BUILT rather than
 /// pressed: the same answer, watched so the control follows the role.

@@ -9,7 +9,6 @@ class ExposureSettings extends Equatable {
   final String? filter;
   final FrameType frameType;
 
-
   const ExposureSettings({
     required this.exposureTime,
     required this.gain,

@@ -147,8 +147,7 @@ void main() {
     expect(_reviewing(tester), kQuickCaptureSessionSelection);
   });
 
-  testWidgets('Science offers the same entry',
-      (tester) async {
+  testWidgets('Science offers the same entry', (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.science));
     await tester.pump(const Duration(milliseconds: 400));
 

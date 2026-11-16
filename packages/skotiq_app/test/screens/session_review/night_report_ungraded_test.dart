@@ -37,8 +37,7 @@ void main() {
       tester,
       NightReport.ungraded(
         sessionId: 7,
-        headline:
-            'Not graded: this session captured no light frames, so there '
+        headline: 'Not graded: this session captured no light frames, so there '
             'is nothing to analyze.',
         createdAt: createdAt,
       ),

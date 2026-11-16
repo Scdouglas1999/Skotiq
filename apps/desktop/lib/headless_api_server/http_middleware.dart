@@ -20,17 +20,19 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
         // it: a stalled log disk must not hold up a command, Stop above all.
         final isRead = request.method == 'GET' || request.method == 'HEAD';
         if (!isRead) {
-          unawaited(_logger.logRequest(
-            LogLevel.info,
-            '[REQ][$requestId] ${request.method} $path started',
-            source: 'HeadlessApiServer',
-            fields: {
-              'requestId': requestId,
-              'method': request.method,
-              'path': path,
-              'phase': 'started',
-            },
-          ));
+          unawaited(
+            _logger.logRequest(
+              LogLevel.info,
+              '[REQ][$requestId] ${request.method} $path started',
+              source: 'HeadlessApiServer',
+              fields: {
+                'requestId': requestId,
+                'method': request.method,
+                'path': path,
+                'phase': 'started',
+              },
+            ),
+          );
         }
         try {
           final response = await innerHandler(scopedRequest);
@@ -40,19 +42,21 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
             statusCode: response.statusCode,
             elapsedMs: elapsedMs,
           )) {
-            unawaited(_logger.logRequest(
-              LogLevel.info,
-              '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
-              source: 'HeadlessApiServer',
-              fields: {
-                'requestId': requestId,
-                'method': request.method,
-                'path': path,
-                'phase': 'completed',
-                'statusCode': response.statusCode,
-                'elapsedMs': elapsedMs,
-              },
-            ));
+            unawaited(
+              _logger.logRequest(
+                LogLevel.info,
+                '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
+                source: 'HeadlessApiServer',
+                fields: {
+                  'requestId': requestId,
+                  'method': request.method,
+                  'path': path,
+                  'phase': 'completed',
+                  'statusCode': response.statusCode,
+                  'elapsedMs': elapsedMs,
+                },
+              ),
+            );
           }
           if (RouteTable.of(request).isWebSocket) {
             return response;
@@ -70,19 +74,21 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           rethrow;
         } catch (e, stackTrace) {
           final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-          unawaited(_logger.logRequest(
-            LogLevel.error,
-            '[REQ][$requestId] ${request.method} $path failed ms=$elapsedMs error=$e\n$stackTrace',
-            source: 'HeadlessApiServer',
-            fields: {
-              'requestId': requestId,
-              'method': request.method,
-              'path': path,
-              'phase': 'failed',
-              'elapsedMs': elapsedMs,
-              'error': e.toString(),
-            },
-          ));
+          unawaited(
+            _logger.logRequest(
+              LogLevel.error,
+              '[REQ][$requestId] ${request.method} $path failed ms=$elapsedMs error=$e\n$stackTrace',
+              source: 'HeadlessApiServer',
+              fields: {
+                'requestId': requestId,
+                'method': request.method,
+                'path': path,
+                'phase': 'failed',
+                'elapsedMs': elapsedMs,
+                'error': e.toString(),
+              },
+            ),
+          );
           rethrow;
         }
       };

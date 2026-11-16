@@ -134,8 +134,7 @@ class _NightPanel extends StatelessWidget {
     final rejected = lights?.where((image) => !image.isAccepted).length ??
         (session == null ? stats?.framesRejected : null);
     final exposures = session?.totalExposures ?? stats?.framesCaptured;
-    final integration =
-        session?.totalIntegrationSecs ?? stats?.integrationSecs;
+    final integration = session?.totalIntegrationSecs ?? stats?.integrationSecs;
 
     return SkotiqPanel(
       head: const PanelHead(label: 'Night', icon: SkotiqIcons.moon),

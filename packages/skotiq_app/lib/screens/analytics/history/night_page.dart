@@ -297,8 +297,7 @@ class _NightHeader extends ConsumerWidget {
 
     final darkroomRefusal =
         session == null ? null : watchDarkroomSessionRefusal(ref, session.id);
-    final reviewing =
-        view == NightView.report || view == NightView.workbench;
+    final reviewing = view == NightView.report || view == NightView.workbench;
 
     final actions = <Widget>[
       if (run != null)

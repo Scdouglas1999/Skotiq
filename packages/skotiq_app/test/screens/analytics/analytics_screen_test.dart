@@ -59,8 +59,7 @@ void main() {
     });
   });
 
-  testWidgets('renders the analytics tabs',
-      (tester) async {
+  testWidgets('renders the analytics tabs', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {

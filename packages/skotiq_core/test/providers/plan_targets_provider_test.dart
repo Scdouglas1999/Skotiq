@@ -143,16 +143,18 @@ void main() {
     expect(ngc.progress.completionFraction, 0.25);
   });
 
-  test('a row carries its groups and whether the autopilot may pick it',
-      () async {
-    final rows = await _read(container(removed: {1}));
-    final ngc = rows.singleWhere((r) => r.name == 'NGC0891');
-    final m74 = rows.singleWhere((r) => r.name == 'M74');
+  test(
+    'a row carries its groups and whether the autopilot may pick it',
+    () async {
+      final rows = await _read(container(removed: {1}));
+      final ngc = rows.singleWhere((r) => r.name == 'NGC0891');
+      final m74 = rows.singleWhere((r) => r.name == 'M74');
 
-    expect(ngc.groups, isEmpty);
-    expect(ngc.inAutopilot, isFalse);
-    expect(m74.groups.single.name, 'Fall galaxies');
-    expect(m74.inGroup(7), isTrue);
-    expect(m74.inAutopilot, isTrue);
-  });
+      expect(ngc.groups, isEmpty);
+      expect(ngc.inAutopilot, isFalse);
+      expect(m74.groups.single.name, 'Fall galaxies');
+      expect(m74.inGroup(7), isTrue);
+      expect(m74.inAutopilot, isTrue);
+    },
+  );
 }

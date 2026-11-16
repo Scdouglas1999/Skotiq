@@ -24,11 +24,14 @@ void main() {
     expect(tester.getTopRight(find.text('Disabled')).dx, 320);
   });
 
-  testWidgets('a long value wraps inside the row instead of overflowing',
-      (tester) async {
+  testWidgets('a long value wraps inside the row instead of overflowing', (
+    tester,
+  ) async {
     await _pump(tester, 'Off while safety is off', 200);
     expect(tester.takeException(), isNull);
-    expect(tester.getTopRight(find.text('Off while safety is off')).dx,
-        lessThanOrEqualTo(200));
+    expect(
+      tester.getTopRight(find.text('Off while safety is off')).dx,
+      lessThanOrEqualTo(200),
+    );
   });
 }

@@ -222,8 +222,7 @@ class TargetGroupProperties extends ConsumerWidget {
               min: 0,
               max: 90,
               decimals: 0,
-              helperText:
-                  'Added to the site floor '
+              helperText: 'Added to the site floor '
                   '(${altitudeFloorRuleLabel(ref.watch(altitudeFloorProvider)).toLowerCase()}). '
                   '0 adds nothing.',
               onChanged: (value) {

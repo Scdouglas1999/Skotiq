@@ -118,8 +118,8 @@ Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
 final planetariumAltitudeFloorSyncProvider = Provider<void>((ref) {
   ref.listen<AltitudeFloor>(altitudeFloorProvider, (previous, next) {
     Future.microtask(
-      () => ref.read(planetariumAltitudeFloorProvider.notifier).state = next
-          .asSamples(),
+      () => ref.read(planetariumAltitudeFloorProvider.notifier).state =
+          next.asSamples(),
     );
   }, fireImmediately: true);
 });

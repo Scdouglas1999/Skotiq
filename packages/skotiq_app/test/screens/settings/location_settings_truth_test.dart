@@ -694,10 +694,8 @@ void main() {
           .toSet();
       expect(
         candidates.any(
-          (hhmm) => find
-              .textContaining('UTC+05:00. Now $hhmm')
-              .evaluate()
-              .isNotEmpty,
+          (hhmm) =>
+              find.textContaining('UTC+05:00. Now $hhmm').evaluate().isNotEmpty,
         ),
         isTrue,
         reason: 'the Timezone row must show the time the chosen offset '

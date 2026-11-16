@@ -227,8 +227,8 @@ class _TargetConstraintsEditorState
                 padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
                 child: Text(
                   'None. Only the site\'s altitude floor applies.',
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
                 ),
               ),
             for (final c in loaded.constraints)

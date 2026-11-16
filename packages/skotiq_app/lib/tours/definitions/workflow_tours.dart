@@ -45,8 +45,7 @@ const List<TourStep> _firstLaunchTour = [
   TourStep(
     id: 'scheduler',
     title: 'Let the scheduler pick targets',
-    description:
-        'Plan ranks what is worth imaging and when, using each '
+    description: 'Plan ranks what is worth imaging and when, using each '
         "target's altitude through the night and the time you actually "
         'have before dawn.',
     target: TourTarget.navPlanner,

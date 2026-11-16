@@ -76,14 +76,15 @@ class _FilterChangeProperties extends ConsumerWidget {
     final bool missingFromList =
         filterOptions.isNotEmpty && choice.missing != null;
     if (missingFromList) {
-      filterOptions.add((index: _kMissingFilterSentinel, name: choice.missing!));
+      filterOptions
+          .add((index: _kMissingFilterSentinel, name: choice.missing!));
     }
     final currentFilter = filterOptions.isEmpty
         ? null
         : missingFromList
-        ? filterOptions.last
-        : filterOptions.firstWhereOrNull((f) => f.index == choice.slot) ??
-              filterOptions.first;
+            ? filterOptions.last
+            : filterOptions.firstWhereOrNull((f) => f.index == choice.slot) ??
+                filterOptions.first;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

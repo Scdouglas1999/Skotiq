@@ -146,7 +146,8 @@ void main() {
   });
 
   group('groupByNight', () {
-    test('a run after midnight belongs to the night that began the evening '
+    test(
+        'a run after midnight belongs to the night that began the evening '
         'before, and quick captures join the night they were taken', () {
       final nights = groupByNight(
         [
@@ -172,7 +173,8 @@ void main() {
   group('HistoryTotals', () {
     final at = DateTime(2026, 7, 14);
 
-    test('integration and quality count accepted lights; temperature and '
+    test(
+        'integration and quality count accepted lights; temperature and '
         'exposures count every frame', () {
       final totals = HistoryTotals.of(
         images: [

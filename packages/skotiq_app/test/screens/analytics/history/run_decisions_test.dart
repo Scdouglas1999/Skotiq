@@ -47,7 +47,8 @@ void main() {
       settle: false,
       extraOverrides: [
         if (remote) isRemoteModeProvider.overrideWithValue(true),
-        decisionsForRunProvider(7).overrideWith((ref) => Stream.value(decisions)),
+        decisionsForRunProvider(7)
+            .overrideWith((ref) => Stream.value(decisions)),
       ],
     );
     await tester.pump();
@@ -67,11 +68,11 @@ void main() {
     expect(find.text('Sequence completed'), findsOneWidget);
   });
 
-  testWidgets('search narrows the list and the count follows',
-      (tester) async {
+  testWidgets('search narrows the list and the count follows', (tester) async {
     await pump(tester, [
       for (var i = 0; i < 5; i++)
-        _decision(i + 1, startedAt.add(Duration(seconds: i * 3)), 'Decision $i'),
+        _decision(
+            i + 1, startedAt.add(Duration(seconds: i * 3)), 'Decision $i'),
     ]);
     expect(find.text('5 of 5'), findsOneWidget);
 

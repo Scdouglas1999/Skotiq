@@ -70,7 +70,8 @@ String _cameraDefaultsNote(ExposureSensitivity sensitivity) =>
       IsoSensitivity() => 'used unless a filter sets its own ISO',
       GainSensitivity(hasGain: true, hasOffset: true) =>
         'used unless a filter sets its own gain or offset',
-      GainSensitivity(hasGain: true) => 'used unless a filter sets its own gain',
+      GainSensitivity(hasGain: true) =>
+        'used unless a filter sets its own gain',
       GainSensitivity(hasOffset: true) =>
         'used unless a filter sets its own offset',
       GainSensitivity() => 'used by every filter',
@@ -167,7 +168,8 @@ class _FilterColumns {
     };
     final offsetShare = sensitivity.hasOffset ? 1.0 : 0.0;
     final shares = sensitivityShare + offsetShare + 1;
-    final count = (sensitivityShare > 0 ? 1 : 0) + (offsetShare > 0 ? 1 : 0) + 1;
+    final count =
+        (sensitivityShare > 0 ? 1 : 0) + (offsetShare > 0 ? 1 : 0) + 1;
     final unit = ((maxWidth - _filterMin - gap * count) / shares)
         .clamp(_fieldMin, _fieldMax);
     return _FilterColumns(
@@ -226,8 +228,7 @@ class _FilterTable extends ConsumerWidget {
           else if (batch)
             for (var i = 0; i < filters.length; i++)
               _FilterSettingsRow(
-                key: ValueKey(
-                    'flat-filter-row-${filters[i].filterPosition}'),
+                key: ValueKey('flat-filter-row-${filters[i].filterPosition}'),
                 index: i,
                 showToggle: true,
                 columns: columns,
@@ -261,8 +262,7 @@ class _FilterSettingsRow extends ConsumerWidget {
           decoration: BoxDecoration(
               border: Border(top: BorderSide(color: colors.border))),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
+            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
             child: Row(children: cells),
           ),
         );
@@ -330,26 +330,26 @@ class _FilterSettingsRow extends ConsumerWidget {
     final name = showToggle
         ? MergeSemantics(
             child: Row(children: [
-            SkotiqCheckbox(
-              value: filter.enabled,
-              onChanged: state.isCapturing
-                  ? null
-                  : (v) => notifier.toggleFilter(index, v ?? false),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Flexible(
-              child: Text(
-                filter.label,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: SkotiqTypography.bodyStrong.copyWith(
-                  color: filter.enabled
-                      ? colors.textPrimary
-                      : colors.textSecondary,
+              SkotiqCheckbox(
+                value: filter.enabled,
+                onChanged: state.isCapturing
+                    ? null
+                    : (v) => notifier.toggleFilter(index, v ?? false),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Flexible(
+                child: Text(
+                  filter.label,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: SkotiqTypography.bodyStrong.copyWith(
+                    color: filter.enabled
+                        ? colors.textPrimary
+                        : colors.textSecondary,
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ]),
           )
         : const _FilterSelector();
 
@@ -364,10 +364,7 @@ class _FilterSettingsRow extends ConsumerWidget {
             onChanged: (v) => update(current().copyWith(gainOverride: v)),
             isoField: (context, iso) =>
                 isoOverride(iso, filter.gainOverride, config.gain),
-            gainField: (_) => field(
-                'Gain',
-                filter.gainOverride,
-                config.gain,
+            gainField: (_) => field('Gain', filter.gainOverride, config.gain,
                 (v) => update(current().copyWith(gainOverride: v)),
                 supported: !config.capabilitiesKnown || config.canSetGain,
                 min: config.gainMin,
@@ -377,10 +374,7 @@ class _FilterSettingsRow extends ConsumerWidget {
       if (columns.offset > 0)
         cell(
           columns.offset,
-          field(
-              'Offset',
-              filter.offsetOverride,
-              config.offset,
+          field('Offset', filter.offsetOverride, config.offset,
               (v) => update(current().copyWith(offsetOverride: v)),
               supported: !config.capabilitiesKnown || config.canSetOffset,
               min: config.offsetMin,

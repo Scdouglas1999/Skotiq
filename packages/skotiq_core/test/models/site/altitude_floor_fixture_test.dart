@@ -47,9 +47,7 @@ void main() {
     final floor = floors[c['floor']]!;
     switch (kind) {
       case 'at_azimuth':
-        return {
-          'expect': floor.atAzimuth((c['azimuth'] as num).toDouble()),
-        };
+        return {'expect': floor.atAzimuth((c['azimuth'] as num).toDouble())};
       case 'above':
         return {
           'expect': floor.isAbove(
@@ -63,16 +61,15 @@ void main() {
       default:
         final from = DateTime.parse(c['from'] as String);
         final until = DateTime.parse(c['until'] as String);
-        DateTime? first(bool above) => (above
-            ? floor.risesAbove
-            : floor.setsBelow)(
-          raDeg: (c['ra_hours'] as num) * 15.0,
-          decDeg: (c['dec_degrees'] as num).toDouble(),
-          from: from,
-          until: until,
-          latitudeDeg: latitude,
-          longitudeDeg: longitude,
-        );
+        DateTime? first(bool above) =>
+            (above ? floor.risesAbove : floor.setsBelow)(
+              raDeg: (c['ra_hours'] as num) * 15.0,
+              decDeg: (c['dec_degrees'] as num).toDouble(),
+              from: from,
+              until: until,
+              latitudeDeg: latitude,
+              longitudeDeg: longitude,
+            );
         return {
           'rises_above': _iso(first(true)),
           'sets_below': _iso(first(false)),
@@ -117,8 +114,8 @@ void main() {
   });
 
   test('the floor toward an azimuth', () {
-    for (final c in (fixture['at_azimuth'] as List)
-        .cast<Map<String, dynamic>>()) {
+    for (final c
+        in (fixture['at_azimuth'] as List).cast<Map<String, dynamic>>()) {
       expect(
         answers(c, 'at_azimuth')['expect'],
         closeTo((c['expect'] as num).toDouble(), 1e-6),
@@ -134,8 +131,8 @@ void main() {
   });
 
   test('when a target rises above and sets below the floor', () {
-    for (final c in (fixture['crossings'] as List)
-        .cast<Map<String, dynamic>>()) {
+    for (final c
+        in (fixture['crossings'] as List).cast<Map<String, dynamic>>()) {
       final got = answers(c, 'crossings');
       for (final key in ['rises_above', 'sets_below']) {
         final expected = c[key] as String?;

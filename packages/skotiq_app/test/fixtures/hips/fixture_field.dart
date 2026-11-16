@@ -460,8 +460,7 @@ Directory _repoRoot() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group(
-      'HiPS fixtures (C-FIX): committed real DSS2-colour data for $fieldName',
+  group('HiPS fixtures (C-FIX): committed real DSS2-colour data for $fieldName',
       () {
     test('fixture root + manifest resolve and the descriptor is consistent',
         () {

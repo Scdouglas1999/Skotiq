@@ -711,14 +711,15 @@ void main() {
         final sequence = createSequence(nodes: {'target1': targetNode});
 
         final date = DateTime(2024, 6, 15, 22, 0);
-        final windows = const SequenceTimeEstimator(
-          floor: AltitudeFloor(horizon: null, minimumDeg: 10),
-        ).calculateTargetWindows(
-          sequence,
-          date,
-          latitude: 40.0,
-          longitude: -75.0,
-        );
+        final windows =
+            const SequenceTimeEstimator(
+              floor: AltitudeFloor(horizon: null, minimumDeg: 10),
+            ).calculateTargetWindows(
+              sequence,
+              date,
+              latitude: 40.0,
+              longitude: -75.0,
+            );
 
         final window = windows['target1']!;
         expect(window.neverRises, isTrue);

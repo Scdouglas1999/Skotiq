@@ -75,7 +75,8 @@ void main() {
     await tester.tap(find.text('Observing alerts'));
     await _pumpFrames(tester);
     expect(
-      tester.widget<SegmentedControl>(find.byType(SegmentedControl).first)
+      tester
+          .widget<SegmentedControl>(find.byType(SegmentedControl).first)
           .selectedIndex,
       ScienceTab.transients.index,
     );
@@ -86,7 +87,8 @@ void main() {
     await tester.pumpWidget(_app(view: ScienceTab.firstLight));
     await _pumpFrames(tester);
     expect(
-      tester.widget<SegmentedControl>(find.byType(SegmentedControl).first)
+      tester
+          .widget<SegmentedControl>(find.byType(SegmentedControl).first)
           .selectedIndex,
       ScienceTab.firstLight.index,
     );

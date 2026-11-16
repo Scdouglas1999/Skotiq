@@ -264,8 +264,7 @@ enum TourTarget {
         framingMosaicButton ||
         framingSlewButton =>
           AppRoutes.planner(tab: PlannerTab.framing),
-        analyticsSessionTab || analyticsHistoryTab =>
-          AppRoute.analytics.path,
+        analyticsSessionTab || analyticsHistoryTab => AppRoute.analytics.path,
         analyticsHfrChart ||
         analyticsGuidingChart ||
         analyticsThumbnails =>

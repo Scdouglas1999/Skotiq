@@ -161,7 +161,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switching rigs shows the new rig\'s catalogs, not the last one\'s',
+  testWidgets(
+      'switching rigs shows the new rig\'s catalogs, not the last one\'s',
       (tester) async {
     final first = _MockNetworkBackend();
     when(() => first.getCatalogStatus())

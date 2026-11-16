@@ -326,7 +326,8 @@ void main() {
     tester,
   ) async {
     final backend = mockBackend();
-    final handle = await _pump(tester, backend, _Script([_status(ra: 0, dec: 0)]));
+    final handle =
+        await _pump(tester, backend, _Script([_status(ra: 0, dec: 0)]));
     when(() => backend.getMountCapabilities(_mountId)).thenAnswer(
       (_) async => const MountCapabilities(canPark: true),
     );

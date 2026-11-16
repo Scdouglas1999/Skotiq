@@ -41,8 +41,7 @@ import 'sequence_provider.dart';
 import 'sequence_stats_provider.dart' show sequenceRunsProvider;
 import 'session_provider.dart';
 import 'settings_provider.dart' show appSettingsProvider;
-import 'target_progress_provider.dart'
-    show targetProgressProvider;
+import 'target_progress_provider.dart' show targetProgressProvider;
 import '../models/backend/backend_types.dart';
 import 'capture_preview_loader_provider.dart';
 import 'device_service_providers.dart';

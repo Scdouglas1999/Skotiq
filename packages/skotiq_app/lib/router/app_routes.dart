@@ -162,6 +162,7 @@ enum AppRoute {
     keywords: ['polar', 'align', 'drift', 'tppa'],
     showsItself: {ShellOverlay.polarAlignmentRun},
   ),
+
   /// A tool, not a place: reached from Darkroom > Calibration, Imaging's
   /// calibration section and the palette.
   flatWizard(

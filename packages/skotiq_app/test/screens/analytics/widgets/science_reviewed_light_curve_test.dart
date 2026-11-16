@@ -137,9 +137,8 @@ void main() {
       'Narrowband ratios',
       'Photometric transforms',
     ]) {
-      final head = find
-          .ancestor(of: find.text(title), matching: find.byType(Row))
-          .first;
+      final head =
+          find.ancestor(of: find.text(title), matching: find.byType(Row)).first;
       expect(
         find.descendant(of: head, matching: find.byType(ScienceInfoButton)),
         findsOneWidget,

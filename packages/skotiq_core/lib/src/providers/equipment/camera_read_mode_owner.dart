@@ -47,7 +47,10 @@ class CameraReadModeOwner {
         camera.connectionState != DeviceConnectionState.connected) {
       return;
     }
-    _state(deviceId, _ref.read(activeEquipmentProfileProvider)?.defaultReadoutMode);
+    _state(
+      deviceId,
+      _ref.read(activeEquipmentProfileProvider)?.defaultReadoutMode,
+    );
   }
 
   void dispose() {

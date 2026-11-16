@@ -210,7 +210,8 @@ void main() {
   // The read mode is the equipment profile's. Picking one saves it there and
   // sends nothing to the camera: the device layer puts the camera in the mode
   // when a frame is taken, for a capture from here and for a run alike.
-  testWidgets('the read mode shown and saved is the profile\'s', (tester) async {
+  testWidgets('the read mode shown and saved is the profile\'s',
+      (tester) async {
     final profiles = _MockProfiles();
     when(() => profiles.setProfileReadMode(any(), any()))
         .thenAnswer((_) async {});

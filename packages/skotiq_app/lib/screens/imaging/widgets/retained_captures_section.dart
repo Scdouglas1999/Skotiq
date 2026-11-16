@@ -95,7 +95,7 @@ class _RetainedCapturesSectionState
                         Text(
                           capture.inCameraMemory
                               ? "In the camera's memory until it is switched "
-                                    'off or a later exposure replaces it'
+                                  'off or a later exposure replaces it'
                               : "On the camera's card: ${capture.location}",
                           style: TextStyle(
                             color: capture.inCameraMemory
