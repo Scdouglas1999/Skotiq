@@ -29,21 +29,18 @@ class _PlanNightChips extends ConsumerWidget {
     );
     final dusk = twilight.astronomicalDusk;
     final dawn = twilight.astronomicalDawn;
-    final moonInstant = plannerMoonInstant(now: now, dusk: dusk, dawn: dawn);
-    final illumination = AstronomyCalculations.moonIllumination(moonInstant);
+    final illumination = ref.watch(tonightMoonIlluminationProvider);
     final l10n = context.l10n;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // The Moon is read at the middle of the dark, not now, so the chip
-        // names that time: Tonight and the schedule quote it for now. Where
-        // the header has no room for it, the tooltip says it instead.
-        _moonChip(
-          l10n,
-          illumination: illumination,
-          at: identical(moonInstant, now) ? null : moonInstant,
-          roomForTime: MediaQuery.sizeOf(context).width >= 1500,
+        SkotiqChip(
+          icon: LucideIcons.moon,
+          label: l10n.text(
+            'plannerChipMoon',
+            params: {'value': illumination.round().toString()},
+          ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         SkotiqChip(
@@ -59,28 +56,6 @@ class _PlanNightChips extends ConsumerWidget {
                 ),
         ),
       ],
-    );
-  }
-
-  static Widget _moonChip(
-    SkotiqLocalizations l10n, {
-    required double illumination,
-    required DateTime? at,
-    required bool roomForTime,
-  }) {
-    final value = illumination.round().toString();
-    final plain = l10n.text('plannerChipMoon', params: {'value': value});
-    if (at == null) {
-      return SkotiqChip(icon: LucideIcons.moon, label: plain);
-    }
-    final timed = l10n.text(
-      'plannerChipMoonAt',
-      params: {'value': value, 'time': ClockFormat.hm(at)},
-    );
-    if (roomForTime) return SkotiqChip(icon: LucideIcons.moon, label: timed);
-    return SkotiqTooltip(
-      message: timed,
-      child: SkotiqChip(icon: LucideIcons.moon, label: plain),
     );
   }
 }
@@ -429,17 +404,4 @@ class _ControlsBarChips {
         _ResetChip(colors: colors, onPressed: resetFilters),
     ];
   }
-}
-
-/// When the planner reads the Moon's phase: the middle of tonight's dark,
-/// the instant the target ranking uses, so the header and a target's
-/// rationale cannot quote 52% and 53% for the same Moon.
-@visibleForTesting
-DateTime plannerMoonInstant({
-  required DateTime now,
-  required DateTime? dusk,
-  required DateTime? dawn,
-}) {
-  if (dusk == null || dawn == null || !dawn.isAfter(dusk)) return now;
-  return dusk.add(Duration(seconds: dawn.difference(dusk).inSeconds ~/ 2));
 }

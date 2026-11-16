@@ -44,3 +44,16 @@ final siteMoonTimesProvider = Provider<MoonTimes?>((ref) {
   if (ref.watch(observingSiteProvider) == null) return null;
   return ref.watch(moonInfoProvider);
 });
+
+/// The Moon's lit percentage for tonight, 0–100, as every screen quotes it.
+///
+/// Read at the middle of tonight's dark at the site on record, the instant the
+/// target ranking uses, so Tonight, Plan and a target's rationale give one
+/// number for the night. Without a site or a full dark it is the phase now,
+/// which is the same everywhere on Earth.
+final tonightMoonIlluminationProvider = Provider<double>((ref) {
+  final middle = ref.watch(siteTwilightTimesProvider)?.middleOfDark;
+  return middle == null
+      ? ref.watch(moonInfoProvider).illumination
+      : AstronomyCalculations.moonIllumination(middle);
+});

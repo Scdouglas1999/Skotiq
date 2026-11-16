@@ -36,12 +36,8 @@ class TonightNight {
   final DateTime? moonRise;
   final DateTime? moonSet;
 
-  /// The lit fraction of the disc as a PERCENTAGE, 0–100.
-  ///
-  /// `MoonTimes.illumination` is already scaled by 100 (see
-  /// `skotiq_planetarium` `calc/moon.dart`: `(1 + cos(phaseAngle)) / 2 *
-  /// 100`). Treating it as a 0–1 fraction and scaling it again printed
-  /// "Moon 238%" for a 2.38 % crescent.
+  /// The lit part of the disc for the night as a PERCENTAGE, 0–100 (see
+  /// [tonightMoonIlluminationProvider]).
   final double? moonIlluminationPercent;
 }
 
@@ -78,6 +74,6 @@ final tonightNightProvider = Provider<TonightNight?>((ref) {
     sunrise: local(sunrise),
     moonRise: moonRise == null ? null : local(moonRise),
     moonSet: moonSet == null ? null : local(moonSet),
-    moonIlluminationPercent: moon?.illumination,
+    moonIlluminationPercent: ref.watch(tonightMoonIlluminationProvider),
   );
 });

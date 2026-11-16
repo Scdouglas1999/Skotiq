@@ -13,6 +13,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/widgets/altitude_chart.dart';
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/suggestions/widgets/transient_alerts_panel.dart';
+import 'package:skotiq_app/services/observing_site.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -353,20 +354,26 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  // SY-06: the header's Moon is read at the middle of the dark, not now, and
-  // Tonight and the schedule quote it for now. The chip names its time so
-  // three different percentages are not read as one.
-  testWidgets('the Moon chip names the time it is for', (tester) async {
+  testWidgets('the Moon chip quotes the Moon at the middle of the dark',
+      (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1600, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
+    final dusk = DateTime.utc(2026, 11, 15, 23, 18);
+    final dawn = DateTime.utc(2026, 11, 16, 10, 14);
+    final middle = DateTime.utc(2026, 11, 16, 4, 46);
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: _commonOverrides(),
+        overrides: [
+          ..._commonOverrides(),
+          siteTwilightTimesProvider.overrideWithValue(
+            TwilightTimes(astronomicalDusk: dusk, astronomicalDawn: dawn),
+          ),
+        ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: const Scaffold(body: PlannerScreen()),
@@ -375,10 +382,8 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      find.textContaining(RegExp(r'^Moon \d+% at \d\d:\d\d$')),
-      findsOneWidget,
-    );
+    final pct = AstronomyCalculations.moonIllumination(middle).round();
+    expect(find.text('Moon $pct%'), findsOneWidget);
 
     await settleProviderTeardown(tester);
   });

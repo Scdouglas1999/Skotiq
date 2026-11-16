@@ -29,6 +29,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
   final clock = ref.watch(clockProvider);
   final now = clock.toNightClock(ref.watch(nightNowProvider));
   final flipAt = ref.watch(nightTargetProvider.select((t) => t?.flipAt));
+  final holdAt = ref.watch(nightTargetProvider.select((t) => t?.holdAt));
 
   UpcomingItemVm at(UpcomingKind kind, DateTime when) =>
       UpcomingItemVm(kind: kind, at: when, passed: !now.isBefore(when));
@@ -41,11 +42,23 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
           tone: MetricGridTone.warning,
         );
 
+  final hold = holdAt == null
+      ? null
+      : UpcomingItemVm(
+          kind: UpcomingKind.meridianHold,
+          at: holdAt,
+          passed: !now.isBefore(holdAt),
+          tone: MetricGridTone.warning,
+        );
+
   if (!phase.isRunLive) {
-    if (night == null) return flip == null ? const [] : [flip];
+    if (night == null) {
+      return [if (hold != null) hold, if (flip != null) flip];
+    }
     final timed = <UpcomingItemVm>[
       at(UpcomingKind.sunset, night.sunset),
       at(UpcomingKind.astroDark, night.astroDark),
+      if (hold != null) hold,
       if (flip != null) flip,
       at(UpcomingKind.astroDawn, night.astroDawn),
     ];
@@ -103,6 +116,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
       (planEnd == null || belowLimit.isBefore(planEnd));
 
   final timed = <UpcomingItemVm>[
+    if (hold != null && ahead(holdAt)) hold,
     if (flip != null) flip,
     if (nextTarget != null)
       UpcomingItemVm(

@@ -91,6 +91,7 @@ class TonightTab extends ConsumerWidget {
     final moonTimes = ref.watch(siteMoonTimesProvider);
     // Phase and illumination are the same everywhere on Earth.
     final moonInfo = ref.watch(moonInfoProvider);
+    final moonIllumination = ref.watch(tonightMoonIlluminationProvider);
     final location = ref.watch(observerLocationProvider);
     // Ranking targets is a per-site computation (transit altitude, dark-window
     // overlap). Without a site it would rank ~12k DSOs for an observer at
@@ -254,11 +255,11 @@ class TonightTab extends ConsumerWidget {
                           color: colors.textSecondary),
                     ),
                     Text(
-                      '${moonInfo.illumination.toStringAsFixed(0)}%',
+                      '${moonIllumination.toStringAsFixed(0)}%',
                       style: SkotiqTypography.labelStrong.copyWith(
-                          color: moonInfo.illumination < 25
+                          color: moonIllumination < 25
                               ? colors.success
-                              : moonInfo.illumination > 75
+                              : moonIllumination > 75
                                   ? colors.error
                                   : colors.warning),
                     ),

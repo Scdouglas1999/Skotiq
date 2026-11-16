@@ -19,6 +19,24 @@ class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
 
 class _FakeGoalService extends Mock implements IntegrationGoalService {}
 
+/// 20:00 at the test site (latitude 40, longitude -75) on a November evening,
+/// so the plans start at dusk whatever the wall clock says.
+final _evening = DateTime.utc(2026, 11, 16, 1);
+
+class _StoppedClock implements Clock {
+  const _StoppedClock(this.at);
+  final DateTime at;
+
+  @override
+  DateTime now() => at.toLocal();
+  @override
+  DateTime nowUtc() => at.toUtc();
+  @override
+  Duration get utcOffset => at.toLocal().timeZoneOffset;
+  @override
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
+}
+
 class _SlotlessConnectedWheel extends FilterWheelStateNotifier {
   _SlotlessConnectedWheel(super.ref) {
     // ignore: invalid_use_of_protected_member
@@ -82,6 +100,7 @@ List<Override> _overrides(
   when(() => goals.progressForTarget(any())).thenAnswer((_) async => const []);
   return [
     inMemoryDatabaseOverride(),
+    clockProvider.overrideWithValue(_StoppedClock(_evening)),
     appSettingsProvider.overrideWith(_ConfiguredSettingsNotifier.new),
     activeEquipmentProfileProvider.overrideWithValue(_oscProfile),
     effectiveFiltersProvider.overrideWithValue(filters),
@@ -167,7 +186,8 @@ void main() {
                 TargetSuggestionService(loggingService: LoggingService()),
             logging: LoggingService(),
             floor: openSky)
-        .calculateWindow(latitudeDeg: 40, longitudeDeg: -75);
+        .calculateWindow(
+            latitudeDeg: 40, longitudeDeg: -75, now: _evening.toLocal());
     expect(header.endBefore, window.twilight.nauticalDawn);
     expect(nodes.whereType<LoopNode>().single.repeatUntil, header.endBefore);
     final exposure = nodes.whereType<ExposureNode>().single;

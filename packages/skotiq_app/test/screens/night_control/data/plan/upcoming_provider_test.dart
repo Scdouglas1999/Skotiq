@@ -62,6 +62,59 @@ void main() {
     expect(items[3].at, DateTime(2026, 10, 20, 5, 44));
   });
 
+  // F33: with a pre-meridian hold set, the night listed the flip but not the
+  // moment the run stops tracking and taking frames for it.
+  test('a pre-meridian hold is listed before its flip', () {
+    final container = planContainer(
+      now: DateTime(2026, 10, 19, 18, 36),
+      sequence: TwoTargetPlan().sequence,
+      extra: [
+        isMeridianFlipEnabledProvider.overrideWithValue(true),
+        effectiveMeridianFlipSettingsProvider.overrideWithValue(
+          const MeridianFlipSettings(
+            triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+            minutesPastMeridian: 20,
+            pauseBeforeMeridianMinutes: 40,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final items = container.read(nightUpcomingProvider);
+    final kinds = items.map((i) => i.kind).toList();
+    final hold = kinds.indexOf(UpcomingKind.meridianHold);
+    expect(hold, isNonNegative);
+    expect(kinds[hold + 1], UpcomingKind.meridianFlip);
+    final flipAt = items[hold + 1].at!;
+    expect(
+      flipAt.difference(items[hold].at!).inSeconds,
+      closeTo(60 * 60 * 0.99727, 1),
+      reason: '40 min before the meridian to 20 min past it, in solar time',
+    );
+  });
+
+  test('no hold without a pause before the meridian', () {
+    final container = planContainer(
+      now: DateTime(2026, 10, 19, 18, 36),
+      sequence: TwoTargetPlan().sequence,
+      extra: [
+        isMeridianFlipEnabledProvider.overrideWithValue(true),
+        effectiveMeridianFlipSettingsProvider.overrideWithValue(
+          const MeridianFlipSettings(
+            triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+            minutesPastMeridian: 20,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final kinds = container.read(nightUpcomingProvider).map((i) => i.kind);
+    expect(kinds, contains(UpcomingKind.meridianFlip));
+    expect(kinds, isNot(contains(UpcomingKind.meridianHold)));
+  });
+
   test('no site: no night rows', () {
     final container = planContainer(
       now: DateTime(2026, 10, 19, 18, 36),

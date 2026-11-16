@@ -131,7 +131,8 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   );
   // Hour angle and transit are measured from the equinox of date; the target's
   // coordinates are J2000.
-  final (raOfDateDeg, _) = AstronomyCalculations.precessFromJ2000ToDate(
+  final (raOfDateDeg, decOfDateDeg) =
+      AstronomyCalculations.precessFromJ2000ToDate(
     raDeg: target.raHours * 15.0,
     decDeg: target.decDegrees,
     dt: now,
@@ -178,6 +179,17 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
       toLimit == null || toLimit == Duration.zero ? null : now.add(toLimit);
 
   final curves = ref.watch(_nightSkyCurvesProvider);
+  final flipAt = _flipAt(
+    ref,
+    now: now,
+    transit: transit,
+    tonight: tonight,
+    raOfDateDeg: raOfDateDeg,
+    decOfDateDeg: decOfDateDeg,
+  );
+  final holdMinutes = flipAt == null
+      ? null
+      : ref.watch(effectiveMeridianFlipSettingsProvider).holdMinutesBeforeFlip;
 
   return NightTargetVm(
     name: target.displayName,
@@ -199,35 +211,40 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
     belowLimitAt: belowLimit != null && tonight(belowLimit)
         ? clock.toNightClock(belowLimit)
         : null,
-    flipAt: _flipAt(
-      ref,
-      now: now,
-      transit: transit,
-      tonight: tonight,
-    ),
+    flipAt: flipAt,
+    holdAt: holdMinutes == null
+        ? null
+        : flipAt!.subtract(
+            Duration(seconds: (holdMinutes * 60 * _siderealToSolar).round()),
+          ),
   );
 });
 
 /// The next meridian flip on the operator's clock, or null when flips are
 /// off, the method leaves the moment to the mount, or none comes tonight.
 ///
-/// During a run the mount's own countdown (the meridian banner's) decides;
-/// otherwise the flip is predicted from the target's transit, since the mount
-/// may be pointing anywhere before the plan slews it.
+/// While a run has the mount on its target, the mount's own countdown (the
+/// meridian banner's) decides; otherwise the flip is predicted from the
+/// target's transit, since the mount may point anywhere before the plan slews
+/// it there.
 DateTime? _flipAt(
   Ref ref, {
   required DateTime now,
   required DateTime transit,
   required bool Function(DateTime) tonight,
+  required double raOfDateDeg,
+  required double decOfDateDeg,
 }) {
   if (!ref.watch(isMeridianFlipEnabledProvider)) return null;
   final settings = ref.watch(effectiveMeridianFlipSettingsProvider);
   final clock = ref.watch(clockProvider);
+  final mount = ref.watch(mountStateProvider);
 
-  if (ref.watch(nightRunPhaseProvider).isRunLive) {
+  if (ref.watch(nightRunPhaseProvider).isRunLive &&
+      _pointsAt(mount, raOfDateDeg: raOfDateDeg, decOfDateDeg: decOfDateDeg)) {
     final site = ref.watch(appObserverLocationProvider);
     final countdown = computeMeridianCountdown(
-      mount: ref.watch(mountStateProvider),
+      mount: mount,
       longitude: site?.longitude,
       latitude: site?.latitude,
       settings: settings,
@@ -256,6 +273,27 @@ DateTime? _flipAt(
   );
   if (flip.isBefore(now) || !tonight(flip)) return null;
   return clock.toNightClock(flip);
+}
+
+/// How far from the target the mount may point and still be imaging it: a
+/// mount that reports J2000 instead of the equinox of date is under half a
+/// degree off, a centered target arcseconds.
+const double _onTargetDeg = 1.0;
+
+bool _pointsAt(
+  MountState mount, {
+  required double raOfDateDeg,
+  required double decOfDateDeg,
+}) {
+  final ra = mount.ra, dec = mount.dec;
+  if (ra == null || dec == null) return false;
+  return AstronomyCalculations.angularSeparation(
+        ra1Deg: ra * 15.0,
+        dec1Deg: dec,
+        ra2Deg: raOfDateDeg,
+        dec2Deg: decOfDateDeg,
+      ) <=
+      _onTargetDeg;
 }
 
 /// Whether this transit's meridian flip is behind the run: a flip succeeded

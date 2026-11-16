@@ -34,8 +34,9 @@ List<_TargetRow> _rows(
   List<PlanTarget> targets,
   _AutopilotView autopilot,
   Map<int, _TonightWindow> windows,
-  DateTime now,
-) {
+  DateTime now, {
+  TargetHeaderNode? runTarget,
+}) {
   final decision = autopilot.decision;
   final scores = {
     for (final s in decision?.scoredCandidates ?? const <TargetScore>[])
@@ -50,7 +51,9 @@ List<_TargetRow> _rows(
         final window = windows[target.id];
         final score = scores[target.id];
         final (String status, _StatusTone tone, double rank) = () {
-          if (target.id == currentId) {
+          if (target.id == currentId ||
+              (runTarget?.imagesTargetRow(id: target.id, name: target.name) ??
+                  false)) {
             return ('Imaging now', _StatusTone.active, 0.0);
           }
           if (!target.inAutopilot) {

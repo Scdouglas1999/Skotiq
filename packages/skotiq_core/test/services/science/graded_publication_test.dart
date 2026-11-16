@@ -26,6 +26,8 @@ class _Settings extends ScienceSettingsNotifier {
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(const SolveOptions()));
+
   test(
     'the real pipeline grades before publishing and omits rejected frames',
     () async {
@@ -91,6 +93,65 @@ void main() {
         expect(published.contains(id), rms < 1.2);
       }
       expect(published, hasLength(1));
+    },
+  );
+
+  // F25: a frame the run's frame watch had solved (center, scale, rotation,
+  // no CD matrix) was solved again blind for its full WCS.
+  test(
+    'a frame with a stored center is solved again around that center',
+    () async {
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      final science = _Science();
+      final repo = LocalImagingRecords(
+        sessionsDao: db.sessionsDao,
+        imagesDao: db.imagesDao,
+        onSolvedFrameFold: (_) async {},
+      );
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          scienceSettingsProvider.overrideWith(_Settings.new),
+          imagingRecordsProvider.overrideWithValue(repo),
+          scienceBackendProvider.overrideWithValue(science),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+      const path = '/test/M31_L_0001.fits';
+      final id = await db
+          .into(db.capturedImages)
+          .insert(
+            CapturedImagesCompanion.insert(
+              filePath: path,
+              fileName: 'M31_L_0001.fits',
+              exposureDuration: 30,
+              capturedAt: DateTime.utc(2026, 11, 16, 3, 30),
+              isPlateSolved: const Value(true),
+              solvedRa: const Value(0.712),
+              solvedDec: const Value(41.27),
+              solvedRotation: const Value(-21.3),
+              solvedPixelScale: const Value(0.79),
+            ),
+          );
+      when(
+        () => science.solveForScience(any(), any()),
+      ).thenAnswer((_) async => null);
+
+      await container
+          .read(scienceProcessingServiceProvider)
+          .processFrame(imagePath: path, capturedImageId: id);
+
+      final options =
+          verify(
+                () => science.solveForScience(path, captureAny()),
+              ).captured.first
+              as SolveOptions;
+      expect(options.raHintHours, 0.712);
+      expect(options.decHintDegrees, 41.27);
+      expect(options.searchRadiusDegrees, isNotNull);
     },
   );
 }

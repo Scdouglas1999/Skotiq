@@ -34,6 +34,7 @@ import 'widgets/planning_risks_banner.dart';
 import '../../router/planner_route.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
+import '../../services/observing_site.dart';
 import '../../utils/snackbar_helper.dart';
 
 export '../../router/planner_route.dart' show PlannerTab, DiscoverView;
