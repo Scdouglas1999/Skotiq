@@ -49,8 +49,9 @@ pub enum LikelyCause {
     GuidingFailure,
     /// Wind > threshold and clustered rejects.
     WindGust,
-    /// Isolated rejection with no environmental pattern — almost certainly
-    /// a satellite or aircraft track.
+    /// A satellite or aircraft trail. One trail does not move a frame's
+    /// median HFR or eccentricity, the only per-frame metrics here, so the
+    /// classifier does not emit it; stored verdicts can carry it.
     SatellitePass,
     /// Localized hot pixel / cosmic ray, often single-frame, no
     /// environmental change.
@@ -175,9 +176,11 @@ pub struct ForensicVerdict {
 ///   creep, but neither cloud cover nor guiding explained it.
 /// * WindGust mirrors the cluster heuristic for cloud passages but keyed
 ///   on wind speed.
-/// * SatellitePass / HotPixelOrCosmic catch the single-frame isolated
-///   case; the difference is whether HFR was elevated (satellite trail
-///   blows up HFR) or not (hot pixel).
+/// * HotPixelOrCosmic catches the single-frame isolated case with a low
+///   star count and no HFR or eccentricity elevation. An isolated frame
+///   with soft or elongated stars has no single cause in these metrics (a
+///   gust, a guiding hiccup, a seeing moment): `Unknown`, with the isolation
+///   as evidence.
 /// * `Unknown` is the honest fallback — the analyzer must never
 ///   silently pick a default.
 pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
@@ -394,11 +397,8 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         };
     }
 
-    // 7) Single-frame isolated reject — distinguish satellite trail
-    //    (HFR or eccentricity elevated, no neighbours bad) from a hot
-    //    pixel / cosmic event (no HFR elevation, no neighbours bad).
-    //    Isolated means good frames around it; a run's first frames have
-    //    nothing to compare with.
+    // 7) Single-frame isolated reject. Isolated means good frames around
+    //    it; a run's first frames have nothing to compare with.
     let nearby_bad = recent.iter().rev().take(3).filter(|s| !s.accepted).count();
     let has_good_neighbours = recent.iter().rev().take(3).any(|s| s.accepted);
     if nearby_bad == 0 && has_good_neighbours {
@@ -418,7 +418,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
                 evidence.push(format!("Eccentricity {:.2}", e));
             }
             return ForensicVerdict {
-                likely_cause: Some(LikelyCause::SatellitePass),
+                likely_cause: Some(LikelyCause::Unknown),
                 evidence,
             };
         }
@@ -553,8 +553,7 @@ struct HfrRise {
 /// * Each adjacent pair is *strictly* increasing (with a tiny 1 %
 ///   tolerance for measurement noise) — a flat-then-spike pattern does
 ///   NOT qualify; that signature is `SeeingSpike`. A satellite trail
-///   spike on top of a stable HFR baseline is `SatellitePass`, not
-///   `FocusDrift`.
+///   spike on top of a stable HFR baseline is not `FocusDrift` either.
 fn monotonic_hfr_rise(recent: &[RecentFrameSample], current_hfr: Option<f64>) -> Option<HfrRise> {
     // Build the timeline of HFR values for analysis. Include current
     // frame at the tail.
@@ -801,8 +800,10 @@ mod tests {
         assert_eq!(verdict.likely_cause, Some(LikelyCause::WindGust));
     }
 
+    // The rig called one soft, elongated frame among good ones a satellite
+    // pass, with nothing in the evidence about a trail.
     #[test]
-    fn satellite_pass_isolated_frame_with_elevated_hfr() {
+    fn an_isolated_soft_or_elongated_frame_is_not_called_a_satellite_pass() {
         let now = 1_700_000_000.0;
         let recent: Vec<RecentFrameSample> = (0..4)
             .map(|i| with_hfr(sample(now - 240.0 + i as f64 * 60.0, true), 2.0))
@@ -820,7 +821,7 @@ mod tests {
             },
         };
         let verdict = analyze_rejection(&inputs);
-        assert_eq!(verdict.likely_cause, Some(LikelyCause::SatellitePass));
+        assert_eq!(verdict.likely_cause, Some(LikelyCause::Unknown));
         assert!(verdict
             .evidence
             .iter()
