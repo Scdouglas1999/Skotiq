@@ -103,6 +103,12 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   Sequence? _stashedManualSequence;
   bool _stashedManualDirty = false;
 
+  /// The loaded plan is one a planner built and left loaded when its run
+  /// ended (there was nothing to hand back). Until the operator edits it, it
+  /// is the last run's plan, not the operator's work, so the next planner does
+  /// not stash it to restore over its own plan.
+  bool _keptPlannerPlan = false;
+
   /// Who currently owns the loaded plan. The notifier is the source of truth;
   /// it mirrors every change onto [activePlanOwnerProvider] (when a [Ref] is
   /// present) so the value is reactively observable by UI and the slave mirror.
@@ -427,6 +433,7 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   void _reclaimManualOwnership() {
     _stashedManualSequence = null;
     _stashedManualDirty = false;
+    _keptPlannerPlan = false;
     _setOwner(ActivePlanOwner.manual);
   }
 
@@ -451,11 +458,12 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
 
     if (_owner == ActivePlanOwner.manual) {
       // First hand-off from the operator: preserve the manual canvas so it can
-      // be restored when the planner stops. Only stash a non-null sequence —
-      // an empty editor has nothing worth restoring.
-      _stashedManualSequence = state;
-      _stashedManualDirty = _dirty;
+      // be restored when the planner stops.
+      final operatorsWork = !_keptPlannerPlan || _dirty;
+      _stashedManualSequence = operatorsWork ? state : null;
+      _stashedManualDirty = operatorsWork && _dirty;
     }
+    _keptPlannerPlan = false;
 
     // Bypass the unsaved-clobber guard deliberately: the manual work is safely
     // stashed above, not discarded. Inline the load (rather than calling
@@ -487,6 +495,7 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
       state = stashed;
       _dirty = _stashedManualDirty;
     }
+    _keptPlannerPlan = stashed == null;
     _stashedManualSequence = null;
     _stashedManualDirty = false;
     _setOwner(ActivePlanOwner.manual);
