@@ -535,6 +535,7 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_fr
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	unwrap_or_default	1	V0779	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	-	unwrap_or_literal	1	V0665	//! carries no setpoint, and substituting one (`target_temp.unwrap_or(-10.0)`)
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	-	unwrap_or_literal	1	V0664	//! companion `unwrap_or(0)` policy below.
+native/skotiq_native/bridge/src/device_manager/ops/camera/settings.rs	stated_frame_defaults	unwrap_or_default	1	O9-01	.unwrap_or_default()
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = command_tx.send(command);
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = socket
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	release_simulated_panel	rust_let_underscore	1	V0050	let _ = get_device_manager().disconnect_device(device_id).await;
@@ -593,7 +594,6 @@ native/skotiq_native/bridge/src/simulator/sky.rs	choose_prefix	unwrap_or_literal
 native/skotiq_native/bridge/src/simulator/sky.rs	synth_area	unwrap_or_literal	1	V0707	.unwrap_or(0);
 native/skotiq_native/bridge/src/state.rs	AppState	comment_best_effort	1	V0052	/// placeholder triple silently defeats guards that exist precisely to stop
 native/skotiq_native/bridge/src/unified_device_ops/camera.rs	camera_start_exposure	rust_let_underscore	1	V0711	let _ = mgr.camera_abort_exposure(camera_id).await;
-native/skotiq_native/bridge/src/unified_device_ops/camera.rs	camera_start_exposure	unwrap_or_literal	1	V0710	// `unwrap_or(0)` here would silently command gain/offset 0.
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	disconnect_fixed_camera	rust_let_underscore	1	U2-17	let _ = crate::api::imaging::api_clear_device_image(device_id.to_string()).await;
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = crate::last_frame::measure(&raw, 2.0);
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = ops.measure_light_frame(&image).await.expect("measurement");
@@ -601,6 +601,10 @@ native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_p
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = skotiq_imaging::validate_image_comprehensive(
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = super::frame_store::measure_light_frame(&bytes, None);
+native/skotiq_native/bridge/src/unified_device_ops/frame_defaults_tests.rs	disconnect	rust_let_underscore	1	V0779	let _ = crate::api::imaging::api_clear_device_image(device_id.to_string()).await;
+native/skotiq_native/bridge/src/unified_device_ops/frame_defaults_tests.rs	-	simulated_runtime_path	1	V0779	AutofocusConfig, CenterConfig, ExposureRequest, InstructionContext, NullDeviceOps, RunShared,
+native/skotiq_native/bridge/src/unified_device_ops/frame_defaults_tests.rs	Rig	simulated_runtime_path	1	V0779	rest: NullDeviceOps,
+native/skotiq_native/bridge/src/unified_device_ops/frame_defaults_tests.rs	step_on	simulated_runtime_path	1	V0779	rest: NullDeviceOps,
 native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount	rust_let_underscore	1	V0715	let _ = crate::state::get_state().set_observer_location(previous_site);
 native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	a_manual_frame_and_a_sequence_frame_carry_the_same_header	rust_let_underscore	1	U2-24	let _ = crate::state::get_state().set_observer_location(previous_site);
 native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	a_manual_frame_and_a_sequence_frame_carry_the_same_header	rust_let_underscore	1	U2-24	let _ = get_device_manager().disconnect_device(id).await;
@@ -1528,7 +1532,6 @@ packages/skotiq_app/lib/router/app_router.dart	_screen	literal_null_coalesce	1	O
 packages/skotiq_app/lib/router/app_routes.dart	fromQuery	literal_null_coalesce	1	U2-17	final dec = double.tryParse(query['dec'] ?? '');
 packages/skotiq_app/lib/router/app_routes.dart	fromQuery	literal_null_coalesce	1	U2-17	final ra = double.tryParse(query['ra'] ?? '');
 packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart	build	literal_null_coalesce	1	V0487	(standaloneAsync.valueOrNull?.isNotEmpty ?? false);
-packages/skotiq_app/lib/screens/analytics/session_elapsed.dart	sessionElapsed	guessed_now_timestamp	1	V0262	_nonNegative((now ?? DateTime.now()).difference(session.startTime)),
 packages/skotiq_app/lib/screens/analytics/session_elapsed.dart	-	literal_null_coalesce	1	V0262	accepted: accepted[id] ?? 0,
 packages/skotiq_app/lib/screens/analytics/session_elapsed.dart	-	literal_null_coalesce	1	V0262	bucket[sessionId] = (bucket[sessionId] ?? 0) + 1;
 packages/skotiq_app/lib/screens/analytics/session_elapsed.dart	-	literal_null_coalesce	1	V0262	rejected: rejected[id] ?? 0,
@@ -1889,7 +1892,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/sequence_timeline/full_timelin
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart	build	literal_null_coalesce	1	R9-095	ref.watch(currentPlanTimingProvider)?.total.inSeconds ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart	build	literal_null_coalesce	1	V0005	ref.watch(executorSimulationModeProvider).valueOrNull ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart	_CanvasBarMeta	simulated_runtime_path	1	V0005	/// simulated devices has to say so on the surface the operator is watching,
-packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/ledger_columns.dart	-	guessed_now_timestamp	1	V0740	now: ref.watch(ledgerClockProvider).valueOrNull ?? DateTime.now(),
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/ledger_columns.dart	_smartFilters	literal_null_coalesce	1	V0740	? '#${(plan.filterIndex ?? 0) + 1}'
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/ledger_fold_row.dart	_aggregateState	literal_null_coalesce	1	V0741	completion += ((progress.nodeProgressPercent[memberId] ?? 0) / 100.0)
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/ledger_row.dart	_buildProgressBar	literal_null_coalesce	1	V0742	fraction = ((widget.progressPercent ?? 0) / 100.0).clamp(0.0, 1.0);
@@ -2736,6 +2738,7 @@ packages/skotiq_core/lib/src/providers/end_of_night_calibration/eon_providers.da
 packages/skotiq_core/lib/src/providers/end_of_night_calibration/eon_providers.dart	filterNames	empty_catch	1	V0826	} catch (_) {
 packages/skotiq_core/lib/src/providers/end_of_night_calibration/eon_providers.dart	filterPosition	empty_catch	1	V0823	} catch (_) {
 packages/skotiq_core/lib/src/providers/end_of_night_calibration/eon_providers.dart	notify	empty_catch	1	V0822	} catch (_) {
+packages/skotiq_core/lib/src/providers/equipment/camera_frame_defaults_owner.dart	-	literal_null_coalesce	1	O9-01	final takesOffset = sensitivity?.hasOffset ?? false;
 packages/skotiq_core/lib/src/providers/equipment/device_capability_provider.dart	CoverCalibratorCapabilitySnapshot.fromJson	literal_null_coalesce	1	V0240	maxBrightness: (json['maxBrightness'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/equipment/mount_state_provider.dart	disconnect	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/equipment/switch_state_provider.dart	SwitchStateNotifier	comment_best_effort	1	V0121	/// silently ignored because the UI cannot have rendered a row for a
@@ -2979,7 +2982,7 @@ packages/skotiq_core/lib/src/services/backup_service/sequence_codec.dart	_import
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	O7-07	(filter.isEmpty || sameFilter(r.filter ?? '', filter)) &&
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	R9-114	final filter = ctx.filter?.trim() ?? '';
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	R9-114	final train = ctx.opticalTrainId?.trim() ?? '';
-packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	groupFrames	literal_null_coalesce	1	V0858	if (kind == CalibrationFrameKind.flat) _filterOf(f) ?? '',
+packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	groupFrames	literal_null_coalesce	1	V0858	_filterOf(f) ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0856	gain ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0855	if (kind == CalibrationFrameKind.flat) filter ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0857	offset ?? '',
@@ -3147,7 +3150,6 @@ packages/skotiq_core/lib/src/services/device_service/connections/environment.dar
 packages/skotiq_core/lib/src/services/device_service/connections/guider_and_rotator.dart	_connectPhd2	empty_catch	1	V0450	} catch (_) {
 packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart	_coolerOffForDisconnect	comment_best_effort	1	V0748	// Best-effort cooler shutdown: ASCOM/INDI driver-side coolers keep
 packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart	_followHostWarmUp	empty_catch	1	V0748	} catch (_) {
-packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart	_bringUpCamera	literal_null_coalesce	1	R9-115	final takesOffset = capabilities?.canSetOffset ?? false;
 packages/skotiq_core/lib/src/services/device_service/control_helpers.dart	_applyFilterFocusOffset	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/device_service/control_helpers.dart	_applyFilterFocusOffset	literal_null_coalesce	1	V0121	final lastAppliedOffset = _lastAppliedFilterOffsetByWheel[offsetKey] ?? 0;
 packages/skotiq_core/lib/src/services/device_service/control_helpers.dart	_resolveConfiguredFilterOffset	literal_null_coalesce	1	V0121	return filterOffsetState.offsets[filterName] ?? 0;
