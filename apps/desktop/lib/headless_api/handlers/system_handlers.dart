@@ -367,7 +367,7 @@ class SystemHandlers implements RouteSource {
     final requestId = requestIdFrom(request);
     _logInfo('[API][$requestId] GET /api/openapi.json');
     try {
-      return Response.ok(_openApiJson(), headers: jsonResponseHeaders);
+      return contentResponse(_openApiJson(), contentType: jsonContentType);
     } catch (e, stackTrace) {
       _logError('[API][$requestId] OpenAPI generation error: $e\n$stackTrace');
       return jsonInternalServerError({'error': 'Internal server error'});
