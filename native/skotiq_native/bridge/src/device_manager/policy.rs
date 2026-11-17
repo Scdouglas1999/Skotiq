@@ -36,7 +36,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 // Three failed polls already debounce transient errors;
                 // backing off would add 40 s before confirming a lost camera.
                 backoff_multiplier: 1.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 // A dead camera stalls every frame.
                 escalate_to_disconnect: true,
             },
@@ -71,7 +71,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 // Five double-probed misses are debounce enough; a fixed cadence
                 // recovers a dead focuser in about 75 s.
                 backoff_multiplier: 1.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 escalate_to_disconnect: true,
             },
             retry_heartbeat: true,
@@ -86,7 +86,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 failure_threshold: 5,
                 // A fixed cadence recovers a lost wheel in about 100 s.
                 backoff_multiplier: 1.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 escalate_to_disconnect: true,
             },
             retry_heartbeat: true,
@@ -100,7 +100,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 // Tolerates another client briefly holding the rotator (NINA).
                 failure_threshold: 5,
                 backoff_multiplier: 1.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 escalate_to_disconnect: true,
             },
             retry_heartbeat: false,
@@ -148,7 +148,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 max_interval_secs: 60,
                 failure_threshold: 4,
                 backoff_multiplier: 2.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 escalate_to_disconnect: false,
             },
             retry_heartbeat: false,
@@ -178,7 +178,7 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
                 // client briefly holding the switch.
                 failure_threshold: 5,
                 backoff_multiplier: 2.0,
-                auto_reconnect: false,
+                auto_reconnect: true,
                 // A switch often powers the rig (dew heaters, the mount's
                 // supply): a lost power controller must surface loudly.
                 escalate_to_disconnect: true,
@@ -231,17 +231,11 @@ pub(crate) fn reconnected_by_heartbeat() -> Vec<DeviceType> {
 mod tests {
     use super::*;
 
+    /// The owner, 2026-11-16: "Any and all devices connected should get the
+    /// same heartbeat treatment with automatic recovery." A camera, wheel and
+    /// focuser lost behind a power box stayed lost until reconnected by hand.
     #[test]
-    fn the_heartbeat_reconnects_the_mount_the_guider_and_the_enclosure_devices() {
-        assert_eq!(
-            reconnected_by_heartbeat(),
-            [
-                DeviceType::Mount,
-                DeviceType::Guider,
-                DeviceType::Dome,
-                DeviceType::Weather,
-                DeviceType::CoverCalibrator,
-            ]
-        );
+    fn the_heartbeat_reconnects_every_device_type() {
+        assert_eq!(reconnected_by_heartbeat(), DEVICE_TYPES);
     }
 }

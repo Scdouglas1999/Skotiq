@@ -488,3 +488,52 @@ async fn a_cooler_switched_off_while_connected_stays_off_after_a_reopen() {
     assert_eq!(camera.read().await.status.cooler_on, Some(false));
     camera.write().await.status.connected = false;
 }
+
+/// A mount that was tracking and is parked when it comes back stays parked:
+/// the reconnect does not switch tracking on and leave the park.
+#[tokio::test]
+async fn a_reconnected_parked_mount_is_not_set_tracking() {
+    use crate::simulator::mount::get_sim_mount;
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = Arc::new(build_device_manager());
+    let id = "sim_mount_parked_reconnect";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Mount), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    manager.mount_set_tracking(id, true).await.expect("tracking");
+
+    manager.mark_lost(id, true, "simulated drop").await;
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.parked = true;
+        mount.status.tracking = false;
+    }
+    manager.connect_device(id).await.expect("reconnect");
+
+    let mount = get_sim_mount().read().await.status.clone();
+    assert!(mount.parked);
+    assert!(!mount.tracking, "a parked mount is not set tracking");
+    drop(mount);
+    let mut mount = get_sim_mount().write().await;
+    mount.status.parked = false;
+    mount.status.connected = false;
+}
+
+/// A device the reconnection loop gave up on is tried again after the bus
+/// changes: a hub that takes minutes to power up outlasts the attempts.
+#[tokio::test]
+async fn a_bus_change_gives_a_lost_device_its_attempts_back() {
+    let manager = build_device_manager();
+    let id = "native:zwo_efw:0";
+    manager
+        .register_device(build_sim_info(id, DeviceType::FilterWheel), true)
+        .await;
+    manager.mark_lost(id, true, "gone").await;
+    manager.devices.write().await.get_mut(id).unwrap().reconnect_attempts = 10;
+
+    manager.retry_lost_devices().await;
+
+    assert_eq!(manager.devices.read().await[id].reconnect_attempts, 0);
+}

@@ -76,6 +76,13 @@ impl DeviceManager {
 
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
+                // Close the previous instance first: a reconnect after a lost
+                // heartbeat must open a fresh SDK session, not a second one
+                // beside the broken one.
+                if let Some(old) = self.handles.remove(&info.id) {
+                    let _ = old.disconnect().await;
+                    tracing::info!("Closed the previous native camera for {}", info.id);
+                }
                 camera.connect().await.map_err(|e| e.to_string())?;
                 self.tell_long_exposure_noise_reduction(
                     &info.name,
@@ -88,6 +95,11 @@ impl DeviceManager {
                 tracing::info!("Connected to native camera: {}", info.name);
             }
             (NativeHandle::Focuser(mut focuser), _) => {
+                // As the camera. A focuser's disconnect does not move it.
+                if let Some(old) = self.handles.remove(&info.id) {
+                    let _ = old.disconnect().await;
+                    tracing::info!("Closed the previous native focuser for {}", info.id);
+                }
                 focuser.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,

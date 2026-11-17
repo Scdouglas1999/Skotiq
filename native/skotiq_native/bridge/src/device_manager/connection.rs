@@ -547,6 +547,10 @@ impl DeviceManager {
                     self.publish_unknown_pixel_size_notice(device_id).await;
                 }
 
+                // A reconnected wheel or focuser is read, never set: where it
+                // is now is what it holds.
+                self.read_position_after_connect(info).await;
+
                 // A focuser, wheel or rotator moved outside Skotiq is caught
                 // by the backstop poll (`ops::backstop`).
                 if policy(info.device_type).backstop_polled {
@@ -1129,6 +1133,11 @@ impl DeviceManager {
         let Some(enabled) = desired_tracking else {
             return;
         };
+        // A parked mount stays parked: tracking it would leave the park.
+        if enabled && matches!(self.mount_get_status(device_id).await, Ok(status) if status.parked) {
+            tracing::info!("Reconnect: mount {device_id} is parked; tracking stays off");
+            return;
+        }
         tracing::info!(
             "Reconnect: re-applying mount {} tracking={}",
             device_id,

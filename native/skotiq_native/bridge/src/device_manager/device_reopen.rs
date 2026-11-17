@@ -150,36 +150,51 @@ impl DeviceManager {
 
     /// Close `device_id` without announcing it lost, and connect it through
     /// the normal path, keeping its auto-reconnect setting. The connect
-    /// restores a camera's held state; a wheel's slot and a focuser's
-    /// position are read again.
+    /// restores a camera's held state and reads a wheel's slot and a
+    /// focuser's position.
     pub(crate) async fn reopen_device(&self, device_id: &str) -> Result<(), String> {
-        let (auto_reconnect, device_type) = self
+        let auto_reconnect = self
             .devices
             .read()
             .await
             .get(device_id)
-            .map(|dev| (dev.auto_reconnect, dev.info.device_type))
+            .map(|dev| dev.auto_reconnect)
             .ok_or_else(|| format!("Device not found: {device_id}"))?;
         if let Err(e) = self.close_device(device_id, false).await {
             tracing::warn!("Reopen of {device_id}: closing it reported {e}; opening it anyway");
         }
         let connected = self.connect_device(device_id).await;
         self.set_auto_reconnect(device_id, auto_reconnect).await;
-        connected?;
-        match device_type {
-            DeviceType::FilterWheel => match self.filter_wheel_get_position(device_id).await {
-                Ok(slot) => tracing::info!("Reopened filter wheel {device_id} is at slot {slot}"),
-                Err(e) => tracing::warn!("Reopened filter wheel {device_id}: slot read failed: {e}"),
+        connected
+    }
+
+    /// Read where a wheel, focuser or rotator that was just connected is.
+    /// Only a read: a reconnect never moves one.
+    pub(crate) async fn read_position_after_connect(&self, info: &DeviceInfo) {
+        let id = &info.id;
+        match info.device_type {
+            DeviceType::FilterWheel => match self.filter_wheel_get_position(id).await {
+                Ok(slot) => tracing::info!("Filter wheel {id} connected at slot {slot}"),
+                Err(e) => tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}"),
             },
-            DeviceType::Focuser => match self.focuser_get_position(device_id).await {
-                Ok(position) => {
-                    tracing::info!("Reopened focuser {device_id} is at position {position}")
-                }
-                Err(e) => tracing::warn!("Reopened focuser {device_id}: position read failed: {e}"),
+            DeviceType::Focuser => match self.focuser_get_position(id).await {
+                Ok(position) => tracing::info!("Focuser {id} connected at position {position}"),
+                Err(e) => tracing::warn!("Focuser {id} connected; its position read failed: {e}"),
             },
             _ => {}
         }
-        Ok(())
+    }
+
+    /// After a device came or went on the bus, a device the reconnection
+    /// loop gave up on gets its attempts back: a hub that takes minutes to
+    /// power up outlasts them.
+    pub(crate) async fn retry_lost_devices(&self) {
+        let mut devices = self.devices.write().await;
+        for dev in devices.values_mut() {
+            if dev.connection_state == crate::device::ConnectionState::Error && dev.auto_reconnect {
+                dev.reconnect_attempts = 0;
+            }
+        }
     }
 
     /// Run `op` on `device_id`; when it fails in a way that calls for a
