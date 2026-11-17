@@ -47,8 +47,9 @@ pub struct StandardTriggerSpec {
     pub name: &'static str,
     pub cooldown_secs: u64,
     /// A `ParkAndAbort` fired by this trigger ends the night, not only the
-    /// run: the plan's shutdown steps run after the park, and the app reads
-    /// the id as the run's stop origin to start end-of-night calibration.
+    /// run: the app reads the id as the run's stop origin to start
+    /// end-of-night calibration. (The plan's end steps run after any
+    /// trigger's park.)
     pub ends_the_night: bool,
     pub park_setting: Option<ParkSetting>,
     /// The recovery the driver runs when this trigger pauses or retries. A

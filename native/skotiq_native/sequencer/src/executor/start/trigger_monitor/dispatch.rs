@@ -469,15 +469,7 @@ impl Dispatcher {
                 .await
             }
             RecoveryAction::ParkAndAbort => {
-                park::park_and_abort(
-                    trigger_id,
-                    trigger_name,
-                    rig,
-                    &self.custom,
-                    run,
-                    &mut self.park,
-                )
-                .await
+                park::park_and_abort(trigger_name, rig, &self.custom, run, &mut self.park).await
             }
             RecoveryAction::NextTarget => {
                 tracing::info!("Trigger requested advance to next target");
