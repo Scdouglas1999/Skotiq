@@ -25,5 +25,5 @@ pub use classify::{
     FrameObservation, FrameVerdict, FrameWatch, Pointing, SolveOutcome, WatchAction,
     OBSTRUCTED_PREFIX, OFF_TARGET_PREFIX,
 };
-pub use config::{FrameWatchConfig, HorizonPoint, FRAME_WATCH_METADATA_KEY};
+pub use config::{FrameWatchConfig, HorizonPoint, ObstructionAction, FRAME_WATCH_METADATA_KEY};
 pub use events::{FrameAssessed, FrameWatchEvent, HorizonObstructionReport};

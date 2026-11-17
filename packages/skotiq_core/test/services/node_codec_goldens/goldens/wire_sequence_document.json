@@ -4,7 +4,7 @@
   "metadata": {
     "autofocus_every_minutes": "60",
     "autofocus_on_filter_change": "false",
-    "frame_watch": "{\"drift_limit_arcsec\":30.0,\"use_first_frame_reference\":true,\"obstruction_detection\":true,\"learned_horizon\":[]}"
+    "frame_watch": "{\"drift_limit_arcsec\":30.0,\"use_first_frame_reference\":true,\"obstruction_detection\":false,\"obstruction_action\":\"notify\",\"learned_horizon\":[]}"
   },
   "name": "Every node (wire-doc)",
   "nodes": [

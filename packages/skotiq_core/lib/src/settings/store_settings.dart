@@ -15,6 +15,7 @@ import '../models/notification/notification_categories.dart'
     show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingThumbnailSize;
+import '../models/site/learned_obstruction.dart' show ObstructionAction;
 import 'setting.dart';
 import '../models/sync/sync_models.dart';
 
@@ -400,11 +401,23 @@ abstract final class StoreSettings {
     30,
     sync: SettingSync.hostStore,
   );
+
+  /// Obstruction detection guesses from star counts, so it is off until the
+  /// operator turns it on: a false positive must never end a night.
   static const frameWatchObstructionDetection = BoolSetting(
     'frameWatchObstructionDetection',
     'frame_watch_obstruction_detection',
-    true,
-    unreadableIsFallback: true,
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// What a confirmed obstruction does to the run: only tell the operator
+  /// unless they chose to move on.
+  static const frameWatchObstructionAction = EnumSetting<ObstructionAction>(
+    'frameWatchObstructionAction',
+    'frame_watch_obstruction_action',
+    ObstructionAction.notify,
+    ObstructionAction.values,
     sync: SettingSync.hostStore,
   );
 
@@ -1017,6 +1030,7 @@ abstract final class StoreSettings {
     frameWatchRecenter,
     frameWatchDriftLimit,
     frameWatchObstructionDetection,
+    frameWatchObstructionAction,
     learnedHorizonPoints,
     calibrationAutoCalibrate,
     calibrationAutoDarkFromLibrary,

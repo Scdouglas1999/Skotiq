@@ -42,6 +42,20 @@ impl HorizonPoint {
     }
 }
 
+/// What a run does once the frame watch confirms an obstruction. A
+/// confirmation is a guess from star counts and one probe frame, so it only
+/// tells the operator unless they chose to let it move the run on.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ObstructionAction {
+    /// Tell the operator and keep imaging the target.
+    #[default]
+    Notify,
+    /// Skip to the next target that is up and clear; end the night when
+    /// none is.
+    MoveOn,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct FrameWatchConfig {
@@ -55,8 +69,11 @@ pub struct FrameWatchConfig {
     pub use_first_frame_reference: bool,
     /// Legacy threshold for plans without an angular limit. Zero disables it.
     pub drift_limit_fraction: f64,
-    /// Whether a run looks for obstructions at all.
+    /// Whether a run looks for obstructions at all. Off unless the operator
+    /// turns it on: a false positive must never end a night.
     pub obstruction_detection: bool,
+    /// What a confirmed obstruction does to the run.
+    pub obstruction_action: ObstructionAction,
     /// The obstruction points the app learned at this site.
     pub learned_horizon: Vec<HorizonPoint>,
 }
@@ -67,7 +84,8 @@ impl Default for FrameWatchConfig {
             drift_limit_arcsec: Some(DEFAULT_DRIFT_LIMIT_ARCSEC),
             use_first_frame_reference: true,
             drift_limit_fraction: DEFAULT_DRIFT_LIMIT_FRACTION,
-            obstruction_detection: true,
+            obstruction_detection: false,
+            obstruction_action: ObstructionAction::Notify,
             learned_horizon: Vec::new(),
         }
     }
@@ -86,7 +104,7 @@ impl FrameWatchConfig {
                 tracing::warn!(
                     "[FRAME_WATCH] The sequence's frame-watch settings could not be read ({e}); \
                      using the defaults (recenter past {:.0} arcsec, obstruction \
-                     detection on, no learned horizon)",
+                     detection off, no learned horizon)",
                     DEFAULT_DRIFT_LIMIT_ARCSEC
                 );
                 Self::default()
@@ -136,6 +154,32 @@ mod tests {
         );
     }
 
+    /// Owner 2026-11-17: obstruction detection guesses, so it is off unless
+    /// the operator turns it on, and once on it only notifies unless they
+    /// chose to let it move the run on.
+    #[test]
+    fn obstruction_detection_is_off_and_notify_only_by_default() {
+        let config = FrameWatchConfig::default();
+        assert!(!config.obstruction_detection);
+        assert_eq!(config.obstruction_action, ObstructionAction::Notify);
+        let on = HashMap::from([(
+            FRAME_WATCH_METADATA_KEY.to_string(),
+            r#"{"obstruction_detection":true}"#.to_string(),
+        )]);
+        assert_eq!(
+            FrameWatchConfig::from_metadata(&on).obstruction_action,
+            ObstructionAction::Notify
+        );
+        let move_on = HashMap::from([(
+            FRAME_WATCH_METADATA_KEY.to_string(),
+            r#"{"obstruction_detection":true,"obstruction_action":"move_on"}"#.to_string(),
+        )]);
+        assert_eq!(
+            FrameWatchConfig::from_metadata(&move_on).obstruction_action,
+            ObstructionAction::MoveOn
+        );
+    }
+
     #[test]
     fn legacy_metadata_retains_its_field_relative_limit() {
         let mut metadata = HashMap::new();
@@ -164,6 +208,7 @@ mod tests {
         assert_eq!(config.drift_limit_arcmin(Some(20.0)), Some(1.5));
         assert_eq!(config.drift_limit_arcmin(Some(120.0)), Some(1.5));
         assert!(!config.obstruction_detection);
+        assert_eq!(config.obstruction_action, ObstructionAction::Notify);
         assert_eq!(
             FrameWatchConfig::default().drift_limit_arcmin(None),
             Some(0.5)

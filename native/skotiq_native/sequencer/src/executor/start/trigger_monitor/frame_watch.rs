@@ -6,8 +6,9 @@
 //! record, holds autofocus while the frames are no good to focus on, and acts
 //! between frames: a recenter for a frame off target, a notice for a run of
 //! starless frames, a probe frame higher in the sky to tell trees from cloud,
-//! and for a confirmed obstruction the next target that is clear or the end
-//! of the night. None of it pauses or parks the run on a frame's quality.
+//! and for a confirmed obstruction a notice or, when the operator chose Move
+//! on, the next target that is clear or the end of the night. None of it
+//! pauses or parks the run on a frame's quality.
 
 use super::actions::TargetSnapshot;
 use super::dispatch::{Dispatcher, Flow};
@@ -15,7 +16,8 @@ use super::*;
 use crate::frame_watch::next_target::{after_obstruction, AfterObstruction};
 use crate::frame_watch::{
     assess, FrameAssessed, FrameObservation, FrameVerdict, FrameWatch, FrameWatchConfig,
-    FrameWatchEvent, HorizonObstructionReport, HorizonPoint, Pointing, SolveOutcome, WatchAction,
+    FrameWatchEvent, HorizonObstructionReport, HorizonPoint, ObstructionAction, Pointing,
+    SolveOutcome, WatchAction,
 };
 use crate::quality::RejectReason;
 use std::collections::VecDeque;
@@ -736,6 +738,11 @@ impl FrameWatchStage {
             );
             return self.recenter_after_probe(dispatcher, claim).await;
         }
+        if self.watch.config().obstruction_action == ObstructionAction::Notify {
+            return self
+                .notify_obstruction(dispatcher, obs, onset, learned, claim)
+                .await;
+        }
         let (lat, lon, floor) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
@@ -900,6 +907,63 @@ impl FrameWatchStage {
                     Flow::Next => None,
                 }
             }
+        }
+    }
+
+    /// A confirmed obstruction under "When an obstruction is confirmed:
+    /// Notify": tell the operator and keep imaging the target. Nothing is
+    /// saved to the site's horizon, since planning would then avoid that sky
+    /// on a guess.
+    async fn notify_obstruction(
+        &mut self,
+        dispatcher: &mut Dispatcher,
+        obs: &FrameObservation,
+        onset: Pointing,
+        learned: bool,
+        claim: &mut TriggerCameraClaim,
+    ) -> Option<Vec<(String, RecoveryAction)>> {
+        let target = obs.target_name.as_deref().unwrap_or("the target");
+        let seen = if learned {
+            "where an obstruction was learned before"
+        } else {
+            "and the sky higher up has stars"
+        };
+        let message = format!(
+            "Possible obstruction: {target} looks blocked from {} on ({seen}). Imaging \
+             continues on {target}. To move on to the next target instead, set Settings > \
+             Frame watch > When an obstruction is confirmed to Move on.",
+            onset.describe()
+        );
+        tracing::warn!("[FRAME_WATCH] {}", message);
+        dispatcher.run.warning(message.clone());
+        if let Err(e) = dispatcher
+            .rig
+            .device_ops()
+            .send_notification("warning", "Possible obstruction", &message, None)
+            .await
+        {
+            tracing::warn!(
+                "[FRAME_WATCH] The obstruction notification was not sent: {}",
+                e
+            );
+        }
+        dispatcher
+            .decisions
+            .send(crate::decision::DecisionEvent::new(
+                crate::decision::DecisionCategory::SystemEvent,
+                "Obstruction noticed".to_string(),
+                serde_json::json!({
+                    "target": obs.target_name,
+                    "altitude_deg": onset.altitude_deg,
+                    "azimuth_deg": onset.azimuth_deg,
+                    "learned_before": learned,
+                    "action": "notify",
+                }),
+            ));
+        if learned {
+            None
+        } else {
+            self.recenter_after_probe(dispatcher, claim).await
         }
     }
 

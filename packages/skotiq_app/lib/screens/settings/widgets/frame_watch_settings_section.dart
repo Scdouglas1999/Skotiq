@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart' show ObstructionAction;
 import 'package:skotiq_core/providers.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
 
 /// The run's frame watch: how far a frame's solved center may drift from the
-/// target before the run recenters, and whether frames are checked for an
-/// obstruction. Both are read when a run starts.
+/// target before the run recenters, whether frames are checked for an
+/// obstruction, and what a confirmed obstruction does. All are read when a
+/// run starts.
 class FrameWatchSettingsSection extends ConsumerStatefulWidget {
   const FrameWatchSettingsSection({
     super.key,
@@ -79,23 +81,47 @@ class _FrameWatchSettingsSectionState
           ),
           isLast: !widget.showObstructionDetection,
         ),
-        if (widget.showObstructionDetection)
+        if (widget.showObstructionDetection) ...[
           SettingRow(
             icon: LucideIcons.mountain,
             title: 'Detect obstructions',
             subtitle:
-                'Watch for trees or a roof entering the field: stars fade while '
-                'the sky background stays the same. A confirmed obstruction is '
-                'learned for this site, its frames are marked Obstructed, and '
-                'the run moves to the next target. Clouds are not obstructions.',
+                'Off by default. Watch for trees or a roof entering the field: '
+                'stars fade while the sky background stays the same, and a '
+                'frame higher in the sky still has stars. Clouds can look the '
+                'same, so a confirmed obstruction only notifies unless you '
+                'choose Move on below.',
             trailing: SettingsSwitch(
               key: const ValueKey('frame-watch-obstruction-detection'),
               value: settings.obstructionDetection,
               onChanged: (value) =>
                   _save(() => notifier.setObstructionDetection(value)),
             ),
-            isLast: true,
+            isLast: !settings.obstructionDetection,
           ),
+          if (settings.obstructionDetection)
+            SettingRow(
+              icon: LucideIcons.skipForward,
+              title: 'When an obstruction is confirmed',
+              subtitle:
+                  'Notify: tell you and keep imaging the target. Move on: '
+                  'mark its frames Obstructed, save the spot to this site\'s '
+                  'horizon and go to the next target that is up and clear; '
+                  'with none left, the night ends and the plan\'s end steps '
+                  'run.',
+              trailing: settingsTrailingChoice<ObstructionAction>(
+                value: settings.obstructionAction,
+                values: ObstructionAction.values,
+                labelOf: (action) => switch (action) {
+                  ObstructionAction.notify => 'Notify',
+                  ObstructionAction.moveOn => 'Move on',
+                },
+                onChanged: (action) =>
+                    _save(() => notifier.setObstructionAction(action)),
+              ),
+              isLast: true,
+            ),
+        ],
       ],
     );
   }

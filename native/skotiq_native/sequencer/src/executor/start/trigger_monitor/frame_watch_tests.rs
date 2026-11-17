@@ -273,7 +273,7 @@ async fn the_night_replayed_recenters_without_learning_an_unverified_obstruction
     let mut legacy_plan = plan();
     legacy_plan.metadata.insert(
         "frame_watch".into(),
-        r#"{"drift_limit_fraction":0.10}"#.into(),
+        r#"{"drift_limit_fraction":0.10,"obstruction_detection":true}"#.into(),
     );
     let mut h = Harness::with_plan_and_rows(legacy_plan, rows()).await;
     let mut log = Vec::new();
@@ -662,7 +662,13 @@ async fn unverified_pointing_on_new_pier_side_cannot_be_learned_as_horizon() {
             row
         })
         .collect();
-    let mut h = Harness::with_plan_and_rows(plan(), frames.clone()).await;
+    let mut detecting = plan();
+    detecting.metadata.insert(
+        "frame_watch".into(),
+        r#"{"drift_limit_arcsec":30,"use_first_frame_reference":true,"obstruction_detection":true}"#
+            .into(),
+    );
+    let mut h = Harness::with_plan_and_rows(detecting, frames.clone()).await;
     let mut log = Vec::new();
     for row in frames.iter().filter(|r| (620..=720).contains(&r.id)) {
         tokio::time::sleep(std::time::Duration::from_secs_f64(row.exposure_secs + 8.0)).await;
@@ -740,4 +746,105 @@ async fn refused_probe_return_honors_failure_policy_without_exposing() {
         );
         assert!(state.read().await.imaging_train.hold().is_some());
     }
+}
+
+/// Twelve clean frames solved on target, then the target sinks behind a tree
+/// line the site learned on an earlier night.
+fn frames_into_a_learned_tree_line() -> Vec<Row> {
+    (0..16u32)
+        .map(|i| {
+            let collapsed = i >= 12;
+            Row {
+                id: 900 + i,
+                filter: "L".into(),
+                exposure_secs: 60.0,
+                hfr: Some(2.8),
+                stars: Some(if collapsed { 3 } else { 2500 }),
+                ecc: Some(0.5),
+                alt: 70.0 - 0.5 * f64::from(i),
+                az: 286.0,
+                pier: "East".into(),
+                db_accepted: true,
+                captured_at: 1_792_652_308.0 + 70.0 * f64::from(i),
+                solve: if collapsed {
+                    crate::frame_watch::SolveOutcome::Failed
+                } else {
+                    crate::frame_watch::SolveOutcome::Solved {
+                        ra_deg: TARGET_RA_DEG,
+                        dec_deg: TARGET_DEC_DEG,
+                        pixel_scale_arcsec: 1.0,
+                        rotation_deg: 0.0,
+                    }
+                },
+                db_reason: String::new(),
+            }
+        })
+        .collect()
+}
+
+fn tree_line_plan(action: &str) -> SequenceDefinition {
+    let mut plan = plan();
+    plan.metadata.insert(
+        "frame_watch".into(),
+        format!(
+            r#"{{"drift_limit_arcsec":30,"use_first_frame_reference":true,
+                "obstruction_detection":true,"obstruction_action":"{action}",
+                "learned_horizon":[{{"azimuth_deg":286.0,"altitude_deg":66.0}}]}}"#
+        ),
+    );
+    plan
+}
+
+async fn image_into_the_tree_line(
+    action: &str,
+) -> (
+    Harness,
+    Vec<ExecutorEvent>,
+    Option<Vec<(String, RecoveryAction)>>,
+) {
+    let frames = frames_into_a_learned_tree_line();
+    let mut h = Harness::with_plan_and_rows(tree_line_plan(action), frames.clone()).await;
+    let mut log = Vec::new();
+    let mut ended = None;
+    for row in &frames {
+        tokio::time::sleep(std::time::Duration::from_secs_f64(row.exposure_secs + 8.0)).await;
+        h.save(row).await;
+        if let Some(end) = h
+            .tick_until_reported(&format!("row-{}.fits", row.id), &mut log)
+            .await
+        {
+            ended = Some(end);
+            break;
+        }
+    }
+    (h, log, ended)
+}
+
+/// Owner 2026-11-17: an obstruction the operator turned detection on for
+/// only tells them by default. The run keeps imaging, nothing is parked, and
+/// the guess is not saved to the site's horizon.
+#[tokio::test(start_paused = true)]
+async fn a_confirmed_obstruction_only_notifies_unless_the_operator_chose_to_move_on() {
+    let (h, log, ended) = image_into_the_tree_line("notify").await;
+    assert!(ended.is_none(), "the run must go on");
+    assert!(
+        warnings(&log).iter().any(
+            |w| w.starts_with("Possible obstruction: NGC0891 looks blocked")
+                && w.contains("Imaging continues")
+        ),
+        "{:?}",
+        warnings(&log)
+    );
+    assert!(log.iter().all(|e| obstruction(e).is_none()));
+    assert!(!h.ops.calls().iter().any(|c| c.starts_with("mount_park")));
+
+    let (h, log, ended) = image_into_the_tree_line("move_on").await;
+    let ended = ended.expect("Move on ends the night when no other target is up");
+    assert!(ended
+        .iter()
+        .any(|(id, action)| id == "obstruction" && matches!(action, RecoveryAction::ParkAndAbort)));
+    assert!(log
+        .iter()
+        .any(|e| obstruction(e).is_some_and(|o| o.action == "end_of_night")));
+    assert!(h.ops.calls().iter().any(|c| c.starts_with("mount_park")));
 }
