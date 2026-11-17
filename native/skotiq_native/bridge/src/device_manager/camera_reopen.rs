@@ -92,10 +92,11 @@ impl DeviceManager {
     /// Put back on a camera that was just connected what it held before:
     /// first the cooler, on at its set-point, then gain and offset. Nothing
     /// for a camera this app has not held; a cooler that was off is left
-    /// off. The cooler is commanded by set-point only: no camera Skotiq
-    /// drives takes a cooler power (ZWO's `ASI_COOLER_POWER_PERC` is read
-    /// only), and switching the cooler on with its set-point resumes the
-    /// camera's own loop within seconds.
+    /// off. The cooler is commanded by set-point only: ZWO's
+    /// `ASI_COOLER_POWER_PERC` is read only, as cooler power is in ASCOM,
+    /// Alpaca and INDI, and QHY's manual PWM replaces the set-point loop
+    /// rather than starting it. Switching the cooler on at its set-point
+    /// resumes the camera's own loop within seconds.
     ///
     /// The cooler state commanded through Skotiq wins over the last read:
     /// a camera that lost power can read its cooler off before it is

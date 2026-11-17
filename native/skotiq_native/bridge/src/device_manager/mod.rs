@@ -84,8 +84,8 @@ impl Default for ReconnectConfig {
 pub struct HeldCameraState {
     pub cooler_on: Option<bool>,
     pub target_temp: Option<f64>,
-    /// Shown in the restore's log line. No camera Skotiq drives takes a
-    /// cooler power: each runs its own loop to the set-point.
+    /// Shown in the restore's log line only: a reopen restores the
+    /// set-point, and the camera's own loop sets the power.
     pub cooler_power: Option<f64>,
     pub gain: Option<i32>,
     pub offset: Option<i32>,
