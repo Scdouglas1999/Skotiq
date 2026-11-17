@@ -89,6 +89,19 @@ impl FrameStoreOps for UnifiedDeviceOps {
     }
 }
 
+/// A frame's HFR and star shape from its detected stars: the one measurement
+/// the grader judges, the frame's record holds and every screen shows.
+pub(crate) fn frame_shape(
+    image: &skotiq_imaging::ImageData,
+    stars: &[skotiq_imaging::DetectedStar],
+) -> Option<skotiq_imaging::FrameShape> {
+    skotiq_imaging::measure_frame_shape_from(
+        image,
+        stars,
+        f64::from(skotiq_imaging::StarDetectionConfig::default().saturation_limit),
+    )
+}
+
 /// One detection serves the star count and the shape: `detected` when the
 /// caller has the frame's stars already, else a fresh one. The trail is
 /// measured from the image alongside it.
@@ -116,12 +129,7 @@ pub(crate) fn measure_light_frame(
                     &fresh
                 }
             };
-            let shape = skotiq_imaging::measure_frame_shape_from(
-                image,
-                stars,
-                f64::from(config.saturation_limit),
-            );
-            (stars.len() as u32, shape)
+            (stars.len() as u32, frame_shape(image, stars))
         },
         || skotiq_imaging::measure_frame_trail(image),
     );

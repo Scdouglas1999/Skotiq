@@ -1,10 +1,11 @@
 // Overview's "Last frame" block: the latest frame's numbers and how each
 // compares with the night's median.
 //
-// The frame's own numbers come from `currentImageProvider` (the full
-// ImageStats of the frame on screen). The medians come from wherever the
-// night actually kept that metric: HFR, stars and background noise from the
-// session's captured_images rows, FWHM, eccentricity, SNR and the median
+// HFR, eccentricity and stars are the run's measurement of the frame, from
+// its captured_images row; the rest come from `currentImageProvider` (the
+// full ImageStats of the frame on screen). The medians come from wherever the
+// night actually kept that metric: HFR, eccentricity, stars and background
+// noise from the session's captured_images rows, FWHM, SNR and the median
 // level only from the in-memory session list, which holds them on the host
 // and not at all on a remote viewer. A metric the night has no median for
 // shows its value with no delta; nothing is compared against a made-up
@@ -78,11 +79,14 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       : nightFrameNumberForPath(lights, current.filePath);
   final row = frameNumber == null ? null : lights[frameNumber - 1];
 
-  // Without the frame on screen (a remote viewer, or after a restart) the
-  // newest row stands in, with only what the row stores.
+  // The frame's HFR, eccentricity and star count are the run's: what its
+  // grader judged and its reject reason quotes, kept on the frame's row.
+  // Without a row (a frame no run graded) the frame on screen stands in.
   final stats = current?.stats;
-  final hfr = stats != null ? stats.hfr : row?.hfr;
-  final stars = stats != null ? stats.starCount : row?.starCount;
+  final graded = row != null && row.hfr != null;
+  final hfr = graded ? row.hfr : stats?.hfr;
+  final eccentricity = graded ? row.eccentricity : stats?.eccentricity;
+  final stars = graded ? row.starCount : (stats?.starCount ?? row?.starCount);
   final noise = stats != null ? stats.noise : row?.noise;
 
   final kept = lights.where((r) => r.isAccepted);
@@ -131,8 +135,8 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       ),
       _metric(
         'nightSessionMetricEcc',
-        value: stats?.eccentricity,
-        median: nightMedian(memory.map((s) => s.eccentricity)),
+        value: eccentricity,
+        median: nightMedian(kept.map((r) => r.eccentricity)),
         decimals: 2,
         better: _Better.lower,
       ),

@@ -445,11 +445,11 @@ async fn capture_time_per_full_frame() {
 
 const MONO: &str = "1024x1024 color=false exposure=2.0
 stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
-stars=192 hfr=Some(2.310760259173266) fwhm=Some(4.621520518346532) eccentricity=Some(0.6601127561091212)
+stars=192 hfr=Some(2.256919994163022) fwhm=Some(4.513839988326044) eccentricity=Some(0.764756249268165)
 histogram=d5f0d1c69d0b6d04 display=d46f5a116b546afc display_len=4194304 raw=c88128ab9b80e33f";
 const COLOR: &str = "1024x1024 color=true exposure=2.0
 stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
-stars=192 hfr=Some(2.310760259173266) fwhm=Some(4.621520518346532) eccentricity=Some(0.6601127561091212)
+stars=192 hfr=Some(2.256919994163022) fwhm=Some(4.513839988326044) eccentricity=Some(0.764756249268165)
 histogram=3513c089f664dcd4 display=0a6c414758185544 display_len=4194304 raw=c88128ab9b80e33f";
 
 /// The owner's ASI1600 frame tiled to `width` x `height`.
