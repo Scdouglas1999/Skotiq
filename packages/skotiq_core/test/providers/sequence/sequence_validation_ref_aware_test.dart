@@ -10,6 +10,8 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/guider_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/rotator_state_provider.dart';
+import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/meridian_flip_provider.dart'
     show isMeridianFlipEnabledProvider;
 import 'package:skotiq_core/src/providers/sequence/rules/equipment_rules.dart';
@@ -95,6 +97,7 @@ ProviderContainer _container({
   String? guiderId,
   String? guiderName,
   DeviceConnectionState rotator = DeviceConnectionState.disconnected,
+  EquipmentProfileModel? profile,
   List<String> filterNames = const [],
   String imageOutputPath = '/tmp/out',
   bool? runFlipsArmed,
@@ -144,6 +147,8 @@ ProviderContainer _container({
       ),
       if (runFlipsArmed != null)
         isMeridianFlipEnabledProvider.overrideWithValue(runFlipsArmed),
+      if (profile != null)
+        activeEquipmentProfileProvider.overrideWithValue(profile),
     ],
   );
   addTearDown(container.dispose);
@@ -336,8 +341,13 @@ void main() {
   });
 
   group('RotatorRotationConflictRule', () {
-    test('fires when target has rotation but rotator is disconnected', () {
-      final container = _container();
+    test('fires when the profile names a rotator that is not connected', () {
+      final container = _container(
+        profile: const EquipmentProfileModel(
+          name: 'Rig',
+          rotatorId: 'ascom:Rotator',
+        ),
+      );
       final rule = RotatorRotationConflictRule();
       final t = TargetHeaderNode(
         targetName: 'M31',
@@ -352,6 +362,27 @@ void main() {
       );
       expect(issues.single.title, 'Rotator Not Connected');
       expect(issues.single.affectedNodeId, t.id);
+    });
+
+    test('with no rotator on the profile, a rotation is a note to turn the '
+        'camera by hand, not a warning', () {
+      final container = _container(
+        profile: const EquipmentProfileModel(name: 'Rig'),
+      );
+      final rule = RotatorRotationConflictRule();
+      final t = TargetHeaderNode(
+        targetName: 'IC 405',
+        raHours: 5.27,
+        decDegrees: 34.47,
+        rotation: 179,
+      );
+      final issues = _withRef(
+        container,
+        (ref) => rule.validate(_sequenceWith([t]), ValidationContext(ref)),
+      );
+      expect(issues.single.severity, ValidationSeverity.info);
+      expect(issues.single.description, contains('179.0°'));
+      expect(issues.single.description, contains('by hand'));
     });
 
     test('does not fire for a 0° rotation (no-op, no rotator needed)', () {
