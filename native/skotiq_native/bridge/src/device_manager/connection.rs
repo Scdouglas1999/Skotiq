@@ -515,6 +515,7 @@ impl DeviceManager {
                 if info.device_type == DeviceType::Camera {
                     self.restore_camera_state(info).await;
                 }
+                self.restore_commanded_state(info).await;
                 crate::device_capabilities::cache::invalidate_capability_cache_for_device(
                     device_id,
                 )

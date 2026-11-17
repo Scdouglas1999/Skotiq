@@ -643,3 +643,60 @@ async fn every_exposure_reopens_a_camera_whose_session_broke() {
 
     let _ = manager.disconnect_device(id).await;
 }
+
+/// A flat panel that comes back from a reconnect puts its light back the
+/// way the app last set it.
+#[tokio::test]
+async fn a_reconnected_flat_panel_gets_its_light_back() {
+    use crate::simulator::cover_calibrator::get_sim_cover_calibrator;
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_cover_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::CoverCalibrator), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    manager
+        .cover_calibrator_calibrator_on(id, 120)
+        .await
+        .expect("light on");
+    {
+        let mut panel = get_sim_cover_calibrator().write().await;
+        panel.calibrator_on = false;
+        panel.brightness = 0.0;
+        panel.brightness_ramp = None;
+    }
+
+    manager.reopen_device(id).await.expect("reopen");
+
+    assert!(get_sim_cover_calibrator().read().await.calibrator_on);
+    let _ = manager.cover_calibrator_calibrator_off(id).await;
+    let _ = manager.disconnect_device(id).await;
+}
+
+/// A device whose status reads answer while its operations fail as gone
+/// counts as failing for its heartbeat: three such failures in a row are a
+/// failed poll.
+#[tokio::test]
+async fn operations_that_fail_as_gone_count_against_the_devices_health() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = build_device_manager();
+    let id = "sim_wheel_health";
+    manager
+        .register_device(build_sim_info(id, DeviceType::FilterWheel), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    let gone = || async {
+        Err::<(), _>(crate::dispatch::error::DeviceOpError::not_connected(
+            None,
+            "Device disconnected".to_string(),
+        ))
+    };
+    for _ in 0..3 {
+        let _ = manager.with_reopen(id, gone).await;
+    }
+    assert!(manager.failing_status_reads(id).is_some());
+    let _ = manager.disconnect_device(id).await;
+}

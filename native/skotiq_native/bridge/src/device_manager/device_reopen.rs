@@ -69,6 +69,38 @@ fn reopens() -> &'static StdMutex<HashMap<String, u64>> {
     REOPENS.get_or_init(Default::default)
 }
 
+/// A switch the app set, as it set it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum SwitchCommand {
+    State(bool),
+    Value(f64),
+}
+
+/// What the app last commanded on a device that a connect puts back: a
+/// flat panel's light and each switch it set.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct Commanded {
+    /// `Some(Some(brightness))` on at that brightness, `Some(None)` off.
+    pub(crate) calibrator: Option<Option<i32>>,
+    pub(crate) switches: std::collections::BTreeMap<i32, SwitchCommand>,
+}
+
+fn commanded() -> &'static StdMutex<HashMap<String, Commanded>> {
+    static COMMANDED: OnceLock<StdMutex<HashMap<String, Commanded>>> = OnceLock::new();
+    COMMANDED.get_or_init(Default::default)
+}
+
+/// Record a command the device accepted, for the next connect to restore.
+pub(crate) fn note_commanded(device_id: &str, update: impl FnOnce(&mut Commanded)) {
+    update(
+        commanded()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entry(device_id.to_string())
+            .or_default(),
+    );
+}
+
 /// Whether a failure's words say the device is gone.
 fn says_disconnected(error: &str) -> bool {
     let error = error.to_ascii_lowercase();
@@ -99,6 +131,22 @@ impl DeviceManager {
         }
         if let Some(dev) = self.devices.write().await.get_mut(device_id) {
             dev.held_camera_state = Some(next);
+        }
+    }
+
+    /// Count an operation that failed because the device is gone or its
+    /// session broke toward its health, as a failed status read: a device
+    /// can answer every status read while each command fails (the ZWO camera
+    /// on 2026-11-16), and its heartbeat must see that.
+    pub(crate) fn note_operation_failure(
+        &self,
+        device_id: &str,
+        error: &crate::dispatch::error::DeviceOpError,
+    ) {
+        let message = error.to_string();
+        if says_disconnected(&message) || skotiq_native::camera_session_broken(&message) {
+            self.status_reads
+                .record_failure(device_id, &message, std::time::Instant::now());
         }
     }
 
@@ -190,11 +238,52 @@ impl DeviceManager {
         connected
     }
 
+    /// Put back what the app last commanded on a device that was just
+    /// connected: a flat panel's light, each switch it set. A device the app
+    /// never commanded is left as it came up.
+    pub(crate) async fn restore_commanded_state(&self, info: &DeviceInfo) {
+        let id = &info.id;
+        let Some(held) = commanded()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(id)
+            .cloned()
+        else {
+            return;
+        };
+        match held.calibrator {
+            Some(Some(brightness)) => {
+                if let Err(e) = self.cover_calibrator_calibrator_on(id, brightness).await {
+                    tracing::warn!("{id} reconnected; its light did not come back on: {e}");
+                }
+            }
+            Some(None) => {
+                if let Err(e) = self.cover_calibrator_calibrator_off(id).await {
+                    tracing::warn!("{id} reconnected; its light did not switch off: {e}");
+                }
+            }
+            None => {}
+        }
+        for (switch, command) in held.switches {
+            let restored = match command {
+                SwitchCommand::State(state) => self.switch_set_state(id, switch, state).await,
+                SwitchCommand::Value(value) => self.switch_set_value(id, switch, value).await,
+            };
+            if let Err(e) = restored {
+                tracing::warn!("{id} reconnected; switch {switch} was not set back: {e}");
+            }
+        }
+    }
+
     /// Read where a wheel, focuser or rotator that was just connected is.
     /// Only a read: a reconnect never moves one.
     pub(crate) async fn read_position_after_connect(&self, info: &DeviceInfo) {
         let id = &info.id;
         match info.device_type {
+            DeviceType::Rotator => match self.rotator_get_position(id).await {
+                Ok(angle) => tracing::info!("Rotator {id} connected at {angle:.2} degrees"),
+                Err(e) => tracing::warn!("Rotator {id} connected; its angle read failed: {e}"),
+            },
             DeviceType::FilterWheel => match self.filter_wheel_get_position(id).await {
                 Ok(slot) => tracing::info!("Filter wheel {id} connected at slot {slot}"),
                 Err(e) => tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}"),
@@ -235,6 +324,7 @@ impl DeviceManager {
             Ok(value) => return Ok(value),
             Err(error) => error,
         };
+        self.note_operation_failure(device_id, &error);
         // Boxed: the reopen's connect is a deep future of its own.
         match Box::pin(self.reopen_after(device_id, &error.to_string())).await {
             Ok(true) => op().await,
