@@ -213,6 +213,14 @@ impl DeviceManager {
         if result.is_ok() {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
+                let held = dev.held_camera_state.get_or_insert_with(Default::default);
+                let running = dev.desired_cooler.or(held.cooler_on.map(|on| (on, held.target_temp)));
+                held.cooler_off = match running {
+                    Some((true, target)) if !enabled => {
+                        Some((std::time::Instant::now(), (true, target.or(held.target_temp))))
+                    }
+                    _ => None,
+                };
                 dev.desired_cooler = Some((enabled, target_temp));
             }
         }

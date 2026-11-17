@@ -442,6 +442,17 @@ impl DeviceManager {
                         error_msg
                     );
 
+                    // A device lost to a hub that dropped is reopened at
+                    // once, off this task: the reopen restarts this
+                    // heartbeat.
+                    if manager.wants_reopen(&device_id_clone, &error_msg).await {
+                        crate::device_manager::device_reopen::reopen_in_background(
+                            manager.clone(),
+                            device_id_clone.clone(),
+                            error_msg.clone(),
+                        );
+                    }
+
                     // Apply exponential backoff
                     let new_interval = Duration::from_secs_f64(
                         current_interval.as_secs_f64() * config.backoff_multiplier,

@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 mod alpaca_mount;
-mod camera_reopen;
+mod device_reopen;
 mod capabilities;
 mod guards;
 mod heartbeat_config;

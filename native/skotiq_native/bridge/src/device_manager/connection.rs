@@ -943,6 +943,15 @@ impl DeviceManager {
     }
 
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
+        self.close_device(device_id, true).await
+    }
+
+    /// Release `device_id`. `announce` publishes it as disconnected; a
+    /// reopen (`device_reopen`) does not, since the device is not lost.
+    pub(crate) async fn close_device(&self, device_id: &str, announce: bool) -> Result<(), String> {
+        if announce {
+            self.keep_cooler_through_disconnect(device_id).await;
+        }
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
         crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
@@ -1044,13 +1053,15 @@ impl DeviceManager {
             }
         }
 
-        self.app_state.publish_equipment_event(
-            EquipmentEvent::Disconnected {
-                device_type: device_info.device_type.as_str().to_string(),
-                device_id: device_id.to_string(),
-            },
-            EventSeverity::Info,
-        );
+        if announce {
+            self.app_state.publish_equipment_event(
+                EquipmentEvent::Disconnected {
+                    device_type: device_info.device_type.as_str().to_string(),
+                    device_id: device_id.to_string(),
+                },
+                EventSeverity::Info,
+            );
+        }
 
         if !disconnect_errors.is_empty() {
             return Err(format!(

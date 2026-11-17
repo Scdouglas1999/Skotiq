@@ -1,14 +1,19 @@
-//! Reopening a camera restores what it held, cooler first
-//! (`device_manager::camera_reopen`).
+//! Reopening a device whose session broke (`device_manager::device_reopen`).
 //!
-//! Rig, 2026-11-16: the ZWO camera's USB path dropped for 4 s; status reads
-//! went on answering and every exposure failed until the camera was
-//! disconnected and connected again, and the reconnect left the cooler off
-//! (it had been on at -10 C).
+//! Rig, 2026-11-16: the power box behind the ZWO camera, wheel and focuser
+//! dropped for 4 s. The camera's status reads went on answering and every
+//! exposure failed until it was disconnected and connected again, and the
+//! reconnect left the cooler off (it had been on at -10 C). The wheel and
+//! focuser answered "Device disconnected" until reconnected by hand.
 
 use super::*;
 use crate::device::DriverType;
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::equipment::EquipmentEvent;
 use crate::simulator::camera::get_sim_camera_for;
+use crate::simulator::filter_wheel::get_sim_filterwheel;
+use crate::simulator::focuser::get_sim_focuser;
+use tokio::sync::broadcast::error::TryRecvError;
 
 /// The cooler the camera read back before the reopen is on again after it,
 /// at the same set-point, through the manual Disconnect and Connect and
@@ -49,7 +54,7 @@ async fn the_cooler_set_point_survives_a_reopen() {
 
     cooler_off().await;
     let reopened = manager
-        .reopen_camera_after(
+        .reopen_after(
             id,
             "Failed to check exposure status: SDK error: ZWO camera reported a failed exposure",
         )
@@ -62,17 +67,135 @@ async fn the_cooler_set_point_survives_a_reopen() {
     camera.write().await.status.connected = false;
 }
 
-/// A failure that does not mean a broken session leaves the camera open.
+/// On a quiet bus, a failure that does not mean a broken session leaves the
+/// camera open.
 #[tokio::test]
 async fn a_plain_failure_does_not_reopen_the_camera() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
     let manager = build_device_manager();
+    let id = "sim_camera_plain_failure";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Camera), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
     let reopened = manager
-        .reopen_camera_after(
-            "native:zwo:1",
+        .reopen_after(
+            id,
             "Failed to download image: Injected simulator fault: the driver reported a failure",
         )
         .await;
     assert_eq!(reopened, Ok(false));
+    get_sim_camera_for(id).write().await.status.connected = false;
+}
+
+/// The connection events a stretch of work published for each of
+/// `device_ids`, in order.
+fn connection_events_of(
+    rx: &mut tokio::sync::broadcast::Receiver<SkotiqEvent>,
+    device_ids: &[&str],
+) -> Vec<Vec<&'static str>> {
+    let mut seen = vec![Vec::new(); device_ids.len()];
+    loop {
+        match rx.try_recv() {
+            Ok(event) => {
+                let (id, kind) = match &event.payload {
+                    EventPayload::Equipment(EquipmentEvent::Disconnected { device_id, .. }) => {
+                        (device_id, "disconnected")
+                    }
+                    EventPayload::Equipment(EquipmentEvent::Connected { device_id, .. }) => {
+                        (device_id, "connected")
+                    }
+                    _ => continue,
+                };
+                if let Some(i) = device_ids.iter().position(|d| d == id) {
+                    seen[i].push(kind);
+                }
+            }
+            Err(TryRecvError::Empty) | Err(TryRecvError::Closed) => break,
+            Err(TryRecvError::Lagged(_)) => continue,
+        }
+    }
+    seen
+}
+
+/// The connection events a stretch of work published for `device_id`.
+fn connection_events(
+    rx: &mut tokio::sync::broadcast::Receiver<SkotiqEvent>,
+    device_id: &str,
+) -> Vec<&'static str> {
+    connection_events_of(rx, &[device_id]).remove(0)
+}
+
+/// Rig, 2026-11-16 03:31: the run's reopen of the camera was announced as
+/// a disconnect, the app took it for a lost camera and paused the run. A
+/// reopen announces only the connect.
+#[tokio::test]
+async fn a_reopen_is_not_announced_as_a_lost_device() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_camera_reopen_events";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Camera), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    manager.reopen_device(id).await.expect("reopen");
+
+    assert_eq!(connection_events(&mut rx, id), ["connected"]);
+    assert!(manager.is_connected(id).await);
+    get_sim_camera_for(id).write().await.status.connected = false;
+}
+
+/// Rig, 2026-11-16: the wheel and focuser behind the power box answered
+/// "disconnected" after it came back. The run's next move reopens each
+/// through the connection path and lands, and the focuser keeps its
+/// position.
+#[tokio::test]
+async fn a_wheel_and_focuser_lost_to_a_bus_drop_are_reopened_and_the_move_lands() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let wheel = "sim_wheel_reopen";
+    let focuser = "sim_focuser_reopen";
+    for (id, device_type) in [(wheel, DeviceType::FilterWheel), (focuser, DeviceType::Focuser)] {
+        manager
+            .register_device(build_sim_info(id, device_type), false)
+            .await;
+        manager.connect_device(id).await.expect("connect");
+    }
+    manager.focuser_move_abs(focuser, 5000).await.expect("first move");
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    // The power box drops: both devices answer "not connected".
+    crate::hotplug::note_bus_change();
+    get_sim_filterwheel().write().await.status.connected = false;
+    get_sim_focuser().write().await.status.connected = false;
+
+    let moved = manager
+        .with_reopen(wheel, || manager.filter_wheel_set_position(wheel, 2))
+        .await;
+    let focused = manager
+        .with_reopen(focuser, || manager.focuser_move_abs(focuser, 5100))
+        .await;
+    crate::hotplug::forget_bus_change();
+
+    assert!(moved.is_ok(), "the wheel move lands after the reopen: {moved:?}");
+    assert!(focused.is_ok(), "the focuser move lands after the reopen: {focused:?}");
+    assert_eq!(manager.filter_wheel_get_position(wheel).await.ok(), Some(2));
+    assert_eq!(manager.focuser_get_position(focuser).await.ok(), Some(5100));
+    assert_eq!(
+        connection_events_of(&mut rx, &[wheel, focuser]),
+        [["connected"], ["connected"]]
+    );
+
+    // A reopen reads the focuser's position again and never sets it.
+    get_sim_focuser().write().await.status.connected = false;
+    manager.reopen_device(focuser).await.expect("reopen");
+    assert_eq!(manager.focuser_get_position(focuser).await.ok(), Some(5100));
+    for id in [wheel, focuser] {
+        let _ = manager.disconnect_device(id).await;
+    }
 }
 
 /// What a camera is told, in order.
@@ -259,6 +382,7 @@ async fn the_cooler_is_restored_before_anything_else() {
             cooler_power: Some(41.0),
             gain: Some(139),
             offset: Some(21),
+            cooler_off: None,
         },
     )
     .await;
@@ -293,4 +417,74 @@ async fn only_what_the_camera_held_is_restored() {
     manager.devices.write().await.get_mut(id).unwrap().desired_cooler = Some((true, Some(-15.0)));
     manager.restore_camera_state(&order_camera_info(id)).await;
     assert_eq!(*camera.calls.lock().unwrap(), ["cooler true Some(-15.0)"]);
+}
+
+/// Rig, 2026-11-16 03:36: a manual Disconnect and Connect about five
+/// minutes after the run's reopen left the cooler off. The app switches the
+/// cooler off as part of a disconnect, and that off was kept as what the
+/// camera held. What the camera held, cooler on at -10, now survives any
+/// number of reopens and that manual reconnect.
+#[tokio::test]
+async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = Arc::new(build_device_manager());
+    let id = "sim_camera_reopen_twice";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Camera), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    manager
+        .camera_set_cooler(id, true, Some(-10.0))
+        .await
+        .expect("cooler on");
+    let camera = get_sim_camera_for(id);
+    let cooler_off = || async {
+        let mut cam = camera.write().await;
+        cam.status.cooler_on = Some(false);
+        cam.status.target_temp = None;
+    };
+    let cooler = || async {
+        let cam = camera.read().await;
+        (cam.status.cooler_on, cam.status.target_temp)
+    };
+
+    for reopen in 1..=2 {
+        cooler_off().await;
+        // The camera reads its cooler off between the drop and the reopen.
+        manager.camera_get_status(id).await.expect("status read");
+        manager.reopen_device(id).await.expect("reopen");
+        assert_eq!(cooler().await, (Some(true), Some(-10.0)), "reopen {reopen}");
+    }
+
+    // The app's manual disconnect: the cooler off, then the disconnect.
+    manager
+        .camera_set_cooler(id, false, None)
+        .await
+        .expect("cooler off for the disconnect");
+    manager.disconnect_device(id).await.expect("disconnect");
+    manager.connect_device(id).await.expect("manual reconnect");
+    assert_eq!(cooler().await, (Some(true), Some(-10.0)), "manual reconnect");
+
+    camera.write().await.status.connected = false;
+}
+
+/// The operator's own cooler off, with the camera left connected, is kept:
+/// the next reopen leaves the cooler off.
+#[tokio::test]
+async fn a_cooler_switched_off_while_connected_stays_off_after_a_reopen() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = Arc::new(build_device_manager());
+    let id = "sim_camera_reopen_off";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Camera), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    manager.camera_set_cooler(id, true, Some(-10.0)).await.unwrap();
+    manager.camera_set_cooler(id, false, None).await.unwrap();
+
+    manager.reopen_device(id).await.expect("reopen");
+
+    let camera = get_sim_camera_for(id);
+    assert_eq!(camera.read().await.status.cooler_on, Some(false));
+    camera.write().await.status.connected = false;
 }

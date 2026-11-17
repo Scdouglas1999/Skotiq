@@ -121,20 +121,49 @@ async fn a_broken_camera_session_is_reopened_before_the_retry() {
     assert!(
         warnings[0].contains("Camera failed on frame 1/2")
             && warnings[0].contains(FAILED)
-            && warnings[0].contains("Reopened the camera; retrying in 2 s (retry 1 of 3)"),
+            && warnings[0].contains(
+                "Reopened the camera; retrying in 2 s (reopen 1 of 5 that do not count"
+            ),
         "the warning says the camera was reopened: {}",
         warnings[0]
     );
 }
 
-/// The reopen is once per frame: a session that is still broken after it is
-/// retried as before, and the frame fails on the existing budget.
+/// Rig, 2026-11-16 03:36: the power box link kept flapping, the same frame
+/// broke the session again after its one reopen, and the frame used its
+/// retries on the broken session. Every broken-session failure now reopens
+/// the camera, and a reopen that works does not use a retry.
 #[tokio::test(start_paused = true)]
-async fn a_camera_is_reopened_at_most_once_per_frame() {
+async fn a_flapping_camera_link_is_reopened_each_time_without_using_the_retries() {
     let ops = Arc::new(
         ScriptedDomeRotatorOps::new()
             .with_broken_camera_session("ZWO camera reported a failed exposure")
-            .failing_exposures(&[DOWNLOAD_ERROR; 3]),
+            .flapping_camera_session(3),
+    );
+    let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 4);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 5);
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(warnings.len(), 4, "{warnings:?}");
+    assert!(
+        warnings.iter().all(|w| w.contains("Reopened the camera")),
+        "{warnings:?}"
+    );
+}
+
+/// The free reopens are capped: a link that never holds still ends the
+/// frame, after the free reopens and the counted retries.
+#[tokio::test(start_paused = true)]
+async fn a_camera_link_that_never_holds_still_ends_the_frame() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session("ZWO camera reported a failed exposure")
+            .flapping_camera_session(100),
     );
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
@@ -142,18 +171,12 @@ async fn a_camera_is_reopened_at_most_once_per_frame() {
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Failure);
-    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 1);
-    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 4);
-    let warnings = retry_warnings(&mut events);
-    assert_eq!(warnings.len(), 3, "{warnings:?}");
     assert_eq!(
-        warnings
-            .iter()
-            .filter(|w| w.contains("Reopened the camera"))
-            .count(),
-        1,
-        "{warnings:?}"
+        ops.camera_exposure_calls.load(Ordering::SeqCst),
+        1 + FREE_REOPENS_PER_OPERATION + 3,
+        "the free reopens, then the three counted retries"
     );
+    assert_eq!(retry_warnings(&mut events).len(), 8);
 }
 
 #[tokio::test(start_paused = true)]
