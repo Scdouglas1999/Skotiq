@@ -22,14 +22,14 @@ DbCapturedImage _row(int id, String filter, double secs, {bool kept = true}) =>
       exposureDuration: secs,
       binX: 1,
       binY: 1,
-      capturedAt: DateTime(2026, 10, 19, 20),
-      createdAt: DateTime(2026, 10, 19, 20),
+      capturedAt: bostonTime(2026, 10, 19, 20),
+      createdAt: bostonTime(2026, 10, 19, 20),
       isAccepted: kept,
       isPlateSolved: false,
     );
 
 void main() {
-  final evening = DateTime(2026, 10, 19, 20, 10);
+  final evening = bostonTime(2026, 10, 19, 20, 10);
 
   test('no plan: no plan section', () {
     final container = planContainer(now: evening);
@@ -66,17 +66,17 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
         estimatedRemainingSecs: 600,
       ),
       sessionFrames: [
-        lightFrame('earlier', 'L', DateTime(2026, 10, 19, 19, 20)),
-        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
+        lightFrame('earlier', 'L', bostonTime(2026, 10, 19, 19, 20)),
+        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
       ],
-      run: RunRecord(startedAt: DateTime(2026, 10, 19, 19, 51)),
+      run: RunRecord(startedAt: bostonTime(2026, 10, 19, 19, 51)),
     );
     addTearDown(container.dispose);
 
@@ -94,7 +94,7 @@ void main() {
         .firstWhere((node) => node.filter == 'L');
     final restored = CheckpointInfo(
       sequenceName: plan.name,
-      timestamp: DateTime(2026, 10, 19, 19),
+      timestamp: bostonTime(2026, 10, 19, 19),
       completedExposures: 2,
       completedIntegrationSecs: 120,
       canResume: true,
@@ -123,12 +123,12 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(state: SequenceExecutionState.running),
-      sessionFrames: [lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 52))],
+      sessionFrames: [lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 52))],
       run: RunRecord(
-        startedAt: DateTime(2026, 10, 19, 19, 51),
+        startedAt: bostonTime(2026, 10, 19, 19, 51),
         framesDoneBeforeRun: restored.framesDoneByStep,
       ),
     );
@@ -148,17 +148,17 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
         estimatedRemainingSecs: 600,
       ),
       sessionFrames: [
-        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
-        lightFrame('2', 'L', DateTime(2026, 10, 19, 19, 53)),
-        lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 54)),
-        lightFrame('4', 'Ha', DateTime(2026, 10, 19, 19, 58)),
+        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
+        lightFrame('2', 'L', bostonTime(2026, 10, 19, 19, 53)),
+        lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 54)),
+        lightFrame('4', 'Ha', bostonTime(2026, 10, 19, 19, 58)),
       ],
       totals: const RunDashboardFilterTotals(
         integrationSecs: {},
@@ -196,7 +196,7 @@ void main() {
       id: 'loop',
       parentId: 'root',
       conditionType: LoopConditionType.untilTime,
-      repeatUntil: DateTime(2026, 10, 20, 5),
+      repeatUntil: bostonTime(2026, 10, 20, 5),
       childIds: const ['ha'],
     );
     final ha = ExposureNode(id: 'ha', parentId: 'loop', filter: 'Ha');
@@ -271,12 +271,12 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       sessionFrames: [
-        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
-        lightFrame('2', 'R', DateTime(2026, 10, 19, 19, 54)),
-        lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 56)),
+        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
+        lightFrame('2', 'R', bostonTime(2026, 10, 19, 19, 54)),
+        lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 56)),
       ],
       totals: const RunDashboardFilterTotals(
         integrationSecs: {},

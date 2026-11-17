@@ -40,8 +40,8 @@ void main() {
   test('running: the active step shows its frames, a finished one its time',
       () {
     final plan = TwoTargetPlan();
-    final sessionStart = DateTime(2026, 10, 19, 19, 50);
-    final finishedAt = DateTime(2026, 10, 19, 19, 54, 30);
+    final sessionStart = bostonTime(2026, 10, 19, 19, 50);
+    final finishedAt = bostonTime(2026, 10, 19, 19, 54, 30);
     final container = planContainer(
       now: evening,
       sequence: plan.sequence,
@@ -136,7 +136,7 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
@@ -167,7 +167,7 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
@@ -195,7 +195,7 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
