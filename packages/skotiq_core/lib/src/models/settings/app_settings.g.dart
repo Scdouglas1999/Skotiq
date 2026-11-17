@@ -119,7 +119,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   cameraRetries: (json['cameraRetries'] as num?)?.toInt() ?? 3,
   filterWheelRetries: (json['filterWheelRetries'] as num?)?.toInt() ?? 3,
   stopRunOnQualityProblems: json['stopRunOnQualityProblems'] as bool? ?? false,
-  mountGuardAutoSyncResume: json['mountGuardAutoSyncResume'] as bool? ?? false,
+  mountGuardAutoSyncResume: json['mountGuardAutoSyncResume'] as bool? ?? true,
   enableMeridianFlip: json['enableMeridianFlip'] as bool? ?? true,
   tempCompensation: json['tempCompensation'] as bool? ?? false,
   tempCoefficient: (json['tempCoefficient'] as num?)?.toDouble() ?? -12.0,

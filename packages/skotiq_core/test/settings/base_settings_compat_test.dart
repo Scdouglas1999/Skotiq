@@ -63,23 +63,81 @@ const Set<String> _wireAddedSinceBase = {
   'xisfChecksums',
 };
 
-/// Defaults changed on purpose since the base build, as (stored key, wire
-/// field, new default). A stored row still reads as written; only what a
-/// missing or empty value falls back to differs. Smart Night now chooses each
-/// target's filters unless the user picks one set ('auto').
-const List<(String, String, String)> _defaultsChangedSinceBase = [
-  ('smart_night_default_strategy', 'smartNightDefaultStrategy', 'auto'),
+/// A default changed on purpose since the base build. A stored row still
+/// reads as written; only what a missing value falls back to differs.
+class _ChangedDefault {
+  const _ChangedDefault(
+    this.key,
+    this.wire,
+    this.row,
+    this.wireValue, {
+    this.rowsReadWithoutDefault = false,
+  });
+
+  /// Stored key and wire field.
+  final String key;
+  final String wire;
+
+  /// The new default as a stored row and as a wire value.
+  final String row;
+  final Object wireValue;
+
+  /// Every stored row, malformed ones included, reads without the default
+  /// (a switch reads anything but `true` as off), so a row read back as the
+  /// old default now reads as that same value, which differs from the new
+  /// default.
+  final bool rowsReadWithoutDefault;
+}
+
+/// Smart Night chooses each target's filters unless the user picks one set
+/// ('auto'). A run held by a mount fault recovers on its own (owner,
+/// 2026-11-17).
+const List<_ChangedDefault> _defaultsChangedSinceBase = [
+  _ChangedDefault(
+    'smart_night_default_strategy',
+    'smartNightDefaultStrategy',
+    'auto',
+    'auto',
+  ),
+  _ChangedDefault(
+    'mount_guard_auto_sync_resume',
+    'mountGuardAutoSyncResume',
+    'true',
+    true,
+    rowsReadWithoutDefault: true,
+  ),
 ];
+
+final Set<String> _changedDefaultKeys = {
+  for (final changed in _defaultsChangedSinceBase) changed.key,
+};
 
 /// [fixture] with [_defaultsChangedSinceBase] applied to the base build's
 /// defaults.
 Map<String, dynamic> _withChangedDefaults(Map<String, dynamic> fixture) {
-  for (final (key, wire, value) in _defaultsChangedSinceBase) {
-    (fixture['defaults'] as Map)[key] = value;
-    (fixture['fromWireEmpty'] as Map)[key] = value;
-    (fixture['wireDefault'] as Map)[wire] = value;
+  final defaults = fixture['defaults'] as Map;
+  for (final changed in _defaultsChangedSinceBase) {
+    final oldDefault = defaults[changed.key];
+    defaults[changed.key] = changed.row;
+    (fixture['fromWireEmpty'] as Map)[changed.key] = changed.row;
+    (fixture['wireDefault'] as Map)[changed.wire] = changed.wireValue;
+    if (!changed.rowsReadWithoutDefault) continue;
+    final perRaw = (fixture['fullLoad'] as Map)[changed.key] as Map?;
+    perRaw?.updateAll((raw, expected) {
+      final read = (expected as Map)[changed.key] ?? oldDefault;
+      return read == changed.row ? <String, dynamic>{} : {changed.key: read};
+    });
   }
   return fixture;
+}
+
+/// [rows], the rows a base install was seeded with, with the changed
+/// defaults seeded instead.
+Map<String, String> _installRowsWithChangedDefaults(Map<String, String> rows) {
+  for (final changed in _defaultsChangedSinceBase) {
+    if (rows.containsKey(changed.key)) rows[changed.key] = changed.row;
+  }
+  return rows;
 }
 
 /// [rows] without the settings the base build did not have.
@@ -135,9 +193,11 @@ void main() {
 
       // Every setting the fixture could move off its default did move, so a
       // setting that silently fell back to its default would show up here.
+      // A changed default can be the value the fixture moved it to.
       final atDefault = [
         for (final setting in kAppSettingsTable)
           if (!_addedSinceBase.contains(setting.key) &&
+              !_changedDefaultKeys.contains(setting.key) &&
               rows[setting.key] == baseDefaults[setting.key])
             setting.key,
       ];
@@ -155,13 +215,15 @@ void main() {
   test(
     'a fresh install is seeded with the rows the base build seeded',
     () async {
-      final expected = Map<String, String>.from(
-        jsonDecode(
-              File(
-                'test/fixtures/settings/base_install_rows.json',
-              ).readAsStringSync(),
-            )
-            as Map,
+      final expected = _installRowsWithChangedDefaults(
+        Map<String, String>.from(
+          jsonDecode(
+                File(
+                  'test/fixtures/settings/base_install_rows.json',
+                ).readAsStringSync(),
+              )
+              as Map,
+        ),
       );
       final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);

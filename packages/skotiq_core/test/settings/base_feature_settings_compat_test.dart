@@ -1160,7 +1160,10 @@ void main() {
     if (update) {
       recorded['install rows'] = rows;
     } else {
-      expect(rows, fixture['install rows']);
+      expect(rows, {
+        ...(fixture['install rows'] as Map).cast<String, String>(),
+        ..._installRowsChangedOnPurpose,
+      });
     }
   });
 
@@ -1172,6 +1175,12 @@ void main() {
     });
   }
 }
+
+/// Rows a new database is seeded with differently from the base build: a run
+/// held by a mount fault recovers on its own (owner, 2026-11-17).
+const Map<String, String> _installRowsChangedOnPurpose = {
+  'mount_guard_auto_sync_resume': 'true',
+};
 
 /// What these settings now read where that differs from the base build.
 ///

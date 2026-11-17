@@ -23,6 +23,22 @@ void main() {
     );
   });
 
+  // `dart run tool/generate_app_settings.dart` crashed inside the compiler
+  // ("InvalidType is not a subtype of FunctionType") because the table
+  // imported the remote-protocol barrel, which pulls in Flutter.
+  test(
+    'the generator runs under plain Dart',
+    () async {
+      final result = await Process.run('dart', [
+        'run',
+        'tool/generate_app_settings.dart',
+        '--check',
+      ]);
+      expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
   test('every setting has its own field and its own rows', () {
     final fields = <String>{};
     final keys = <String>{};
