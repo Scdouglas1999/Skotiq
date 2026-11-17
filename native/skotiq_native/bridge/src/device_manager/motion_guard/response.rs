@@ -19,6 +19,14 @@ const REMINDER_SECS: f64 = 15.0 * 60.0;
 /// An automatic recovery waits this long after the mount has stopped.
 const AUTO_RECOVERY_QUIET: Duration = Duration::from_secs(30);
 
+/// The recovery frame's exposure, and the longer one a frame that did not
+/// solve is taken again with.
+const RECOVERY_EXPOSURES_SECS: [f64; 2] = [5.0, 15.0];
+
+/// How long an automatic recovery that could not solve (clouds) waits before
+/// it tries again. The mount is never moved meanwhile.
+const AUTO_RECOVERY_RETRY: Duration = Duration::from_secs(5 * 60);
+
 fn publish(event: SafetyEvent, severity: EventSeverity) {
     crate::state::get_state().publish_safety_event(event, severity);
 }
@@ -552,6 +560,76 @@ async fn recovery_camera(camera_id: Option<String>) -> Option<String> {
         .await
 }
 
+/// The wheel slot a blind solve sees the most stars through: a luminance or
+/// clear filter, else the first broadband one; `None` when every slot is
+/// narrowband (or unnamed), and the wheel is left where it is.
+pub(crate) fn recovery_slot(names: &[String]) -> Option<usize> {
+    const NARROWBAND: [&str; 5] = ["HA", "HB", "OIII", "SII", "NII"];
+    let bands: Vec<_> = names
+        .iter()
+        .map(|name| skotiq_device::filter_name::filter_bands(name))
+        .collect();
+    if let Some(slot) = bands.iter().position(|b| b.contains("L")) {
+        return Some(slot);
+    }
+    bands
+        .iter()
+        .position(|b| !b.is_empty() && !b.iter().any(|band| NARROWBAND.contains(&band.as_str())))
+}
+
+/// Put the run's filter wheel (or the only one connected) on
+/// [`recovery_slot`] for a recovery frame. Moving the wheel never moves the
+/// mount; the run's next frame sets its own filter.
+async fn wheel_to_recovery_filter() {
+    let manager = crate::device_manager::get_device_manager();
+    let wheel = match skotiq_sequencer::executor_handle().devices().filterwheel_id {
+        Some(id) => Some(id),
+        None => {
+            manager
+                .first_connected_device_id(crate::device::DeviceType::FilterWheel)
+                .await
+        }
+    };
+    let Some(wheel) = wheel else {
+        return;
+    };
+    let Ok((_, names)) = manager.filter_wheel_get_config(&wheel).await else {
+        return;
+    };
+    let Some(slot) = recovery_slot(&names) else {
+        return;
+    };
+    tracing::info!(
+        "[MOTION GUARD] Recovery frame through {} (slot {slot} of {wheel})",
+        names[slot]
+    );
+    if let Err(e) = manager.filter_wheel_set_position(&wheel, slot as i32).await {
+        tracing::warn!(
+            "[MOTION GUARD] The wheel did not move to {}: {e}",
+            names[slot]
+        );
+    }
+}
+
+/// Solve with each of [`RECOVERY_EXPOSURES_SECS`] in turn until one solves.
+pub(crate) async fn solve_with_longer_retry<F, Fut>(mut solve: F) -> Result<RecoverySolve, String>
+where
+    F: FnMut(f64) -> Fut,
+    Fut: std::future::Future<Output = Result<RecoverySolve, String>>,
+{
+    let mut last = String::new();
+    for exposure in RECOVERY_EXPOSURES_SECS {
+        match solve(exposure).await {
+            Ok(solved) => return Ok(solved),
+            Err(e) => {
+                tracing::warn!("[MOTION GUARD] Recovery frame of {exposure} s: {e}");
+                last = e;
+            }
+        }
+    }
+    Err(last)
+}
+
 /// Take a frame and plate solve it with no position hint (the mount's own
 /// position is the thing in doubt).
 pub async fn solve_for_recovery(
@@ -562,6 +640,7 @@ pub async fn solve_for_recovery(
     let camera = recovery_camera(camera_id)
         .await
         .ok_or_else(|| "No camera is connected to take the recovery frame.".to_string())?;
+    wheel_to_recovery_filter().await;
     let ops = crate::unified_device_ops::create_unified_device_ops();
     let exposure = exposure_secs.clamp(0.5, 60.0);
     let image = ops
@@ -638,40 +717,156 @@ async fn maybe_auto_recover(device_id: String) {
 }
 
 async fn auto_recover(device_id: &str) -> Result<(), String> {
-    // The mount has to stay still before anything is trusted.
-    let mut quiet_since = tokio::time::Instant::now();
-    loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        if still_moving(device_id) {
-            quiet_since = tokio::time::Instant::now();
-        }
-        if quiet_since.elapsed() >= AUTO_RECOVERY_QUIET {
-            break;
-        }
-        if with_registry(|r| {
+    let lost = || {
+        with_registry(|r| {
             r.mounts
                 .get(device_id)
-                .is_none_or(|e| e.fault.is_none() && e.lost.is_none())
-        }) {
-            // The operator dealt with it first.
-            return Ok(());
+                .is_some_and(|e| e.fault.is_some() || e.lost.is_some())
+        })
+    };
+    loop {
+        // The mount has to stay still before anything is trusted.
+        let mut quiet_since = tokio::time::Instant::now();
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            if still_moving(device_id) {
+                quiet_since = tokio::time::Instant::now();
+            }
+            if quiet_since.elapsed() >= AUTO_RECOVERY_QUIET {
+                break;
+            }
+            if !lost() {
+                // The operator dealt with it first.
+                return Ok(());
+            }
+        }
+        let solve =
+            match solve_with_longer_retry(|exposure| solve_for_recovery(device_id, None, exposure))
+                .await
+            {
+                Ok(solve) => solve,
+                Err(message) => {
+                    // Clouds, most likely. The mount stays where it is and the
+                    // run stays held; try again later.
+                    publish(
+                        SafetyEvent::MountPositionUnknown {
+                            device_id: device_id.to_string(),
+                            reason: "auto_recovery_waiting".to_string(),
+                            message: format!(
+                            "Automatic recovery could not plate solve ({message}). The mount is \
+                             not moved; recovery tries again in {} minutes.",
+                            AUTO_RECOVERY_RETRY.as_secs() / 60
+                        ),
+                        },
+                        EventSeverity::Warning,
+                    );
+                    tokio::time::sleep(AUTO_RECOVERY_RETRY).await;
+                    if !lost() {
+                        return Ok(());
+                    }
+                    continue;
+                }
+            };
+        tracing::info!(
+            "[MOTION GUARD] Automatic recovery solved RA {:.3}h Dec {:+.2}; the mount read RA \
+             {:.3}h Dec {:+.2} ({:.1} degrees apart)",
+            solve.ra_hours,
+            solve.dec_deg,
+            solve.mount_ra_hours,
+            solve.mount_dec_deg,
+            solve.separation_deg
+        );
+        recovery_sync(device_id, solve.ra_hours, solve.dec_deg).await?;
+        crate::sequence_run::resume()
+            .await
+            .map_err(|e| format!("The run did not resume: {e}"))?;
+        notify_recovered(&solve);
+        return Ok(());
+    }
+}
+
+/// Tell the operator the run recovered the mount's position on its own.
+fn notify_recovered(solve: &RecoverySolve) {
+    crate::state::get_state().publish_event(crate::event::correlation::create_event_auto_id(
+        EventSeverity::Warning,
+        crate::event::equipment::EventCategory::System,
+        crate::event::bus::EventPayload::System(crate::event::system::SystemEvent::Notification {
+            title: "Mount".to_string(),
+            message: format!(
+                "The mount's position was unknown. A plate solve found it at RA {:.3}h Dec \
+                 {:+.2} ({:.1} degrees from where it said it was); it was synced there and the \
+                 run carries on.",
+                solve.ra_hours, solve.dec_deg, solve.separation_deg
+            ),
+            level: "warning".to_string(),
+            explicit_transports: None,
+        }),
+    ));
+}
+
+#[cfg(test)]
+mod recovery_frame_tests {
+    use super::*;
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|n| n.to_string()).collect()
+    }
+
+    /// Rig, 2026-11-17: the recovery solve failed through a narrowband
+    /// filter at the pole and worked once the wheel was moved to L.
+    #[test]
+    fn the_recovery_frame_is_taken_through_l_else_a_broadband_filter() {
+        assert_eq!(recovery_slot(&names(&["Ha", "OIII", "SII", "L"])), Some(3));
+        assert_eq!(recovery_slot(&names(&["Ha 7nm", "Clear", "R"])), Some(1));
+        assert_eq!(recovery_slot(&names(&["Ha", "OIII", "R", "G"])), Some(2));
+        assert_eq!(
+            recovery_slot(&names(&["Ha", "L-eXtreme", "L-Pro"])),
+            Some(2)
+        );
+        assert_eq!(recovery_slot(&names(&["Ha", "OIII", "SII"])), None);
+        assert_eq!(recovery_slot(&names(&["", ""])), None);
+    }
+
+    fn solved() -> RecoverySolve {
+        RecoverySolve {
+            ra_hours: 5.0,
+            dec_deg: 89.0,
+            mount_ra_hours: 5.1,
+            mount_dec_deg: 88.0,
+            separation_deg: 1.0,
         }
     }
-    let solve = solve_for_recovery(device_id, None, 5.0).await?;
-    tracing::info!(
-        "[MOTION GUARD] Automatic recovery solved RA {:.3}h Dec {:+.2}; the mount read RA {:.3}h \
-         Dec {:+.2} ({:.1} degrees apart)",
-        solve.ra_hours,
-        solve.dec_deg,
-        solve.mount_ra_hours,
-        solve.mount_dec_deg,
-        solve.separation_deg
-    );
-    recovery_sync(device_id, solve.ra_hours, solve.dec_deg).await?;
-    crate::sequence_run::resume()
-        .await
-        .map_err(|e| format!("The run did not resume: {e}"))?;
-    Ok(())
+
+    /// A recovery frame that does not solve is taken again, longer.
+    #[tokio::test]
+    async fn a_frame_that_does_not_solve_is_taken_again_longer() {
+        let exposures = std::sync::Mutex::new(Vec::new());
+        let result = solve_with_longer_retry(|exposure| {
+            exposures.lock().unwrap().push(exposure);
+            let first = exposures.lock().unwrap().len() == 1;
+            async move {
+                if first {
+                    Err("The frame did not plate solve.".to_string())
+                } else {
+                    Ok(solved())
+                }
+            }
+        })
+        .await;
+        assert_eq!(result, Ok(solved()));
+        assert_eq!(*exposures.lock().unwrap(), RECOVERY_EXPOSURES_SECS);
+    }
+
+    /// Two frames that do not solve end the attempt with the last reason.
+    #[tokio::test]
+    async fn two_frames_that_do_not_solve_end_the_attempt() {
+        let result =
+            solve_with_longer_retry(
+                |exposure| async move { Err(format!("cloud at {exposure} s")) },
+            )
+            .await;
+        assert_eq!(result, Err("cloud at 15 s".to_string()));
+    }
 }
 
 #[cfg(test)]
