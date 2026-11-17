@@ -416,6 +416,101 @@ mod light_frame_grading {
         assert_eq!(ctx.run.grading.frames_rejected.load(Ordering::Relaxed), 10);
     }
 
+    /// Live 2026-11-17: the operator loosened grading mid-run ("Run setting
+    /// changed: default_quality_check") and the Smart Exposure step went on
+    /// rejecting at its start-time 3.50 px limit for hours. A long step's
+    /// frames are its units: the next frame grades with the new setting.
+    #[tokio::test]
+    async fn a_grading_change_during_a_burst_applies_from_its_next_frame() {
+        let scratch = scratch_dir("midburst-grading");
+        let paused = Arc::new(AtomicBool::new(false));
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_frame_metrics(3.9, 60, 0.1)
+                .pausing_after_first_exposure(paused.clone()),
+        );
+        let executor = crate::executor::SequenceExecutor::new();
+        executor
+            .handle()
+            .update_run_config(|config| {
+                config.default_quality_check = Some(check(|c| c.hfr_threshold = Some(3.5)))
+            })
+            .await
+            .expect("the settings apply");
+        let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
+        let mut ec =
+            crate::node::context::ExecutionContext::new_for_test("expose-node".to_string());
+        ec.run.device_ops = ops.clone();
+        ec.run.rig.camera_id = Some("cam-1".to_string());
+        ec.run.rig.mount_id = Some("mount-1".to_string());
+        ec.run.rig.save_path = Some(scratch.0.clone());
+        ec.run.rig.latitude = Some(TEST_LAT);
+        ec.run.rig.longitude = Some(TEST_LON);
+        ec.run.event_tx = Some(event_tx);
+        ec.run.settings = Some(executor.run_config_store());
+        ec.run.take_settings();
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+        ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ec.is_paused = paused.clone();
+        let ctx = ec.to_instruction_context("expose-node").await;
+        let control = BurstControl {
+            frames_taken: 0,
+            pause: ec.pause_gate(),
+            status: None,
+        };
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 2,
+            frame_type: crate::FrameType::Light,
+            ..ExposureConfig::default()
+        };
+
+        let mut burst = std::pin::pin!(execute_exposure(
+            &config,
+            &ctx,
+            frame_namer_for(&ctx, &config),
+            &control,
+            |_, _, _| {}
+        ));
+        // The burst holds before frame 2 (the operator's pause stands in for
+        // the time between frames); the operator loosens grading meanwhile.
+        assert!(
+            tokio::time::timeout(Duration::from_millis(400), &mut burst)
+                .await
+                .is_err(),
+            "the burst holds before its second frame"
+        );
+        executor
+            .handle()
+            .update_run_config(|config| {
+                config.default_quality_check = Some(check(|c| c.hfr_threshold = Some(4.5)))
+            })
+            .await
+            .expect("the settings apply");
+        paused.store(false, Ordering::SeqCst);
+        let burst = tokio::time::timeout(Duration::from_secs(10), burst)
+            .await
+            .expect("the burst finishes");
+        assert_eq!(burst.result.status, NodeStatus::Success);
+
+        let mut verdicts = Vec::new();
+        while let Ok(event) = event_rx.try_recv() {
+            if let crate::executor::ExecutorEvent::NodeProgress { detail, .. } = event {
+                match *detail {
+                    crate::node::ProgressDetail::FrameAccepted { .. } => verdicts.push(true),
+                    crate::node::ProgressDetail::FrameRejected { .. } => verdicts.push(false),
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(
+            verdicts,
+            vec![false, true],
+            "frame 1 is graded at 3.5 px, frame 2 at the new 4.5 px"
+        );
+    }
+
     #[tokio::test]
     async fn a_dark_with_the_same_numbers_is_never_graded() {
         grade_one(

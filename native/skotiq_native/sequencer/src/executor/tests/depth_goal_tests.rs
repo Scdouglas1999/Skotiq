@@ -32,6 +32,8 @@ struct RecordingOps {
     /// Raised by every dither: a next-target request arriving while the
     /// guider settles.
     next_target_on_dither: Option<Arc<std::sync::atomic::AtomicBool>>,
+    /// The pixels of every dither, in order.
+    dither_pixels: Mutex<Vec<f64>>,
 }
 
 impl RecordingOps {
@@ -44,6 +46,7 @@ impl RecordingOps {
             timeline: Mutex::new(Vec::new()),
             guider_absent: false,
             next_target_on_dither: None,
+            dither_pixels: Mutex::new(Vec::new()),
         }
     }
 
@@ -144,6 +147,7 @@ impl GuiderOps for RecordingOps {
         ra_only: bool,
     ) -> DeviceResult<()> {
         self.timeline.lock().unwrap().push("dither".to_string());
+        self.dither_pixels.lock().unwrap().push(pixels);
         if let Some(next_target) = &self.next_target_on_dither {
             next_target.store(true, Ordering::SeqCst);
         }
@@ -1074,4 +1078,51 @@ async fn a_next_target_request_during_a_dither_starts_no_frame() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(status, crate::NodeStatus::Skipped, "{}", ops.timeline());
     assert_eq!(total.load(Ordering::SeqCst), 0, "{}", ops.timeline());
+}
+
+/// A Smart Exposure dithers with the operator's dither settings as they stand
+/// when each dither starts, as the Dither Interval trigger does. It used to
+/// take the library default (and so ignored the operator's setting) for the
+/// whole night.
+#[tokio::test]
+async fn a_smart_exposure_dithers_with_the_operators_settings_as_they_stand() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let executor = crate::executor::SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.dither.pixels = 7.0;
+            config.dither.settle_pixels = 1.0;
+        })
+        .await
+        .expect("the settings apply");
+    let mut context = crate::node::ExecutionContext::new("smart".to_string(), ops.clone());
+    context.run.settings = Some(executor.run_config_store());
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.filterwheel_id = Some("fw-1".to_string());
+    let dir = std::env::temp_dir().join(format!("sk-smart-dither-{}", uuid::Uuid::new_v4()));
+    context.run.rig.save_path = Some(dir.clone());
+    let plan = |name: &str| FilterPlan {
+        filter_name: name.to_string(),
+        count: 1,
+        duration_secs: 0.01,
+        ..Default::default()
+    };
+    let config = SmartExposureConfig {
+        plans: vec![plan("L"), plan("R")],
+        rotate_filters: true,
+        dither_on_filter_change: true,
+        ..Default::default()
+    };
+
+    use crate::node::registry::InstructionNode;
+    let status = crate::node::instructions::smart_exposure::SmartExposureInstruction
+        .execute("smart", &NodeType::SmartExposure(config), &mut context)
+        .await;
+
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(status, crate::NodeStatus::Success, "{}", ops.timeline());
+    let pixels = ops.dither_pixels.lock().unwrap().clone();
+    assert!(!pixels.is_empty(), "{}", ops.timeline());
+    assert!(pixels.iter().all(|p| *p == 7.0), "{pixels:?}");
 }

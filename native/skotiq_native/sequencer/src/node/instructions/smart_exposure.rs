@@ -268,6 +268,10 @@ async fn execute_smart_exposure(
             save_checkpoint(node_id, context, &state).await;
             return status;
         }
+        // Each visit is a unit of this long step: it takes the operator's
+        // settings as they stand now (filter offsets, site, frame identity),
+        // so an edit during the node reaches its next visit.
+        context.run.take_settings();
 
         // The surrounding target's `end_when` (its end time, an altitude
         // floor) ends this node between batches: the parent TargetHeader
@@ -800,12 +804,16 @@ async fn run_dither(
     _plan: &FilterPlan,
     context: &mut ExecutionContext,
 ) -> NodeStatus {
-    // We use the global dither defaults (matching what
-    // `RecoveryAction::Dither` does for the DitherInterval trigger) because
-    // SmartExposure plans don't carry the full dither-settle parameter set
-    // and adding them would inflate the per-row editor. Users who need
-    // bespoke settle parameters can author an explicit DitherNode.
-    let dither_node_type = NodeType::Dither(DitherConfig::default());
+    // The operator's dither settings, as the Dither Interval trigger takes
+    // them, read as this dither starts so a change made during the node
+    // applies to its next dither. SmartExposure plans don't carry the full
+    // dither-settle parameter set; an explicit DitherNode sets its own.
+    let step = DitherConfig::default();
+    let config = match &context.run.settings {
+        Some(store) => store.read().dither_for(&step),
+        None => step,
+    };
+    let dither_node_type = NodeType::Dither(config);
 
     DitherInstruction
         .execute(node_id, &dither_node_type, context)

@@ -243,6 +243,27 @@ impl Default for RunConfig {
 }
 
 impl RunConfig {
+    /// The dither a run takes: the operator's dither settings once the app
+    /// has pushed them (non-zero pixels), with the pattern and grid size of
+    /// `step`, which those settings do not carry; `step` itself before then.
+    /// The Dither Interval trigger and a Smart Exposure's own dithers both
+    /// take it, read as each dither starts.
+    pub fn dither_for(&self, step: &crate::DitherConfig) -> crate::DitherConfig {
+        if self.dither.pixels > 0.0 {
+            crate::DitherConfig {
+                pixels: self.dither.pixels,
+                settle_pixels: self.dither.settle_pixels,
+                settle_time: self.dither.settle_time,
+                settle_timeout: self.dither.settle_timeout,
+                ra_only: self.dither.ra_only,
+                pattern: step.pattern,
+                grid_size: step.grid_size,
+            }
+        } else {
+            step.clone()
+        }
+    }
+
     /// The daylight gate's limit: the pushed value, or nautical darkness
     /// when nothing usable was pushed, so the native gate is never weaker
     /// than the app's gate it backstops.

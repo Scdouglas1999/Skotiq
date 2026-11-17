@@ -315,6 +315,15 @@ pub struct FrameIdentity {
     pub telescope_aperture_mm: Option<f64>,
 }
 
+/// The operator's settings one frame is taken with; see
+/// [`RunShared::frame_settings`].
+#[derive(Debug, Clone)]
+pub struct FrameSettings {
+    pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
+    pub reject_folder_path: Option<String>,
+    pub camera_file_saving: crate::CameraFileSaving,
+}
+
 /// How a run grades its frames and what grading has learned so far. Every
 /// exposure of the run shares one set, so baselines and totals are the run's.
 #[derive(Clone)]
@@ -440,6 +449,29 @@ impl RunShared {
         self.grading.default_quality_check = config.default_quality_check.clone();
         self.grading.reject_folder_path = config.reject_folder_path.clone();
         self.camera_file_saving = config.camera_file_saving;
+    }
+
+    /// The grading defaults, reject folder and camera-file choice a frame
+    /// starting now is taken with. A long step's frames are its units, so a
+    /// change the operator saves during a burst or a Smart Exposure reaches
+    /// its next frame (owner, 2026-11-12). Outside a run these are the
+    /// step's own values.
+    pub fn frame_settings(&self) -> FrameSettings {
+        match &self.settings {
+            Some(store) => {
+                let config = store.read();
+                FrameSettings {
+                    default_quality_check: config.default_quality_check.clone(),
+                    reject_folder_path: config.reject_folder_path.clone(),
+                    camera_file_saving: config.camera_file_saving,
+                }
+            }
+            None => FrameSettings {
+                default_quality_check: self.grading.default_quality_check.clone(),
+                reject_folder_path: self.grading.reject_folder_path.clone(),
+                camera_file_saving: self.camera_file_saving,
+            },
+        }
     }
 
     /// This run's shared state for a step starting now; see
@@ -823,9 +855,10 @@ impl ImagingTrainClaimGuard {
 mod settings_tests {
     use super::*;
 
-    /// An exposure already running keeps the grading, reject folder, frame
-    /// identity and camera-file choice it started with; the next one takes
-    /// what the operator saved meanwhile.
+    /// A step's snapshot keeps the grading, reject folder, frame identity
+    /// and camera-file choice it started with and the next step takes what
+    /// the operator saved meanwhile. (A burst's frames read the grading and
+    /// camera-file choice per frame through [`RunShared::frame_settings`].)
     #[tokio::test]
     async fn a_step_in_progress_keeps_the_settings_it_started_with() {
         let executor = crate::executor::SequenceExecutor::new();
