@@ -50,7 +50,11 @@ async fn the_cooler_set_point_survives_a_reopen() {
     manager.disconnect_device(id).await.expect("disconnect");
     cooler_off().await;
     manager.connect_device(id).await.expect("manual reconnect");
-    assert_eq!(cooler().await, (Some(true), Some(-10.0)), "manual reconnect");
+    assert_eq!(
+        cooler().await,
+        (Some(true), Some(-10.0)),
+        "manual reconnect"
+    );
 
     cooler_off().await;
     let reopened = manager
@@ -158,13 +162,19 @@ async fn a_wheel_and_focuser_lost_to_a_bus_drop_are_reopened_and_the_move_lands(
     let manager = build_device_manager();
     let wheel = "sim_wheel_reopen";
     let focuser = "sim_focuser_reopen";
-    for (id, device_type) in [(wheel, DeviceType::FilterWheel), (focuser, DeviceType::Focuser)] {
+    for (id, device_type) in [
+        (wheel, DeviceType::FilterWheel),
+        (focuser, DeviceType::Focuser),
+    ] {
         manager
             .register_device(build_sim_info(id, device_type), false)
             .await;
         manager.connect_device(id).await.expect("connect");
     }
-    manager.focuser_move_abs(focuser, 5000).await.expect("first move");
+    manager
+        .focuser_move_abs(focuser, 5000)
+        .await
+        .expect("first move");
     let mut rx = manager.app_state.event_bus.subscribe();
 
     // The power box drops: both devices answer "not connected".
@@ -180,8 +190,14 @@ async fn a_wheel_and_focuser_lost_to_a_bus_drop_are_reopened_and_the_move_lands(
         .await;
     crate::hotplug::forget_bus_change();
 
-    assert!(moved.is_ok(), "the wheel move lands after the reopen: {moved:?}");
-    assert!(focused.is_ok(), "the focuser move lands after the reopen: {focused:?}");
+    assert!(
+        moved.is_ok(),
+        "the wheel move lands after the reopen: {moved:?}"
+    );
+    assert!(
+        focused.is_ok(),
+        "the focuser move lands after the reopen: {focused:?}"
+    );
     assert_eq!(manager.filter_wheel_get_position(wheel).await.ok(), Some(2));
     assert_eq!(manager.focuser_get_position(focuser).await.ok(), Some(5100));
     assert_eq!(
@@ -289,7 +305,11 @@ impl skotiq_device::CameraDriver for OrderCamera {
     async fn get_offset(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), skotiq_device::DriverError> {
+    async fn set_binning(
+        &mut self,
+        _bin_x: i32,
+        _bin_y: i32,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
     async fn get_binning(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
@@ -414,7 +434,13 @@ async fn only_what_the_camera_held_is_restored() {
     manager.restore_camera_state(&order_camera_info(id)).await;
     assert!(camera.calls.lock().unwrap().is_empty());
 
-    manager.devices.write().await.get_mut(id).unwrap().desired_cooler = Some((true, Some(-15.0)));
+    manager
+        .devices
+        .write()
+        .await
+        .get_mut(id)
+        .unwrap()
+        .desired_cooler = Some((true, Some(-15.0)));
     manager.restore_camera_state(&order_camera_info(id)).await;
     assert_eq!(*camera.calls.lock().unwrap(), ["cooler true Some(-15.0)"]);
 }
@@ -463,7 +489,11 @@ async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {
         .expect("cooler off for the disconnect");
     manager.disconnect_device(id).await.expect("disconnect");
     manager.connect_device(id).await.expect("manual reconnect");
-    assert_eq!(cooler().await, (Some(true), Some(-10.0)), "manual reconnect");
+    assert_eq!(
+        cooler().await,
+        (Some(true), Some(-10.0)),
+        "manual reconnect"
+    );
 
     camera.write().await.status.connected = false;
 }
@@ -479,7 +509,10 @@ async fn a_cooler_switched_off_while_connected_stays_off_after_a_reopen() {
         .register_device(build_sim_info(id, DeviceType::Camera), false)
         .await;
     manager.connect_device(id).await.expect("connect");
-    manager.camera_set_cooler(id, true, Some(-10.0)).await.unwrap();
+    manager
+        .camera_set_cooler(id, true, Some(-10.0))
+        .await
+        .unwrap();
     manager.camera_set_cooler(id, false, None).await.unwrap();
 
     manager.reopen_device(id).await.expect("reopen");
@@ -502,7 +535,10 @@ async fn a_reconnected_parked_mount_is_not_set_tracking() {
         .register_device(build_sim_info(id, DeviceType::Mount), false)
         .await;
     manager.connect_device(id).await.expect("connect");
-    manager.mount_set_tracking(id, true).await.expect("tracking");
+    manager
+        .mount_set_tracking(id, true)
+        .await
+        .expect("tracking");
 
     manager.mark_lost(id, true, "simulated drop").await;
     {
@@ -531,7 +567,13 @@ async fn a_bus_change_gives_a_lost_device_its_attempts_back() {
         .register_device(build_sim_info(id, DeviceType::FilterWheel), true)
         .await;
     manager.mark_lost(id, true, "gone").await;
-    manager.devices.write().await.get_mut(id).unwrap().reconnect_attempts = 10;
+    manager
+        .devices
+        .write()
+        .await
+        .get_mut(id)
+        .unwrap()
+        .reconnect_attempts = 10;
 
     manager.retry_lost_devices().await;
 

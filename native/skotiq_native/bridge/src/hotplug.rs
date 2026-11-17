@@ -401,6 +401,7 @@ fn poll_after_bus_event() {
         Ok(runtime) => {
             runtime.spawn(async move {
                 get_device_manager().retry_lost_devices().await;
+                crate::guider::phd2::check_equipment_after_bus_change().await;
                 poll_once(Asker::Background).await;
                 for delay in HOTPLUG_FOLLOW_UP_DELAYS {
                     tokio::time::sleep(*delay).await;

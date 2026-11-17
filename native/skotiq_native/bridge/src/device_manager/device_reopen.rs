@@ -260,7 +260,10 @@ impl DeviceManager {
         let (commanded, held) = {
             let devices = self.devices.read().await;
             match devices.get(device_id) {
-                Some(dev) => (dev.desired_cooler, dev.held_camera_state.unwrap_or_default()),
+                Some(dev) => (
+                    dev.desired_cooler,
+                    dev.held_camera_state.unwrap_or_default(),
+                ),
                 None => return,
             }
         };

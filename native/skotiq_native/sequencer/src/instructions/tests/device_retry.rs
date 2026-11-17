@@ -121,9 +121,8 @@ async fn a_broken_camera_session_is_reopened_before_the_retry() {
     assert!(
         warnings[0].contains("Camera failed on frame 1/2")
             && warnings[0].contains(FAILED)
-            && warnings[0].contains(
-                "Reopened the camera; retrying in 2 s (reopen 1 of 5 that do not count"
-            ),
+            && warnings[0]
+                .contains("Reopened the camera; retrying in 2 s (reopen 1 of 5 that do not count"),
         "the warning says the camera was reopened: {}",
         warnings[0]
     );

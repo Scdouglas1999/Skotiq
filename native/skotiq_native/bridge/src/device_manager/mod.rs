@@ -6,8 +6,8 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
-pub(crate) mod device_reopen;
 pub(crate) mod connection;
+pub(crate) mod device_reopen;
 pub(crate) mod epoch;
 pub(crate) mod handle;
 pub(crate) mod heartbeat;

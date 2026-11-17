@@ -10,6 +10,7 @@ mod dome_shutter_tests;
 mod recovery_tests;
 mod resume_tests;
 mod runtime_tests;
+mod unattended_drop_tests;
 
 /// The record a trigger-fired autofocus writes through
 /// `record_autofocus_failed_continuing`.

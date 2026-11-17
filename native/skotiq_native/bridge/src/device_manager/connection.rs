@@ -1134,7 +1134,8 @@ impl DeviceManager {
             return;
         };
         // A parked mount stays parked: tracking it would leave the park.
-        if enabled && matches!(self.mount_get_status(device_id).await, Ok(status) if status.parked) {
+        if enabled && matches!(self.mount_get_status(device_id).await, Ok(status) if status.parked)
+        {
             tracing::info!("Reconnect: mount {device_id} is parked; tracking stays off");
             return;
         }

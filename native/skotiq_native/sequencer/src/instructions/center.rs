@@ -332,12 +332,13 @@ async fn center(
                     );
                     break data;
                 }
-                Err(e) => match camera_retries.after_failure(
-                    ctx,
-                    e,
-                    &format!("on the centering frame (attempt {})", attempt),
-                )
-                .await
+                Err(e) => match camera_retries
+                    .after_failure(
+                        ctx,
+                        e,
+                        &format!("on the centering frame (attempt {})", attempt),
+                    )
+                    .await
                 {
                     RetryOutcome::Retry => {}
                     RetryOutcome::Cancelled => {
