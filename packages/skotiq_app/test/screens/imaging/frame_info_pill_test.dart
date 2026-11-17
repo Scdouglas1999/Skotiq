@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/sub_quality_badge.dart';
+import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -28,6 +30,7 @@ CapturedImageData _frame({
   ),
   ExposureSettings settings =
       const ExposureSettings(exposureTime: 1, gain: 0, offset: 0),
+  String? filePath,
 }) =>
     CapturedImageData(
       width: 64,
@@ -37,16 +40,33 @@ CapturedImageData _frame({
       stats: stats,
       capturedAt: DateTime(2026, 10, 17, 21, 24, 16),
       settings: settings,
+      filePath: filePath,
     );
 
-class _FakeScienceNotifier extends ScienceSettingsNotifier {
-  _FakeScienceNotifier(this._settings);
+const _rejectedPath = '/captures/M31/Reject/M31_L_0007.fits';
 
-  final ScienceSettings _settings;
-
-  @override
-  Future<ScienceSettings> build() async => _settings;
-}
+/// The night's frames as the run graded them: one rejected light.
+final _rejectedByTheRun = nightSessionLightRowsProvider.overrideWithValue([
+  DbCapturedImage(
+    id: 7,
+    filePath: _rejectedPath,
+    fileName: 'M31_L_0007.fits',
+    fileFormat: 'fits',
+    frameType: 'light',
+    filter: 'L',
+    exposureDuration: 1,
+    binX: 1,
+    binY: 1,
+    capturedAt: DateTime(2026, 10, 17, 21, 24, 16),
+    createdAt: DateTime(2026, 10, 17, 21, 24, 16),
+    isAccepted: false,
+    rejectionReason:
+        'HFR 16.29 px exceeds baseline 2.10 px + 50% (limit 3.15 px)',
+    hfr: 16.29,
+    starCount: 105,
+    isPlateSolved: false,
+  ),
+]);
 
 class _PreviewHost extends StatelessWidget {
   const _PreviewHost({this.showStarOverlay = false});
@@ -179,19 +199,13 @@ void main() {
       const _PreviewHost(),
       size: const Size(1280, 800),
       settle: false,
-      extraOverrides: <Override>[
-        scienceSettingsProvider.overrideWith(
-          () => _FakeScienceNotifier(
-            const ScienceSettings(autoFrameGradingEnabled: true),
-          ),
-        ),
-      ],
+      extraOverrides: <Override>[_rejectedByTheRun],
     );
-    // HFR 16 is far above the conservative maxHfr, so the frame is rejected.
+    // The run rejected this frame; the pill carries the run's verdict.
     const stats = ImageStats(hfr: 16.29, starCount: 105, mean: 534);
     handle.container.read(lastImageStatsProvider.notifier).state = stats;
     handle.container.read(currentImageProvider.notifier).state =
-        _frame(stats: stats);
+        _frame(stats: stats, filePath: _rejectedPath);
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -223,13 +237,7 @@ void main() {
       const _PreviewHost(),
       size: const Size(1280, 800),
       settle: false,
-      extraOverrides: <Override>[
-        scienceSettingsProvider.overrideWith(
-          () => _FakeScienceNotifier(
-            const ScienceSettings(autoFrameGradingEnabled: true),
-          ),
-        ),
-      ],
+      extraOverrides: <Override>[_rejectedByTheRun],
     ).then((handle) async {
       const stats = ImageStats(hfr: 2.77, starCount: 4, mean: 300);
       handle.container.read(lastImageStatsProvider.notifier).state = stats;

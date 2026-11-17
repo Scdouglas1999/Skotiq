@@ -218,7 +218,6 @@ export 'src/providers/error_service_provider.dart';
 export 'src/providers/flat_library_service_provider.dart';
 export 'src/providers/flat_wizard_service_provider.dart';
 export 'src/providers/focus_model_service_providers.dart';
-export 'src/providers/science/frame_auto_grader_provider.dart';
 export 'src/providers/scheduler/integration_goal_service_provider.dart';
 export 'src/providers/predictive_af_service_providers.dart';
 export 'src/providers/live_stack_master_library_provider.dart';

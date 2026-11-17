@@ -115,7 +115,6 @@ Map<String, Object?> _science(ScienceSettings s) => {
   'tnsDataSourceId': s.tnsDataSourceId,
   'tnsReporterName': s.tnsReporterName,
   'tnsUseSandbox': s.tnsUseSandbox,
-  'autoFrameGradingEnabled': s.autoFrameGradingEnabled,
   'frameGradeRulesJson': s.frameGradeRulesJson,
   'scienceGuideCollapsed': s.scienceGuideCollapsed,
 };
@@ -146,7 +145,6 @@ const _scienceKeys = [
   'science.tns.source_id',
   'science.tns.reporter',
   'science.tns.use_sandbox',
-  'science.grading.auto_enabled',
   'science.grading.rules_json',
   'science.guide.collapsed',
   'image_grading_enabled',
@@ -168,7 +166,6 @@ const _scienceBoolKeys = [
   'science.retention.manual_purge_only',
   'science.writeback.fits_header_enabled',
   'science.tns.use_sandbox',
-  'science.grading.auto_enabled',
   'science.guide.collapsed',
 ];
 
@@ -1214,9 +1211,24 @@ const Map<String, Object?> _changedOnPurpose = {
   'decision log': {
     'reads': {'empty': _SameAs('missing')},
   },
+  // The Science switch for a second frame grader is gone: a frame's verdict
+  // is the run's grader's alone (IC 405, 2026-11-16).
   'science settings': {
     'reads': {
-      'empty': {'frameGradeRulesJson': null},
+      'missing': {'autoFrameGradingEnabled': _removed},
+      'all on': {'autoFrameGradingEnabled': _removed},
+      'all off': {'autoFrameGradingEnabled': _removed},
+      'upper case': {'autoFrameGradingEnabled': _removed},
+      'empty': {
+        'frameGradeRulesJson': null,
+        'autoFrameGradingEnabled': _removed,
+      },
+      'unreadable switch': {'autoFrameGradingEnabled': _removed},
+      'unreadable number': {'autoFrameGradingEnabled': _removed},
+      'identity': {'autoFrameGradingEnabled': _removed},
+      'atlas limit': {'autoFrameGradingEnabled': _removed},
+      'atlas limit text': {'autoFrameGradingEnabled': _removed},
+      'grading by the older switch': {'autoFrameGradingEnabled': _removed},
     },
   },
   'notification routing': {
@@ -1252,6 +1264,13 @@ const Map<String, Object?> _changedOnPurpose = {
   },
 };
 
+/// A value the base build read that no longer exists.
+class _Removed {
+  const _Removed();
+}
+
+const _removed = _Removed();
+
 /// A change to the value the base build read from the rows labeled [label].
 class _SameAs {
   const _SameAs(this.label);
@@ -1271,5 +1290,5 @@ Object? _withChanges(Object? base, Object? changes) {
         _SameAs(:final label) => base[label],
         final value => _withChanges(base[entry.key], value),
       },
-  };
+  }..removeWhere((key, value) => changes[key] is _Removed);
 }

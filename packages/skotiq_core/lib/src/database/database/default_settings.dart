@@ -48,6 +48,10 @@ const Set<String> _retiredSettingKeys = {
   // the field, and a stored row would only keep exporting a choice that does
   // nothing.
   'af_failure_action',
+  // Removed 2026-11: the switch for the science pipeline's second frame
+  // grader. A frame's verdict is the run's grader's alone, so two graders
+  // can no longer label one frame differently (IC 405, 2026-11-16).
+  'science.grading.auto_enabled',
 };
 
 /// Set once a profile has been through the rule that made Your Sky opt-in.

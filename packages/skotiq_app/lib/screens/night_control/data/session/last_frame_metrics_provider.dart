@@ -115,8 +115,11 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
   }
 
   final histogram = current?.histogram;
+  final verdict = ref.watch(nightFrameRunVerdictProvider(row?.filePath));
   return NightLastFrameVm(
     frameNumber: frameNumber,
+    accepted: verdict?.accepted,
+    rejectReason: verdict?.reason,
     histogram: histogram == null || histogram.isEmpty ? null : histogram,
     metrics: <MetricVm>[
       _metric(

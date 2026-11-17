@@ -814,14 +814,8 @@ abstract final class StoreSettings {
     false,
     sync: SettingSync.hostStore,
   );
-  static const scienceAutoFrameGrading = BoolSetting(
-    'scienceAutoFrameGrading',
-    'science.grading.auto_enabled',
-    false,
-    sync: SettingSync.hostStore,
-  );
 
-  /// The frame grading rules. Not set: the conservative defaults.
+  /// The Image Grader dialog's rules. Not set: suggested from the frames.
   static const scienceFrameGradeRules = OptionalTextSetting(
     'scienceFrameGradeRules',
     'science.grading.rules_json',
@@ -1063,7 +1057,6 @@ abstract final class StoreSettings {
     scienceTnsDataSourceId,
     scienceTnsReporterName,
     scienceTnsUseSandbox,
-    scienceAutoFrameGrading,
     scienceFrameGradeRules,
     scienceGuideCollapsed,
     scienceOverlayOpacity,

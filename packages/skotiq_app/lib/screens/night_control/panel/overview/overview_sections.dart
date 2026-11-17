@@ -42,10 +42,23 @@ class NightLastFrameSection extends StatelessWidget {
     }
     final hasDeltas = frame.metrics.any((m) => m.delta != null);
     final histogram = frame.histogram;
+    final accepted = frame.accepted;
+    final reason = frame.rejectReason;
     return NightPanelSection(
       title: title,
       trailing: hasDeltas ? l10n.text('nightPanelVsMedian') : null,
       children: <Widget>[
+        // The run's verdict, the one the strip and the frame pill show. The
+        // figures below compare the frame with the night; they do not grade.
+        if (accepted != null)
+          NightPanelNote(
+            accepted
+                ? l10n.text('nightCtrAccepted')
+                : reason == null
+                    ? l10n.text('nightCtrRejected')
+                    : '${l10n.text('nightCtrRejected')}: $reason',
+            tone: accepted ? MetricGridTone.good : MetricGridTone.bad,
+          ),
         MetricGrid(
           items: nightMetricItems(frame.metrics, l10n),
           semanticLabel: title,

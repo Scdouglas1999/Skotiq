@@ -125,6 +125,28 @@ bool? nightFrameVerdict(DbCapturedImage row) {
   return measured ? true : null;
 }
 
+/// The run's verdict on a light frame and, for a reject, the reason it gave.
+typedef NightFrameRunVerdict = ({bool accepted, String? reason});
+
+/// The run's verdict on the light frame saved at [filePath]: the one verdict
+/// every screen shows (the strip, the frame pill, Last frame and the imaging
+/// screen's badge). Null when the frame is not a graded frame of the night.
+final nightFrameRunVerdictProvider =
+    Provider.family<NightFrameRunVerdict?, String?>((ref, filePath) {
+  if (filePath == null || filePath.isEmpty) return null;
+  final lights = ref.watch(nightSessionLightRowsProvider);
+  final number = nightFrameNumberForPath(lights, filePath);
+  if (number == null) return null;
+  final row = lights[number - 1];
+  final accepted = nightFrameVerdict(row);
+  if (accepted == null) return null;
+  final reason = row.rejectionReason?.trim();
+  return (
+    accepted: accepted,
+    reason: accepted || reason == null || reason.isEmpty ? null : reason,
+  );
+});
+
 /// The session frame number of the row saved at [filePath], or null.
 int? nightFrameNumberForPath(List<DbCapturedImage> lights, String? filePath) {
   if (filePath == null || filePath.isEmpty) return null;

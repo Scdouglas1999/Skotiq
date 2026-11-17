@@ -206,7 +206,6 @@ export 'src/services/science/sub_exposure_noise.dart';
 export 'src/services/science/narrator/narrator_event.dart';
 export 'src/services/science/science_report_exporter.dart';
 export 'src/services/science/frame_grade_rules.dart';
-export 'src/services/science/frame_auto_grader.dart';
 export 'src/services/science/photometric_transform_service.dart';
 export 'src/services/science/aavso_export_service.dart';
 export 'src/services/science/mpc_export_service.dart';

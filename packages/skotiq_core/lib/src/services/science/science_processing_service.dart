@@ -36,7 +36,6 @@ import 'sub_exposure_noise.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../providers/logging_service_provider.dart';
 import '../../providers/science/default_science_backend_provider.dart';
-import '../../providers/science/frame_auto_grader_provider.dart';
 import '../../providers/science/photometric_catalog_service_provider.dart';
 import '../../providers/science/photometric_transform_service_provider.dart';
 import '../../backend/roles/host_data/imaging_records.dart';

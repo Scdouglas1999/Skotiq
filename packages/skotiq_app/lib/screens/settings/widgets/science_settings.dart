@@ -273,18 +273,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.sliders,
-                  title: 'Auto-reject bad frames',
-                  subtitle:
-                      'After each light frame, reject captures that exceed '
-                      'the thresholds set in Analytics → Science → Grade frames. '
-                      'Files are never deleted. Only excluded from stacks.',
-                  trailing: SettingsSwitch(
-                    value: science.autoFrameGradingEnabled,
-                    onChanged: scienceNotifier.setAutoFrameGradingEnabled,
-                  ),
-                ),
-                SettingRow(
                   icon: LucideIcons.fileText,
                   title: 'Write science keywords to FITS',
                   subtitle:

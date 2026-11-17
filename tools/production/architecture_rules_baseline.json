@@ -145,10 +145,6 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref."
       },
-      "services/frame_auto_grader.dart": {
-        "count": 3,
-        "reason": "Holds a Riverpod Ref; reads imagesDaoProvider, imagingRecordsRepositoryProvider, loggingServiceProvider, scienceDaoProvider, scienceSettingsProvider."
-      },
       "services/frame_identity.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider."
@@ -238,7 +234,7 @@
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, backendProvider, cameraCapabilitiesProvider, cameraStateProvider, loggingServiceProvider, settingsDaoProvider."
       },
       "services/science_processing_service.dart": {
-        "count": 11,
+        "count": 10,
         "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider."
       },
       "services/smart_notification_service.dart": {

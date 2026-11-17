@@ -235,16 +235,19 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'User',
   ],
   'end-of-night-calibration': [
+    'A set the dark library already holds at the same',
     'Bias frames',
     'Blocking the light',
     'Darks per light setting',
     'Frames',
     'Guiding is stopped first. A mount the night already',
     'How long to wait for you to confirm the telescope is',
+    'Keep library darks for',
     'Mount before the darks',
     'One set for each exposure, gain, offset, binning and',
-    'One set for each gain, offset and binning.',
+    'One set for each gain, offset, binning and',
     'Raises the set-point gradually once the frames are',
+    'Reusing the library',
     'Starts when a run that took light frames completes, is',
     'Take darks and bias when imaging ends',
     'The frames are taken through a wheel slot named Dark,',
@@ -633,13 +636,11 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'AAVSO',
     'AAVSO observer code',
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.',
-    'After each light frame, reject captures that exceed',
     'Analyze field-wide seeing and tilt patterns',
     'Astrometric catalog',
     'Astrometric residuals',
     'At the camera gain you image at. Used for',
     'Auto-configure from camera',
-    'Auto-reject bad frames',
     'Bot API key',
     'Bot id',
     'Bot name',
@@ -908,12 +909,14 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Refresh host settings',
   },
   'end-of-night-calibration': {
+    'A set the dark library already holds at the same':
+        'Keep library darks for',
     'Guiding is stopped first. A mount the night already':
         'Mount before the darks',
     'How long to wait for you to confirm the telescope is': 'Wait for the cap',
     'One set for each exposure, gain, offset, binning and':
         'Darks per light setting',
-    'One set for each gain, offset and binning.': 'Bias frames',
+    'One set for each gain, offset, binning and': 'Bias frames',
     'Raises the set-point gradually once the frames are':
         'Warm the camera up afterwards',
     'Starts when a run that took light frames completes, is':
@@ -1063,8 +1066,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'science': {
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.':
         'Show advanced overlay controls',
-    'After each light frame, reject captures that exceed':
-        'Auto-reject bad frames',
     'Analyze field-wide seeing and tilt patterns': 'PSF field map',
     'At the camera gain you image at. Used for': 'Camera read noise (e⁻)',
     'Compute clipping, uniformity, background and SNR tile maps':
