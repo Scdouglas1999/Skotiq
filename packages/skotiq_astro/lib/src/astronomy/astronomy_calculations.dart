@@ -347,15 +347,20 @@ class AstronomyCalculations {
   /// The next [kind] dawn at the site that is not already behind [now]: last
   /// night's while it is still ahead (after midnight), otherwise tonight's.
   /// Null when neither night has one (a night that never gets that dark).
+  ///
+  /// The nights are cut on the site's solar day, as in [nightAt], not on the
+  /// host's calendar date: a host far from the site (Boston checked from
+  /// Tokyo) otherwise looked at the night before and found no dawn ahead.
+  /// The dawn is in the zone of [now].
   static DateTime? nextDawn({
     required DateTime now,
     required double latitudeDeg,
     required double longitudeDeg,
     TwilightKind kind = TwilightKind.astronomical,
   }) {
-    for (final daysBack in const [1, 0]) {
+    for (final days in const [-1, 0, 1]) {
       final dawn = twilightTimesNear(
-        instant: DateTime(now.year, now.month, now.day - daysBack, 12),
+        instant: now.add(Duration(days: days)),
         latitudeDeg: latitudeDeg,
         longitudeDeg: longitudeDeg,
       ).dawn(kind);
