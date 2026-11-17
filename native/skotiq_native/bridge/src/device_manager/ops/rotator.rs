@@ -123,7 +123,7 @@ impl DeviceManager {
                 .map_err(|e| device_error(device_id, e))
         }
         .await;
-        self.note_status_read(device_id, &result);
+        self.note_read(device_id, &result).await;
         result
     }
 

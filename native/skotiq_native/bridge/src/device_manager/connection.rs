@@ -310,9 +310,30 @@ impl DeviceManager {
             Err(reason) => reason,
         };
         tracing::warn!("Device {device_id} is recorded as connected but does not answer: {reason}");
-        let last_error = format!("Stopped answering: {reason}");
+        self.record_lost(
+            device_id,
+            device_type,
+            false,
+            &format!("Stopped answering: {reason}"),
+        )
+        .await;
+        false
+    }
+
+    /// Record a device that was connected as lost, with `last_error` as the
+    /// reason, and announce it the way a lost heartbeat does: one status
+    /// change and one error. `auto_reconnect` hands it to the reconnection
+    /// loop.
+    pub(crate) async fn record_lost(
+        &self,
+        device_id: &str,
+        device_type: DeviceType,
+        auto_reconnect: bool,
+        last_error: &str,
+    ) {
+        let last_error = last_error.to_string();
         if self
-            .mark_lost(device_id, false, &last_error)
+            .mark_lost(device_id, auto_reconnect, &last_error)
             .await
             .is_some()
         {
@@ -336,7 +357,6 @@ impl DeviceManager {
                 EventSeverity::Error,
             );
         }
-        false
     }
 
     /// Recovery restores a device that does not answer and leaves one that
@@ -515,6 +535,7 @@ impl DeviceManager {
                 if info.device_type == DeviceType::Camera {
                     self.restore_camera_state(info).await;
                 }
+                self.restore_commanded_state(info).await;
                 crate::device_capabilities::cache::invalidate_capability_cache_for_device(
                     device_id,
                 )
@@ -546,6 +567,10 @@ impl DeviceManager {
                     self.publish_camera_settings(device_id).await;
                     self.publish_unknown_pixel_size_notice(device_id).await;
                 }
+
+                // A reconnected wheel or focuser is read, never set: where it
+                // is now is what it holds.
+                self.read_position_after_connect(info).await;
 
                 // A focuser, wheel or rotator moved outside Skotiq is caught
                 // by the backstop poll (`ops::backstop`).
@@ -943,6 +968,15 @@ impl DeviceManager {
     }
 
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
+        self.close_device(device_id, true).await
+    }
+
+    /// Release `device_id`. `announce` publishes it as disconnected; a
+    /// reopen (`device_reopen`) does not, since the device is not lost.
+    pub(crate) async fn close_device(&self, device_id: &str, announce: bool) -> Result<(), String> {
+        if announce {
+            self.keep_cooler_through_disconnect(device_id).await;
+        }
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
         crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
@@ -1044,13 +1078,15 @@ impl DeviceManager {
             }
         }
 
-        self.app_state.publish_equipment_event(
-            EquipmentEvent::Disconnected {
-                device_type: device_info.device_type.as_str().to_string(),
-                device_id: device_id.to_string(),
-            },
-            EventSeverity::Info,
-        );
+        if announce {
+            self.app_state.publish_equipment_event(
+                EquipmentEvent::Disconnected {
+                    device_type: device_info.device_type.as_str().to_string(),
+                    device_id: device_id.to_string(),
+                },
+                EventSeverity::Info,
+            );
+        }
 
         if !disconnect_errors.is_empty() {
             return Err(format!(
@@ -1118,6 +1154,12 @@ impl DeviceManager {
         let Some(enabled) = desired_tracking else {
             return;
         };
+        // A parked mount stays parked: tracking it would leave the park.
+        if enabled && matches!(self.mount_get_status(device_id).await, Ok(status) if status.parked)
+        {
+            tracing::info!("Reconnect: mount {device_id} is parked; tracking stays off");
+            return;
+        }
         tracing::info!(
             "Reconnect: re-applying mount {} tracking={}",
             device_id,

@@ -46,22 +46,44 @@ impl DeviceManager {
             duration
         );
 
-        let camera = self.camera(device_id).await?;
-
-        let started = camera
-            .start_exposure(duration, gain, offset, bin_x, bin_y, subframe, frame_type)
-            .await;
-        self.relay_camera_reports(device_id, camera.as_ref()).await;
-        started
+        // A camera whose session broke refuses the start; it is reopened
+        // and the start sent once more (`device_reopen`). Every exposure,
+        // whoever asks for it, starts here.
+        self.with_reopen(device_id, || async {
+            let camera = self.camera(device_id).await?;
+            let started = camera
+                .start_exposure(
+                    duration,
+                    gain,
+                    offset,
+                    bin_x,
+                    bin_y,
+                    subframe.clone(),
+                    frame_type,
+                )
+                .await;
+            self.relay_camera_reports(device_id, camera.as_ref()).await;
+            started
+        })
+        .await
     }
 
+    /// Whether the exposure is done. A camera whose session broke during it
+    /// (the ZWO SDK reports the exposure failed) is reopened before the
+    /// failure is returned, so the caller's next exposure finds it whole.
     pub async fn camera_is_exposure_complete(
         &self,
         device_id: &str,
     ) -> Result<bool, DeviceOpError> {
         let camera = self.camera(device_id).await?;
-
-        camera.is_exposure_complete().await
+        let result = camera.is_exposure_complete().await;
+        if let Err(error) = &result {
+            self.note_operation_failure(device_id, error);
+            if let Err(e) = Box::pin(self.reopen_after(device_id, &error.to_string())).await {
+                tracing::warn!("Reopen of {device_id} failed: {e}");
+            }
+        }
+        result
     }
 
     pub async fn camera_abort_exposure(&self, device_id: &str) -> Result<(), DeviceOpError> {

@@ -9,7 +9,7 @@ fn test_heartbeat_config_for_camera() {
     // Failed probes must not delay the next check by 20 then 40 seconds.
     assert_eq!(config.backoff_multiplier, 1.0);
     assert_eq!(config.failure_threshold, 3);
-    assert!(!config.auto_reconnect);
+    assert!(config.auto_reconnect);
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn test_heartbeat_config_for_safety_monitor() {
     // See the SafetyMonitor policy.
     assert_eq!(config.base_interval_secs, 15);
     assert_eq!(config.failure_threshold, 4);
-    assert!(!config.auto_reconnect);
+    assert!(config.auto_reconnect);
     assert!(!config.escalate_to_disconnect);
 }
 
@@ -48,7 +48,7 @@ fn test_heartbeat_config_for_accessory_device_types() {
     assert_eq!(switch.base_interval_secs, 20);
     // Raised to 5 to tolerate transient single-client USB contention.
     assert_eq!(switch.failure_threshold, 5);
-    assert!(!switch.auto_reconnect);
+    assert!(switch.auto_reconnect);
 
     let cover = policy(DeviceType::CoverCalibrator).heartbeat;
     assert_eq!(cover.base_interval_secs, 10);

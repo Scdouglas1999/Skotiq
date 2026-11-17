@@ -31,6 +31,24 @@ pub(crate) enum HeartbeatEventKind {
     DisconnectedAndError,
 }
 
+/// Longest a heartbeat holds off in a row for the camera's USB use. A run
+/// exposes nearly all the time, so without a bound a focuser or wheel behind
+/// the camera was never polled, and one that dropped off the bus stayed lost
+/// (rig, 2026-11-17).
+pub(crate) const MAX_USB_DEFERRAL: Duration = Duration::from_secs(60);
+
+/// Whether a heartbeat holds off this poll for the camera's USB use: only
+/// while the bus is `contended`, never when the device's own status reads
+/// are already failing, and not for longer than [`MAX_USB_DEFERRAL`] in a
+/// row (`deferred_for`).
+pub(crate) fn defers_for_camera_usb(
+    contended: bool,
+    reads_failing: bool,
+    deferred_for: Option<Duration>,
+) -> bool {
+    contended && !reads_failing && deferred_for.is_none_or(|held| held < MAX_USB_DEFERRAL)
+}
+
 /// A heartbeat probe's answer, overruled by failing status reads: a driver can
 /// keep answering the probe while every read the app shows fails (the NYX-101
 /// answered `Tracking` and failed `RightAscension` all night), so a run of
@@ -333,6 +351,8 @@ impl DeviceManager {
         // current healthy->degraded transition, so Degraded fires exactly once
         // per episode instead of on every failing poll (avoids toast spam).
         let mut was_degraded = false;
+        // When this heartbeat began holding off for the camera's USB use.
+        let mut usb_deferred_since: Option<std::time::Instant> = None;
         loop {
             tokio::time::sleep(current_interval).await;
 
@@ -363,13 +383,20 @@ impl DeviceManager {
             // operation: just wait for the next poll at the base cadence. The
             // camera's and mount's own heartbeats are deliberately NOT
             // suppressed (the camera is the one we most need to keep watching).
-            if policy(device_type).yields_to_camera_usb && manager.is_usb_contended() {
+            let contended = policy(device_type).yields_to_camera_usb && manager.is_usb_contended();
+            if defers_for_camera_usb(
+                contended,
+                manager.failing_status_reads(&device_id_clone).is_some(),
+                usb_deferred_since.map(|since| since.elapsed()),
+            ) {
+                usb_deferred_since.get_or_insert_with(std::time::Instant::now);
                 current_interval = Duration::from_secs(config.base_interval_secs);
                 if consecutive_failures == 0 {
                     manager.note_heartbeat_deferred(&device_id_clone).await;
                 }
                 continue;
             }
+            usb_deferred_since = None;
 
             // Perform health check using the actual driver-specific implementation
             let health_check_result = manager
@@ -441,6 +468,17 @@ impl DeviceManager {
                         device_id_clone,
                         error_msg
                     );
+
+                    // A device lost to a hub that dropped is reopened at
+                    // once, off this task: the reopen restarts this
+                    // heartbeat.
+                    if manager.wants_reopen(&device_id_clone, &error_msg).await {
+                        crate::device_manager::device_reopen::reopen_in_background(
+                            manager.clone(),
+                            device_id_clone.clone(),
+                            error_msg.clone(),
+                        );
+                    }
 
                     // Apply exponential backoff
                     let new_interval = Duration::from_secs_f64(
@@ -663,7 +701,28 @@ impl DeviceManager {
 
 #[cfg(test)]
 mod heartbeat_event_tests {
-    use super::{heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind};
+    use super::{
+        defers_for_camera_usb, heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind,
+        MAX_USB_DEFERRAL,
+    };
+    use std::time::Duration;
+
+    /// Rig, 2026-11-17: through a run the camera exposes nearly all the
+    /// time, and the EAF's heartbeat held off for it on every poll, so a
+    /// focuser that dropped off the bus was never found lost. The hold-off is
+    /// bounded, and a device whose reads already fail is polled at once.
+    #[test]
+    fn a_heartbeat_holds_off_for_the_camera_only_for_a_while() {
+        assert!(defers_for_camera_usb(true, false, None));
+        assert!(defers_for_camera_usb(
+            true,
+            false,
+            Some(Duration::from_secs(30))
+        ));
+        assert!(!defers_for_camera_usb(true, false, Some(MAX_USB_DEFERRAL)));
+        assert!(!defers_for_camera_usb(true, true, None));
+        assert!(!defers_for_camera_usb(false, false, None));
+    }
 
     const THRESHOLD: u32 = 5;
     // Most existing tests describe an escalating device, where crossing the

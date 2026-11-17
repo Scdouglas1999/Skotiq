@@ -44,12 +44,23 @@ static LAST_PUBLISHED_MS: AtomicU64 = AtomicU64::new(0);
 /// bus (ms since epoch; 0 for never), debounced or not.
 static LAST_BUS_CHANGE_MS: AtomicU64 = AtomicU64::new(0);
 
+/// Record that a device arrived, left or changed on the bus now.
+pub(crate) fn note_bus_change() {
+    LAST_BUS_CHANGE_MS.store(current_time_ms(), Ordering::Release);
+}
+
+/// Forget the last bus change, for tests that need a quiet bus.
+#[cfg(test)]
+pub(crate) fn forget_bus_change() {
+    LAST_BUS_CHANGE_MS.store(0, Ordering::Release);
+}
+
 /// Whether a device arrived, left or changed on the bus within `window`.
-/// A camera exposure that fails soon after is taken as a broken camera
-/// session and reopens the camera
-/// (`DeviceManager::reopen_camera_after`): on the rig a USB hub that
-/// dropped for 4 s left the ZWO camera answering status reads with every
-/// exposure failing.
+/// A device failure soon after is taken as a broken session and reopens
+/// the device
+/// (`DeviceManager::reopen_after`): on the rig a power box that dropped for
+/// 4 s left the ZWO camera answering status reads with every exposure
+/// failing, and the wheel and focuser behind it disconnected.
 pub(crate) fn bus_changed_within(window: Duration) -> bool {
     let at = LAST_BUS_CHANGE_MS.load(Ordering::Acquire);
     at != 0 && current_time_ms().saturating_sub(at) <= window.as_millis() as u64
@@ -389,6 +400,8 @@ fn poll_after_bus_event() {
     match crate::get_runtime() {
         Ok(runtime) => {
             runtime.spawn(async move {
+                get_device_manager().retry_lost_devices().await;
+                crate::guider::phd2::check_equipment_after_bus_change().await;
                 poll_once(Asker::Background).await;
                 for delay in HOTPLUG_FOLLOW_UP_DELAYS {
                     tokio::time::sleep(*delay).await;
@@ -455,8 +468,8 @@ impl<T: rusb::UsbContext> rusb::Hotplug<T> for UsbHotplugHandler {
 
 #[cfg(all(unix, any(target_os = "linux", target_os = "macos")))]
 fn handle_usb_hotplug<T: rusb::UsbContext>(action: &'static str, device: &rusb::Device<T>) {
+    note_bus_change();
     let now_ms = current_time_ms();
-    LAST_BUS_CHANGE_MS.store(now_ms, Ordering::Release);
     if !should_publish_device_change(now_ms) {
         tracing::debug!(
             "Debounced USB hotplug action={} bus={} address={}",
@@ -537,8 +550,8 @@ fn handle_windows_device_change(wparam: usize) {
         return;
     };
 
+    note_bus_change();
     let now_ms = current_time_ms();
-    LAST_BUS_CHANGE_MS.store(now_ms, Ordering::Release);
     if !should_publish_device_change(now_ms) {
         tracing::debug!("Debounced Windows WM_DEVICECHANGE action={}", action);
         return;

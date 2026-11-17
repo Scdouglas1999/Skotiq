@@ -9,7 +9,7 @@ use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::state::get_state;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
@@ -45,6 +45,85 @@ fn publish_guiding_notice(message: String) {
             explicit_transports: None,
         }),
     ));
+}
+
+/// Whether a PHD2 alert says its camera or mount dropped.
+fn alert_says_equipment_dropped(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("disconnect")
+}
+
+/// A PHD2 equipment reconnect is running.
+static RECONNECTING_EQUIPMENT: AtomicBool = AtomicBool::new(false);
+
+/// [`reconnect_equipment`] on the bridge runtime, for PHD2's event thread.
+fn reconnect_equipment_in_background(reason: &'static str) {
+    match crate::get_runtime() {
+        Ok(runtime) => {
+            runtime.spawn(async move {
+                if let Err(e) = reconnect_equipment(reason).await {
+                    tracing::warn!("[GUIDING] Reconnecting PHD2's equipment failed: {e}");
+                }
+            });
+        }
+        Err(e) => tracing::warn!("[GUIDING] Could not reconnect PHD2's equipment: {e}"),
+    }
+}
+
+/// Disconnect and reconnect PHD2's camera and mount, the way the operator
+/// does in PHD2's Connect Equipment dialog. PHD2 keeps a link that went
+/// stale when the hub or power box behind it dropped (rig, 2026-11-15:
+/// every guide pulse failed until the equipment was reconnected). Guiding
+/// stops for it; a run that was guiding sees its guiding stop and its
+/// guide-star recovery starts guiding again on a fresh star and settles
+/// before the next frame. One reconnect runs at a time.
+pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError> {
+    if RECONNECTING_EQUIPMENT.swap(true, Ordering::SeqCst) {
+        return Ok(());
+    }
+    let result = async {
+        tracing::warn!("[GUIDING] Reconnecting PHD2's camera and mount: {reason}");
+        stop_guiding().await?;
+        {
+            let mut client = phd2_client().await?;
+            client.set_connected(false).map_err(|e| {
+                SkotiqError::OperationFailed(format!("PHD2 did not disconnect its equipment: {e}"))
+            })?;
+            client.set_connected(true).map_err(|e| {
+                SkotiqError::OperationFailed(format!("PHD2 did not reconnect its equipment: {e}"))
+            })?;
+        }
+        let connected = phd2_client()
+            .await?
+            .get_connected()
+            .map_err(SkotiqError::OperationFailed)?;
+        if !connected {
+            return Err(SkotiqError::OperationFailed(
+                "PHD2 says its equipment is still not connected".to_string(),
+            ));
+        }
+        publish_guiding_notice(format!(
+            "PHD2's camera and mount were reconnected because {reason}."
+        ));
+        Ok(())
+    }
+    .await;
+    RECONNECTING_EQUIPMENT.store(false, Ordering::SeqCst);
+    result
+}
+
+/// After a device came or went on the bus: when PHD2 is connected and says
+/// its equipment is not, reconnect it.
+pub(crate) async fn check_equipment_after_bus_change() {
+    let connected = match phd2_client().await {
+        Ok(mut client) => client.get_connected(),
+        Err(_) => return,
+    };
+    if connected == Ok(false) {
+        if let Err(e) = reconnect_equipment("its equipment dropped off the bus").await {
+            tracing::warn!("[GUIDING] Reconnecting PHD2's equipment failed: {e}");
+        }
+    }
 }
 
 /// Turn PHD2's `get_pixel_scale` answer into a scale the UI can convert with.
@@ -163,6 +242,9 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 if let Some(message) = watch.observe_step(frame, at) {
                     tracing::warn!("[GUIDING] {}", message);
                     publish_guiding_notice(message);
+                    reconnect_equipment_in_background(
+                        "its guide pulses were not reaching the mount",
+                    );
                 }
                 return;
             }
@@ -237,6 +319,9 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 alert_type,
             } => {
                 tracing::warn!("PHD2 Alert [{}]: {}", alert_type, message);
+                if alert_says_equipment_dropped(&message) {
+                    reconnect_equipment_in_background("it reported its equipment disconnected");
+                }
                 return; // Alerts are not forwarded as GuidingEvent
             }
             skotiq_phd2::Phd2Event::Error(msg) => {

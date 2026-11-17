@@ -27,6 +27,12 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         self.switch_set_state_dispatch(device_id, switch_id, state)
             .await?;
+        crate::device_manager::device_reopen::note_commanded(device_id, |held| {
+            held.switches.insert(
+                switch_id,
+                crate::device_manager::device_reopen::SwitchCommand::State(state),
+            );
+        });
         self.publish_property_changed(
             DeviceType::Switch,
             device_id,
@@ -46,6 +52,12 @@ impl DeviceManager {
         let value = self
             .switch_set_value_dispatch(device_id, switch_id, value)
             .await?;
+        crate::device_manager::device_reopen::note_commanded(device_id, |held| {
+            held.switches.insert(
+                switch_id,
+                crate::device_manager::device_reopen::SwitchCommand::Value(value),
+            );
+        });
         self.publish_property_changed(
             DeviceType::Switch,
             device_id,

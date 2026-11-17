@@ -121,20 +121,48 @@ async fn a_broken_camera_session_is_reopened_before_the_retry() {
     assert!(
         warnings[0].contains("Camera failed on frame 1/2")
             && warnings[0].contains(FAILED)
-            && warnings[0].contains("Reopened the camera; retrying in 2 s (retry 1 of 3)"),
+            && warnings[0]
+                .contains("Reopened the camera; retrying in 2 s (reopen 1 of 5 that do not count"),
         "the warning says the camera was reopened: {}",
         warnings[0]
     );
 }
 
-/// The reopen is once per frame: a session that is still broken after it is
-/// retried as before, and the frame fails on the existing budget.
+/// Rig, 2026-11-16 03:36: the power box link kept flapping, the same frame
+/// broke the session again after its one reopen, and the frame used its
+/// retries on the broken session. Every broken-session failure now reopens
+/// the camera, and a reopen that works does not use a retry.
 #[tokio::test(start_paused = true)]
-async fn a_camera_is_reopened_at_most_once_per_frame() {
+async fn a_flapping_camera_link_is_reopened_each_time_without_using_the_retries() {
     let ops = Arc::new(
         ScriptedDomeRotatorOps::new()
             .with_broken_camera_session("ZWO camera reported a failed exposure")
-            .failing_exposures(&[DOWNLOAD_ERROR; 3]),
+            .flapping_camera_session(3),
+    );
+    let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 4);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 5);
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(warnings.len(), 4, "{warnings:?}");
+    assert!(
+        warnings.iter().all(|w| w.contains("Reopened the camera")),
+        "{warnings:?}"
+    );
+}
+
+/// The free reopens are capped: a link that never holds still ends the
+/// frame, after the free reopens and the counted retries.
+#[tokio::test(start_paused = true)]
+async fn a_camera_link_that_never_holds_still_ends_the_frame() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session("ZWO camera reported a failed exposure")
+            .flapping_camera_session(100),
     );
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
@@ -142,18 +170,12 @@ async fn a_camera_is_reopened_at_most_once_per_frame() {
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result.status, NodeStatus::Failure);
-    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 1);
-    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 4);
-    let warnings = retry_warnings(&mut events);
-    assert_eq!(warnings.len(), 3, "{warnings:?}");
     assert_eq!(
-        warnings
-            .iter()
-            .filter(|w| w.contains("Reopened the camera"))
-            .count(),
-        1,
-        "{warnings:?}"
+        ops.camera_exposure_calls.load(Ordering::SeqCst),
+        1 + FREE_REOPENS_PER_OPERATION + 3,
+        "the free reopens, then the three counted retries"
     );
+    assert_eq!(retry_warnings(&mut events).len(), 8);
 }
 
 #[tokio::test(start_paused = true)]
@@ -538,4 +560,69 @@ fn the_policy_is_held_to_the_maximum() {
     );
     assert_eq!(DeviceRetryPolicy::default().camera_retries, 3);
     assert_eq!(DeviceRetryPolicy::default().filter_wheel_retries, 3);
+}
+
+fn lights(count: u32) -> ExposureConfig {
+    ExposureConfig {
+        count,
+        duration_secs: 0.0,
+        frame_type: crate::FrameType::Light,
+        ..ExposureConfig::default()
+    }
+}
+
+/// Rig, 2026-11-17 05:3x: the power box dropped, the camera was reopened with
+/// its cooler back on, and the frame was taken again at once with the sensor
+/// at -5.7°C against its -10°C set-point, a light no dark matches. The
+/// retried frame now waits for the sensor to be back at its set-point.
+#[tokio::test(start_paused = true)]
+async fn a_frame_retried_on_a_reopened_camera_waits_for_the_set_point() {
+    const FAILED: &str = "ZWO camera reported a failed exposure";
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session(FAILED)
+            .with_cooler(Some(true), 90.0)
+            .with_camera_temperatures(&[-5.7, -7.5, -9.8, -9.9, -10.0, -10.0]),
+    );
+    let (mut ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+    ctx.set_temp_c = Some(-10.0);
+
+    let started = tokio::time::Instant::now();
+    let result = expose_burst(&lights(1), &ctx, |_, _, _| {}).await;
+    let waited = started.elapsed();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    assert!(
+        waited >= Duration::from_secs(2 + 20 + 30),
+        "the retry waited for the sensor to reach and hold the set-point: {waited:?}"
+    );
+}
+
+/// A sensor that does not get back to its set-point in the time allowed: the
+/// light frame is taken anyway, with a warning.
+#[tokio::test(start_paused = true)]
+async fn a_reopened_camera_that_stays_warm_takes_the_light_with_a_warning() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session("ZWO camera reported a failed exposure")
+            .with_cooler(Some(true), 100.0)
+            .with_camera_temperatures(&[-5.7]),
+    );
+    let (mut ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+    ctx.set_temp_c = Some(-10.0);
+
+    let result = expose_burst(&lights(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    let warnings = retry_warnings(&mut events);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("off its -10.0°C set-point") && w.contains("-5.7°C")),
+        "{warnings:?}"
+    );
 }

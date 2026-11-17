@@ -97,7 +97,50 @@ fn counts_against_device(error: &DeviceOpError) -> bool {
     )
 }
 
+/// Whether a failed read says the device is gone, rather than busy or slow.
+fn says_gone(error: &DeviceOpError) -> bool {
+    if matches!(error, DeviceOpError::NotConnected { .. }) {
+        return true;
+    }
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("disconnected") || message.contains("not connected")
+}
+
 impl DeviceManager {
+    /// Record how a status read of `device_id` went. A read that says the
+    /// device is gone records it lost at once, so the device list, every
+    /// status screen and the reconnection loop agree on what the device said
+    /// (rig, 2026-11-17: an EAF answered "Device disconnected" for minutes
+    /// while the list still showed it connected and nothing reconnected it).
+    pub(crate) async fn note_read<T>(&self, device_id: &str, result: &Result<T, DeviceOpError>) {
+        self.note_status_read(device_id, result);
+        let Err(error) = result else {
+            return;
+        };
+        if !says_gone(error) {
+            return;
+        }
+        let device_type = {
+            let devices = self.devices.read().await;
+            match devices.get(device_id) {
+                Some(dev) if dev.connection_state == crate::device::ConnectionState::Connected => {
+                    dev.info.device_type
+                }
+                _ => return,
+            }
+        };
+        tracing::warn!("{device_id} says it is gone ({error}); recording it lost");
+        self.record_lost(
+            device_id,
+            device_type,
+            crate::device_manager::policy::policy(device_type)
+                .heartbeat
+                .auto_reconnect,
+            &format!("Stopped answering: {error}"),
+        )
+        .await;
+    }
+
     /// Record how a status read of `device_id` went.
     pub(crate) fn note_status_read<T>(&self, device_id: &str, result: &Result<T, DeviceOpError>) {
         match result {

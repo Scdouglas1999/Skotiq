@@ -222,6 +222,9 @@ struct ScriptedDomeRotatorOps {
     broken_camera_session: Mutex<Option<String>>,
     /// How many times the camera was reopened.
     camera_reopens: AtomicU32,
+    /// Reopens that leave the session broken before one fixes it: a link
+    /// that keeps flapping.
+    camera_session_flaps: AtomicU32,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
@@ -328,6 +331,7 @@ impl ScriptedDomeRotatorOps {
             scripted_observer_location: None,
             broken_camera_session: Mutex::new(None),
             camera_reopens: AtomicU32::new(0),
+            camera_session_flaps: AtomicU32::new(0),
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
@@ -354,6 +358,12 @@ impl ScriptedDomeRotatorOps {
 
     fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
         self.cover_open_error = Some(error);
+        self
+    }
+
+    /// The first `times` reopens leave the session broken.
+    fn flapping_camera_session(self, times: u32) -> Self {
+        self.camera_session_flaps.store(times, Ordering::SeqCst);
         self
     }
 
@@ -1278,8 +1288,13 @@ impl ConnectionOps for ScriptedDomeRotatorOps {
         if broken.as_deref() != Some(error.to_string().as_str()) {
             return Ok(false);
         }
-        *broken = None;
         self.camera_reopens.fetch_add(1, Ordering::SeqCst);
+        let flaps = self.camera_session_flaps.load(Ordering::SeqCst);
+        if flaps > 0 {
+            self.camera_session_flaps.store(flaps - 1, Ordering::SeqCst);
+        } else {
+            *broken = None;
+        }
         Ok(true)
     }
 }
