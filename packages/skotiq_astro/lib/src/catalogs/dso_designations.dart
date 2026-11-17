@@ -30,14 +30,18 @@ class DsoDesignations {
           () => object,
         );
       }
-      for (final common in (object.commonNames ?? '').split(',')) {
-        if (common.trim().isEmpty) continue;
-        byCommonName.putIfAbsent(
-          normalizeCatalogSearchText(common),
-          () => object,
-        );
+      final commonNames = object.commonNames;
+      if (commonNames != null) {
+        for (final common in commonNames.split(',')) {
+          if (common.trim().isEmpty) continue;
+          byCommonName.putIfAbsent(
+            normalizeCatalogSearchText(common),
+            () => object,
+          );
+        }
       }
-      if ((object.sizeArcMin ?? 0) > 0) withSize.add(object);
+      final size = object.sizeArcMin;
+      if (size != null && size > 0) withSize.add(object);
     }
     return DsoDesignations._(byKey, byCommonName, withSize);
   }

@@ -16,7 +16,8 @@ db.DbTarget withCatalogObjectType(db.DbTarget target, DsoDesignations catalog) {
     catalogId: target.catalogId,
     name: target.name,
   );
-  final hasStoredType = (target.objectType ?? '').trim().isNotEmpty;
+  final stored = target.objectType;
+  final hasStoredType = stored != null && stored.trim().isNotEmpty;
   final object =
       byName ??
       (hasStoredType
