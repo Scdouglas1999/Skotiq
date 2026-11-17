@@ -235,7 +235,8 @@ impl DeviceManager {
             Ok(value) => return Ok(value),
             Err(error) => error,
         };
-        match self.reopen_after(device_id, &error.to_string()).await {
+        // Boxed: the reopen's connect is a deep future of its own.
+        match Box::pin(self.reopen_after(device_id, &error.to_string())).await {
             Ok(true) => op().await,
             Ok(false) => Err(error),
             Err(reopen_error) => {
