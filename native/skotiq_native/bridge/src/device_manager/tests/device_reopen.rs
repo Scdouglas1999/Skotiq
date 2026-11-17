@@ -579,3 +579,67 @@ async fn a_bus_change_gives_a_lost_device_its_attempts_back() {
 
     assert_eq!(manager.devices.read().await[id].reconnect_attempts, 0);
 }
+
+/// Rig, 2026-11-17 after a restart: the motion guard's solve frame failed
+/// with "ZWO camera reported a failed exposure" and only a manual reconnect
+/// fixed it. Every exposure starts and is checked in the device manager, so
+/// a broken session is reopened there whoever asked for the frame: a start
+/// the camera refuses is sent again on the reopened camera, and an exposure
+/// the camera reports failed leaves the camera reopened for the next one.
+#[tokio::test]
+async fn every_exposure_reopens_a_camera_whose_session_broke() {
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = build_device_manager();
+    let id = "sim_camera_entry_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::Camera), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    let light = skotiq_device::FrameType::Light;
+
+    faults::arm(
+        "camera.start",
+        FaultSpec::new(
+            Trigger::Times(1),
+            Effect::Error(
+                "ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another \
+                 application"
+                    .into(),
+            ),
+        ),
+    );
+    let started = manager
+        .camera_start_exposure(id, 0.01, None, None, 1, 1, light)
+        .await;
+    assert!(
+        started.is_ok(),
+        "the start lands on the reopened camera: {started:?}"
+    );
+    assert_eq!(manager.reopen_count(id), 1);
+
+    faults::arm(
+        "camera.exposure_status",
+        FaultSpec::new(
+            Trigger::Times(1),
+            Effect::Error("ZWO camera reported a failed exposure".into()),
+        ),
+    );
+    let failed = manager.camera_is_exposure_complete(id).await;
+    faults::clear_all();
+    assert!(failed.is_err());
+    assert_eq!(
+        manager.reopen_count(id),
+        2,
+        "the failed exposure reopened the camera"
+    );
+    assert!(manager.is_connected(id).await);
+    manager
+        .camera_start_exposure(id, 0.01, None, None, 1, 1, light)
+        .await
+        .expect("the next exposure starts");
+
+    let _ = manager.disconnect_device(id).await;
+}

@@ -63,6 +63,12 @@ pub(crate) fn reopen_in_background(manager: Arc<DeviceManager>, device_id: Strin
     let _ = sender.send((manager, device_id, error));
 }
 
+/// How many times each device has been reopened.
+fn reopens() -> &'static StdMutex<HashMap<String, u64>> {
+    static REOPENS: OnceLock<StdMutex<HashMap<String, u64>>> = OnceLock::new();
+    REOPENS.get_or_init(Default::default)
+}
+
 /// Whether a failure's words say the device is gone.
 fn says_disconnected(error: &str) -> bool {
     let error = error.to_ascii_lowercase();
@@ -148,6 +154,17 @@ impl DeviceManager {
         self.reopen_device(device_id).await.map(|()| true)
     }
 
+    /// How many times `device_id` has been reopened. A caller that sees it
+    /// move across a failed operation knows the device behind it is new.
+    pub(crate) fn reopen_count(&self, device_id: &str) -> u64 {
+        reopens()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(device_id)
+            .copied()
+            .unwrap_or(0)
+    }
+
     /// Close `device_id` without announcing it lost, and connect it through
     /// the normal path, keeping its auto-reconnect setting. The connect
     /// restores a camera's held state and reads a wheel's slot and a
@@ -165,6 +182,11 @@ impl DeviceManager {
         }
         let connected = self.connect_device(device_id).await;
         self.set_auto_reconnect(device_id, auto_reconnect).await;
+        *reopens()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entry(device_id.to_string())
+            .or_default() += 1;
         connected
     }
 

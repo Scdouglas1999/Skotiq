@@ -75,6 +75,7 @@ impl Camera for SimCamera {
         frame_type: skotiq_device::FrameType,
     ) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
+        crate::simulator::faults::check("camera.start").await?;
         crate::simulator::gate::require_camera_connected(device_id).await?;
         // Commit the requested settings to the singleton so the download
         // reports what this exposure was actually taken with. Skipping
@@ -123,6 +124,7 @@ impl Camera for SimCamera {
         // camera does (see `SIM_EXPOSURE_START`). Refuse the call when
         // not connected, so callers can distinguish "nothing to expose"
         // from "no camera attached".
+        crate::simulator::faults::check("camera.exposure_status").await?;
         crate::simulator::gate::require_camera_connected(device_id).await?;
         Ok(crate::simulator::camera::sim_exposure_is_complete(device_id).await)
     }
