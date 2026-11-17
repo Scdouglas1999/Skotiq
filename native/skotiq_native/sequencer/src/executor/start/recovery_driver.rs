@@ -84,6 +84,11 @@ pub(super) async fn run_recovery_driver(
         // increments so the Dart side knows this is a
         // fresh recovery.
         signals.arm();
+        // A pause the run was under holds after the ladder: Recovering is
+        // about to replace it.
+        if run_state.get() == ExecutorState::Paused {
+            signals.hold_pause();
+        }
 
         // 1. Flip state -> Recovering and publish.
         let recovering = run_state.store(ExecutorState::Recovering, |progress| {
@@ -489,11 +494,12 @@ pub(super) async fn run_recovery_driver(
             };
             apply_recovery_escalation(&escalation_state, &ctx, pause_message, stop_tracking).await;
         } else if recovered {
-            // An operator Pause during the ladder is the only thing that
-            // turns `Recovering` into `Paused` while it runs. That hold is his,
-            // so a successful ladder leaves it in place rather than resuming
-            // the run under him.
-            let operator_paused = run_state.get() == ExecutorState::Paused;
+            // An operator Pause during the ladder turns `Recovering` into
+            // `Paused`, and one from before it is remembered in the signals.
+            // That hold is the operator's, so a successful ladder leaves it
+            // in place rather than resuming the run under them.
+            let operator_paused =
+                signals.take_paused_before() | (run_state.get() == ExecutorState::Paused);
             let resumed_state = if operator_paused {
                 ExecutorState::Paused
             } else {
@@ -594,6 +600,7 @@ pub(super) async fn run_recovery_driver(
             let active_run_id = *active_run_id.read();
             continue_unguided(UnguidedContinuation {
                 ctx: &ctx,
+                signals: &signals,
                 active_run_id,
                 decision_tx: &decision_tx,
                 device_ops: &device_ops,
@@ -863,6 +870,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
 
 struct UnguidedContinuation<'a> {
     ctx: &'a crate::recovery::RecoveryContext,
+    signals: &'a crate::recovery::RecoverySignals,
     active_run_id: Option<i64>,
     decision_tx: &'a crate::decision::DecisionSender,
     device_ops: &'a SharedDeviceOps,
@@ -900,7 +908,8 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
         }
     }
 
-    let operator_paused = c.run_state.get() == ExecutorState::Paused;
+    let operator_paused =
+        c.signals.take_paused_before() | (c.run_state.get() == ExecutorState::Paused);
     let resumed_state = if operator_paused {
         ExecutorState::Paused
     } else {
@@ -1524,5 +1533,57 @@ mod tests {
         assert_eq!(history.len(), 1, "{history:?}");
         assert_eq!(history[0].attempts, 1, "{history:?}");
         assert!(!history[0].recovered);
+    }
+
+    /// 2026-11-17: the operator paused while a frame was retrying; the
+    /// camera's reconnect then ran as a recovery, which took the run from
+    /// Paused to Recovering and, on success, back to Running, so the next
+    /// exposure started under the operator's pause. A pause placed before a
+    /// recovery holds after it.
+    #[tokio::test]
+    async fn a_pause_placed_before_a_recovery_holds_after_it_succeeds() {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        let camera = "cam-1";
+        ops.set_connected(camera, false);
+        ops.connect_succeeds.store(true, Ordering::SeqCst);
+        let (event_tx, mut event_rx) = broadcast::channel(64);
+        let (request_tx, request_rx) = mpsc::channel(4);
+        let state = RunCell::starting_in(event_tx, ExecutorState::Running);
+        let mut run = Run::detached(ops.clone(), state.clone());
+        run.config = RunConfigStore::new(RunConfig {
+            recovery: RecoveryRuntimeConfig {
+                stop_tracking_during_recovery: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        run.recovery.reconnect_device_ids = vec![camera.to_string()];
+        let is_paused = run.control.is_paused.clone();
+        run.control.pause(None);
+        assert_eq!(state.get(), ExecutorState::Paused);
+
+        let shared = run.instruction_shared(request_tx.clone()).await;
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), shared, request_rx));
+        request_tx
+            .send(RecoveryCause::DeviceDisconnected)
+            .await
+            .unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            loop {
+                if let Ok(ExecutorEvent::RecoveryCompleted { .. }) = event_rx.recv().await {
+                    break;
+                }
+            }
+        })
+        .await
+        .expect("the reconnect never completed");
+        drop(request_tx);
+        driver.await.unwrap();
+
+        assert_eq!(state.get(), ExecutorState::Paused);
+        assert!(
+            is_paused.load(Ordering::Relaxed),
+            "the node tree must stay held for the operator"
+        );
     }
 }
