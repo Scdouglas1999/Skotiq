@@ -169,6 +169,112 @@ async fn phd2_client(
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
 }
 
+/// Bumped by every connect and disconnect the app asks for. A reconnect
+/// started for one link stops when it changes: the user disconnected, or
+/// connected again on their own.
+static LINK_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Where the last connect reached PHD2.
+static ENDPOINT: std::sync::Mutex<Option<(String, u16)>> = std::sync::Mutex::new(None);
+
+/// Numbers each client [`connect_endpoint`] opens, so a lost connection is
+/// recovered once however many times its loss is reported.
+static CLIENT_EPOCH: AtomicU64 = AtomicU64::new(0);
+
+/// The client whose lost connection a reconnect is recovering.
+static RECOVERING_EPOCH: AtomicU64 = AtomicU64::new(0);
+
+/// Waits between attempts to reach a PHD2 whose socket closed. Short first
+/// (PHD2 restarting), then once a minute for as long as it takes: a PHD2
+/// someone restarts by hand, or one waiting on its own equipment, can be
+/// minutes away, and nobody may be watching.
+const RECONNECT_DELAYS: [Duration; 6] = [
+    Duration::from_secs(2),
+    Duration::from_secs(5),
+    Duration::from_secs(10),
+    Duration::from_secs(20),
+    Duration::from_secs(30),
+    Duration::from_secs(60),
+];
+
+fn reconnect_delay(attempt: usize) -> Duration {
+    RECONNECT_DELAYS[attempt.min(RECONNECT_DELAYS.len() - 1)]
+}
+
+/// [`reconnect_server`] on the bridge runtime, for PHD2's reader thread.
+fn reconnect_server_in_background(client_epoch: u64) {
+    match crate::get_runtime() {
+        Ok(runtime) => {
+            runtime.spawn(reconnect_server(client_epoch));
+        }
+        Err(e) => tracing::warn!("[GUIDING] Could not reconnect to PHD2: {e}"),
+    }
+}
+
+/// PHD2's socket closed without the app asking (PHD2 quit, crashed or was
+/// restarted): stop listing it as the connected guider, then connect to it
+/// again, with backoff, until it answers or the app connects or disconnects
+/// PHD2 itself. This is the guider's share of the rule every device follows
+/// (`device_manager::device_reopen`): it comes back without anyone touching
+/// it. A run that was guiding sees guiding stop, and its guide-star recovery
+/// starts guiding again once PHD2 answers.
+async fn reconnect_server(client_epoch: u64) {
+    // Only the current client's loss, and only once.
+    if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
+        || RECOVERING_EPOCH.swap(client_epoch, Ordering::SeqCst) == client_epoch
+    {
+        return;
+    }
+    let link_generation = LINK_GENERATION.load(Ordering::SeqCst);
+    let endpoint = ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let Some((host, port)) = endpoint else {
+        return;
+    };
+    tracing::warn!("[GUIDING] PHD2 at {host}:{port} closed its connection; connecting to it again");
+    {
+        let mut storage = client_slot().write().await;
+        // The app connected or disconnected PHD2 since the loss: that is
+        // the link now, and nothing here may touch it.
+        if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
+            || LINK_GENERATION.load(Ordering::SeqCst) != link_generation
+        {
+            return;
+        }
+        if let Some(mut dead) = storage.take() {
+            dead.disconnect();
+        }
+    }
+    get_device_manager().unregister_device(DEVICE_ID).await;
+
+    let mut attempt = 0;
+    loop {
+        tokio::time::sleep(reconnect_delay(attempt)).await;
+        if LINK_GENERATION.load(Ordering::SeqCst) != link_generation {
+            break;
+        }
+        attempt += 1;
+        match connect_endpoint(host.clone(), port).await {
+            Ok(()) => {
+                tracing::info!("[GUIDING] Reconnected to PHD2 after {attempt} attempt(s)");
+                publish_guiding_notice(
+                    "PHD2 closed its connection and was connected again.".to_string(),
+                );
+                break;
+            }
+            Err(e) => {
+                tracing::debug!("[GUIDING] PHD2 reconnect attempt {attempt} failed: {e}");
+                if attempt == RECONNECT_DELAYS.len() {
+                    tracing::warn!(
+                        "[GUIDING] PHD2 still does not answer at {host}:{port}; trying again \
+                         every {} s",
+                        reconnect_delay(attempt).as_secs()
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// Connect to PHD2 and list it as the connected guider.
 pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(), SkotiqError> {
     // Why: localhost + PHD2 default port 4400 are the
@@ -178,7 +284,16 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         skotiq_phd2::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
     let port = port.unwrap_or(skotiq_phd2::PHD2_DEFAULT_PORT);
 
+    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
+    connect_endpoint(host, port).await
+}
+
+/// Open the socket to PHD2 at `host`:`port` and list it as the connected
+/// guider. A loss of the socket this opens starts [`reconnect_server`].
+async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
+    let client_epoch = CLIENT_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
+    *ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()) = Some((host.clone(), port));
 
     {
         let mut storage = client_slot().write().await;
@@ -312,6 +427,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
             }
             skotiq_phd2::Phd2Event::Disconnected => {
                 watch.observe_state(&skotiq_phd2::Phd2State::Disconnected);
+                reconnect_server_in_background(client_epoch);
                 GuidingEvent::Disconnected
             }
             skotiq_phd2::Phd2Event::Alert {
@@ -383,6 +499,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
 }
 
 pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
+    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
     PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
     let mut storage = client_slot().write().await;
     if let Some(mut client) = storage.take() {
