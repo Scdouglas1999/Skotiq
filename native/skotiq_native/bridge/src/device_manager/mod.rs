@@ -6,6 +6,7 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
+pub(crate) mod camera_reopen;
 pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod handle;
@@ -77,6 +78,19 @@ impl Default for ReconnectConfig {
     }
 }
 
+/// The camera state a reopen restores, from the camera's last good status
+/// read and the gain and offset last set on it.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct HeldCameraState {
+    pub cooler_on: Option<bool>,
+    pub target_temp: Option<f64>,
+    /// Shown in the restore's log line only: a reopen restores the
+    /// set-point, and the camera's own loop sets the power.
+    pub cooler_power: Option<f64>,
+    pub gain: Option<i32>,
+    pub offset: Option<i32>,
+}
+
 /// State of a managed device
 #[derive(Debug, Clone)]
 pub struct ManagedDevice {
@@ -95,12 +109,15 @@ pub struct ManagedDevice {
     /// Whether heartbeat monitoring is active
     pub heartbeat_active: bool,
     /// Last commanded camera cooler state `(enabled, target_temp_c)`, recorded
-    /// whenever `camera_set_cooler` succeeds. Re-applied after an unplanned
-    /// reconnect so a USB yank mid-run does not silently leave the sensor
-    /// warming up (the driver comes back with the cooler off / setpoint
-    /// cleared). `None` until the cooler has been commanded at least once;
-    /// cameras only.
+    /// whenever `camera_set_cooler` succeeds. A reopen of the camera restores
+    /// it ahead of what the last status read said (see
+    /// `DeviceManager::restore_camera_state`). `None` until the cooler has
+    /// been commanded at least once; cameras only.
     pub desired_cooler: Option<(bool, Option<f64>)>,
+    /// What the camera read back at its last good status read and the gain
+    /// and offset last set on it. With `desired_cooler` this is what a reopen
+    /// of the camera restores. Cameras only.
+    pub held_camera_state: Option<HeldCameraState>,
     /// Last commanded mount tracking state, recorded whenever
     /// `mount_set_tracking` succeeds. Re-applied after an unplanned reconnect
     /// so a mount that was tracking before the disconnect resumes tracking

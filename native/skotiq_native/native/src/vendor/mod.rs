@@ -24,6 +24,14 @@ pub mod svbony;
 pub mod touptek;
 pub mod zwo;
 
+/// Whether a camera error, in the words the device layer passed on, means the
+/// camera's vendor SDK session is broken: the camera still answers status
+/// reads but takes no exposure until it is closed and opened again. Only the
+/// ZWO SDK is known to fail this way.
+pub fn camera_session_broken(message: &str) -> bool {
+    zwo::session_broken(message)
+}
+
 // Mount protocols (serial communication)
 pub mod ioptron;
 pub mod lx200;

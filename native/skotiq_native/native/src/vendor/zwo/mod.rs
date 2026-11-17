@@ -48,6 +48,7 @@ use ffi::*;
 pub use filter_wheel::*;
 pub use focuser::*;
 use sdk::*;
+pub use sdk::session_broken;
 
 // Connected-device registries (EAF + EFW)
 //

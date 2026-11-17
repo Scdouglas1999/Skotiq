@@ -366,9 +366,7 @@ impl CameraDriver for ZwoCamera {
             self.exposure_active.store(false, Ordering::Release);
         } else if status == ASIExposureStatus::Failed as c_int {
             self.exposure_active.store(false, Ordering::Release);
-            return Err(DriverError::SdkError(
-                "ZWO camera reported a failed exposure".to_string(),
-            ));
+            return Err(DriverError::SdkError(FAILED_EXPOSURE.to_string()));
         }
         // Log status for debugging (0=Idle, 1=Working, 2=Success, 3=Failed)
         if is_complete || status == ASIExposureStatus::Failed as c_int {

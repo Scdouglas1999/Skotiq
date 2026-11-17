@@ -15,6 +15,14 @@ impl DeviceManager {
         let result = self.camera_get_status_dispatch(device_id).await;
         self.note_status_read(device_id, &result);
         let status = result?;
+        self.hold_camera_state(device_id, |held| {
+            held.cooler_on = status.cooler_on.or(held.cooler_on);
+            held.target_temp = status.target_temp.or(held.target_temp);
+            held.cooler_power = status.cooler_power.or(held.cooler_power);
+            held.gain = status.gain.or(held.gain);
+            held.offset = status.offset.or(held.offset);
+        })
+        .await;
         if let Some(temperature) = status.sensor_temp {
             self.publish_camera_temperature(device_id, temperature, status.cooler_power);
         }

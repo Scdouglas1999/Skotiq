@@ -216,6 +216,12 @@ struct ScriptedDomeRotatorOps {
     scripted_pixel_size_um: Option<(f64, f64)>,
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
+    /// While set, every exposure fails with this error and only
+    /// `reopen_camera_after` clears it: a camera whose session broke, which
+    /// still answers status reads.
+    broken_camera_session: Mutex<Option<String>>,
+    /// How many times the camera was reopened.
+    camera_reopens: AtomicU32,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
@@ -320,6 +326,8 @@ impl ScriptedDomeRotatorOps {
             scripted_camera_file: None,
             scripted_pixel_size_um: None,
             scripted_observer_location: None,
+            broken_camera_session: Mutex::new(None),
+            camera_reopens: AtomicU32::new(0),
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
@@ -346,6 +354,12 @@ impl ScriptedDomeRotatorOps {
 
     fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
         self.cover_open_error = Some(error);
+        self
+    }
+
+    /// Every exposure fails with `message` until the camera is reopened.
+    fn with_broken_camera_session(self, message: &str) -> Self {
+        *self.broken_camera_session.lock().unwrap() = Some(message.to_string());
         self
     }
 
@@ -814,6 +828,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
         if self.hang_camera_exposure {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
+        if let Some(message) = self.broken_camera_session.lock().unwrap().clone() {
+            return Err(crate::device_ops::DeviceError::Failed(message));
+        }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
             return Err(error);
         }
@@ -1239,7 +1256,33 @@ impl SiteOps for ScriptedDomeRotatorOps {
     }
 }
 
-crate::forward_device_ops!(ScriptedDomeRotatorOps => inner: SafetyOps, ConnectionOps);
+crate::forward_device_ops!(ScriptedDomeRotatorOps => inner: SafetyOps);
+
+#[async_trait]
+impl ConnectionOps for ScriptedDomeRotatorOps {
+    async fn device_answers(&self, device_id: &str) -> DeviceResult<bool> {
+        self.inner.device_answers(device_id).await
+    }
+
+    async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
+        self.inner.connect_device(device_id).await
+    }
+
+    /// A broken session is reopened when the failure is its own error.
+    async fn reopen_camera_after(
+        &self,
+        _camera_id: &str,
+        error: &crate::device_ops::DeviceError,
+    ) -> DeviceResult<bool> {
+        let mut broken = self.broken_camera_session.lock().unwrap();
+        if broken.as_deref() != Some(error.to_string().as_str()) {
+            return Ok(false);
+        }
+        *broken = None;
+        self.camera_reopens.fetch_add(1, Ordering::SeqCst);
+        Ok(true)
+    }
+}
 
 /// Build an InstructionContext wired to the given scripted ops with a
 /// dome + rotator attached.

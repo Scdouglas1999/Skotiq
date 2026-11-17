@@ -53,6 +53,7 @@ async fn connected_camera(manager: &DeviceManager, base_url: &str) -> String {
             heartbeat_deferred_at: None,
             heartbeat_active: false,
             desired_cooler: None,
+            held_camera_state: None,
             desired_tracking: None,
             declared_mount_frame: None,
         },

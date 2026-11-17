@@ -8,7 +8,8 @@ use crate::device::DriverType;
 // re-apply the last commanded camera cooling setpoint and mount tracking
 // state — the driver comes back in power-on defaults and would otherwise
 // silently warm the sensor / leave the mount parked while the sequence
-// "resumes". A *fresh* connect (from Disconnected) must NOT re-apply.
+// "resumes". A *fresh* connect (from Disconnected) must NOT re-apply mount
+// tracking; a camera restores what it held on any connect (camera_reopen.rs).
 
 /// Setting tracking records `desired_tracking`; an Error->reconnect replays it.
 #[tokio::test]

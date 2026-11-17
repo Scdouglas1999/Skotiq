@@ -371,3 +371,25 @@ fn an_unknown_id_on_an_open_device_reads_as_disconnected() {
         }
     }
 }
+
+/// The two errors the rig logged on 2026-11-16 after the camera's USB path
+/// dropped for 4 s, in the words the run saw them, mean a broken session;
+/// a timeout or a refused value does not.
+#[test]
+fn the_rig_errors_after_a_usb_drop_mean_a_broken_session() {
+    assert!(crate::camera_session_broken(
+        "Failed to check exposure status: SDK error: ZWO camera reported a failed exposure"
+    ));
+    assert!(crate::camera_session_broken(
+        "Failed to start native SDK camera exposure on native:zwo:1: SDK error: \
+         ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another application"
+    ));
+    let started = check_asi_error(16).unwrap_err().to_string();
+    assert!(crate::camera_session_broken(&started), "{started}");
+    assert!(!crate::camera_session_broken(
+        "Operation timeout: ASI_ERROR_TIMEOUT: Operation timed out"
+    ));
+    assert!(!crate::camera_session_broken(
+        "Failed to download image: Injected simulator fault: the driver reported a failure"
+    ));
+}

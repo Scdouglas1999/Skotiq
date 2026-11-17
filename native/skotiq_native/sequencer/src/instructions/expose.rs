@@ -279,7 +279,7 @@ async fn take_burst(
         // between. Nothing is written for a failed attempt: the FITS save and
         // the frame's registration below happen once, for the attempt that
         // returned an image, so frames on disk still equal frames recorded.
-        let mut camera_retries_done = 0u32;
+        let mut camera_retries = CameraRetries::new(&camera_id);
         let mut waiting_for_tracking_since: Option<tokio::time::Instant> = None;
         let (mut image_data, exposure_started_at) = loop {
             if let Some(result) = ctx.check_cancelled() {
@@ -470,16 +470,14 @@ async fn take_burst(
                     );
                     break (data, exposure_started_at);
                 }
-                Err(error) => match after_failed_attempt(
+                Err(error) => match camera_retries.after_failure(
                     ctx,
-                    RetriedDevice::Camera,
-                    camera_retries_done,
                     error,
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
                 {
-                    RetryOutcome::Retry => camera_retries_done += 1,
+                    RetryOutcome::Retry => {}
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
