@@ -1342,12 +1342,9 @@ pub(crate) async fn execute_autofocus_sweep_around(
                             );
                             break data;
                         }
-                        Err(e) => match camera_retries.after_failure(
-                    ctx,
-                    e,
-                    &format!("on autofocus point {}", point + 1),
-                        )
-                        .await
+                        Err(e) => match camera_retries
+                            .after_failure(ctx, e, &format!("on autofocus point {}", point + 1))
+                            .await
                         {
                             RetryOutcome::Retry => {}
                             RetryOutcome::GiveUp(failure) => {

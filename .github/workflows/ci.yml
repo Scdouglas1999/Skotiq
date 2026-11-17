@@ -190,7 +190,30 @@ jobs:
         run: melos bootstrap
 
       - name: Run Dart tests
-        run: melos run test
+        # Same command as `melos run test`, plus a JSON record per package so
+        # a failure the console reporter does not attribute to a test can be
+        # named (the step below prints it).
+        run: dart run melos exec --concurrency=1 --flutter -- flutter test --exclude-tags golden --file-reporter json:test-results.json
+
+      - name: Name the failed Dart tests
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import glob, json
+          for path in glob.glob('**/test-results.json', recursive=True):
+              tests = {}
+              for line in open(path):
+                  try:
+                      event = json.loads(line)
+                  except ValueError:
+                      continue
+                  kind = event.get('type')
+                  if kind == 'testStart':
+                      tests[event['test']['id']] = event['test']['name']
+                  elif kind == 'error':
+                      name = tests.get(event.get('testID'), '?')
+                      print(f"{path}: {name}\n  {event.get('error', '')[:2000]}\n")
+          PY
 
       # The next two run even when a test above failed, so one red package
       # does not hide the pure-Dart packages or the migration from an old

@@ -507,6 +507,8 @@ native/skotiq_native/bridge/src/device_manager/accessory.rs	cover_calibrator_cap
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let max_value = ascom_optional(switch.max_value(index).await)?.unwrap_or(1.0);
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let min_value = ascom_optional(switch.min_value(index).await)?.unwrap_or(0.0);
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let step = ascom_optional(switch.step(index).await)?.unwrap_or(1.0);
+native/skotiq_native/bridge/src/device_manager/camera_reopen.rs	hold_camera_state	unwrap_or_default	1	O10-06	dev.held_camera_state.unwrap_or_default()
+native/skotiq_native/bridge/src/device_manager/camera_reopen.rs	restore_camera_state	unwrap_or_default	1	O10-06	dev.held_camera_state.unwrap_or_default(),
 native/skotiq_native/bridge/src/device_manager/connection.rs	DeviceManager	comment_best_effort	1	V0050	/// placeholder `ZWO 1` with the raw `native:zwo:1` in the connected-device
 native/skotiq_native/bridge/src/device_manager/connection.rs	connect_device_internal	comment_best_effort	1	V0050	// Best-effort: leave the device in whatever state the post-
 native/skotiq_native/bridge/src/device_manager/connection.rs	disconnect_device	rust_let_underscore	1	V0050	let _ = self.stop_heartbeat(device_id).await;
@@ -1171,6 +1173,7 @@ native/skotiq_native/sequencer/src/checkpoint.rs	has_recoverable_checkpoint	unwr
 native/skotiq_native/sequencer/src/decision.rs	-	comment_best_effort	1	V0074	/// Best-effort emit. Drops on full channel / no receivers — never panics.
 native/skotiq_native/sequencer/src/device_ops/connection.rs	connect_device	rust_let_underscore	1	V0064	let _ = device_id;
 native/skotiq_native/sequencer/src/device_ops/connection.rs	device_answers	rust_let_underscore	1	V0064	let _ = device_id;
+native/skotiq_native/sequencer/src/device_ops/connection.rs	reopen_camera_after	rust_let_underscore	1	O10-06	let _ = (camera_id, error);
 native/skotiq_native/sequencer/src/device_ops/dome.rs	DomeOps	simulated_runtime_path	1	V0064	/// (`NullDeviceOps`, test doubles), which preserves the explicit
 native/skotiq_native/sequencer/src/device_ops/frame_store.rs	a_scratch_frame_never_writes_the_camera_file	rust_let_underscore	1	U2-24	let _ = std::fs::remove_dir_all(dir);
 native/skotiq_native/sequencer/src/device_ops/frame_store.rs	an_existing_file_is_never_overwritten	rust_let_underscore	1	U2-24	let _ = std::fs::remove_dir_all(dir);
@@ -1378,6 +1381,7 @@ native/skotiq_native/sequencer/src/instructions/context.rs	without_run_settings_
 native/skotiq_native/sequencer/src/instructions/cooling.rs	execute_warm_camera	rust_drop_result	1	R9-085	.ok();
 native/skotiq_native/sequencer/src/instructions/cooling.rs	execute_warm_camera	unwrap_or_literal	1	V0335	let target_temp = config.target_temp.unwrap_or(20.0);
 native/skotiq_native/sequencer/src/instructions/device_retry.rs	after_failed_attempt	rust_let_underscore	1	V0340	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+native/skotiq_native/sequencer/src/instructions/device_retry.rs	announce_and_wait	rust_let_underscore	1	O10-06	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
 native/skotiq_native/sequencer/src/instructions/dither.rs	-	rust_let_underscore	1	U2-24	let _ = event_tx.send(crate::executor::ExecutorEvent::StepProblem {
 native/skotiq_native/sequencer/src/instructions/dither.rs	announce_dither_performed	rust_let_underscore	1	V0336	let _ = event_tx.send(crate::executor::ExecutorEvent::DitherPerformed { node_id });
 native/skotiq_native/sequencer/src/instructions/dither.rs	star_held_after_settle_ran_out	rust_let_underscore	1	R9-086	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: warning });

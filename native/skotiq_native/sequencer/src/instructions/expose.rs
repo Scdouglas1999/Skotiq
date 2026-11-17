@@ -470,12 +470,9 @@ async fn take_burst(
                     );
                     break (data, exposure_started_at);
                 }
-                Err(error) => match camera_retries.after_failure(
-                    ctx,
-                    error,
-                    &format!("on frame {}/{}", frame, config.count),
-                )
-                .await
+                Err(error) => match camera_retries
+                    .after_failure(ctx, error, &format!("on frame {}/{}", frame, config.count))
+                    .await
                 {
                     RetryOutcome::Retry => {}
                     RetryOutcome::Cancelled => {

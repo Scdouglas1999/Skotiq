@@ -45,7 +45,11 @@ async fn the_cooler_set_point_survives_a_reopen() {
     manager.disconnect_device(id).await.expect("disconnect");
     cooler_off().await;
     manager.connect_device(id).await.expect("manual reconnect");
-    assert_eq!(cooler().await, (Some(true), Some(-10.0)), "manual reconnect");
+    assert_eq!(
+        cooler().await,
+        (Some(true), Some(-10.0)),
+        "manual reconnect"
+    );
 
     cooler_off().await;
     let reopened = manager
@@ -166,7 +170,11 @@ impl skotiq_device::CameraDriver for OrderCamera {
     async fn get_offset(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), skotiq_device::DriverError> {
+    async fn set_binning(
+        &mut self,
+        _bin_x: i32,
+        _bin_y: i32,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
     async fn get_binning(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
@@ -290,7 +298,13 @@ async fn only_what_the_camera_held_is_restored() {
     manager.restore_camera_state(&order_camera_info(id)).await;
     assert!(camera.calls.lock().unwrap().is_empty());
 
-    manager.devices.write().await.get_mut(id).unwrap().desired_cooler = Some((true, Some(-15.0)));
+    manager
+        .devices
+        .write()
+        .await
+        .get_mut(id)
+        .unwrap()
+        .desired_cooler = Some((true, Some(-15.0)));
     manager.restore_camera_state(&order_camera_info(id)).await;
     assert_eq!(*camera.calls.lock().unwrap(), ["cooler true Some(-15.0)"]);
 }
