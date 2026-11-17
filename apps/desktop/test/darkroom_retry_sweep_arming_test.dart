@@ -214,7 +214,13 @@ void main() {
         isNotEmpty,
         reason: 'the periodic sweep is what picks the row up once it is due',
       );
-      final row = (await journal.listForTarget(targetId)).single;
+      // The file lands before the journal records it: wait for the record.
+      var row = (await journal.listForTarget(targetId)).single;
+      while (DateTime.now().isBefore(deadline) &&
+          row.state != DeliveryAttemptState.delivered) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        row = (await journal.listForTarget(targetId)).single;
+      }
       expect(row.state, DeliveryAttemptState.delivered);
     },
   );
