@@ -83,7 +83,15 @@ impl MountDriver for Lx200Mount {
         }
 
         tracing::info!("Parking mount");
-        self.send_command_no_response(commands::PARK)?;
+        // OnStep answers `:hP#` with 1 or 0; reading it keeps that byte out of
+        // the next reply and turns a refusal into an error.
+        if self.mount_type.is_onstep() {
+            if !self.send_command_bool(commands::PARK)? {
+                return Err(DriverError::SdkError("Mount refused to park".into()));
+            }
+        } else {
+            self.send_command_no_response(commands::PARK)?;
+        }
 
         // Snapshot the canonical state. For OnStep / Meade this will be
         // re-confirmed on the next is_parked() telemetry round-trip; for
@@ -114,7 +122,15 @@ impl MountDriver for Lx200Mount {
 
         tracing::info!("Unparking mount");
 
-        self.send_command_no_response(self.mount_type.unpark_command())?;
+        // OnStep answers `:hR#` with 1, or 0 when it cannot unpark
+        // (OnStepX Park.command.cpp).
+        if self.mount_type.is_onstep() {
+            if !self.send_command_bool(self.mount_type.unpark_command())? {
+                return Err(DriverError::SdkError("Mount refused to unpark".into()));
+            }
+        } else {
+            self.send_command_no_response(self.mount_type.unpark_command())?;
+        }
 
         *self
             .park_state

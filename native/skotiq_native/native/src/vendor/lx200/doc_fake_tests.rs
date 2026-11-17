@@ -782,10 +782,8 @@ async fn park_and_unpark_follow_each_firmware() {
 }
 
 /// OnStepX answers `:hR#` with `0` when it cannot unpark (Park.command.cpp);
-/// INDI's LX200_OnStep::UnPark fails on it. The driver does not read it.
-/// Affects the NYX-101: rig-night item.
+/// INDI's LX200_OnStep::UnPark fails on it, and so does the driver.
 #[tokio::test]
-#[ignore = "OnStep :hR# 0 reply is not read; NYX rig-night item"]
 async fn an_onstep_unpark_refusal_is_an_error() {
     let _guard = isolate_park_state().await;
     let (mut mount, _) = connect(Fw::OnStep, |m| m.parked = false).await;
