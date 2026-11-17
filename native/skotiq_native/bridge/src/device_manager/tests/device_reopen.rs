@@ -700,3 +700,36 @@ async fn operations_that_fail_as_gone_count_against_the_devices_health() {
     assert!(manager.failing_status_reads(id).is_some());
     let _ = manager.disconnect_device(id).await;
 }
+
+/// Rig, 2026-11-17 06:57: after the power box dropped, the EAF's status
+/// said "Device not connected: Device disconnected" for minutes while the
+/// device list still said connected and nothing reconnected it. A read that
+/// says the device is gone records it lost at once, for the reconnection
+/// loop, and the reconnect keeps its position.
+#[tokio::test]
+async fn a_focuser_whose_reads_say_it_is_gone_is_listed_lost_and_reconnected() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_focuser_gone";
+    let info = build_sim_info(id, DeviceType::Focuser);
+    manager.register_device(info.clone(), false).await;
+    manager.connect_device(id).await.expect("connect");
+    manager.focuser_move_abs(id, 5200).await.expect("move");
+
+    get_sim_focuser().write().await.status.connected = false;
+    assert!(manager.focuser_get_position(id).await.is_err());
+
+    let listed = manager.get_connected_device_infos().await;
+    assert!(
+        listed.iter().all(|d| d.id != id),
+        "a focuser that says it is gone is not listed connected: {listed:?}"
+    );
+    let dev = manager.devices.read().await[id].clone();
+    assert_eq!(dev.connection_state, ConnectionState::Error);
+    assert!(dev.auto_reconnect, "the reconnection loop takes it");
+
+    manager.attempt_reconnect(id, &info).await;
+    assert!(manager.is_connected(id).await);
+    assert_eq!(manager.focuser_get_position(id).await.ok(), Some(5200));
+    let _ = manager.disconnect_device(id).await;
+}

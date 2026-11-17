@@ -310,9 +310,30 @@ impl DeviceManager {
             Err(reason) => reason,
         };
         tracing::warn!("Device {device_id} is recorded as connected but does not answer: {reason}");
-        let last_error = format!("Stopped answering: {reason}");
+        self.record_lost(
+            device_id,
+            device_type,
+            false,
+            &format!("Stopped answering: {reason}"),
+        )
+        .await;
+        false
+    }
+
+    /// Record a device that was connected as lost, with `last_error` as the
+    /// reason, and announce it the way a lost heartbeat does: one status
+    /// change and one error. `auto_reconnect` hands it to the reconnection
+    /// loop.
+    pub(crate) async fn record_lost(
+        &self,
+        device_id: &str,
+        device_type: DeviceType,
+        auto_reconnect: bool,
+        last_error: &str,
+    ) {
+        let last_error = last_error.to_string();
         if self
-            .mark_lost(device_id, false, &last_error)
+            .mark_lost(device_id, auto_reconnect, &last_error)
             .await
             .is_some()
         {
@@ -336,7 +357,6 @@ impl DeviceManager {
                 EventSeverity::Error,
             );
         }
-        false
     }
 
     /// Recovery restores a device that does not answer and leaves one that
