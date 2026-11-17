@@ -315,6 +315,8 @@ pub(crate) struct CameraRetries<'a> {
     camera_id: &'a str,
     done: u32,
     reopens: u32,
+    /// The camera was reopened since [`Self::take_reopened`] last asked.
+    reopened: bool,
 }
 
 impl<'a> CameraRetries<'a> {
@@ -323,7 +325,14 @@ impl<'a> CameraRetries<'a> {
             camera_id,
             done: 0,
             reopens: 0,
+            reopened: false,
         }
+    }
+
+    /// Whether the camera was reopened since the last ask. A reopen after a
+    /// power loss leaves the sensor warmer than its set-point.
+    pub(crate) fn take_reopened(&mut self) -> bool {
+        std::mem::take(&mut self.reopened)
     }
 
     /// [`after_failed_attempt`] for the camera, with the reopen above.
@@ -364,6 +373,7 @@ impl<'a> CameraRetries<'a> {
         let delay = retry_backoff(self.done + self.reopens.min(FREE_REOPENS_PER_OPERATION) + 1);
         if reopened {
             self.reopens += 1;
+            self.reopened = true;
         }
         let free = reopened && self.reopens <= FREE_REOPENS_PER_OPERATION;
         let budget = RetriedDevice::Camera.budget(ctx.run.device_retry.get());

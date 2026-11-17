@@ -561,3 +561,68 @@ fn the_policy_is_held_to_the_maximum() {
     assert_eq!(DeviceRetryPolicy::default().camera_retries, 3);
     assert_eq!(DeviceRetryPolicy::default().filter_wheel_retries, 3);
 }
+
+fn lights(count: u32) -> ExposureConfig {
+    ExposureConfig {
+        count,
+        duration_secs: 0.0,
+        frame_type: crate::FrameType::Light,
+        ..ExposureConfig::default()
+    }
+}
+
+/// Rig, 2026-11-17 05:3x: the power box dropped, the camera was reopened with
+/// its cooler back on, and the frame was taken again at once with the sensor
+/// at -5.7°C against its -10°C set-point, a light no dark matches. The
+/// retried frame now waits for the sensor to be back at its set-point.
+#[tokio::test(start_paused = true)]
+async fn a_frame_retried_on_a_reopened_camera_waits_for_the_set_point() {
+    const FAILED: &str = "ZWO camera reported a failed exposure";
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session(FAILED)
+            .with_cooler(Some(true), 90.0)
+            .with_camera_temperatures(&[-5.7, -7.5, -9.8, -9.9, -10.0, -10.0]),
+    );
+    let (mut ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+    ctx.set_temp_c = Some(-10.0);
+
+    let started = tokio::time::Instant::now();
+    let result = expose_burst(&lights(1), &ctx, |_, _, _| {}).await;
+    let waited = started.elapsed();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    assert!(
+        waited >= Duration::from_secs(2 + 20 + 30),
+        "the retry waited for the sensor to reach and hold the set-point: {waited:?}"
+    );
+}
+
+/// A sensor that does not get back to its set-point in the time allowed: the
+/// light frame is taken anyway, with a warning.
+#[tokio::test(start_paused = true)]
+async fn a_reopened_camera_that_stays_warm_takes_the_light_with_a_warning() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session("ZWO camera reported a failed exposure")
+            .with_cooler(Some(true), 100.0)
+            .with_camera_temperatures(&[-5.7]),
+    );
+    let (mut ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+    ctx.set_temp_c = Some(-10.0);
+
+    let result = expose_burst(&lights(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    let warnings = retry_warnings(&mut events);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("off its -10.0°C set-point") && w.contains("-5.7°C")),
+        "{warnings:?}"
+    );
+}

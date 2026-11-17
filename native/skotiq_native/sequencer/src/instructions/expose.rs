@@ -266,7 +266,7 @@ async fn take_burst(
 
     for frame in (control.frames_taken + 1)..=config.count {
         if let Some(result) =
-            hold_frame_for_set_point(config, ctx, &camera_id, control, frame).await
+            hold_frame_for_set_point(config, ctx, &camera_id, control, frame, false).await
         {
             return result;
         }
@@ -474,7 +474,17 @@ async fn take_burst(
                     .after_failure(ctx, error, &format!("on frame {}/{}", frame, config.count))
                     .await
                 {
-                    RetryOutcome::Retry => {}
+                    RetryOutcome::Retry => {
+                        if camera_retries.take_reopened() {
+                            if let Some(result) = hold_frame_for_set_point(
+                                config, ctx, &camera_id, control, frame, true,
+                            )
+                            .await
+                            {
+                                return result;
+                            }
+                        }
+                    }
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
@@ -954,22 +964,43 @@ enum GuidingForFrame {
     Stop(InstructionResult),
 }
 
-/// Hold a frame matched to lights by temperature (a dark, a bias, a dark
-/// flat) until the sensor is at the cooler's set-point. `None` takes the
-/// frame; a sensor that never gets there ends the burst as Skipped with a
-/// notice, so no frame is recorded against a temperature it was not taken
-/// at, and the run goes on with its next step.
+/// How long a frame retried on a reopened camera waits for its sensor to come
+/// back to the set-point. A sensor that warmed during a power loss (the rig,
+/// 2026-11-17: -5.7°C against -10°C) is pulled back in about a minute and a
+/// half; a cooler that has not got there in this time is not going to soon.
+const REOPEN_SET_POINT_LIMIT: Duration = Duration::from_secs(10 * 60);
+
+/// Hold a frame until the sensor is at the cooler's set-point: a frame
+/// matched to lights by temperature (a dark, a bias, a dark flat) always,
+/// and any frame retried on a camera that was just reopened (`after_reopen`),
+/// since a reopen after a power loss finds the sensor warm. `None` takes the
+/// frame. A calibration frame whose sensor never gets there ends the burst as
+/// Skipped with a notice, so no frame is recorded against a temperature it
+/// was not taken at, and the run goes on with its next step; a light frame is
+/// taken anyway with a warning.
 async fn hold_frame_for_set_point(
     config: &ExposureConfig,
     ctx: &InstructionContext,
     camera_id: &str,
     control: &BurstControl<'_>,
     frame: u32,
+    after_reopen: bool,
 ) -> Option<InstructionResult> {
-    if !config.frame_type.is_matched_by_sensor_temperature() {
+    let calibration = config.frame_type.is_matched_by_sensor_temperature();
+    if !calibration && !after_reopen {
         return None;
     }
-    let set_point_c = ctx.set_temp_c?;
+    let set_point_c = match ctx.set_temp_c {
+        Some(set_point) => set_point,
+        None if after_reopen => ctx
+            .run
+            .device_ops
+            .camera_get_cooler_setpoint(camera_id)
+            .await
+            .ok()
+            .flatten()?,
+        None => return None,
+    };
     // A cooler that is off holds no set-point; the frame records the sensor
     // as it is.
     if matches!(
@@ -978,14 +1009,29 @@ async fn hold_frame_for_set_point(
     ) {
         return None;
     }
-    let settle_by = ctx
-        .set_point_settle_by
-        .unwrap_or_else(|| tokio::time::Instant::now() + CoolConfig::default().settle_budget());
+    let settle_by = if after_reopen {
+        tokio::time::Instant::now() + REOPEN_SET_POINT_LIMIT
+    } else {
+        ctx.set_point_settle_by
+            .unwrap_or_else(|| tokio::time::Instant::now() + CoolConfig::default().settle_budget())
+    };
     let tolerance_c = ctx.calibration_temperature_tolerance_c();
     let report = |message: &str| control.report(message);
     match hold_for_set_point(ctx, camera_id, set_point_c, tolerance_c, settle_by, &report).await {
         SetPointHold::Ready => None,
         SetPointHold::Cancelled(result) => Some(result),
+        SetPointHold::NotReached { reason } if !calibration => {
+            let message = format!(
+                "Frame {frame}/{} is taken on the reopened camera off its {set_point_c:.1}°C \
+                 set-point: {reason}.",
+                config.count
+            );
+            tracing::warn!("[SEQ] {message}");
+            if let Some(event_tx) = &ctx.run.event_tx {
+                let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+            }
+            None
+        }
         SetPointHold::NotReached { reason } => {
             let frames = match config.frame_type {
                 FrameType::Bias => "bias",
