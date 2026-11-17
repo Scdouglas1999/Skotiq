@@ -111,6 +111,37 @@ class ReleaseGateTest(unittest.TestCase):
                     self.assertIn(f"'{name}'", result.stderr)
 
 
+    def override(self, text):
+        folder = self.repo / "docs" / "release" / "gate-overrides"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "v9.0.1.txt").write_text(text)
+
+    def test_an_owner_override_lets_one_failed_check_through_with_a_warning(self):
+        self.override("Dart Tests | one desktop test fails only on CI; owner accepted it\n")
+        checks = {name: "success" for name in REQUIRED_CHECKS}
+        checks["Dart Tests"] = "failure"
+        result = self.gate(self.merged, checks=checks)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("owner's override", result.stderr)
+
+    def test_an_override_without_a_reason_or_for_a_running_check_does_not_apply(self):
+        self.override("Dart Tests\n")
+        checks = {name: "success" for name in REQUIRED_CHECKS}
+        checks["Dart Tests"] = "failure"
+        self.assertNotEqual(self.gate(self.merged, checks=checks).returncode, 0)
+        self.override("Dart Tests | accepted\n")
+        checks["Dart Tests"] = "in_progress"
+        self.assertNotEqual(self.gate(self.merged, checks=checks).returncode, 0)
+
+    def test_an_override_names_only_the_checks_it_lists(self):
+        self.override("Dart Tests | accepted\n")
+        checks = {name: "success" for name in REQUIRED_CHECKS}
+        checks["Analyze"] = "failure"
+        result = self.gate(self.merged, checks=checks)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("'Analyze'", result.stderr)
+
+
 class SourceCommitTest(unittest.TestCase):
     COMMIT = "4736791e4" + "0" * 31
 

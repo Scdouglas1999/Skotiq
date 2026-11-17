@@ -1,0 +1,3 @@
+# Required checks the owner allowed to fail for this one release (see scripts/release_gate.py).
+# One line per check: <check name> | <why the owner accepted it>
+Dart Tests | Owner approved on 2026-11-16: one skotiq_desktop test fails only on GitHub's runners (1482 of 1483 pass; the suite passes locally in UTC) and the failure is not attributed to a named test; tracked for a fix after the release.

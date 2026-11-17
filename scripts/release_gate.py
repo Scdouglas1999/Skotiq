@@ -13,6 +13,7 @@ import argparse
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 
 # The checks branch protection requires on `main` (docs/branch-protection.md),
@@ -71,8 +72,31 @@ def release_is_published(tag):
     return out != "true"
 
 
+def owner_overrides(tag):
+    """Required checks the owner allowed to fail for this one release.
+
+    Read from docs/release/gate-overrides/<tag>.txt in the tagged tree, one
+    line per check: `<check name> | <why the owner accepted it>`. A line
+    without a reason is ignored. An override only lets a completed, failed
+    check through; a check still running, skipped or missing is refused as
+    before, and every override used is printed as a warning on the run.
+    """
+    path = Path("docs/release/gate-overrides") / f"{tag}.txt"
+    if not path.is_file():
+        return {}
+    overrides = {}
+    for line in path.read_text().splitlines():
+        if line.strip().startswith("#") or "|" not in line:
+            continue
+        name, reason = (part.strip() for part in line.split("|", 1))
+        if name and reason:
+            overrides[name] = reason
+    return overrides
+
+
 def refusals(tag, sha, repo, main_ref):
     reasons = []
+    overrides = owner_overrides(tag)
     tagged = tag_commit(tag)
     if tagged is None:
         reasons.append(f"tag {tag} does not exist; push the tag and run the release from it")
@@ -83,7 +107,13 @@ def refusals(tag, sha, repo, main_ref):
     conclusions = check_conclusions(repo, sha)
     for name in REQUIRED_CHECKS:
         conclusion = conclusions.get(name)
-        if conclusion != "success":
+        if conclusion == "failure" and name in overrides:
+            print(
+                f"::warning::Release gate: required check '{name}' on {sha} failed; "
+                f"published under the owner's override for {tag}: {overrides[name]}",
+                file=sys.stderr,
+            )
+        elif conclusion != "success":
             reasons.append(f"required check '{name}' on {sha} is {conclusion or 'missing'}, not success")
     if release_is_published(tag):
         reasons.append(f"release {tag} is already published; its assets are never replaced, cut a new version")
