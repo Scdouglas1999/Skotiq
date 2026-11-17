@@ -91,6 +91,71 @@ async fn a_failed_download_retries_the_frame_and_the_burst_completes() {
     );
 }
 
+/// The rig, 2026-11-16: after the camera's USB path dropped for 4 s the
+/// camera kept answering status reads while every exposure failed, and the
+/// run spent its retries on the broken session and failed. The retry now
+/// reopens the camera once, says so, and the frame lands.
+#[tokio::test(start_paused = true)]
+async fn a_broken_camera_session_is_reopened_before_the_retry() {
+    const FAILED: &str =
+        "Failed to check exposure status: SDK error: ZWO camera reported a failed exposure";
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_broken_camera_session(FAILED));
+    let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let started = tokio::time::Instant::now();
+    let result = expose_burst(&darks(2), &ctx, |_, _, _| {}).await;
+    let waited = started.elapsed();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        ops.camera_exposure_calls.load(Ordering::SeqCst),
+        3,
+        "frame 1 fails once, then both frames land on the reopened camera"
+    );
+    assert_eq!(ops.saved_frame_paths.lock().unwrap().len(), 2);
+    assert_eq!(waited.as_secs(), 2, "one retry, after the 2 s backoff");
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].contains("Camera failed on frame 1/2")
+            && warnings[0].contains(FAILED)
+            && warnings[0].contains("Reopened the camera; retrying in 2 s (retry 1 of 3)"),
+        "the warning says the camera was reopened: {}",
+        warnings[0]
+    );
+}
+
+/// The reopen is once per frame: a session that is still broken after it is
+/// retried as before, and the frame fails on the existing budget.
+#[tokio::test(start_paused = true)]
+async fn a_camera_is_reopened_at_most_once_per_frame() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_broken_camera_session("ZWO camera reported a failed exposure")
+            .failing_exposures(&[DOWNLOAD_ERROR; 3]),
+    );
+    let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let result = expose_burst(&darks(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 1);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 4);
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(warnings.len(), 3, "{warnings:?}");
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|w| w.contains("Reopened the camera"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+}
+
 #[tokio::test(start_paused = true)]
 async fn camera_retries_exhausted_fail_the_burst_as_before() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[DOWNLOAD_ERROR; 4]));

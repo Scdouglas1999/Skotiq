@@ -40,6 +40,20 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 static LISTENER_STARTED: AtomicBool = AtomicBool::new(false);
 static LAST_PUBLISHED_MS: AtomicU64 = AtomicU64::new(0);
+/// When the OS last reported a device arriving, leaving or changing on the
+/// bus (ms since epoch; 0 for never), debounced or not.
+static LAST_BUS_CHANGE_MS: AtomicU64 = AtomicU64::new(0);
+
+/// Whether a device arrived, left or changed on the bus within `window`.
+/// A camera exposure that fails soon after is taken as a broken camera
+/// session and reopens the camera
+/// (`DeviceManager::reopen_camera_after`): on the rig a USB hub that
+/// dropped for 4 s left the ZWO camera answering status reads with every
+/// exposure failing.
+pub(crate) fn bus_changed_within(window: Duration) -> bool {
+    let at = LAST_BUS_CHANGE_MS.load(Ordering::Acquire);
+    at != 0 && current_time_ms().saturating_sub(at) <= window.as_millis() as u64
+}
 
 const HOTPLUG_DEBOUNCE_MS: u64 = 500;
 
@@ -442,6 +456,7 @@ impl<T: rusb::UsbContext> rusb::Hotplug<T> for UsbHotplugHandler {
 #[cfg(all(unix, any(target_os = "linux", target_os = "macos")))]
 fn handle_usb_hotplug<T: rusb::UsbContext>(action: &'static str, device: &rusb::Device<T>) {
     let now_ms = current_time_ms();
+    LAST_BUS_CHANGE_MS.store(now_ms, Ordering::Release);
     if !should_publish_device_change(now_ms) {
         tracing::debug!(
             "Debounced USB hotplug action={} bus={} address={}",
@@ -523,6 +538,7 @@ fn handle_windows_device_change(wparam: usize) {
     };
 
     let now_ms = current_time_ms();
+    LAST_BUS_CHANGE_MS.store(now_ms, Ordering::Release);
     if !should_publish_device_change(now_ms) {
         tracing::debug!("Debounced Windows WM_DEVICECHANGE action={}", action);
         return;

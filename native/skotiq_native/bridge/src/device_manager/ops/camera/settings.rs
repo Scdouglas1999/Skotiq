@@ -24,6 +24,8 @@ impl DeviceManager {
     /// Set camera gain
     pub async fn camera_set_gain(&self, device_id: &str, gain: i32) -> Result<(), DeviceOpError> {
         self.camera_set_gain_dispatch(device_id, gain).await?;
+        self.hold_camera_state(device_id, |held| held.gain = Some(gain))
+            .await;
         if !self.publish_camera_settings(device_id).await {
             self.publish_property_changed(
                 DeviceType::Camera,
@@ -42,6 +44,8 @@ impl DeviceManager {
         offset: i32,
     ) -> Result<(), DeviceOpError> {
         self.camera_set_offset_dispatch(device_id, offset).await?;
+        self.hold_camera_state(device_id, |held| held.offset = Some(offset))
+            .await;
         if !self.publish_camera_settings(device_id).await {
             self.publish_property_changed(
                 DeviceType::Camera,

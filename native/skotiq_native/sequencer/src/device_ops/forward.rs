@@ -362,6 +362,9 @@ macro_rules! forward_device_ops {
                 async fn connect_device(&self, device_id: &str) -> $crate::device_ops::DeviceResult<()> {
                     self.$field.connect_device(device_id).await
                 }
+                async fn reopen_camera_after(&self, camera_id: &str, error: &$crate::device_ops::DeviceError) -> $crate::device_ops::DeviceResult<bool> {
+                    self.$field.reopen_camera_after(camera_id, error).await
+                }
             }
         };
     };

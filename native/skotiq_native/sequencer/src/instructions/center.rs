@@ -301,7 +301,7 @@ async fn center(
         // A transient camera fault retries the capture under the run's camera
         // retry budget; it is not a centering attempt, which is about the
         // solve and the pointing.
-        let mut camera_retries_done = 0u32;
+        let mut camera_retries = CameraRetries::new(&camera_id);
         let image_data = loop {
             let result = tokio::select! {
                 // Full resolution + 1x1 binning gives the plate solver the highest
@@ -332,16 +332,14 @@ async fn center(
                     );
                     break data;
                 }
-                Err(e) => match after_failed_attempt(
+                Err(e) => match camera_retries.after_failure(
                     ctx,
-                    RetriedDevice::Camera,
-                    camera_retries_done,
                     e,
                     &format!("on the centering frame (attempt {})", attempt),
                 )
                 .await
                 {
-                    RetryOutcome::Retry => camera_retries_done += 1,
+                    RetryOutcome::Retry => {}
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Center cancelled")
                     }

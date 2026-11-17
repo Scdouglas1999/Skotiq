@@ -149,6 +149,25 @@ pub(crate) fn asi_get_serial_number_fn(sdk: &AsiSdk) -> Option<AsiGetSerialNumbe
     })
 }
 
+/// How [`check_asi_error`] names `ASI_ERROR_GENERAL_ERROR`.
+const GENERAL_ERROR: &str = "ASI_ERROR_GENERAL_ERROR";
+
+/// What `is_exposure_complete` reports when the SDK answers
+/// `ASI_EXP_FAILED`.
+pub(crate) const FAILED_EXPOSURE: &str = "ZWO camera reported a failed exposure";
+
+/// Whether a ZWO camera error means the camera's SDK session is broken and
+/// only closing and reopening the camera brings it back.
+///
+/// After the camera's USB path drops for a few seconds the SDK keeps
+/// answering status reads (temperature, cooler power) on the old handle, but
+/// the exposure in progress ends as `ASI_EXP_FAILED` and every new one is
+/// refused with `ASI_ERROR_GENERAL_ERROR`, until the camera is closed and
+/// opened again (rig, 2026-11-16).
+pub fn session_broken(message: &str) -> bool {
+    message.contains(FAILED_EXPOSURE) || message.contains(GENERAL_ERROR)
+}
+
 /// Check ASI error and convert to DriverError with detailed messages
 pub(crate) fn check_asi_error(code: c_int) -> Result<(), DriverError> {
     match code {
@@ -168,7 +187,7 @@ pub(crate) fn check_asi_error(code: c_int) -> Result<(), DriverError> {
         13 => Err(DriverError::SdkError("ASI_ERROR_BUFFER_TOO_SMALL: Buffer size is too small".to_string())),
         14 => Err(DriverError::SdkError("ASI_ERROR_VIDEO_MODE_ACTIVE: Camera is in video mode - may be in use by another application".to_string())),
         15 => Err(DriverError::SdkError("ASI_ERROR_EXPOSURE_IN_PROGRESS: Exposure in progress".to_string())),
-        16 => Err(DriverError::SdkError("ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another application (NINA, SharpCap, etc.)".to_string())),
+        16 => Err(DriverError::SdkError(format!("{GENERAL_ERROR}: General error - camera may be in use by another application (NINA, SharpCap, etc.)"))),
         17 => Err(DriverError::SdkError("ASI_ERROR_INVALID_MODE: Invalid mode".to_string())),
         _ => Err(DriverError::SdkError(format!("Unknown ASI error code: {}", code))),
     }

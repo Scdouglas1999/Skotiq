@@ -43,6 +43,7 @@ async fn register_test_device(
             heartbeat_deferred_at: None,
             heartbeat_active: false,
             desired_cooler: None,
+            held_camera_state: None,
             desired_tracking: None,
             declared_mount_frame: None,
         },

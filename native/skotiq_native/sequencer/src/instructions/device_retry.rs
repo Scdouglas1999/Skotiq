@@ -19,6 +19,8 @@
 //!   instruction; retrying the call without a reconnect cannot succeed. A
 //!   request the device refuses (an invalid value, a feature it lacks, a frame
 //!   that fails image validation) fails the same way every time.
+//! * A camera failure that means the camera's session is broken reopens the
+//!   camera once before its retry (see [`CameraRetries`]).
 //! * Each retry is logged and sent as a run warning, so it shows in the run
 //!   dashboard's Session warnings and the Session Report without interrupting.
 //! * The wait between attempts honours Stop: it returns as soon as the run is
@@ -227,28 +229,60 @@ pub(crate) async fn after_failed_attempt(
     error: DeviceError,
     what: &str,
 ) -> RetryOutcome {
+    match retry_or_stop(ctx, device, retries_done, error) {
+        Ok(error) => announce_and_wait(ctx, device, retries_done, &error, what, false).await,
+        Err(outcome) => outcome,
+    }
+}
+
+/// The error back when the failed attempt is to be retried, or the outcome
+/// that ends the operation.
+fn retry_or_stop(
+    ctx: &InstructionContext,
+    device: RetriedDevice,
+    retries_done: u32,
+    error: DeviceError,
+) -> Result<DeviceError, RetryOutcome> {
     if ctx.cancellation_token.load(Ordering::Relaxed) {
-        return RetryOutcome::Cancelled;
+        return Err(RetryOutcome::Cancelled);
     }
     let budget = device.budget(ctx.run.device_retry.get());
     let fault = classify_device_fault(&error);
     if fault == DeviceFault::Cancelled {
-        return RetryOutcome::Cancelled;
+        return Err(RetryOutcome::Cancelled);
     }
     if retries_done >= budget || fault != DeviceFault::Transient {
-        return RetryOutcome::GiveUp(DeviceFailure {
+        return Err(RetryOutcome::GiveUp(DeviceFailure {
             error,
             retries: retries_done,
-        });
+        }));
     }
+    Ok(error)
+}
 
+/// Log and send the retry as a run warning, then wait out its backoff.
+async fn announce_and_wait(
+    ctx: &InstructionContext,
+    device: RetriedDevice,
+    retries_done: u32,
+    error: &DeviceError,
+    what: &str,
+    reopened: bool,
+) -> RetryOutcome {
+    let budget = device.budget(ctx.run.device_retry.get());
     let retry = retries_done + 1;
     let delay = retry_backoff(retry);
+    let next = if reopened {
+        "Reopened the camera; retrying in"
+    } else {
+        "Retrying in"
+    };
     let message = format!(
-        "{} failed {}: {}. Retrying in {} s (retry {} of {}).",
+        "{} failed {}: {}. {} {} s (retry {} of {}).",
         device.label(),
         what,
         error,
+        next,
         delay.as_secs(),
         retry,
         budget
@@ -262,6 +296,89 @@ pub(crate) async fn after_failed_attempt(
         biased;
         _ = wait_for_cancellation(ctx.cancellation_token.clone()) => RetryOutcome::Cancelled,
         _ = sleep(delay) => RetryOutcome::Retry,
+    }
+}
+
+/// The retries of one camera operation (a frame, a centering frame, an
+/// autofocus sample) under the run's camera retry budget.
+///
+/// A failure that means the camera's session is broken (it answers status
+/// reads but takes no exposure, as a ZWO camera does after its USB path
+/// drops) reopens the camera before the retry, once per operation: retrying
+/// on the broken session fails every time. The reopen restores the cooler
+/// first, so it happens at once, before the backoff. A reopen that fails
+/// ends the operation as a lost camera, for device-disconnect recovery.
+pub(crate) struct CameraRetries<'a> {
+    camera_id: &'a str,
+    done: u32,
+    reopened: bool,
+}
+
+impl<'a> CameraRetries<'a> {
+    pub(crate) fn new(camera_id: &'a str) -> Self {
+        Self {
+            camera_id,
+            done: 0,
+            reopened: false,
+        }
+    }
+
+    /// [`after_failed_attempt`] for the camera, with the reopen above.
+    pub(crate) async fn after_failure(
+        &mut self,
+        ctx: &InstructionContext,
+        error: DeviceError,
+        what: &str,
+    ) -> RetryOutcome {
+        let error = match retry_or_stop(ctx, RetriedDevice::Camera, self.done, error) {
+            Ok(error) => error,
+            Err(outcome) => return outcome,
+        };
+        let mut reopened = false;
+        if !self.reopened {
+            match ctx
+                .run
+                .device_ops
+                .reopen_camera_after(self.camera_id, &error)
+                .await
+            {
+                Ok(true) => {
+                    self.reopened = true;
+                    reopened = true;
+                }
+                Ok(false) => {}
+                Err(reopen_error) => {
+                    tracing::warn!(
+                        "[RETRY] Reopening camera {} after \"{}\" failed: {}",
+                        self.camera_id,
+                        error,
+                        reopen_error
+                    );
+                    return RetryOutcome::GiveUp(DeviceFailure {
+                        error: DeviceError::NotConnected {
+                            device: crate::device_ops::DeviceKind::Camera,
+                            message: format!(
+                                "{error}; reopening the camera failed: {reopen_error}"
+                            ),
+                        },
+                        retries: self.done,
+                    });
+                }
+            }
+        }
+        let outcome = announce_and_wait(
+            ctx,
+            RetriedDevice::Camera,
+            self.done,
+            &error,
+            what,
+            reopened,
+        )
+        .await;
+        if outcome == RetryOutcome::Retry {
+            self.done += 1;
+        }
+        outcome
     }
 }
 

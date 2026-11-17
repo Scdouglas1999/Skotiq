@@ -31,4 +31,21 @@ pub trait ConnectionOps: Send + Sync {
             "connect_device not supported by this driver",
         ))
     }
+
+    /// Close and reopen a camera whose exposure just failed with `error`,
+    /// when the failure means the camera's session is broken: it still
+    /// answers status reads but takes no exposure until it is reopened. The
+    /// reopen goes through the normal connection path, which restores the
+    /// cooler, gain and offset the camera had.
+    ///
+    /// `Ok(true)` when the camera was reopened, `Ok(false)` when the failure
+    /// does not call for a reopen, and an error when the reopen failed.
+    async fn reopen_camera_after(
+        &self,
+        camera_id: &str,
+        error: &DeviceError,
+    ) -> DeviceResult<bool> {
+        let _ = (camera_id, error);
+        Ok(false)
+    }
 }
