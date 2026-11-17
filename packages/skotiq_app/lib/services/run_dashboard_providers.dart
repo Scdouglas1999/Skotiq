@@ -728,8 +728,11 @@ const String _meridianFlipFaultKey = 'meridian_flip';
 /// The banner key of a camera's failed exposures. A camera that reopens
 /// fails a frame or two and then images on; its newest failure replaces the
 /// older ones, and its next good frame clears them.
+const String _exposureFaultPrefix = 'exposure_failed:';
+
+/// A failure no camera was named on has the bare prefix as its key.
 String _exposureFaultKey(String? deviceId) =>
-    'exposure_failed:${deviceId ?? ''}';
+    deviceId == null ? _exposureFaultPrefix : '$_exposureFaultPrefix$deviceId';
 
 String? _faultKey(sk_events.SkotiqEvent event) {
   final payload = event.payload;
@@ -952,7 +955,7 @@ class RunDashboardCriticalEventsNotifier
     if (!mounted) return;
     bool answered(RunDashboardEvent e) {
       final key = e.faultKey;
-      if (key == null || !key.startsWith(_exposureFaultKey(null))) return false;
+      if (key == null || !key.startsWith(_exposureFaultPrefix)) return false;
       return deviceId == null ||
           key == _exposureFaultKey(null) ||
           key == _exposureFaultKey(deviceId);
