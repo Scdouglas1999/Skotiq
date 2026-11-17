@@ -288,6 +288,16 @@ Future<TargetSuggestion> catalogTargetSuggestion({
       ? 0.0
       : darkAboveFloor.end.difference(darkAboveFloor.start).inMinutes / 60.0;
 
+  // A name or position the catalog knows ("Flaming Star Nebula" is IC 405)
+  // reads its type from the catalog, so the filter choice sees what it is.
+  objectType ??= await catalogObjectTypeFor(
+    name: targetName,
+    raHours: raHours,
+    decDegrees: decDegrees,
+    catalogId: catalogId,
+    logging: ref.read(loggingServiceProvider),
+  );
+
   // Ensure a host/local library row exists so integration goals and progress
   // use a stable numeric id (not a synthetic hash fallback).
   final libraryTarget =
