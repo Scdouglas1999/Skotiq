@@ -18,7 +18,7 @@ tracing.workspace = true
 chrono.workspace = true
 
 # FFI bindings for vendor SDKs
-libloading = "0.8"
+libloading = "0.9"
 
 # Serial port communication for mount protocols
 serialport = "4.3"
