@@ -11,7 +11,10 @@ pub enum GuidingEvent {
     Paused,
     Resumed,
     Settled {
-        rms: f64,
+        /// Total guide RMS when the settle ended, guide-camera pixels (what
+        /// the settle tolerance is judged in), when the guider measured one.
+        /// PHD2 reports none with its settle.
+        rms: Option<f64>,
     },
     LostStar,
     /// PHD2 gave up waiting for the guider to settle. The star may still be

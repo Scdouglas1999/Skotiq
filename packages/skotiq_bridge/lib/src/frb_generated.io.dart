@@ -5634,7 +5634,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       return;
     }
     if (apiObj is GuidingEvent_Settled) {
-      var pre_rms = cst_encode_f_64(apiObj.rms);
+      var pre_rms = cst_encode_opt_box_autoadd_f_64(apiObj.rms);
       wireObj.tag = 6;
       wireObj.kind.Settled.rms = pre_rms;
       return;
@@ -19979,8 +19979,7 @@ final class wire_cst_frame_capture_metadata extends ffi.Struct {
 }
 
 final class wire_cst_GuidingEvent_Settled extends ffi.Struct {
-  @ffi.Double()
-  external double rms;
+  external ffi.Pointer<ffi.Double> rms;
 }
 
 final class wire_cst_GuidingEvent_SettleTimedOut extends ffi.Struct {

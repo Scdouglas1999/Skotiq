@@ -18,8 +18,12 @@ sealed class GuidingEvent with _$GuidingEvent {
   const factory GuidingEvent.guidingStopped() = GuidingEvent_GuidingStopped;
   const factory GuidingEvent.paused() = GuidingEvent_Paused;
   const factory GuidingEvent.resumed() = GuidingEvent_Resumed;
-  const factory GuidingEvent.settled({required double rms}) =
-      GuidingEvent_Settled;
+  const factory GuidingEvent.settled({
+    /// Total guide RMS when the settle ended, guide-camera pixels (what
+    /// the settle tolerance is judged in), when the guider measured one.
+    /// PHD2 reports none with its settle.
+    double? rms,
+  }) = GuidingEvent_Settled;
   const factory GuidingEvent.lostStar() = GuidingEvent_LostStar;
 
   /// PHD2 gave up waiting for the guider to settle. The star may still be

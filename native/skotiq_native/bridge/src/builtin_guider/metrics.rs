@@ -532,7 +532,9 @@ pub(crate) async fn apply_settle_state(
                         .publish_guiding_event(GuidingEvent::DitherCompleted, EventSeverity::Info);
                 }
                 get_state().publish_guiding_event(
-                    GuidingEvent::Settled { rms: rms_total },
+                    GuidingEvent::Settled {
+                        rms: Some(rms_total),
+                    },
                     EventSeverity::Info,
                 );
             }

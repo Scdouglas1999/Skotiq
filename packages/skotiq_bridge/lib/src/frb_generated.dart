@@ -12778,7 +12778,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return GuidingEvent_Resumed();
       case 6:
-        return GuidingEvent_Settled(rms: dco_decode_f_64(raw[1]));
+        return GuidingEvent_Settled(
+          rms: dco_decode_opt_box_autoadd_f_64(raw[1]),
+        );
       case 7:
         return GuidingEvent_LostStar();
       case 8:
@@ -17581,7 +17583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return GuidingEvent_Resumed();
       case 6:
-        var var_rms = sse_decode_f_64(deserializer);
+        var var_rms = sse_decode_opt_box_autoadd_f_64(deserializer);
         return GuidingEvent_Settled(rms: var_rms);
       case 7:
         return GuidingEvent_LostStar();
@@ -22955,7 +22957,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(5, serializer);
       case GuidingEvent_Settled(rms: final rms):
         sse_encode_i_32(6, serializer);
-        sse_encode_f_64(rms, serializer);
+        sse_encode_opt_box_autoadd_f_64(rms, serializer);
       case GuidingEvent_LostStar():
         sse_encode_i_32(7, serializer);
       case GuidingEvent_SettleTimedOut(error: final error):

@@ -19,10 +19,11 @@ mod watch;
 /// The event for PHD2's SettleDone. A failed settle (non-zero status) must
 /// not masquerade as a clean "Settled" event, and it is not a lost star
 /// either: PHD2 reports a settle that ran out of time while it still holds
-/// the star.
+/// the star. PHD2's SettleDone carries no RMS, so the event states none
+/// (it read "Guiding settled · RMS 0.00" right after guiding started).
 fn settle_done_event(status: i32, error: &str) -> GuidingEvent {
     if status == 0 {
-        return GuidingEvent::Settled { rms: 0.0 };
+        return GuidingEvent::Settled { rms: None };
     }
     GuidingEvent::SettleTimedOut {
         error: if error.is_empty() {
@@ -779,7 +780,7 @@ pub(crate) async fn dither(
         .await
         .map_err(|e| e.into_error("Dither did not settle"))?;
 
-    get_state().publish_guiding_event(GuidingEvent::Settled { rms: 0.0 }, EventSeverity::Info);
+    get_state().publish_guiding_event(GuidingEvent::Settled { rms: None }, EventSeverity::Info);
 
     Ok(())
 }
@@ -1647,6 +1648,16 @@ mod settle_event_tests {
         assert!(matches!(
             settle_done_event(0, ""),
             GuidingEvent::Settled { .. }
+        ));
+    }
+
+    /// PHD2's SettleDone carries no RMS. Tonight's log read "Guiding settled
+    /// · RMS 0.00" right after guiding started.
+    #[test]
+    fn a_phd2_settle_states_no_rms() {
+        assert!(matches!(
+            settle_done_event(0, ""),
+            GuidingEvent::Settled { rms: None }
         ));
     }
 }
