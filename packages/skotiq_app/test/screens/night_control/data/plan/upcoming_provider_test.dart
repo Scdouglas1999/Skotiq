@@ -43,7 +43,7 @@ Sequence _planWithAutofocusTriggers() {
 void main() {
   test('before a run: the night in time order, with what has passed', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 18, 36),
+      now: bostonTime(2026, 10, 19, 18, 36),
       sequence: TwoTargetPlan().sequence,
     );
     addTearDown(container.dispose);
@@ -58,15 +58,15 @@ void main() {
     expect(items[0].passed, isTrue);
     expect(items[1].passed, isFalse);
     expect(items[2].moonIlluminationPct, 44);
-    expect(items[2].at, DateTime(2026, 10, 19, 23, 9));
-    expect(items[3].at, DateTime(2026, 10, 20, 5, 44));
+    expect(items[2].at, bostonTime(2026, 10, 19, 23, 9));
+    expect(items[3].at, bostonTime(2026, 10, 20, 5, 44));
   });
 
   // F33: with a pre-meridian hold set, the night listed the flip but not the
   // moment the run stops tracking and taking frames for it.
   test('a pre-meridian hold is listed before its flip', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 18, 36),
+      now: bostonTime(2026, 10, 19, 18, 36),
       sequence: TwoTargetPlan().sequence,
       extra: [
         isMeridianFlipEnabledProvider.overrideWithValue(true),
@@ -96,7 +96,7 @@ void main() {
 
   test('no hold without a pause before the meridian', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 18, 36),
+      now: bostonTime(2026, 10, 19, 18, 36),
       sequence: TwoTargetPlan().sequence,
       extra: [
         isMeridianFlipEnabledProvider.overrideWithValue(true),
@@ -117,7 +117,7 @@ void main() {
 
   test('no site: no night rows', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 18, 36),
+      now: bostonTime(2026, 10, 19, 18, 36),
       sequence: TwoTargetPlan().sequence,
       site: false,
     );
@@ -127,14 +127,14 @@ void main() {
   });
 
   test('running: next dither, autofocus cadence, target switch, dawn', () {
-    final now = DateTime(2026, 10, 19, 20, 2);
+    final now = bostonTime(2026, 10, 19, 20, 2);
     final container = planContainer(
       now: now,
       sequence: _planWithAutofocusTriggers(),
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
@@ -150,7 +150,7 @@ void main() {
         },
       ),
       sessionFrames: [
-        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 55)),
+        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 55)),
       ],
     );
     addTearDown(container.dispose);
@@ -172,22 +172,22 @@ void main() {
     expect(items[1].everyFrames, isNull);
     expect(items[1].tempDeltaC, 1.0);
     expect(items[2].subject, 'NGC 891');
-    expect(items[2].at!.isAfter(DateTime(2026, 10, 19, 19, 50)), isTrue);
+    expect(items[2].at!.isAfter(bostonTime(2026, 10, 19, 19, 50)), isTrue);
     expect(items[3].at!.isAfter(items[2].at!), isTrue);
-    expect(items[4].at, DateTime(2026, 10, 19, 23, 9));
+    expect(items[4].at, bostonTime(2026, 10, 19, 23, 9));
     expect(items[4].moonIlluminationPct, 44);
     expect(items[5].passed, isFalse);
   });
 
   test('paused: the plan end has no time and reads as paused', () {
-    final now = DateTime(2026, 10, 19, 20, 2);
+    final now = bostonTime(2026, 10, 19, 20, 2);
     final container = planContainer(
       now: now,
       sequence: _planWithAutofocusTriggers(),
       execution: SequenceExecutionState.paused,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.paused,
@@ -203,7 +203,7 @@ void main() {
         },
       ),
       sessionFrames: [
-        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 55)),
+        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 55)),
       ],
     );
     addTearDown(container.dispose);
@@ -217,12 +217,12 @@ void main() {
 
   test('no dither left in the step: no dither row', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 20, 2),
+      now: bostonTime(2026, 10, 19, 20, 2),
       sequence: TwoTargetPlan().sequence,
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 19, 50),
+        startTime: bostonTime(2026, 10, 19, 19, 50),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,
@@ -248,7 +248,7 @@ void main() {
 
   test('past midnight: dawn is still ahead, sunset and dark are behind', () {
     final container = planContainer(
-      now: DateTime(2026, 10, 20, 1),
+      now: bostonTime(2026, 10, 20, 1),
       sequence: TwoTargetPlan().sequence,
     );
     addTearDown(container.dispose);
@@ -290,9 +290,9 @@ void main() {
       rootNodeId: 'root',
       nodes: {root.id: root, target.id: target, smart.id: smart},
     );
-    final first = DateTime(2026, 10, 19, 21);
+    final first = bostonTime(2026, 10, 19, 21);
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 22),
+      now: bostonTime(2026, 10, 19, 22),
       sequence: sequence,
       execution: SequenceExecutionState.running,
       session: SessionState(isActive: true, startTime: first),
@@ -339,7 +339,7 @@ void main() {
     );
     final root = InstructionSetNode(id: 'root', childIds: const ['smart']);
     final container = planContainer(
-      now: DateTime(2026, 10, 19, 22),
+      now: bostonTime(2026, 10, 19, 22),
       sequence: Sequence.create(
         name: 'LR',
         rootNodeId: 'root',
@@ -348,7 +348,7 @@ void main() {
       execution: SequenceExecutionState.running,
       session: SessionState(
         isActive: true,
-        startTime: DateTime(2026, 10, 19, 21),
+        startTime: bostonTime(2026, 10, 19, 21),
       ),
       progress: const SequenceProgress(
         state: SequenceExecutionState.running,

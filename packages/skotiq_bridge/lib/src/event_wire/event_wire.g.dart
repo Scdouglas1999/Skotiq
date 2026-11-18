@@ -742,7 +742,7 @@ GuidingEvent? _decodeGuidingEvent(
     case 'Resumed':
       return const GuidingEvent.resumed();
     case 'SettleDone':
-      return GuidingEvent.settled(rms: wireDouble(d, 'rms'));
+      return GuidingEvent.settled(rms: wireOptDouble(d, 'rms'));
     case 'StarLost':
       return const GuidingEvent.lostStar();
     case 'SettleTimedOut':

@@ -10085,7 +10085,7 @@ impl SseDecode for crate::event::guiding::GuidingEvent {
                 return crate::event::guiding::GuidingEvent::Resumed;
             }
             6 => {
-                let mut var_rms = <f64>::sse_decode(deserializer);
+                let mut var_rms = <Option<f64>>::sse_decode(deserializer);
                 return crate::event::guiding::GuidingEvent::Settled { rms: var_rms };
             }
             7 => {
@@ -20042,7 +20042,7 @@ impl SseEncode for crate::event::guiding::GuidingEvent {
             }
             crate::event::guiding::GuidingEvent::Settled { rms } => {
                 <i32>::sse_encode(6, serializer);
-                <f64>::sse_encode(rms, serializer);
+                <Option<f64>>::sse_encode(rms, serializer);
             }
             crate::event::guiding::GuidingEvent::LostStar => {
                 <i32>::sse_encode(7, serializer);
@@ -34041,7 +34041,7 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_GuidingEvent_Settled {
-        rms: f64,
+        rms: *mut f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

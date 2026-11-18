@@ -215,8 +215,9 @@ class AppSettingsState {
   /// failed post-flip check — stops the run. Off: the operator is notified
   /// and the run keeps imaging (owner decision 2026-10-06).
   final bool stopRunOnQualityProblems;
-  /// A run held by a mount fault solves, syncs and resumes on its own. Off
-  /// by default: the operator recovers the mount.
+  /// A run held by a mount fault solves, syncs and resumes on its own. On
+  /// by default: the app recovers without anyone watching (owner decision
+  /// 2026-11-17).
   final bool mountGuardAutoSyncResume;
   /// Minutes before the meridian.
   final int meridianFlipMinutes;
@@ -564,7 +565,7 @@ class AppSettingsState {
     this.parkOnUnsafeWeather = true,
     this.parkBeforeDawn = true,
     this.stopRunOnQualityProblems = false,
-    this.mountGuardAutoSyncResume = false,
+    this.mountGuardAutoSyncResume = true,
     this.meridianFlipMinutes = 5,
     this.autoFocusOnFilterChange = false,
     this.useFilterFocusOffsets = true,

@@ -182,21 +182,24 @@ class Phd2Controller {
     // or a connect back at it would tear down guiding it is restoring.
     if (_hostOwnsGuider) return;
 
-    // An explicit Disconnect already owns backend teardown. For an unexpected
-    // loss, clear stale Rust registration/storage exactly once; that cleanup
+    // An explicit Disconnect already owns backend teardown. On an unexpected
+    // loss the native layer clears PHD2's registration and connects to it
+    // again on its own, for as long as it takes. With auto-reconnect off the
+    // backend is told to disconnect, which ends that reconnect; the cleanup
     // may itself publish Disconnected, which the episode latch above absorbs.
-    if (!_userDisconnectRequested) {
+    if (_userDisconnectRequested) return;
+    if (!ref.read(guiderStateProvider).autoReconnectEnabled) {
       unawaited(_syncPhd2BackendAfterLinkLost());
+      return;
     }
     unawaited(_attemptAutoRelaunch());
   }
 
-  /// Crash recovery: the Rust socket layer retries the TCP link, but a
-  /// DEAD PHD2 process never re-opens its port — only a relaunch does.
-  /// Each attempt routes through [DeviceService.connect], which
-  /// re-runs `Phd2Launcher.ensureRunning` (spawn if local + port closed)
-  /// before connecting. Skipped entirely for deliberate disconnects and
-  /// when auto-reconnect is disabled for the guider.
+  /// Crash recovery. The native layer reconnects to PHD2 once its port is
+  /// open, but a PHD2 that is no longer running never opens it: each attempt
+  /// starts a local PHD2 that is not running ([DeviceService.ensurePhd2Running]).
+  /// It never connects or disconnects PHD2 itself, which would end the native
+  /// reconnect. Skipped for deliberate disconnects.
   Future<void> _attemptAutoRelaunch() async {
     if (_relaunchInFlight || _disposed) return;
     // Deliberate disconnect (durable, and the coordinator's short debounce):
@@ -220,36 +223,28 @@ class Phd2Controller {
         if (deviceService.isUserInitiatedDisconnect(kPhd2CanonicalId)) {
           return; // user disconnected while we were waiting — respect it
         }
-        _logger.warning(
-          'PHD2 link lost — attempting automatic relaunch/reconnect…',
-          source: 'Phd2Controller',
-        );
         try {
-          await deviceService.connect(DeviceType.guider, kPhd2CanonicalId);
+          await deviceService.ensurePhd2Running();
           _logger.info(
-            'PHD2 automatic relaunch/reconnect succeeded',
+            'PHD2 link lost; PHD2 is running, and Skotiq reconnects to it',
             source: 'Phd2Controller',
           );
           return;
         } catch (e) {
           _logger.warning(
-            'PHD2 auto-relaunch attempt failed: $e',
+            'PHD2 link lost and PHD2 could not be started: $e',
             source: 'Phd2Controller',
           );
         }
       }
-      _logger.error(
-        'PHD2 auto-relaunch gave up after ${_relaunchDelays.length} attempts',
-        source: 'Phd2Controller',
-      );
       if (_disposed) return;
       try {
         ref
             .read(uiNotificationProvider.notifier)
             .showError(
-              'PHD2 connection lost and automatic relaunch failed after '
-              '${_relaunchDelays.length} attempts. Reconnect the guider '
-              'manually.',
+              'PHD2 closed its connection and could not be started again. '
+              'Skotiq keeps trying to reach it; start PHD2 to resume '
+              'guiding.',
               title: 'PHD2',
             );
       } on Object {
@@ -332,7 +327,12 @@ class Phd2Controller {
         switch (event.eventType) {
           case 'Connected':
             _linkLossHandled = false;
-            ref.read(guiderStateProvider.notifier).setConnected();
+            // The native layer reconnected PHD2 after its connection dropped,
+            // which emptied the guider slot.
+            if (ref.read(guiderStateProvider).deviceId == null) {
+              guiderNotifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
+            }
+            guiderNotifier.setConnected();
             unawaited(_refreshPixelScale());
             break;
           case 'Disconnected':

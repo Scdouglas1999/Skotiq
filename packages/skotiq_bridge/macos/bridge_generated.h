@@ -889,7 +889,7 @@ typedef struct wire_cst_frame_capture_metadata {
 } wire_cst_frame_capture_metadata;
 
 typedef struct wire_cst_GuidingEvent_Settled {
-  double rms;
+  double *rms;
 } wire_cst_GuidingEvent_Settled;
 
 typedef struct wire_cst_GuidingEvent_SettleTimedOut {

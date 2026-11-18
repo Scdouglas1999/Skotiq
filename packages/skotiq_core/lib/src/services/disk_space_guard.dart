@@ -148,8 +148,9 @@ class DiskSpaceGuardService {
   /// The tree is walked from its roots: a disabled node drops its whole
   /// subtree, a counted loop multiplies its children by its repeat count, and
   /// a Smart Exposure contributes each filter plan's frames at that plan's
-  /// binning. Loops and Smart Exposures that run until a condition (dark,
-  /// altitude, a target window) count one pass, so the figure is a floor.
+  /// binning. A Smart Exposure looping until its target window closes counts
+  /// its planned frames. Loops that run until a condition (dark, altitude)
+  /// count one pass, so the figure is a floor.
   static int? projectSequenceBytes(
     Sequence sequence,
     CameraCapabilities? capabilities,
@@ -211,9 +212,21 @@ class DiskSpaceGuardService {
     CameraCapabilities capabilities,
   ) {
     if (node.plans.isEmpty) return 0;
+    if (node.loopUntilStopped && node.integrationBudgetSecs <= 0) {
+      // The target window ends it. The planner sizes each plan's count to
+      // fill that window, so the planned counts are the night's frames; a
+      // node with no planned counts counts one pass.
+      final planned = node.plans.fold<int>(0, (sum, p) => sum + p.count);
+      var total = 0;
+      for (final plan in node.plans) {
+        final perFrame = _frameBytesAt(plan.binning, capabilities);
+        if (perFrame == null) return null;
+        total += perFrame * (planned > 0 ? plan.count : 1);
+      }
+      return total;
+    }
     if (node.loopUntilStopped) {
-      // One sub per filter per pass until the budget is met; without a budget
-      // the window decides, so count one pass.
+      // One sub per filter per pass until the budget is met.
       final passSecs = node.plans.fold<double>(
         0,
         (sum, p) => sum + p.durationSecs,

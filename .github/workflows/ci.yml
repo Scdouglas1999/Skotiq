@@ -197,23 +197,20 @@ jobs:
 
       - name: Name the failed Dart tests
         if: failure()
+        # The console reporter hides a failed setUpAll, tearDownAll or file
+        # load that has no error; this names every failed test in the JSON
+        # records, hidden or not, and any test that never finished.
         run: |
-          python3 - <<'PY'
-          import glob, json
-          for path in glob.glob('**/test-results.json', recursive=True):
-              tests = {}
-              for line in open(path):
-                  try:
-                      event = json.loads(line)
-                  except ValueError:
-                      continue
-                  kind = event.get('type')
-                  if kind == 'testStart':
-                      tests[event['test']['id']] = event['test']['name']
-                  elif kind == 'error':
-                      name = tests.get(event.get('testID'), '?')
-                      print(f"{path}: {name}\n  {event.get('error', '')[:2000]}\n")
-          PY
+          python3 scripts/test_name_failed_dart_tests.py
+          python3 scripts/name_failed_dart_tests.py || true
+
+      - name: Keep the Dart test records
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dart-test-results
+          path: '**/test-results.json'
+          retention-days: 14
 
       # The next two run even when a test above failed, so one red package
       # does not hide the pure-Dart packages or the migration from an old

@@ -11,7 +11,7 @@ import 'package:skotiq_core/providers.dart';
 import 'plan_test_support.dart';
 
 void main() {
-  final evening = DateTime(2026, 10, 19, 18, 36);
+  final evening = bostonTime(2026, 10, 19, 18, 36);
 
   test('no plan loaded: not set up, and Start says why', () {
     final container = planContainer(now: evening);
@@ -193,7 +193,7 @@ void main() {
     expect(noSite.read(nightHeaderProvider).startNow?.enabled, isTrue);
 
     final dark = planContainer(
-      now: DateTime(2026, 10, 19, 21),
+      now: bostonTime(2026, 10, 19, 21),
       sequence: TwoTargetPlan().sequence,
     );
     addTearDown(dark.dispose);
@@ -324,7 +324,7 @@ void main() {
   });
 
   test('an armed start reads as armed and carries its time', () {
-    final armedAt = DateTime(2026, 10, 19, 19, 48);
+    final armedAt = bostonTime(2026, 10, 19, 19, 48);
     final container = planContainer(
       now: evening,
       sequence: TwoTargetPlan().sequence,

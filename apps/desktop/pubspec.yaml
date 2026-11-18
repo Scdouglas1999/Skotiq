@@ -62,6 +62,7 @@ dependencies:
 
   # Window management (desktop)
   window_manager: ^0.3.8
+  screen_retriever: ^0.1.9
 
   # File selection
   file_selector: ^1.0.3

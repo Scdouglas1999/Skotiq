@@ -30,7 +30,7 @@ class _StoppedClock implements Clock {
 }
 
 void main() {
-  final runStart = DateTime(2026, 10, 19, 21, 0);
+  final runStart = bostonTime(2026, 10, 19, 21, 0);
 
   // 21:00 a (60 min), wait until 23:00, b (60 min), c (30 min).
   Sequence waitingPlan() {
@@ -41,7 +41,7 @@ void main() {
       id: 'wait',
       parentId: rootId,
       orderIndex: 1,
-      waitUntil: DateTime(2026, 10, 19, 23, 0),
+      waitUntil: bostonTime(2026, 10, 19, 23, 0),
     );
     final b =
         DelayNode(id: 'b', parentId: rootId, orderIndex: 2, seconds: 3600);
@@ -62,7 +62,7 @@ void main() {
   }
 
   test('during a run Tonight and the Sequencer give the same start times', () {
-    final now = DateTime(2026, 10, 19, 23, 10);
+    final now = bostonTime(2026, 10, 19, 23, 10);
     final container = planContainer(
       now: now,
       clock: _StoppedClock(now),
@@ -87,7 +87,7 @@ void main() {
     }
     expect(
       tonight.of('c')!.estimatedStart.toLocal(),
-      DateTime(2026, 10, 20, 0, 0),
+      bostonTime(2026, 10, 20, 0, 0),
     );
   });
 }

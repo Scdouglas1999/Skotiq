@@ -11,8 +11,7 @@
 /// test fails if one is missing.
 library;
 
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/wire.dart' show kDefaultHeadlessPort;
 
 import '../models/settings/app_settings.dart'
     show SafetyFailMode, kDefaultAccentColorHex;
@@ -167,12 +166,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
     runConfig: 'stop_on_quality_problems',
   ),
 
-  /// A run held by a mount fault solves, syncs and resumes on its own. Off
-  /// by default: the operator recovers the mount.
+  /// A run held by a mount fault solves, syncs and resumes on its own. On
+  /// by default: the app recovers without anyone watching (owner decision
+  /// 2026-11-17).
   BoolSetting(
     'mountGuardAutoSyncResume',
     'mount_guard_auto_sync_resume',
-    false,
+    true,
     seeded: true,
   ),
 
