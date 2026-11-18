@@ -162,7 +162,11 @@ void main() {
           'hfr_baseline_percent': _gradingOn.imageGradingHfrBaselinePercent,
           'eccentricity_threshold':
               _gradingOn.imageGradingEccentricityThreshold,
+          'eccentricity_baseline_percent':
+              _gradingOn.imageGradingEccentricityBaselinePercent,
           'star_count_min': 100000,
+          'star_count_drop_percent':
+              _gradingOn.imageGradingStarCountDropPercent,
           'max_consecutive_rejects': 9999,
         });
         expect(config['reject_folder_path'], '/captures/rejects');

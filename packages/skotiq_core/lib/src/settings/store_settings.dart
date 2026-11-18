@@ -730,6 +730,15 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  /// This database has been through the rule that turned off the absolute
+  /// grading limits a profile held only as the old defaults (2026-11-17).
+  static const gradingRelativeDefaultsMigrated = BoolSetting(
+    'gradingRelativeDefaultsMigrated',
+    'image_grading.relative_defaults_migrated',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
   /// `pending` while the one-time "Your Sky is now off" notice is owed,
   /// `shown` once it is answered.
   static const scienceSkyAtlasOffNotice = OptionalTextSetting(
@@ -1044,6 +1053,7 @@ abstract final class StoreSettings {
     scienceSkyAtlas,
     scienceSkyAtlasLimitGb,
     scienceSkyAtlasOptInMigrated,
+    gradingRelativeDefaultsMigrated,
     scienceSkyAtlasOffNotice,
     scienceManualPurgeOnly,
     scienceFitsHeaderWriteback,

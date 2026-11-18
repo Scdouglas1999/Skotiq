@@ -73,7 +73,11 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       (json['imageGradingHfrBaselinePercent'] as num?)?.toDouble(),
   imageGradingEccentricityThreshold:
       (json['imageGradingEccentricityThreshold'] as num?)?.toDouble(),
+  imageGradingEccentricityBaselinePercent:
+      (json['imageGradingEccentricityBaselinePercent'] as num?)?.toDouble(),
   imageGradingStarCountMin: (json['imageGradingStarCountMin'] as num?)?.toInt(),
+  imageGradingStarCountDropPercent:
+      (json['imageGradingStarCountDropPercent'] as num?)?.toDouble(),
   imageGradingMaxConsecutiveRejects:
       (json['imageGradingMaxConsecutiveRejects'] as num?)?.toInt() ?? 3,
   imageGradingRejectFolderPath: json['imageGradingRejectFolderPath'] as String?,
@@ -291,7 +295,10 @@ Map<String, dynamic> _$AppSettingsToJson(
   'imageGradingHfrBaselinePercent': instance.imageGradingHfrBaselinePercent,
   'imageGradingEccentricityThreshold':
       instance.imageGradingEccentricityThreshold,
+  'imageGradingEccentricityBaselinePercent':
+      instance.imageGradingEccentricityBaselinePercent,
   'imageGradingStarCountMin': instance.imageGradingStarCountMin,
+  'imageGradingStarCountDropPercent': instance.imageGradingStarCountDropPercent,
   'imageGradingMaxConsecutiveRejects':
       instance.imageGradingMaxConsecutiveRejects,
   'imageGradingRejectFolderPath': instance.imageGradingRejectFolderPath,

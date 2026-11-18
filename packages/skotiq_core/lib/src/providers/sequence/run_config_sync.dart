@@ -159,7 +159,11 @@ class RunConfigSync {
               'hfr_baseline_percent': settings.imageGradingHfrBaselinePercent,
               'eccentricity_threshold':
                   settings.imageGradingEccentricityThreshold,
+              'eccentricity_baseline_percent':
+                  settings.imageGradingEccentricityBaselinePercent,
               'star_count_min': settings.imageGradingStarCountMin,
+              'star_count_drop_percent':
+                  settings.imageGradingStarCountDropPercent,
               'max_consecutive_rejects':
                   settings.imageGradingMaxConsecutiveRejects,
             }

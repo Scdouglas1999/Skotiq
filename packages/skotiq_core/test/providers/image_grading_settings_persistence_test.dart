@@ -45,13 +45,27 @@ void main() {
     );
 
     final settings = container.read(appSettingsProvider).value!;
-    expect(settings.imageGradingHfrThresholdPx, 3.5);
-    // The default (0.8 since the owner's 2026-10-06 decision), unchanged by
-    // the rejected 1.1.
-    expect(settings.imageGradingEccentricityThreshold, 0.8);
-    expect(settings.imageGradingStarCountMin, 10);
+    expect(settings.imageGradingHfrThresholdPx, isNull);
+    expect(settings.imageGradingEccentricityThreshold, isNull);
+    expect(settings.imageGradingStarCountMin, isNull);
     expect(settings.imageGradingMaxConsecutiveRejects, 3);
   });
+
+  // Owner, 2026-11-16: "Skotiq should never run off absolutes by default,
+  // everything should be relative."
+  test(
+    'grading ships with the absolute limits off and the relative ones on',
+    () async {
+      final settings = container.read(appSettingsProvider).value!;
+      expect(settings.imageGradingHfrThresholdPx, isNull);
+      expect(settings.imageGradingEccentricityThreshold, isNull);
+      expect(settings.imageGradingStarCountMin, isNull);
+      expect(settings.imageGradingHfrBaselinePercent, 50.0);
+      expect(settings.imageGradingEccentricityBaselinePercent, 40.0);
+      expect(settings.imageGradingStarCountDropPercent, 50.0);
+    },
+  );
+
 
   test('valid thresholds and cleared optional checks survive reload', () async {
     final notifier = container.read(appSettingsProvider.notifier);

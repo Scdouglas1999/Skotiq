@@ -1157,7 +1157,10 @@ void main() {
     if (update) {
       recorded['install rows'] = rows;
     } else {
-      expect(rows, fixture['install rows']);
+      expect(rows, {
+        ...(fixture['install rows'] as Map),
+        ..._installRowsAddedSinceBase,
+      });
     }
   });
 
@@ -1262,6 +1265,12 @@ const Map<String, Object?> _changedOnPurpose = {
       },
     },
   },
+};
+
+/// Rows a new database holds that the base build's did not: the marker of the
+/// one-time move of grading to relative checks (2026-11-17).
+const Map<String, String> _installRowsAddedSinceBase = {
+  'image_grading.relative_defaults_migrated': 'true',
 };
 
 /// A value the base build read that no longer exists.

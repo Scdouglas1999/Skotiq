@@ -135,6 +135,22 @@ void main() {
     },
   );
 
+  // Owner, 2026-11-16: "Skotiq should never run off absolutes by default,
+  // everything should be relative." The IC 405 night rejected every Ha frame
+  // at the shipped 3.5 px limit on a soft-seeing night.
+  test('grading on its defaults sends only the relative checks', () async {
+    build(settings: const AppSettingsState(enableImageGrading: true));
+    final sync = container.read(runConfigSyncProvider);
+    await settle();
+    final check = sync.build()['default_quality_check'] as Map<String, dynamic>;
+    expect(check['hfr_threshold'], isNull);
+    expect(check['eccentricity_threshold'], isNull);
+    expect(check['star_count_min'], isNull);
+    expect(check['hfr_baseline_percent'], 50.0);
+    expect(check['eccentricity_baseline_percent'], 40.0);
+    expect(check['star_count_drop_percent'], 50.0);
+  });
+
   test(
     'the dark library tolerance is the one darks are held to at the set-point',
     () async {

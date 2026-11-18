@@ -312,9 +312,8 @@ impl RunConfig {
     }
 
     /// The value as it is stored: an unset site as `None`, the safety poll
-    /// cadence and the retry counts inside their limits, blank names and
-    /// folders as unset, and a star-count floor arming the star-count drop
-    /// check (both grade the same count, and the drop scales to the field).
+    /// cadence and the retry counts inside their limits, and blank names and
+    /// folders as unset.
     fn sanitized(mut self) -> Self {
         (self.latitude, self.longitude) =
             crate::node::context::normalized_observer_location(self.latitude, self.longitude);
@@ -335,12 +334,6 @@ impl RunConfig {
             &mut profile.telescope_name,
         ] {
             *name = non_blank(name.take());
-        }
-        if let Some(check) = &mut self.default_quality_check {
-            if check.star_count_min.is_some() && check.star_count_drop_percent.is_none() {
-                check.star_count_drop_percent =
-                    Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT);
-            }
         }
         self
     }
@@ -1199,7 +1192,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn blank_names_are_unset_and_a_star_floor_arms_the_drop_check() {
+    async fn blank_names_are_unset_and_each_grading_check_is_its_own_setting() {
         let rig = rig();
         rig.update(|config| {
             config.reject_folder_path = Some("   ".to_string());
@@ -1209,6 +1202,7 @@ mod tests {
                 hfr_threshold: None,
                 hfr_baseline_percent: None,
                 eccentricity_threshold: None,
+                eccentricity_baseline_percent: None,
                 star_count_min: Some(20),
                 star_count_drop_percent: None,
                 max_consecutive_rejects: 3,
@@ -1222,11 +1216,13 @@ mod tests {
             Some("Ada")
         );
         assert_eq!(config.observer_profile.telescope_name, None);
+        // The relative star-count check is a setting of its own: a floor
+        // the operator set does not turn it on behind their back.
         assert_eq!(
             config
                 .default_quality_check
                 .and_then(|check| check.star_count_drop_percent),
-            Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT)
+            None
         );
     }
 

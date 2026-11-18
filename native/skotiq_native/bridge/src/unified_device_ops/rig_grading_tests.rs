@@ -27,6 +27,7 @@ fn rig_check() -> ImageQualityCheck {
         hfr_threshold: Some(3.5),
         hfr_baseline_percent: Some(50.0),
         eccentricity_threshold: Some(0.7),
+        eccentricity_baseline_percent: None,
         star_count_min: Some(10),
         star_count_drop_percent: None,
         max_consecutive_rejects: 3,
@@ -140,6 +141,7 @@ async fn the_shipped_eccentricity_limit_passes_focus_and_rejects_trails() {
         hfr_threshold: None,
         hfr_baseline_percent: None,
         eccentricity_threshold: Some(skotiq_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD),
+        eccentricity_baseline_percent: None,
         star_count_min: None,
         star_count_drop_percent: None,
         max_consecutive_rejects: 3,
@@ -214,15 +216,18 @@ fn dust_data() -> Option<PathBuf> {
     root.is_dir().then_some(root)
 }
 
-/// What a profile left at the app's defaults grades with: the absolute HFR,
-/// HFR baseline, eccentricity and star-count floor the settings ship, with
-/// the star-count drop the floor arms.
+/// What a profile left at the app's defaults grades with: no absolute limit,
+/// and HFR, eccentricity and star count each against the filter's own
+/// recent accepted frames.
 fn shipped_check() -> ImageQualityCheck {
     ImageQualityCheck {
-        hfr_threshold: Some(3.5),
+        hfr_threshold: None,
         hfr_baseline_percent: Some(50.0),
-        eccentricity_threshold: Some(skotiq_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD),
-        star_count_min: Some(10),
+        eccentricity_threshold: None,
+        eccentricity_baseline_percent: Some(
+            skotiq_sequencer::quality::DEFAULT_ECCENTRICITY_BASELINE_PERCENT,
+        ),
+        star_count_min: None,
         star_count_drop_percent: Some(skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT),
         max_consecutive_rejects: 3,
     }
@@ -252,8 +257,11 @@ impl Run {
         let grade = skotiq_sequencer::quality::grade_frame_with_baselines(
             &shipped_check(),
             &metrics,
-            baseline.hfr().or(self.hfr_baseline),
-            baseline.star_count_at(None),
+            &skotiq_sequencer::quality::FrameBaselines {
+                hfr: baseline.hfr().or(self.hfr_baseline),
+                star_count: baseline.star_count_at(None),
+                eccentricity: baseline.eccentricity(),
+            },
         );
         if grade.is_pass() {
             skotiq_sequencer::quality::update_hfr_baseline(
@@ -261,7 +269,7 @@ impl Run {
                 &mut self.hfr_samples,
                 metrics.hfr,
             );
-            baseline.record(metrics.star_count, metrics.hfr, None);
+            baseline.record_frame(metrics.star_count, metrics.hfr, metrics.eccentricity, None);
         }
         println!("{}: {metrics:?} -> {grade:?}", path.display());
         (metrics, grade)

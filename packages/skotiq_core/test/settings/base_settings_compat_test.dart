@@ -53,6 +53,8 @@ const Set<String> _addedSinceBase = {
   'xisf_compression',
   'xisf_checksums',
   'recovery_park_and_close_when_gives_up',
+  'image_grading_eccentricity_baseline_percent',
+  'image_grading_star_count_drop_percent',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
@@ -61,26 +63,53 @@ const Set<String> _wireAddedSinceBase = {
   'cameraFileSaving',
   'xisfCompression',
   'xisfChecksums',
+  'imageGradingEccentricityBaselinePercent',
+  'imageGradingStarCountDropPercent',
 };
 
 /// Defaults changed on purpose since the base build, as (stored key, wire
-/// field, new default). A stored row still reads as written; only what a
-/// missing or empty value falls back to differs. Smart Night now chooses each
-/// target's filters unless the user picks one set ('auto').
-const List<(String, String, String)> _defaultsChangedSinceBase = [
-  ('smart_night_default_strategy', 'smartNightDefaultStrategy', 'auto'),
+/// field, new stored default, new wire default). A stored row still reads as
+/// written; only what a missing or empty value falls back to differs. Smart
+/// Night now chooses each target's filters unless the user picks one set
+/// ('auto'). Grading ships its absolute limits off (owner, 2026-11-16: never
+/// grade off absolutes by default).
+const List<(String, String, String, Object?)> _defaultsChangedSinceBase = [
+  ('smart_night_default_strategy', 'smartNightDefaultStrategy', 'auto', 'auto'),
+  (
+    'image_grading_hfr_threshold_px',
+    'imageGradingHfrThresholdPx',
+    'null',
+    null,
+  ),
+  (
+    'image_grading_eccentricity_threshold',
+    'imageGradingEccentricityThreshold',
+    'null',
+    null,
+  ),
+  ('image_grading_star_count_min', 'imageGradingStarCountMin', 'null', null),
 ];
 
 /// [fixture] with [_defaultsChangedSinceBase] applied to the base build's
 /// defaults.
 Map<String, dynamic> _withChangedDefaults(Map<String, dynamic> fixture) {
-  for (final (key, wire, value) in _defaultsChangedSinceBase) {
-    (fixture['defaults'] as Map)[key] = value;
-    (fixture['fromWireEmpty'] as Map)[key] = value;
-    (fixture['wireDefault'] as Map)[wire] = value;
+  for (final (key, wire, stored, wireValue) in _defaultsChangedSinceBase) {
+    (fixture['defaults'] as Map)[key] = stored;
+    (fixture['fromWireEmpty'] as Map)[key] = stored;
+    (fixture['wireDefault'] as Map)[wire] = wireValue;
   }
   return fixture;
 }
+
+/// [changes] without a change to a value that is now the default: the base
+/// build read it as a change from its own default.
+Map<String, dynamic> _withoutNewDefaults(Map<String, dynamic> changes) => {
+  for (final entry in changes.entries)
+    if (!_defaultsChangedSinceBase.any(
+      (changed) => changed.$1 == entry.key && changed.$3 == entry.value,
+    ))
+      entry.key: entry.value,
+};
 
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
@@ -220,7 +249,11 @@ void main() {
             AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw})),
           ),
         );
-        expect(got, expected, reason: '$key = ${jsonEncode(raw)}');
+        expect(
+          got,
+          _withoutNewDefaults(expected as Map<String, dynamic>),
+          reason: '$key = ${jsonEncode(raw)}',
+        );
       });
     });
   });

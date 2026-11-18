@@ -9,7 +9,8 @@
 // Owns:
 //   * enableImageGrading (master)
 //   * imageGradingHfrThresholdPx, imageGradingHfrBaselinePercent
-//   * imageGradingEccentricityThreshold, imageGradingStarCountMin
+//   * imageGradingEccentricityThreshold, imageGradingEccentricityBaselinePercent
+//   * imageGradingStarCountMin, imageGradingStarCountDropPercent
 //   * imageGradingMaxConsecutiveRejects, imageGradingRejectFolderPath
 //
 // Does NOT own:
@@ -97,10 +98,36 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
     await _set(AppSettingDefs.imageGradingEccentricityThreshold, validated);
   }
 
-  /// Reject if star count drops below this value. A set floor also arms the
-  /// native grader's drop check against the median count of the first
-  /// accepted frames of the same target and filter. Pass `null` to disable
-  /// both.
+  /// Reject if eccentricity exceeds its filter's baseline by more than this
+  /// percent. Pass `null` to disable.
+  Future<void> setImageGradingEccentricityBaselinePercent(double? value) async {
+    final validated = _validateOptionalImageGradingDouble(
+      'eccentricity baseline percent',
+      value,
+      min: 1,
+      max: 500,
+    );
+    await _set(
+      AppSettingDefs.imageGradingEccentricityBaselinePercent,
+      validated,
+    );
+  }
+
+  /// Reject if the star count falls more than this percent below its
+  /// filter's baseline (50 => fewer than half the stars). Pass `null` to
+  /// disable.
+  Future<void> setImageGradingStarCountDropPercent(double? value) async {
+    final validated = _validateOptionalImageGradingDouble(
+      'star count drop percent',
+      value,
+      min: 1,
+      max: 99,
+    );
+    await _set(AppSettingDefs.imageGradingStarCountDropPercent, validated);
+  }
+
+  /// Reject if star count drops below this absolute floor. Pass `null` to
+  /// disable.
   Future<void> setImageGradingStarCountMin(int? value) async {
     final validated = _validateOptionalImageGradingInt(
       'minimum star count',

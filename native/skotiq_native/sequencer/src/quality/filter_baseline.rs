@@ -42,6 +42,7 @@ pub fn airmass(altitude_deg: f64) -> Option<f64> {
 struct Sample {
     star_count: Option<u32>,
     hfr: Option<f64>,
+    eccentricity: Option<f64>,
     airmass: Option<f64>,
 }
 
@@ -74,12 +75,24 @@ impl FilterBaseline {
     /// Add an accepted frame. A zero star count or a non-positive HFR is not
     /// a measurement of the sky and is left out.
     pub fn record(&mut self, star_count: Option<u32>, hfr: Option<f64>, altitude_deg: Option<f64>) {
+        self.record_frame(star_count, hfr, None, altitude_deg);
+    }
+
+    /// [`Self::record`] with the frame's eccentricity as well.
+    pub fn record_frame(
+        &mut self,
+        star_count: Option<u32>,
+        hfr: Option<f64>,
+        eccentricity: Option<f64>,
+        altitude_deg: Option<f64>,
+    ) {
         let sample = Sample {
             star_count: star_count.filter(|&c| c > 0),
             hfr: hfr.filter(|h| h.is_finite() && *h > 0.0),
+            eccentricity: eccentricity.filter(|e| e.is_finite() && *e >= 0.0),
             airmass: altitude_deg.and_then(airmass),
         };
-        if sample.star_count.is_none() && sample.hfr.is_none() {
+        if sample.star_count.is_none() && sample.hfr.is_none() && sample.eccentricity.is_none() {
             return;
         }
         self.samples.push_back(sample);
@@ -113,6 +126,11 @@ impl FilterBaseline {
     /// The median HFR of the recent accepted frames.
     pub fn hfr(&self) -> Option<f64> {
         median_of(self.samples.iter().filter_map(|s| s.hfr).collect())
+    }
+
+    /// The median eccentricity of the recent accepted frames.
+    pub fn eccentricity(&self) -> Option<f64> {
+        median_of(self.samples.iter().filter_map(|s| s.eccentricity).collect())
     }
 
     fn shapes(&self, side: crate::PierSide) -> Option<&VecDeque<ShapeSample>> {
@@ -368,17 +386,20 @@ pub fn filter_baseline_key(target: Option<&str>, filter: Option<&str>) -> String
     format!("{}\u{1f}{}", target.unwrap_or(""), filter.unwrap_or(""))
 }
 
-/// The two baselines a frame of `key` at `altitude_deg` is graded against:
-/// (HFR, star count).
+/// The baselines a frame of `key` at `altitude_deg` is graded against.
 pub async fn baselines_for(
     baselines: &FilterBaselines,
     key: &str,
     altitude_deg: Option<f64>,
-) -> (Option<f64>, Option<f64>) {
+) -> super::FrameBaselines {
     let guard = baselines.read().await;
     match guard.get(key) {
-        Some(baseline) => (baseline.hfr(), baseline.star_count_at(altitude_deg)),
-        None => (None, None),
+        Some(baseline) => super::FrameBaselines {
+            hfr: baseline.hfr(),
+            star_count: baseline.star_count_at(altitude_deg),
+            eccentricity: baseline.eccentricity(),
+        },
+        None => super::FrameBaselines::default(),
     }
 }
 
@@ -386,8 +407,7 @@ pub async fn baselines_for(
 pub async fn record_accepted(
     baselines: &FilterBaselines,
     key: String,
-    star_count: Option<u32>,
-    hfr: Option<f64>,
+    metrics: &super::FrameMetrics,
     altitude_deg: Option<f64>,
 ) {
     baselines
@@ -395,7 +415,12 @@ pub async fn record_accepted(
         .await
         .entry(key)
         .or_default()
-        .record(star_count, hfr, altitude_deg);
+        .record_frame(
+            metrics.star_count,
+            metrics.hfr,
+            metrics.eccentricity,
+            altitude_deg,
+        );
 }
 
 #[cfg(test)]

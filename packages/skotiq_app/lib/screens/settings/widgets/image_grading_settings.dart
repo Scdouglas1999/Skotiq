@@ -2,9 +2,9 @@
 //
 // Surfaces the master toggle and per-check thresholds that the Rust
 // executor's `RuntimeConfig.default_quality_check` reads at sequence
-// start. Each numeric threshold is independently nullable so an operator
-// can enable just the checks they want (e.g. "absolute HFR + min star
-// count" without the eccentricity gate). The master toggle is the
+// start. The checks against the night (each frame against the recent
+// accepted frames of its target and filter) ship on; the absolute limits
+// ship off (owner, 2026-11-16). Each is independently nullable. The master toggle is the
 // safety valve: when false, grading is disabled regardless of the
 // individual thresholds.
 //
@@ -127,13 +127,88 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               ],
             ),
             SettingsSection(
-              title: 'Focus thresholds',
+              title: 'Against the night',
+              children: [
+                SettingRow(
+                  icon: LucideIcons.trendingUp,
+                  title: 'HFR above baseline',
+                  subtitle:
+                      'Reject if HFR is more than this percent above the baseline: the median of the recent accepted frames of the same target and filter. Leave blank to disable.',
+                  trailing: _gradingField<double?>(
+                    inputKey:
+                        const ValueKey('image-grading-hfr-baseline-percent'),
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: 1.0,
+                        max: 500.0,
+                        decimals: 0,
+                        unit: '%',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingHfrBaselinePercent,
+                    enabled: enabled,
+                    onChanged: notifier.setImageGradingHfrBaselinePercent,
+                  ),
+                ),
+                SettingRow(
+                  icon: LucideIcons.move,
+                  title: 'Eccentricity above baseline',
+                  subtitle:
+                      'Reject if star eccentricity is more than this percent above the baseline of the same target and filter. Trailed or elongated stars trip it; also turns on the trail check. Leave blank to disable.',
+                  trailing: _gradingField<double?>(
+                    inputKey: const ValueKey(
+                      'image-grading-eccentricity-baseline-percent',
+                    ),
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: 1.0,
+                        max: 500.0,
+                        decimals: 0,
+                        unit: '%',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingEccentricityBaselinePercent,
+                    enabled: enabled,
+                    onChanged:
+                        notifier.setImageGradingEccentricityBaselinePercent,
+                  ),
+                ),
+                SettingRow(
+                  icon: LucideIcons.star,
+                  title: 'Star count below baseline',
+                  subtitle:
+                      'Reject if the star count falls more than this percent below the baseline of the same target and filter, scaled to the frame\'s altitude. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable.',
+                  trailing: _gradingField<double?>(
+                    inputKey: const ValueKey(
+                      'image-grading-star-count-drop-percent',
+                    ),
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: 1.0,
+                        max: 99.0,
+                        decimals: 0,
+                        unit: '%',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingStarCountDropPercent,
+                    enabled: enabled,
+                    onChanged: notifier.setImageGradingStarCountDropPercent,
+                  ),
+                  isLast: true,
+                ),
+              ],
+            ),
+            SettingsSection(
+              title: 'Absolute limits',
               children: [
                 SettingRow(
                   icon: LucideIcons.crosshair,
-                  title: 'HFR absolute (pixels)',
+                  title: 'HFR max (pixels)',
                   subtitle: _withNote(
-                    'Reject if the median HFR exceeds this many pixels. The right value depends on your pixel scale and seeing: a sharp frame at 0.8 arcsec/px measures about 2.5 px. The baseline check below adapts to your own frames. Leave blank to disable.',
+                    'Off by default. Reject if the median HFR exceeds this many pixels, whatever the night\'s seeing. A sharp frame at 0.8 arcsec/px measures about 2.5 px. Leave blank to grade against the night only.',
                     _hfrInertNote(settings.imageGradingHfrThresholdPx),
                   ),
                   trailing: _gradingField<double?>(
@@ -156,38 +231,10 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.trendingUp,
-                  title: 'HFR baseline percent',
-                  subtitle:
-                      'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.',
-                  trailing: _gradingField<double?>(
-                    inputKey:
-                        const ValueKey('image-grading-hfr-baseline-percent'),
-                    codec: const OptionalCodec(
-                      NumberCodec(
-                        min: 1.0,
-                        max: 500.0,
-                        decimals: 0,
-                        unit: '%',
-                        fixedDecimals: true,
-                      ),
-                    ),
-                    value: settings.imageGradingHfrBaselinePercent,
-                    enabled: enabled,
-                    onChanged: notifier.setImageGradingHfrBaselinePercent,
-                  ),
-                  isLast: true,
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: 'Star shape thresholds',
-              children: [
-                SettingRow(
                   icon: LucideIcons.move,
                   title: 'Eccentricity max',
                   subtitle: _withNote(
-                    'Reject if median star eccentricity across the frame exceeds this value. The default 0.8 is a 1.7:1 smear: in-focus frames on a fast Newtonian can measure 0.7 or a little more, while a trailed frame measures 0.8 and up. The field stops at 0.94 because the detector reads anything past 0.95 as a satellite trail rather than a star, so nothing rounder ever gets measured. Leave blank to disable.',
+                    'Off by default. Reject if median star eccentricity exceeds this value. 0.8 is a 1.7:1 smear: in-focus frames on a fast Newtonian can measure 0.7 or a little more. The field stops at 0.94 because the detector reads anything past 0.95 as a satellite trail. Leave blank to grade against the night only.',
                     _eccentricityInertNote(
                       settings.imageGradingEccentricityThreshold,
                     ),
@@ -213,7 +260,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   icon: LucideIcons.star,
                   title: 'Star count min',
                   subtitle:
-                      'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
+                      'Off by default. Reject if fewer stars than this are detected. Leave blank to grade against the night only.',
                   trailing: _gradingField<int?>(
                     inputKey:
                         const ValueKey('image-grading-star-count-minimum'),

@@ -332,27 +332,31 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Walk back through the equipment onboarding wizard to scan',
   ],
   'image-grading': [
+    'Absolute limits',
+    'Against the night',
     'Default: 30 arcseconds. Measured from the first successfully solved',
     'Detect obstructions',
+    'Eccentricity above baseline',
     'Eccentricity max',
     'Enable image grading',
-    'Focus thresholds',
-    'HFR absolute (pixels)',
-    'HFR baseline percent',
+    'HFR above baseline',
+    'HFR max (pixels)',
     'Image grading',
     'Master toggle',
     'Maximum drift',
     'Notify after consecutive rejects',
+    'Off by default. Reject if fewer stars than this are detected. Leave blank to grade against the night only.',
     'Plate solve every saved light frame and recenter between exposures',
     'Recenter after drift trigger',
     'Reject folder',
     'Reject folder path',
-    'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
-    'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.',
+    'Reject if HFR is more than this percent above the baseline: the median of the recent accepted frames of the same target and filter. Leave blank to disable.',
+    'Reject if star eccentricity is more than this percent above the baseline of the same target and filter. Trailed or elongated stars trip it; also turns on the trail check. Leave blank to disable.',
+    'Reject if the star count falls more than this percent below the baseline of the same target and filter, scaled to the frame\'s altitude. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable.',
     'Reject streaks',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
+    'Star count below baseline',
     'Star count min',
-    'Star shape thresholds',
     'Watch for trees or a roof entering the field: stars fade while',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
@@ -950,12 +954,16 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'image-grading': {
     'Default: 30 arcseconds. Measured from the first successfully solved':
         'Maximum drift',
+    'Off by default. Reject if fewer stars than this are detected. Leave blank to grade against the night only.':
+        'Star count min',
     'Plate solve every saved light frame and recenter between exposures':
         'Recenter after drift trigger',
-    'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.':
-        'Star count min',
-    'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.':
-        'HFR baseline percent',
+    'Reject if HFR is more than this percent above the baseline: the median of the recent accepted frames of the same target and filter. Leave blank to disable.':
+        'HFR above baseline',
+    'Reject if star eccentricity is more than this percent above the baseline of the same target and filter. Trailed or elongated stars trip it; also turns on the trail check. Leave blank to disable.':
+        'Eccentricity above baseline',
+    'Reject if the star count falls more than this percent below the baseline of the same target and filter, scaled to the frame\'s altitude. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable.':
+        'Star count below baseline',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.':
         'Notify after consecutive rejects',
     'Watch for trees or a roof entering the field: stars fade while':
