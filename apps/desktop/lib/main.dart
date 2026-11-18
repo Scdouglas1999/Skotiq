@@ -27,6 +27,7 @@ import 'host/host_steps.dart';
 import 'launch_arguments.dart';
 import 'main_headless.dart' as headless;
 import 'startup_timeline.dart';
+import 'window_placement.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
@@ -228,13 +229,19 @@ void main(List<String> args) async {
   final initialSize = initialWindowSize(
     ui.PlatformDispatcher.instance.displays,
   );
+  // Where the operator left the window, when that is still on a screen.
+  final placementStore = await WindowPlacementStore.open();
+  final savedPlacement = await placementStore.read();
+  final placement = savedPlacement == null
+      ? null
+      : placementOnScreens(savedPlacement, await attachedScreens());
   final windowOptions = WindowOptions(
-    size: initialSize,
+    size: placement?.bounds.size ?? initialSize,
     minimumSize: Size(
       math.min(1200, initialSize.width),
       math.min(700, initialSize.height),
     ),
-    center: true,
+    center: placement == null,
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
     // Flutter frame is delayed. Match SkotiqColors.dark.background.
@@ -389,7 +396,18 @@ void main(List<String> args) async {
   // engine teardown after window_manager's WM_QUIT and AppKit's terminate
   // after the last window closes shut the VM down the same way, and neither
   // waits for the hand-back.
+  final placementRecorder = WindowPlacementRecorder.forWindow(
+    store: placementStore,
+    initial:
+        placement ??
+        WindowPlacement(bounds: Offset.zero & initialSize, maximized: false),
+    onError: (e) => logger.warning(
+      'Window placement not saved: $e',
+      source: 'desktop.main',
+    ),
+  );
   ShellExit.registerEnd(() async {
+    await placementRecorder.flush();
     await lastGasp.handOffDarkroomWork();
     exit(0);
   });
@@ -403,7 +421,9 @@ void main(List<String> args) async {
   // reason.
   final windowReady = windowManager.waitUntilReadyToShow(
     windowOptions,
-    () async {},
+    () async {
+      if (placement != null) await windowManager.setBounds(placement.bounds);
+    },
   );
 
   // A host runs the shared host start-up; a linked client owns no hardware
@@ -488,12 +508,16 @@ void main(List<String> args) async {
   // frame so the custom title bar (drag target) and scaffold are present.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     startupTimeline.mark('first frame built');
+    if (placement != null && placement.maximized) {
+      await windowManager.maximize();
+    }
     await windowManager.show();
     startupTimeline.mark('window shown');
     await windowManager.focus();
     if (shouldMinimize) {
       await windowManager.minimize();
     }
+    windowManager.addListener(placementRecorder);
   });
 }
 
