@@ -8,6 +8,61 @@ use super::*;
 /// Where the focuser is, or `None` with no focuser or a driver that will not
 /// answer. Read either side of a sweep so a failure notice can name the focus
 /// the run kept.
+/// Which filter an autofocus run focuses through.
+///
+/// A filter with no offset from the reference is not focused as if it were
+/// the reference. The run focuses through the reference instead, and says
+/// so. With no reference to move to, it refuses.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct AutofocusFilterChoice {
+    /// The filter to move to. `None` leaves the wheel where it is.
+    pub filter: Option<String>,
+    /// Told when the requested filter was not usable.
+    pub note: Option<String>,
+}
+
+pub(crate) fn choose_autofocus_filter(
+    requested: Option<&str>,
+    current: Option<&str>,
+    reference: Option<&str>,
+    offsets: &std::collections::HashMap<String, i32>,
+) -> Result<AutofocusFilterChoice, String> {
+    let clean = |name: Option<&str>| {
+        name.map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+    };
+    let reference = clean(reference);
+    let requested = clean(requested);
+    let target = requested.clone().or_else(|| clean(current));
+    let Some(target) = target else {
+        return Ok(AutofocusFilterChoice {
+            filter: None,
+            note: None,
+        });
+    };
+    let known = reference.as_deref() == Some(target.as_str())
+        || offsets.contains_key(target.as_str())
+        || (offsets.is_empty() && reference.is_none());
+    if known {
+        return Ok(AutofocusFilterChoice {
+            filter: requested,
+            note: None,
+        });
+    }
+    if let Some(reference) = reference {
+        return Ok(AutofocusFilterChoice {
+            note: Some(format!(
+                "Autofocus was going to use {target}, which has no focus offset from {reference}. Focusing on {reference} instead"
+            )),
+            filter: Some(reference),
+        });
+    }
+    Err(format!(
+        "Autofocus was going to use {target}, which has no focus offset from the reference filter. Add the offset, or name the reference filter"
+    ))
+}
+
 pub(crate) async fn read_autofocus_position(ctx: &InstructionContext) -> Option<i32> {
     ctx.run
         .device_ops
@@ -492,6 +547,20 @@ async fn run_autofocus_admitted(
         .map(str::trim)
         .filter(|name| !name.is_empty())
         .map(str::to_string);
+    let requested_filter = match choose_autofocus_filter(
+        requested_filter.as_deref(),
+        original_filter.as_ref().map(|(name, _)| name.as_str()),
+        ctx.run.rig.filter_focus_reference.as_deref(),
+        &ctx.run.rig.filter_focus_offsets,
+    ) {
+        Ok(choice) => {
+            if let Some(note) = choice.note {
+                tracing::info!("{note}");
+            }
+            choice.filter
+        }
+        Err(reason) => return InstructionResult::failure(reason),
+    };
 
     if let Err(message) = validate_autofocus_config(&effective_config) {
         return InstructionResult::failure(message);

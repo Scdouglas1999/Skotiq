@@ -11,6 +11,7 @@ import '../../settings/app_settings_table.dart';
 import '../backend_provider.dart';
 import '../dark_library_provider.dart' show darkLibraryMatchTolerancesProvider;
 import '../database_provider.dart' show allSettingsProvider;
+import '../filter_offset_provider.dart' show filterOffsetProvider;
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
@@ -145,6 +146,7 @@ class RunConfigSync {
       // one is set, otherwise the minimum altitude.
       'altitude_floor': _ref.read(altitudeFloorProvider).toWire(),
       'filter_focus_offsets': _filterFocusOffsets(settings),
+      'filter_focus_reference': _filterFocusReference(settings),
       // With weather safety off, the native poll would fail closed on a rig
       // with no safety monitor and park the mount within moments of launch.
       'safety_fail_mode': _safetyFailModeWire(
@@ -216,6 +218,14 @@ class RunConfigSync {
     return config;
   }
 
+  /// The filter the offsets are measured from, when offsets are on.
+  String? _filterFocusReference(AppSettingsState settings) {
+    if (!settings.useFilterFocusOffsets) return null;
+    final name = _ref.read(filterOffsetProvider).referenceFilter?.trim();
+    if (name == null || name.isEmpty) return null;
+    return name;
+  }
+
   /// The focus offset per filter: the active profile's, overridden by any set
   /// in the per-filter autofocus settings. None when offsets are turned off.
   Map<String, int> _filterFocusOffsets(AppSettingsState settings) {
@@ -276,6 +286,7 @@ class RunConfigSync {
       weatherSettingsProvider,
       weatherDecisionPolicyProvider,
       activeEquipmentProfileProvider,
+      filterOffsetProvider,
       savedFocuserBacklashProvider,
       replayDebugEnabledProvider,
       globalMeridianFlipSettingsProvider,

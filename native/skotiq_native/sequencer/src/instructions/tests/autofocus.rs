@@ -3,6 +3,42 @@
 use super::*;
 
 #[test]
+fn autofocus_on_a_filter_with_no_offset_uses_the_reference() {
+    let offsets = std::collections::HashMap::from([
+        ("OIII".to_string(), 5),
+        ("SII".to_string(), 3),
+    ]);
+    let choice = super::super::autofocus::choose_autofocus_filter(
+        Some("L"),
+        Some("L"),
+        Some("Ha"),
+        &offsets,
+    )
+    .expect("the reference is a filter autofocus can use");
+    assert_eq!(choice.filter.as_deref(), Some("Ha"));
+    assert!(
+        choice.note.unwrap().contains("no focus offset from Ha"),
+        "the operator is told why L was not used"
+    );
+}
+
+#[test]
+fn a_filter_with_no_offset_is_not_treated_as_the_reference() {
+    let mut rig = super::super::context::RunRig::default();
+    rig.filter_focus_reference = Some("Ha".to_string());
+    rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 5)]);
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Ha").unwrap(),
+        0
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "OIII").unwrap(),
+        5
+    );
+    assert!(super::super::filter::known_filter_offset(&rig, "L").is_err());
+}
+
+#[test]
 fn autofocus_admission_is_atomic_and_released_by_guard() {
     let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let first = try_admit_autofocus_run().expect("first run must admit");

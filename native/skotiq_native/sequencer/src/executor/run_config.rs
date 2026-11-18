@@ -59,8 +59,13 @@ pub struct RunConfig {
     /// Highest Sun altitude at which a light frame may be taken. Read it
     /// through [`RunConfig::max_sun_altitude`], which resolves the default.
     pub max_sun_altitude_degrees: Option<f64>,
-    /// Filter name -> focus offset in steps.
+    /// Filter name -> focus offset in steps, measured from
+    /// [`Self::filter_focus_reference`].
     pub filter_focus_offsets: HashMap<String, i32>,
+    /// The filter the offsets are measured from. It has offset 0 even with
+    /// no row. A filter with no row is not this filter.
+    #[serde(default)]
+    pub filter_focus_reference: Option<String>,
     /// What missing safety data means.
     pub safety_fail_mode: SafetyFailMode,
     /// Cadence of safety and humidity device polls. `0` is the default
@@ -221,6 +226,7 @@ impl Default for RunConfig {
             altitude_floor: None,
             max_sun_altitude_degrees: None,
             filter_focus_offsets: HashMap::new(),
+            filter_focus_reference: None,
             safety_fail_mode: SafetyFailMode::default(),
             safety_check_interval_secs: 0,
             weather_verdict_staleness_secs: 0,
@@ -447,6 +453,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         altitude_floor,
         max_sun_altitude_degrees,
         filter_focus_offsets,
+        filter_focus_reference,
         safety_fail_mode,
         safety_check_interval_secs,
         weather_verdict_staleness_secs,
@@ -486,7 +493,8 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         ),
         (
             Section::FilterOffsets,
-            *filter_focus_offsets != old.filter_focus_offsets,
+            *filter_focus_offsets != old.filter_focus_offsets
+                || *filter_focus_reference != old.filter_focus_reference,
         ),
         (
             Section::SafetyFailMode,

@@ -157,6 +157,7 @@ impl SequenceExecutor {
             latitude: config.latitude,
             longitude: config.longitude,
             filter_focus_offsets: config.filter_focus_offsets,
+            filter_focus_reference: config.filter_focus_reference,
         };
 
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();

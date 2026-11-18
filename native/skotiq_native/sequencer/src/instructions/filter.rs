@@ -119,12 +119,44 @@ async fn execute_filter_change_holding_train(
     }
 }
 
+/// The focus offset of [filter_name], in steps from the reference filter.
+///
+/// The reference filter is 0 even when it has no row. A filter with a row
+/// uses that row. A filter with neither, while an offset table or a
+/// reference is configured, is unknown: it is not 0. Treating a missing row
+/// as the reference is what focused Ha at an L autofocus (IC 405, offsets
+/// referenced to Ha, no L offset). With no table and no reference, there is
+/// nothing to apply and the offset is 0.
+pub(crate) fn known_filter_offset(
+    rig: &crate::instructions::context::RunRig,
+    filter_name: &str,
+) -> Result<i32, String> {
+    let name = filter_name.trim();
+    let reference = rig
+        .filter_focus_reference
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty());
+    if reference.is_some_and(|reference| reference == name) {
+        return Ok(0);
+    }
+    if let Some(offset) = rig.filter_focus_offsets.get(name) {
+        return Ok(*offset);
+    }
+    if rig.filter_focus_offsets.is_empty() && reference.is_none() {
+        return Ok(0);
+    }
+    let from = reference.unwrap_or("its reference");
+    Err(format!(
+        "filter \"{name}\" has no focus offset from {from}. Add the offset, or autofocus will not treat this filter as the reference"
+    ))
+}
+
 /// Apply the focus offset configured for a given filter after a filter change.
 ///
-/// Looks up the offset in `ctx.filter_focus_offsets` and moves the focuser
-/// by that amount relative to its current position. If the offset is zero,
-/// no focuser is connected, or no offset is configured, this is a no-op.
-/// Errors are logged but do not fail the filter change.
+/// Moves the focuser by the difference between this filter's offset and the
+/// one already embodied. No focuser, or an offset already embodied, is a
+/// no-op. An unknown offset is an error and does not move the focuser.
 pub(crate) async fn apply_filter_focus_offset(
     filter_name: &str,
     ctx: &InstructionContext,
@@ -135,16 +167,13 @@ pub(crate) async fn apply_filter_focus_offset(
         _ => return Ok(()),
     };
 
-    // Filter focus offsets are stored RELATIVE to the reference filter
-    // (offset = optimal_focus[filter] - optimal_focus[reference]); the
-    // reference filter and any unconfigured filter have offset 0.
-    let offset_new = ctx
-        .run
-        .rig
-        .filter_focus_offsets
-        .get(filter_name)
-        .copied()
-        .unwrap_or(0);
+    // Offsets are steps from the reference filter. An unknown filter is not
+    // the reference: moving it by 0 would leave it at whatever focus the
+    // last filter found.
+    let offset_new = match known_filter_offset(&ctx.run.rig, filter_name) {
+        Ok(offset) => offset,
+        Err(reason) => return Err(DeviceError::Failed(reason)),
+    };
 
     // The focuser already carries the offset applied for the PREVIOUS filter.
     // Applying `offset_new` as an absolute shift from the current position
