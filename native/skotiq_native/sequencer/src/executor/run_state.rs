@@ -20,6 +20,9 @@ struct Inner {
     /// `progress.state` is the executor state.
     progress: RwLock<SequenceProgress>,
     events: broadcast::Sender<ExecutorEvent>,
+    /// The operator's own Stop ended the run in flight. Read by the one rule
+    /// on how a run ends ([`super::start::night_end::owes_end_steps`]).
+    stopped_by_operator: AtomicBool,
 }
 
 /// A state that has been stored and not yet announced. Sites that publish
@@ -43,6 +46,7 @@ impl RunCell {
             inner: Arc::new(Inner {
                 progress: RwLock::new(SequenceProgress::default()),
                 events,
+                stopped_by_operator: AtomicBool::new(false),
             }),
         }
     }
@@ -179,10 +183,42 @@ impl RunCell {
             .send(ExecutorEvent::StateChanged(ExecutorState::Stopping));
     }
 
+    /// [`Self::begin_stopping`] for the operator's own Stop, which is
+    /// remembered for the run's end: after it the rig is the operator's. A
+    /// run that already ended, or is already stopping for another reason,
+    /// keeps the end it had.
+    pub(crate) fn begin_operator_stop(&self) {
+        {
+            let progress = self.inner.progress.read();
+            if matches!(
+                progress.state,
+                ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+            ) {
+                self.inner
+                    .stopped_by_operator
+                    .store(true, Ordering::Release);
+            }
+        }
+        self.begin_stopping();
+    }
+
+    /// Whether the operator's own Stop ended this run.
+    pub(crate) fn stopped_by_operator(&self) -> bool {
+        self.inner.stopped_by_operator.load(Ordering::Acquire)
+    }
+
+    /// A new run starts with no stop recorded.
+    pub(crate) fn clear_stop(&self) {
+        self.inner
+            .stopped_by_operator
+            .store(false, Ordering::Release);
+    }
+
     /// Back to `Idle` with an empty snapshot, unannounced: the executor is
     /// being recycled, not run.
     pub(crate) fn reset(&self) {
         *self.inner.progress.write() = SequenceProgress::default();
+        self.clear_stop();
     }
 
     pub(crate) fn emit(&self, event: ExecutorEvent) {

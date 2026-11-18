@@ -106,7 +106,14 @@ pub struct RunConfig {
     /// flat is taken only with the sensor this close to the cooler's
     /// set-point. `None` holds them to the set-point's read jitter.
     pub calibration_temperature_tolerance_c: Option<f64>,
+    /// How close to the target, in arcseconds, every centering of the run
+    /// counts as centered: the Center step, the recenters of the frame watch
+    /// and the drift trigger, and the recenter after a mount fault.
+    pub centering_tolerance_arcsec: f64,
 }
+
+/// The centering tolerance of a fresh install, in arcseconds.
+pub const DEFAULT_CENTERING_TOLERANCE_ARCSEC: f64 = 5.0;
 
 /// What is saved for a frame from a camera that delivers its own file (a
 /// DSLR's or mirrorless body's raw file). A camera that delivers none (every
@@ -238,11 +245,33 @@ impl Default for RunConfig {
             camera_file_saving: CameraFileSaving::default(),
             frame_format: FrameFormat::default(),
             calibration_temperature_tolerance_c: None,
+            centering_tolerance_arcsec: DEFAULT_CENTERING_TOLERANCE_ARCSEC,
         }
     }
 }
 
 impl RunConfig {
+    /// The dither a run takes: the operator's dither settings once the app
+    /// has pushed them (non-zero pixels), with the pattern and grid size of
+    /// `step`, which those settings do not carry; `step` itself before then.
+    /// The Dither Interval trigger and a Smart Exposure's own dithers both
+    /// take it, read as each dither starts.
+    pub fn dither_for(&self, step: &crate::DitherConfig) -> crate::DitherConfig {
+        if self.dither.pixels > 0.0 {
+            crate::DitherConfig {
+                pixels: self.dither.pixels,
+                settle_pixels: self.dither.settle_pixels,
+                settle_time: self.dither.settle_time,
+                settle_timeout: self.dither.settle_timeout,
+                ra_only: self.dither.ra_only,
+                pattern: step.pattern,
+                grid_size: step.grid_size,
+            }
+        } else {
+            step.clone()
+        }
+    }
+
     /// The daylight gate's limit: the pushed value, or nautical darkness
     /// when nothing usable was pushed, so the native gate is never weaker
     /// than the app's gate it backstops.
@@ -299,6 +328,12 @@ impl RunConfig {
             problems.push(format!(
                 "the recovery duration must be more than 0 s (was {})",
                 self.recovery.max_duration_secs
+            ));
+        }
+        if !self.centering_tolerance_arcsec.is_finite() || self.centering_tolerance_arcsec <= 0.0 {
+            problems.push(format!(
+                "the centering tolerance must be more than 0 arcsec (was {})",
+                self.centering_tolerance_arcsec
             ));
         }
         if problems.is_empty() {
@@ -380,10 +415,11 @@ pub(crate) enum Section {
     CameraFileSaving,
     FrameFormat,
     CalibrationTemperatureTolerance,
+    CenteringTolerance,
 }
 
 impl Section {
-    const ALL: [Section; 24] = [
+    const ALL: [Section; 25] = [
         Section::Dither,
         Section::Autofocus,
         Section::AutofocusInterval,
@@ -408,6 +444,7 @@ impl Section {
         Section::CameraFileSaving,
         Section::FrameFormat,
         Section::CalibrationTemperatureTolerance,
+        Section::CenteringTolerance,
     ];
 
     /// The name the change is announced under in
@@ -438,6 +475,7 @@ impl Section {
             Section::CameraFileSaving => "camera_file_saving",
             Section::FrameFormat => "frame_format",
             Section::CalibrationTemperatureTolerance => "calibration_temperature_tolerance",
+            Section::CenteringTolerance => "centering_tolerance",
         }
     }
 }
@@ -471,6 +509,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         camera_file_saving,
         frame_format,
         calibration_temperature_tolerance_c,
+        centering_tolerance_arcsec,
     } = new;
     [
         (Section::Dither, *dither != old.dither),
@@ -547,6 +586,10 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         (
             Section::CalibrationTemperatureTolerance,
             *calibration_temperature_tolerance_c != old.calibration_temperature_tolerance_c,
+        ),
+        (
+            Section::CenteringTolerance,
+            *centering_tolerance_arcsec != old.centering_tolerance_arcsec,
         ),
     ]
     .into_iter()

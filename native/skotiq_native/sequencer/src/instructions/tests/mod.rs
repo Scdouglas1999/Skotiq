@@ -119,6 +119,9 @@ struct ScriptedDomeRotatorOps {
     /// Plate solves still to come that find the mount 0.01° off target in
     /// Dec, so a Center has to correct.
     off_target_solves: AtomicU32,
+    /// Every solve lands this far north of where the mount points, as a
+    /// mount whose slews land a few arcseconds off does.
+    solve_dec_offset_arcsec: f64,
     /// For each `guider_select_fresh_star`, how many `guider_start` calls had
     /// been made when it was issued, so a test can tell it came first.
     fresh_star_selections: Mutex<Vec<u32>>,
@@ -290,6 +293,7 @@ impl ScriptedDomeRotatorOps {
             exposures_while_guider_active: AtomicU32::new(0),
             slews_while_guider_active: AtomicU32::new(0),
             off_target_solves: AtomicU32::new(0),
+            solve_dec_offset_arcsec: 0.0,
             guider_start_calls: AtomicU32::new(0),
             guider_stop_reasons: Mutex::new(Vec::new()),
             fresh_star_selections: Mutex::new(Vec::new()),
@@ -616,6 +620,11 @@ impl ScriptedDomeRotatorOps {
 
     fn with_guiding(self, guiding: bool) -> Self {
         self.guiding.store(guiding, Ordering::SeqCst);
+        self
+    }
+
+    fn with_every_solve_off_by_arcsec(mut self, arcsec: f64) -> Self {
+        self.solve_dec_offset_arcsec = arcsec;
         self
     }
 
@@ -1202,6 +1211,7 @@ impl PlateSolveOps for ScriptedDomeRotatorOps {
         {
             result.dec_degrees += 0.01;
         }
+        result.dec_degrees += self.solve_dec_offset_arcsec / 3600.0;
         Ok(result)
     }
 }

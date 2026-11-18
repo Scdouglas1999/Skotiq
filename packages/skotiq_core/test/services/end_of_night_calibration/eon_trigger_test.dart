@@ -448,6 +448,46 @@ void main() {
       expect(rig.calls, contains('warmUp'));
     });
 
+    // 2026-11-17 IC 405: a run that did not end the night (a failure, a
+    // weather end) left its deferred Warm camera to a calibration that never
+    // started, and the cooler stayed at -10 until warmed by hand.
+    test(
+      'a deferred warm-up happens when the run did not end the night',
+      () async {
+        await enable(true);
+        await recordRunFrame(16, FrameType.light);
+        container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
+        final coordinator = container.read(
+          endOfNightCalibrationCoordinatorProvider,
+        );
+        finishRun(1, 16, SequenceRunStatus.failed);
+        expect(await coordinator.runEnded(1), isNull);
+        await coordinator.nightSettled(1);
+        expect(rig.calls, isNot(contains('run')));
+        expect(rig.calls, contains('warmUp'));
+      },
+    );
+
+    test(
+      'an operator stop leaves a deferred warm-up to the operator',
+      () async {
+        await enable(true);
+        await recordRunFrame(17, FrameType.light);
+        container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
+        container
+            .read(runRecordProvider.notifier)
+            .setStopEvidence(
+              const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+            );
+        final coordinator = container.read(
+          endOfNightCalibrationCoordinatorProvider,
+        );
+        finishRun(1, 17, SequenceRunStatus.stopped);
+        await coordinator.nightSettled(1);
+        expect(rig.calls, isEmpty);
+      },
+    );
+
     test('a manual run after an operator stop queues the night', () async {
       await enable(true);
       await recordRunFrame(15, FrameType.light);

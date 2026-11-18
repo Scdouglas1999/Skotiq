@@ -4,7 +4,7 @@
   "metadata": {
     "autofocus_every_minutes": "60",
     "autofocus_on_filter_change": "false",
-    "frame_watch": "{\"drift_limit_arcsec\":30.0,\"use_first_frame_reference\":true,\"obstruction_detection\":true,\"learned_horizon\":[]}"
+    "frame_watch": "{\"drift_limit_arcsec\":30.0,\"use_first_frame_reference\":true,\"obstruction_detection\":false,\"obstruction_action\":\"notify\",\"learned_horizon\":[]}"
   },
   "name": "Every node (wire-doc)",
   "nodes": [
@@ -241,7 +241,6 @@
       "id": "n-CenterTarget",
       "name": "Center custom",
       "node_type": {
-        "accuracy_arcsec": 2.5,
         "custom_dec": -5.3,
         "custom_ra": 5.6,
         "exposure_duration": 8.0,

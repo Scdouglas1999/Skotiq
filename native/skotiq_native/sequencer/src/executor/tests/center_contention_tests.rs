@@ -187,7 +187,7 @@ fn center_sequence() -> SequenceDefinition {
         id: "center".to_string(),
         name: "Center".to_string(),
         node_type: crate::NodeType::CenterTarget(crate::CenterConfig {
-            accuracy_arcsec: 15.0,
+            accuracy_arcsec: Some(15.0),
             max_attempts: 4,
             exposure_duration: 0.3,
             ..crate::CenterConfig::default()

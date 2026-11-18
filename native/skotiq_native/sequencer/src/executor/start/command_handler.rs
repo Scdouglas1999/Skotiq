@@ -18,9 +18,10 @@ pub(super) async fn run_command_handler(run: Arc<Run>, mut rx: mpsc::Receiver<Ex
                 // The node tree is frozen by a recovery ladder, not by a
                 // pause, and unfreezing it would expose through the fault the
                 // ladder is still fixing (a guide star not yet re-acquired).
-                // Resume withdraws a pause placed during the ladder and
-                // nothing more; Try now and Abort are the controls over the
-                // ladder itself.
+                // Resume withdraws a pause placed before or during the ladder
+                // and nothing more; Try now and Abort are the controls over
+                // the ladder itself.
+                recovery_signals.withdraw_pause();
                 run.state.transition(ExecutorState::Recovering);
                 run.warning(
                     "Recovery is still running, so the run stays frozen until it \

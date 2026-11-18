@@ -12,6 +12,23 @@ const double learnedObstructionMarginDeg = 1;
 /// this many degrees of the site's.
 const double learnedObstructionSiteToleranceDeg = 0.05;
 
+/// What a run does once the frame watch confirms an obstruction. The
+/// confirmation is a guess from star counts and one probe frame, so the
+/// default only tells the operator.
+enum ObstructionAction {
+  /// Tell the operator and keep imaging the target.
+  notify('notify'),
+
+  /// Skip to the next target that is up and clear; end the night when none
+  /// is.
+  moveOn('move_on');
+
+  const ObstructionAction(this.wire);
+
+  /// The value the native frame watch reads.
+  final String wire;
+}
+
 /// One obstruction the run met: where on the sky it began, at which site,
 /// when, and on which target.
 class LearnedObstructionPoint {

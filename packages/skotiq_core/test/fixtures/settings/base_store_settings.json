@@ -804,6 +804,7 @@
     "equipment_onboarding_draft": true,
     "focuser_backlash_calibrations.v1": false,
     "frame_watch_drift_limit_arcsec": false,
+    "frame_watch_obstruction_action": false,
     "frame_watch_obstruction_detection": false,
     "frame_watch_recenter_enabled": false,
     "framing.lastTarget": true,

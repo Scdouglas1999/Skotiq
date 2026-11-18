@@ -256,8 +256,6 @@ async fn take_burst(
     let consecutive_rejects_handle = ctx.run.grading.consecutive_rejects.clone();
     let frames_accepted_handle = ctx.run.grading.frames_accepted.clone();
     let frames_rejected_handle = ctx.run.grading.frames_rejected.clone();
-    let quality_check_default = ctx.run.grading.default_quality_check.clone();
-    let reject_folder_override = ctx.run.grading.reject_folder_path.clone();
 
     // A dark/flat/bias burst has no stars: grading would reject every frame
     // as "0 stars", dithering would pulse the mount for nothing, and star
@@ -265,6 +263,14 @@ async fn take_burst(
     let is_light_frame = config.frame_type.is_sky_frame();
 
     for frame in (control.frames_taken + 1)..=config.count {
+        // Each frame takes the operator's grading and saving settings as they
+        // stand when it starts, so an edit during a long burst applies from
+        // its next frame.
+        let crate::instructions::FrameSettings {
+            default_quality_check: quality_check_default,
+            reject_folder_path: reject_folder_override,
+            camera_file_saving,
+        } = ctx.run.frame_settings();
         if let Some(result) =
             hold_frame_for_set_point(config, ctx, &camera_id, control, frame, false).await
         {
@@ -635,8 +641,8 @@ async fn take_burst(
         // Image Grading: decide accept/reject BEFORE picking the
         // final path — rejects go to a sibling Reject/ folder. The
         // grading honours the per-burst override (`config.quality_check`)
-        // first, then falls back to the global default from runtime_config
-        // (set by the executor at start time). If neither is configured
+        // first, then falls back to the operator's default as it stood when
+        // this frame started. If neither is configured
         // the frame is accepted unconditionally and the path stays the
         // canonical capture folder.
         let active_check = if is_light_frame {
@@ -828,7 +834,7 @@ async fn take_burst(
             // FITS writer downstream will surface any path-resolution error.
             full_path.to_str().unwrap_or(&filename),
             &frame_ctx,
-            ctx.run.camera_file_saving,
+            camera_file_saving,
             // A Take Exposures frame is a kept frame.
             true,
         )
@@ -1198,7 +1204,7 @@ async fn recenter_after_mount_fault(
         use_target_coords: true,
         custom_ra: None,
         custom_dec: None,
-        accuracy_arcsec: 10.0,
+        accuracy_arcsec: None,
         max_attempts: 3,
         exposure_duration: 5.0,
         filter: None,

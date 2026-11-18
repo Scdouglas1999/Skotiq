@@ -235,16 +235,19 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'User',
   ],
   'end-of-night-calibration': [
+    'A set the dark library already holds at the same',
     'Bias frames',
     'Blocking the light',
     'Darks per light setting',
     'Frames',
     'Guiding is stopped first. A mount the night already',
     'How long to wait for you to confirm the telescope is',
+    'Keep library darks for',
     'Mount before the darks',
     'One set for each exposure, gain, offset, binning and',
-    'One set for each gain, offset and binning.',
+    'One set for each gain, offset, binning and',
     'Raises the set-point gradually once the frames are',
+    'Reusing the library',
     'Starts when a run that took light frames completes, is',
     'Take darks and bias when imaging ends',
     'The frames are taken through a wheel slot named Dark,',
@@ -340,6 +343,8 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Master toggle',
     'Maximum drift',
     'Notify after consecutive rejects',
+    'Notify: tell you and keep imaging the target. Move on:',
+    'Off by default. Watch for trees or a roof entering the field:',
     'Plate solve every saved light frame and recenter between exposures',
     'Recenter after drift trigger',
     'Reject folder',
@@ -350,7 +355,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
     'Star count min',
     'Star shape thresholds',
-    'Watch for trees or a roof entering the field: stars fade while',
+    'When an obstruction is confirmed',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
   ],
@@ -563,7 +568,9 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'ASTAP executable',
     'Astrometry.net',
     'Blind solve',
+    'Centering tolerance',
     'Click re-scan',
+    'Default: 5 arcseconds. How close to the target a',
     'Download a star catalog',
     'Failed to load solve parameters',
     'Fast offline solver: recommended for almost all setups.',
@@ -908,12 +915,14 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Refresh host settings',
   },
   'end-of-night-calibration': {
+    'A set the dark library already holds at the same':
+        'Keep library darks for',
     'Guiding is stopped first. A mount the night already':
         'Mount before the darks',
     'How long to wait for you to confirm the telescope is': 'Wait for the cap',
     'One set for each exposure, gain, offset, binning and':
         'Darks per light setting',
-    'One set for each gain, offset and binning.': 'Bias frames',
+    'One set for each gain, offset, binning and': 'Bias frames',
     'Raises the set-point gradually once the frames are':
         'Warm the camera up afterwards',
     'Starts when a run that took light frames completes, is':
@@ -947,6 +956,10 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'image-grading': {
     'Default: 30 arcseconds. Measured from the first successfully solved':
         'Maximum drift',
+    'Notify: tell you and keep imaging the target. Move on:':
+        'When an obstruction is confirmed',
+    'Off by default. Watch for trees or a roof entering the field:':
+        'Detect obstructions',
     'Plate solve every saved light frame and recenter between exposures':
         'Recenter after drift trigger',
     'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.':
@@ -955,8 +968,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'HFR baseline percent',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.':
         'Notify after consecutive rejects',
-    'Watch for trees or a roof entering the field: stars fade while':
-        'Detect obstructions',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.':
         'Enable image grading',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.':
@@ -1042,6 +1053,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   },
   'plate-solving': {
     'Always ignore position hints (slower, but useful': 'Blind solve',
+    'Default: 5 arcseconds. How close to the target a': 'Centering tolerance',
     'How far around the expected position to search': 'Search radius',
     'Maximum time to attempt a solve before giving up': 'Timeout',
     'Reading saved solve parameters': 'Loading…',

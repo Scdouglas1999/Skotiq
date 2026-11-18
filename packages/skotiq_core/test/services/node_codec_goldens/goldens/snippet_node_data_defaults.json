@@ -109,7 +109,6 @@
     "useTargetCoords": true
   },
   {
-    "accuracyArcsec": 5.0,
     "comment": null,
     "customDec": null,
     "customRa": null,

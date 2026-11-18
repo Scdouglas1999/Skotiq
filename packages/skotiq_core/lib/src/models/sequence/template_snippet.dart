@@ -801,7 +801,6 @@ class BuiltInSnippets {
           {
             'nodeType': 'CenterTarget',
             'name': 'Re-center Target',
-            'accuracyArcsec': 5.0,
             'maxAttempts': 5,
             'useTargetCoords': true,
           },

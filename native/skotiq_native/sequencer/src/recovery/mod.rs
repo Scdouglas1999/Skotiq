@@ -301,6 +301,10 @@ pub struct RecoverySignals {
     /// one". Incremented every time the executor starts a new recovery
     /// loop. Wraps at u64::MAX which won't realistically happen.
     pub entry_counter: Arc<AtomicU64>,
+    /// The run was paused when the recovery began. Recovering replaces the
+    /// Paused state for the length of the ladder, so this is what keeps the
+    /// pause once the ladder ends; a Resume during the ladder withdraws it.
+    pub paused_before: Arc<AtomicBool>,
 }
 
 impl Default for RecoverySignals {
@@ -315,6 +319,7 @@ impl RecoverySignals {
             try_now: Arc::new(AtomicBool::new(false)),
             abort: Arc::new(AtomicBool::new(false)),
             entry_counter: Arc::new(AtomicU64::new(0)),
+            paused_before: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -325,7 +330,23 @@ impl RecoverySignals {
     pub fn arm(&self) {
         self.try_now.store(false, Ordering::Relaxed);
         self.abort.store(false, Ordering::Relaxed);
+        self.paused_before.store(false, Ordering::Relaxed);
         self.entry_counter.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Remember that the run was paused when the recovery began.
+    pub fn hold_pause(&self) {
+        self.paused_before.store(true, Ordering::Relaxed);
+    }
+
+    /// The operator resumed during the ladder: the earlier pause is withdrawn.
+    pub fn withdraw_pause(&self) {
+        self.paused_before.store(false, Ordering::Relaxed);
+    }
+
+    /// Whether a pause from before the recovery still stands. Clears it.
+    pub fn take_paused_before(&self) -> bool {
+        self.paused_before.swap(false, Ordering::Relaxed)
     }
 
     /// Returns true and clears the flag if the user requested TryNow.

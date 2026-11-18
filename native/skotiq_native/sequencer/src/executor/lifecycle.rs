@@ -149,7 +149,11 @@ impl SequenceExecutor {
         self.is_cancelled.store(true, Ordering::Release);
         // The run's command handler is not listening while a trigger's
         // shutdown steps finish, so the state is turned here as well.
-        self.run_state.begin_stopping();
+        if origin == StopOrigin::Operator {
+            self.run_state.begin_operator_stop();
+        } else {
+            self.run_state.begin_stopping();
+        }
 
         if let Some(tx) = self.commands.sender() {
             let _ = tx.send(ExecutorCommand::Stop).await;

@@ -53,6 +53,9 @@ const Set<String> _addedSinceBase = {
   'xisf_compression',
   'xisf_checksums',
   'recovery_park_and_close_when_gives_up',
+  // How close a centering must land. Seeded, so a fresh install has the row;
+  // a base store has none and reads the 5 arcsecond default.
+  'centering_tolerance_arcsec',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
@@ -235,7 +238,10 @@ void main() {
       expect(
         [
           for (final key in AppSettingsCodec.storedKeys)
-            if (all.containsKey(key) && !expected.containsKey(key)) key,
+            if (all.containsKey(key) &&
+                !expected.containsKey(key) &&
+                !_addedSinceBase.contains(key))
+              key,
         ],
         isEmpty,
         reason: 'rows the base build did not seed',

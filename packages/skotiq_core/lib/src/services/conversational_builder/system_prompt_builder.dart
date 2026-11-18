@@ -264,8 +264,7 @@ class SystemPromptBuilder {
       [
         'Center',
         'Plate-solve center on the target.',
-        '`useTargetCoords` (bool), `accuracyArcsec` (number), '
-            '`maxAttempts` (int).',
+        '`useTargetCoords` (bool), `maxAttempts` (int).',
       ],
       [
         'StartGuiding',
@@ -429,7 +428,7 @@ const String _exampleA = '''
     "center": {
       "id": "center", "nodeType": "Center", "name": "Center",
       "parentId": "tgt", "childIds": [], "orderIndex": 1, "isEnabled": true,
-      "useTargetCoords": true, "accuracyArcsec": 5.0, "maxAttempts": 5
+      "useTargetCoords": true, "maxAttempts": 5
     },
     "guide": {
       "id": "guide", "nodeType": "StartGuiding", "name": "Start guiding",
@@ -497,7 +496,7 @@ const String _exampleB = '''
     "center": {
       "id": "center", "nodeType": "Center", "name": "Center",
       "parentId": "tgt", "childIds": [], "orderIndex": 1, "isEnabled": true,
-      "useTargetCoords": true, "accuracyArcsec": 5.0, "maxAttempts": 5
+      "useTargetCoords": true, "maxAttempts": 5
     },
     "guide": {
       "id": "guide", "nodeType": "StartGuiding", "name": "Start guiding",

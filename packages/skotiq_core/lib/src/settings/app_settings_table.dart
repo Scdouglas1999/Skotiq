@@ -317,6 +317,18 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
+
+  /// How close to the target, in arcseconds, counts as centered: the Center
+  /// step, every recenter of a run and centering started by hand all read it.
+  DoubleSetting(
+    'centeringToleranceArcsec',
+    'centering_tolerance_arcsec',
+    5.0,
+    min: 1,
+    max: 600,
+    seeded: true,
+    runConfig: 'centering_tolerance_arcsec',
+  ),
   TextSetting(
     'phd2Path',
     'phd2_path',

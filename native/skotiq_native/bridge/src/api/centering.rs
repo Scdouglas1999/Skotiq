@@ -176,7 +176,7 @@ fn validated_config(request: &ApiCenteringRequest) -> Result<CenterConfig, Skoti
         use_target_coords: false,
         custom_ra: Some(request.ra_hours),
         custom_dec: Some(request.dec_degrees),
-        accuracy_arcsec: request.accuracy_arcsec,
+        accuracy_arcsec: Some(request.accuracy_arcsec),
         max_attempts: request.max_attempts,
         exposure_duration: request.exposure_secs,
         filter: request.filter.clone(),

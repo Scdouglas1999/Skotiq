@@ -1,9 +1,11 @@
-//! What a run ended by the end of the night still owes the rig.
+//! What a run that ended early still owes the rig.
 //!
-//! A trigger that ends the night (dawn, an obstruction) cancels the node tree,
-//! so the plan's own shutdown steps after its targets never run. They are run
-//! here instead, once the tree has stopped and the rig is parked or left, on a
-//! context of their own so the run's cancellation does not cancel them.
+//! A trigger that ends the run (dawn, an obstruction, unsafe weather), a
+//! failure, or a stop the system asked for cancels the node tree, so the
+//! plan's own end steps after its targets never run. They are run here
+//! instead, once the tree has stopped and the rig is parked or left, on a
+//! context of their own so the run's cancellation does not cancel them. The
+//! operator's own Stop is the one end that leaves the rig as it is.
 
 use super::*;
 
@@ -115,52 +117,34 @@ impl StepOutcome {
     }
 }
 
-/// Run the plan's shutdown steps after a trigger ended the night, telling the
-/// operator about each one through the notification channel.
+/// The one rule on how a run ends (owner, 2026-11-17): a run that did not
+/// walk through its plan's end steps still runs the ones it did not reach,
+/// whatever ended it (a trigger, a failure, a skip past its targets, a stop
+/// the system asked for), except the operator's own Stop, after which the rig
+/// is theirs. Warm camera runs, and the mount is parked only when the plan
+/// parks it. Steps that already ran are not run again, and `already` says
+/// what a trigger's park sweep has put away.
 ///
 /// `base` is the run's context. The steps get fresh cancel, pause and skip
-/// flags: the run's own are already set by the stop that ended it.
-pub(crate) async fn run_plan_shutdown_steps(
-    trigger_name: &str,
+/// flags: the run's own are already set by whatever ended it.
+pub(crate) async fn run_owed_end_steps(
+    label: &str,
     sequence: &SequenceDefinition,
     base: &ExecutionContext,
     device_ops: &SharedDeviceOps,
+    state: &RunCell,
     already: AlreadySafe,
 ) -> Vec<StepOutcome> {
-    run_steps(
-        trigger_name,
-        plan_shutdown_steps(sequence),
-        sequence,
-        base,
-        device_ops,
-        already,
-    )
-    .await
-}
-
-/// Run the plan's shutdown steps the tree never reached after the run
-/// failed or a skip ended it early. A failure inside a target ends the tree
-/// before Warm camera and Park mount, and a rig left cold and tracking is not
-/// a safe end, attended or not. Steps that already ran are not run again.
-pub(crate) async fn run_unreached_shutdown_steps(
-    sequence: &SequenceDefinition,
-    base: &ExecutionContext,
-    device_ops: &SharedDeviceOps,
-    statuses: &HashMap<NodeId, NodeStatus>,
-) -> Vec<StepOutcome> {
+    if state.stopped_by_operator() {
+        tracing::info!("Run end: stopped by the operator, so the plan's end steps are not run");
+        return Vec::new();
+    }
+    let statuses = state.read_progress(|progress| progress.node_statuses.clone());
     let steps = plan_shutdown_steps(sequence)
         .into_iter()
         .filter(|step| matches!(statuses.get(&step.id), None | Some(NodeStatus::Pending)))
         .collect();
-    run_steps(
-        "The run ended early",
-        steps,
-        sequence,
-        base,
-        device_ops,
-        AlreadySafe::default(),
-    )
-    .await
+    run_steps(label, steps, sequence, base, device_ops, already).await
 }
 
 async fn run_steps(

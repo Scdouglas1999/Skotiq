@@ -493,32 +493,106 @@ async fn dawn_without_parking_runs_the_plans_own_park_and_warm() {
     );
 }
 
-/// A weather park in the middle of the night does not end the night: the
-/// camera stays cold for when the sky clears.
+/// A weather park ends the run, so the plan's end steps still run: the
+/// camera is warmed, and the mount stays parked rather than sent home.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_weather_park_does_not_run_the_end_of_night_steps() {
+async fn a_weather_park_still_runs_the_plans_end_steps() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let plan = night_plan(node("home", "Home mount", NodeType::HomeMount));
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
     wait_for_monitor(&ops).await;
 
     executor.handle().update_weather_verdict(Some(true)).await;
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    let state = wait_until_finished(&executor).await;
     let calls = ops.calls();
     let _ = executor.stop().await;
 
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    let park = calls.iter().position(|c| c == "mount_park:mount-1");
+    let warm = calls
+        .iter()
+        .position(|c| c == "camera_set_cooler:cam-1:false");
+    assert!(park.is_some(), "calls={calls:?}");
+    assert!(
+        warm.is_some_and(|w| w > park.unwrap()),
+        "the plan's Warm camera must run after the park; calls={calls:?}"
+    );
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_find_home")),
+        "a parked mount is not sent home; calls={calls:?}"
+    );
+}
+
+/// A stop the system asked for (a watchdog, a failed launch) is not the
+/// operator's: the plan's end steps still run.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_system_stop_still_runs_the_plans_end_steps() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let plan = night_plan(node("park", "Park mount", NodeType::Park));
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_step(&executor, "imaging").await;
+
+    executor
+        .stop_with_origin(super::StopOrigin::System("disk-watchdog".to_string()))
+        .await
+        .expect("the run stops");
+    let calls = ops.calls();
     assert!(
         calls.iter().any(|c| c == "mount_park:mount-1"),
-        "calls={calls:?}"
+        "the plan parks; calls={calls:?}"
     );
     assert!(
-        !calls.iter().any(|c| c.starts_with("camera_set_cooler")),
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
         "calls={calls:?}"
     );
+}
+
+/// F41: the operator's Stop sometimes parked the mount and warmed the camera
+/// and sometimes did not, depending on how the step in flight ended. After
+/// the operator's explicit Stop the rig is theirs: no end step runs, however
+/// the step in flight ended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_operator_stop_never_runs_the_plans_end_steps() {
+    let delay = node(
+        "imaging",
+        "Imaging",
+        NodeType::Delay(DelayConfig { seconds: 600.0 }),
+    );
+    let exposure = node(
+        "imaging",
+        "Imaging",
+        NodeType::TakeExposure(crate::ExposureConfig {
+            duration_secs: 30.0,
+            count: 20,
+            save_to: Some(std::env::temp_dir().to_string_lossy().into_owned()),
+            ..Default::default()
+        }),
+    );
+    for (imaging, camera_fails) in [(delay, false), (exposure.clone(), false), (exposure, true)] {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+        let at = plan.nodes.iter().position(|n| n.id == "imaging").unwrap();
+        plan.nodes[at] = imaging;
+        if camera_fails {
+            // The step is in its retry loop when the operator stops.
+            ops.fail_next_exposures(&["USB read failed"; 20]);
+        }
+        let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+        wait_for_step(&executor, "imaging").await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        executor.stop().await.expect("the run stops");
+        let calls = ops.calls();
+        assert!(
+            !calls
+                .iter()
+                .any(|c| c.starts_with("mount_park") || c.starts_with("camera_set_cooler")),
+            "camera_fails={camera_fails} calls={calls:?}"
+        );
+        assert!(
+            !notified(&calls, "shutdown steps"),
+            "camera_fails={camera_fails} calls={calls:?}"
+        );
+    }
 }
 
 fn target_plan(end_when: crate::scheduling::TargetTrigger) -> SequenceDefinition {

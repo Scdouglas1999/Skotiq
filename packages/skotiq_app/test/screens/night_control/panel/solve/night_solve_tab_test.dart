@@ -126,7 +126,7 @@ void main() {
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await tester.pump();
-    expect(find.textContaining('Center button: within 30" · 5 attempts'),
+    expect(find.textContaining('Center button: within 5" · 5 attempts'),
         findsOneWidget);
     expect(find.textContaining("Plan's Center step"), findsNothing);
   });
@@ -143,15 +143,16 @@ void main() {
       overrides: [
         ...panelOverrides(),
         nightPlanCenterNodeProvider.overrideWithValue(
-          CenterNode(id: 'center', accuracyArcsec: 5, maxAttempts: 5),
+          CenterNode(id: 'center', maxAttempts: 4),
         ),
       ],
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await tester.pump();
-    expect(find.text('Plan\'s Center step: within 5" · 5 attempts'),
+    // One Centering tolerance setting for both; the attempts differ.
+    expect(find.text('Plan\'s Center step: within 5" · 4 attempts'),
         findsOneWidget);
-    expect(find.textContaining('Center button: within 30" · 5 attempts'),
+    expect(find.textContaining('Center button: within 5" · 5 attempts'),
         findsOneWidget);
   });
 
@@ -171,13 +172,11 @@ void main() {
           id: 'first',
           parentId: 'root',
           orderIndex: 1,
-          accuracyArcsec: 5,
         ),
         'second': CenterNode(
           id: 'second',
           parentId: 'root',
           orderIndex: 2,
-          accuracyArcsec: 8,
         ),
       },
     );

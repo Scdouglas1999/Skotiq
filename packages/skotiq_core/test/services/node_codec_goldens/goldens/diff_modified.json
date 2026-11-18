@@ -89,19 +89,13 @@
         "old": ""
       },
       {
-        "describe": "Accuracy (arcsec): 5.0 → 2.5",
-        "field": "Accuracy (arcsec)",
-        "new": "2.5",
-        "old": "5.0"
-      },
-      {
         "describe": "Max attempts: 5 → 7",
         "field": "Max attempts",
         "new": "7",
         "old": "5"
       }
     ],
-    "label": "Center (2.5″)",
+    "label": "Center (7 attempts)",
     "nodeId": "n-CenterTarget",
     "nodeKind": "CenterTarget"
   },
