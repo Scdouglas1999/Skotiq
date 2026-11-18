@@ -1904,7 +1904,13 @@ pub struct CenterConfig {
     pub use_target_coords: bool,
     pub custom_ra: Option<f64>,
     pub custom_dec: Option<f64>,
-    pub accuracy_arcsec: f64,
+    /// How close to the target counts as centered, in arcseconds. `None`, as
+    /// every Center step and every recenter of a run is, takes the
+    /// operator's Settings > Plate solving > Centering tolerance; a value
+    /// here is for a caller that decides it itself (manual centering passes
+    /// that same setting, the obstruction probe only wants a solve).
+    #[serde(default)]
+    pub accuracy_arcsec: Option<f64>,
     pub max_attempts: u32,
     pub exposure_duration: f64,
     pub filter: Option<String>,
@@ -1921,7 +1927,7 @@ impl Default for CenterConfig {
             use_target_coords: true,
             custom_ra: None,
             custom_dec: None,
-            accuracy_arcsec: 5.0,
+            accuracy_arcsec: None,
             max_attempts: 5,
             exposure_duration: 5.0,
             filter: None,

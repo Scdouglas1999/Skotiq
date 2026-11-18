@@ -336,3 +336,53 @@ async fn centering_on_the_mount_position_centers_on_it_in_j2000() {
         "centered on ({ra_deg}, {dec}), not the J2000 place of the mount's position"
     );
 }
+
+/// Live 2026-11-17: every centering of the IC 405 run ended about 6" off after
+/// five attempts against the fixed 5". The Center step takes the operator's
+/// Settings > Plate solving > Centering tolerance as it starts, and a failure
+/// names that setting.
+#[tokio::test(start_paused = true)]
+async fn a_center_step_takes_the_centering_tolerance_setting() {
+    let executor = crate::executor::SequenceExecutor::new();
+    let mut outcomes = Vec::new();
+    for tolerance in [5.0, 7.0] {
+        executor
+            .handle()
+            .update_run_config(|config| config.centering_tolerance_arcsec = tolerance)
+            .await
+            .expect("the settings apply");
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_every_solve_off_by_arcsec(6.0)
+                .with_mount_slewing_states(vec![false, true, false, true, false, true, false])
+                .with_scripted_mount_coordinates(0.712, 41.27),
+        );
+        let mut ctx = ctx_with_ops(ops.clone()).await;
+        ctx.run.settings = Some(executor.run_config_store());
+        ctx.run.rig.camera_id = Some("cam-1".to_string());
+        ctx.run.rig.mount_id = Some("mount-1".to_string());
+        ctx.target_ra = Some(0.712);
+        ctx.target_dec = Some(41.27);
+        let config = crate::CenterConfig {
+            max_attempts: 2,
+            exposure_duration: 0.01,
+            ..Default::default()
+        };
+        outcomes.push(execute_center(&config, &ctx, None).await);
+    }
+
+    assert_eq!(outcomes[0].status, NodeStatus::Failure);
+    assert_eq!(
+        outcomes[0].message.as_deref(),
+        Some(
+            "Failed to center within 5.0\" after 2 attempts \
+             (tolerance: Settings > Plate solving > Centering tolerance)"
+        )
+    );
+    assert_eq!(
+        outcomes[1].status,
+        NodeStatus::Success,
+        "{:?}",
+        outcomes[1].message
+    );
+}

@@ -676,7 +676,7 @@ impl FrameWatchStage {
                     use_target_coords: false,
                     custom_ra: Some(ra_hours),
                     custom_dec: Some(dec_deg),
-                    accuracy_arcsec: 3600.0,
+                    accuracy_arcsec: Some(3600.0),
                     max_attempts: 1,
                     exposure_duration: PROBE_EXPOSURE_SECS,
                     filter: None,

@@ -216,9 +216,6 @@ class _InlineEditorBody extends ConsumerWidget {
       InlineEditKind.delaySeconds => _DelaySecondsEditor(
           node: _expect<DelayNode>(node, kind),
         ),
-      InlineEditKind.centerTolerance => _CenterToleranceEditor(
-          node: _expect<CenterNode>(node, kind),
-        ),
       InlineEditKind.coolTargetTemp => _CoolTargetTempEditor(
           node: _expect<CoolCameraNode>(node, kind),
         ),
@@ -430,27 +427,6 @@ class _DelaySecondsEditor extends ConsumerWidget {
       onCommit: (value) => ref
           .read(currentSequenceProvider.notifier)
           .updateNode(node.copyWith(seconds: value)),
-    );
-  }
-}
-
-class _CenterToleranceEditor extends ConsumerWidget {
-  final CenterNode node;
-  const _CenterToleranceEditor({required this.node});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _NumericFieldEditor(
-      title: 'Centering tolerance',
-      icon: LucideIcons.crosshair,
-      initialValue: node.accuracyArcsec,
-      min: 0.1,
-      max: 60,
-      decimals: 1,
-      suffix: '"',
-      onCommit: (value) => ref
-          .read(currentSequenceProvider.notifier)
-          .updateNode(node.copyWith(accuracyArcsec: value)),
     );
   }
 }

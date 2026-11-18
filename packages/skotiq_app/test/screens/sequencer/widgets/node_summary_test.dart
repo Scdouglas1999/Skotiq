@@ -219,11 +219,14 @@ void main() {
       );
     });
 
-    test('CenterNode emits an editable centerTolerance fragment', () {
-      final node = CenterNode(accuracyArcsec: 3);
+    // Its tolerance is the Plate solving setting every centering shares, so
+    // the line edits nothing and shows the attempts.
+    test('CenterNode shows its attempts and no tolerance editor', () {
+      final fragments = nodeSummary(CenterNode(maxAttempts: 3));
+      expect(fragments.whereType<EditableFragment>(), isEmpty);
       expect(
-        nodeSummary(node),
-        _hasEditable(InlineEditKind.centerTolerance, '3"'),
+        fragments.whereType<StaticFragment>().map((f) => f.text),
+        contains('3 attempts'),
       );
     });
 
@@ -280,7 +283,6 @@ void main() {
       LoopNode(conditionType: LoopConditionType.count),
       FilterChangeNode(filterName: 'Ha'),
       DelayNode(),
-      CenterNode(),
       DitherNode(),
       CoolCameraNode(),
       // Only in override mode: with `useSettingsDefaults` on, the method the
@@ -290,6 +292,9 @@ void main() {
 
     final notEditable = <SequenceNode>[
       AutofocusNode(),
+      // Its tolerance is the shared Plate solving setting, so the line has
+      // no editor of its own.
+      CenterNode(),
       SlewNode(),
       MeridianFlipNode(),
       ParkNode(),

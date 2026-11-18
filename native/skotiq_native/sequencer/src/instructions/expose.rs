@@ -1204,7 +1204,7 @@ async fn recenter_after_mount_fault(
         use_target_coords: true,
         custom_ra: None,
         custom_dec: None,
-        accuracy_arcsec: 10.0,
+        accuracy_arcsec: None,
         max_attempts: 3,
         exposure_duration: 5.0,
         filter: None,

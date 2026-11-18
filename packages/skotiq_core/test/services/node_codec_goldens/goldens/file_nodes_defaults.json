@@ -40,7 +40,6 @@
     "timeoutSecs": 30
   },
   "n-CenterTarget": {
-    "accuracyArcsec": 5.0,
     "childIds": [],
     "comment": null,
     "customDec": null,

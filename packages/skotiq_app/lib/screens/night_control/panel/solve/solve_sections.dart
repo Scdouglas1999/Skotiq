@@ -7,6 +7,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -31,9 +32,8 @@ const double kNightRotationToleranceDeg = 0.5;
 /// The plan's Center step the Solve tab quotes: the one running, else the
 /// first in the loaded plan; null when the plan has none.
 ///
-/// The Center button and a plan's Center step center to different
-/// tolerances, so the tab names each rather than quoting the button's for a
-/// run whose step uses its own.
+/// The Center button and a plan's Center step share the centering tolerance
+/// setting but not their attempts, so the tab names each.
 final nightPlanCenterNodeProvider = Provider<CenterNode?>((ref) {
   final active = ref.watch(nightActiveStepProvider)?.node;
   if (active is CenterNode) return active;
@@ -54,6 +54,9 @@ class NightSolveSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final settings = ref.watch(appSettingsProvider).valueOrNull;
+    // One tolerance for a plan's Center step and for centering by hand.
+    final tolerance =
+        (settings ?? const AppSettingsState()).centeringToleranceArcsec;
     final frame = solveFrameSettings(
       manual: ref.watch(exposureSettingsProvider),
       profile: ref.watch(activeEquipmentProfileProvider),
@@ -86,7 +89,7 @@ class NightSolveSettingsSection extends ConsumerWidget {
             l10n.text(
               'nightScopeSolvePlanCenterRule',
               params: {
-                'arcsec': _number(planCenter.accuracyArcsec),
+                'arcsec': _number(tolerance),
                 'attempts': '${planCenter.maxAttempts}',
               },
             ),
@@ -97,7 +100,7 @@ class NightSolveSettingsSection extends ConsumerWidget {
                 ? 'nightScopeSolveCenterRuleBlind'
                 : 'nightScopeSolveCenterRule',
             params: {
-              'arcsec': _number(ManualCentering.toleranceArcsec),
+              'arcsec': _number(tolerance),
               'attempts': '${ManualCentering.maxIterations}',
             },
           ),

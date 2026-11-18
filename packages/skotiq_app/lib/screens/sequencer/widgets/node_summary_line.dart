@@ -313,8 +313,6 @@ String _editLabel(InlineEditKind kind) {
       return 'dither amount';
     case InlineEditKind.ditherPattern:
       return 'dither pattern';
-    case InlineEditKind.centerTolerance:
-      return 'centering tolerance';
     case InlineEditKind.autofocusMethod:
       return 'autofocus method';
     case InlineEditKind.coolTargetTemp:

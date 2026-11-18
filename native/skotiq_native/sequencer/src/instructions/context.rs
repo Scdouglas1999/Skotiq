@@ -474,6 +474,16 @@ impl RunShared {
         }
     }
 
+    /// How close to the target counts as centered, in arcseconds, as the
+    /// operator's settings hold it now: every centering of a run reads it
+    /// when it starts. Outside a run (no settings), the default.
+    pub fn centering_tolerance_arcsec(&self) -> f64 {
+        self.settings.as_ref().map_or(
+            crate::executor::DEFAULT_CENTERING_TOLERANCE_ARCSEC,
+            |store| store.read().centering_tolerance_arcsec,
+        )
+    }
+
     /// This run's shared state for a step starting now; see
     /// [`Self::take_settings`].
     pub fn for_step(&self) -> Self {

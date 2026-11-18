@@ -89,10 +89,6 @@ enum InlineEditKind {
   /// random / grid).
   ditherPattern,
 
-  /// [CenterNode.accuracyArcsec] — plate-solve centering tolerance in
-  /// arcseconds (number field). The coordinates themselves stay static.
-  centerTolerance,
-
   /// [AutofocusNode.method] — autofocus curve-fit method (closed
   /// dropdown). Only offered while the node is in override mode
   /// ([AutofocusNode.useSettingsDefaults] false); with defaults on, the
@@ -271,13 +267,13 @@ List<SummaryFragment> nodeSummary(
         ),
       ],
 
-    // Center — tolerance is a single safe scalar (editable); the filter is
-    // a read-only hint here (plate-solve filter is panel-grade).
-    CenterNode(accuracyArcsec: final acc, filter: final filter) =>
+    // Center — its tolerance is the Plate solving setting every centering
+    // shares, so the line shows the attempts; the filter is a read-only hint
+    // (plate-solve filter is panel-grade).
+    CenterNode(maxAttempts: final attempts, filter: final filter) =>
       <SummaryFragment>[
-        EditableFragment(
-          InlineEditKind.centerTolerance,
-          '${QuantityFormat.trimmed(acc)}"',
+        StaticFragment(
+          attempts == 1 ? '1 attempt' : '$attempts attempts',
           icon: LucideIcons.crosshair,
         ),
         if (filter != null && filter.isNotEmpty) StaticFragment(filter),

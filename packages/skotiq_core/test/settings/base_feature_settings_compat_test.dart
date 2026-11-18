@@ -1160,7 +1160,13 @@ void main() {
     if (update) {
       recorded['install rows'] = rows;
     } else {
-      expect(rows, fixture['install rows']);
+      // Centering tolerance is seeded after the base build. A fresh install
+      // has the row at 5 arcseconds; the base rows are otherwise unchanged.
+      expect(rows['centering_tolerance_arcsec'], '5.0');
+      expect({
+        for (final entry in rows.entries)
+          if (entry.key != 'centering_tolerance_arcsec') entry.key: entry.value,
+      }, fixture['install rows']);
     }
   });
 

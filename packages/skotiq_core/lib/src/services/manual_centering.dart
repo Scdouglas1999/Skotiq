@@ -7,7 +7,8 @@ import '../settings/app_settings_state.g.dart';
 /// dashboard's center request to the host. The solve frames use the active
 /// profile's centering exposure and the camera's stated gain and offset; the
 /// mount is synced to each solve unless the Plate Solving settings say not
-/// to.
+/// to, and it is centered within the same Plate Solving > Centering tolerance
+/// a run's Center step uses.
 class ManualCentering {
   ManualCentering.of(
     AppSettingsState settings,
@@ -15,16 +16,13 @@ class ManualCentering {
     double? exposureSeconds,
   }) : config = CenteringConfig(
          maxIterations: maxIterations,
-         toleranceArcsec: toleranceArcsec,
+         toleranceArcsec: settings.centeringToleranceArcsec,
          exposureTime: exposureSeconds ?? exposureFor(profile),
          syncMount: settings.centeringSyncMount,
        );
 
   /// Solve-and-correct passes before a run gives up.
   static const int maxIterations = 5;
-
-  /// How close to the target, in arcseconds, counts as centered.
-  static const double toleranceArcsec = 30.0;
 
   /// The solve exposure, in seconds, of a profile without one.
   static const double defaultExposureSeconds = 5.0;

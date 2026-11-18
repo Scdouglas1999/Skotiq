@@ -8,10 +8,12 @@
 //   * centeringSyncMount — whether centering syncs the mount to the solved
 //     position between iterations, read by the callers that build a
 //     CenteringConfig
+//   * centeringToleranceArcsec — how close counts as centered, for the
+//     Center step, every recenter of a run and centering started by hand
 //
 // Does NOT own:
-//   * Centering tolerance / framing-assistant defaults — those live in the
-//     CenteringService config, not in app settings.
+//   * Framing-assistant defaults — those live in the CenteringService
+//     config, not in app settings.
 //   * WHICH solver runs. That is `PlateSolverPreference` in the native store
 //     (`platesolver.json`) — the only thing the solve dispatcher reads. The
 //     `plate_solver` app-setting is a PROJECTION of it kept for backup export
@@ -66,4 +68,7 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
 
   Future<void> setCenteringSyncMount(bool value) =>
       _set(AppSettingDefs.centeringSyncMount, value);
+
+  Future<void> setCenteringToleranceArcsec(double value) =>
+      _set(AppSettingDefs.centeringToleranceArcsec, value);
 }

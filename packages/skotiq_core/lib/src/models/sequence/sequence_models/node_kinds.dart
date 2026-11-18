@@ -446,11 +446,6 @@ final _centerDec = NodeField<CenterNode, double?>(
   (n) => n.customDec,
   FieldCodec.optionalReal,
 );
-final _centerAccuracy = NodeField<CenterNode, double>(
-  'accuracyArcsec',
-  (n) => n.accuracyArcsec,
-  FieldCodec.real,
-);
 final _centerAttempts = NodeField<CenterNode, int>(
   'maxAttempts',
   (n) => n.maxAttempts,
@@ -1347,7 +1342,6 @@ abstract final class NodeKinds {
       _centerUseTarget,
       _centerRa,
       _centerDec,
-      _centerAccuracy,
       _centerAttempts,
       _centerExposure,
       _centerFilter,
@@ -1356,16 +1350,12 @@ abstract final class NodeKinds {
       useTargetCoords: v(_centerUseTarget),
       customRa: v(_centerRa),
       customDec: v(_centerDec),
-      accuracyArcsec: v(_centerAccuracy),
       maxAttempts: v(_centerAttempts),
       exposureDuration: v(_centerExposure),
       filter: v(_centerFilter),
     ),
-    describe: (n) => 'Center (${n.accuracyArcsec}″)',
-    diff: [
-      NodeDiffLine.of(_centerAccuracy, 'Accuracy (arcsec)'),
-      NodeDiffLine.of(_centerAttempts, 'Max attempts'),
-    ],
+    describe: (n) => 'Center (${n.maxAttempts} attempts)',
+    diff: [NodeDiffLine.of(_centerAttempts, 'Max attempts')],
   );
 
   static final exposure = NodeKind<ExposureNode>(

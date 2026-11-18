@@ -726,7 +726,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       CenterNode(
         id: SmartNightService._uuid.v4(),
         name: 'Center via plate solve',
-        accuracyArcsec: 5.0,
         maxAttempts: 5,
         useTargetCoords: true,
         parentId: headerId,

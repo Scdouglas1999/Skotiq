@@ -266,7 +266,8 @@ void main() {
       expect(response.statusCode, 200);
       expect(ranWith!.syncMount, isFalse);
       expect(ranWith!.exposureTime, ManualCentering.defaultExposureSeconds);
-      expect(ranWith!.toleranceArcsec, ManualCentering.toleranceArcsec);
+      // The host's Centering tolerance setting, 5" by default.
+      expect(ranWith!.toleranceArcsec, 5.0);
       expect(
         ranWith!.maxIterations,
         3,

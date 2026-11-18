@@ -59,9 +59,10 @@ class SlewNode extends SequenceNode {
   ];
 }
 
-/// Center target (plate solve + sync + slew)
+/// Center target (plate solve + sync + slew). How close counts as centered
+/// is the operator's Settings > Plate solving > Centering tolerance, one
+/// setting for every centering.
 class CenterNode extends SequenceNode {
-  final double accuracyArcsec;
   final int maxAttempts;
   final bool useTargetCoords;
   final double? customRa;
@@ -81,7 +82,6 @@ class CenterNode extends SequenceNode {
     super.parentId,
     super.orderIndex,
     super.comment,
-    this.accuracyArcsec = 5.0,
     this.maxAttempts = 5,
     this.useTargetCoords = true,
     this.customRa,
@@ -102,7 +102,6 @@ class CenterNode extends SequenceNode {
     String? parentId,
     int? orderIndex,
     String? comment,
-    double? accuracyArcsec,
     int? maxAttempts,
     bool? useTargetCoords,
     double? customRa,
@@ -119,7 +118,6 @@ class CenterNode extends SequenceNode {
       parentId: parentId ?? this.parentId,
       orderIndex: orderIndex ?? this.orderIndex,
       comment: comment ?? this.comment,
-      accuracyArcsec: accuracyArcsec ?? this.accuracyArcsec,
       maxAttempts: maxAttempts ?? this.maxAttempts,
       useTargetCoords: useTargetCoords ?? this.useTargetCoords,
       customRa: customRa ?? this.customRa,
@@ -132,7 +130,6 @@ class CenterNode extends SequenceNode {
   @override
   List<Object?> get props => [
     ...super.props,
-    accuracyArcsec,
     maxAttempts,
     useTargetCoords,
     customRa,
