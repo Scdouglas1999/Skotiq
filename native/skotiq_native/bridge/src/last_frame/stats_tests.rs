@@ -45,7 +45,7 @@ fn a_frame_with_stars_publishes_every_measurement_from_one_detection() {
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
     assert!(!stars.is_empty(), "the synthetic frame must carry stars");
 
-    let published = frame_stats_result(&stats, &stars);
+    let published = frame_stats_result(&stats, &image, &stars);
 
     assert_eq!(published.star_count, stars.len() as u32);
     assert!(
@@ -65,7 +65,7 @@ fn a_starless_frame_publishes_nothing_rather_than_a_zero() {
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
 
-    let published = frame_stats_result(&stats, &stars);
+    let published = frame_stats_result(&stats, &image, &stars);
 
     assert_eq!(published.star_count, stars.len() as u32);
     if stars.is_empty() {
@@ -85,12 +85,14 @@ fn a_defocused_frame_publishes_a_larger_hfr_than_a_sharp_one() {
 
     let sharp_hfr = frame_stats_result(
         &skotiq_imaging::calculate_stats(&sharp),
+        &sharp,
         &skotiq_imaging::detect_stars(&sharp, &config),
     )
     .hfr
     .expect("the sharp frame is measurable");
     let soft_hfr = frame_stats_result(
         &skotiq_imaging::calculate_stats(&soft),
+        &soft,
         &skotiq_imaging::detect_stars(&soft, &config),
     )
     .hfr
@@ -100,4 +102,28 @@ fn a_defocused_frame_publishes_a_larger_hfr_than_a_sharp_one() {
         soft_hfr > sharp_hfr,
         "HFR must grow with defocus: sharp {sharp_hfr:.2} px vs soft {soft_hfr:.2} px"
     );
+}
+
+/// Frame #2 of the IC 405 night (2026-11-16) showed HFR 4.50 in the Last
+/// frame tiles and was rejected as "HFR 4.12 px exceeds ...": the screens
+/// published a median of the brightest detections, the grader its own shape
+/// measurement. The screens publish the grader's numbers now.
+#[test]
+fn the_screens_publish_the_hfr_and_shape_the_grader_judges() {
+    for sigma in [1.6, 2.4, 3.2] {
+        let image = star_frame(512, 512, 36, sigma);
+        let stats = skotiq_imaging::calculate_stats(&image);
+        let stars =
+            skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
+        let published = frame_stats_result(&stats, &image, &stars);
+        let graded = crate::unified_device_ops::measure_light_frame(&image, Some(&stars));
+        assert!(graded.hfr.is_some(), "sigma {sigma}: measurable");
+        assert_eq!(published.hfr, graded.hfr, "sigma {sigma}");
+        assert_eq!(
+            published.eccentricity,
+            graded.star_shape.map(|shape| shape.eccentricity),
+            "sigma {sigma}"
+        );
+        assert_eq!(published.star_count, graded.star_count.unwrap());
+    }
 }

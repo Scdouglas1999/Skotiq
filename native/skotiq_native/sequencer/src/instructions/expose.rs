@@ -662,15 +662,14 @@ async fn take_burst(
                 frame_filter_name.as_deref(),
             );
             let target_altitude = target_altitude_now(ctx);
-            let (filter_hfr, star_baseline) = crate::quality::filter_baseline::baselines_for(
+            let mut baselines = crate::quality::filter_baseline::baselines_for(
                 &star_count_baselines_handle,
                 &baseline_key,
                 target_altitude,
             )
             .await;
-            let baseline = filter_hfr.or(*frame_baseline_handle.read().await);
-            let g =
-                crate::quality::grade_frame_with_baselines(qc, &metrics, baseline, star_baseline);
+            baselines.hfr = baselines.hfr.or(*frame_baseline_handle.read().await);
+            let g = crate::quality::grade_frame_with_baselines(qc, &metrics, &baselines);
             match g {
                 crate::quality::FrameGrade::Pass => {
                     // Update the baselines with this accepted frame.
@@ -686,8 +685,7 @@ async fn take_burst(
                     crate::quality::filter_baseline::record_accepted(
                         &star_count_baselines_handle,
                         baseline_key,
-                        measured_star_count,
-                        measured_hfr,
+                        &metrics,
                         target_altitude,
                     )
                     .await;

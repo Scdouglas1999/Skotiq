@@ -266,6 +266,8 @@ pub struct RunRig {
     /// Degrees.
     pub longitude: Option<f64>,
     pub filter_focus_offsets: std::collections::HashMap<String, i32>,
+    /// The filter [`Self::filter_focus_offsets`] are measured from. Offset 0.
+    pub filter_focus_reference: Option<String>,
 }
 
 impl RunRig {
@@ -438,6 +440,7 @@ impl RunShared {
         self.rig.latitude = config.latitude;
         self.rig.longitude = config.longitude;
         self.rig.filter_focus_offsets = config.filter_focus_offsets.clone();
+        self.rig.filter_focus_reference = config.filter_focus_reference.clone();
         let profile = &config.observer_profile;
         self.identity.observer_name = profile.observer_name.clone();
         self.identity.site_elevation_m = profile.site_elevation_m;

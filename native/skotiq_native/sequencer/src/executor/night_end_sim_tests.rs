@@ -505,7 +505,7 @@ async fn a_weather_park_still_runs_the_plans_end_steps() {
     executor.handle().update_weather_verdict(Some(true)).await;
     let state = wait_until_finished(&executor).await;
     let calls = ops.calls();
-    let _ = executor.stop().await;
+    executor.stop().await.expect("the run stops");
 
     assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
     let park = calls.iter().position(|c| c == "mount_park:mount-1");

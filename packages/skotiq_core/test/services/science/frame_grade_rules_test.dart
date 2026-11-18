@@ -67,9 +67,9 @@ void main() {
 
     test('configuring an eccentricity rule with no metric available skips the '
         'rule (no no-evidence reject)', () {
-      // Both production callers (FrameAutoGrader, Image Grader dialog) now
-      // source these metrics from the frame's PSF tiles when available. A
-      // frame whose pipeline produced no PSF data is legitimately
+      // The Image Grader dialog sources these metrics from the frame's PSF
+      // tiles when available. A frame whose pipeline produced no PSF data is
+      // legitimately
       // ungradeable on this dimension and must pass, not assert or reject.
       expect(eccRule.gradeFrame(_light()), isNull);
     });

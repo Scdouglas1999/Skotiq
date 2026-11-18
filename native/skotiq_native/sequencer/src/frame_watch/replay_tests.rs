@@ -15,7 +15,8 @@ use super::fixture::{
 use super::*;
 use crate::quality::{
     filter_baseline_key, grade_frame_with_baselines, update_hfr_baseline, FilterBaseline,
-    FrameMetrics, ImageQualityCheck, RejectReason, DEFAULT_STAR_COUNT_DROP_PERCENT,
+    FrameBaselines, FrameMetrics, ImageQualityCheck, RejectReason,
+    DEFAULT_ECCENTRICITY_BASELINE_PERCENT, DEFAULT_STAR_COUNT_DROP_PERCENT,
 };
 use std::collections::{BTreeSet, HashMap};
 
@@ -27,7 +28,22 @@ fn rig_check() -> ImageQualityCheck {
         hfr_threshold: Some(3.5),
         hfr_baseline_percent: Some(50.0),
         eccentricity_threshold: Some(0.8),
+        eccentricity_baseline_percent: None,
         star_count_min: Some(10),
+        star_count_drop_percent: Some(DEFAULT_STAR_COUNT_DROP_PERCENT),
+        max_consecutive_rejects: 3,
+    }
+}
+
+/// What the app grades with by default since 2026-11-17: no absolute limit,
+/// every check against the target and filter's own recent frames.
+fn relative_check() -> ImageQualityCheck {
+    ImageQualityCheck {
+        hfr_threshold: None,
+        hfr_baseline_percent: Some(50.0),
+        eccentricity_threshold: None,
+        eccentricity_baseline_percent: Some(DEFAULT_ECCENTRICITY_BASELINE_PERCENT),
+        star_count_min: None,
         star_count_drop_percent: Some(DEFAULT_STAR_COUNT_DROP_PERCENT),
         max_consecutive_rejects: 3,
     }
@@ -35,30 +51,42 @@ fn rig_check() -> ImageQualityCheck {
 
 /// Grade every row the way `expose.rs` does, returning (id, reject reason).
 fn grade_night(rows: &[Row]) -> Vec<(u32, Option<RejectReason>)> {
-    let check = rig_check();
+    grade_night_with(rows, &rig_check())
+}
+
+fn grade_night_with(rows: &[Row], check: &ImageQualityCheck) -> Vec<(u32, Option<RejectReason>)> {
     let mut baselines: HashMap<String, FilterBaseline> = HashMap::new();
     let (mut global_hfr, mut global_samples) = (None, Vec::new());
     rows.iter()
         .map(|row| {
             let key = filter_baseline_key(Some("NGC0891"), Some(&row.filter));
-            let (filter_hfr, stars) = baselines
+            let (filter_hfr, stars, ecc) = baselines
                 .get(&key)
-                .map(|b| (b.hfr(), b.star_count_at(Some(row.alt))))
-                .unwrap_or((None, None));
+                .map(|b| (b.hfr(), b.star_count_at(Some(row.alt)), b.eccentricity()))
+                .unwrap_or((None, None, None));
             let metrics = FrameMetrics {
                 hfr: row.hfr,
                 eccentricity: row.ecc,
                 star_count: row.stars,
                 trail: None,
             };
-            let grade =
-                grade_frame_with_baselines(&check, &metrics, filter_hfr.or(global_hfr), stars);
+            let grade = grade_frame_with_baselines(
+                check,
+                &metrics,
+                &FrameBaselines {
+                    hfr: filter_hfr.or(global_hfr),
+                    star_count: stars,
+                    eccentricity: ecc,
+                },
+            );
             if grade.is_pass() {
                 update_hfr_baseline(&mut global_hfr, &mut global_samples, row.hfr);
-                baselines
-                    .entry(key)
-                    .or_default()
-                    .record(row.stars, row.hfr, Some(row.alt));
+                baselines.entry(key).or_default().record_frame(
+                    row.stars,
+                    row.hfr,
+                    row.ecc,
+                    Some(row.alt),
+                );
             }
             (row.id, grade.reject_reason().copied())
         })
@@ -120,6 +148,45 @@ fn the_grader_rejects_the_untracked_and_trailed_frames_and_no_good_frame() {
     for row in rows.iter().filter(|r| r.id >= 688) {
         assert!(reason(row.id).is_some(), "row {} passed", row.id);
     }
+}
+
+/// The relative checks the app ships by default catch the same night without
+/// any absolute limit: the untracked and trailed frames and the trees, and no
+/// frame the night kept as good.
+#[test]
+fn the_relative_defaults_reject_the_bad_frames_and_no_good_frame() {
+    let rows = rows();
+    let graded = grade_night_with(&rows, &relative_check());
+    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1;
+
+    assert!(matches!(
+        reason(639),
+        Some(RejectReason::StarCountBelowBaseline { count: 868, .. })
+    ));
+    assert!(matches!(
+        reason(640),
+        Some(RejectReason::HfrAboveBaseline { .. })
+    ));
+    for row in rows.iter().filter(|r| r.id >= 688) {
+        assert!(reason(row.id).is_some(), "row {} passed", row.id);
+    }
+    // Before the trees, anything else rejected is a frame the absolute
+    // eccentricity limit also rejected on the night.
+    let eccentricity_rejects: BTreeSet<u32> = rows
+        .iter()
+        .filter(|r| r.id < 688 && matches!(r.db_reject(), Some(RejectReason::Eccentricity { .. })))
+        .map(|r| r.id)
+        .collect();
+    let others: BTreeSet<u32> = graded
+        .iter()
+        .filter(|(id, r)| *id < 688 && *id != 639 && *id != 640 && r.is_some())
+        .map(|(id, _)| *id)
+        .collect();
+    assert!(
+        others.is_subset(&eccentricity_rejects),
+        "rejected good frames: {:?}",
+        others.difference(&eccentricity_rejects).collect::<Vec<_>>()
+    );
 }
 
 struct Replay {

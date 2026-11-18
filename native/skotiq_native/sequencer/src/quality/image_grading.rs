@@ -34,6 +34,13 @@
 //!   other metric is then `None` by construction, so every configured gate
 //!   would be skipped and a clouded-out or badly trailed frame would pass on
 //!   the strength of having been unmeasurable. See `grade_frame`.
+//! * **Relative by default.** The app ships the absolute limits (HFR px,
+//!   eccentricity, star-count floor) off and the relative ones on: HFR,
+//!   eccentricity and star count each against the recent accepted frames of
+//!   the same target and filter (owner rule 2026-11-16: never grade off
+//!   absolutes by default). A soft-seeing night then keeps its frames, and a
+//!   frame that went soft, elongated or lost its stars against its neighbors
+//!   is still rejected.
 //! * **Star count against the frame's own baseline.** The count a sky gives
 //!   depends on the field, filter, exposure and altitude, so a fixed floor
 //!   either never fires or rejects a sparse field. The baseline is the median
@@ -57,10 +64,9 @@ pub const STAR_COUNT_BASELINE_WINDOW: usize = 3;
 /// set: a frame keeping less than half of its baseline count is rejected.
 pub const DEFAULT_STAR_COUNT_DROP_PERCENT: f64 = 50.0;
 
-/// The eccentricity limit the app ships with: the default of the Dart
-/// setting `imageGradingEccentricityThreshold`, which is what reaches
-/// [`ImageQualityCheck::eccentricity_threshold`] on a profile that never set
-/// one. Pinned here so the rig-frame tests grade against the shipped value.
+/// The absolute eccentricity limit offered when an operator turns the
+/// absolute check on. The app ships it off; [`DEFAULT_ECCENTRICITY_BASELINE_PERCENT`]
+/// is the shape check that runs by default.
 ///
 /// Chosen from the owner's frames of 2026-09-14 (10" f/4 Newtonian,
 /// `test-fixtures/rig-2026-09-14`), measured by the grader itself. In focus:
@@ -70,6 +76,16 @@ pub const DEFAULT_STAR_COUNT_DROP_PERCENT: f64 = 50.0;
 /// 0.8 (a 1.67:1 axis ratio) passes every in-focus frame and still rejects
 /// every trailed one.
 pub const DEFAULT_ECCENTRICITY_THRESHOLD: f64 = 0.8;
+
+/// How far above its filter's baseline a frame's eccentricity may rise
+/// before it is rejected, in percent: the default of the Dart setting
+/// `imageGradingEccentricityBaselinePercent`.
+///
+/// From the same 2026-09-14 frames: in focus 0.51 to 0.68, trailed 0.82 to
+/// 0.97. Against an in-focus baseline of about 0.55, +40% is a 0.77 limit:
+/// it keeps the roundest and the softest in-focus frames and rejects every
+/// trailed one.
+pub const DEFAULT_ECCENTRICITY_BASELINE_PERCENT: f64 = 40.0;
 
 /// Per-burst image-grading thresholds.
 ///
@@ -95,6 +111,11 @@ pub struct ImageQualityCheck {
     /// before treating a source as a satellite trail rather than a star, so
     /// any threshold below that is genuinely reachable.
     pub eccentricity_threshold: Option<f64>,
+    /// Reject if the eccentricity exceeds `baseline * (1 + percent / 100)`,
+    /// the baseline being the median of the recent accepted frames of the
+    /// same target and filter. Skipped until that pair has a baseline.
+    #[serde(default)]
+    pub eccentricity_baseline_percent: Option<f64>,
     /// Reject if star count drops below this floor. Trips when clouds
     /// roll in or the dome slit drifts off-target.
     pub star_count_min: Option<u32>,
@@ -115,6 +136,7 @@ impl Default for ImageQualityCheck {
             hfr_threshold: None,
             hfr_baseline_percent: None,
             eccentricity_threshold: None,
+            eccentricity_baseline_percent: None,
             star_count_min: None,
             star_count_drop_percent: None,
             max_consecutive_rejects: 3,
@@ -130,6 +152,7 @@ impl ImageQualityCheck {
         self.hfr_threshold.is_some()
             || self.hfr_baseline_percent.is_some()
             || self.eccentricity_threshold.is_some()
+            || self.eccentricity_baseline_percent.is_some()
             || self.star_count_min.is_some()
             || self.star_count_drop_percent.is_some()
     }
@@ -191,6 +214,13 @@ pub enum RejectReason {
     },
     /// Stars elongated past the eccentricity limit.
     Eccentricity { eccentricity: f64, limit: f64 },
+    /// Stars elongated past the baseline by more than the allowed percent.
+    EccentricityAboveBaseline {
+        eccentricity: f64,
+        baseline: f64,
+        percent: f64,
+        limit: f64,
+    },
     /// Fewer stars than the configured floor.
     StarCountBelowMinimum { count: u32, minimum: u32 },
     /// Too small a fraction of the target and filter's baseline star count.
@@ -232,7 +262,9 @@ impl RejectReason {
     pub fn stars_trailed(&self) -> bool {
         matches!(
             self,
-            RejectReason::Trailed { .. } | RejectReason::Eccentricity { .. }
+            RejectReason::Trailed { .. }
+                | RejectReason::Eccentricity { .. }
+                | RejectReason::EccentricityAboveBaseline { .. }
         )
     }
 }
@@ -276,6 +308,16 @@ impl std::fmt::Display for RejectReason {
             } => write!(
                 f,
                 "eccentricity {eccentricity:.2} exceeds threshold {limit:.2}"
+            ),
+            RejectReason::EccentricityAboveBaseline {
+                eccentricity,
+                baseline,
+                percent,
+                limit,
+            } => write!(
+                f,
+                "eccentricity {eccentricity:.2} exceeds this filter's baseline {baseline:.2} \
+                 + {percent:.0}% (limit {limit:.2})"
             ),
             RejectReason::StarCountBelowMinimum { count, minimum } => write!(
                 f,
@@ -323,6 +365,17 @@ pub struct FrameMetrics {
     pub trail: Option<skotiq_imaging::FrameTrail>,
 }
 
+/// The baselines of a frame's target and filter: the medians of its recent
+/// accepted frames. Each is `None` until that pair has one, and the check
+/// against it is then skipped.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct FrameBaselines {
+    pub hfr: Option<f64>,
+    /// Scaled to the airmass of the frame being judged.
+    pub star_count: Option<f64>,
+    pub eccentricity: Option<f64>,
+}
+
 /// Grade a frame against the configured thresholds.
 ///
 /// Returns `Pass` when no check is active, when metrics were never measured
@@ -339,17 +392,23 @@ pub fn grade_frame(
     metrics: &FrameMetrics,
     hfr_baseline: Option<f64>,
 ) -> FrameGrade {
-    grade_frame_with_baselines(check, metrics, hfr_baseline, None)
+    grade_frame_with_baselines(
+        check,
+        metrics,
+        &FrameBaselines {
+            hfr: hfr_baseline,
+            ..FrameBaselines::default()
+        },
+    )
 }
 
-/// [`grade_frame`] with the star-count baseline of the frame's target and
-/// filter as well. `star_count_baseline` is `None` until that pair has one,
-/// and the star-count drop check is then skipped.
+/// [`grade_frame`] with every baseline of the frame's target and filter.
+/// This is the one grader of a run's frames: its verdict is what the run
+/// keeps, where the file goes, and what every screen shows.
 pub fn grade_frame_with_baselines(
     check: &ImageQualityCheck,
     metrics: &FrameMetrics,
-    hfr_baseline: Option<f64>,
-    star_count_baseline: Option<f64>,
+    baselines: &FrameBaselines,
 ) -> FrameGrade {
     if !check.is_active() {
         return FrameGrade::Pass;
@@ -380,7 +439,9 @@ pub fn grade_frame_with_baselines(
     // measurements below: the detector drops streaks longer than about 3:1,
     // so the eccentricity and HFR are taken over compact fragments and faint
     // stars and read like a good frame's.
-    if let (Some(_), Some(trail)) = (check.eccentricity_threshold, metrics.trail) {
+    let shape_graded =
+        check.eccentricity_threshold.is_some() || check.eccentricity_baseline_percent.is_some();
+    if let (true, Some(trail)) = (shape_graded, metrics.trail) {
         if trail.is_trailed() {
             return FrameGrade::Reject {
                 reason: RejectReason::Trailed {
@@ -415,7 +476,7 @@ pub fn grade_frame_with_baselines(
     // Baseline-relative HFR. Only fires when both the current HFR and
     // the baseline are known. baseline_percent is in % (50 = 1.5x).
     if let (Some(pct), Some(hfr), Some(baseline)) =
-        (check.hfr_baseline_percent, metrics.hfr, hfr_baseline)
+        (check.hfr_baseline_percent, metrics.hfr, baselines.hfr)
     {
         if baseline > 0.0 {
             let limit = baseline * (1.0 + pct / 100.0);
@@ -449,6 +510,28 @@ pub fn grade_frame_with_baselines(
         }
     }
 
+    // Eccentricity against this target and filter's baseline.
+    if let (Some(pct), Some(ecc), Some(baseline)) = (
+        check.eccentricity_baseline_percent,
+        metrics.eccentricity,
+        baselines.eccentricity,
+    ) {
+        let limit = baseline * (1.0 + pct / 100.0);
+        if baseline > 0.0 && ecc > limit {
+            return FrameGrade::Reject {
+                reason: RejectReason::EccentricityAboveBaseline {
+                    eccentricity: ecc,
+                    baseline,
+                    percent: pct,
+                    limit,
+                },
+                hfr: metrics.hfr,
+                eccentricity: Some(ecc),
+                star_count: metrics.star_count,
+            };
+        }
+    }
+
     // Star count floor.
     if let (Some(min), Some(count)) = (check.star_count_min, metrics.star_count) {
         if count < min {
@@ -468,7 +551,7 @@ pub fn grade_frame_with_baselines(
     if let (Some(pct), Some(count), Some(baseline)) = (
         check.star_count_drop_percent,
         metrics.star_count,
-        star_count_baseline,
+        baselines.star_count,
     ) {
         let limit = baseline * (1.0 - pct / 100.0);
         if baseline > 0.0 && f64::from(count) < limit {
@@ -539,6 +622,13 @@ pub fn update_hfr_baseline(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn stars(star_count: Option<f64>) -> FrameBaselines {
+        FrameBaselines {
+            star_count,
+            ..FrameBaselines::default()
+        }
+    }
 
     #[test]
     fn inactive_check_always_passes() {
@@ -1004,7 +1094,7 @@ mod tests {
             trail: None,
         };
         // A trailed sub of the NGC 891 run against its filter's ~2,100.
-        match grade_frame_with_baselines(&check, &frame(351), Some(2100.0), Some(2100.0)) {
+        match grade_frame_with_baselines(&check, &frame(351), &stars(Some(2100.0))) {
             FrameGrade::Reject {
                 reason, star_count, ..
             } => {
@@ -1022,8 +1112,8 @@ mod tests {
             }
             other => panic!("expected Reject, got {other:?}"),
         }
-        assert!(grade_frame_with_baselines(&check, &frame(1050), None, Some(2100.0)).is_pass());
-        assert!(grade_frame_with_baselines(&check, &frame(1049), None, Some(2100.0)).is_reject());
+        assert!(grade_frame_with_baselines(&check, &frame(1050), &stars(Some(2100.0))).is_pass());
+        assert!(grade_frame_with_baselines(&check, &frame(1049), &stars(Some(2100.0))).is_reject());
     }
 
     #[test]
@@ -1036,7 +1126,7 @@ mod tests {
             star_count: Some(3),
             ..Default::default()
         };
-        assert!(grade_frame_with_baselines(&check, &metrics, None, None).is_pass());
+        assert!(grade_frame_with_baselines(&check, &metrics, &FrameBaselines::default()).is_pass());
         assert!(grade_frame(&check, &metrics, None).is_pass());
     }
 
@@ -1143,5 +1233,76 @@ mod tests {
             }),
         };
         assert!(grade_frame(&check, &trailed, None).is_pass());
+    }
+
+    /// The shape check that runs by default is relative: a frame is judged
+    /// against the eccentricity of its own filter's recent accepted frames.
+    #[test]
+    fn eccentricity_against_the_filters_baseline() {
+        let check = ImageQualityCheck {
+            eccentricity_baseline_percent: Some(DEFAULT_ECCENTRICITY_BASELINE_PERCENT),
+            ..Default::default()
+        };
+        let frame = |eccentricity| FrameMetrics {
+            hfr: Some(2.5),
+            eccentricity: Some(eccentricity),
+            star_count: Some(900),
+            trail: None,
+        };
+        let baseline = FrameBaselines {
+            eccentricity: Some(0.55),
+            ..FrameBaselines::default()
+        };
+        // In-focus frames of 2026-09-14 pass, trailed ones are rejected.
+        for in_focus in [0.51, 0.54, 0.68, 0.77] {
+            assert!(
+                grade_frame_with_baselines(&check, &frame(in_focus), &baseline).is_pass(),
+                "{in_focus}"
+            );
+        }
+        for trailed in [0.82, 0.85, 0.97] {
+            let grade = grade_frame_with_baselines(&check, &frame(trailed), &baseline);
+            let reason = grade.reject_reason().expect("trailed frame rejected");
+            assert!(
+                matches!(reason, RejectReason::EccentricityAboveBaseline { .. }),
+                "{reason:?}"
+            );
+            assert!(reason.stars_trailed());
+            assert!(
+                reason.to_string().starts_with(&format!(
+                    "eccentricity {trailed:.2} exceeds this filter's baseline 0.55"
+                )),
+                "{reason}"
+            );
+        }
+        // No baseline yet: nothing to judge against.
+        assert!(
+            grade_frame_with_baselines(&check, &frame(0.97), &FrameBaselines::default()).is_pass()
+        );
+    }
+
+    /// Relative shape grading carries the trail check, which sees trails the
+    /// star detector discards.
+    #[test]
+    fn relative_shape_grading_runs_the_trail_check() {
+        let check = ImageQualityCheck {
+            eccentricity_baseline_percent: Some(DEFAULT_ECCENTRICITY_BASELINE_PERCENT),
+            ..Default::default()
+        };
+        let trailed = FrameMetrics {
+            hfr: Some(2.4),
+            eccentricity: Some(0.58),
+            star_count: Some(1850),
+            trail: Some(skotiq_imaging::FrameTrail {
+                length_px: 24.5,
+                width_px: 2.1,
+                angle_deg: 21.5,
+            }),
+        };
+        let grade = grade_frame_with_baselines(&check, &trailed, &FrameBaselines::default());
+        assert!(
+            matches!(grade.reject_reason(), Some(RejectReason::Trailed { .. })),
+            "{grade:?}"
+        );
     }
 }

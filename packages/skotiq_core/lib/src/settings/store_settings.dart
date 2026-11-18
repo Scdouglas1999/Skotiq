@@ -743,6 +743,15 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  /// This database has been through the rule that turned off the absolute
+  /// grading limits a profile held only as the old defaults (2026-11-17).
+  static const gradingRelativeDefaultsMigrated = BoolSetting(
+    'gradingRelativeDefaultsMigrated',
+    'image_grading.relative_defaults_migrated',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
   /// `pending` while the one-time "Your Sky is now off" notice is owed,
   /// `shown` once it is answered.
   static const scienceSkyAtlasOffNotice = OptionalTextSetting(
@@ -827,14 +836,8 @@ abstract final class StoreSettings {
     false,
     sync: SettingSync.hostStore,
   );
-  static const scienceAutoFrameGrading = BoolSetting(
-    'scienceAutoFrameGrading',
-    'science.grading.auto_enabled',
-    false,
-    sync: SettingSync.hostStore,
-  );
 
-  /// The frame grading rules. Not set: the conservative defaults.
+  /// The Image Grader dialog's rules. Not set: suggested from the frames.
   static const scienceFrameGradeRules = OptionalTextSetting(
     'scienceFrameGradeRules',
     'science.grading.rules_json',
@@ -1064,6 +1067,7 @@ abstract final class StoreSettings {
     scienceSkyAtlas,
     scienceSkyAtlasLimitGb,
     scienceSkyAtlasOptInMigrated,
+    gradingRelativeDefaultsMigrated,
     scienceSkyAtlasOffNotice,
     scienceManualPurgeOnly,
     scienceFitsHeaderWriteback,
@@ -1077,7 +1081,6 @@ abstract final class StoreSettings {
     scienceTnsDataSourceId,
     scienceTnsReporterName,
     scienceTnsUseSandbox,
-    scienceAutoFrameGrading,
     scienceFrameGradeRules,
     scienceGuideCollapsed,
     scienceOverlayOpacity,

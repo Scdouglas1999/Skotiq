@@ -268,9 +268,17 @@ class NightLastFrameVm {
     required this.metrics,
     this.frameNumber,
     this.histogram,
+    this.accepted,
+    this.rejectReason,
   });
 
   final int? frameNumber;
+
+  /// The run's verdict on the frame; null when the run did not grade it.
+  final bool? accepted;
+
+  /// Why the run rejected the frame, in its own words.
+  final String? rejectReason;
 
   /// HFR, FWHM, Ecc, Stars, Median, Bg σ, SNR, Solve, each with its delta
   /// against the night median when the night has that metric.
@@ -283,12 +291,16 @@ class NightLastFrameVm {
   bool operator ==(Object other) =>
       other is NightLastFrameVm &&
       other.frameNumber == frameNumber &&
+      other.accepted == accepted &&
+      other.rejectReason == rejectReason &&
       listEquals(other.metrics, metrics) &&
       _nullableListEquals(other.histogram, histogram);
 
   @override
   int get hashCode => Object.hash(
         frameNumber,
+        accepted,
+        rejectReason,
         Object.hashAll(metrics),
         _nullableListHash(histogram),
       );

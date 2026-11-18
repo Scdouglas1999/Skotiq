@@ -74,7 +74,7 @@ final Map<String, Duration> defaultNarratorCooldowns = {
   // Pipeline failures are keyed per-stage (eventType is
   // `quality.pipeline_failure.<stage>`); the engine matches the full string.
   // Generate a cooldown entry for every ScienceStage so no stage (e.g.
-  // fitsWriteback / autoGrade) is silently left ungated.
+  // fitsWriteback) is silently left ungated.
   for (final stage in ScienceStage.values)
     'quality.pipeline_failure.${stage.name}': const Duration(minutes: 10),
 };

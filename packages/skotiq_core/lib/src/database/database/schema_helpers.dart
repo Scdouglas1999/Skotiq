@@ -501,6 +501,43 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
     );
   }
 
+  /// Grading became relative by default (owner, 2026-11-16: "Skotiq should
+  /// never run off absolutes by default, everything should be relative").
+  /// The absolute limits a profile holds only because they were the old
+  /// defaults (HFR 3.5 px, eccentricity 0.8, at least 10 stars) are turned
+  /// off once; any other value is the user's choice and is kept. Runs once per
+  /// database, marked by `gradingRelativeDefaultsMigrated`.
+  Future<void> _migrateGradingToRelative() async {
+    const marker = StoreSettings.gradingRelativeDefaultsMigrated;
+    Future<String?> stored(String key) async => (await customSelect(
+      'SELECT value FROM app_settings WHERE key = ?',
+      variables: [Variable.withString(key)],
+    ).getSingleOrNull())?.read<String>('value');
+    Future<void> store(String key, String value) => customStatement(
+      'UPDATE app_settings SET value = ? WHERE key = ?',
+      [value, key],
+    );
+    if (await stored(marker.key) == marker.encode(true)) return;
+
+    const oldAbsoluteDefaults = <String, double>{
+      'image_grading_hfr_threshold_px': 3.5,
+      'image_grading_eccentricity_threshold': 0.8,
+      'image_grading_star_count_min': 10,
+    };
+    for (final MapEntry(:key, value: oldDefault)
+        in oldAbsoluteDefaults.entries) {
+      final value = await stored(key);
+      if (value != null && double.tryParse(value.trim()) == oldDefault) {
+        await store(key, 'null');
+      }
+    }
+    await customStatement(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) '
+      'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      [marker.key, marker.encode(true)],
+    );
+  }
+
   Future<void> _ensureDefaultSettings() async {
     for (final entry in _defaultSettings.entries) {
       await customStatement(

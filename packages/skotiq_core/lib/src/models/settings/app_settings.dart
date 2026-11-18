@@ -103,8 +103,15 @@ abstract class AppSettings with _$AppSettings {
     /// Reject if star eccentricity exceeds this value. `null` => don't apply.
     double? imageGradingEccentricityThreshold,
 
+    /// Reject if eccentricity exceeds its filter's baseline by this percent.
+    double? imageGradingEccentricityBaselinePercent,
+
     /// Reject if detected star count falls below this. `null` => don't apply.
     int? imageGradingStarCountMin,
+
+    /// Reject if the star count falls this percent below its filter's
+    /// baseline.
+    double? imageGradingStarCountDropPercent,
 
     /// Notify the operator once when this many frames in a row are rejected
     /// (default 3). The run carries on.

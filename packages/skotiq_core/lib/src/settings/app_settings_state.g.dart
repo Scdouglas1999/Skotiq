@@ -140,43 +140,45 @@ abstract final class AppSettingDefs {
   static final OptionalDoubleSetting imageGradingHfrThresholdPx = kAppSettingsTable[124] as OptionalDoubleSetting;
   static final OptionalDoubleSetting imageGradingHfrBaselinePercent = kAppSettingsTable[125] as OptionalDoubleSetting;
   static final OptionalDoubleSetting imageGradingEccentricityThreshold = kAppSettingsTable[126] as OptionalDoubleSetting;
-  static final OptionalIntSetting imageGradingStarCountMin = kAppSettingsTable[127] as OptionalIntSetting;
-  static final IntSetting imageGradingMaxConsecutiveRejects = kAppSettingsTable[128] as IntSetting;
-  static final OptionalTextSetting imageGradingRejectFolderPath = kAppSettingsTable[129] as OptionalTextSetting;
-  static final BoolSetting adaptiveExposureEnabled = kAppSettingsTable[130] as BoolSetting;
-  static final DoubleSetting adaptiveExposureTargetSnr = kAppSettingsTable[131] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureReferenceMag = kAppSettingsTable[132] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureMinSecs = kAppSettingsTable[133] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureMaxSecs = kAppSettingsTable[134] as DoubleSetting;
-  static final BoolMapSetting adaptiveExposurePerFilterEnabled = kAppSettingsTable[135] as BoolMapSetting;
-  static final DoubleMapSetting adaptiveExposurePerFilterMinSecs = kAppSettingsTable[136] as DoubleMapSetting;
-  static final DoubleMapSetting adaptiveExposurePerFilterMaxSecs = kAppSettingsTable[137] as DoubleMapSetting;
-  static final EnumSetting<PreflightStrictness> preflightStrictness = kAppSettingsTable[138] as EnumSetting<PreflightStrictness>;
-  static final IntSetting polarAlignmentMaxAgeDays = kAppSettingsTable[139] as IntSetting;
-  static final IntSetting darkLibraryMinCoverage = kAppSettingsTable[140] as IntSetting;
-  static final DoubleSetting opticalTrainDriftThreshold = kAppSettingsTable[141] as DoubleSetting;
-  static final OptionalDoubleSetting smartNightMaxSessionHours = kAppSettingsTable[142] as OptionalDoubleSetting;
-  static final IntSetting smartNightDefaultAfCadenceFrames = kAppSettingsTable[143] as IntSetting;
-  static final IntSetting smartNightDefaultIntegrationBudgetMinsPerTarget = kAppSettingsTable[144] as IntSetting;
-  static final BoolSetting smartNightIncludeFlatsAtEnd = kAppSettingsTable[145] as BoolSetting;
-  static final BoolSetting smartNightUseSchedulerForMultiTarget = kAppSettingsTable[146] as BoolSetting;
-  static final IntSetting smartNightSchedulerTargetThreshold = kAppSettingsTable[147] as IntSetting;
-  static final TextSetting smartNightDefaultStrategy = kAppSettingsTable[148] as TextSetting;
-  static final IntSetting smartNightPolarAlignmentStaleAfterDays = kAppSettingsTable[149] as IntSetting;
-  static final DoubleSetting smartNightSubExposureFloorSecs = kAppSettingsTable[150] as DoubleSetting;
-  static final DoubleSetting smartNightSubExposureCeilingSecs = kAppSettingsTable[151] as DoubleSetting;
-  static final DoubleSetting smartNightTargetSnr = kAppSettingsTable[152] as DoubleSetting;
-  static final BoolSetting smartNightAutoSelect = kAppSettingsTable[153] as BoolSetting;
-  static final IntSetting smartNightAutoSelectCount = kAppSettingsTable[154] as IntSetting;
-  static final TextSetting smartNightPromptDismissedDayKey = kAppSettingsTable[155] as TextSetting;
-  static final BoolSetting promptForNotesAfterRun = kAppSettingsTable[156] as BoolSetting;
-  static final BoolSetting sessionHandoffAutoPrompt = kAppSettingsTable[157] as BoolSetting;
-  static final BoolSetting campaignRollupSurfaceTargetsTab = kAppSettingsTable[158] as BoolSetting;
-  static final TextSetting campaignRollupGroupingMode = kAppSettingsTable[159] as TextSetting;
-  static final BoolSetting adaptiveSwapEnabledByDefault = kAppSettingsTable[160] as BoolSetting;
-  static final DoubleSetting adaptiveSwapDefaultThreshold = kAppSettingsTable[161] as DoubleSetting;
-  static final DoubleSetting adaptiveSwapDefaultHysteresisSecs = kAppSettingsTable[162] as DoubleSetting;
-  static final DoubleMapSetting conditionsScoreWeights = kAppSettingsTable[163] as DoubleMapSetting;
+  static final OptionalDoubleSetting imageGradingEccentricityBaselinePercent = kAppSettingsTable[127] as OptionalDoubleSetting;
+  static final OptionalIntSetting imageGradingStarCountMin = kAppSettingsTable[128] as OptionalIntSetting;
+  static final OptionalDoubleSetting imageGradingStarCountDropPercent = kAppSettingsTable[129] as OptionalDoubleSetting;
+  static final IntSetting imageGradingMaxConsecutiveRejects = kAppSettingsTable[130] as IntSetting;
+  static final OptionalTextSetting imageGradingRejectFolderPath = kAppSettingsTable[131] as OptionalTextSetting;
+  static final BoolSetting adaptiveExposureEnabled = kAppSettingsTable[132] as BoolSetting;
+  static final DoubleSetting adaptiveExposureTargetSnr = kAppSettingsTable[133] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureReferenceMag = kAppSettingsTable[134] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureMinSecs = kAppSettingsTable[135] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureMaxSecs = kAppSettingsTable[136] as DoubleSetting;
+  static final BoolMapSetting adaptiveExposurePerFilterEnabled = kAppSettingsTable[137] as BoolMapSetting;
+  static final DoubleMapSetting adaptiveExposurePerFilterMinSecs = kAppSettingsTable[138] as DoubleMapSetting;
+  static final DoubleMapSetting adaptiveExposurePerFilterMaxSecs = kAppSettingsTable[139] as DoubleMapSetting;
+  static final EnumSetting<PreflightStrictness> preflightStrictness = kAppSettingsTable[140] as EnumSetting<PreflightStrictness>;
+  static final IntSetting polarAlignmentMaxAgeDays = kAppSettingsTable[141] as IntSetting;
+  static final IntSetting darkLibraryMinCoverage = kAppSettingsTable[142] as IntSetting;
+  static final DoubleSetting opticalTrainDriftThreshold = kAppSettingsTable[143] as DoubleSetting;
+  static final OptionalDoubleSetting smartNightMaxSessionHours = kAppSettingsTable[144] as OptionalDoubleSetting;
+  static final IntSetting smartNightDefaultAfCadenceFrames = kAppSettingsTable[145] as IntSetting;
+  static final IntSetting smartNightDefaultIntegrationBudgetMinsPerTarget = kAppSettingsTable[146] as IntSetting;
+  static final BoolSetting smartNightIncludeFlatsAtEnd = kAppSettingsTable[147] as BoolSetting;
+  static final BoolSetting smartNightUseSchedulerForMultiTarget = kAppSettingsTable[148] as BoolSetting;
+  static final IntSetting smartNightSchedulerTargetThreshold = kAppSettingsTable[149] as IntSetting;
+  static final TextSetting smartNightDefaultStrategy = kAppSettingsTable[150] as TextSetting;
+  static final IntSetting smartNightPolarAlignmentStaleAfterDays = kAppSettingsTable[151] as IntSetting;
+  static final DoubleSetting smartNightSubExposureFloorSecs = kAppSettingsTable[152] as DoubleSetting;
+  static final DoubleSetting smartNightSubExposureCeilingSecs = kAppSettingsTable[153] as DoubleSetting;
+  static final DoubleSetting smartNightTargetSnr = kAppSettingsTable[154] as DoubleSetting;
+  static final BoolSetting smartNightAutoSelect = kAppSettingsTable[155] as BoolSetting;
+  static final IntSetting smartNightAutoSelectCount = kAppSettingsTable[156] as IntSetting;
+  static final TextSetting smartNightPromptDismissedDayKey = kAppSettingsTable[157] as TextSetting;
+  static final BoolSetting promptForNotesAfterRun = kAppSettingsTable[158] as BoolSetting;
+  static final BoolSetting sessionHandoffAutoPrompt = kAppSettingsTable[159] as BoolSetting;
+  static final BoolSetting campaignRollupSurfaceTargetsTab = kAppSettingsTable[160] as BoolSetting;
+  static final TextSetting campaignRollupGroupingMode = kAppSettingsTable[161] as TextSetting;
+  static final BoolSetting adaptiveSwapEnabledByDefault = kAppSettingsTable[162] as BoolSetting;
+  static final DoubleSetting adaptiveSwapDefaultThreshold = kAppSettingsTable[163] as DoubleSetting;
+  static final DoubleSetting adaptiveSwapDefaultHysteresisSecs = kAppSettingsTable[164] as DoubleSetting;
+  static final DoubleMapSetting conditionsScoreWeights = kAppSettingsTable[165] as DoubleMapSetting;
 }
 
 /// The application settings as one immutable value.
@@ -404,15 +406,24 @@ class AppSettingsState {
   /// RuntimeConfig.default_quality_check is set to None at start.
   final bool enableImageGrading;
   /// Reject if HFR exceeds this absolute pixel value. `null` => don't
-  /// apply the absolute check.
+  /// apply the absolute check (the default).
   final double? imageGradingHfrThresholdPx;
   /// Reject if HFR exceeds `baseline * (1 + percent / 100)`. `null` =>
   /// don't apply the baseline-relative check.
   final double? imageGradingHfrBaselinePercent;
-  /// Reject if star eccentricity exceeds this value. `null` => don't apply.
+  /// Reject if star eccentricity exceeds this absolute value. `null` =>
+  /// don't apply (the default).
   final double? imageGradingEccentricityThreshold;
-  /// Reject if detected star count falls below this. `null` => don't apply.
+  /// Reject if star eccentricity exceeds `baseline * (1 + percent / 100)`.
+  /// `null` => don't apply.
+  final double? imageGradingEccentricityBaselinePercent;
+  /// Reject if detected star count falls below this absolute floor. `null`
+  /// => don't apply (the default).
   final int? imageGradingStarCountMin;
+  /// Reject if the star count falls more than this percent below the
+  /// baseline (50 => fewer than half the baseline's stars). `null` => don't
+  /// apply.
+  final double? imageGradingStarCountDropPercent;
   /// Notify the operator once when this many frames in a row are rejected
   /// (default 3). The run carries on.
   final int imageGradingMaxConsecutiveRejects;
@@ -669,10 +680,12 @@ class AppSettingsState {
     this.afFilterSettingsJson = '{}',
     this.observerName = '',
     this.enableImageGrading = false,
-    this.imageGradingHfrThresholdPx = 3.5,
+    this.imageGradingHfrThresholdPx,
     this.imageGradingHfrBaselinePercent = 50.0,
-    this.imageGradingEccentricityThreshold = 0.8,
-    this.imageGradingStarCountMin = 10,
+    this.imageGradingEccentricityThreshold,
+    this.imageGradingEccentricityBaselinePercent = 40.0,
+    this.imageGradingStarCountMin,
+    this.imageGradingStarCountDropPercent = 50.0,
     this.imageGradingMaxConsecutiveRejects = 3,
     this.imageGradingRejectFolderPath,
     this.adaptiveExposureEnabled = false,
@@ -841,7 +854,9 @@ class AppSettingsState {
     Object? imageGradingHfrThresholdPx = _unset,
     Object? imageGradingHfrBaselinePercent = _unset,
     Object? imageGradingEccentricityThreshold = _unset,
+    Object? imageGradingEccentricityBaselinePercent = _unset,
     Object? imageGradingStarCountMin = _unset,
+    Object? imageGradingStarCountDropPercent = _unset,
     int? imageGradingMaxConsecutiveRejects,
     Object? imageGradingRejectFolderPath = _unset,
     bool? adaptiveExposureEnabled,
@@ -1007,7 +1022,9 @@ class AppSettingsState {
       imageGradingHfrThresholdPx: identical(imageGradingHfrThresholdPx, _unset) ? this.imageGradingHfrThresholdPx : imageGradingHfrThresholdPx as double?,
       imageGradingHfrBaselinePercent: identical(imageGradingHfrBaselinePercent, _unset) ? this.imageGradingHfrBaselinePercent : imageGradingHfrBaselinePercent as double?,
       imageGradingEccentricityThreshold: identical(imageGradingEccentricityThreshold, _unset) ? this.imageGradingEccentricityThreshold : imageGradingEccentricityThreshold as double?,
+      imageGradingEccentricityBaselinePercent: identical(imageGradingEccentricityBaselinePercent, _unset) ? this.imageGradingEccentricityBaselinePercent : imageGradingEccentricityBaselinePercent as double?,
       imageGradingStarCountMin: identical(imageGradingStarCountMin, _unset) ? this.imageGradingStarCountMin : imageGradingStarCountMin as int?,
+      imageGradingStarCountDropPercent: identical(imageGradingStarCountDropPercent, _unset) ? this.imageGradingStarCountDropPercent : imageGradingStarCountDropPercent as double?,
       imageGradingMaxConsecutiveRejects: imageGradingMaxConsecutiveRejects ?? this.imageGradingMaxConsecutiveRejects,
       imageGradingRejectFolderPath: identical(imageGradingRejectFolderPath, _unset) ? this.imageGradingRejectFolderPath : imageGradingRejectFolderPath as String?,
       adaptiveExposureEnabled: adaptiveExposureEnabled ?? this.adaptiveExposureEnabled,
@@ -1178,7 +1195,9 @@ class AppSettingsState {
     'imageGradingHfrThresholdPx' => imageGradingHfrThresholdPx,
     'imageGradingHfrBaselinePercent' => imageGradingHfrBaselinePercent,
     'imageGradingEccentricityThreshold' => imageGradingEccentricityThreshold,
+    'imageGradingEccentricityBaselinePercent' => imageGradingEccentricityBaselinePercent,
     'imageGradingStarCountMin' => imageGradingStarCountMin,
+    'imageGradingStarCountDropPercent' => imageGradingStarCountDropPercent,
     'imageGradingMaxConsecutiveRejects' => imageGradingMaxConsecutiveRejects,
     'imageGradingRejectFolderPath' => imageGradingRejectFolderPath,
     'adaptiveExposureEnabled' => adaptiveExposureEnabled,
@@ -1348,7 +1367,9 @@ class AppSettingsState {
         'imageGradingHfrThresholdPx' => copyWith(imageGradingHfrThresholdPx: value as double?),
         'imageGradingHfrBaselinePercent' => copyWith(imageGradingHfrBaselinePercent: value as double?),
         'imageGradingEccentricityThreshold' => copyWith(imageGradingEccentricityThreshold: value as double?),
+        'imageGradingEccentricityBaselinePercent' => copyWith(imageGradingEccentricityBaselinePercent: value as double?),
         'imageGradingStarCountMin' => copyWith(imageGradingStarCountMin: value as int?),
+        'imageGradingStarCountDropPercent' => copyWith(imageGradingStarCountDropPercent: value as double?),
         'imageGradingMaxConsecutiveRejects' => copyWith(imageGradingMaxConsecutiveRejects: value as int),
         'imageGradingRejectFolderPath' => copyWith(imageGradingRejectFolderPath: value as String?),
         'adaptiveExposureEnabled' => copyWith(adaptiveExposureEnabled: value as bool),
@@ -1521,43 +1542,45 @@ class AppSettingsState {
       imageGradingHfrThresholdPx: valueOf(t[124]) as double?,
       imageGradingHfrBaselinePercent: valueOf(t[125]) as double?,
       imageGradingEccentricityThreshold: valueOf(t[126]) as double?,
-      imageGradingStarCountMin: valueOf(t[127]) as int?,
-      imageGradingMaxConsecutiveRejects: valueOf(t[128]) as int,
-      imageGradingRejectFolderPath: valueOf(t[129]) as String?,
-      adaptiveExposureEnabled: valueOf(t[130]) as bool,
-      adaptiveExposureTargetSnr: valueOf(t[131]) as double,
-      adaptiveExposureReferenceMag: valueOf(t[132]) as double,
-      adaptiveExposureMinSecs: valueOf(t[133]) as double,
-      adaptiveExposureMaxSecs: valueOf(t[134]) as double,
-      adaptiveExposurePerFilterEnabled: valueOf(t[135]) as Map<String, bool>,
-      adaptiveExposurePerFilterMinSecs: valueOf(t[136]) as Map<String, double>,
-      adaptiveExposurePerFilterMaxSecs: valueOf(t[137]) as Map<String, double>,
-      preflightStrictness: valueOf(t[138]) as PreflightStrictness,
-      polarAlignmentMaxAgeDays: valueOf(t[139]) as int,
-      darkLibraryMinCoverage: valueOf(t[140]) as int,
-      opticalTrainDriftThreshold: valueOf(t[141]) as double,
-      smartNightMaxSessionHours: valueOf(t[142]) as double?,
-      smartNightDefaultAfCadenceFrames: valueOf(t[143]) as int,
-      smartNightDefaultIntegrationBudgetMinsPerTarget: valueOf(t[144]) as int,
-      smartNightIncludeFlatsAtEnd: valueOf(t[145]) as bool,
-      smartNightUseSchedulerForMultiTarget: valueOf(t[146]) as bool,
-      smartNightSchedulerTargetThreshold: valueOf(t[147]) as int,
-      smartNightDefaultStrategy: valueOf(t[148]) as String,
-      smartNightPolarAlignmentStaleAfterDays: valueOf(t[149]) as int,
-      smartNightSubExposureFloorSecs: valueOf(t[150]) as double,
-      smartNightSubExposureCeilingSecs: valueOf(t[151]) as double,
-      smartNightTargetSnr: valueOf(t[152]) as double,
-      smartNightAutoSelect: valueOf(t[153]) as bool,
-      smartNightAutoSelectCount: valueOf(t[154]) as int,
-      smartNightPromptDismissedDayKey: valueOf(t[155]) as String,
-      promptForNotesAfterRun: valueOf(t[156]) as bool,
-      sessionHandoffAutoPrompt: valueOf(t[157]) as bool,
-      campaignRollupSurfaceTargetsTab: valueOf(t[158]) as bool,
-      campaignRollupGroupingMode: valueOf(t[159]) as String,
-      adaptiveSwapEnabledByDefault: valueOf(t[160]) as bool,
-      adaptiveSwapDefaultThreshold: valueOf(t[161]) as double,
-      adaptiveSwapDefaultHysteresisSecs: valueOf(t[162]) as double,
-      conditionsScoreWeights: valueOf(t[163]) as Map<String, double>,
+      imageGradingEccentricityBaselinePercent: valueOf(t[127]) as double?,
+      imageGradingStarCountMin: valueOf(t[128]) as int?,
+      imageGradingStarCountDropPercent: valueOf(t[129]) as double?,
+      imageGradingMaxConsecutiveRejects: valueOf(t[130]) as int,
+      imageGradingRejectFolderPath: valueOf(t[131]) as String?,
+      adaptiveExposureEnabled: valueOf(t[132]) as bool,
+      adaptiveExposureTargetSnr: valueOf(t[133]) as double,
+      adaptiveExposureReferenceMag: valueOf(t[134]) as double,
+      adaptiveExposureMinSecs: valueOf(t[135]) as double,
+      adaptiveExposureMaxSecs: valueOf(t[136]) as double,
+      adaptiveExposurePerFilterEnabled: valueOf(t[137]) as Map<String, bool>,
+      adaptiveExposurePerFilterMinSecs: valueOf(t[138]) as Map<String, double>,
+      adaptiveExposurePerFilterMaxSecs: valueOf(t[139]) as Map<String, double>,
+      preflightStrictness: valueOf(t[140]) as PreflightStrictness,
+      polarAlignmentMaxAgeDays: valueOf(t[141]) as int,
+      darkLibraryMinCoverage: valueOf(t[142]) as int,
+      opticalTrainDriftThreshold: valueOf(t[143]) as double,
+      smartNightMaxSessionHours: valueOf(t[144]) as double?,
+      smartNightDefaultAfCadenceFrames: valueOf(t[145]) as int,
+      smartNightDefaultIntegrationBudgetMinsPerTarget: valueOf(t[146]) as int,
+      smartNightIncludeFlatsAtEnd: valueOf(t[147]) as bool,
+      smartNightUseSchedulerForMultiTarget: valueOf(t[148]) as bool,
+      smartNightSchedulerTargetThreshold: valueOf(t[149]) as int,
+      smartNightDefaultStrategy: valueOf(t[150]) as String,
+      smartNightPolarAlignmentStaleAfterDays: valueOf(t[151]) as int,
+      smartNightSubExposureFloorSecs: valueOf(t[152]) as double,
+      smartNightSubExposureCeilingSecs: valueOf(t[153]) as double,
+      smartNightTargetSnr: valueOf(t[154]) as double,
+      smartNightAutoSelect: valueOf(t[155]) as bool,
+      smartNightAutoSelectCount: valueOf(t[156]) as int,
+      smartNightPromptDismissedDayKey: valueOf(t[157]) as String,
+      promptForNotesAfterRun: valueOf(t[158]) as bool,
+      sessionHandoffAutoPrompt: valueOf(t[159]) as bool,
+      campaignRollupSurfaceTargetsTab: valueOf(t[160]) as bool,
+      campaignRollupGroupingMode: valueOf(t[161]) as String,
+      adaptiveSwapEnabledByDefault: valueOf(t[162]) as bool,
+      adaptiveSwapDefaultThreshold: valueOf(t[163]) as double,
+      adaptiveSwapDefaultHysteresisSecs: valueOf(t[164]) as double,
+      conditionsScoreWeights: valueOf(t[165]) as Map<String, double>,
     );
   }
 }

@@ -56,6 +56,8 @@ const Set<String> _addedSinceBase = {
   // How close a centering must land. Seeded, so a fresh install has the row;
   // a base store has none and reads the 5 arcsecond default.
   'centering_tolerance_arcsec',
+  'image_grading_eccentricity_baseline_percent',
+  'image_grading_star_count_drop_percent',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
@@ -64,6 +66,8 @@ const Set<String> _wireAddedSinceBase = {
   'cameraFileSaving',
   'xisfCompression',
   'xisfChecksums',
+  'imageGradingEccentricityBaselinePercent',
+  'imageGradingStarCountDropPercent',
 };
 
 /// A default changed on purpose since the base build. A stored row still
@@ -81,9 +85,10 @@ class _ChangedDefault {
   final String key;
   final String wire;
 
-  /// The new default as a stored row and as a wire value.
+  /// The new default as a stored row and as a wire value. The wire value is
+  /// null when the check is off.
   final String row;
-  final Object wireValue;
+  final Object? wireValue;
 
   /// Every stored row, malformed ones included, reads without the default
   /// (a switch reads anything but `true` as off), so a row read back as the
@@ -108,6 +113,24 @@ const List<_ChangedDefault> _defaultsChangedSinceBase = [
     'true',
     true,
     rowsReadWithoutDefault: true,
+  ),
+  _ChangedDefault(
+    'image_grading_hfr_threshold_px',
+    'imageGradingHfrThresholdPx',
+    'null',
+    null,
+  ),
+  _ChangedDefault(
+    'image_grading_eccentricity_threshold',
+    'imageGradingEccentricityThreshold',
+    'null',
+    null,
+  ),
+  _ChangedDefault(
+    'image_grading_star_count_min',
+    'imageGradingStarCountMin',
+    'null',
+    null,
   ),
 ];
 
@@ -142,6 +165,15 @@ Map<String, String> _installRowsWithChangedDefaults(Map<String, String> rows) {
   }
   return rows;
 }
+/// [changes] without a change to a value that is now the default: the base
+/// build read it as a change from its own default.
+Map<String, dynamic> _withoutNewDefaults(Map<String, dynamic> changes) => {
+  for (final entry in changes.entries)
+    if (!_defaultsChangedSinceBase.any(
+      (changed) => changed.key == entry.key && changed.row == entry.value,
+    ))
+      entry.key: entry.value,
+};
 
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
@@ -288,7 +320,11 @@ void main() {
             AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw})),
           ),
         );
-        expect(got, expected, reason: '$key = ${jsonEncode(raw)}');
+        expect(
+          got,
+          _withoutNewDefaults(expected as Map<String, dynamic>),
+          reason: '$key = ${jsonEncode(raw)}',
+        );
       });
     });
   });

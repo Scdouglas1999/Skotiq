@@ -179,6 +179,34 @@ void main() {
     expect(noise.delta, '0.0');
   });
 
+  // IC 405, 2026-11-16: frame #2 showed HFR 4.50 in Last frame and was
+  // rejected for "HFR 4.12 px exceeds ...", and Last frame said nothing of
+  // the run's verdict. Last frame now shows the run's figures and verdict.
+  test('last frame shows the run\'s HFR, verdict and reason', () async {
+    final h = await sessionHarness(
+      overrides: <Override>[
+        currentImageProvider.overrideWith(
+          (ref) => _current(
+            path: '/data/m74/frame_20.fits',
+            stats: const ImageStats(hfr: 3.40, starCount: 380, noise: 14.0),
+          ),
+        ),
+      ],
+    );
+    await _seedNight(h);
+    final vm = (await h.settle(nightLastFrameProvider))!;
+
+    expect(vm.frameNumber, 3);
+    expect(_metric(vm, 'nightSessionMetricHfr').value, '3.05');
+    expect(_metric(vm, 'nightSessionMetricStars').value, '412');
+    expect(vm.accepted, isFalse);
+    expect(vm.rejectReason, 'HFR high');
+
+    final strip = await h.settle(nightSessionFramesProvider);
+    expect(strip[2].accepted, vm.accepted, reason: 'one verdict');
+    expect(strip[2].hfr, 3.05, reason: 'one HFR');
+  });
+
   test('a metric the night never measured has no delta', () async {
     final h = await sessionHarness(
       overrides: <Override>[
