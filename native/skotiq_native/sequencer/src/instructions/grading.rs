@@ -293,22 +293,28 @@ pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
     Some(alt)
 }
 
-/// Resolve the directory where rejected frames go.
+/// Where a rejected frame is saved. The light's own directory (`base`) is
+/// the owner, the same directory the kept frame would use.
 ///
-/// * `override_path = None`: use `<base>/Reject/`.
-/// * `override_path = Some(absolute)`: use that path verbatim.
-/// * `override_path = Some(relative)`: resolve against `base`.
+/// * no override, or a blank one: `<base>/Reject`
+/// * a relative override: that folder inside `base`
+/// * an absolute override already inside `base`: that path
+/// * an absolute override anywhere else: `<base>/Reject`. A stored absolute
+///   path from an earlier target (the IC 405 run writing rejects into
+///   NGC 7380's folder) is not this target's reject folder.
 pub fn resolve_reject_dir(base: &std::path::Path, override_path: Option<&str>) -> PathBuf {
-    match override_path {
-        Some(p) => {
-            let candidate = std::path::Path::new(p);
-            if candidate.is_absolute() {
-                candidate.to_path_buf()
-            } else {
-                base.join(candidate)
-            }
-        }
-        None => base.join("Reject"),
+    let fallback = base.join("Reject");
+    let Some(raw) = override_path.map(str::trim).filter(|path| !path.is_empty()) else {
+        return fallback;
+    };
+    let candidate = std::path::Path::new(raw);
+    if !candidate.is_absolute() {
+        return base.join(candidate);
+    }
+    if candidate.starts_with(base) {
+        candidate.to_path_buf()
+    } else {
+        fallback
     }
 }
 
