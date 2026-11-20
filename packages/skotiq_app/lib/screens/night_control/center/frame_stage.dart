@@ -36,6 +36,7 @@ import '../data/session/camera_exposure_provider.dart';
 import '../data/session/session_frames_provider.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
+import 'night_stage_live_stack.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'frame_stage_overlays.dart';
@@ -367,6 +368,11 @@ class FrameStage extends ConsumerWidget {
     final image = ref.watch(nightStageImageProvider);
     final frames = ref.watch(nightSessionFramesProvider);
     final selectedId = ref.watch(nightStageSelectionProvider);
+    final liveStackActive = ref.watch(
+      liveStackingProvider.select((s) => s.isActiveOrArmed),
+    );
+    final stageMode = ref.watch(nightStageModeProvider);
+    final showLiveStack = liveStackActive && stageMode == NightStageMode.liveStack;
     StripFrameVm? selected;
     for (final frame in frames) {
       if (frame.id == selectedId) selected = frame;
@@ -385,11 +391,16 @@ class FrameStage extends ConsumerWidget {
               return Stack(
                 children: <Widget>[
                   Positioned.fill(
-                    child: selected != null
-                        ? _SavedStageFrame(frame: selected, viewport: viewport)
-                        : image != null
-                            ? _LiveFrame(image: image, viewport: viewport)
-                            : const _EmptyStage(),
+                    child: showLiveStack
+                        ? const NightStageLiveStackView()
+                        : selected != null
+                            ? _SavedStageFrame(
+                                frame: selected,
+                                viewport: viewport,
+                              )
+                            : image != null
+                                ? _LiveFrame(image: image, viewport: viewport)
+                                : const _EmptyStage(),
                   ),
                   Positioned.fill(
                     child: _ExposureTicker(
@@ -409,13 +420,14 @@ class FrameStage extends ConsumerWidget {
                               image: image,
                               selected: selected,
                               nowUtc: nowUtc,
+                              showLiveStack: showLiveStack,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (selected != null || image != null)
+                  if (!showLiveStack && (selected != null || image != null))
                     Positioned(
                       right: _inset,
                       bottom: _inset,

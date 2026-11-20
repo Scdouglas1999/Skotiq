@@ -20,6 +20,7 @@ import 'widgets/depthlock/depthlock_commit_host.dart';
 import 'widgets/depthlock/depthlock_hint.dart';
 import 'widgets/depthlock/depthlock_selection.dart'
     show DepthLockCanvas, depthLockCanvasProvider;
+import 'widgets/live_stack/live_stack_side_panel.dart';
 import 'widgets/live_stack_canvas.dart';
 import 'widgets/depthlock/depthlock_region_layer.dart'
     show depthLockRegionToolActiveProvider;
@@ -30,7 +31,6 @@ import 'widgets/meridian_flip_countdown_banner.dart';
 import 'widgets/uncalibrated_frames_banner.dart';
 import '../../widgets/image_preview/preview_display_scale.dart'
     show previewFitScaleProvider;
-import 'widgets/stacking_panel.dart';
 import '../../tours/tour_target.dart';
 
 part 'imaging_screen/imaging_screen_actions.dart';
@@ -142,6 +142,9 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
             .length,
       ),
     );
+    final liveStackFrames = ref.watch(
+      liveStackingProvider.select((s) => s.totalFramesAcrossFilters),
+    );
     final narrow = MediaQuery.sizeOf(context).width <
         ShellChromeMetrics.shellLayoutBreakpoint;
 
@@ -174,7 +177,9 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                       icon: tab.icon,
                       count: tab == ImagingTab.sessionFrames && frameCount > 0
                           ? '$frameCount'
-                          : null,
+                          : tab == ImagingTab.liveStack && liveStackFrames > 0
+                              ? '$liveStackFrames'
+                              : null,
                     ),
                 ],
                 selectedIndex: _tab.index,
@@ -249,20 +254,14 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// Narrow keeps the single scrolling column it has today, preview included:
   /// there is no room beside the controls for a canvas worth drawing on.
   Widget _liveStack(SkotiqColors colors, bool narrow) {
-    if (narrow) return StackingPanel(colors: colors);
+    if (narrow) return LiveStackNarrowWorkspace(colors: colors);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const Expanded(child: LiveStackCanvas()),
-        SizedBox(
-          width: ShellChromeMetrics.sidePanelWidth,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: colors.border)),
-            ),
-            padding: SidePanel.contentPadding,
-            child: StackingPanel(colors: colors, showPreview: false),
-          ),
+        LiveStackSidePanel(
+          colors: colors,
+          collapsed: _sidePanelCollapsed,
         ),
       ],
     );

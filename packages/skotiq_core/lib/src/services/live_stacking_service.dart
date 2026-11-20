@@ -82,6 +82,34 @@ class LiveStackingService {
     return LiveStackingStats.fromBridge(result);
   }
 
+  /// Start live stacking for a dedicated optical filter slot.
+  Future<LiveStackingStats> startFromFileForFilter({
+    required String filterKey,
+    required String referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) async {
+    _logger.info(
+      'Starting live stacking from file: $referenceImagePath (filter=$filterKey)',
+      source: 'LiveStackingService',
+    );
+
+    final remote = _remote;
+    if (remote != null) {
+      return remote.stackingStart(
+        referencePath: referenceImagePath,
+        config: config,
+      );
+    }
+
+    final result = await bridge.apiStackingStartForFilter(
+      filterKey: filterKey,
+      referenceImagePath: referenceImagePath,
+      config: config.toBridge(),
+    );
+
+    return LiveStackingStats.fromBridge(result);
+  }
+
   /// Start live stacking from raw pixel data in memory.
   ///
   /// Used when the reference frame is already captured and available as u16
@@ -119,6 +147,33 @@ class LiveStackingService {
     return LiveStackingStats.fromBridge(result);
   }
 
+  /// Start live stacking from raw pixel data for a specific filter slot.
+  Future<LiveStackingStats> startFromDataForFilter({
+    required String filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) async {
+    if (_remote != null) {
+      throw StateError(
+        'startFromDataForFilter is not available on a remote connection.',
+      );
+    }
+
+    final result = await bridge.apiStackingStartFromDataForFilter(
+      filterKey: filterKey,
+      width: width,
+      height: height,
+      data: data,
+      pedestal: pedestal,
+      config: config.toBridge(),
+    );
+
+    return LiveStackingStats.fromBridge(result);
+  }
+
   /// Add a frame to the stack from a file path.
   ///
   /// Returns the current stacked result (can be displayed as a preview).
@@ -141,6 +196,30 @@ class LiveStackingService {
       final result = await bridge.apiStackingAddFrame(imagePath: imagePath);
       return LiveStackingResult.fromBridge(result);
     });
+  }
+
+  /// Add a frame to a specific filter's live stack from a file path.
+  Future<LiveStackingResult> addFrameFromFileForFilter(
+    String imagePath, {
+    required String filterKey,
+  }) async {
+    _logger.info(
+      'Adding frame to $filterKey stack: $imagePath',
+      source: 'LiveStackingService',
+    );
+
+    return _asCountedRejection(() async {
+      final remote = _remote;
+      if (remote != null) {
+        return remote.stackingAddFrame(imagePath);
+      }
+
+      final result = await bridge.apiStackingAddFrameForFilter(
+        filterKey: filterKey,
+        imagePath: imagePath,
+      );
+      return LiveStackingResult.fromBridge(result);
+    }, filterKey: filterKey);
   }
 
   /// Add a frame to the stack from raw pixel data carrying [pedestal] ADU.
@@ -167,6 +246,31 @@ class LiveStackingService {
     });
   }
 
+  /// Add a frame to a specific filter's stack from raw pixel data.
+  Future<LiveStackingResult> addFrameFromDataForFilter({
+    required String filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
+  }) async {
+    if (_remote != null) {
+      throw StateError(
+        'addFrameFromDataForFilter is not available on a remote connection.',
+      );
+    }
+    return _asCountedRejection(() async {
+      final result = await bridge.apiStackingAddFrameFromDataForFilter(
+        filterKey: filterKey,
+        width: width,
+        height: height,
+        data: data,
+        pedestal: pedestal,
+      );
+      return LiveStackingResult.fromBridge(result);
+    }, filterKey: filterKey);
+  }
+
   /// Run an add-frame call, re-labelling a refusal as
   /// [LiveStackingFrameRejected] with the engine's post-refusal statistics.
   ///
@@ -174,14 +278,17 @@ class LiveStackingService {
   /// stopped underneath us, the host went away) the original error propagates
   /// unchanged rather than being replaced by a second, less informative one.
   Future<LiveStackingResult> _asCountedRejection(
-    Future<LiveStackingResult> Function() add,
-  ) async {
+    Future<LiveStackingResult> Function() add, {
+    String? filterKey,
+  }) async {
     try {
       return await add();
     } catch (error, stackTrace) {
       final LiveStackingStats stats;
       try {
-        stats = await getStats();
+        stats = filterKey != null
+            ? await getStatsForFilter(filterKey)
+            : await getStats();
       } catch (_) {
         Error.throwWithStackTrace(error, stackTrace);
       }
@@ -196,6 +303,18 @@ class LiveStackingService {
       return remote.stackingGetResult();
     }
     final result = await bridge.apiStackingGetResult();
+    return LiveStackingResult.fromBridge(result);
+  }
+
+  /// Get the current stacked result for a specific filter slot.
+  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) async {
+    final remote = _remote;
+    if (remote != null) {
+      return remote.stackingGetResult();
+    }
+    final result = await bridge.apiStackingGetResultForFilter(
+      filterKey: filterKey,
+    );
     return LiveStackingResult.fromBridge(result);
   }
 
@@ -240,6 +359,60 @@ class LiveStackingService {
     }
   }
 
+  /// Off-UI-thread auto-stretch with optional parallel area downscaling in Rust.
+  ///
+  /// Runs on the Rust worker pool rather than blocking the Flutter UI isolate.
+  /// When [maxDimension] > 0, images larger than [maxDimension] on their longest
+  /// edge are area-downsampled in parallel before applying the shared MAD STF.
+  Future<StretchedPreviewFrame> autoStretchPreviewAsync({
+    required int width,
+    required int height,
+    required List<int> data,
+    int channels = 1,
+    int maxDimension = 2048,
+  }) async {
+    if (channels != 1 && channels != 3) {
+      throw ArgumentError.value(
+        channels,
+        'channels',
+        'auto-stretch supports 1 (luminance) or 3 (interleaved RGB16) '
+            'channels only',
+      );
+    }
+    final result = await bridge.apiAutoStretchPreviewAsync(
+      width: width,
+      height: height,
+      channels: channels,
+      data: data,
+      maxDimension: maxDimension,
+    );
+    return StretchedPreviewFrame(
+      width: result.width,
+      height: result.height,
+      channels: result.channels,
+      rgba: result.rgba,
+    );
+  }
+
+  /// Render a downscaled, progressive-STF-stretched RGBA8 preview directly from
+  /// an active native live stack slot on a background worker thread (cached per
+  /// revision and [maxDimension]), avoiding full-resolution u16 FFI copies.
+  Future<StretchedPreviewFrame> renderStackPreviewRgba({
+    String? filterKey,
+    int maxDimension = 2048,
+  }) async {
+    final result = await bridge.apiStackingRenderPreviewRgba(
+      filterKey: filterKey,
+      maxDimension: maxDimension,
+    );
+    return StretchedPreviewFrame(
+      width: result.width,
+      height: result.height,
+      channels: result.channels,
+      rgba: result.rgba,
+    );
+  }
+
   /// Write the accumulated stacked master to [filePath].
   ///
   /// Reads the result out of the stacker FIRST, so this is safe to call
@@ -264,7 +437,22 @@ class LiveStackingService {
   /// The returned [LiveStackingMasterSave] carries the path actually written,
   /// the form it took, and (for a FITS master) the integration and `DATE-OBS`
   /// that went into the header.
-  Future<LiveStackingMasterSave> saveMaster({required String filePath}) async {
+  Future<LiveStackingMasterSave> saveMaster({required String filePath}) {
+    return _saveMasterImpl(filePath: filePath);
+  }
+
+  /// Write a specific filter slot's accumulated master to [filePath].
+  Future<LiveStackingMasterSave> saveMasterForFilter({
+    required String filterKey,
+    required String filePath,
+  }) {
+    return _saveMasterImpl(filePath: filePath, filterKey: filterKey);
+  }
+
+  Future<LiveStackingMasterSave> _saveMasterImpl({
+    required String filePath,
+    String? filterKey,
+  }) async {
     final trimmed = filePath.trim();
     final requested = p.extension(trimmed).toLowerCase();
     const fitsExtensions = {'.fits', '.fit', '.fts'};
@@ -294,10 +482,13 @@ class LiveStackingService {
       }
       return _saveFitsMasterTo(
         requested.isEmpty ? p.setExtension(trimmed, '.fits') : trimmed,
+        filterKey: filterKey,
       );
     }
 
-    final result = await getCurrentResult();
+    final result = filterKey != null
+        ? await getCurrentResultForFilter(filterKey)
+        : await getCurrentResult();
     if (result.stats.stackedFrameCount <= 0 ||
         result.width <= 0 ||
         result.height <= 0) {
@@ -312,16 +503,18 @@ class LiveStackingService {
     );
 
     if (result.channels == 3) {
-      await bridge.apiSaveRgbaPngFile(
-        filePath: target,
+      final stretched = await autoStretchPreviewAsync(
         width: result.width,
         height: result.height,
-        rgba: autoStretchPreview(
-          width: result.width,
-          height: result.height,
-          data: result.data,
-          channels: 3,
-        ),
+        data: result.data,
+        channels: 3,
+        maxDimension: 0,
+      );
+      await bridge.apiSaveRgbaPngFile(
+        filePath: target,
+        width: stretched.width,
+        height: stretched.height,
+        rgba: stretched.rgba,
       );
       return LiveStackingMasterSave(
         filePath: target,
@@ -348,12 +541,20 @@ class LiveStackingService {
   /// The pixels never cross into Dart here: the stacker owns both the
   /// accumulator and the provenance the header is built from, so it writes the
   /// file itself.
-  Future<LiveStackingMasterSave> _saveFitsMasterTo(String target) async {
+  Future<LiveStackingMasterSave> _saveFitsMasterTo(
+    String target, {
+    String? filterKey,
+  }) async {
     _logger.info(
-      'Saving stacked FITS master to $target',
+      'Saving stacked FITS master to $target (filter=${filterKey ?? "active"})',
       source: 'LiveStackingService',
     );
-    final master = await _saveFitsMaster(filePath: target);
+    final master = filterKey != null
+        ? await bridge.apiStackingSaveMasterFitsForFilter(
+            filterKey: filterKey,
+            filePath: target,
+          )
+        : await _saveFitsMaster(filePath: target);
     _logger.info(
       'Stacked FITS master written: ${master.filePath} '
       '(${master.stackedFrameCount} frames, '
@@ -378,6 +579,47 @@ class LiveStackingService {
     return LiveStackingStats.fromBridge(result);
   }
 
+  /// Get stacking statistics for a specific filter slot.
+  Future<LiveStackingStats> getStatsForFilter(String filterKey) async {
+    final remote = _remote;
+    if (remote != null) {
+      return remote.stackingGetStats();
+    }
+    final result = await bridge.apiStackingGetStatsForFilter(
+      filterKey: filterKey,
+    );
+    return LiveStackingStats.fromBridge(result);
+  }
+
+  /// List all active per-filter stacks on the local native engine.
+  Future<List<LiveStackFilterSummary>> listFilters() async {
+    if (_remote != null) return const [];
+    final list = await bridge.apiStackingListFilters();
+    return list
+        .map(LiveStackFilterSummary.fromBridge)
+        .toList(growable: false);
+  }
+
+  /// Read recent per-frame alignment/rejection events (newest first).
+  Future<List<LiveStackFrameEvent>> getEvents({String? filterKey}) async {
+    if (_remote != null) return const [];
+    final list = await bridge.apiStackingGetEvents(filterKey: filterKey);
+    return list.map(LiveStackFrameEvent.fromBridge).toList(growable: false);
+  }
+
+  /// Apply runtime-mutable config changes to active native stack(s) without
+  /// resetting accumulated frames.
+  Future<void> updateLiveConfig(
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {
+    if (_remote != null) return;
+    await bridge.apiStackingUpdateConfig(
+      filterKey: filterKey,
+      config: config.toBridge(),
+    );
+  }
+
   /// Reset the stacker, clearing accumulated data but keeping the reference.
   Future<void> reset() async {
     _logger.info('Resetting live stacker', source: 'LiveStackingService');
@@ -389,6 +631,20 @@ class LiveStackingService {
     await bridge.apiStackingReset();
   }
 
+  /// Reset a specific filter's live stacker.
+  Future<void> resetForFilter(String filterKey) async {
+    _logger.info(
+      'Resetting live stacker for $filterKey',
+      source: 'LiveStackingService',
+    );
+    final remote = _remote;
+    if (remote != null) {
+      await remote.stackingReset();
+      return;
+    }
+    await bridge.apiStackingResetForFilter(filterKey: filterKey);
+  }
+
   /// Stop live stacking and release all resources.
   Future<void> stop() async {
     _logger.info('Stopping live stacker', source: 'LiveStackingService');
@@ -398,6 +654,20 @@ class LiveStackingService {
       return;
     }
     await bridge.apiStackingStop();
+  }
+
+  /// Stop a single filter's live stack slot.
+  Future<void> stopForFilter(String filterKey) async {
+    _logger.info(
+      'Stopping live stacker for $filterKey',
+      source: 'LiveStackingService',
+    );
+    final remote = _remote;
+    if (remote != null) {
+      await remote.stackingStop();
+      return;
+    }
+    await bridge.apiStackingStopForFilter(filterKey: filterKey);
   }
 
   bool get isActive => bridge.apiStackingIsActive();

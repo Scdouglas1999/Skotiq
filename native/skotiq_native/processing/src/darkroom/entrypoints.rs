@@ -97,12 +97,24 @@ pub fn darkroom_validate(recipe_json: String, context_json: String) -> Result<St
         "findings": Vec::<Value>::new(),
     });
 
-    if !context.master_path.trim().is_empty() {
+    let has_live_stack = context
+        .live_stack_key
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty());
+    if !context.master_path.trim().is_empty() || has_live_stack {
         let token = RENDERS.register("")?;
-        let master = load_pyramid(&context.master_path, &token)?;
+        let master = load_pyramid(
+            &context.master_path,
+            context.live_stack_key.as_deref(),
+            &token,
+        )?;
         let base = master.pyramid.base();
         reply["base"] = json!({
-            "path": context.master_path,
+            "path": if has_live_stack {
+                context.live_stack_key.clone().unwrap_or_default()
+            } else {
+                context.master_path.clone()
+            },
             "width": base.width(),
             "height": base.height(),
             "channels": base.channels(),
@@ -195,7 +207,11 @@ pub fn darkroom_render_preview(
     let recipe = parse_recipe(&recipe_json)?;
 
     let token = RENDERS.register(&context.render_id)?;
-    let master = load_pyramid(&context.master_path, &token)?;
+    let master = load_pyramid(
+        &context.master_path,
+        context.live_stack_key.as_deref(),
+        &token,
+    )?;
     let level = resolve_level(&master.pyramid, context.level, context.max_dimension)?;
     let base = master
         .pyramid
@@ -312,11 +328,23 @@ pub fn darkroom_registry(args_json: String) -> Result<String, String> {
         return serde_json::to_string(&reply).map_err(|e| format!("failed to encode result: {e}"));
     }
 
-    if !args.master_path.trim().is_empty() {
+    let has_live_stack = args
+        .live_stack_key
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty());
+    if !args.master_path.trim().is_empty() || has_live_stack {
         let token = RENDERS.register("")?;
-        let master = load_pyramid(&args.master_path, &token)?;
+        let master = load_pyramid(
+            &args.master_path,
+            args.live_stack_key.as_deref(),
+            &token,
+        )?;
         let base_master_ref = if args.base_master_ref.trim().is_empty() {
-            args.master_path.clone()
+            if has_live_stack {
+                format!("livestack:{}", args.live_stack_key.as_deref().unwrap_or("active").trim())
+            } else {
+                args.master_path.clone()
+            }
         } else {
             args.base_master_ref.clone()
         };

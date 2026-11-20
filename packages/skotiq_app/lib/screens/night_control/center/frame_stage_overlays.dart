@@ -75,11 +75,13 @@ class _TopPills extends ConsumerWidget {
     required this.image,
     required this.selected,
     required this.nowUtc,
+    this.showLiveStack = false,
   });
 
   final CapturedImageData? image;
   final StripFrameVm? selected;
   final DateTime nowUtc;
+  final bool showLiveStack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -89,7 +91,9 @@ class _TopPills extends ConsumerWidget {
     final image = this.image;
 
     FramePillText? left;
-    if (selected != null) {
+    if (showLiveStack) {
+      left = nightLiveStackStatusPill(ref.watch(liveStackingProvider));
+    } else if (selected != null) {
       left = _stripPill(context, selected);
     } else if (af != null) {
       final point = af.point;
@@ -118,6 +122,9 @@ class _TopPills extends ConsumerWidget {
     }
 
     final right = _activityPill(context, ref, image);
+    final liveStackActive = ref.watch(
+      liveStackingProvider.select((s) => s.isActiveOrArmed),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,6 +134,10 @@ class _TopPills extends ConsumerWidget {
           Flexible(child: FramePill(text: left))
         else
           const SizedBox(),
+        if (liveStackActive) ...<Widget>[
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          const NightStageLiveStackModePill(),
+        ],
         const SizedBox(width: SkotiqTokens.spaceSm),
         if (right != null)
           Flexible(

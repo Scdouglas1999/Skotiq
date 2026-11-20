@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1685998195;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -857581642;
 
 // Section: executor
 
@@ -139,6 +139,41 @@ fn wire__crate__api__imaging__api_auto_stretch_image_impl(
                     crate::api::imaging::api_auto_stretch_image(api_width, api_height, api_data)?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_auto_stretch_preview_async_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    width: impl CstDecode<u32>,
+    height: impl CstDecode<u32>,
+    channels: impl CstDecode<u32>,
+    data: impl CstDecode<Vec<u16>>,
+    max_dimension: impl CstDecode<u32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_auto_stretch_preview_async",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_width = width.cst_decode();
+            let api_height = height.cst_decode();
+            let api_channels = channels.cst_decode();
+            let api_data = data.cst_decode();
+            let api_max_dimension = max_dimension.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_auto_stretch_preview_async(
+                        api_width,
+                        api_height,
+                        api_channels,
+                        api_data,
+                        api_max_dimension,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -6259,6 +6294,32 @@ fn wire__crate__api__live_stacking__api_stacking_add_frame_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_add_frame_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    image_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_add_frame_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_image_path = image_path.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_add_frame_for_filter(
+                        api_filter_key,
+                        api_image_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     width: impl CstDecode<u32>,
@@ -6291,6 +6352,42 @@ fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    width: impl CstDecode<u32>,
+    height: impl CstDecode<u32>,
+    data: impl CstDecode<Vec<u16>>,
+    pedestal: impl CstDecode<f64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_add_frame_from_data_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_width = width.cst_decode();
+            let api_height = height.cst_decode();
+            let api_data = data.cst_decode();
+            let api_pedestal = pedestal.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::live_stacking::api_stacking_add_frame_from_data_for_filter(
+                            api_filter_key,
+                            api_width,
+                            api_height,
+                            api_data,
+                            api_pedestal,
+                        )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_frame_count_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
@@ -6308,6 +6405,29 @@ fn wire__crate__api__live_stacking__api_stacking_frame_count_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_get_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_get_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::live_stacking::api_stacking_get_events(api_filter_key),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_get_result_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -6321,6 +6441,29 @@ fn wire__crate__api__live_stacking__api_stacking_get_result_impl(
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_get_result()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_get_result_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_get_result_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_get_result_for_filter(
+                        api_filter_key,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -6346,6 +6489,29 @@ fn wire__crate__api__live_stacking__api_stacking_get_stats_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_get_stats_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_get_stats_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_get_stats_for_filter(
+                        api_filter_key,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_is_active_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
@@ -6363,6 +6529,53 @@ fn wire__crate__api__live_stacking__api_stacking_is_active_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_list_filters_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_list_filters",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::live_stacking::api_stacking_list_filters(),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_render_preview_rgba_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    max_dimension: impl CstDecode<u32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_render_preview_rgba",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_max_dimension = max_dimension.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_render_preview_rgba(
+                        api_filter_key,
+                        api_max_dimension,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_reset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -6376,6 +6589,28 @@ fn wire__crate__api__live_stacking__api_stacking_reset_impl(
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_reset()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_reset_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_reset_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::live_stacking::api_stacking_reset_for_filter(api_filter_key)?;
                     Ok(output_ok)
                 })())
             }
@@ -6408,6 +6643,37 @@ fn wire__crate__api__live_stacking__api_stacking_save_master_fits_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    file_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_save_master_fits_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_file_path = file_path.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::live_stacking::api_stacking_save_master_fits_for_filter(
+                                api_filter_key,
+                                api_file_path,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_start_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     reference_image_path: impl CstDecode<String>,
@@ -6425,6 +6691,35 @@ fn wire__crate__api__live_stacking__api_stacking_start_impl(
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_start(
+                        api_reference_image_path,
+                        api_config,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_start_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    reference_image_path: impl CstDecode<String>,
+    config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_start_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_reference_image_path = reference_image_path.cst_decode();
+            let api_config = config.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_start_for_filter(
+                        api_filter_key,
                         api_reference_image_path,
                         api_config,
                     )?;
@@ -6469,6 +6764,45 @@ fn wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
         },
     )
 }
+fn wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    width: impl CstDecode<u32>,
+    height: impl CstDecode<u32>,
+    data: impl CstDecode<Vec<u16>>,
+    pedestal: impl CstDecode<f64>,
+    config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_start_from_data_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_width = width.cst_decode();
+            let api_height = height.cst_decode();
+            let api_data = data.cst_decode();
+            let api_pedestal = pedestal.cst_decode();
+            let api_config = config.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::live_stacking::api_stacking_start_from_data_for_filter(
+                            api_filter_key,
+                            api_width,
+                            api_height,
+                            api_data,
+                            api_pedestal,
+                            api_config,
+                        )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__live_stacking__api_stacking_stop_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -6482,6 +6816,54 @@ fn wire__crate__api__live_stacking__api_stacking_stop_impl(
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok = crate::api::live_stacking::api_stacking_stop()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_stop_for_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_stop_for_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::live_stacking::api_stacking_stop_for_filter(api_filter_key)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__live_stacking__api_stacking_update_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    filter_key: impl CstDecode<Option<String>>,
+    config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_stacking_update_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_filter_key = filter_key.cst_decode();
+            let api_config = config.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::live_stacking::api_stacking_update_config(
+                        api_filter_key,
+                        api_config,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -8107,6 +8489,67 @@ impl SseDecode for crate::api::target_scoring::ApiFloorSample {
     }
 }
 
+impl SseDecode for crate::api::live_stacking::ApiLiveStackFilterSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_filterKey = <String>::sse_decode(deserializer);
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_channels = <u32>::sse_decode(deserializer);
+        let mut var_referenceImagePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_revision = <u64>::sse_decode(deserializer);
+        let mut var_stats =
+            <crate::api::live_stacking::ApiLiveStackingStats>::sse_decode(deserializer);
+        return crate::api::live_stacking::ApiLiveStackFilterSummary {
+            filter_key: var_filterKey,
+            width: var_width,
+            height: var_height,
+            channels: var_channels,
+            reference_image_path: var_referenceImagePath,
+            revision: var_revision,
+            stats: var_stats,
+        };
+    }
+}
+
+impl SseDecode for crate::api::live_stacking::ApiLiveStackFrameEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sequenceIndex = <u32>::sse_decode(deserializer);
+        let mut var_filterKey = <String>::sse_decode(deserializer);
+        let mut var_sourceLabel = <String>::sse_decode(deserializer);
+        let mut var_accepted = <bool>::sse_decode(deserializer);
+        let mut var_rejectionReason = <Option<String>>::sse_decode(deserializer);
+        let mut var_detectedStars = <u32>::sse_decode(deserializer);
+        let mut var_matchedPairs = <u32>::sse_decode(deserializer);
+        let mut var_inlierPairs = <u32>::sse_decode(deserializer);
+        let mut var_alignmentResidualPx = <f64>::sse_decode(deserializer);
+        let mut var_shiftXPx = <f64>::sse_decode(deserializer);
+        let mut var_shiftYPx = <f64>::sse_decode(deserializer);
+        let mut var_rotationDeg = <f64>::sse_decode(deserializer);
+        let mut var_sigmaRejectedPixels = <u64>::sse_decode(deserializer);
+        let mut var_exposureSecs = <Option<f64>>::sse_decode(deserializer);
+        let mut var_timestampMs = <i64>::sse_decode(deserializer);
+        return crate::api::live_stacking::ApiLiveStackFrameEvent {
+            sequence_index: var_sequenceIndex,
+            filter_key: var_filterKey,
+            source_label: var_sourceLabel,
+            accepted: var_accepted,
+            rejection_reason: var_rejectionReason,
+            detected_stars: var_detectedStars,
+            matched_pairs: var_matchedPairs,
+            inlier_pairs: var_inlierPairs,
+            alignment_residual_px: var_alignmentResidualPx,
+            shift_x_px: var_shiftXPx,
+            shift_y_px: var_shiftYPx,
+            rotation_deg: var_rotationDeg,
+            sigma_rejected_pixels: var_sigmaRejectedPixels,
+            exposure_secs: var_exposureSecs,
+            timestamp_ms: var_timestampMs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8116,6 +8559,9 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingConfig {
         let mut var_matchRadiusPx = <f64>::sse_decode(deserializer);
         let mut var_matchFluxTolerance = <f64>::sse_decode(deserializer);
         let mut var_minMatchedPairs = <u32>::sse_decode(deserializer);
+        let mut var_maxAlignmentResidualPx = <f64>::sse_decode(deserializer);
+        let mut var_starDetectionSigma = <f64>::sse_decode(deserializer);
+        let mut var_starDetectionMinSnr = <f64>::sse_decode(deserializer);
         let mut var_sensorMode = <String>::sse_decode(deserializer);
         let mut var_bayerPattern = <Option<String>>::sse_decode(deserializer);
         let mut var_demosaicQuality = <String>::sse_decode(deserializer);
@@ -8126,6 +8572,9 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingConfig {
             match_radius_px: var_matchRadiusPx,
             match_flux_tolerance: var_matchFluxTolerance,
             min_matched_pairs: var_minMatchedPairs,
+            max_alignment_residual_px: var_maxAlignmentResidualPx,
+            star_detection_sigma: var_starDetectionSigma,
+            star_detection_min_snr: var_starDetectionMinSnr,
             sensor_mode: var_sensorMode,
             bayer_pattern: var_bayerPattern,
             demosaic_quality: var_demosaicQuality,
@@ -8158,12 +8607,19 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingResult {
         let mut var_data = <Vec<u16>>::sse_decode(deserializer);
         let mut var_stats =
             <crate::api::live_stacking::ApiLiveStackingStats>::sse_decode(deserializer);
+        let mut var_filterKey = <String>::sse_decode(deserializer);
+        let mut var_revision = <u64>::sse_decode(deserializer);
+        let mut var_lastEvent =
+            <Option<crate::api::live_stacking::ApiLiveStackFrameEvent>>::sse_decode(deserializer);
         return crate::api::live_stacking::ApiLiveStackingResult {
             width: var_width,
             height: var_height,
             channels: var_channels,
             data: var_data,
             stats: var_stats,
+            filter_key: var_filterKey,
+            revision: var_revision,
+            last_event: var_lastEvent,
         };
     }
 }
@@ -8177,6 +8633,7 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingStats {
         let mut var_avgMatchedPairs = <f64>::sse_decode(deserializer);
         let mut var_avgAlignmentResidual = <f64>::sse_decode(deserializer);
         let mut var_totalSigmaRejectedPixels = <u64>::sse_decode(deserializer);
+        let mut var_totalIntegrationSecs = <f64>::sse_decode(deserializer);
         let mut var_otherFilterFrames = <u32>::sse_decode(deserializer);
         let mut var_lastOtherFilter = <Option<String>>::sse_decode(deserializer);
         let mut var_filter = <Option<String>>::sse_decode(deserializer);
@@ -8187,6 +8644,7 @@ impl SseDecode for crate::api::live_stacking::ApiLiveStackingStats {
             avg_matched_pairs: var_avgMatchedPairs,
             avg_alignment_residual: var_avgAlignmentResidual,
             total_sigma_rejected_pixels: var_totalSigmaRejectedPixels,
+            total_integration_secs: var_totalIntegrationSecs,
             other_filter_frames: var_otherFilterFrames,
             last_other_filter: var_lastOtherFilter,
             filter: var_filter,
@@ -8363,6 +8821,22 @@ impl SseDecode for crate::api::depthlock::ApiSkyRectangle {
             width_arcsec: var_widthArcsec,
             height_arcsec: var_heightArcsec,
             rotation_deg: var_rotationDeg,
+        };
+    }
+}
+
+impl SseDecode for crate::api::live_stacking::ApiStretchedPreview {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_channels = <u32>::sse_decode(deserializer);
+        let mut var_rgba = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::live_stacking::ApiStretchedPreview {
+            width: var_width,
+            height: var_height,
+            channels: var_channels,
+            rgba: var_rgba,
         };
     }
 }
@@ -10401,6 +10875,34 @@ impl SseDecode for Vec<crate::api::target_scoring::ApiFloorSample> {
     }
 }
 
+impl SseDecode for Vec<crate::api::live_stacking::ApiLiveStackFilterSummary> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::live_stacking::ApiLiveStackFilterSummary>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::live_stacking::ApiLiveStackFrameEvent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::live_stacking::ApiLiveStackFrameEvent>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::target_scoring::ApiNightScore> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11146,6 +11648,19 @@ impl SseDecode for Option<crate::api::depthlock::ApiDepthReport> {
             return Some(<crate::api::depthlock::ApiDepthReport>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::live_stacking::ApiLiveStackFrameEvent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::live_stacking::ApiLiveStackFrameEvent>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -13788,6 +14303,66 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiFloorSampl
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackFilterSummary {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.filter_key.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.channels.into_into_dart().into_dart(),
+            self.reference_image_path.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.stats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::live_stacking::ApiLiveStackFilterSummary
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackFilterSummary>
+    for crate::api::live_stacking::ApiLiveStackFilterSummary
+{
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackFilterSummary {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackFrameEvent {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.sequence_index.into_into_dart().into_dart(),
+            self.filter_key.into_into_dart().into_dart(),
+            self.source_label.into_into_dart().into_dart(),
+            self.accepted.into_into_dart().into_dart(),
+            self.rejection_reason.into_into_dart().into_dart(),
+            self.detected_stars.into_into_dart().into_dart(),
+            self.matched_pairs.into_into_dart().into_dart(),
+            self.inlier_pairs.into_into_dart().into_dart(),
+            self.alignment_residual_px.into_into_dart().into_dart(),
+            self.shift_x_px.into_into_dart().into_dart(),
+            self.shift_y_px.into_into_dart().into_dart(),
+            self.rotation_deg.into_into_dart().into_dart(),
+            self.sigma_rejected_pixels.into_into_dart().into_dart(),
+            self.exposure_secs.into_into_dart().into_dart(),
+            self.timestamp_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::live_stacking::ApiLiveStackFrameEvent
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackFrameEvent>
+    for crate::api::live_stacking::ApiLiveStackFrameEvent
+{
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackFrameEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13797,6 +14372,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackin
             self.match_radius_px.into_into_dart().into_dart(),
             self.match_flux_tolerance.into_into_dart().into_dart(),
             self.min_matched_pairs.into_into_dart().into_dart(),
+            self.max_alignment_residual_px.into_into_dart().into_dart(),
+            self.star_detection_sigma.into_into_dart().into_dart(),
+            self.star_detection_min_snr.into_into_dart().into_dart(),
             self.sensor_mode.into_into_dart().into_dart(),
             self.bayer_pattern.into_into_dart().into_dart(),
             self.demosaic_quality.into_into_dart().into_dart(),
@@ -13847,6 +14425,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackin
             self.channels.into_into_dart().into_dart(),
             self.data.into_into_dart().into_dart(),
             self.stats.into_into_dart().into_dart(),
+            self.filter_key.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.last_event.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -13876,6 +14457,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackin
             self.total_sigma_rejected_pixels
                 .into_into_dart()
                 .into_dart(),
+            self.total_integration_secs.into_into_dart().into_dart(),
             self.other_filter_frames.into_into_dart().into_dart(),
             self.last_other_filter.into_into_dart().into_dart(),
             self.filter.into_into_dart().into_dart(),
@@ -14082,6 +14664,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiSkyRectangle>
     for crate::api::depthlock::ApiSkyRectangle
 {
     fn into_into_dart(self) -> crate::api::depthlock::ApiSkyRectangle {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiStretchedPreview {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.channels.into_into_dart().into_dart(),
+            self.rgba.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::live_stacking::ApiStretchedPreview
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiStretchedPreview>
+    for crate::api::live_stacking::ApiStretchedPreview
+{
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiStretchedPreview {
         self
     }
 }
@@ -18608,6 +19213,40 @@ impl SseEncode for crate::api::target_scoring::ApiFloorSample {
     }
 }
 
+impl SseEncode for crate::api::live_stacking::ApiLiveStackFilterSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.filter_key, serializer);
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <u32>::sse_encode(self.channels, serializer);
+        <Option<String>>::sse_encode(self.reference_image_path, serializer);
+        <u64>::sse_encode(self.revision, serializer);
+        <crate::api::live_stacking::ApiLiveStackingStats>::sse_encode(self.stats, serializer);
+    }
+}
+
+impl SseEncode for crate::api::live_stacking::ApiLiveStackFrameEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.sequence_index, serializer);
+        <String>::sse_encode(self.filter_key, serializer);
+        <String>::sse_encode(self.source_label, serializer);
+        <bool>::sse_encode(self.accepted, serializer);
+        <Option<String>>::sse_encode(self.rejection_reason, serializer);
+        <u32>::sse_encode(self.detected_stars, serializer);
+        <u32>::sse_encode(self.matched_pairs, serializer);
+        <u32>::sse_encode(self.inlier_pairs, serializer);
+        <f64>::sse_encode(self.alignment_residual_px, serializer);
+        <f64>::sse_encode(self.shift_x_px, serializer);
+        <f64>::sse_encode(self.shift_y_px, serializer);
+        <f64>::sse_encode(self.rotation_deg, serializer);
+        <u64>::sse_encode(self.sigma_rejected_pixels, serializer);
+        <Option<f64>>::sse_encode(self.exposure_secs, serializer);
+        <i64>::sse_encode(self.timestamp_ms, serializer);
+    }
+}
+
 impl SseEncode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18617,6 +19256,9 @@ impl SseEncode for crate::api::live_stacking::ApiLiveStackingConfig {
         <f64>::sse_encode(self.match_radius_px, serializer);
         <f64>::sse_encode(self.match_flux_tolerance, serializer);
         <u32>::sse_encode(self.min_matched_pairs, serializer);
+        <f64>::sse_encode(self.max_alignment_residual_px, serializer);
+        <f64>::sse_encode(self.star_detection_sigma, serializer);
+        <f64>::sse_encode(self.star_detection_min_snr, serializer);
         <String>::sse_encode(self.sensor_mode, serializer);
         <Option<String>>::sse_encode(self.bayer_pattern, serializer);
         <String>::sse_encode(self.demosaic_quality, serializer);
@@ -18641,6 +19283,12 @@ impl SseEncode for crate::api::live_stacking::ApiLiveStackingResult {
         <u32>::sse_encode(self.channels, serializer);
         <Vec<u16>>::sse_encode(self.data, serializer);
         <crate::api::live_stacking::ApiLiveStackingStats>::sse_encode(self.stats, serializer);
+        <String>::sse_encode(self.filter_key, serializer);
+        <u64>::sse_encode(self.revision, serializer);
+        <Option<crate::api::live_stacking::ApiLiveStackFrameEvent>>::sse_encode(
+            self.last_event,
+            serializer,
+        );
     }
 }
 
@@ -18653,6 +19301,7 @@ impl SseEncode for crate::api::live_stacking::ApiLiveStackingStats {
         <f64>::sse_encode(self.avg_matched_pairs, serializer);
         <f64>::sse_encode(self.avg_alignment_residual, serializer);
         <u64>::sse_encode(self.total_sigma_rejected_pixels, serializer);
+        <f64>::sse_encode(self.total_integration_secs, serializer);
         <u32>::sse_encode(self.other_filter_frames, serializer);
         <Option<String>>::sse_encode(self.last_other_filter, serializer);
         <Option<String>>::sse_encode(self.filter, serializer);
@@ -18756,6 +19405,16 @@ impl SseEncode for crate::api::depthlock::ApiSkyRectangle {
         <f64>::sse_encode(self.width_arcsec, serializer);
         <f64>::sse_encode(self.height_arcsec, serializer);
         <f64>::sse_encode(self.rotation_deg, serializer);
+    }
+}
+
+impl SseEncode for crate::api::live_stacking::ApiStretchedPreview {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <u32>::sse_encode(self.channels, serializer);
+        <Vec<u8>>::sse_encode(self.rgba, serializer);
     }
 }
 
@@ -20323,6 +20982,26 @@ impl SseEncode for Vec<crate::api::target_scoring::ApiFloorSample> {
     }
 }
 
+impl SseEncode for Vec<crate::api::live_stacking::ApiLiveStackFilterSummary> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::live_stacking::ApiLiveStackFilterSummary>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::live_stacking::ApiLiveStackFrameEvent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::live_stacking::ApiLiveStackFrameEvent>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::target_scoring::ApiNightScore> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20854,6 +21533,16 @@ impl SseEncode for Option<crate::api::depthlock::ApiDepthReport> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::depthlock::ApiDepthReport>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::live_stacking::ApiLiveStackFrameEvent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::live_stacking::ApiLiveStackFrameEvent>::sse_encode(value, serializer);
         }
     }
 }
@@ -22985,6 +23674,46 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackFilterSummary>
+        for wire_cst_api_live_stack_filter_summary
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackFilterSummary {
+            crate::api::live_stacking::ApiLiveStackFilterSummary {
+                filter_key: self.filter_key.cst_decode(),
+                width: self.width.cst_decode(),
+                height: self.height.cst_decode(),
+                channels: self.channels.cst_decode(),
+                reference_image_path: self.reference_image_path.cst_decode(),
+                revision: self.revision.cst_decode(),
+                stats: self.stats.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackFrameEvent>
+        for wire_cst_api_live_stack_frame_event
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackFrameEvent {
+            crate::api::live_stacking::ApiLiveStackFrameEvent {
+                sequence_index: self.sequence_index.cst_decode(),
+                filter_key: self.filter_key.cst_decode(),
+                source_label: self.source_label.cst_decode(),
+                accepted: self.accepted.cst_decode(),
+                rejection_reason: self.rejection_reason.cst_decode(),
+                detected_stars: self.detected_stars.cst_decode(),
+                matched_pairs: self.matched_pairs.cst_decode(),
+                inlier_pairs: self.inlier_pairs.cst_decode(),
+                alignment_residual_px: self.alignment_residual_px.cst_decode(),
+                shift_x_px: self.shift_x_px.cst_decode(),
+                shift_y_px: self.shift_y_px.cst_decode(),
+                rotation_deg: self.rotation_deg.cst_decode(),
+                sigma_rejected_pixels: self.sigma_rejected_pixels.cst_decode(),
+                exposure_secs: self.exposure_secs.cst_decode(),
+                timestamp_ms: self.timestamp_ms.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>
         for wire_cst_api_live_stacking_config
     {
@@ -22997,6 +23726,9 @@ mod io {
                 match_radius_px: self.match_radius_px.cst_decode(),
                 match_flux_tolerance: self.match_flux_tolerance.cst_decode(),
                 min_matched_pairs: self.min_matched_pairs.cst_decode(),
+                max_alignment_residual_px: self.max_alignment_residual_px.cst_decode(),
+                star_detection_sigma: self.star_detection_sigma.cst_decode(),
+                star_detection_min_snr: self.star_detection_min_snr.cst_decode(),
                 sensor_mode: self.sensor_mode.cst_decode(),
                 bayer_pattern: self.bayer_pattern.cst_decode(),
                 demosaic_quality: self.demosaic_quality.cst_decode(),
@@ -23027,6 +23759,9 @@ mod io {
                 channels: self.channels.cst_decode(),
                 data: self.data.cst_decode(),
                 stats: self.stats.cst_decode(),
+                filter_key: self.filter_key.cst_decode(),
+                revision: self.revision.cst_decode(),
+                last_event: self.last_event.cst_decode(),
             }
         }
     }
@@ -23042,6 +23777,7 @@ mod io {
                 avg_matched_pairs: self.avg_matched_pairs.cst_decode(),
                 avg_alignment_residual: self.avg_alignment_residual.cst_decode(),
                 total_sigma_rejected_pixels: self.total_sigma_rejected_pixels.cst_decode(),
+                total_integration_secs: self.total_integration_secs.cst_decode(),
                 other_filter_frames: self.other_filter_frames.cst_decode(),
                 last_other_filter: self.last_other_filter.cst_decode(),
                 filter: self.filter.cst_decode(),
@@ -23152,6 +23888,17 @@ mod io {
                 width_arcsec: self.width_arcsec.cst_decode(),
                 height_arcsec: self.height_arcsec.cst_decode(),
                 rotation_deg: self.rotation_deg.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::live_stacking::ApiStretchedPreview> for wire_cst_api_stretched_preview {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::live_stacking::ApiStretchedPreview {
+            crate::api::live_stacking::ApiStretchedPreview {
+                width: self.width.cst_decode(),
+                height: self.height.cst_decode(),
+                channels: self.channels.cst_decode(),
+                rgba: self.rgba.cst_decode(),
             }
         }
     }
@@ -23277,6 +24024,15 @@ mod io {
         fn cst_decode(self) -> crate::api::depthlock::ApiDepthReport {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::api::depthlock::ApiDepthReport>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackFrameEvent>
+        for *mut wire_cst_api_live_stack_frame_event
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackFrameEvent {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::live_stacking::ApiLiveStackFrameEvent>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>
@@ -24919,6 +25675,30 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::target_scoring::ApiFloorSample> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::live_stacking::ApiLiveStackFilterSummary>>
+        for *mut wire_cst_list_api_live_stack_filter_summary
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::live_stacking::ApiLiveStackFilterSummary> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::live_stacking::ApiLiveStackFrameEvent>>
+        for *mut wire_cst_list_api_live_stack_frame_event
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::live_stacking::ApiLiveStackFrameEvent> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -26976,6 +27756,50 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_api_live_stack_filter_summary {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                filter_key: core::ptr::null_mut(),
+                width: Default::default(),
+                height: Default::default(),
+                channels: Default::default(),
+                reference_image_path: core::ptr::null_mut(),
+                revision: Default::default(),
+                stats: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_live_stack_filter_summary {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_live_stack_frame_event {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                sequence_index: Default::default(),
+                filter_key: core::ptr::null_mut(),
+                source_label: core::ptr::null_mut(),
+                accepted: Default::default(),
+                rejection_reason: core::ptr::null_mut(),
+                detected_stars: Default::default(),
+                matched_pairs: Default::default(),
+                inlier_pairs: Default::default(),
+                alignment_residual_px: Default::default(),
+                shift_x_px: Default::default(),
+                shift_y_px: Default::default(),
+                rotation_deg: Default::default(),
+                sigma_rejected_pixels: Default::default(),
+                exposure_secs: core::ptr::null_mut(),
+                timestamp_ms: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_live_stack_frame_event {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_api_live_stacking_config {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -26985,6 +27809,9 @@ mod io {
                 match_radius_px: Default::default(),
                 match_flux_tolerance: Default::default(),
                 min_matched_pairs: Default::default(),
+                max_alignment_residual_px: Default::default(),
+                star_detection_sigma: Default::default(),
+                star_detection_min_snr: Default::default(),
                 sensor_mode: core::ptr::null_mut(),
                 bayer_pattern: core::ptr::null_mut(),
                 demosaic_quality: core::ptr::null_mut(),
@@ -27019,6 +27846,9 @@ mod io {
                 channels: Default::default(),
                 data: core::ptr::null_mut(),
                 stats: Default::default(),
+                filter_key: core::ptr::null_mut(),
+                revision: Default::default(),
+                last_event: core::ptr::null_mut(),
             }
         }
     }
@@ -27036,6 +27866,7 @@ mod io {
                 avg_matched_pairs: Default::default(),
                 avg_alignment_residual: Default::default(),
                 total_sigma_rejected_pixels: Default::default(),
+                total_integration_secs: Default::default(),
                 other_filter_frames: Default::default(),
                 last_other_filter: core::ptr::null_mut(),
                 filter: core::ptr::null_mut(),
@@ -27178,6 +28009,21 @@ mod io {
         }
     }
     impl Default for wire_cst_api_sky_rectangle {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_api_stretched_preview {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                width: Default::default(),
+                height: Default::default(),
+                channels: Default::default(),
+                rgba: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_api_stretched_preview {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -29022,6 +29868,25 @@ mod io {
         data: *mut wire_cst_list_prim_u_16_loose,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__imaging__api_auto_stretch_image_impl(width, height, data)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_auto_stretch_preview_async(
+        port_: i64,
+        width: u32,
+        height: u32,
+        channels: u32,
+        data: *mut wire_cst_list_prim_u_16_loose,
+        max_dimension: u32,
+    ) {
+        wire__crate__api__live_stacking__api_auto_stretch_preview_async_impl(
+            port_,
+            width,
+            height,
+            channels,
+            data,
+            max_dimension,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -31373,6 +32238,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        image_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_add_frame_for_filter_impl(
+            port_, filter_key, image_path,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
         port_: i64,
         width: u32,
@@ -31386,9 +32262,31 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        width: u32,
+        height: u32,
+        data: *mut wire_cst_list_prim_u_16_loose,
+        pedestal: f64,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter_impl(
+            port_, filter_key, width, height, data, pedestal,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__live_stacking__api_stacking_frame_count_impl()
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_events(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_get_events_impl(port_, filter_key)
     }
 
     #[unsafe(no_mangle)]
@@ -31399,10 +32297,26 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_get_result_for_filter_impl(port_, filter_key)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats(
         port_: i64,
     ) {
         wire__crate__api__live_stacking__api_stacking_get_stats_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_get_stats_for_filter_impl(port_, filter_key)
     }
 
     #[unsafe(no_mangle)]
@@ -31412,10 +32326,38 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_list_filters(
+        port_: i64,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_list_filters_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_render_preview_rgba(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        max_dimension: u32,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_render_preview_rgba_impl(
+            port_,
+            filter_key,
+            max_dimension,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset(
         port_: i64,
     ) {
         wire__crate__api__live_stacking__api_stacking_reset_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_reset_for_filter_impl(port_, filter_key)
     }
 
     #[unsafe(no_mangle)]
@@ -31427,6 +32369,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter_impl(
+            port_, filter_key, file_path,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start(
         port_: i64,
         reference_image_path: *mut wire_cst_list_prim_u_8_strict,
@@ -31434,6 +32387,21 @@ mod io {
     ) {
         wire__crate__api__live_stacking__api_stacking_start_impl(
             port_,
+            reference_image_path,
+            config,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        reference_image_path: *mut wire_cst_list_prim_u_8_strict,
+        config: *mut wire_cst_api_live_stacking_config,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_start_for_filter_impl(
+            port_,
+            filter_key,
             reference_image_path,
             config,
         )
@@ -31454,10 +32422,42 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        width: u32,
+        height: u32,
+        data: *mut wire_cst_list_prim_u_16_loose,
+        pedestal: f64,
+        config: *mut wire_cst_api_live_stacking_config,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter_impl(
+            port_, filter_key, width, height, data, pedestal, config,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop(
         port_: i64,
     ) {
         wire__crate__api__live_stacking__api_stacking_stop_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop_for_filter(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_stop_for_filter_impl(port_, filter_key)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_update_config(
+        port_: i64,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        config: *mut wire_cst_api_live_stacking_config,
+    ) {
+        wire__crate__api__live_stacking__api_stacking_update_config_impl(port_, filter_key, config)
     }
 
     #[unsafe(no_mangle)]
@@ -31839,6 +32839,14 @@ mod io {
     ) -> *mut wire_cst_api_depth_report {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_api_depth_report::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stack_frame_event(
+    ) -> *mut wire_cst_api_live_stack_frame_event {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_api_live_stack_frame_event::new_with_null_ptr(),
         )
     }
 
@@ -32296,6 +33304,34 @@ mod io {
         let wrap = wire_cst_list_api_floor_sample {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_api_floor_sample>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_live_stack_filter_summary(
+        len: i32,
+    ) -> *mut wire_cst_list_api_live_stack_filter_summary {
+        let wrap = wire_cst_list_api_live_stack_filter_summary {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_live_stack_filter_summary>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_api_live_stack_frame_event(
+        len: i32,
+    ) -> *mut wire_cst_list_api_live_stack_frame_event {
+        let wrap = wire_cst_list_api_live_stack_frame_event {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_api_live_stack_frame_event>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -32937,6 +33973,36 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_api_live_stack_filter_summary {
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        width: u32,
+        height: u32,
+        channels: u32,
+        reference_image_path: *mut wire_cst_list_prim_u_8_strict,
+        revision: u64,
+        stats: wire_cst_api_live_stacking_stats,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_live_stack_frame_event {
+        sequence_index: u32,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        source_label: *mut wire_cst_list_prim_u_8_strict,
+        accepted: bool,
+        rejection_reason: *mut wire_cst_list_prim_u_8_strict,
+        detected_stars: u32,
+        matched_pairs: u32,
+        inlier_pairs: u32,
+        alignment_residual_px: f64,
+        shift_x_px: f64,
+        shift_y_px: f64,
+        rotation_deg: f64,
+        sigma_rejected_pixels: u64,
+        exposure_secs: *mut f64,
+        timestamp_ms: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_api_live_stacking_config {
         sigma_clip_enabled: bool,
         sigma_clip_threshold: f64,
@@ -32944,6 +34010,9 @@ mod io {
         match_radius_px: f64,
         match_flux_tolerance: f64,
         min_matched_pairs: u32,
+        max_alignment_residual_px: f64,
+        star_detection_sigma: f64,
+        star_detection_min_snr: f64,
         sensor_mode: *mut wire_cst_list_prim_u_8_strict,
         bayer_pattern: *mut wire_cst_list_prim_u_8_strict,
         demosaic_quality: *mut wire_cst_list_prim_u_8_strict,
@@ -32964,6 +34033,9 @@ mod io {
         channels: u32,
         data: *mut wire_cst_list_prim_u_16_strict,
         stats: wire_cst_api_live_stacking_stats,
+        filter_key: *mut wire_cst_list_prim_u_8_strict,
+        revision: u64,
+        last_event: *mut wire_cst_api_live_stack_frame_event,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -32974,6 +34046,7 @@ mod io {
         avg_matched_pairs: f64,
         avg_alignment_residual: f64,
         total_sigma_rejected_pixels: u64,
+        total_integration_secs: f64,
         other_filter_frames: u32,
         last_other_filter: *mut wire_cst_list_prim_u_8_strict,
         filter: *mut wire_cst_list_prim_u_8_strict,
@@ -33063,6 +34136,14 @@ mod io {
         width_arcsec: f64,
         height_arcsec: f64,
         rotation_deg: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_api_stretched_preview {
+        width: u32,
+        height: u32,
+        channels: u32,
+        rgba: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -34224,6 +35305,18 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_api_floor_sample {
         ptr: *mut wire_cst_api_floor_sample,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_live_stack_filter_summary {
+        ptr: *mut wire_cst_api_live_stack_filter_summary,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_api_live_stack_frame_event {
+        ptr: *mut wire_cst_api_live_stack_frame_event,
         len: i32,
     }
     #[repr(C)]

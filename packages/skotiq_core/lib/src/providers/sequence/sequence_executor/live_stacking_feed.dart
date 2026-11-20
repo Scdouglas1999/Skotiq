@@ -15,6 +15,11 @@ import '../../../models/imaging/live_stacking_models.dart';
 /// reference and every later one is added. Feeds are serialized: an add that
 /// overtook the reference start would corrupt the stack's coordinate system.
 /// A frame that cannot be fed is logged loudly; the run itself keeps imaging.
+///
+/// Even without a [LiveStackingNode], if the user has opted in by manually
+/// arming or starting a live stack with `autoFeedEnabled`, accepted light
+/// frames are forwarded with their filter, exposure, HFR, and star count so
+/// per-filter live stacks update automatically during normal sequences.
 class LiveStackingFeed {
   LiveStackingFeed({
     required Sequence? Function() sequence,
@@ -37,7 +42,8 @@ class LiveStackingFeed {
   final LiveStackingState Function() _stackState;
   final LoggingService Function() _logger;
 
-  /// Whether this run's stack has its reference frame.
+  /// Whether this run's stack has its reference frame (started by a sequence
+  /// [LiveStackingNode]).
   bool _armed = false;
 
   /// The tail of the serialized feed chain; null when nothing is queued.
@@ -53,34 +59,63 @@ class LiveStackingFeed {
     _chain = null;
   }
 
-  /// Queue [event]'s frame for the stack. A no-op when the running sequence
-  /// does not live-stack.
+  /// Queue [event]'s frame for the stack. A no-op when neither the running
+  /// sequence nor the user has opted into live stacking.
   void feed(SequencerEvent_FrameAccepted event) {
     final node = _activeNode();
-    if (node == null) return;
+    final state = _stackState();
+    final userOptedIn =
+        node == null && state.isActiveOrArmed && state.config.autoFeedEnabled;
+    if (node == null && !userOptedIn) return;
+
+    // For manually armed opt-in stacking during a general sequence, only feed
+    // light frames (never Darks, Flats, or Biases).
+    if (userOptedIn &&
+        event.capture.frameType.trim().isNotEmpty &&
+        event.capture.frameType.trim().toLowerCase() != 'light') {
+      return;
+    }
 
     final savePath = event.savePath;
     if (savePath == null || savePath.isEmpty) {
-      _logger().error(
-        'Live-stacking auto-feed: accepted frame from node '
-        '${event.nodeId} carried no save_path; cannot add it to the '
-        'live stack. The broadcast stack will be missing this frame.',
-        source: 'SequenceExecutor',
-      );
+      if (node != null) {
+        _logger().error(
+          'Live-stacking auto-feed: accepted frame from node '
+          '${event.nodeId} carried no save_path; cannot add it to the '
+          'live stack. The broadcast stack will be missing this frame.',
+          source: 'SequenceExecutor',
+        );
+      }
       return;
     }
 
     // The camera's reported exposure, which the frame's row records too, for
     // the broadcast's integration counter.
     final exposureSecs = event.capture.exposureSecs;
+    final filterName = _progress().currentFilter;
     final previous = _chain ?? Future<void>.value();
-    _chain = previous.then(
-      (_) => _feedFrame(
-        node: node,
-        savePath: savePath,
-        exposureSecs: exposureSecs,
-      ),
-    );
+    if (node != null) {
+      _chain = previous.then(
+        (_) => _feedFrame(
+          node: node,
+          savePath: savePath,
+          exposureSecs: exposureSecs,
+          filterName: filterName,
+          hfr: event.hfr,
+          starCount: event.starCount,
+        ),
+      );
+    } else {
+      _chain = previous.then(
+        (_) => _feedManualOptInFrame(
+          savePath: savePath,
+          exposureSecs: exposureSecs,
+          filterName: filterName,
+          hfr: event.hfr,
+          starCount: event.starCount,
+        ),
+      );
+    }
   }
 
   /// Stop the broadcast and the stacker at the end of a run, after any queued
@@ -129,10 +164,38 @@ class LiveStackingFeed {
     sigmaClipEnabled: node.stackMethod != LiveStackingMethod.average,
   );
 
+  Future<void> _feedManualOptInFrame({
+    required String savePath,
+    required double exposureSecs,
+    String? filterName,
+    double? hfr,
+    int? starCount,
+  }) async {
+    final state = _stackState();
+    if (!state.isActiveOrArmed || !state.config.autoFeedEnabled) return;
+    try {
+      await _stacker().addFrameFromFileWithMetadata(
+        savePath,
+        filter: filterName,
+        exposureSecs: exposureSecs,
+        hfr: hfr,
+        starCount: starCount,
+      );
+    } catch (e) {
+      _logger().warning(
+        'Live-stacking opt-in auto-feed skipped $savePath: $e',
+        source: 'SequenceExecutor',
+      );
+    }
+  }
+
   Future<void> _feedFrame({
     required LiveStackingNode node,
     required String savePath,
     required double exposureSecs,
+    String? filterName,
+    double? hfr,
+    int? starCount,
   }) async {
     final broadcast = _broadcast();
     final stacker = _stacker();
@@ -141,7 +204,15 @@ class LiveStackingFeed {
       if (!_armed) {
         broadcast.activate(node);
         broadcast.updateCurrentTarget(_progress().currentTarget);
-        await stacker.startFromFile(savePath, config: _configFor(node));
+        if (filterName != null && filterName.trim().isNotEmpty) {
+          await stacker.startFromFileForFilter(
+            savePath,
+            filterKey: normalizeLiveStackFilterKey(filterName),
+            config: _configFor(node),
+          );
+        } else {
+          await stacker.startFromFile(savePath, config: _configFor(node));
+        }
         if (_stackState().status != LiveStackingStatus.running) {
           logger.error(
             'Live-stacking auto-feed: failed to start the stacker from the '
@@ -171,7 +242,13 @@ class LiveStackingFeed {
           return;
         }
         broadcast.updateCurrentTarget(_progress().currentTarget);
-        await stacker.addFrameFromFile(savePath);
+        await stacker.addFrameFromFileWithMetadata(
+          savePath,
+          filter: filterName,
+          exposureSecs: exposureSecs,
+          hfr: hfr,
+          starCount: starCount,
+        );
       }
 
       final state = _stackState();

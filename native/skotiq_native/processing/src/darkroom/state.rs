@@ -325,6 +325,98 @@ pub(crate) fn base_pyramid(path: &Path) -> Result<LoadedMaster, String> {
     })
 }
 
+/// Callback returning `(canonical_filter_key, revision_identity)` for an active
+/// in-memory live stack without touching pixel accumulators.
+pub type LiveStackIdentityFn = fn(&str) -> Result<(String, String), String>;
+
+/// Callback returning `(OpImage, revision_identity)` built from an active
+/// live stack's F32 running means.
+pub type LiveStackOpImageFn = fn(&str) -> Result<(OpImage, String), String>;
+
+#[derive(Clone, Copy)]
+struct LiveStackResolver {
+    identity: LiveStackIdentityFn,
+    op_image: LiveStackOpImageFn,
+}
+
+static LIVE_STACK_RESOLVER: OnceLock<LiveStackResolver> = OnceLock::new();
+
+/// Register the bridge's in-memory live-stack lookup hooks so Darkroom can
+/// render and draft recipes directly over active live stacks while keeping
+/// `skotiq_processing` decoupled from `skotiq_bridge`.
+pub fn register_live_stack_resolver(
+    identity: LiveStackIdentityFn,
+    op_image: LiveStackOpImageFn,
+) {
+    let _ = LIVE_STACK_RESOLVER.set(LiveStackResolver { identity, op_image });
+}
+
+/// The pyramid for an in-memory live stack slot, checking its lightweight
+/// `(filter_key, revision)` identity FIRST so slider drags hit the pyramid +
+/// step-boundary render cache with zero pixel allocation.
+pub(crate) fn live_stack_pyramid(filter_key: &str) -> Result<LoadedMaster, String> {
+    let resolver = LIVE_STACK_RESOLVER
+        .get()
+        .ok_or_else(|| "Live stack Darkroom resolver is not registered".to_string())?;
+    let (canonical_key, identity) = (resolver.identity)(filter_key)?;
+    let key = format!("__livestack__:{canonical_key}");
+    let render_identity = identity.clone();
+
+    {
+        let mut cache = base_cache();
+        cache.tick = cache.tick.saturating_add(1);
+        let tick = cache.tick;
+        match cache.entries.get_mut(&key) {
+            Some(entry) if entry.identity == identity => {
+                entry.last_used = tick;
+                return Ok(LoadedMaster {
+                    pyramid: Arc::clone(&entry.pyramid),
+                    identity: render_identity,
+                });
+            }
+            Some(_) => {
+                if let Some(entry) = cache.entries.remove(&key) {
+                    cache.used_bytes = cache.used_bytes.saturating_sub(entry.bytes);
+                }
+            }
+            None => {}
+        }
+    }
+
+    let (base, actual_identity) = (resolver.op_image)(&canonical_key)?;
+    let pyramid = Arc::new(ImagePyramid::build(Arc::new(base)).map_err(|e| {
+        format!(
+            "cannot build a preview pyramid for live stack '{canonical_key}': {}",
+            readable_cause(e)
+        )
+    })?);
+
+    let bytes = pyramid.byte_size();
+    let mut cache = base_cache();
+    cache.tick = cache.tick.saturating_add(1);
+    let tick = cache.tick;
+    if bytes <= BASE_CACHE_CAPACITY_BYTES {
+        if let Some(previous) = cache.entries.remove(&key) {
+            cache.used_bytes = cache.used_bytes.saturating_sub(previous.bytes);
+        }
+        cache.entries.insert(
+            key,
+            BaseEntry {
+                pyramid: Arc::clone(&pyramid),
+                identity: actual_identity.clone(),
+                bytes,
+                last_used: tick,
+            },
+        );
+        cache.used_bytes = cache.used_bytes.saturating_add(bytes);
+        cache.evict_to_capacity();
+    }
+    Ok(LoadedMaster {
+        pyramid,
+        identity: actual_identity,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Catalogue identity
 // ---------------------------------------------------------------------------

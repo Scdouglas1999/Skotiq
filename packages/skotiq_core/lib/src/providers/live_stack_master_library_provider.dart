@@ -9,17 +9,21 @@ final liveStackMasterLibraryProvider = Provider<LiveStackMasterLibrary>((ref) {
   return LiveStackMasterLibrary(
     currentResult: stacking.getCurrentResult,
     saveMaster: (path) => stacking.saveMaster(filePath: path),
-    writePreview: (path, result) => bridge.apiSaveRgbaPngFile(
-      filePath: path,
-      width: result.width,
-      height: result.height,
-      rgba: stacking.autoStretchPreview(
+    writePreview: (path, result) async {
+      final stretched = await stacking.autoStretchPreviewAsync(
         width: result.width,
         height: result.height,
         data: result.data,
         channels: result.channels,
-      ),
-    ),
+        maxDimension: 0,
+      );
+      await bridge.apiSaveRgbaPngFile(
+        filePath: path,
+        width: stretched.width,
+        height: stretched.height,
+        rgba: stretched.rgba,
+      );
+    },
     masters: ref.watch(integratedMastersDaoProvider),
   );
 });

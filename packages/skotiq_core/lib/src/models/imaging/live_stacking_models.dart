@@ -1,4 +1,95 @@
+import 'dart:typed_data';
+
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+
+/// Default filter key when a frame carries no optical filter.
+const String kDefaultLiveStackFilterKey = 'Unfiltered';
+
+/// Normalize a filter name into a stable per-filter live stack slot key.
+String normalizeLiveStackFilterKey(String? raw) {
+  final trimmed = raw?.trim();
+  if (trimmed == null || trimmed.isEmpty || trimmed == '—') {
+    return kDefaultLiveStackFilterKey;
+  }
+  return trimmed;
+}
+
+/// Curated live stacking tuning profiles for one-click configuration.
+enum LiveStackingPreset {
+  balanced,
+  strictQuality,
+  faintField,
+  fastEaa;
+
+  String get label => switch (this) {
+    LiveStackingPreset.balanced => 'Balanced',
+    LiveStackingPreset.strictQuality => 'Strict quality',
+    LiveStackingPreset.faintField => 'Faint field',
+    LiveStackingPreset.fastEaa => 'Fast EAA',
+  };
+
+  String get summary => switch (this) {
+    LiveStackingPreset.balanced =>
+      '2.5σ clip, 2.0 px max residual — good default for most nights',
+    LiveStackingPreset.strictQuality =>
+      '2.0σ clip, 1.2 px max residual, 8+ stars — sharp stacks, rejects drift',
+    LiveStackingPreset.faintField =>
+      'Lower star threshold (3σ / SNR 5), wider 80 px match radius — narrowband & galaxy fields',
+    LiveStackingPreset.fastEaa =>
+      'Relaxed 3.5 px residual & 3.0σ clip — maximizes accepted short subs for outreach',
+  };
+
+  /// Apply this preset's alignment & rejection tuning onto [base], preserving
+  /// sensor/OSC and filter-routing preferences.
+  LiveStackingConfig applyTo(LiveStackingConfig base) {
+    return switch (this) {
+      LiveStackingPreset.balanced => base.copyWith(
+        sigmaClipEnabled: true,
+        sigmaClipThreshold: 2.5,
+        maxMatchStars: 100,
+        matchRadiusPx: 50.0,
+        matchFluxTolerance: 0.7,
+        minMatchedPairs: 5,
+        maxAlignmentResidualPx: 2.0,
+        starDetectionSigma: 4.0,
+        starDetectionMinSnr: 8.0,
+      ),
+      LiveStackingPreset.strictQuality => base.copyWith(
+        sigmaClipEnabled: true,
+        sigmaClipThreshold: 2.0,
+        maxMatchStars: 120,
+        matchRadiusPx: 35.0,
+        matchFluxTolerance: 0.55,
+        minMatchedPairs: 8,
+        maxAlignmentResidualPx: 1.2,
+        starDetectionSigma: 4.5,
+        starDetectionMinSnr: 10.0,
+      ),
+      LiveStackingPreset.faintField => base.copyWith(
+        sigmaClipEnabled: true,
+        sigmaClipThreshold: 2.5,
+        maxMatchStars: 150,
+        matchRadiusPx: 80.0,
+        matchFluxTolerance: 0.85,
+        minMatchedPairs: 4,
+        maxAlignmentResidualPx: 2.5,
+        starDetectionSigma: 3.0,
+        starDetectionMinSnr: 5.0,
+      ),
+      LiveStackingPreset.fastEaa => base.copyWith(
+        sigmaClipEnabled: true,
+        sigmaClipThreshold: 3.0,
+        maxMatchStars: 75,
+        matchRadiusPx: 75.0,
+        matchFluxTolerance: 0.8,
+        minMatchedPairs: 4,
+        maxAlignmentResidualPx: 3.5,
+        starDetectionSigma: 3.5,
+        starDetectionMinSnr: 6.0,
+      ),
+    };
+  }
+}
 
 class LiveStackingConfig {
   /// Whether sigma clipping is enabled for pixel rejection.
@@ -18,6 +109,32 @@ class LiveStackingConfig {
 
   /// Minimum number of matched star pairs required for alignment.
   final int minMatchedPairs;
+
+  /// Maximum RMS alignment residual (pixels) before a frame is rejected.
+  final double maxAlignmentResidualPx;
+
+  /// Star detection threshold above sky background in noise sigmas.
+  final double starDetectionSigma;
+
+  /// Minimum star SNR required for alignment detection.
+  final double starDetectionMinSnr;
+
+  /// When true, incoming frames are routed into independent per-filter live
+  /// stacks (`L`, `R`, `G`, `B`, `Ha`, `OIII`, `SII`, etc.). When false, all
+  /// frames stack into one combined session.
+  final bool separateByFilter;
+
+  /// Whether newly captured light frames (manual or sequenced) automatically
+  /// feed into the active/armed live stack.
+  final bool autoFeedEnabled;
+
+  /// Optional HFR quality gate (pixels). Frames reporting an HFR above this
+  /// ceiling are skipped before stacking. Null disables the gate.
+  final double? maxHfrPx;
+
+  /// Optional minimum star-count quality gate. Frames reporting fewer stars
+  /// are skipped before stacking. Null disables the gate.
+  final int? minStarCount;
 
   /// Sensor acquisition mode: `"mono"`, `"osc"`, or `"auto"` (case-insensitive
   /// on the native side).
@@ -50,6 +167,13 @@ class LiveStackingConfig {
     this.matchRadiusPx = 50.0,
     this.matchFluxTolerance = 0.7,
     this.minMatchedPairs = 5,
+    this.maxAlignmentResidualPx = 2.0,
+    this.starDetectionSigma = 4.0,
+    this.starDetectionMinSnr = 8.0,
+    this.separateByFilter = true,
+    this.autoFeedEnabled = true,
+    this.maxHfrPx,
+    this.minStarCount,
     this.sensorMode = 'mono',
     this.bayerPattern,
     this.demosaicQuality = 'bilinear',
@@ -63,6 +187,9 @@ class LiveStackingConfig {
     matchRadiusPx: matchRadiusPx,
     matchFluxTolerance: matchFluxTolerance,
     minMatchedPairs: minMatchedPairs,
+    maxAlignmentResidualPx: maxAlignmentResidualPx,
+    starDetectionSigma: starDetectionSigma,
+    starDetectionMinSnr: starDetectionMinSnr,
     sensorMode: sensorMode,
     bayerPattern: bayerPattern,
     demosaicQuality: demosaicQuality,
@@ -75,6 +202,15 @@ class LiveStackingConfig {
     double? matchRadiusPx,
     double? matchFluxTolerance,
     int? minMatchedPairs,
+    double? maxAlignmentResidualPx,
+    double? starDetectionSigma,
+    double? starDetectionMinSnr,
+    bool? separateByFilter,
+    bool? autoFeedEnabled,
+    double? maxHfrPx,
+    bool clearMaxHfrPx = false,
+    int? minStarCount,
+    bool clearMinStarCount = false,
     String? sensorMode,
     String? bayerPattern,
     bool clearBayerPattern = false,
@@ -87,12 +223,31 @@ class LiveStackingConfig {
       matchRadiusPx: matchRadiusPx ?? this.matchRadiusPx,
       matchFluxTolerance: matchFluxTolerance ?? this.matchFluxTolerance,
       minMatchedPairs: minMatchedPairs ?? this.minMatchedPairs,
+      maxAlignmentResidualPx:
+          maxAlignmentResidualPx ?? this.maxAlignmentResidualPx,
+      starDetectionSigma: starDetectionSigma ?? this.starDetectionSigma,
+      starDetectionMinSnr: starDetectionMinSnr ?? this.starDetectionMinSnr,
+      separateByFilter: separateByFilter ?? this.separateByFilter,
+      autoFeedEnabled: autoFeedEnabled ?? this.autoFeedEnabled,
+      maxHfrPx: clearMaxHfrPx ? null : (maxHfrPx ?? this.maxHfrPx),
+      minStarCount: clearMinStarCount
+          ? null
+          : (minStarCount ?? this.minStarCount),
       sensorMode: sensorMode ?? this.sensorMode,
       bayerPattern: clearBayerPattern
           ? null
           : (bayerPattern ?? this.bayerPattern),
       demosaicQuality: demosaicQuality ?? this.demosaicQuality,
     );
+  }
+
+  /// Identify which preset matches this configuration, or null if customized.
+  LiveStackingPreset? get matchedPreset {
+    for (final preset in LiveStackingPreset.values) {
+      final candidate = preset.applyTo(this);
+      if (candidate == this) return preset;
+    }
+    return null;
   }
 
   @override
@@ -106,6 +261,13 @@ class LiveStackingConfig {
           matchRadiusPx == other.matchRadiusPx &&
           matchFluxTolerance == other.matchFluxTolerance &&
           minMatchedPairs == other.minMatchedPairs &&
+          maxAlignmentResidualPx == other.maxAlignmentResidualPx &&
+          starDetectionSigma == other.starDetectionSigma &&
+          starDetectionMinSnr == other.starDetectionMinSnr &&
+          separateByFilter == other.separateByFilter &&
+          autoFeedEnabled == other.autoFeedEnabled &&
+          maxHfrPx == other.maxHfrPx &&
+          minStarCount == other.minStarCount &&
           sensorMode == other.sensorMode &&
           bayerPattern == other.bayerPattern &&
           demosaicQuality == other.demosaicQuality;
@@ -118,6 +280,13 @@ class LiveStackingConfig {
     matchRadiusPx,
     matchFluxTolerance,
     minMatchedPairs,
+    maxAlignmentResidualPx,
+    starDetectionSigma,
+    starDetectionMinSnr,
+    separateByFilter,
+    autoFeedEnabled,
+    maxHfrPx,
+    minStarCount,
     sensorMode,
     bayerPattern,
     demosaicQuality,
@@ -131,6 +300,7 @@ class LiveStackingStats {
   final double avgMatchedPairs;
   final double avgAlignmentResidual;
   final int totalSigmaRejectedPixels;
+  final double totalIntegrationSecs;
 
   /// The filter the stack is of: its reference frame's. Null when that frame
   /// named none, and from a host that does not report it.
@@ -150,6 +320,7 @@ class LiveStackingStats {
     this.avgMatchedPairs = 0.0,
     this.avgAlignmentResidual = 0.0,
     this.totalSigmaRejectedPixels = 0,
+    this.totalIntegrationSecs = 0.0,
     this.filter,
     this.otherFilterFrames = 0,
     this.lastOtherFilter,
@@ -163,6 +334,7 @@ class LiveStackingStats {
       avgMatchedPairs = s.avgMatchedPairs,
       avgAlignmentResidual = s.avgAlignmentResidual,
       totalSigmaRejectedPixels = s.totalSigmaRejectedPixels.toInt(),
+      totalIntegrationSecs = s.totalIntegrationSecs,
       filter = s.filter,
       otherFilterFrames = s.otherFilterFrames,
       lastOtherFilter = s.lastOtherFilter;
@@ -182,6 +354,93 @@ class LiveStackingStats {
               'this stack is of $stack. To stack them, stop and start a new '
               'live stack.';
   }
+}
+
+/// Per-frame transparency record surfaced in the Live Stack Frame Log.
+class LiveStackFrameEvent {
+  final int sequenceIndex;
+  final String filterKey;
+  final String sourceLabel;
+  final bool accepted;
+  final String? rejectionReason;
+  final int detectedStars;
+  final int matchedPairs;
+  final int inlierPairs;
+  final double alignmentResidualPx;
+  final double shiftXPx;
+  final double shiftYPx;
+  final double rotationDeg;
+  final int sigmaRejectedPixels;
+  final double? exposureSecs;
+  final DateTime timestamp;
+
+  const LiveStackFrameEvent({
+    required this.sequenceIndex,
+    required this.filterKey,
+    required this.sourceLabel,
+    required this.accepted,
+    this.rejectionReason,
+    this.detectedStars = 0,
+    this.matchedPairs = 0,
+    this.inlierPairs = 0,
+    this.alignmentResidualPx = 0.0,
+    this.shiftXPx = 0.0,
+    this.shiftYPx = 0.0,
+    this.rotationDeg = 0.0,
+    this.sigmaRejectedPixels = 0,
+    this.exposureSecs,
+    required this.timestamp,
+  });
+
+  LiveStackFrameEvent.fromBridge(bridge.ApiLiveStackFrameEvent e)
+    : sequenceIndex = e.sequenceIndex,
+      filterKey = e.filterKey,
+      sourceLabel = e.sourceLabel,
+      accepted = e.accepted,
+      rejectionReason = e.rejectionReason,
+      detectedStars = e.detectedStars,
+      matchedPairs = e.matchedPairs,
+      inlierPairs = e.inlierPairs,
+      alignmentResidualPx = e.alignmentResidualPx,
+      shiftXPx = e.shiftXPx,
+      shiftYPx = e.shiftYPx,
+      rotationDeg = e.rotationDeg,
+      sigmaRejectedPixels = e.sigmaRejectedPixels.toInt(),
+      exposureSecs = e.exposureSecs,
+      timestamp = DateTime.fromMillisecondsSinceEpoch(
+        e.timestampMs.toInt(),
+        isUtc: true,
+      );
+}
+
+/// Summary of one active per-filter stack slot reported by the native engine.
+class LiveStackFilterSummary {
+  final String filterKey;
+  final int width;
+  final int height;
+  final int channels;
+  final String? referenceImagePath;
+  final int revision;
+  final LiveStackingStats stats;
+
+  const LiveStackFilterSummary({
+    required this.filterKey,
+    required this.width,
+    required this.height,
+    required this.channels,
+    this.referenceImagePath,
+    required this.revision,
+    required this.stats,
+  });
+
+  LiveStackFilterSummary.fromBridge(bridge.ApiLiveStackFilterSummary s)
+    : filterKey = s.filterKey,
+      width = s.width,
+      height = s.height,
+      channels = s.channels,
+      referenceImagePath = s.referenceImagePath,
+      revision = s.revision.toInt(),
+      stats = LiveStackingStats.fromBridge(s.stats);
 }
 
 /// Thrown when the stacker refuses the frame it was handed.
@@ -221,12 +480,24 @@ class LiveStackingResult {
   final List<int> data;
   final LiveStackingStats stats;
 
+  /// Which filter slot produced this result (e.g. `"L"`, `"Ha"`, `"Unfiltered"`).
+  final String filterKey;
+
+  /// Monotonic native revision incremented whenever the stack changes.
+  final int revision;
+
+  /// Per-frame alignment/clipping record for the frame just evaluated, when available.
+  final LiveStackFrameEvent? lastEvent;
+
   const LiveStackingResult({
     required this.width,
     required this.height,
     this.channels = 1,
     required this.data,
     required this.stats,
+    this.filterKey = kDefaultLiveStackFilterKey,
+    this.revision = 0,
+    this.lastEvent,
   });
 
   /// The native stacker's current stack.
@@ -235,7 +506,27 @@ class LiveStackingResult {
       height = r.height,
       channels = r.channels,
       data = r.data,
-      stats = LiveStackingStats.fromBridge(r.stats);
+      stats = LiveStackingStats.fromBridge(r.stats),
+      filterKey = r.filterKey,
+      revision = r.revision.toInt(),
+      lastEvent = r.lastEvent != null
+          ? LiveStackFrameEvent.fromBridge(r.lastEvent!)
+          : null;
+}
+
+/// Stretched RGBA8 preview frame returned from off-UI-thread Rust worker rendering.
+class StretchedPreviewFrame {
+  final int width;
+  final int height;
+  final int channels;
+  final Uint8List rgba;
+
+  const StretchedPreviewFrame({
+    required this.width,
+    required this.height,
+    required this.channels,
+    required this.rgba,
+  });
 }
 
 /// Format a stacked master was written in.

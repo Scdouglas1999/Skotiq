@@ -1,20 +1,34 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/darkroom_navigation.dart';
+import '../../../utils/snackbar_helper.dart';
 import 'depthlock/depthlock_hint.dart';
 import 'depthlock/depthlock_region_layer.dart';
 import 'depthlock/depthlock_selection.dart';
+import 'live_stack/live_stack_darkroom_provider.dart';
+import 'live_stack/live_stack_filter_pills.dart';
+import 'live_stack/live_stack_formatters.dart';
+import 'live_stack/live_stack_rgba_image.dart';
+import 'live_stack/live_stack_side_panel.dart';
 import 'preview_viewport.dart';
 import 'session_stack_plan.dart';
 import 'stacking_panel.dart'
-    show StackedPreviewStretch, stackedPreviewStretchProvider;
-import 'package:skotiq_core/utils.dart';
+    show
+        StackedPreviewStretch,
+        StackedPreviewStretchAsync,
+        stackedPreviewStretchAsyncProvider;
 
 /// Where the live stack canvas is zoomed and panned to.
 ///
@@ -41,7 +55,8 @@ final stackCanvasViewProvider = StateProvider<StackCanvasView>(
 );
 
 /// The Live stack tab's canvas: the stacked image, pannable and zoomable, with
-/// the DepthLock region tool and saved-goal overlay on it.
+/// per-filter switching, real-time Live Darkroom rendering, Observatory glass
+/// telemetry readouts, and the DepthLock region tool / saved-goal overlay.
 ///
 /// Marking here is legitimate because the stacker warps every frame into the
 /// reference sub's pixel grid — a rectangle on this image is a rectangle in
@@ -60,10 +75,22 @@ class LiveStackCanvas extends ConsumerWidget {
     final colors = context.skotiqColors;
     final stack = ref.watch(liveStackingProvider);
     final view = ref.watch(stackCanvasViewProvider);
+    final darkroom = ref.watch(liveStackDarkroomProvider);
 
     if (stack.previewData == null ||
         stack.previewWidth <= 0 ||
         stack.previewHeight <= 0) {
+      final isRunning = stack.status == LiveStackingStatus.running;
+      final isRemote = ref.watch(isRemoteModeProvider);
+      final plan = ref.watch(sessionStackPlanProvider);
+      final currentFilePath = ref.watch(
+        currentImageProvider.select((img) => img?.filePath),
+      );
+      final canStartFromCurrent = !isRunning &&
+          !isRemote &&
+          currentFilePath != null &&
+          currentFilePath.isNotEmpty;
+
       return Container(
         color: colors.isRedNight
             ? colors.background
@@ -72,19 +99,130 @@ class LiveStackCanvas extends ConsumerWidget {
           child: SkotiqImageSurface(
             child: EmptyState(
               icon: SkotiqIcons.layers,
-              title: stack.status == LiveStackingStatus.running
+              title: isRunning
                   ? 'Waiting for the first stacked frame'
                   : 'No stack running',
-              body: stack.status == LiveStackingStatus.running
-                  ? 'The stacked image appears here as frames are added.'
-                  : ref.watch(sessionStackPlanProvider) != null
-                      ? 'Stack tonight\'s frames from the panel and the '
-                          'stacked image appears here.'
-                      : 'Start a stack from a reference sub and it appears '
-                          'here.',
+              body: isRunning
+                  ? 'Live stacking is armed — your next captured frame becomes '
+                      'the reference for its filter and subsequent frames stack '
+                      'automatically.'
+                  : plan != null
+                      ? 'Stack tonight\'s frames or arm live stacking to build '
+                          'per-filter integrations as exposures arrive.'
+                      : 'Arm live stacking to build per-filter integrations as '
+                          'exposures arrive, or pick a reference frame in the '
+                          'side panel.',
+              action: isRunning
+                  ? null
+                  : Wrap(
+                      spacing: SkotiqTokens.spaceSm,
+                      runSpacing: SkotiqTokens.spaceSm,
+                      alignment: WrapAlignment.center,
+                      children: <Widget>[
+                        SkotiqButton(
+                          key: const ValueKey('live_stack_canvas_arm_btn'),
+                          label: 'Arm live stacking',
+                          icon: SkotiqIcons.layers,
+                          onPressed: () =>
+                              ref.read(liveStackingProvider.notifier).arm(),
+                        ),
+                        if (canStartFromCurrent)
+                          SkotiqButton(
+                            key: const ValueKey(
+                              'live_stack_canvas_from_current_btn',
+                            ),
+                            label: 'Stack current frame',
+                            icon: SkotiqIcons.image,
+                            variant: ButtonVariant.secondary,
+                            onPressed: () {
+                              final img = ref.read(currentImageProvider);
+                              if (img == null || img.filePath == null) return;
+                              final filter = img.settings.filter;
+                              if (filter != null && filter.trim().isNotEmpty) {
+                                ref
+                                    .read(liveStackingProvider.notifier)
+                                    .startFromFileForFilter(
+                                      img.filePath!,
+                                      filterKey: filter.trim(),
+                                    );
+                              } else {
+                                ref
+                                    .read(liveStackingProvider.notifier)
+                                    .startFromFile(img.filePath!);
+                              }
+                            },
+                          ),
+                      ],
+                    ),
             ),
           ),
         ),
+      );
+    }
+
+    final activeKey =
+        stack.selectedFilterKey ??
+        stack.activeFilterStack?.filterKey ??
+        kDefaultLiveStackFilterKey;
+    final darkroomRender = darkroom.enabled && !darkroom.compareBeforeAfter
+        ? darkroom.renderFor(activeKey)
+        : null;
+
+    Widget buildViewport(BuildContext context, ui.Image image) {
+      return Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          RepaintBoundary(
+            child: PreviewViewport(
+              image: image,
+              zoomLevel: view.zoomLevel,
+              panOffset: view.panOffset,
+              onZoomIn: () => _zoom(ref, zoomStep),
+              onZoomOut: () => _zoom(ref, 1 / zoomStep),
+              // While the region tool owns the canvas a drag DRAWS. Left
+              // enabled, the viewport's pan recogniser competes with the
+              // layer's in the same gesture arena, and the rectangle ends
+              // up starting wherever the arena happened to resolve rather
+              // than where the operator pressed.
+              onPanUpdate: ref.watch(depthLockRegionToolActiveProvider)
+                  ? null
+                  : (Offset delta) => ref
+                          .read(stackCanvasViewProvider.notifier)
+                          .state = view.copyWith(
+                        panOffset: view.panOffset + delta,
+                      ),
+              overlays: <PreviewOverlayBuilder>[
+                (BuildContext context, PreviewViewportGeometry geometry) {
+                  return DepthLockRegionLayer(
+                    zoomLevel: geometry.displayScale,
+                    imageOffset: geometry.imageOffset,
+                    imageSize: geometry.imageSize,
+                    // The stack shares its reference sub's pixel grid, so
+                    // the sub's astrometry is the stack's astrometry.
+                    geometry:
+                        ref.watch(depthLockStackSelectionProvider).geometry,
+                  );
+                },
+              ],
+            ),
+          ),
+          Positioned(
+            top: SkotiqTokens.spaceMd,
+            right: SkotiqTokens.spaceMd,
+            child: _StackStatusGlass(
+              stack: stack,
+              filterKey: activeKey,
+              darkroomActive: darkroom.enabled && !darkroom.compareBeforeAfter,
+              comparingRaw: darkroom.enabled && darkroom.compareBeforeAfter,
+              isRenderingDarkroom: darkroom.isRendering,
+            ),
+          ),
+          Positioned(
+            left: SkotiqTokens.spaceMd,
+            bottom: SkotiqTokens.spaceMd,
+            child: _StackReadoutsGlass(stack: stack, filterKey: activeKey),
+          ),
+        ],
       );
     }
 
@@ -111,48 +249,32 @@ class LiveStackCanvas extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: StackedImageSource(
-            data: stack.previewData!,
-            width: stack.previewWidth,
-            height: stack.previewHeight,
-            channels: _previewChannels(stack),
-            stretch: ref.watch(stackedPreviewStretchProvider),
-            colors: colors,
-            builder: (BuildContext context, ui.Image image) {
-              return PreviewViewport(
-                image: image,
-                zoomLevel: view.zoomLevel,
-                panOffset: view.panOffset,
-                onZoomIn: () => _zoom(ref, zoomStep),
-                onZoomOut: () => _zoom(ref, 1 / zoomStep),
-                // While the region tool owns the canvas a drag DRAWS. Left
-                // enabled, the viewport's pan recogniser competes with the
-                // layer's in the same gesture arena, and the rectangle ends
-                // up starting wherever the arena happened to resolve rather
-                // than where the operator pressed.
-                onPanUpdate: ref.watch(depthLockRegionToolActiveProvider)
-                    ? null
-                    : (Offset delta) => ref
-                            .read(stackCanvasViewProvider.notifier)
-                            .state = view.copyWith(
-                          panOffset: view.panOffset + delta,
-                        ),
-                overlays: <PreviewOverlayBuilder>[
-                  (BuildContext context, PreviewViewportGeometry geometry) {
-                    return DepthLockRegionLayer(
-                      zoomLevel: geometry.displayScale,
-                      imageOffset: geometry.imageOffset,
-                      imageSize: geometry.imageSize,
-                      // The stack shares its reference sub's pixel grid, so
-                      // the sub's astrometry is the stack's astrometry.
-                      geometry:
-                          ref.watch(depthLockStackSelectionProvider).geometry,
-                    );
-                  },
-                ],
-              );
-            },
-          ),
+          child: darkroomRender != null
+              ? RgbaImageSource(
+                  rgba: darkroomRender.rgba,
+                  width: darkroomRender.width,
+                  height: darkroomRender.height,
+                  builder: buildViewport,
+                  placeholder: Container(
+                    color: colors.isRedNight
+                        ? colors.background
+                        : SkotiqColors.dark.background,
+                  ),
+                )
+              : StackedImageSource(
+                  data: stack.previewData!,
+                  width: stack.previewWidth,
+                  height: stack.previewHeight,
+                  channels: _previewChannels(stack),
+                  stretchAsync: ref.watch(stackedPreviewStretchAsyncProvider),
+                  filterKey: activeKey,
+                  revision:
+                      stack.activeFilterStack?.revision ??
+                      stack.stats.stackedFrameCount,
+                  maxDimension: 2048,
+                  colors: colors,
+                  builder: buildViewport,
+                ),
         ),
       ],
     );
@@ -174,8 +296,9 @@ class LiveStackCanvas extends ConsumerWidget {
   }
 }
 
-/// The canvas's own strip: enter the region tool, and move the view.
-class _StackCanvasToolbar extends ConsumerWidget {
+/// The canvas's own strip: filter switcher, Live Darkroom controls, DepthLock
+/// region tool, and view zoom controls.
+class _StackCanvasToolbar extends ConsumerStatefulWidget {
   const _StackCanvasToolbar({
     required this.onZoomIn,
     required this.onZoomOut,
@@ -187,8 +310,53 @@ class _StackCanvasToolbar extends ConsumerWidget {
   final VoidCallback onFit;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_StackCanvasToolbar> createState() =>
+      _StackCanvasToolbarState();
+}
+
+class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
+  bool _isPromoting = false;
+
+  Future<void> _openInDarkroom(String filterKey) async {
+    if (_isPromoting) return;
+    final refusal = darkroomHostOnlyRefusal(ref);
+    if (refusal != null) {
+      context.showInfoSnackBar(refusal);
+      return;
+    }
+    setState(() => _isPromoting = true);
+    try {
+      final promoted = await promoteLiveStackToDarkroom(
+        ref: ref,
+        filterKey: filterKey,
+      );
+      if (!mounted) return;
+      final loc = promoted.recipeId != null
+          ? darkroomEditLocation(
+              masterId: promoted.masterId,
+              recipeId: promoted.recipeId,
+            )
+          : darkroomEditLocation(masterId: promoted.masterId);
+      unawaited(context.push(loc));
+    } catch (error) {
+      if (!mounted) return;
+      context.showErrorSnackBar('Could not open in Darkroom: $error');
+    } finally {
+      if (mounted) setState(() => _isPromoting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    final stack = ref.watch(liveStackingProvider);
+    final filters = stack.availableFilters;
+    final activeKey =
+        stack.selectedFilterKey ??
+        stack.activeFilterStack?.filterKey ??
+        kDefaultLiveStackFilterKey;
+    final darkroom = ref.watch(liveStackDarkroomProvider);
+    final isRemoteClient = ref.watch(isRemoteClientProvider);
     final selection = ref.watch(depthLockStackSelectionProvider);
     final toolActive = ref.watch(depthLockRegionToolActiveProvider);
     final overlayVisible = ref.watch(depthLockGoalOverlayVisibleProvider);
@@ -205,20 +373,69 @@ class _StackCanvasToolbar extends ConsumerWidget {
       child: Row(
         children: <Widget>[
           Expanded(
-            child: Text(
-              selection.canSelect
-                  ? 'Stacked image'
-                  : selection.blocker ?? 'Stacked image',
-              style: SkotiqTypography.caption.copyWith(
-                color: selection.canSelect
-                    ? colors.textMuted
-                    : colors.textSecondary,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: filters.isNotEmpty
+                ? LiveStackFilterPills(
+                    filters: filters,
+                    stacks: stack.filterStacks,
+                    selectedFilter: activeKey,
+                    compact: true,
+                    onSelect: (key) =>
+                        ref.read(liveStackingProvider.notifier).selectFilter(key),
+                  )
+                : Text(
+                    selection.canSelect
+                        ? 'Stacked image'
+                        : selection.blocker ?? 'Stacked image',
+                    style: SkotiqTypography.caption.copyWith(
+                      color: selection.canSelect
+                          ? colors.textMuted
+                          : colors.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
-          const SizedBox(width: SkotiqTokens.spaceMd),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          if (!isRemoteClient) ...<Widget>[
+            SkotiqButton(
+              key: const ValueKey('live_stack_toolbar_darkroom_toggle'),
+              label: darkroom.enabled ? 'Darkroom on' : 'Live Darkroom',
+              icon: SkotiqIcons.aperture,
+              size: ButtonSize.small,
+              variant: darkroom.enabled
+                  ? ButtonVariant.secondary
+                  : ButtonVariant.ghost,
+              onPressed: () {
+                ref
+                    .read(selectedLiveStackPanelProvider.notifier)
+                    .state = LiveStackSidePanel.darkroomSectionIndex;
+                if (!darkroom.enabled) {
+                  ref.read(liveStackDarkroomProvider.notifier).setEnabled(true);
+                }
+              },
+            ),
+            if (darkroom.enabled)
+              SkotiqIconButton(
+                icon: darkroom.compareBeforeAfter
+                    ? SkotiqIcons.hidden
+                    : SkotiqIcons.visible,
+                tooltip: darkroom.compareBeforeAfter
+                    ? 'Show Live Darkroom result'
+                    : 'Peek raw auto-stretch',
+                size: IconButtonSize.sm,
+                selected: darkroom.compareBeforeAfter,
+                onPressed: () => ref
+                    .read(liveStackDarkroomProvider.notifier)
+                    .toggleCompareBeforeAfter(),
+              ),
+            SkotiqIconButton(
+              key: const ValueKey('live_stack_toolbar_open_darkroom'),
+              icon: SkotiqIcons.externalLink,
+              tooltip: 'Open this live stack in full Darkroom editor',
+              size: IconButtonSize.sm,
+              onPressed: _isPromoting ? null : () => _openInDarkroom(activeKey),
+            ),
+          ],
           Semantics(
             toggled: toolActive,
             child: SkotiqButton(
@@ -263,19 +480,19 @@ class _StackCanvasToolbar extends ConsumerWidget {
             icon: LucideIcons.zoomIn,
             tooltip: 'Zoom in',
             size: IconButtonSize.sm,
-            onPressed: onZoomIn,
+            onPressed: widget.onZoomIn,
           ),
           SkotiqIconButton(
             icon: LucideIcons.zoomOut,
             tooltip: 'Zoom out',
             size: IconButtonSize.sm,
-            onPressed: onZoomOut,
+            onPressed: widget.onZoomOut,
           ),
           SkotiqIconButton(
             icon: LucideIcons.scan,
             tooltip: 'Fit to window',
             size: IconButtonSize.sm,
-            onPressed: onFit,
+            onPressed: widget.onFit,
           ),
         ],
       ),
@@ -283,11 +500,135 @@ class _StackCanvasToolbar extends ConsumerWidget {
   }
 }
 
-/// Turns the stacker's u16 buffer into a drawable image.
-///
-/// The same conversion the side panel's thumbnail does — the shared
-/// MAD-based stretch from Rust, then one raw RGBA decode — hoisted so the
-/// canvas can own the result and hand it to [PreviewViewport].
+/// Top-right glass HUD over the stacked sky frame.
+class _StackStatusGlass extends StatelessWidget {
+  const _StackStatusGlass({
+    required this.stack,
+    required this.filterKey,
+    required this.darkroomActive,
+    required this.comparingRaw,
+    required this.isRenderingDarkroom,
+  });
+
+  final LiveStackingState stack;
+  final String filterKey;
+  final bool darkroomActive;
+  final bool comparingRaw;
+  final bool isRenderingDarkroom;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final isRunning = stack.status == LiveStackingStatus.running;
+    final frames = stack.stats.stackedFrameCount;
+    final integration = formatLiveIntegration(stack.stats.totalIntegrationSecs);
+    final filterText = liveStackFilterDisplayName(filterKey);
+
+    return Glass(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceMd - 2,
+        vertical: SkotiqTokens.spaceSm - 2,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          StatusDot(color: colors.success, live: isRunning),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Text(
+            '$filterText · $frames ${frames == 1 ? 'frame' : 'frames'}'
+            '${integration != '—' ? ' · $integration' : ''}',
+            style: SkotiqTypography.bodySm,
+          ),
+          if (darkroomActive || comparingRaw) ...<Widget>[
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: (comparingRaw ? colors.textMuted : colors.primary)
+                    .withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
+              ),
+              child: Text(
+                isRenderingDarkroom
+                    ? 'Darkroom…'
+                    : comparingRaw
+                        ? 'Raw STF'
+                        : 'Darkroom',
+                style: SkotiqTypography.monoCaption.copyWith(
+                  color: comparingRaw ? colors.textSecondary : colors.primary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom-left glass readout HUD: loud tabular numbers, quiet labels.
+class _StackReadoutsGlass extends StatelessWidget {
+  const _StackReadoutsGlass({
+    required this.stack,
+    required this.filterKey,
+  });
+
+  final LiveStackingState stack;
+  final String filterKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = stack.stats;
+    final hasAligned = stats.stackedFrameCount > 1;
+    final integration = formatLiveIntegration(stats.totalIntegrationSecs);
+    final rejPct = stack.lastFrameTotalPixels > 0
+        ? (stack.lastFrameSigmaRejectionRate * 100).toStringAsFixed(1)
+        : null;
+
+    return Glass(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceMd,
+        vertical: SkotiqTokens.spaceSm,
+      ),
+      child: ReadoutRow(
+        gap: 18,
+        children: <Readout>[
+          Readout(
+            value: '${stats.stackedFrameCount}',
+            label: 'Frames',
+          ),
+          if (integration != '—')
+            Readout(
+              value: integration,
+              label: 'Integration',
+            ),
+          Readout(
+            value: hasAligned
+                ? stats.avgAlignmentResidual.toStringAsFixed(2)
+                : null,
+            unit: 'px',
+            label: 'Residual',
+          ),
+          Readout(
+            value: hasAligned ? stats.avgMatchedPairs.toStringAsFixed(0) : null,
+            label: 'Matched',
+          ),
+          if (rejPct != null)
+            Readout(
+              value: rejPct,
+              unit: '%',
+              label: 'Clip rej',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Turns the stacker's u16 buffer into a drawable image completely off the UI
+/// thread (async Rust progressive EAA STF + parallel area downsampling + async
+/// Skia RGBA decode) with coalesced updates so rapid frames never drop or pile
+/// up.
 class StackedImageSource extends StatefulWidget {
   const StackedImageSource({
     super.key,
@@ -295,16 +636,27 @@ class StackedImageSource extends StatefulWidget {
     required this.width,
     required this.height,
     required this.channels,
-    required this.stretch,
+    this.stretch,
+    this.stretchAsync,
+    this.filterKey,
+    this.revision = 0,
+    this.maxDimension = 2048,
     required this.colors,
     required this.builder,
-  });
+  }) : assert(
+         stretch != null || stretchAsync != null,
+         'Either stretch or stretchAsync must be provided',
+       );
 
   final Uint16List data;
   final int width;
   final int height;
   final int channels;
-  final StackedPreviewStretch stretch;
+  final StackedPreviewStretch? stretch;
+  final StackedPreviewStretchAsync? stretchAsync;
+  final String? filterKey;
+  final int revision;
+  final int maxDimension;
   final SkotiqColors colors;
   final Widget Function(BuildContext context, ui.Image image) builder;
 
@@ -315,11 +667,13 @@ class StackedImageSource extends StatefulWidget {
 class _StackedImageSourceState extends State<StackedImageSource> {
   ui.Image? _image;
   bool _decoding = false;
+  bool _pendingRebuild = false;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
-    _build();
+    _scheduleBuild();
   }
 
   @override
@@ -329,20 +683,36 @@ class _StackedImageSourceState extends State<StackedImageSource> {
         widget.width != oldWidget.width ||
         widget.height != oldWidget.height ||
         widget.channels != oldWidget.channels ||
-        widget.stretch != oldWidget.stretch) {
-      _build();
+        widget.filterKey != oldWidget.filterKey ||
+        widget.revision != oldWidget.revision ||
+        widget.maxDimension != oldWidget.maxDimension ||
+        widget.stretch != oldWidget.stretch ||
+        widget.stretchAsync != oldWidget.stretchAsync) {
+      _scheduleBuild();
     }
   }
 
   @override
   void dispose() {
+    _generation++;
     _image?.dispose();
     super.dispose();
   }
 
+  void _scheduleBuild() {
+    _generation++;
+    if (_decoding) {
+      _pendingRebuild = true;
+      return;
+    }
+    unawaited(_build());
+  }
+
   Future<void> _build() async {
-    if (_decoding) return;
     _decoding = true;
+    _pendingRebuild = false;
+    final gen = _generation;
+
     final int w = widget.width;
     final int h = widget.height;
     final int pixels = w * h;
@@ -352,30 +722,59 @@ class _StackedImageSourceState extends State<StackedImageSource> {
       return;
     }
     try {
-      final Uint8List rgba = widget.stretch(
-        width: w,
-        height: h,
-        data: widget.data,
-        channels: samples,
-      );
-      if (rgba.length < pixels * 4) {
+      final StretchedPreviewFrame stretched;
+      if (widget.stretchAsync != null) {
+        stretched = await widget.stretchAsync!(
+          width: w,
+          height: h,
+          data: widget.data,
+          channels: samples,
+          maxDimension: widget.maxDimension,
+          filterKey: widget.filterKey,
+        );
+      } else {
+        final rgba = widget.stretch!(
+          width: w,
+          height: h,
+          data: widget.data,
+          channels: samples,
+        );
+        stretched = StretchedPreviewFrame(
+          width: w,
+          height: h,
+          channels: samples,
+          rgba: rgba,
+        );
+      }
+
+      if (!mounted || gen != _generation) return;
+
+      final outW = stretched.width;
+      final outH = stretched.height;
+      final expectedBytes = outW * outH * 4;
+      if (outW <= 0 || outH <= 0 || stretched.rgba.length < expectedBytes) {
         Log.warning(
-          '[LiveStackCanvas] Stretched stack is ${rgba.length} bytes, '
-          'expected ${pixels * 4}',
+          '[LiveStackCanvas] Stretched stack is ${stretched.rgba.length} '
+          'bytes, expected $expectedBytes',
           source: 'LiveStackCanvas',
         );
         return;
       }
-      final buffer = await ui.ImmutableBuffer.fromUint8List(rgba);
+
+      final buffer = await ui.ImmutableBuffer.fromUint8List(stretched.rgba);
       final descriptor = ui.ImageDescriptor.raw(
         buffer,
-        width: w,
-        height: h,
+        width: outW,
+        height: outH,
         pixelFormat: ui.PixelFormat.rgba8888,
       );
       final codec = await descriptor.instantiateCodec();
       final frame = await codec.getNextFrame();
-      if (!mounted) {
+      codec.dispose();
+      descriptor.dispose();
+      buffer.dispose();
+
+      if (!mounted || gen != _generation) {
         frame.image.dispose();
       } else {
         setState(() {
@@ -383,9 +782,6 @@ class _StackedImageSourceState extends State<StackedImageSource> {
           _image = frame.image;
         });
       }
-      codec.dispose();
-      descriptor.dispose();
-      buffer.dispose();
     } catch (error) {
       Log.warning(
         '[LiveStackCanvas] Error building the stacked image: $error',
@@ -394,6 +790,10 @@ class _StackedImageSourceState extends State<StackedImageSource> {
       );
     } finally {
       _decoding = false;
+      if (mounted && _pendingRebuild) {
+        _pendingRebuild = false;
+        unawaited(_build());
+      }
     }
   }
 
@@ -413,8 +813,7 @@ class _StackedImageSourceState extends State<StackedImageSource> {
                 const SizedBox(
                   width: 20,
                   height: 20,
-                  child: const SkotiqMark(
-                      motion: SkotiqMarkMotion.loading, size: 20),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 20),
                 ),
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Builder(

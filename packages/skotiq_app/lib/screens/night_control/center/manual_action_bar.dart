@@ -10,7 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart'
-    show linkedManualActionProvider, polarAlignmentStateProvider;
+    show
+        linkedManualActionProvider,
+        liveStackingProvider,
+        polarAlignmentStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -21,6 +24,7 @@ import '../data/plan/night_run_phase_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import '../night_control_shortcuts.dart' show kNightShortcutKeys;
+import 'night_stage_live_stack.dart';
 
 /// The action the window at the other end of the link is running, while it
 /// is current; null when there is none.
@@ -100,6 +104,8 @@ class ManualActionBar extends ConsumerWidget {
                       _ActionButton(action: action, hideSub: hideSubs),
                       const SizedBox(width: 6),
                     ],
+                    const _LiveStackActionButton(),
+                    const SizedBox(width: 6),
                     if (state.isBusy)
                       _CancelButton(
                         onPressed: () => unawaited(
@@ -326,6 +332,58 @@ class _HintIcon extends StatelessWidget {
             style: SkotiqTypography.captionSm.copyWith(color: color),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Quiet opt-in Live Stack toggle in Night Control's action bar.
+///
+/// When idle, tapping arms live stacking and switches the stage to live stack
+/// view. When already active or armed, tapping toggles the stage between the
+/// latest single sub and the per-filter live stacks.
+class _LiveStackActionButton extends ConsumerWidget {
+  const _LiveStackActionButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeOrArmed = ref.watch(
+      liveStackingProvider.select((s) => s.isActiveOrArmed),
+    );
+    final totalFrames = ref.watch(
+      liveStackingProvider.select((s) => s.totalFramesAcrossFilters),
+    );
+    final showingStack =
+        activeOrArmed && ref.watch(nightStageModeProvider) == NightStageMode.liveStack;
+    final label = activeOrArmed && totalFrames > 0
+        ? 'Live stack ($totalFrames)'
+        : 'Live stack';
+
+    return Tooltip(
+      message: activeOrArmed
+          ? (showingStack
+              ? 'Switch stage back to single sub view'
+              : 'View active per-filter live stacks')
+          : 'Arm live stacking to build per-filter live stacks as exposures arrive',
+      child: SkotiqButton(
+        key: const ValueKey('night_action_live_stack_btn'),
+        label: label,
+        icon: SkotiqIcons.layers,
+        size: ButtonSize.small,
+        variant: showingStack
+            ? ButtonVariant.secondary
+            : ButtonVariant.ghost,
+        onPressed: () {
+          if (!activeOrArmed) {
+            unawaited(ref.read(liveStackingProvider.notifier).arm());
+            ref.read(nightStageModeProvider.notifier).state =
+                NightStageMode.liveStack;
+          } else {
+            ref.read(nightStageModeProvider.notifier).state = showingStack
+                ? NightStageMode.sub
+                : NightStageMode.liveStack;
+          }
+        },
       ),
     );
   }

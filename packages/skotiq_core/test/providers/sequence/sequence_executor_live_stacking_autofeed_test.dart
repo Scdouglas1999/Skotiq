@@ -100,6 +100,35 @@ class _FakeLiveStackingService implements LiveStackingService {
   }
 
   @override
+  Future<LiveStackingStats> startFromFileForFilter({
+    required String filterKey,
+    required String referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) => startFromFile(referenceImagePath: referenceImagePath, config: config);
+
+  @override
+  Future<LiveStackingResult> addFrameFromFileForFilter(
+    String imagePath, {
+    required String filterKey,
+  }) => addFrameFromFile(imagePath);
+
+  @override
+  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) =>
+      getCurrentResult();
+
+  @override
+  Future<LiveStackingStats> getStatsForFilter(String filterKey) => getStats();
+
+  @override
+  Future<void> updateLiveConfig(
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   Future<LiveStackingStats> startArmed({
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {

@@ -23,6 +23,9 @@ fn config() -> ApiLiveStackingConfig {
         match_radius_px: 50.0,
         match_flux_tolerance: 0.7,
         min_matched_pairs: 5,
+        max_alignment_residual_px: 2.0,
+        star_detection_sigma: 4.0,
+        star_detection_min_snr: 8.0,
         sensor_mode: "mono".to_string(),
         bayer_pattern: None,
         demosaic_quality: "bilinear".to_string(),
@@ -542,4 +545,219 @@ fn saving_a_master_without_a_stacker_is_an_error() {
         err.to_string().contains("not initialized"),
         "unexpected error: {err}"
     );
+}
+
+#[test]
+fn multi_filter_stacks_darkroom_and_progressive_nebula_reveal() {
+    let _g = singleton_guard();
+    let _ = api_stacking_stop();
+    assert!(!api_stacking_is_active());
+    assert_eq!(api_stacking_frame_count(), 0);
+
+    // 1. Multi-filter independent accumulation + events + Darkroom live preview.
+    let data = make_star_plane(IMG_W, IMG_H);
+    api_stacking_start_from_data_for_filter(
+        Some("L".to_string()),
+        IMG_W,
+        IMG_H,
+        data.clone(),
+        0.0,
+        base_config(),
+    )
+    .expect("start L");
+    api_stacking_start_from_data_for_filter(
+        Some("Ha".to_string()),
+        IMG_W,
+        IMG_H,
+        data.clone(),
+        0.0,
+        base_config(),
+    )
+    .expect("start Ha");
+    assert!(api_stacking_is_active());
+    assert_eq!(api_stacking_list_filters().len(), 2);
+
+    let r_l = api_stacking_add_frame_from_data_for_filter(
+        Some("L".to_string()),
+        IMG_W,
+        IMG_H,
+        data.clone(),
+        0.0,
+    )
+    .expect("add L frame 2");
+    assert_eq!(r_l.filter_key, "L");
+    assert_eq!(r_l.stats.stacked_frame_count, 2);
+    assert!(r_l.last_event.as_ref().is_some_and(|e| e.accepted));
+
+    // Direct Darkroom preview & auto-draft over in-memory live stack.
+    let reg_json = crate::api::darkroom::entrypoints::api_darkroom_registry(
+        serde_json::json!({
+            "liveStackKey": "Ha",
+            "recipeId": "live-ha",
+        })
+        .to_string(),
+    )
+    .expect("darkroom registry over live stack");
+    let reg_val: serde_json::Value = serde_json::from_str(&reg_json).unwrap();
+    assert!(reg_val["draft"].is_object());
+
+    let preview = crate::api::darkroom::entrypoints::api_darkroom_render_preview(
+        serde_json::json!({
+            "id": "live-ha",
+            "schemaVersion": 1,
+            "baseMasterRef": "livestack:Ha",
+            "createdBy": "user",
+            "steps": [],
+        })
+        .to_string(),
+        serde_json::json!({
+            "liveStackKey": "Ha",
+            "maxDimension": 256,
+            "encoding": "auto",
+        })
+        .to_string(),
+    )
+    .expect("darkroom preview over live stack");
+    assert_eq!(
+        preview.rgba.len(),
+        (preview.width * preview.height * 4) as usize
+    );
+
+    // 2. Progressive F32 EAA stretch reveals faint nebula buried in noise + 140 ADU LP gradient.
+    let _ = api_stacking_stop();
+    let make_noisy_nebula_sub = |seed: u64| -> Vec<u16> {
+        let w = IMG_W as usize;
+        let h = IMG_H as usize;
+        let mut plane = vec![1000.0_f64; w * h];
+        let mut state = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let mut next_gauss = || -> f64 {
+            let mut s = 0.0_f64;
+            for _ in 0..6 {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                s += ((state >> 33) as f64) / ((1u64 << 31) as f64);
+            }
+            (s - 3.0) * std::f64::consts::SQRT_2
+        };
+        let cx = (IMG_W / 2) as f64;
+        let cy = (IMG_H / 2) as f64;
+        for y in 0..h {
+            for x in 0..w {
+                let grad = 140.0 * (x as f64 / IMG_W as f64 - 0.5);
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let nebula = if dx * dx + dy * dy <= 36.0 * 36.0 {
+                    18.0
+                } else {
+                    0.0
+                };
+                plane[y * w + x] = (1000.0 + grad + nebula + next_gauss() * 26.0).clamp(0.0, 65535.0);
+            }
+        }
+        let stars = [
+            (40.0, 40.0, 40000.0),
+            (120.0, 60.0, 35000.0),
+            (200.0, 50.0, 38000.0),
+            (60.0, 140.0, 30000.0),
+            (160.0, 150.0, 36000.0),
+            (420.0, 400.0, 32000.0),
+            (380.0, 110.0, 34000.0),
+        ];
+        for &(sx, sy, brightness) in &stars {
+            for dy in -8i32..=8 {
+                for dx in -8i32..=8 {
+                    let px = sx as i32 + dx;
+                    let py = sy as i32 + dy;
+                    if px >= 0 && px < IMG_W as i32 && py >= 0 && py < IMG_H as i32 {
+                        let dist_sq = (dx * dx + dy * dy) as f64;
+                        let g = (-dist_sq / (2.0 * 2.5 * 2.5)).exp();
+                        plane[py as usize * w + px as usize] =
+                            (plane[py as usize * w + px as usize] + brightness * g).min(65535.0);
+                    }
+                }
+            }
+        }
+        plane.into_iter().map(|v| v.round() as u16).collect()
+    };
+
+    let measure_contrast = |p: &ApiStretchedPreview| -> f64 {
+        let w = p.width as usize;
+        let cx = w / 2;
+        let cy = (p.height as usize) / 2;
+        let mut neb = 0.0;
+        let mut n = 0;
+        for dy in -12isize..=12 {
+            for dx in -12isize..=12 {
+                neb += p.rgba[((cy as isize + dy) as usize * w + (cx as isize + dx) as usize) * 4]
+                    as f64;
+                n += 1;
+            }
+        }
+        let mut sky = 0.0;
+        let mut sn = 0;
+        for y_off in [cy - 90, cy + 90] {
+            for dy in -12isize..=12 {
+                for dx in -12isize..=12 {
+                    sky += p.rgba
+                        [((y_off as isize + dy) as usize * w + (cx as isize + dx) as usize) * 4]
+                        as f64;
+                    sn += 1;
+                }
+            }
+        }
+        (neb / n as f64) - (sky / sn as f64)
+    };
+
+    let mut cfg = base_config();
+    cfg.sigma_clip_enabled = false;
+    api_stacking_start_from_data_for_filter(
+        Some("OIII".to_string()),
+        IMG_W,
+        IMG_H,
+        make_noisy_nebula_sub(1),
+        0.0,
+        cfg,
+    )
+    .expect("start OIII");
+    let c1 = measure_contrast(
+        &api_stacking_render_preview_rgba(Some("OIII".to_string()), 0).expect("p1"),
+    );
+
+    for i in 2..=4u64 {
+        api_stacking_add_frame_from_data_for_filter(
+            Some("OIII".to_string()),
+            IMG_W,
+            IMG_H,
+            make_noisy_nebula_sub(i),
+            0.0,
+        )
+        .expect("add");
+    }
+    let c4 = measure_contrast(
+        &api_stacking_render_preview_rgba(Some("OIII".to_string()), 0).expect("p4"),
+    );
+
+    for i in 5..=16u64 {
+        api_stacking_add_frame_from_data_for_filter(
+            Some("OIII".to_string()),
+            IMG_W,
+            IMG_H,
+            make_noisy_nebula_sub(i),
+            0.0,
+        )
+        .expect("add");
+    }
+    let c16 = measure_contrast(
+        &api_stacking_render_preview_rgba(Some("OIII".to_string()), 0).expect("p16"),
+    );
+
+    assert!(c4 > c1 * 1.4, "c4={c4:.1} vs c1={c1:.1}");
+    assert!(c16 > c4 * 1.35, "c16={c16:.1} vs c4={c4:.1}");
+
+    api_stacking_stop().expect("stop");
+    assert!(!api_stacking_is_active());
+    assert_eq!(api_stacking_frame_count(), 0);
 }
