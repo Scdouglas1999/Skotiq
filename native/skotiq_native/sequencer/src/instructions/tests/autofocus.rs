@@ -4,10 +4,8 @@ use super::*;
 
 #[test]
 fn autofocus_on_a_filter_with_no_offset_uses_the_reference() {
-    let offsets = std::collections::HashMap::from([
-        ("OIII".to_string(), 5),
-        ("SII".to_string(), 3),
-    ]);
+    let offsets =
+        std::collections::HashMap::from([("OIII".to_string(), 5), ("SII".to_string(), 3)]);
     let choice = super::super::autofocus::choose_autofocus_filter(
         Some("L"),
         Some("L"),
@@ -24,9 +22,11 @@ fn autofocus_on_a_filter_with_no_offset_uses_the_reference() {
 
 #[test]
 fn a_filter_with_no_offset_is_not_treated_as_the_reference() {
-    let mut rig = super::super::context::RunRig::default();
-    rig.filter_focus_reference = Some("Ha".to_string());
-    rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 5)]);
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("Ha".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([("OIII".to_string(), 5)]),
+        ..Default::default()
+    };
     assert_eq!(
         super::super::filter::known_filter_offset(&rig, "Ha").unwrap(),
         0
@@ -485,6 +485,109 @@ fn autofocus_counts_no_stars_on_a_dark_or_a_starless_frame() {
         let m = calculate_hfr_with_crops(&star_detect_fixture(file), 1.0, 0.0, 10);
         assert_eq!(m.star_count, 0, "{file}: {} stars counted", m.star_count);
     }
+}
+
+#[test]
+fn autofocus_hfr_measures_comatic_defocused_field() {
+    // Fast-Newtonian off-axis coma / mild unguided drift during a 3-5 s AF
+    // frame pushes star eccentricity to ~0.75-0.82 (a/b ~ 1.5-1.7). Autofocus
+    // still needs those stars instead of discarding them at the 0.70 guider
+    // ceiling.
+    const SIZE: u32 = 640;
+    const FLUX: f64 = 1.6e5;
+    let mut state = 0x517c_c1b7_2722_0a95u64;
+    let mut noise = move || {
+        let mut acc = 0.0;
+        for _ in 0..4 {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            acc += (state >> 11) as f64 / (1u64 << 53) as f64;
+        }
+        (acc - 2.0) * 1.732
+    };
+    let mut px: Vec<f64> = (0..SIZE * SIZE).map(|_| 320.0 + 30.0 * noise()).collect();
+    let outer = 10.0f64;
+    let inner = 5.0f64;
+    let ellip = 1.65f64; // b/a = 0.61 -> eccentricity ~ 0.79
+    let area = std::f64::consts::PI * ellip * (outer * outer - inner * inner);
+    for row in 0..4 {
+        for col in 0..4 {
+            let cx = 80.0 + col as f64 * 160.0 + 0.3;
+            let cy = 80.0 + row as f64 * 160.0 + 0.7;
+            for y in (cy as i64 - 24)..=(cy as i64 + 24) {
+                for x in (cx as i64 - 28)..=(cx as i64 + 28) {
+                    let d = ((x as f64 - cx) / ellip).hypot(y as f64 - cy);
+                    if (inner..=outer).contains(&d) {
+                        px[(y as u32 * SIZE + x as u32) as usize] += FLUX / area;
+                    }
+                }
+            }
+        }
+    }
+    let image = ImageData {
+        width: SIZE,
+        height: SIZE,
+        data: px
+            .iter()
+            .map(|v| ((v / 16.0).round() * 16.0).clamp(0.0, 65535.0) as u16)
+            .collect(),
+        bits_per_pixel: 16,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 3.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let m = calculate_hfr_with_crops(&image, 1.0, 0.0, 10);
+    assert!(
+        m.star_count >= 12,
+        "comatic defocused stars should count for autofocus, got {} stars",
+        m.star_count
+    );
+    let hfr = m.hfr.expect("HFR measured");
+    assert!(
+        hfr > 8.0 && hfr < 13.0,
+        "expected whole elliptical donut HFR ~10 px, got {hfr:.2}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn failed_af_restores_original_filter_without_requiring_offset() {
+    // Rig is on L, reference filter is R, and L has no focus offset from R.
+    // AF switches to R and fails (dark frames); cleanup must put the wheel
+    // back on L without failing on the missing offset, because the focuser was
+    // already returned to its pre-AF position.
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.rig.filter_focus_reference = Some("R".to_string());
+    ctx.run.rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 5)]);
+    ops.filterwheel_set_position("efw-1", 0).await.unwrap();
+
+    let config = AutofocusConfig {
+        filter: Some("L".to_string()),
+        number_of_attempts: 1,
+        steps_out: 2,
+        exposure_duration: 0.01,
+        focuser_settle_time_ms: 0,
+        disable_guiding_during_af: false,
+        ..Default::default()
+    };
+    let result = execute_autofocus(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Failure);
+    let msg = result.message.as_deref().unwrap_or("");
+    assert!(
+        !msg.contains("CRITICAL CLEANUP FAILURE"),
+        "restoring the pre-AF filter after a failed run must not fail on missing offset: {msg}"
+    );
+    assert_eq!(
+        ops.filterwheel_get_position("efw-1").await.unwrap(),
+        0,
+        "filter wheel must be back on original slot 0 (L)"
+    );
 }
 
 // The guider-resume cleanup failure. Verbatim from the owner's

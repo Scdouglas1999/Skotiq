@@ -373,7 +373,7 @@ async fn the_autofocus_filter_move_is_retried() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_filter_moves(&[WHEEL_ERROR]));
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
-    let result = move_autofocus_filter(&ctx, "R", 2).await;
+    let result = move_autofocus_filter(&ctx, "R", 2, true).await;
     let _ = std::fs::remove_dir_all(&dir);
 
     assert_eq!(result, Ok(()));
