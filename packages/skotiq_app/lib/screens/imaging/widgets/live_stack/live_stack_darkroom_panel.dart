@@ -86,13 +86,11 @@ class _LiveStackDarkroomPanelState
     }
 
     final activeSnap = stack.activeFilterStack;
-    final hasPixels =
-        (activeSnap?.hasPixels ?? false) ||
+    final hasPixels = (activeSnap?.hasPixels ?? false) ||
         (stack.previewData != null &&
             stack.previewWidth > 0 &&
             stack.previewHeight > 0);
-    final filterKey =
-        activeSnap?.filterKey ??
+    final filterKey = activeSnap?.filterKey ??
         stack.selectedFilterKey ??
         kDefaultLiveStackFilterKey;
     final isColor = activeSnap != null
@@ -169,9 +167,8 @@ class _LiveStackDarkroomPanelState
                   children: <Widget>[
                     SkotiqButton(
                       key: const ValueKey('live_darkroom_auto_develop'),
-                      label: dr.isAutoDeveloping
-                          ? 'Measuring...'
-                          : 'Auto-develop',
+                      label:
+                          dr.isAutoDeveloping ? 'Measuring...' : 'Auto-develop',
                       icon: SkotiqIcons.sparkle,
                       size: ButtonSize.small,
                       variant: ButtonVariant.secondary,
@@ -289,7 +286,8 @@ class _LiveStackDarkroomPanelState
                   const SizedBox(height: SkotiqTokens.spaceSm),
                   SkotiqSwitchRow(
                     label: 'Auto-adapt as frames stack',
-                    subtitle: 'Re-anchor stretch as noise drops with integration',
+                    subtitle:
+                        'Re-anchor stretch as noise drops with integration',
                     value: settings.autoAdaptStretch,
                     onChanged: (v) =>
                         update(settings.copyWith(autoAdaptStretch: v)),
@@ -528,7 +526,9 @@ class _LiveStackDarkroomPanelState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  for (var i = 0; i < rendered.stepOutcomes.length; i++) ...<Widget>[
+                  for (var i = 0;
+                      i < rendered.stepOutcomes.length;
+                      i++) ...<Widget>[
                     if (i > 0) const SizedBox(height: 6),
                     _StepOutcomeRow(
                       step: rendered.stepOutcomes[i],

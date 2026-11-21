@@ -113,7 +113,9 @@ void main() {
           node: node, depth: 0, multiplier: 1, openEnded: false)),
     ]);
     addTearDown(container.dispose);
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     final subscription = container.listen(nightActivityProvider, (_, next) {});
     addTearDown(subscription.close);
     final progress = container.read(runRecordProvider.notifier);
@@ -142,7 +144,9 @@ void main() {
         container.read(nightActivityProvider).kind, NightActivityKind.capture);
     container.read(exposureProgressProvider.notifier).startDownload();
     expect(container.read(nightActivityProvider).progress, isNull);
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.recovering);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.recovering);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.recovery);
   });
@@ -159,7 +163,9 @@ void main() {
           openEnded: false)),
     ]);
     addTearDown(container.dispose);
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     final subscription = container.listen(nightActivityProvider, (_, next) {});
     addTearDown(subscription.close);
     final p = container.read(runRecordProvider.notifier);
@@ -237,7 +243,9 @@ void main() {
       nightActiveStepProvider.overrideWithValue(null),
     ]);
     addTearDown(container.dispose);
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
     container.read(flipExecutionStateProvider.notifier).state =
         FlipExecutionState.executing;
     container.read(flipCurrentStepProvider.notifier).state =
@@ -246,7 +254,9 @@ void main() {
         container.read(nightActivityProvider).title.key, 'nightActivityPaused');
     expect(container.read(nightActivityProvider).context, isNull);
     container.read(phase.notifier).state = NightRunPhase.stopping;
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.cleanupFailed);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.cleanupFailed);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.failed);
     expect(container.read(nightActivityProvider).context, isNull);

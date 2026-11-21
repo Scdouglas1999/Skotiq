@@ -67,7 +67,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/harness.dart';
 
 class _ControllableImagingService extends ImagingService {
-  _ControllableImagingService(this.ref) : super(ref, flatCaptureBusy: () => false);
+  _ControllableImagingService(this.ref)
+      : super(ref, flatCaptureBusy: () => false);
 
   final Ref ref;
   final previewPublished = Completer<void>();

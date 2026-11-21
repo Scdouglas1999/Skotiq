@@ -152,9 +152,8 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
       ended(id) ? null : progress.nodeProgressStructuredDetail[id];
   final percent = progress.nodeProgressPercent[id];
   // A completed sub-operation must not keep its panel when capture resumes.
-  final detailKind = percent != null && percent >= 100
-      ? null
-      : structured?.wire.detailKind;
+  final detailKind =
+      percent != null && percent >= 100 ? null : structured?.wire.detailKind;
   final camera = ref.watch(cameraStateProvider);
   final mount = ref.watch(mountStateProvider);
   final center = ref.watch(centeringStatusProvider);
