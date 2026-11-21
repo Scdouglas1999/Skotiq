@@ -83,20 +83,33 @@ final class RemoteHost {
 
   static final _hosts = Expando<RemoteHost>('RemoteHost');
 
+  T _trackDisposable<T>(T role, void Function() dispose) {
+    _backend.registerOnDispose(dispose);
+    return role;
+  }
+
   late final CalibrationLibrary calibrationLibrary =
       RemoteHostCalibrationLibrary(_backend);
 
-  late final ObservationLog observationLog = RemoteObservationLog(_backend);
+  late final ObservationLog observationLog = (() {
+    final role = RemoteObservationLog(_backend);
+    return _trackDisposable(role, role.dispose);
+  })();
 
-  late final NotesJournal notesJournal = RemoteNotesJournal(notes);
+  late final NotesJournal notesJournal = (() {
+    final role = RemoteNotesJournal(notes);
+    return _trackDisposable(role, role.dispose);
+  })();
 
-  late final PolarAlignmentLog polarAlignmentLog = RemotePolarAlignmentLog(
-    history,
-  );
+  late final PolarAlignmentLog polarAlignmentLog = (() {
+    final role = RemotePolarAlignmentLog(history);
+    return _trackDisposable(role, role.dispose);
+  })();
 
-  late final ObservingListsStore observingLists = RemoteObservingListsStore(
-    _backend,
-  );
+  late final ObservingListsStore observingLists = (() {
+    final role = RemoteObservingListsStore(_backend);
+    return _trackDisposable(role, role.dispose);
+  })();
 
   /// The connection to the host: where it is and whether it answers.
   HostLink get link => _backend;
@@ -170,13 +183,19 @@ final class RemoteHost {
   /// The host's saved targets, sequences, sessions and runs, as the row types
   /// the local database yields (`TargetLibrary`, `SequenceLibrary`,
   /// `SessionHistory`, `RunHistory`).
-  late final RemoteHostRecords records = RemoteHostRecords(_backend);
+  late final RemoteHostRecords records = (() {
+    final role = RemoteHostRecords(_backend);
+    return _trackDisposable(role, role.dispose);
+  })();
 
   /// A new instance per call: the caller keeps it for as long as it wants
   /// that [pollInterval].
   ScienceProducts scienceProducts({
     Duration pollInterval = HostPoll.defaultInterval,
-  }) => RemoteScienceProducts(_backend, pollInterval: pollInterval);
+  }) {
+    final role = RemoteScienceProducts(_backend, pollInterval: pollInterval);
+    return _trackDisposable(role, role.dispose);
+  }
 
   late final SettingRows scienceSettingRows = RemoteScienceSettingRows(
     _backend,

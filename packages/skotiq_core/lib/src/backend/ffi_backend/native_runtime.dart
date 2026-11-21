@@ -29,7 +29,10 @@ abstract final class _NativeProcessState {
   /// The native reconnect policy, a fixed table: read once per process.
   static Set<DeviceType>? nativeReconnectedDeviceTypes;
 
-  static final discovery = NativeDiscovery(_sweepNativeDiscovery);
+  static final discovery = NativeDiscovery(
+    _sweepNativeDiscovery,
+    canCache: () => bridge.NativeBridge.isNativeAvailable,
+  );
 }
 
 /// One discovery sweep covers every device type and is shared by all callers
@@ -37,48 +40,79 @@ abstract final class _NativeProcessState {
 /// scan instead of one each.
 final class NativeDiscovery {
   @visibleForTesting
-  NativeDiscovery(this._sweep, {this.ttl = const Duration(seconds: 60)});
+  NativeDiscovery(
+    this._sweep, {
+    this.ttl = const Duration(seconds: 60),
+    bool Function()? canCache,
+  }) : _canCache = canCache;
 
   final Future<Map<bridge.DeviceType, List<bridge.DeviceInfo>>> Function()
   _sweep;
   final Duration ttl;
+  final bool Function()? _canCache;
 
   final Map<bridge.DeviceType, List<bridge.DeviceInfo>> _cache = {};
   DateTime? _cachedAt;
+  int _generation = 0;
   Completer<void>? _running;
 
   Future<List<bridge.DeviceInfo>> devices(bridge.DeviceType deviceType) async {
-    final cachedAt = _cachedAt;
-    if (cachedAt != null &&
-        DateTime.now().difference(cachedAt) < ttl &&
-        _cache.containsKey(deviceType)) {
-      return List.unmodifiable(_cache[deviceType]!);
-    }
+    while (true) {
+      final cachedAt = _cachedAt;
+      if (cachedAt != null &&
+          DateTime.now().difference(cachedAt) < ttl &&
+          _cache.containsKey(deviceType)) {
+        return List.unmodifiable(_cache[deviceType]!);
+      }
 
-    final running = _running;
-    if (running != null) {
-      await running.future;
-      return List.unmodifiable(_cache[deviceType] ?? const []);
-    }
+      final running = _running;
+      if (running != null) {
+        final waitedGen = _generation;
+        await running.future;
+        if (waitedGen == _generation && _cachedAt != null) {
+          return List.unmodifiable(_cache[deviceType] ?? const []);
+        }
+        if (waitedGen == _generation) {
+          return List.unmodifiable(_cache[deviceType] ?? const []);
+        }
+        // forget() invalidated the in-flight sweep; re-enter to start a fresh one.
+        continue;
+      }
 
-    final sweep = Completer<void>();
-    _running = sweep;
-    try {
-      final found = await _sweep();
-      _cache
-        ..clear()
-        ..addAll(found);
-      _cachedAt = DateTime.now();
-    } finally {
-      _running = null;
-      sweep.complete();
+      final sweepGen = _generation;
+      final sweep = Completer<void>();
+      _running = sweep;
+      Map<bridge.DeviceType, List<bridge.DeviceInfo>> found;
+      try {
+        found = await _sweep();
+        if (sweepGen == _generation) {
+          _cache
+            ..clear()
+            ..addAll(found);
+          final allowCache = _canCache?.call() ?? true;
+          _cachedAt = allowCache ? DateTime.now() : null;
+        }
+      } finally {
+        if (identical(_running, sweep)) {
+          _running = null;
+        }
+        if (!sweep.isCompleted) {
+          sweep.complete();
+        }
+      }
+      if (sweepGen != _generation) {
+        continue;
+      }
+      return List.unmodifiable(found[deviceType] ?? const []);
     }
-    return List.unmodifiable(_cache[deviceType] ?? const []);
   }
 
   /// The devices may have changed (a rescan, a device plugged in): the next
   /// caller sweeps again instead of reading the last sweep.
-  void forget() => _cachedAt = null;
+  void forget() {
+    _cachedAt = null;
+    _generation++;
+  }
 }
 
 Future<Map<bridge.DeviceType, List<bridge.DeviceInfo>>>

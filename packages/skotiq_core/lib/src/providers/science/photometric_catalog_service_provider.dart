@@ -4,5 +4,7 @@ import '../../services/science/photometric_catalog_service.dart';
 final photometricCatalogServiceProvider = Provider<PhotometricCatalogService>((
   ref,
 ) {
-  return PhotometricCatalogService(ref);
+  final service = PhotometricCatalogService(ref);
+  ref.onDispose(service.dispose);
+  return service;
 });

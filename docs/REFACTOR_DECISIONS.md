@@ -55,17 +55,17 @@ Base branch: `rehab/9.0.2-untangle` (worktree `.worktrees/rehab-902`), combining
 - **Verification**: `flutter test` on `skotiq_core` & `skotiq_app` live stacking/darkroom suites, `audit:architecture`, `audit:placeholders`, `audit:behavioral`.
 
 ### Batch 3 — Core Reliability, Concurrency, Resource Leaks & Database Integrity (`skotiq_core`)
-- **Status**: Planned
+- **Status**: Completed
 - **Problems**:
-  - `NetworkBackend._connect()` lacks post-await disposal checks, single-flight connect generation guard, and `.isClosed` guards; `HostPoll` leaks `StreamController`.
-  - `DarkroomBuildJobs` (0 tests): stale snapshot clobber in `exclude`/`replan`/`setMinRetainedArea`, string-matched stop check missed in `startUnattended`, TOCTOU race in `startUnattended`, leaked `_idleWaiters` on dispose.
+  - `NetworkBackend._connect()` lacks post-await disposal checks, single-flight connect generation guard, and `.isClosed` guards; `HostPoll` leaks `StreamController` (and `pollHostImageRows` allocated a fresh leaked `HostPoll` per call).
+  - `DarkroomBuildJobs` (0 tests): stale snapshot clobber in `exclude`/`replan`/`setMinRetainedArea` (plus missing value equality on `DarkroomProcessingOptions`), string-matched stop check missed in `startUnattended`, TOCTOU race in `startUnattended`/`resume`, leaked `_idleWaiters` on dispose, sticky failed `restore()` future.
   - `CalibrationService.calibrateFile()` backs up to `.uncal` when NOT overwriting (`outputPath == null`) and skips backup on true in-place overwrite (`outputPath == lightPath`); `calibrateData()` bypasses `_hostTools`.
   - `HostCenteringRunner.cancel()` misses in-flight `startCentering`, unawaited cancel errors uncaught, missing `_retired` check after loop.
-  - Sticky failed-Future caching in `FocusModelService` (+ `setReferenceFilter` no-op on fresh profile + raw path join), `PredictiveAfService`, `DarkroomBuildJobs`, `NightEndRunner`, `SecretsStore`, `LoggingService`.
+  - Sticky failed-Future caching in `FocusModelService` (+ `setReferenceFilter` no-op on fresh profile + raw path join + dead `ignore_for_file`), `PredictiveAfService`, `DarkroomBuildJobs`, `NightEndRunner` (+ post-await `onDispose` registration), `SecretsStore`, `LoggingService`.
   - `NativeDiscovery.devices()` invalidation race & 60s caching of empty pre-native sweeps.
-  - `DarkroomTargetEdits` non-transactional `rename()`/`merge()`, unchunked `.isIn(...)`, linear RA median broken across 0h/24h; `SessionsDao.closeOrphanedSessions` non-transactional; `repairSolvedRotationFromCd` full-table scans on every DB open.
-  - `RunConfigSync` startup race with `filterOffsetProvider`, missing `_disposed` checks, raw `$e`; `MountGuardNotifier` (0 tests) host-swap contamination; uncancellable `async*` `Future.delayed` in `disk_space_provider` & `secondary_rig_provider`; `SequenceExecutor`/`RunEventHandler`/`RunFrameRecorder` post-await & sticky `_flipCountedAtPierChange` bugs; post-await guards in `imaging_provider`, `autofocus_preview_feeder`, `depthlock_provider`, `device_capability_provider`; 25ms spin-wait in `weather_safety_provider.dart:938`.
-- **Verification**: Targeted + full `skotiq_core` test runs, including new tests for `DarkroomBuildJobs` and `MountGuardNotifier`.
+  - `DarkroomTargetEdits` non-transactional `rename()`/`merge()`, unchunked `.isIn(...)`, linear RA median broken across 0h/24h; `SessionsDao.closeOrphanedSessions` non-transactional; `repairSolvedRotationFromCd` ran on freshly created DBs and updated rows one-by-one outside a transaction; `PhotometricCatalogService` leaked owned `http.Client`; `EndOfNightCalibrationCoordinator` grew `_decided`/`_settled` maps without bound.
+  - `RunConfigSync` startup race with `filterOffsetProvider`, missing `_disposed` checks, stale `_lastSent` across backend swaps, raw `$e`, and preexisting 9.0.2 unregenerated `run_config_sync` wire fixture (`centering_tolerance_arcsec: 5.0`) + `one_schema_source_test` post-upgrade `app_settings` row count check; `MountGuardNotifier` (0 tests) host-swap contamination; uncancellable `async*` `Future.delayed` in `disk_space_provider` & `secondary_rig_provider`; `SequenceExecutor`/`RunEventHandler` post-await logger lookup, missing `_liveStacking.teardown()` on dispose, & sticky `_flipCountedAtPierChange`; post-await guards in `imaging_provider`, `autofocus_preview_feeder`, `depthlock_provider`, `device_capability_provider`; 25ms spin-wait in `weather_safety_provider.dart:938`.
+- **Verification**: Full `packages/skotiq_core` suite (`8,358+` passing, `0` failed, including 12 new fault-detecting tests in `darkroom_build_jobs_test.dart`, `mount_guard_provider_test.dart`, and `batch3_reliability_regression_test.dart`), Rust `every_key_the_app_sends_is_a_setting_the_executor_reads`, `architecture_rules_audit`, and `flutter analyze packages/skotiq_core`.
 
 ### Batch 4 — Headless API Security/Lifecycle, Hub, Relay, Updater, Plugins, Astro/Planetarium & Mobile
 - **Status**: Planned

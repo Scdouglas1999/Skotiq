@@ -192,6 +192,7 @@ class RunEventHandler {
         _onTriggerFired(event, progressNotifier);
       case SequencerEvent_Started():
         _targetSkippedAtEntry = false;
+        _flipCountedAtPierChange = false;
         _setExecutionState(SequenceExecutionState.running);
       case SequencerEvent_Paused():
         _setExecutionState(SequenceExecutionState.paused);
@@ -527,6 +528,7 @@ class RunEventHandler {
   /// finalization it already claimed.
   void _onNativeStopped() {
     _targetSkippedAtEntry = false;
+    _flipCountedAtPierChange = false;
     final stopEvidence = _ref.read(sequenceStopEvidenceProvider);
     final operatorStopped =
         stopEvidence?.author == SequenceStopAuthor.operatorPress;
@@ -573,7 +575,8 @@ class RunEventHandler {
       evidenceFrames: evidenceFrames,
       confirmationFrames: confirmationFrames,
     );
-    _logger.info(summary, source: 'SequenceExecutor');
+    final logger = _logger;
+    logger.info(summary, source: 'SequenceExecutor');
     final service = _ref.read(replayDebugServiceProvider);
     unawaited(
       service
@@ -596,7 +599,7 @@ class RunEventHandler {
             sequenceRunId: runId,
           )
           .catchError((Object e, StackTrace st) {
-            _logger.warning(
+            logger.warning(
               'Failed to persist depth-goal decision ($summary): $e',
               source: 'SequenceExecutor',
             );
@@ -634,6 +637,7 @@ class RunEventHandler {
       return;
     }
     final service = _ref.read(replayDebugServiceProvider);
+    final logger = _logger;
     unawaited(
       service
           .persistFromBridgeEvent(
@@ -645,7 +649,7 @@ class RunEventHandler {
             sequenceRunId: effectiveRunId,
           )
           .catchError((Object e, StackTrace st) {
-            _logger.warning(
+            logger.warning(
               'Failed to persist replay decision ($category: $summary): $e',
               source: 'SequenceExecutor',
             );

@@ -217,6 +217,23 @@ class EndOfNightCalibrationCoordinator {
       if (!decided.isCompleted) decided.complete(null);
     } finally {
       if (!settled.isCompleted) settled.complete();
+      _pruneCompletedGenerations();
+    }
+  }
+
+  static const _maxRetainedGenerations = 32;
+
+  void _pruneCompletedGenerations() {
+    while (_settled.length > _maxRetainedGenerations) {
+      final oldestKey = _settled.keys.firstWhere(
+        (k) => _settled[k]?.isCompleted == true,
+        orElse: () => -1,
+      );
+      if (oldestKey == -1) break;
+      _settled.remove(oldestKey);
+      if (_decided[oldestKey]?.isCompleted == true) {
+        _decided.remove(oldestKey);
+      }
     }
   }
 

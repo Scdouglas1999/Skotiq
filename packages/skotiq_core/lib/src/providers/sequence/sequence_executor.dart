@@ -2375,6 +2375,7 @@ class SequenceExecutor {
     _nativeEventSubscription = null;
     _releaseEventFold();
     _runtimeConfig.dispose();
+    unawaited(_liveStacking.teardown().catchError((Object _) {}));
   }
 }
 

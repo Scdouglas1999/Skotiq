@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart';
 
 import '../database/database.dart';
@@ -117,35 +119,37 @@ class DarkroomTargetEdits {
   Future<TargetEdit> rename(DarkroomTargetGroup group, String name) async {
     final to = name.trim();
     if (to.isEmpty) throw ArgumentError('A target needs a name.');
-    final taken = await _rowNamed(to);
-    if (taken != null && taken.id != group.row?.id) {
-      throw StateError(
-        'A target named "${taken.name}" already exists. Merge into it '
-        'instead.',
+    return _db.transaction(() async {
+      final taken = await _rowNamed(to);
+      if (taken != null && taken.id != group.row?.id) {
+        throw StateError(
+          'A target named "${taken.name}" already exists. Merge into it '
+          'instead.',
+        );
+      }
+      final placements = await _db.settingsDao.readTargetPlacements();
+      await _db.settingsDao.writeTargetPlacements(
+        placements.renamed(group.key, to),
       );
-    }
-    final placements = await _db.settingsDao.readTargetPlacements();
-    await _db.settingsDao.writeTargetPlacements(
-      placements.renamed(group.key, to),
-    );
-    final row = group.row;
-    if (row != null) {
-      await _db.targetsDao.updateTarget(
-        row.copyWith(name: to, updatedAt: DateTime.now()),
-      );
+      final row = group.row;
+      if (row != null) {
+        await _db.targetsDao.updateTarget(
+          row.copyWith(name: to, updatedAt: DateTime.now()),
+        );
+        return TargetEdit(
+          summary: 'Renamed ${group.key} to $to.',
+          renamedRow: (id: row.id, name: row.name),
+          placementsBefore: placements,
+        );
+      }
+      final created = await _createRowFor(to, group.frames);
       return TargetEdit(
-        summary: 'Renamed ${group.key} to $to.',
-        renamedRow: (id: row.id, name: row.name),
+        summary: 'Named these subs $to.',
+        frameTargets: await _moveFrames(group.frames, created),
+        createdRow: created,
         placementsBefore: placements,
       );
-    }
-    final created = await _createRowFor(to, group.frames);
-    return TargetEdit(
-      summary: 'Named these subs $to.',
-      frameTargets: await _moveFrames(group.frames, created),
-      createdRow: created,
-      placementsBefore: placements,
-    );
+    });
   }
 
   /// Files every light and master of [from] under [into]: the two are one
@@ -157,24 +161,26 @@ class DarkroomTargetEdits {
     if (from.key == into.key) {
       throw ArgumentError('A target cannot be merged into itself.');
     }
-    final existing = into.row;
-    final target = existing?.id ?? await _createRowFor(into.key, into.frames);
-    final frameTargets = await _moveFrames([
-      ...from.frames,
-      if (existing == null) ...into.frames,
-    ], target);
-    final masterTargets = <int, int?>{};
-    for (final m in from.masters) {
-      if (m.targetId == target) continue;
-      masterTargets[m.id] = m.targetId;
-      await _masters.setTarget(m.id, target);
-    }
-    return TargetEdit(
-      summary: 'Merged ${from.key} into ${into.key}.',
-      frameTargets: frameTargets,
-      masterTargets: masterTargets,
-      createdRow: existing == null ? target : null,
-    );
+    return _db.transaction(() async {
+      final existing = into.row;
+      final target = existing?.id ?? await _createRowFor(into.key, into.frames);
+      final frameTargets = await _moveFrames([
+        ...from.frames,
+        if (existing == null) ...into.frames,
+      ], target);
+      final masterTargets = <int, int?>{};
+      for (final m in from.masters) {
+        if (m.targetId == target) continue;
+        masterTargets[m.id] = m.targetId;
+        await _masters.setTarget(m.id, target);
+      }
+      return TargetEdit(
+        summary: 'Merged ${from.key} into ${into.key}.',
+        frameTargets: frameTargets,
+        masterTargets: masterTargets,
+        createdRow: existing == null ? target : null,
+      );
+    });
   }
 
   /// Files [frames] under the saved target [into].
@@ -293,6 +299,25 @@ class DarkroomTargetEdits {
       return values[values.length ~/ 2];
     }
 
+    double circularMedianRaHours(List<double> values) {
+      if (values.isEmpty) return 0;
+      const hoursToRad = math.pi / 12.0;
+      var sinSum = 0.0;
+      var cosSum = 0.0;
+      for (final h in values) {
+        final angle = h * hoursToRad;
+        sinSum += math.sin(angle);
+        cosSum += math.cos(angle);
+      }
+      final meanAngle = math.atan2(sinSum, cosSum);
+      final meanHours = ((meanAngle / hoursToRad) % 24.0 + 24.0) % 24.0;
+      final deltas = [
+        for (final h in values) (((h - meanHours + 12.0) % 24.0) + 24.0) % 24.0 - 12.0,
+      ];
+      final medHours = meanHours + median(deltas);
+      return ((medHours % 24.0) + 24.0) % 24.0;
+    }
+
     final solved = [
       for (final f in frames)
         if (darkroomSolvedCenter(f) case final c?) c,
@@ -306,7 +331,7 @@ class DarkroomTargetEdits {
     return _db.targetsDao.createTarget(
       TargetsCompanion.insert(
         name: name,
-        ra: median([for (final c in at) c.raHours]),
+        ra: circularMedianRaHours([for (final c in at) c.raHours]),
         dec: median([for (final c in at) c.dec]),
       ),
     );
@@ -323,8 +348,16 @@ class DarkroomTargetEdits {
         if (f.targetId != target) f.id: f.targetId,
     };
     if (before.isEmpty) return before;
-    await (_db.update(_db.capturedImages)..where((i) => i.id.isIn(before.keys)))
-        .write(CapturedImagesCompanion(targetId: Value(target)));
+    const chunkSize = 500;
+    final ids = before.keys.toList(growable: false);
+    await _db.transaction(() async {
+      for (var start = 0; start < ids.length; start += chunkSize) {
+        final end = math.min(start + chunkSize, ids.length);
+        final chunk = ids.sublist(start, end);
+        await (_db.update(_db.capturedImages)..where((i) => i.id.isIn(chunk)))
+            .write(CapturedImagesCompanion(targetId: Value(target)));
+      }
+    });
     return before;
   }
 }

@@ -227,14 +227,17 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
       } catch (_) {
         saved = null;
       }
+      if (disposed) {
+        loadInFlight = false;
+        return;
+      }
       final currentProfile = ref.read(activeEquipmentProfileProvider);
-      if (disposed ||
-          currentProfile == null ||
+      loadInFlight = false;
+      if (currentProfile == null ||
           _exposureProfileKey(currentProfile) != profileKey) {
         return;
       }
       loadedProfileKey = profileKey;
-      loadInFlight = false;
       // A manual edit completed while the DAO was reading. Its value is
       // newer than the stored snapshot and must win the race.
       if (ref.read(_manualExposureRevisionProvider) == revisionAtStart &&

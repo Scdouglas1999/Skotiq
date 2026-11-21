@@ -31,6 +31,8 @@ final class RemoteScienceProducts implements ScienceProducts {
   final Duration _interval;
   final _poll = HostPoll('science products');
 
+  void dispose() => _poll.dispose();
+
   final _sessionBundles = <int, SharedLatest<RemoteScienceBundle>>{};
 
   late final _sessionlessBundle = SharedLatest<RemoteScienceBundle>(

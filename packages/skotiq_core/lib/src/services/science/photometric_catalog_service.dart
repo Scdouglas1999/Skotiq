@@ -117,6 +117,7 @@ class PhotometricCatalogService {
 
   final Ref _ref;
   final http.Client _client;
+  final bool _ownsClient;
   final DateTime Function() _now;
   final Map<String, DateTime> _retryAfter = {};
   static const _failureCooldown = Duration(minutes: 5);
@@ -130,7 +131,14 @@ class PhotometricCatalogService {
     http.Client? client,
     DateTime Function()? now,
   }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
        _now = now ?? DateTime.now;
+
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 

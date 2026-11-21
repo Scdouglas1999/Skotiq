@@ -375,8 +375,16 @@ class LoggingService {
   }
 
   /// Ensure initialization is started exactly once.
-  Future<void> ensureInitialized() {
-    return _initializationFuture ??= _initializeImpl();
+  Future<void> ensureInitialized() async {
+    final future = _initializationFuture ??= _initializeImpl();
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_initializationFuture, future)) {
+        _initializationFuture = null;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _initializeImpl() async {

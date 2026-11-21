@@ -22,6 +22,8 @@ final class RemoteImagingRecords implements ImagingRecords {
   final Duration _pollInterval;
   final _poll = HostPoll('imaging records');
 
+  void dispose() => _poll.dispose();
+
   @override
   Future<List<db.ImagingSession>> getAllSessions() async {
     final rows = await _host.getAllSessions();

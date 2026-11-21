@@ -41,7 +41,7 @@ Future<int> repairSolvedRotationFromCd(
         'AND solved_cd2_1 IS NOT NULL AND solved_cd2_2 IS NOT NULL',
       )
       .get();
-  var repaired = 0;
+  final updates = <(Object?, double)>[];
   for (final row in rows) {
     final cd11 = (row.data['solved_cd1_1'] as num).toDouble();
     final cd12 = (row.data['solved_cd1_2'] as num).toDouble();
@@ -55,11 +55,17 @@ Future<int> repairSolvedRotationFromCd(
       final diff = ((want - have) % 360.0 + 540.0) % 360.0 - 180.0;
       if (diff.abs() <= toleranceDeg) continue;
     }
-    await db.customStatement(
-      'UPDATE captured_images SET solved_rotation = ? WHERE id = ?',
-      [want, row.data['id']],
-    );
-    repaired++;
+    updates.add((row.data['id'], want));
   }
-  return repaired;
+  if (updates.isNotEmpty) {
+    await db.transaction(() async {
+      for (final (id, want) in updates) {
+        await db.customStatement(
+          'UPDATE captured_images SET solved_rotation = ? WHERE id = ?',
+          [want, id],
+        );
+      }
+    });
+  }
+  return updates.length;
 }

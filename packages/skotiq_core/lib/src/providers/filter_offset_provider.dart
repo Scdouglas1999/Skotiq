@@ -41,10 +41,12 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   int _loadGeneration = 0;
   int _authorityGeneration = 0;
   int _mutationGeneration = 0;
+  late final Future<void> _initFuture;
 
   FilterOffsetNotifier(this._ref)
     : super(const FilterOffsetState(isLoading: true)) {
-    unawaited(_init());
+    _initFuture = _init();
+    unawaited(_initFuture);
     _ref.listen(activeEquipmentProfileProvider, (_, __) {
       if (!mounted) return;
       _mutationGeneration++;
@@ -57,6 +59,9 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       unawaited(_loadOffsetsForActiveProfile());
     });
   }
+
+  /// Completes once the initial active-profile filter offsets have loaded.
+  Future<void> ensureLoaded() => _initFuture;
 
   bool _isCurrentLoad(int generation) =>
       mounted && generation == _loadGeneration;

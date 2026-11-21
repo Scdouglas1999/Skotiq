@@ -4,6 +4,8 @@ import '../../../database/database.dart' as db;
 import '../../../database/rows/equipment_profile_remote_mapping.dart';
 import '../../network_backend.dart';
 import '../../../database/stores/host_records.dart';
+import '../../../utils/logging_service.dart';
+import '../../../utils/resilient_poll_stream.dart';
 import 'host_poll.dart';
 import 'wire_rows.dart';
 
@@ -24,6 +26,8 @@ final class RemoteHostRecords
 
   final NetworkBackend _host;
   final _poll = HostPoll('host records');
+
+  void dispose() => _poll.dispose();
 
   Stream<List<T>> _watch<T>(Future<List<T>> Function() fetch) =>
       _poll.watch(fetch, listEquals, interval: _recordsPollInterval);
@@ -106,14 +110,22 @@ final class RemoteHostRecords
 
 /// Polls the host's captured-image rows, newest capture first.
 Stream<List<db.DbCapturedImage>> pollHostImageRows(HostImagingRecords host) =>
-    HostPoll('captured images').watch(
-      () async {
+    resilientDistinctPoll(
+      fetch: () async {
         final images = await host.getAllImageRows();
         return images.map(db.DbCapturedImage.fromJson).toList()
           ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
       },
-      listEquals,
+      unchanged: listEquals,
       interval: _recordsPollInterval,
+      onRetainedError: (error, stackTrace) {
+        Log.warning(
+          'Host poll for captured images failed; keeping the last value',
+          source: 'HostPoll',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
     );
 
 /// Fetches the complete host run history, following the paginated API until

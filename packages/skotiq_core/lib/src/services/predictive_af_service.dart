@@ -91,8 +91,16 @@ class PredictiveAfService {
   /// Load the persisted gate thresholds from `app_settings` into [config].
   /// Called once at provider construction; missing or unparseable keys keep
   /// the current default for that field.
-  Future<void> hydrateFromSettings() {
-    return _hydration ??= _hydrateFromSettings();
+  Future<void> hydrateFromSettings() async {
+    final future = _hydration ??= _hydrateFromSettings();
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_hydration, future)) {
+        _hydration = null;
+      }
+      rethrow;
+    }
   }
 
   /// Stream of drift detection events. Listen here to surface

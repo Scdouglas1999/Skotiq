@@ -1,10 +1,9 @@
-// ignore_for_file: unused_local_variable
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:drift/drift.dart' show Value;
+import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../database/daos/focus_history_dao.dart';
@@ -318,14 +317,21 @@ class FocusModelService {
 
   static Future<Directory?> _documentsJsonFolder() async {
     final documents = await resolveSkotiqDocumentsDirectory();
-    return Directory('${documents.path}/Skotiq/focus_models');
+    return Directory(p.join(documents.path, 'Skotiq', 'focus_models'));
   }
 
   /// Reads every profile from the database, importing the file store first.
   Future<void> initialize() async {
     if (_isInitialized) return;
-    _initializeFuture ??= _initializeInternal();
-    await _initializeFuture;
+    final future = _initializeFuture ??= _initializeInternal();
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_initializeFuture, future)) {
+        _initializeFuture = null;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _initializeInternal() async {
@@ -700,8 +706,8 @@ class FocusModelService {
   /// Set the reference filter for offset calculations
   Future<void> setReferenceFilter(String profileId, String filterName) async {
     await initialize();
-    var data = _profileData[profileId];
-    if (data == null) return;
+    var data =
+        _profileData[profileId] ?? ProfileFocusData(profileId: profileId);
 
     data = data.copyWith(referenceFilter: filterName);
 

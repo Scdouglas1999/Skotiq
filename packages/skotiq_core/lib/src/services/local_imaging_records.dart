@@ -384,5 +384,9 @@ final imagingRecordsProvider = hostRoleProvider<ImagingRecords>(
       onSolvedFrameFold: solvedFrameFoldHook(ref, imagesDao),
     );
   },
-  linked: (ref, host) => RemoteImagingRecords(host.imagingRecords),
+  linked: (ref, host) {
+    final records = RemoteImagingRecords(host.imagingRecords);
+    ref.onDispose(records.dispose);
+    return records;
+  },
 );

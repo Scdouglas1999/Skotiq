@@ -195,17 +195,21 @@ class AutofocusPreviewFeeder {
 /// client follows the host's frame through the current-frame channel instead,
 /// so this does nothing there.
 final autofocusPreviewFeederProvider = Provider<void>((ref) {
-  if (!ref.watch(backendProvider).ownsDeviceBridge) return;
+  final backend = ref.watch(backendProvider);
+  if (!backend.ownsDeviceBridge) return;
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
 
   Future<void> fetchLatestFrame(UtilityFrameRequest request) async {
+    if (disposed) return;
     final camera = ref.read(cameraStateProvider);
     final deviceId = camera.deviceId;
     if (deviceId == null ||
         camera.connectionState != DeviceConnectionState.connected) {
       return;
     }
-    final result = await ref.read(backendProvider).cameraGetLastImage(deviceId);
-    if (result == null) return;
+    final result = await backend.cameraGetLastImage(deviceId);
+    if (disposed || result == null) return;
 
     final capturedAt = tryParseUtcTimestamp(result.timestamp) ?? DateTime.now();
     // The frame already on screen (a recorder published it first).

@@ -105,5 +105,6 @@
     "camera_retries": 3,
     "filter_wheel_retries": 3
   },
+  "centering_tolerance_arcsec": 5.0,
   "reject_folder_path": null
 }

@@ -319,7 +319,7 @@ class CalibrationService {
       }
 
       // If overwriting in place, back up original
-      if (outputPath == null) {
+      if (path.equals(effectiveOutputPath, lightPath)) {
         final backupPath = '$lightPath.uncal';
         if (!File(backupPath).existsSync()) {
           await File(lightPath).copy(backupPath);
@@ -370,6 +370,11 @@ class CalibrationService {
     String? flatPath,
     String? biasPath,
   }) {
+    if (_hostTools != null) {
+      throw UnsupportedError(
+        'calibrateData requires local native calibration; use calibrateFile on a linked host.',
+      );
+    }
     return bridge.apiCalibratedLightPixels(
       lightPath: lightPath,
       darkPath: darkPath,

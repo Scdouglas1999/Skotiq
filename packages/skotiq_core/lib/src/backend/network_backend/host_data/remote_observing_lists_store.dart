@@ -13,6 +13,8 @@ final class RemoteObservingListsStore implements ObservingListsStore {
   final NetworkBackend _host;
   final _poll = HostPoll('observing lists');
 
+  void dispose() => _poll.dispose();
+
   @override
   Stream<List<ObservingList>> watchAllLists() =>
       _poll.watch(_host.getObservingLists, listEquals);
