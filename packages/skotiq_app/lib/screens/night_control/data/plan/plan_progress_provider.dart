@@ -64,21 +64,16 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   final done = <String, int>{for (final key in planned.keys) key: 0};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
     final terminal = ref.watch(shownTerminalRunResultProvider);
-    // A linked client counts the run's session rows: the frame list below is
-    // what this app saw arrive, and a client that joined after the run
-    // started saw none of the frames before it.
+    // A linked client and a calibration run count the session's light rows.
+    // A local light run counts the same rows, including a rejected light the
+    // in-memory kept list has already dropped, but only those taken since
+    // this launch. Frames the checkpoint took before it are added below.
     final sessionRows =
         terminal?.isCalibration == true || ref.watch(isRemoteModeProvider);
-    final frames = sessionRows
-        ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
-        : ref.watch(recentSessionFramesProvider);
-    // This launch's frame list runs across runs; only this run's count.
     final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
-    final since = startedAt?.subtract(const Duration(seconds: 5));
-    for (final frame in frames) {
-      if (frame.settings.frameType != FrameType.light) continue;
-      if (since != null && frame.capturedAt.isBefore(since)) continue;
-      final key = _filterKey(frame.settings.filter);
+    for (final row in ref.watch(nightRunLightRowsProvider)) {
+      if (startedAt != null && row.capturedAt.isBefore(startedAt)) continue;
+      final key = _filterKey(row.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);
     }
   }

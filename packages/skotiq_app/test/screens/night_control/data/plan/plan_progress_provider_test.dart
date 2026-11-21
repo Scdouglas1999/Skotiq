@@ -1,8 +1,10 @@
 // The Plan section: per-filter frames and integration, plan length and ETA.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -11,22 +13,30 @@ import 'package:skotiq_core/providers.dart';
 import 'plan_test_support.dart';
 
 /// A session row: [filter], [secs] long, kept or rejected.
-DbCapturedImage _row(int id, String filter, double secs, {bool kept = true}) =>
-    DbCapturedImage(
-      id: id,
-      filePath: '/tmp/$id.fits',
-      fileName: '$id.fits',
-      fileFormat: 'fits',
-      frameType: 'light',
-      filter: filter,
-      exposureDuration: secs,
-      binX: 1,
-      binY: 1,
-      capturedAt: bostonTime(2026, 10, 19, 20),
-      createdAt: bostonTime(2026, 10, 19, 20),
-      isAccepted: kept,
-      isPlateSolved: false,
-    );
+DbCapturedImage _row(
+  int id,
+  String filter,
+  double secs, {
+  bool kept = true,
+  DateTime? at,
+}) {
+  final capturedAt = at ?? bostonTime(2026, 10, 19, 20);
+  return DbCapturedImage(
+    id: id,
+    filePath: '/tmp/$id.fits',
+    fileName: '$id.fits',
+    fileFormat: 'fits',
+    frameType: 'light',
+    filter: filter,
+    exposureDuration: secs,
+    binX: 1,
+    binY: 1,
+    capturedAt: capturedAt,
+    createdAt: capturedAt,
+    isAccepted: kept,
+    isPlateSolved: false,
+  );
+}
 
 void main() {
   final evening = bostonTime(2026, 10, 19, 20, 10);
@@ -77,6 +87,12 @@ void main() {
         lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
       ],
       run: RunRecord(startedAt: bostonTime(2026, 10, 19, 19, 51)),
+      extra: [
+        nightRunLightRowsProvider.overrideWithValue([
+          _row(1, 'L', 60, at: bostonTime(2026, 10, 19, 19, 20)),
+          _row(2, 'L', 60, at: bostonTime(2026, 10, 19, 19, 52)),
+        ]),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -86,110 +102,122 @@ void main() {
 
   // Restored from its checkpoint, a run read "L 0/6" although four frames of
   // it were on disk, and after it finished it counted only its own.
-  test('a run continued from its checkpoint counts the frames taken before it',
-      () {
-    final plan = TwoTargetPlan().sequence;
-    final lNode = plan.nodes.values
-        .whereType<ExposureNode>()
-        .firstWhere((node) => node.filter == 'L');
-    final restored = CheckpointInfo(
-      sequenceName: plan.name,
-      timestamp: bostonTime(2026, 10, 19, 19),
-      completedExposures: 2,
-      completedIntegrationSecs: 120,
-      canResume: true,
-      ageSeconds: 60,
-      ended: 'stopped',
-      framesDoneByStep: {lNode.id: 2},
-    );
-    final ready = planContainer(
-      now: evening,
-      sequence: plan,
-      run: RunRecord(
-        restoredCheckpoint: restored,
-        framesDoneBeforeRun: restored.framesDoneByStep,
-      ),
-    );
-    addTearDown(ready.dispose);
-    expect(
-      ready.read(nightPlanProgressProvider)!.rows.map((r) => r.framesDone),
-      [2, 0],
-      reason: 'restored, not started yet',
-    );
+  test(
+    'a run continued from its checkpoint counts the frames taken before it',
+    () {
+      final plan = TwoTargetPlan().sequence;
+      final lNode = plan.nodes.values.whereType<ExposureNode>().firstWhere(
+        (node) => node.filter == 'L',
+      );
+      final restored = CheckpointInfo(
+        sequenceName: plan.name,
+        timestamp: bostonTime(2026, 10, 19, 19),
+        completedExposures: 2,
+        completedIntegrationSecs: 120,
+        canResume: true,
+        ageSeconds: 60,
+        ended: 'stopped',
+        framesDoneByStep: {lNode.id: 2},
+      );
+      final ready = planContainer(
+        now: evening,
+        sequence: plan,
+        run: RunRecord(
+          restoredCheckpoint: restored,
+          framesDoneBeforeRun: restored.framesDoneByStep,
+        ),
+      );
+      addTearDown(ready.dispose);
+      expect(
+        ready.read(nightPlanProgressProvider)!.rows.map((r) => r.framesDone),
+        [2, 0],
+        reason: 'restored, not started yet',
+      );
 
-    final running = planContainer(
-      now: evening,
-      sequence: plan,
-      execution: SequenceExecutionState.running,
-      session: SessionState(
-        isActive: true,
-        startTime: bostonTime(2026, 10, 19, 19, 50),
-      ),
-      progress: const SequenceProgress(state: SequenceExecutionState.running),
-      sessionFrames: [lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 52))],
-      run: RunRecord(
-        startedAt: bostonTime(2026, 10, 19, 19, 51),
-        framesDoneBeforeRun: restored.framesDoneByStep,
-      ),
-    );
-    addTearDown(running.dispose);
-    expect(
-      running.read(nightPlanProgressProvider)!.rows.first.framesDone,
-      3,
-      reason: "the two before the restore and this run's one",
-    );
-  });
+      final running = planContainer(
+        now: evening,
+        sequence: plan,
+        execution: SequenceExecutionState.running,
+        session: SessionState(
+          isActive: true,
+          startTime: bostonTime(2026, 10, 19, 19, 50),
+        ),
+        progress: const SequenceProgress(state: SequenceExecutionState.running),
+        sessionFrames: [lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 52))],
+        run: RunRecord(
+          startedAt: bostonTime(2026, 10, 19, 19, 51),
+          framesDoneBeforeRun: restored.framesDoneByStep,
+        ),
+        extra: [
+          nightRunLightRowsProvider.overrideWithValue([
+            _row(3, 'L', 60, at: bostonTime(2026, 10, 19, 19, 52)),
+          ]),
+        ],
+      );
+      addTearDown(running.dispose);
+      expect(
+        running.read(nightPlanProgressProvider)!.rows.first.framesDone,
+        3,
+        reason: "the two before the restore and this run's one",
+      );
+    },
+  );
 
-  test('running: frames from the session, accepted integration, current row',
-      () {
-    final container = planContainer(
-      now: evening,
-      sequence: TwoTargetPlan().sequence,
-      execution: SequenceExecutionState.running,
-      session: SessionState(
-        isActive: true,
-        startTime: bostonTime(2026, 10, 19, 19, 50),
-      ),
-      progress: const SequenceProgress(
-        state: SequenceExecutionState.running,
-        estimatedRemainingSecs: 600,
-      ),
-      sessionFrames: [
-        lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
-        lightFrame('2', 'L', bostonTime(2026, 10, 19, 19, 53)),
-        lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 54)),
-        lightFrame('4', 'Ha', bostonTime(2026, 10, 19, 19, 58)),
-      ],
-      totals: const RunDashboardFilterTotals(
-        integrationSecs: {},
-        totalAcquiredSecs: {},
-        goalSecs: {'L': 180, 'Ha': 240},
-        inFlightFilter: 'Ha',
-      ),
-      extra: [
-        nightRunLightRowsProvider.overrideWithValue([
-          _row(1, 'L', 60),
-          _row(2, 'L', 60, kept: false),
-          _row(3, 'L', 60),
-          _row(4, 'Ha', 120),
-        ]),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'running: frames from the session, accepted integration, current row',
+    () {
+      final container = planContainer(
+        now: evening,
+        sequence: TwoTargetPlan().sequence,
+        execution: SequenceExecutionState.running,
+        session: SessionState(
+          isActive: true,
+          startTime: bostonTime(2026, 10, 19, 19, 50),
+        ),
+        progress: const SequenceProgress(
+          state: SequenceExecutionState.running,
+          estimatedRemainingSecs: 600,
+        ),
+        sessionFrames: [
+          lightFrame('1', 'L', bostonTime(2026, 10, 19, 19, 52)),
+          lightFrame('2', 'L', bostonTime(2026, 10, 19, 19, 53)),
+          lightFrame('3', 'L', bostonTime(2026, 10, 19, 19, 54)),
+          lightFrame('4', 'Ha', bostonTime(2026, 10, 19, 19, 58)),
+        ],
+        totals: const RunDashboardFilterTotals(
+          integrationSecs: {},
+          totalAcquiredSecs: {},
+          goalSecs: {'L': 180, 'Ha': 240},
+          inFlightFilter: 'Ha',
+        ),
+        extra: [
+          nightRunLightRowsProvider.overrideWithValue([
+            _row(1, 'L', 60),
+            _row(2, 'L', 60, kept: false),
+            _row(3, 'L', 60),
+            _row(4, 'Ha', 120),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final plan = container.read(nightPlanProgressProvider)!;
-    final l = plan.rows[0];
-    final ha = plan.rows[1];
-    expect(l.framesDone, 3);
-    expect(l.fraction, 1.0);
-    expect(l.integrated, const Duration(minutes: 2),
-        reason: 'accepted only: one L frame was rejected');
-    expect(l.isCurrent, isFalse);
-    expect(ha.framesDone, 1);
-    expect(ha.isCurrent, isTrue);
-    expect(plan.integrated, const Duration(minutes: 4));
-    expect(plan.eta, evening.add(const Duration(minutes: 10)));
-  });
+      final plan = container.read(nightPlanProgressProvider)!;
+      final l = plan.rows[0];
+      final ha = plan.rows[1];
+      expect(l.framesDone, 3);
+      expect(l.fraction, 1.0);
+      expect(
+        l.integrated,
+        const Duration(minutes: 2),
+        reason: 'accepted only: one L frame was rejected',
+      );
+      expect(l.isCurrent, isFalse);
+      expect(ha.framesDone, 1);
+      expect(ha.isCurrent, isTrue);
+      expect(plan.integrated, const Duration(minutes: 4));
+      expect(plan.eta, evening.add(const Duration(minutes: 10)));
+    },
+  );
 
   test('an exposure under an open-ended loop has no planned count', () {
     final loop = LoopNode(
@@ -336,5 +364,71 @@ void main() {
     addTearDown(container.dispose);
 
     expect(container.read(nightPlanProgressProvider)!.rows, isEmpty);
+  });
+
+  test('a rejected light counts as taken and not as integration', () {
+    final plan = TwoTargetPlan();
+    final start = bostonTime(2026, 10, 19, 19, 51);
+    final container = planContainer(
+      now: evening,
+      sequence: plan.sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(isActive: true, startTime: start),
+      progress: const SequenceProgress(state: SequenceExecutionState.running),
+      run: RunRecord(startedAt: start, framesDoneBeforeRun: {plan.m74L.id: 2}),
+      extra: [
+        nightRunLightRowsProvider.overrideWithValue([
+          _row(1, 'L', 120, at: start.subtract(const Duration(hours: 1))),
+          _row(
+            2,
+            'L',
+            60,
+            kept: false,
+            at: start.add(const Duration(minutes: 1)),
+          ),
+        ]),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final row = container
+        .read(nightPlanProgressProvider)!
+        .rows
+        .firstWhere((r) => r.filter == 'L');
+    expect(row.framesDone, 3);
+    expect(row.integrated, const Duration(seconds: 120));
+  });
+
+  test('a flip disables start now and leaves an armed start-at-dark', () {
+    final ready = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+    );
+    addTearDown(ready.dispose);
+    ready.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.executing;
+    final blocked = ready.read(nightHeaderProvider);
+    expect(blocked.startNow!.enabled, isFalse);
+    expect(
+      blocked.startNow!.disabledReason,
+      const NightText('nightActBusyFlip'),
+    );
+    expect(blocked.startAtDark!.enabled, isFalse);
+
+    final armed = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      armedStartAt: bostonTime(2026, 10, 19, 19, 48),
+    );
+    addTearDown(armed.dispose);
+    armed.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.executing;
+    final header = armed.read(nightHeaderProvider);
+    expect(header.startNow!.enabled, isFalse);
+    expect(header.startAtDark!.enabled, isTrue);
+
+    ready.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.idle;
+    expect(ready.read(nightHeaderProvider).startNow!.enabled, isTrue);
   });
 }
