@@ -294,11 +294,12 @@ pub struct LiveStacker {
     last_frame_telemetry: Option<FrameTelemetry>,
 }
 
-/// Whether two `FILTER` values name the same filter.
+/// Whether two `FILTER` values name the same filter by the filter-name rule
+/// ([`skotiq_frame::same_filter`]), the rule the wheel moves by.
 fn same_filter(a: Option<&str>, b: Option<&str>) -> bool {
     match (a, b) {
         (None, None) => true,
-        (Some(a), Some(b)) => a.trim().eq_ignore_ascii_case(b.trim()),
+        (Some(a), Some(b)) => skotiq_frame::same_filter(a, b),
         _ => false,
     }
 }
@@ -2821,6 +2822,37 @@ mod tests {
             .add_frame(&shifted, 0.0)
             .expect("a frame without a header is not judged on its filter");
         assert_eq!(stacker.get_stats().stacked_frame_count, 3);
+    }
+
+    /// The live stack reads a frame's filter by the filter-name rule the
+    /// wheel moves by: a frame through "Baader Ha 7nm" belongs in a stack
+    /// started from "Ha", a frame through "OIII" does not.
+    #[test]
+    fn a_frame_named_by_another_spelling_of_the_filter_stacks() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let through = |filter: &str| FrameProvenance {
+            exposure_secs: Some(60.0),
+            date_obs: None,
+            filter: Some(filter.to_string()),
+            pedestal: 0.0,
+        };
+        let mut stacker =
+            LiveStacker::new_with_provenance(&reference, osc_test_config(), &through("Ha"))
+                .expect("reference accepted");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("Baader Ha 7nm"))
+            .expect("Baader Ha 7nm is Ha");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("H-alpha"))
+            .expect("H-alpha is Ha");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("OIII"))
+            .expect_err("OIII is not Ha");
+        let stats = stacker.get_stats();
+        assert_eq!(stats.stacked_frame_count, 3);
+        assert_eq!(stats.other_filter_frames, 1);
     }
 
     fn shift_field(field: &[(f64, f64, f64)], dx: f64, dy: f64) -> Vec<(f64, f64, f64)> {
