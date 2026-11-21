@@ -173,7 +173,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     try {
       await ref.read(lockPositionProvider.notifier).setLockPosition(x, y);
     } catch (e) {
-      _showActionError('Could not select the guide star: ${userFacingError(e)}');
+      _showActionError(
+          'Could not select the guide star: ${userFacingError(e)}');
     }
   }
 

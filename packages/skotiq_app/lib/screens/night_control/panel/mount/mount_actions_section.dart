@@ -106,8 +106,7 @@ class _NightMountActionsSectionState
             facts.inputs,
             ManualActionId.flip,
           )?.resolve(l10n);
-    final flipInFlight =
-        facts.flipInProgress ||
+    final flipInFlight = facts.flipInProgress ||
         (facts.inputs.action.isBusy &&
             facts.inputs.action.active == ManualActionId.flip);
 
@@ -125,9 +124,9 @@ class _NightMountActionsSectionState
               disabledReason: homeReason,
               onPressed: homeReason == null
                   ? () => _run(
-                      'home',
-                      () => ref.read(mountCommandServiceProvider).findHome(),
-                    )
+                        'home',
+                        () => ref.read(mountCommandServiceProvider).findHome(),
+                      )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -146,9 +145,9 @@ class _NightMountActionsSectionState
               disabledReason: unparkReason,
               onPressed: unparkReason == null
                   ? () => _run(
-                      'unpark',
-                      () => ref.read(mountCommandServiceProvider).unpark(),
-                    )
+                        'unpark',
+                        () => ref.read(mountCommandServiceProvider).unpark(),
+                      )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -254,20 +253,20 @@ String nightFlipSettingsText(
       : value.toStringAsFixed(1);
   final trigger = switch (settings.triggerMethod) {
     MeridianTriggerMethod.minutesPastMeridian => l10n.text(
-      'nightScopeFlipPast',
-      params: {'minutes': number(settings.minutesPastMeridian)},
-    ),
+        'nightScopeFlipPast',
+        params: {'minutes': number(settings.minutesPastMeridian)},
+      ),
     MeridianTriggerMethod.hourAngleThreshold => l10n.text(
-      'nightScopeFlipHourAngle',
-      params: {'hours': number(settings.hourAngleThreshold)},
-    ),
+        'nightScopeFlipHourAngle',
+        params: {'hours': number(settings.hourAngleThreshold)},
+      ),
     MeridianTriggerMethod.minutesBeforeLimit => l10n.text(
-      'nightScopeFlipBeforeLimit',
-      params: {'minutes': number(settings.minutesBeforeLimit)},
-    ),
+        'nightScopeFlipBeforeLimit',
+        params: {'minutes': number(settings.minutesBeforeLimit)},
+      ),
     MeridianTriggerMethod.onTrackingLimitHit => l10n.text(
-      'nightScopeFlipAtLimit',
-    ),
+        'nightScopeFlipAtLimit',
+      ),
   };
   return [
     trigger,

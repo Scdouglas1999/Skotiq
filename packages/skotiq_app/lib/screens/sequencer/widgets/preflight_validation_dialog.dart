@@ -221,7 +221,8 @@ class _PreFlightValidationDialogState
       final repo = ref.read(sequenceRepositoryProvider);
       final snapshotJson = (await repo.loadRunDiffContext(
         lastCompleted.id,
-      )).currentSnapshotJson;
+      ))
+          .currentSnapshotJson;
       if (snapshotJson == null || snapshotJson.trim().isEmpty) return;
       final decoded = jsonDecode(snapshotJson);
       if (decoded is! Map) return;

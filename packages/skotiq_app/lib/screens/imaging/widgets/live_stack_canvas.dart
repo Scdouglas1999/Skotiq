@@ -161,8 +161,7 @@ class LiveStackCanvas extends ConsumerWidget {
       );
     }
 
-    final activeKey =
-        stack.selectedFilterKey ??
+    final activeKey = stack.selectedFilterKey ??
         stack.activeFilterStack?.filterKey ??
         kDefaultLiveStackFilterKey;
     final darkroomRender = darkroom.enabled && !darkroom.compareBeforeAfter
@@ -269,8 +268,7 @@ class LiveStackCanvas extends ConsumerWidget {
                   channels: _previewChannels(stack),
                   stretchAsync: ref.watch(stackedPreviewStretchAsyncProvider),
                   filterKey: activeKey,
-                  revision:
-                      stack.activeFilterStack?.revision ??
+                  revision: stack.activeFilterStack?.revision ??
                       stack.stats.stackedFrameCount,
                   maxDimension: 2048,
                   colors: colors,
@@ -354,8 +352,7 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
     final colors = context.skotiqColors;
     final stack = ref.watch(liveStackingProvider);
     final filters = stack.availableFilters;
-    final activeKey =
-        stack.selectedFilterKey ??
+    final activeKey = stack.selectedFilterKey ??
         stack.activeFilterStack?.filterKey ??
         kDefaultLiveStackFilterKey;
     final darkroom = ref.watch(liveStackDarkroomProvider);
@@ -382,8 +379,9 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
                     stacks: stack.filterStacks,
                     selectedFilter: activeKey,
                     compact: true,
-                    onSelect: (key) =>
-                        ref.read(liveStackingProvider.notifier).selectFilter(key),
+                    onSelect: (key) => ref
+                        .read(liveStackingProvider.notifier)
+                        .selectFilter(key),
                   )
                 : Text(
                     selection.canSelect
@@ -409,9 +407,8 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
                   ? ButtonVariant.secondary
                   : ButtonVariant.ghost,
               onPressed: () {
-                ref
-                    .read(selectedLiveStackPanelProvider.notifier)
-                    .state = LiveStackSidePanel.darkroomSectionIndex;
+                ref.read(selectedLiveStackPanelProvider.notifier).state =
+                    LiveStackSidePanel.darkroomSectionIndex;
                 if (!darkroom.enabled) {
                   ref.read(liveStackDarkroomProvider.notifier).setEnabled(true);
                 }
@@ -647,9 +644,9 @@ class StackedImageSource extends StatefulWidget {
     required this.colors,
     required this.builder,
   }) : assert(
-         stretch != null || stretchAsync != null,
-         'Either stretch or stretchAsync must be provided',
-       );
+          stretch != null || stretchAsync != null,
+          'Either stretch or stretchAsync must be provided',
+        );
 
   final Uint16List data;
   final int width;

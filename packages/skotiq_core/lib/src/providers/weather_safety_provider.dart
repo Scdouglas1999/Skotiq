@@ -83,6 +83,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     }
     _evaluationIdleCompleter = null;
   }
+
   DateTime? _evaluationStartedAt;
 
   /// The verdict last sent to the sequencer, re-sent on every heartbeat so a

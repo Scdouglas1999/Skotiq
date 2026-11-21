@@ -391,7 +391,8 @@ void main() {
               return '/tmp/sk-audit/$suggestedName';
             },
           ),
-          liveStackingServiceProvider.overrideWith(_FakeLiveStackingService.new),
+          liveStackingServiceProvider
+              .overrideWith(_FakeLiveStackingService.new),
           liveStackMasterLibraryProvider.overrideWith((ref) {
             final service = ref.watch(liveStackingServiceProvider);
             return LiveStackMasterLibrary(
@@ -470,7 +471,8 @@ void main() {
 
       expect(savedFilterKeys, ['L', 'Ha']);
       expect(stacker.stopCalls, 1);
-      final masters = await container.read(integratedMastersDaoProvider).getAll();
+      final masters =
+          await container.read(integratedMastersDaoProvider).getAll();
       expect(masters, hasLength(2));
     },
   );

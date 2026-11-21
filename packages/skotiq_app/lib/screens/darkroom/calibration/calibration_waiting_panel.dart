@@ -94,8 +94,7 @@ class CalibrationWaitingPanel extends ConsumerWidget {
     if (error != null && !state.groups.hasValue) {
       return [
         _ErrorLine(
-          message:
-              'Could not read the captured calibration frames: '
+          message: 'Could not read the captured calibration frames: '
               '${userFacingError(error)}',
           onRetry: notifier.refresh,
         ),

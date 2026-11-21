@@ -24,7 +24,8 @@ RecordingMountCommands _commands(HarnessHandle handle) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('a running flip shows its step and idle hides it', (tester) async {
+  testWidgets('a running flip shows its step and idle hides it',
+      (tester) async {
     final handle = await pumpPanelTab(
       tester,
       const NightMountTab(),

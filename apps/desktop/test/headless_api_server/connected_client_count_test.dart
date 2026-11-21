@@ -105,7 +105,10 @@ void main() {
     addTearDown(() async => socket.close());
     final messages = StreamIterator<dynamic>(socket);
     addTearDown(messages.cancel);
-    expect(await messages.moveNext().timeout(const Duration(seconds: 2)), isTrue);
+    expect(
+      await messages.moveNext().timeout(const Duration(seconds: 2)),
+      isTrue,
+    );
     expect(
       (jsonDecode(messages.current as String) as Map)['type'],
       'collaboration_state',

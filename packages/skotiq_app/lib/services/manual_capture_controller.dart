@@ -371,12 +371,12 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
     if (filePath != null && filePath.isNotEmpty) {
       unawaited(
         ref.read(liveStackingProvider.notifier).addFrameFromFileWithMetadata(
-          filePath,
-          filter: image.settings.filter,
-          exposureSecs: image.settings.exposureTime,
-          hfr: image.stats.hfr,
-          starCount: image.stats.starCount,
-        ),
+              filePath,
+              filter: image.settings.filter,
+              exposureSecs: image.settings.exposureTime,
+              hfr: image.stats.hfr,
+              starCount: image.stats.starCount,
+            ),
       );
     }
   }

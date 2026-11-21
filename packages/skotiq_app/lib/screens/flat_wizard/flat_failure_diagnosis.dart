@@ -56,12 +56,10 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
   // sentences would both be false.
   if (minExposure == maxExposure) {
     return FlatFailureDiagnosis(
-      reason:
-          '${filterLabel}the fixed ${_formatSeconds(minExposure)} exposure '
+      reason: '${filterLabel}the fixed ${_formatSeconds(minExposure)} exposure '
           'measured ${last.adu.round()} ADU without reaching the '
           '$targetPercent target within tolerance.',
-      nextStep:
-          'Allow a range of exposure times so calibration can adjust '
+      nextStep: 'Allow a range of exposure times so calibration can adjust '
           'the brightness toward the target.',
     );
   }

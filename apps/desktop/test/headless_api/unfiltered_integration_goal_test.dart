@@ -13,9 +13,12 @@ void main() {
   test('an empty filter is an unfiltered integration goal', () async {
     final container = createHeadlessTestContainer();
     addTearDown(container.dispose);
-    final targetId = await container.read(databaseProvider).targetsDao.createTarget(
-      TargetsCompanion.insert(name: 'M31', ra: 0.7123, dec: 41.269),
-    );
+    final targetId = await container
+        .read(databaseProvider)
+        .targetsDao
+        .createTarget(
+          TargetsCompanion.insert(name: 'M31', ra: 0.7123, dec: 41.269),
+        );
     final handlers = PlanningDataHandlers(container);
 
     final missing = await translateHandlerErrors(
@@ -64,13 +67,12 @@ void main() {
     final listed = await handlers.handleGetIntegrationGoals(
       Request(
         'GET',
-        Uri.parse(
-          'http://localhost/api/integration-goals?targetId=$targetId',
-        ),
+        Uri.parse('http://localhost/api/integration-goals?targetId=$targetId'),
       ),
     );
     expect(listed.statusCode, HttpStatus.ok);
-    final goals = (jsonDecode(await listed.readAsString()) as Map)['goals'] as List;
+    final goals =
+        (jsonDecode(await listed.readAsString()) as Map)['goals'] as List;
     expect(goals, hasLength(1));
     expect(goals.single['filter'], '');
     expect(goals.single['exposureSeconds'], 180);

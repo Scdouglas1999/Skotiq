@@ -66,7 +66,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        backendProvider.overrideWith((ref) => _TestBackendNotifier(ref, backend)),
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
         appSettingsProvider.overrideWith(() => _FixedSettings()),
         sequenceValidatorProvider.overrideWith(_passing),
       ],

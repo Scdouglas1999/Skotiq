@@ -181,44 +181,47 @@ void main() {
     expect(container.read(flatWizardProvider).filterSettings, hasLength(1));
   });
 
-  test('a filter reload that finishes after dispose does not write state', () async {
-    final backend = _MockNetworkBackend();
-    final gate = Completer<List<RemoteFlatHistoryEntry>>();
-    final called = Completer<void>();
-    when(
-      () => backend.listFlats(
-        filter: any(named: 'filter'),
-        equipmentProfileId: any(named: 'equipmentProfileId'),
-        limit: any(named: 'limit'),
-      ),
-    ).thenAnswer((_) {
-      if (!called.isCompleted) called.complete();
-      return gate.future;
-    });
+  test(
+    'a filter reload that finishes after dispose does not write state',
+    () async {
+      final backend = _MockNetworkBackend();
+      final gate = Completer<List<RemoteFlatHistoryEntry>>();
+      final called = Completer<void>();
+      when(
+        () => backend.listFlats(
+          filter: any(named: 'filter'),
+          equipmentProfileId: any(named: 'equipmentProfileId'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer((_) {
+        if (!called.isCompleted) called.complete();
+        return gate.future;
+      });
 
-    final container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        activeEquipmentProfileProvider.overrideWithValue(null),
-        backendProvider.overrideWith(
-          (ref) => _FixedBackendNotifier(ref, backend),
-        ),
-        filterWheelStateProvider.overrideWith(
-          (ref) => _SeededFilterWheelNotifier(ref, const ['L']),
-        ),
-      ],
-    );
-    final notifier = container.read(flatWizardProvider.notifier);
-    final seen = <List<String>>[];
-    container.listen(flatWizardProvider, (_, next) {
-      seen.add([for (final filter in next.filterSettings) filter.filterName]);
-    });
-    final load = notifier.loadFilters();
-    await called.future;
-    final before = seen.length;
-    container.dispose();
-    gate.complete(const []);
-    await load;
-    expect(seen, hasLength(before));
-  });
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          activeEquipmentProfileProvider.overrideWithValue(null),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+          filterWheelStateProvider.overrideWith(
+            (ref) => _SeededFilterWheelNotifier(ref, const ['L']),
+          ),
+        ],
+      );
+      final notifier = container.read(flatWizardProvider.notifier);
+      final seen = <List<String>>[];
+      container.listen(flatWizardProvider, (_, next) {
+        seen.add([for (final filter in next.filterSettings) filter.filterName]);
+      });
+      final load = notifier.loadFilters();
+      await called.future;
+      final before = seen.length;
+      container.dispose();
+      gate.complete(const []);
+      await load;
+      expect(seen, hasLength(before));
+    },
+  );
 }

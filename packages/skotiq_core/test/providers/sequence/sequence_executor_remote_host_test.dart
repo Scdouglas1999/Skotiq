@@ -205,9 +205,13 @@ void main() {
       const reset = '/api/sequencer/reset';
       const discard = '/api/sequencer/checkpoint/discard';
       final fake = FakeNetworkClient()
-        ..setResponse(reset, method: 'POST', body: clearsCheckpoint
-            ? '{"status":"reset","checkpointCleared":true}'
-            : '{"status":"reset"}')
+        ..setResponse(
+          reset,
+          method: 'POST',
+          body: clearsCheckpoint
+              ? '{"status":"reset","checkpointCleared":true}'
+              : '{"status":"reset"}',
+        )
         ..setResponse(discard, method: 'POST', body: '{}');
       final backend = NetworkBackend(
         serverHost: 'example.invalid',
@@ -266,113 +270,126 @@ void main() {
     verifyNever(() => host.resumeFromCheckpoint());
   });
 
-  test('Start sends the client handoff choices and not an undecided target', () async {
-    final carry = [
-      const SessionCarryOver(
-        targetId: 7,
-        targetName: 'M45',
-        previousSessionId: 3,
-        previousSessionStartedAt: null,
-        previousAcceptedFrames: 12,
-        previousIntegrationSecs: 1800,
-        campaignIntegrationSecs: 1800,
-        budgetSecs: 7200,
-        perFilterIntegrationSecs: {'l': 1800},
-      ),
-      const SessionCarryOver(
-        targetId: 8,
-        targetName: 'M31',
-        previousSessionId: 4,
-        previousSessionStartedAt: null,
-        previousAcceptedFrames: 4,
-        previousIntegrationSecs: 600,
-        campaignIntegrationSecs: 600,
-        budgetSecs: null,
-        perFilterIntegrationSecs: {'ha': 600},
-      ),
-    ];
-    final local = ProviderContainer(
-      overrides: [
-        inMemoryDatabaseOverride(),
-        backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, host)),
-        sessionCarryOverProvider.overrideWith((ref) async => carry),
-      ],
-    );
-    addTearDown(local.dispose);
-    when(
-      () => host.sequencerStartOnHost(
-        handoffDecisions: any(named: 'handoffDecisions'),
-        ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
-      ),
-    ).thenAnswer((_) async {});
-    when(
-      () => host.sequencerGetStatus(),
-    ).thenAnswer((_) async => _status('running'));
-    local.read(currentSequenceProvider.notifier).loadSequence(_hostPlan());
-    local
-        .read(
-          sessionHandoffDecisionProvider((
-            sequenceId: 4,
-            targetId: 7,
-          )).notifier,
-        )
-        .state = SessionHandoffDecision.resume;
-
-    await local.read(sequenceExecutorProvider).start();
-
-    final sent = verify(
-      () => host.sequencerStartOnHost(
-        handoffDecisions: captureAny(named: 'handoffDecisions'),
-        ignoreUnavailableHistory: false,
-      ),
-    ).captured.single as Map<String, String>;
-    expect(sent, {'7': 'resume'});
-    verifyNever(() => host.sequencerStart());
-  });
-
-  test('a failed history read blocks Start until the operator confirms', () async {
-    final local = ProviderContainer(
-      overrides: [
-        inMemoryDatabaseOverride(),
-        backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, host)),
-        sessionCarryOverProvider.overrideWith(
-          (ref) async => throw StateError('history unread'),
+  test(
+    'Start sends the client handoff choices and not an undecided target',
+    () async {
+      final carry = [
+        const SessionCarryOver(
+          targetId: 7,
+          targetName: 'M45',
+          previousSessionId: 3,
+          previousSessionStartedAt: null,
+          previousAcceptedFrames: 12,
+          previousIntegrationSecs: 1800,
+          campaignIntegrationSecs: 1800,
+          budgetSecs: 7200,
+          perFilterIntegrationSecs: {'l': 1800},
         ),
-      ],
-    );
-    addTearDown(local.dispose);
-    local.read(currentSequenceProvider.notifier).loadSequence(_hostPlan());
+        const SessionCarryOver(
+          targetId: 8,
+          targetName: 'M31',
+          previousSessionId: 4,
+          previousSessionStartedAt: null,
+          previousAcceptedFrames: 4,
+          previousIntegrationSecs: 600,
+          campaignIntegrationSecs: 600,
+          budgetSecs: null,
+          perFilterIntegrationSecs: {'ha': 600},
+        ),
+      ];
+      final local = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, host),
+          ),
+          sessionCarryOverProvider.overrideWith((ref) async => carry),
+        ],
+      );
+      addTearDown(local.dispose);
+      when(
+        () => host.sequencerStartOnHost(
+          handoffDecisions: any(named: 'handoffDecisions'),
+          ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => host.sequencerGetStatus(),
+      ).thenAnswer((_) async => _status('running'));
+      local.read(currentSequenceProvider.notifier).loadSequence(_hostPlan());
+      local
+              .read(
+                sessionHandoffDecisionProvider((
+                  sequenceId: 4,
+                  targetId: 7,
+                )).notifier,
+              )
+              .state =
+          SessionHandoffDecision.resume;
 
-    await expectLater(
-      local.read(sequenceExecutorProvider).start(),
-      throwsA(isA<StateError>()),
-    );
-    verifyNever(() => host.sequencerStart());
-    verifyNever(
-      () => host.sequencerStartOnHost(
-        handoffDecisions: any(named: 'handoffDecisions'),
-        ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
-      ),
-    );
+      await local.read(sequenceExecutorProvider).start();
 
-    local.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
-        true;
-    when(
-      () => host.sequencerStartOnHost(
-        handoffDecisions: any(named: 'handoffDecisions'),
-        ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
-      ),
-    ).thenAnswer((_) async {});
-    when(
-      () => host.sequencerGetStatus(),
-    ).thenAnswer((_) async => _status('running'));
-    await local.read(sequenceExecutorProvider).start();
-    verify(
-      () => host.sequencerStartOnHost(
-        handoffDecisions: any(named: 'handoffDecisions'),
-        ignoreUnavailableHistory: true,
-      ),
-    ).called(1);
-    expect(local.read(sessionHandoffIgnoreUnavailableOnceProvider), isFalse);
-  });
+      final sent =
+          verify(
+                () => host.sequencerStartOnHost(
+                  handoffDecisions: captureAny(named: 'handoffDecisions'),
+                  ignoreUnavailableHistory: false,
+                ),
+              ).captured.single
+              as Map<String, String>;
+      expect(sent, {'7': 'resume'});
+      verifyNever(() => host.sequencerStart());
+    },
+  );
+
+  test(
+    'a failed history read blocks Start until the operator confirms',
+    () async {
+      final local = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, host),
+          ),
+          sessionCarryOverProvider.overrideWith(
+            (ref) async => throw StateError('history unread'),
+          ),
+        ],
+      );
+      addTearDown(local.dispose);
+      local.read(currentSequenceProvider.notifier).loadSequence(_hostPlan());
+
+      await expectLater(
+        local.read(sequenceExecutorProvider).start(),
+        throwsA(isA<StateError>()),
+      );
+      verifyNever(() => host.sequencerStart());
+      verifyNever(
+        () => host.sequencerStartOnHost(
+          handoffDecisions: any(named: 'handoffDecisions'),
+          ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
+        ),
+      );
+
+      local.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
+          true;
+      when(
+        () => host.sequencerStartOnHost(
+          handoffDecisions: any(named: 'handoffDecisions'),
+          ignoreUnavailableHistory: any(named: 'ignoreUnavailableHistory'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => host.sequencerGetStatus(),
+      ).thenAnswer((_) async => _status('running'));
+      await local.read(sequenceExecutorProvider).start();
+      verify(
+        () => host.sequencerStartOnHost(
+          handoffDecisions: any(named: 'handoffDecisions'),
+          ignoreUnavailableHistory: true,
+        ),
+      ).called(1);
+      expect(local.read(sessionHandoffIgnoreUnavailableOnceProvider), isFalse);
+    },
+  );
 }

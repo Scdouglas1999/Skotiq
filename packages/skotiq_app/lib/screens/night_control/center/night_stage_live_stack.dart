@@ -196,12 +196,10 @@ class _NightStageLiveStackViewState
     final darkroom = ref.watch(liveStackDarkroomProvider);
     final isRemoteClient = ref.watch(isRemoteClientProvider);
 
-    final activeKey =
-        stack.selectedFilterKey ??
+    final activeKey = stack.selectedFilterKey ??
         stack.activeFilterStack?.filterKey ??
         kDefaultLiveStackFilterKey;
-    final hasPixels =
-        stack.previewData != null &&
+    final hasPixels = stack.previewData != null &&
         stack.previewWidth > 0 &&
         stack.previewHeight > 0;
     final darkroomRender =
@@ -242,9 +240,9 @@ class _NightStageLiveStackViewState
                   label: 'Back to sub',
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
-                  onPressed: () =>
-                      ref.read(nightStageModeProvider.notifier).state =
-                          NightStageMode.sub,
+                  onPressed: () => ref
+                      .read(nightStageModeProvider.notifier)
+                      .state = NightStageMode.sub,
                 ),
               ),
             ),
@@ -264,8 +262,7 @@ class _NightStageLiveStackViewState
             channels: channels,
             stretchAsync: ref.watch(stackedPreviewStretchAsyncProvider),
             filterKey: activeKey,
-            revision:
-                stack.activeFilterStack?.revision ??
+            revision: stack.activeFilterStack?.revision ??
                 stack.stats.stackedFrameCount,
             maxDimension: 1600,
             colors: colors,
@@ -323,9 +320,11 @@ class _NightStageLiveStackViewState
                       key: const ValueKey('night_stage_open_darkroom'),
                       label: _isPromoting ? 'Opening…' : 'Open Darkroom',
                       icon: SkotiqIcons.externalLink,
-                      tooltip: 'Promote this live stack into the full Darkroom editor',
-                      onPressed:
-                          _isPromoting ? null : () => _openInDarkroom(activeKey),
+                      tooltip:
+                          'Promote this live stack into the full Darkroom editor',
+                      onPressed: _isPromoting
+                          ? null
+                          : () => _openInDarkroom(activeKey),
                     ),
                   if (hasPixels && _zoom != 1.0)
                     FrameViewButton(
@@ -348,8 +347,7 @@ class _NightStageLiveStackViewState
 
 /// Top-left status summary pill when Night Control is viewing a live stack.
 FramePillText nightLiveStackStatusPill(LiveStackingState stack) {
-  final activeKey =
-      stack.selectedFilterKey ??
+  final activeKey = stack.selectedFilterKey ??
       stack.activeFilterStack?.filterKey ??
       kDefaultLiveStackFilterKey;
   final label = liveStackFilterDisplayName(activeKey);

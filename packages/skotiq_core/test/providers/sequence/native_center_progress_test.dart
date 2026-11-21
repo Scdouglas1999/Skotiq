@@ -43,7 +43,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        backendProvider.overrideWith((ref) => _TestBackendNotifier(ref, backend)),
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -51,9 +53,9 @@ void main() {
     addTearDown(db.close);
 
     const nodeId = 'center-1';
-    container.read(runRecordProvider.notifier).updateProgress(
-      currentNodeId: nodeId,
-    );
+    container
+        .read(runRecordProvider.notifier)
+        .updateProgress(currentNodeId: nodeId);
     final executor = container.read(sequenceExecutorProvider);
     executor.handleSequencerEventForTest(
       _event('InstructionProgress', {
@@ -92,10 +94,7 @@ void main() {
     executor.handleSequencerEventForTest(
       _event('NodeCompleted', {'node_id': nodeId, 'status': 'failed'}),
     );
-    expect(
-      container.read(centeringStatusProvider).state,
-      CenteringState.error,
-    );
+    expect(container.read(centeringStatusProvider).state, CenteringState.error);
     expect(container.read(plateSolveStateProvider).lastResult, isNull);
     expect(container.read(plateSolveStateProvider).isSolving, isFalse);
   });

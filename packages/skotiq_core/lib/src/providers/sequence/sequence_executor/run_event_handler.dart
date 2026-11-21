@@ -313,7 +313,8 @@ class RunEventHandler {
     final current = _ref.read(sequenceProgressProvider).currentNodeId;
     if (current != null && current != nodeId) return;
     _centerNodeId = nodeId;
-    final solved = report.solvedRaHours != null && report.solvedDecDegrees != null;
+    final solved =
+        report.solvedRaHours != null && report.solvedDecDegrees != null;
     final CenteringState phase;
     if (report.attempt == 0 && report.lastSeparationArcsec != null) {
       phase = CenteringState.completed;
@@ -376,9 +377,7 @@ class RunEventHandler {
     final solve = _ref.read(plateSolveStateProvider);
     _ref.read(plateSolveStateProvider.notifier).state = PlateSolveState(
       isSolving: false,
-      lastResult: failed
-          ? null
-          : solve.lastResult,
+      lastResult: failed ? null : solve.lastResult,
       currentImage: solve.currentImage,
     );
   }

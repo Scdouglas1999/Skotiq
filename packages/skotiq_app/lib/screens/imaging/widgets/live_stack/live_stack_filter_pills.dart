@@ -101,9 +101,8 @@ class _FilterStackPill extends StatelessWidget {
             vertical: compact ? 4 : 5,
           ),
           decoration: BoxDecoration(
-            color: selected
-                ? colors.primary.withValues(alpha: 0.16)
-                : colors.well,
+            color:
+                selected ? colors.primary.withValues(alpha: 0.16) : colors.well,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             border: Border.all(
               color: selected

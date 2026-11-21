@@ -103,53 +103,58 @@ class _Clock implements Clock {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('installing NGC 0001 refreshes suggestions that are already listening', () async {
-    final root = await Directory.systemTemp.createTemp('g1-catalog-');
-    addTearDown(() async {
-      if (await root.exists()) await root.delete(recursive: true);
-    });
-    final manager = CatalogManager.instance;
-    await manager.initialize(root.path);
-    final source = File('${root.path}/ngc.csv');
-    await source.writeAsString(_ngcCsv);
-    final expectedId = _catalogId(_csvName);
-    expect(_ngcCsv.contains(_csvName), isTrue);
+  test(
+    'installing NGC 0001 refreshes suggestions that are already listening',
+    () async {
+      final root = await Directory.systemTemp.createTemp('g1-catalog-');
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final manager = CatalogManager.instance;
+      await manager.initialize(root.path);
+      final source = File('${root.path}/ngc.csv');
+      await source.writeAsString(_ngcCsv);
+      final expectedId = _catalogId(_csvName);
+      expect(_ngcCsv.contains(_csvName), isTrue);
 
-    final container = ProviderContainer(
-      overrides: [
-        inMemoryDatabaseOverride(),
-        targetSuggestionServiceProvider.overrideWithValue(
-          _PassThroughSuggestions(),
-        ),
-        appSettingsProvider.overrideWith(_Settings.new),
-        clockProvider.overrideWithValue(_Clock()),
-        altitudeFloorProvider.overrideWithValue(
-          const AltitudeFloor(horizon: null, minimumDeg: 30),
-        ),
-        allDbTargetsProvider.overrideWith((ref) => Stream.value(const <DbTarget>[])),
-        allSessionsProvider.overrideWith(
-          (ref) => Stream.value(const <ImagingSession>[]),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    const config = TargetSuggestionConfig(minScore: 0);
-    final provider = localTonightSuggestionsProvider(config);
-    final sub = container.listen(provider, (_, _) {});
-    addTearDown(sub.close);
-    await container.read(appSettingsProvider.future);
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          targetSuggestionServiceProvider.overrideWithValue(
+            _PassThroughSuggestions(),
+          ),
+          appSettingsProvider.overrideWith(_Settings.new),
+          clockProvider.overrideWithValue(_Clock()),
+          altitudeFloorProvider.overrideWithValue(
+            const AltitudeFloor(horizon: null, minimumDeg: 30),
+          ),
+          allDbTargetsProvider.overrideWith(
+            (ref) => Stream.value(const <DbTarget>[]),
+          ),
+          allSessionsProvider.overrideWith(
+            (ref) => Stream.value(const <ImagingSession>[]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      const config = TargetSuggestionConfig(minScore: 0);
+      final provider = localTonightSuggestionsProvider(config);
+      final sub = container.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(appSettingsProvider.future);
 
-    final before = await container.read(provider.future);
-    expect(before.map((s) => s.catalogId), isNot(contains(expectedId)));
+      final before = await container.read(provider.future);
+      expect(before.map((s) => s.catalogId), isNot(contains(expectedId)));
 
-    await manager.installFromFile(SkyCatalog.dso, source);
-    await pumpEventQueue();
-    final installed = await container.read(provider.future);
-    expect(installed.map((s) => s.catalogId), contains(expectedId));
+      await manager.installFromFile(SkyCatalog.dso, source);
+      await pumpEventQueue();
+      final installed = await container.read(provider.future);
+      expect(installed.map((s) => s.catalogId), contains(expectedId));
 
-    await manager.uninstall(SkyCatalog.dso);
-    await pumpEventQueue();
-    final removed = await container.read(provider.future);
-    expect(removed.map((s) => s.catalogId), isNot(contains(expectedId)));
-  });
+      await manager.uninstall(SkyCatalog.dso);
+      await pumpEventQueue();
+      final removed = await container.read(provider.future);
+      expect(removed.map((s) => s.catalogId), isNot(contains(expectedId)));
+    },
+  );
 }

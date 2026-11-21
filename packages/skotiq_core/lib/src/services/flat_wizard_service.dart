@@ -669,8 +669,7 @@ class FlatWizardService {
 
       // At millisecond exposures a sub-millisecond correction is a real
       // change. Stop only when the next exposure cannot change.
-      if ((nextExposure - exposure).abs() <=
-          math.max(1e-9, exposure * 1e-6)) {
+      if ((nextExposure - exposure).abs() <= math.max(1e-9, exposure * 1e-6)) {
         Log.info(
           'FlatWizardService: Converged at exposure: ${exposure.toStringAsFixed(3)}s '
           '(ADU: ${adu.toStringAsFixed(0)})',

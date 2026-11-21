@@ -376,7 +376,8 @@ class FrameStage extends ConsumerWidget {
       liveStackingProvider.select((s) => s.isActiveOrArmed),
     );
     final stageMode = ref.watch(nightStageModeProvider);
-    final showLiveStack = liveStackActive && stageMode == NightStageMode.liveStack;
+    final showLiveStack =
+        liveStackActive && stageMode == NightStageMode.liveStack;
     StripFrameVm? selected;
     for (final frame in frames) {
       if (frame.id == selectedId) selected = frame;

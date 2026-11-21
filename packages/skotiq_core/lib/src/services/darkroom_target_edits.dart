@@ -312,7 +312,8 @@ class DarkroomTargetEdits {
       final meanAngle = math.atan2(sinSum, cosSum);
       final meanHours = ((meanAngle / hoursToRad) % 24.0 + 24.0) % 24.0;
       final deltas = [
-        for (final h in values) (((h - meanHours + 12.0) % 24.0) + 24.0) % 24.0 - 12.0,
+        for (final h in values)
+          (((h - meanHours + 12.0) % 24.0) + 24.0) % 24.0 - 12.0,
       ];
       final medHours = meanHours + median(deltas);
       return ((medHours % 24.0) + 24.0) % 24.0;

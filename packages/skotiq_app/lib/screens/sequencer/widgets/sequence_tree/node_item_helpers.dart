@@ -172,8 +172,7 @@ class _SaveAsSnippetDialogState extends State<_SaveAsSnippetDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: colors.border),
               ),
               child: DropdownButtonHideUnderline(

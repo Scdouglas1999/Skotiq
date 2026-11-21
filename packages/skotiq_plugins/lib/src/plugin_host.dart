@@ -386,7 +386,9 @@ class PluginHost {
           // Restore node registrations if disable failed so registry and
           // enabled flag stay consistent.
           if (loaded.plugin is SequencePlugin) {
-            nodeRegistry.registerSequencePlugin(loaded.plugin as SequencePlugin);
+            nodeRegistry.registerSequencePlugin(
+              loaded.plugin as SequencePlugin,
+            );
           }
           rethrow;
         }

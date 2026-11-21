@@ -1391,19 +1391,28 @@ void main() {
           isTrue,
         );
         expect(result.plannedTarget.windowEnd, end);
-        expect(result.sequence.nodes.values.whereType<MeridianFlipNode>(), isEmpty);
-        final warm = result.sequence.nodes.values.whereType<WarmCameraNode>().single;
+        expect(
+          result.sequence.nodes.values.whereType<MeridianFlipNode>(),
+          isEmpty,
+        );
+        final warm = result.sequence.nodes.values
+            .whereType<WarmCameraNode>()
+            .single;
         final timings = const SequenceTimeEstimator().estimateSequenceTiming(
           result.sequence,
           start,
         );
-        final warmTiming = timings.firstWhere((timing) => timing.nodeId == warm.id);
+        final warmTiming = timings.firstWhere(
+          (timing) => timing.nodeId == warm.id,
+        );
         expect(warmTiming.estimatedStart, end);
         final capture = timings.where(
           (timing) =>
               timing.nodeId ==
               result.sequence.nodes.values
-                  .where((node) => node is LoopNode || node is SmartExposureNode)
+                  .where(
+                    (node) => node is LoopNode || node is SmartExposureNode,
+                  )
                   .single
                   .id,
         );

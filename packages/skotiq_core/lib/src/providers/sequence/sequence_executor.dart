@@ -534,9 +534,12 @@ class SequenceExecutor {
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
   Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
-    final ignoreHistory = _ref.read(sessionHandoffIgnoreUnavailableOnceProvider);
+    final ignoreHistory = _ref.read(
+      sessionHandoffIgnoreUnavailableOnceProvider,
+    );
     if (ignoreHistory) {
-      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state = false;
+      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
+          false;
     }
     if (!_hostRestoreAwaitingStart) {
       _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});

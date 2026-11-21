@@ -19,12 +19,12 @@ part 'flat_preview_panel_parts/_convergence_and_filters.dart';
 /// Six digits under 0.01 s, four under 1 s, two otherwise, so a 1.5 ms
 /// flat is not shown as 0.00 s.
 String _exposureSeconds(double seconds) => seconds.toStringAsFixed(
-  seconds < 0.01
-      ? 6
-      : seconds < 1
-      ? 4
-      : 2,
-);
+      seconds < 0.01
+          ? 6
+          : seconds < 1
+              ? 4
+              : 2,
+    );
 
 class FlatPreviewPanel extends ConsumerWidget {
   const FlatPreviewPanel({super.key});

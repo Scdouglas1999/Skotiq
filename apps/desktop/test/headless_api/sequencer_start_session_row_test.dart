@@ -354,25 +354,30 @@ void main() {
       },
     );
 
-    test('a completed native run with an open session gets a fresh row on the next start', () async {
-      // The process attached after the previous run completed. Its session
-      // is still open, but there is no live run that owns it.
-      when(
-        () => sequencer.sequencerGetStatus(),
-      ).thenAnswer((_) async => _status('completed'));
+    test(
+      'a completed native run with an open session gets a fresh row on the next start',
+      () async {
+        // The process attached after the previous run completed. Its session
+        // is still open, but there is no live run that owns it.
+        when(
+          () => sequencer.sequencerGetStatus(),
+        ).thenAnswer((_) async => _status('completed'));
 
-      await container.read(sessionStateProvider.notifier).startSession(targetName: 'First Target');
-      final first = container.read(sessionStateProvider).dbSessionId;
-      await load(
-        _wireSequence(name: 'Second Target', raHours: 20.0, decDegrees: 30.0),
-      );
-      expect((await start()).statusCode, 200);
-      final second = container.read(sessionStateProvider);
+        await container
+            .read(sessionStateProvider.notifier)
+            .startSession(targetName: 'First Target');
+        final first = container.read(sessionStateProvider).dbSessionId;
+        await load(
+          _wireSequence(name: 'Second Target', raHours: 20.0, decDegrees: 30.0),
+        );
+        expect((await start()).statusCode, 200);
+        final second = container.read(sessionStateProvider);
 
-      expect(second.dbSessionId, isNotNull);
-      expect(second.dbSessionId, isNot(first));
-      expect(second.targetName, 'Second Target');
-    });
+        expect(second.dbSessionId, isNotNull);
+        expect(second.dbSessionId, isNot(first));
+        expect(second.targetName, 'Second Target');
+      },
+    );
 
     test('a start refused as busy leaves the running session alone', () async {
       // The stale-session close must never fire against a live run. Here the

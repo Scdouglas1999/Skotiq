@@ -107,9 +107,8 @@ NightMountFacts watchNightMountFacts(WidgetRef ref, BuildContext context) {
   final mount = ref.watchWhileShown(context, mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
-  final caps = deviceId == null
-      ? null
-      : ref.watch(mountCapabilitiesProvider(deviceId));
+  final caps =
+      deviceId == null ? null : ref.watch(mountCapabilitiesProvider(deviceId));
   return NightMountFacts(
     mount: mount,
     inputs: ref.watch(nightActionInputsProvider),
@@ -209,14 +208,13 @@ class _FlipProgressSection extends ConsumerWidget {
       FlipExecutionState.failed => 'statusSequenceFailed',
       FlipExecutionState.aborted => 'nightPanelAfCancelled',
       FlipExecutionState.idle => throw StateError(
-        'idle flip has no progress section',
-      ),
+          'idle flip has no progress section',
+        ),
     };
     return NightPanelSection(
       title: l10n.text('nightCtlUpFlip'),
-      trailing: state == FlipExecutionState.executing
-          ? null
-          : l10n.text(status),
+      trailing:
+          state == FlipExecutionState.executing ? null : l10n.text(status),
       children: [
         if (state == FlipExecutionState.executing)
           NightPanelNote(l10n.text(status)),
@@ -284,31 +282,34 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final (status, statusTone) = !connected
         ? (l10n.text('nightScopeNotConnected'), null)
         : slewing
-        ? (
-            slew == null
-                ? l10n.text('nightScopeSlewing')
-                : l10n.text(
-                    'nightScopeSlewingRemaining',
-                    params: {
-                      'distance': formatSlewDistance(slew.remainingDegrees),
-                    },
-                  ),
-            MetricGridTone.warning,
-          )
-        : mount.isParked
-        ? (l10n.text('nightScopeParked'), null)
-        : mount.isTracking
-        ? (
-            switch (mount.trackingRate) {
-              null => l10n.text('nightScopeTrackingRateUnknown'),
-              final rate => l10n.text(
-                'nightScopeTrackingAt',
-                params: {'rate': l10n.text(_rateKey(rate))},
-              ),
-            },
-            MetricGridTone.good,
-          )
-        : (l10n.text('nightScopeNotTracking'), MetricGridTone.warning);
+            ? (
+                slew == null
+                    ? l10n.text('nightScopeSlewing')
+                    : l10n.text(
+                        'nightScopeSlewingRemaining',
+                        params: {
+                          'distance': formatSlewDistance(slew.remainingDegrees),
+                        },
+                      ),
+                MetricGridTone.warning,
+              )
+            : mount.isParked
+                ? (l10n.text('nightScopeParked'), null)
+                : mount.isTracking
+                    ? (
+                        switch (mount.trackingRate) {
+                          null => l10n.text('nightScopeTrackingRateUnknown'),
+                          final rate => l10n.text(
+                              'nightScopeTrackingAt',
+                              params: {'rate': l10n.text(_rateKey(rate))},
+                            ),
+                        },
+                        MetricGridTone.good,
+                      )
+                    : (
+                        l10n.text('nightScopeNotTracking'),
+                        MetricGridTone.warning
+                      );
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
@@ -358,10 +359,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
               value: countdown.onPostFlipSide && connected
                   ? l10n.text('nightScopeFlipNotNeeded')
                   : toFlip == null
-                  ? null
-                  : toFlip == Duration.zero
-                  ? l10n.text('nightScopeFlipPastDue')
-                  : formatCountdown(toFlip),
+                      ? null
+                      : toFlip == Duration.zero
+                          ? l10n.text('nightScopeFlipPastDue')
+                          : formatCountdown(toFlip),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSlewingLabel'),
@@ -398,15 +399,13 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   ) {
     final mount = facts.mount;
     final caps = facts.capabilities;
-    final selected =
-        facts.connected &&
+    final selected = facts.connected &&
         mount.isTracking &&
         !mount.isParked &&
         mount.trackingRate == rate;
     // A mount that does not offer the rate can still be started at it when
     // that is the rate it reports: the button then only starts tracking.
-    final offered =
-        caps != null &&
+    final offered = caps != null &&
         caps.canSetTrackingRate &&
         caps.supportedTrackingRates.contains(rate);
     String? reason = facts.baseReason(l10n);
@@ -452,9 +451,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       onPressed: reason != null || _busy != null
           ? null
           : () => _run(
-              id,
-              () => ref.read(mountCommandServiceProvider).setTracking(false),
-            ),
+                id,
+                () => ref.read(mountCommandServiceProvider).setTracking(false),
+              ),
     );
   }
 
@@ -489,12 +488,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
 }
 
 String _rateKey(TrackingRate rate) => switch (rate) {
-  TrackingRate.sidereal => 'nightScopeSidereal',
-  TrackingRate.lunar => 'nightScopeLunar',
-  TrackingRate.solar => 'nightScopeSolar',
-  TrackingRate.king => 'nightScopeKing',
-  TrackingRate.custom => 'nightScopeCustomRate',
-};
+      TrackingRate.sidereal => 'nightScopeSidereal',
+      TrackingRate.lunar => 'nightScopeLunar',
+      TrackingRate.solar => 'nightScopeSolar',
+      TrackingRate.king => 'nightScopeKing',
+      TrackingRate.custom => 'nightScopeCustomRate',
+    };
 
 String? _degrees(double? value) =>
     value == null || !value.isFinite ? null : '${value.toStringAsFixed(1)}°';

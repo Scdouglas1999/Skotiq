@@ -158,11 +158,12 @@ final _captureDiskSamplesProvider =
         ref.onDispose(stop);
         return controller.stream;
       },
-      linked: (_, host) => (ref) => _cancellablePollStream<DiskSpaceInfo?>(
-        ref: ref,
-        interval: const Duration(seconds: 10),
-        sample: host.files.getHostCaptureDiskSpace,
-      ),
+      linked: (_, host) =>
+          (ref) => _cancellablePollStream<DiskSpaceInfo?>(
+            ref: ref,
+            interval: const Duration(seconds: 10),
+            sample: host.files.getHostCaptureDiskSpace,
+          ),
     );
 
 /// The capture folder's free space as shown ("252 GiB"), or null before the

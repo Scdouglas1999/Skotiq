@@ -14,18 +14,19 @@ class _Science extends Mock implements ScienceBackend {}
 /// Grader, the settings under which the pipeline graded frames a second time.
 class _Settings extends ScienceSettingsNotifier {
   @override
-  Future<ScienceSettings> build() async => ScienceSettings.fromRows(const {
-    'image_grading_enabled': 'true',
-    'science.grading.rules_json': '{"maxGuidingRms":1.2,"maxHfr":3.2}',
-  }).copyWith(
-    frameQualityMapsEnabled: false,
-    photometricCalibrationEnabled: false,
-    transparencyEnabled: false,
-    psfMapEnabled: false,
-    astrometricResidualsEnabled: false,
-    photometryEnabled: false,
-    fitsHeaderWritebackEnabled: false,
-  );
+  Future<ScienceSettings> build() async =>
+      ScienceSettings.fromRows(const {
+        'image_grading_enabled': 'true',
+        'science.grading.rules_json': '{"maxGuidingRms":1.2,"maxHfr":3.2}',
+      }).copyWith(
+        frameQualityMapsEnabled: false,
+        photometricCalibrationEnabled: false,
+        transparencyEnabled: false,
+        psfMapEnabled: false,
+        astrometricResidualsEnabled: false,
+        photometryEnabled: false,
+        fitsHeaderWritebackEnabled: false,
+      );
 }
 
 void main() {

@@ -31,16 +31,16 @@ void main() {
 
     container.read(runtimeHostSessionProvider.notifier).state = 'A';
     container.read(eventHistoryProvider.notifier).addEvent(
-      bridge.SkotiqEvent(
-        eventId: BigInt.one,
-        timestamp: 1,
-        severity: bridge.EventSeverity.info,
-        category: bridge.EventCategory.system,
-        payload: const bridge.EventPayload.system(
-          bridge.SystemEvent.initialized(),
-        ),
-      ),
-    );
+          bridge.SkotiqEvent(
+            eventId: BigInt.one,
+            timestamp: 1,
+            severity: bridge.EventSeverity.info,
+            category: bridge.EventCategory.system,
+            payload: const bridge.EventPayload.system(
+              bridge.SystemEvent.initialized(),
+            ),
+          ),
+        );
     final when = DateTime.utc(2026, 10, 31, 22);
     // ignore: invalid_use_of_protected_member
     container.read(nightSessionEventsProvider.notifier).state =

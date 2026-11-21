@@ -107,9 +107,8 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
           size: ButtonSize.small,
         ),
         SkotiqButton(
-          onPressed: _isBusy || _sessions.isEmpty
-              ? null
-              : _confirmAndDiscardAll,
+          onPressed:
+              _isBusy || _sessions.isEmpty ? null : _confirmAndDiscardAll,
           isLoading: _discardingAll,
           label: 'Discard all',
           variant: ButtonVariant.destructive,

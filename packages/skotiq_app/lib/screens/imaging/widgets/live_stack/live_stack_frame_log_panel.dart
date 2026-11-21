@@ -42,9 +42,8 @@ class _LiveStackFrameLogPanelState
 
     final acceptedCount = baseEvents.where((e) => e.accepted).length;
     final rejectedCount = baseEvents.length - acceptedCount;
-    final acceptanceRate = baseEvents.isEmpty
-        ? null
-        : (acceptedCount / baseEvents.length * 100.0);
+    final acceptanceRate =
+        baseEvents.isEmpty ? null : (acceptedCount / baseEvents.length * 100.0);
 
     final filtered = baseEvents.where((e) {
       return switch (_filter) {
@@ -116,7 +115,8 @@ class _LiveStackFrameLogPanelState
               if (hasMultipleFilters && selectedKey != null) ...<Widget>[
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 SkotiqSwitchRow(
-                  label: 'Only ${liveStackFilterDisplayName(selectedKey)} filter',
+                  label:
+                      'Only ${liveStackFilterDisplayName(selectedKey)} filter',
                   value: _onlySelectedFilter,
                   onChanged: (v) => setState(() => _onlySelectedFilter = v),
                 ),
@@ -174,9 +174,8 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: 0.16)
-              : colors.well,
+          color:
+              selected ? colors.primary.withValues(alpha: 0.16) : colors.well,
           borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
           border: Border.all(
             color: selected

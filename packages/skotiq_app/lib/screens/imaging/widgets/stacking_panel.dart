@@ -1213,9 +1213,8 @@ class _PerFilterRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: 0.14)
-              : colors.well,
+          color:
+              selected ? colors.primary.withValues(alpha: 0.14) : colors.well,
           borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
           border: Border.all(
             color: selected

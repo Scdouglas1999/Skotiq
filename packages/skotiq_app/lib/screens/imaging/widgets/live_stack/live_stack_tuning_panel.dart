@@ -91,8 +91,8 @@ class LiveStackTuningPanel extends ConsumerWidget {
                   subtitle:
                       'Keep independent live stacks for L, R, G, B, Ha, OIII, SII',
                   value: config.separateByFilter,
-                  onChanged: (v) =>
-                      notifier.updateConfig(config.copyWith(separateByFilter: v)),
+                  onChanged: (v) => notifier
+                      .updateConfig(config.copyWith(separateByFilter: v)),
                 ),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqSwitchRow(
@@ -100,8 +100,8 @@ class LiveStackTuningPanel extends ConsumerWidget {
                   subtitle:
                       'Automatically stack new manual and sequenced light frames',
                   value: config.autoFeedEnabled,
-                  onChanged: (v) =>
-                      notifier.updateConfig(config.copyWith(autoFeedEnabled: v)),
+                  onChanged: (v) => notifier
+                      .updateConfig(config.copyWith(autoFeedEnabled: v)),
                 ),
               ],
             ),
@@ -115,7 +115,8 @@ class LiveStackTuningPanel extends ConsumerWidget {
               children: <Widget>[
                 SkotiqSwitchRow(
                   label: 'Reject high-HFR subs',
-                  subtitle: 'Skip blurry or poorly focused frames before alignment',
+                  subtitle:
+                      'Skip blurry or poorly focused frames before alignment',
                   value: config.maxHfrPx != null,
                   onChanged: (enabled) => notifier.updateConfig(
                     enabled
@@ -237,9 +238,8 @@ class _PresetChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: 0.16)
-              : colors.well,
+          color:
+              selected ? colors.primary.withValues(alpha: 0.16) : colors.well,
           borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
           border: Border.all(
             color: selected

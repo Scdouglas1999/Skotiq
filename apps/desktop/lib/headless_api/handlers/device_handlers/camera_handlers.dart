@@ -188,8 +188,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
     if (container.read(flatWizardProvider.notifier).isBusy) {
       throw HandlerFailure(
         code: 'rig_busy',
-        message:
-            'Finish or cancel the active flat capture before exposing.',
+        message: 'Finish or cancel the active flat capture before exposing.',
         statusCode: HttpStatus.conflict,
       );
     }

@@ -1161,14 +1161,18 @@ void main() {
       // has the row at 5 arcseconds. The migration marker and the defaults
       // changed on purpose are the other rows a base install did not have.
       expect(rows['centering_tolerance_arcsec'], '5.0');
-      expect({
-        for (final entry in rows.entries)
-          if (entry.key != 'centering_tolerance_arcsec') entry.key: entry.value,
-      }, {
-        ...(fixture['install rows'] as Map).cast<String, String>(),
-        ..._installRowsChangedOnPurpose,
-        ..._installRowsAddedSinceBase,
-      });
+      expect(
+        {
+          for (final entry in rows.entries)
+            if (entry.key != 'centering_tolerance_arcsec')
+              entry.key: entry.value,
+        },
+        {
+          ...(fixture['install rows'] as Map).cast<String, String>(),
+          ..._installRowsChangedOnPurpose,
+          ..._installRowsAddedSinceBase,
+        },
+      );
     }
   });
 

@@ -26,10 +26,7 @@ class EnvironmentForecastChannel extends EnvironmentChannel {
     final encoded = super.encodeCurrent(container);
     if (encoded == null) return null;
     final forecast = container.read(cloudCoverPercentageProvider).valueOrNull;
-    return {
-      ...encoded,
-      'forecastCloudCover': finiteOrNull(forecast),
-    };
+    return {...encoded, 'forecastCloudCover': finiteOrNull(forecast)};
   }
 
   @override

@@ -66,7 +66,6 @@ void main() {
     },
   );
 
-
   test('valid thresholds and cleared optional checks survive reload', () async {
     final notifier = container.read(appSettingsProvider.notifier);
     await notifier.setImageGradingHfrThreshold(4.25);

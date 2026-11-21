@@ -107,8 +107,8 @@ void main() {
     () {
       final plan = TwoTargetPlan().sequence;
       final lNode = plan.nodes.values.whereType<ExposureNode>().firstWhere(
-        (node) => node.filter == 'L',
-      );
+            (node) => node.filter == 'L',
+          );
       final restored = CheckpointInfo(
         sequenceName: plan.name,
         timestamp: bostonTime(2026, 10, 19, 19),

@@ -70,8 +70,8 @@ class NightCameraExposure {
 /// The camera's exposure in flight; null when it is not exposing.
 final nightCameraExposureProvider =
     StateNotifierProvider<NightCameraExposureNotifier, NightCameraExposure?>(
-      NightCameraExposureNotifier.new,
-    );
+  NightCameraExposureNotifier.new,
+);
 
 class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
   NightCameraExposureNotifier(this._ref) : super(null) {
@@ -135,18 +135,18 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
     if (payload is! sk_events.EventPayload_Imaging) return;
     switch (payload.field0) {
       case sk_events.ImagingEvent_ExposureStarted(durationSecs: final total) ||
-          sk_events.ImagingEvent_ExposureStartedWithFrame(
-            durationSecs: final total,
-          ):
+            sk_events.ImagingEvent_ExposureStartedWithFrame(
+              durationSecs: final total,
+            ):
         if (total <= 0) {
           state = null;
           return;
         }
         state = NightCameraExposure(startedAt: _now(), total: total);
       case sk_events.ImagingEvent_ExposureProgress(
-        remainingSecs: final remaining,
-        progress: final progress,
-      ):
+          remainingSecs: final remaining,
+          progress: final progress,
+        ):
         final current = state;
         if (!remaining.isFinite || remaining < 0) return;
         final now = _now();
@@ -180,11 +180,11 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
           reportedAt: now,
         );
       case sk_events.ImagingEvent_ExposureComplete() ||
-          sk_events.ImagingEvent_ExposureCompleted() ||
-          sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
-          sk_events.ImagingEvent_ExposureCancelled() ||
-          sk_events.ImagingEvent_ExposureFailed() ||
-          sk_events.ImagingEvent_ExposureFailedOld():
+            sk_events.ImagingEvent_ExposureCompleted() ||
+            sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
+            sk_events.ImagingEvent_ExposureCancelled() ||
+            sk_events.ImagingEvent_ExposureFailed() ||
+            sk_events.ImagingEvent_ExposureFailedOld():
         state = null;
       default:
     }

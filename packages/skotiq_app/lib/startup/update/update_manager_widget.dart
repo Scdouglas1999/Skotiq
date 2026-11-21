@@ -64,7 +64,8 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   void initState() {
     super.initState();
     // An update staged by an earlier run, downloaded or pushed.
-    _stagedCheckTimer = Timer(const Duration(seconds: 1), _checkForStagedUpdate);
+    _stagedCheckTimer =
+        Timer(const Duration(seconds: 1), _checkForStagedUpdate);
 
     // Check for updates on startup after a short delay
     _updateCheckTimer = Timer(const Duration(seconds: 3), _checkForUpdates);

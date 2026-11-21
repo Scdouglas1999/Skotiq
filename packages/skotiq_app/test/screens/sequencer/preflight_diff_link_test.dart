@@ -65,8 +65,7 @@ class _FakeSequenceRepository implements SequenceRepository {
 
   @override
   Future<SequenceRunDiffContext> loadRunDiffContext(int runId) async {
-    final json =
-        snapshotJson ??
+    final json = snapshotJson ??
         jsonEncode(SequenceFileService().sequenceToMap(sequence));
     return SequenceRunDiffContext(
       sequenceId: sequence.databaseId,
@@ -308,7 +307,8 @@ void main() {
       appSettingsProvider.overrideWith(() => _FakeAppSettingsNotifier()),
     ]);
     addTearDown(container.dispose);
-    await tester.pumpWidget(_wrap(container, const PreFlightValidationDialog()));
+    await tester
+        .pumpWidget(_wrap(container, const PreFlightValidationDialog()));
     await tester.pumpAndSettle();
   }
 

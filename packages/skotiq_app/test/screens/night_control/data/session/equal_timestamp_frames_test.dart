@@ -35,11 +35,9 @@ void main() {
     addTearDown(container.dispose);
     final sub = container.listen(sessionImageRowsProvider(7), (_, __) {});
     addTearDown(sub.close);
-    for (
-      var i = 0;
-      i < 50 && !container.read(sessionImageRowsProvider(7)).hasValue;
-      i++
-    ) {
+    for (var i = 0;
+        i < 50 && !container.read(sessionImageRowsProvider(7)).hasValue;
+        i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     final lights = container.read(sessionImageRowsProvider(7)).requireValue;
@@ -49,17 +47,17 @@ void main() {
 }
 
 Map<String, dynamic> _row(int id, int at) => {
-  'id': id,
-  'filePath': '/frame$id.fits',
-  'fileName': 'frame$id.fits',
-  'fileFormat': 'fits',
-  'frameType': 'light',
-  'exposureDuration': 60,
-  'binX': 1,
-  'binY': 1,
-  'sessionId': 7,
-  'capturedAt': at,
-  'createdAt': at,
-  'isAccepted': true,
-  'isPlateSolved': false,
-};
+      'id': id,
+      'filePath': '/frame$id.fits',
+      'fileName': 'frame$id.fits',
+      'fileFormat': 'fits',
+      'frameType': 'light',
+      'exposureDuration': 60,
+      'binX': 1,
+      'binY': 1,
+      'sessionId': 7,
+      'capturedAt': at,
+      'createdAt': at,
+      'isAccepted': true,
+      'isPlateSolved': false,
+    };

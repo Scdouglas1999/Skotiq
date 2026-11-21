@@ -211,11 +211,7 @@ void main() {
       fake.setResponse(
         '/api/images/10',
         body: jsonEncode({
-          'image': {
-            ..._imageRow(10),
-            'isPlateSolved': false,
-            'solvedRa': 1.25,
-          },
+          'image': {..._imageRow(10), 'isPlateSolved': false, 'solvedRa': 1.25},
         }),
       );
       final container = ProviderContainer(
@@ -233,7 +229,9 @@ void main() {
       expect(solved.solvedRaHours, 5.5);
       expect(solved.solvedDecDegrees, 24.1);
 
-      final unsolved = await container.read(capturedImageWcsProvider(10).future);
+      final unsolved = await container.read(
+        capturedImageWcsProvider(10).future,
+      );
       expect(unsolved, isNotNull);
       expect(unsolved!.solvedRaHours, 1.25);
       expect(unsolved.cd1_1, isNull);
@@ -242,7 +240,11 @@ void main() {
       expect(unsolved.cd2_2, isNull);
       expect(unsolved.sip, isNull);
 
-      fake.setResponse('/api/images/11', status: 404, body: '{"error":"missing"}');
+      fake.setResponse(
+        '/api/images/11',
+        status: 404,
+        body: '{"error":"missing"}',
+      );
       expect(await repository.getStoredWcsDistortion(11), isNull);
     });
 

@@ -146,16 +146,16 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
     final blocked = nightCameraBlockedReason(vm, l10n);
     final (String stateKey, MetricGridTone? tone) = switch (vm.coolerState) {
       NightCoolerState.notConnected => (
-        'nightPanelCoolerNotConnected',
-        MetricGridTone.warning,
-      ),
+          'nightPanelCoolerNotConnected',
+          MetricGridTone.warning,
+        ),
       NightCoolerState.notReported => ('nightPanelCoolerNotReported', null),
       NightCoolerState.off => ('nightPanelCoolerOff', null),
       NightCoolerState.cooling => ('nightPanelCoolerCooling', null),
       NightCoolerState.atSetpoint => (
-        'nightPanelCoolerAtSetpoint',
-        MetricGridTone.good,
-      ),
+          'nightPanelCoolerAtSetpoint',
+          MetricGridTone.good,
+        ),
       NightCoolerState.warming => ('nightPanelCoolerWarming', null),
     };
     final title = vm.deviceName == null
@@ -164,8 +164,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
             'nightPanelCoolerNamed',
             params: <String, String>{'name': vm.deviceName!},
           );
-    final warmReason =
-        blocked ??
+    final warmReason = blocked ??
         switch (vm.coolerState) {
           NightCoolerState.warming => l10n.text('nightPanelCoolerWarming'),
           NightCoolerState.off => l10n.text('nightPanelWhyCoolerOff'),
@@ -190,9 +189,8 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
             ),
             MetricGridItem(
               label: l10n.text('nightPanelPower'),
-              value: vm.coolerPower == null
-                  ? null
-                  : '${vm.coolerPower!.round()}%',
+              value:
+                  vm.coolerPower == null ? null : '${vm.coolerPower!.round()}%',
             ),
           ],
         ),
@@ -233,10 +231,10 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
                 disabledReason: warmReason,
                 onPressed: warmReason == null
                     ? () => nightPanelAttempt(
-                        context,
-                        'nightPanelErrCooler',
-                        () => ref.read(nightPanelOpsProvider).warmUpCamera(),
-                      )
+                          context,
+                          'nightPanelErrCooler',
+                          () => ref.read(nightPanelOpsProvider).warmUpCamera(),
+                        )
                     : null,
               ),
             ),
@@ -249,10 +247,10 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
                 disabledReason: blocked,
                 onPressed: blocked == null
                     ? () => nightPanelAttempt(
-                        context,
-                        'nightPanelErrCooler',
-                        () => ref.read(nightPanelOpsProvider).coolerOff(),
-                      )
+                          context,
+                          'nightPanelErrCooler',
+                          () => ref.read(nightPanelOpsProvider).coolerOff(),
+                        )
                     : null,
               ),
             ),
@@ -407,9 +405,8 @@ class NightFilterSection extends ConsumerWidget {
             children: <Widget>[
               for (var i = 0; i < count; i++)
                 NightPanelButton(
-                  label: filters.names[i].isEmpty
-                      ? '${i + 1}'
-                      : filters.names[i],
+                  label:
+                      filters.names[i].isEmpty ? '${i + 1}' : filters.names[i],
                   semanticLabel: l10n.text(
                     'nightPanelFilterSlotSemantics',
                     params: <String, String>{
@@ -423,11 +420,12 @@ class NightFilterSection extends ConsumerWidget {
                   disabledReason: blocked,
                   onPressed: blocked == null && i != current
                       ? () => nightPanelAttempt(
-                          context,
-                          'nightPanelErrFilter',
-                          () =>
-                              ref.read(nightPanelOpsProvider).setFilterSlot(i),
-                        )
+                            context,
+                            'nightPanelErrFilter',
+                            () => ref
+                                .read(nightPanelOpsProvider)
+                                .setFilterSlot(i),
+                          )
                       : null,
                 ),
             ],
@@ -454,17 +452,17 @@ class NightReadoutSection extends StatelessWidget {
     final String? disk = free == null
         ? null
         : nights == null
-        ? l10n.text(
-            'nightPanelDiskFree',
-            params: <String, String>{'free': ByteFormat.size(free)},
-          )
-        : l10n.text(
-            'nightPanelDiskFreeNights',
-            params: <String, String>{
-              'free': ByteFormat.size(free),
-              'nights': '$nights',
-            },
-          );
+            ? l10n.text(
+                'nightPanelDiskFree',
+                params: <String, String>{'free': ByteFormat.size(free)},
+              )
+            : l10n.text(
+                'nightPanelDiskFreeNights',
+                params: <String, String>{
+                  'free': ByteFormat.size(free),
+                  'nights': '$nights',
+                },
+              );
     return NightPanelSection(
       title: l10n.text('nightPanelReadout'),
       divider: false,

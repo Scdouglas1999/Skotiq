@@ -165,6 +165,7 @@ Map<String, String> _installRowsWithChangedDefaults(Map<String, String> rows) {
   }
   return rows;
 }
+
 /// [changes] without a change to a value that is now the default: the base
 /// build read it as a change from its own default.
 Map<String, dynamic> _withoutNewDefaults(Map<String, dynamic> changes) => {

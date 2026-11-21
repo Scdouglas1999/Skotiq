@@ -650,7 +650,8 @@ void main() {
       surfaceBox.size.width < frameWidth ||
           surfaceBox.size.height < frameHeight,
       isTrue,
-      reason: 'the pane has to be smaller than the frame, was ${surfaceBox.size}',
+      reason:
+          'the pane has to be smaller than the frame, was ${surfaceBox.size}',
     );
     final allowed =
         (surfaceBox.localToGlobal(Offset.zero) & surfaceBox.size).inflate(0.1);
@@ -668,7 +669,8 @@ void main() {
     );
     expect(allowed.contains(painter.localToGlobal(Offset.zero)), isTrue);
     expect(
-      allowed.contains(painter.localToGlobal(const Offset(frameWidth, frameHeight))),
+      allowed.contains(
+          painter.localToGlobal(const Offset(frameWidth, frameHeight))),
       isTrue,
     );
     await drain(tester);

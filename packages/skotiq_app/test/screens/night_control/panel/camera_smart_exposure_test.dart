@@ -54,15 +54,16 @@ void main() {
     if (wheelPosition != null) {
       container.read(filterWheelStateProvider.notifier).state =
           FilterWheelState(
-            connectionState: DeviceConnectionState.connected,
-            filterNames: const ['L', 'Ha'],
-            currentPosition: wheelPosition,
-          );
+        connectionState: DeviceConnectionState.connected,
+        filterNames: const ['L', 'Ha'],
+        currentPosition: wheelPosition,
+      );
     }
     return container.read(nightCameraPanelProvider).step;
   }
 
-  test('the camera panel shows the Smart Exposure plan for the live filter', () {
+  test('the camera panel shows the Smart Exposure plan for the live filter',
+      () {
     final ha = step(const SequenceProgress(
       currentNodeId: 'smart',
       currentFilter: 'Ha',

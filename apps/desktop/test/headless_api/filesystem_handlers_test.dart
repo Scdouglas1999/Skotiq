@@ -126,26 +126,29 @@ void main() {
       },
     );
 
-    test('browse reports missing directory inside configured root as JSON not found', () async {
-      final missingPath =
-          '${envBrowseRoot.path}${Platform.pathSeparator}skotiq_missing_child';
+    test(
+      'browse reports missing directory inside configured root as JSON not found',
+      () async {
+        final missingPath =
+            '${envBrowseRoot.path}${Platform.pathSeparator}skotiq_missing_child';
 
-      final response = await translateHandlerErrors(
-        handlers.handleBrowseDirectories(
-          Request(
-            'GET',
-            Uri.parse(
-              'http://localhost/api/files/browse?path=${Uri.encodeQueryComponent(missingPath)}',
+        final response = await translateHandlerErrors(
+          handlers.handleBrowseDirectories(
+            Request(
+              'GET',
+              Uri.parse(
+                'http://localhost/api/files/browse?path=${Uri.encodeQueryComponent(missingPath)}',
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(response.statusCode, HttpStatus.notFound);
-      expect(response.headers['content-type'], 'application/json');
-      final body = jsonDecode(await response.readAsString()) as Map;
-      expect(body['error'], 'Directory not found');
-    });
+        expect(response.statusCode, HttpStatus.notFound);
+        expect(response.headers['content-type'], 'application/json');
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['error'], 'Directory not found');
+      },
+    );
 
     test(
       'browse rejects missing directories outside configured roots without leaking existence',

@@ -177,34 +177,38 @@ void main() {
       verifyNever(() => backend.getHostRuntimeState());
     });
 
-    test('a finished run clears the linked countdown without a camera end',
-        () async {
-      final backend = _MockNetworkBackend();
-      when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
-      when(
-        () => backend.connectionState,
-      ).thenReturn(BackendConnectionState.error);
-      final container = ProviderContainer(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          backendProvider.overrideWith(
-            (ref) => _FixedBackendNotifier(ref, backend),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      container.listen(remoteSessionSyncProvider, (_, __) {});
-      final runs = container.read(runRecordProvider.notifier);
-      runs.setLifecycle(SequenceExecutionState.running);
-      container.read(cameraStateProvider.notifier).setExposing(true);
-      container.read(exposureProgressProvider.notifier).show(
-            const ExposureProgress(elapsed: 8, remaining: 42, percent: 16),
-          );
+    test(
+      'a finished run clears the linked countdown without a camera end',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.error);
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.listen(remoteSessionSyncProvider, (_, __) {});
+        final runs = container.read(runRecordProvider.notifier);
+        runs.setLifecycle(SequenceExecutionState.running);
+        container.read(cameraStateProvider.notifier).setExposing(true);
+        container
+            .read(exposureProgressProvider.notifier)
+            .show(
+              const ExposureProgress(elapsed: 8, remaining: 42, percent: 16),
+            );
 
-      runs.setLifecycle(SequenceExecutionState.idle);
+        runs.setLifecycle(SequenceExecutionState.idle);
 
-      expect(container.read(cameraStateProvider).isExposing, isFalse);
-      expect(container.read(exposureProgressProvider).remaining, 0);
-    });
+        expect(container.read(cameraStateProvider).isExposing, isFalse);
+        expect(container.read(exposureProgressProvider).remaining, 0);
+      },
+    );
   });
 }
