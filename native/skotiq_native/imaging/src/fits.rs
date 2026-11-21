@@ -28,9 +28,10 @@
 use crate::BayerPattern;
 use crate::{ColorFilterArray, ImageData, PixelType};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A FITS file is a whole number of 2880-byte records; header and data are each
 /// padded out to one (FITS 3.1).
@@ -954,7 +955,8 @@ fn is_valid_keyword(keyword: &str) -> bool {
         })
 }
 
-/// Write a FITS file to disk.
+/// Write and flush a sibling scratch file before atomically publishing the FITS.
+/// A failed write leaves an existing destination intact and removes the scratch.
 ///
 /// Why: this writer enforces three FITS-spec invariants that the prior version
 /// violated:
@@ -964,9 +966,99 @@ fn is_valid_keyword(keyword: &str) -> bool {
 ///  * COMMENT/HISTORY cards are emitted without an `=` separator and free-form
 ///    text in columns 9..80; they are NOT routed through the value-card writer.
 pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result<(), FitsError> {
-    let file = File::create(path)?;
+    let permissions = match std::fs::metadata(path) {
+        Ok(metadata) => {
+            let permissions = metadata.permissions();
+            if permissions.readonly() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "FITS destination is read-only",
+                )
+                .into());
+            }
+            Some(permissions)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error.into()),
+    };
+    let (mut scratch, file) = FitsScratch::create(path)?;
+    if let Some(permissions) = permissions {
+        file.set_permissions(permissions)?;
+    }
     let mut writer = BufWriter::new(file);
+    write_fits_to(&mut writer, image, header)?;
+    writer.get_ref().sync_all()?;
+    drop(writer);
+    std::fs::rename(&scratch.path, path)?;
+    scratch.published = true;
+    Ok(())
+}
 
+struct FitsScratch {
+    path: PathBuf,
+    published: bool,
+}
+
+impl FitsScratch {
+    fn create(destination: &Path) -> std::io::Result<(Self, File)> {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        let name = destination.file_name().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "Missing FITS filename")
+        })?;
+        for _ in 0..100 {
+            let mut scratch_name = std::ffi::OsString::from(".");
+            scratch_name.push(name);
+            scratch_name.push(format!(
+                ".skotiq-{}-{}.tmp",
+                std::process::id(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            let path = destination.with_file_name(scratch_name);
+            match OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(file) => {
+                    return Ok((
+                        Self {
+                            path,
+                            published: false,
+                        },
+                        file,
+                    ));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error),
+            }
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "Could not reserve a FITS scratch file",
+        ))
+    }
+}
+
+impl Drop for FitsScratch {
+    fn drop(&mut self) {
+        if !self.published {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+fn write_fits_to(
+    mut writer: &mut (impl Write + Seek),
+    image: &ImageData,
+    header: &FitsHeader,
+) -> Result<(), FitsError> {
+    let needed = image.pixel_count().saturating_mul(image.bytes_per_pixel());
+    if image.data.len() < needed {
+        return Err(FitsError::InvalidFormat(format!(
+            "image is {} bytes and a {}x{}x{} {} frame needs {needed}",
+            image.data.len(),
+            image.width,
+            image.height,
+            image.channels,
+            image.pixel_type.byte_size() * 8,
+        )));
+    }
     let bitpix: i32 = match image.pixel_type {
         PixelType::U8 => 8,
         PixelType::U16 => 16,
@@ -3570,6 +3662,67 @@ mod tests {
             sentence.contains('A') && sentence.contains('B'),
             "the printable bytes are shown as themselves: {sentence}"
         );
+    }
+
+    #[test]
+    fn failed_fits_write_preserves_existing_file_and_removes_scratch() {
+        let dir = std::env::temp_dir().join(format!("sk_fits_atomic_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("frame.fits");
+        let image = ImageData::from_u16(2, 1, 1, &[100, 200]);
+        write_fits(&path, &image, &FitsHeader::new()).unwrap();
+        let original = std::fs::read(&path).unwrap();
+        let mut short = image.clone();
+        short.data.truncate(2);
+        assert!(write_fits(&path, &short, &FitsHeader::new()).is_err());
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            original,
+            "existing FITS changed"
+        );
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn failed_fits_write_does_not_publish_a_new_file() {
+        let dir = std::env::temp_dir().join(format!("sk_fits_new_atomic_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut short = ImageData::from_u16(2, 1, 1, &[100, 200]);
+        short.data.truncate(2);
+        assert!(write_fits(&dir.join("new.fits"), &short, &FitsHeader::new()).is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn successful_fits_replacement_is_complete() {
+        let dir = std::env::temp_dir().join(format!("sk_fits_replace_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("frame.fits");
+        write_fits(
+            &path,
+            &ImageData::from_u16(2, 1, 1, &[1, 2]),
+            &FitsHeader::new(),
+        )
+        .unwrap();
+        let replacement = ImageData::from_u16(2, 1, 1, &[300, 400]);
+        write_fits(&path, &replacement, &FitsHeader::new()).unwrap();
+        assert_eq!(read_fits(&path).unwrap().0.data, replacement.data);
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn failed_fits_publish_removes_scratch() {
+        let dir = std::env::temp_dir().join(format!("sk_fits_publish_{}", std::process::id()));
+        let destination = dir.join("directory.fits");
+        std::fs::create_dir_all(&destination).unwrap();
+        let image = ImageData::from_u16(2, 1, 1, &[100, 200]);
+        assert!(write_fits(&destination, &image, &FitsHeader::new()).is_err());
+        assert!(destination.is_dir());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
