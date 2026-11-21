@@ -1512,19 +1512,50 @@ mod tests {
     }
 
     #[test]
-    fn small_roi_under_30px_does_not_panic_during_star_masking() {
-        // Previously `max_r = (width.min(height) as f64) * 0.1` fell below 3.0
-        // for frames smaller than 30 px, causing `.clamp(3.0, max_r)` to panic
-        // whenever a bright pixel existed in the ROI.
-        let (w, h) = (16usize, 16usize);
-        let mut data = vec![1000u16; w * h];
-        data[8 * w + 8] = 60000;
-        let image = ImageData::from_u16(w as u32, h as u32, 1, &data);
+    fn small_roi_under_30px_clamps_star_mask_radius() {
+        // `max_r = (min_side) * 0.1` is 2.4 on a 24 px frame, and
+        // `(3 * hfr).clamp(3.0, max_r)` panics whenever a star is actually
+        // found. A single saturated sample is deleted as a hot pixel, so the
+        // clamp never runs; this star is a resolved Gaussian (sigma 1.35).
+        // The fixed cap is `max(2.4, 3.0) = 3`, and 3 * HFR of this star is
+        // above 3, so every mask radius comes back exactly 3.
+        let (w, h) = (24usize, 24usize);
+        let sky = 1800.0;
+        let mut plane = vec![sky; w * h];
+        add_star(&mut plane, w, h, 12.0, 12.0, 9000.0, 1.35);
+        let mut state = 0x1234_5678u64;
+        for p in &mut plane {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let u = ((state >> 33) as f64) / (1u64 << 31) as f64 - 0.5;
+            *p += 6.0 * u;
+        }
+        let image = frame_from_plane(&plane, w, h);
+        let centres = detect_star_centres(&image, &image.planes_f64(), w, h);
+        assert!(
+            !centres.is_empty(),
+            "the Gaussian must be detected, otherwise the radius clamp is not evaluated"
+        );
+        for star in &centres {
+            assert!(
+                (star.radius - 3.0).abs() < 1e-9,
+                "24 px frame must clamp the mask radius to 3, got {}",
+                star.radius
+            );
+        }
         let cfg = BackgroundConfig {
             poly_degree: 1,
             grid: 4,
+            sample_box: 3,
+            preserve_mean: true,
             ..BackgroundConfig::default()
         };
-        let _ = extract_background(&image, &cfg);
+        let model = extract_background(&image, &cfg).expect("masking must not panic");
+        let corner = model.evaluate(1.0, 1.0, 0);
+        assert!(
+            (corner - sky).abs() < 80.0,
+            "star-masked fit must stay on the sky pedestal {sky}, got {corner}"
+        );
     }
 }
