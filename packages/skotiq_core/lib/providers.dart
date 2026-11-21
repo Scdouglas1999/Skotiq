@@ -80,6 +80,7 @@ export 'src/providers/runtime_mirror/channels/auxiliary_device_channels.dart';
 export 'src/providers/runtime_mirror/channels/centering_channels.dart';
 export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
 export 'src/providers/runtime_mirror/channels/end_of_night_channel.dart';
+export 'src/providers/runtime_mirror/channels/flat_wizard_channel.dart';
 export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
 export 'src/providers/runtime_mirror/channels/device_slot_channel.dart';
 export 'src/providers/runtime_mirror/channels/environment_channel.dart';

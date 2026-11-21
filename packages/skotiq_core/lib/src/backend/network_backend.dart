@@ -137,6 +137,7 @@ part 'network_backend/host_backups.dart';
 part 'network_backend/host_profiles.dart';
 part 'network_backend/host_focus_models.dart';
 part 'network_backend/host_files.dart';
+part 'network_backend/host_flat_wizard.dart';
 part 'network_backend/host_device_control.dart';
 part 'network_backend/host_imaging_records.dart';
 part 'network_backend/host_calibration_tools.dart';
@@ -603,6 +604,7 @@ class NetworkBackend extends NetworkBackendTransport
         HostControlSession,
         HostDeviceControl,
         HostFiles,
+        HostFlatWizard,
         HostFocusModels,
         HostHistory,
         HostImagingRecords,

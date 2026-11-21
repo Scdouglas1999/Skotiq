@@ -10,6 +10,7 @@ import 'channels/end_of_night_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/device_slot_channel.dart';
 import 'channels/environment_channel.dart';
+import 'channels/flat_wizard_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
@@ -47,6 +48,7 @@ final runtimeMirrorChannelsProvider =
         const CenteringResultChannel(),
         const AutofocusResultChannel(),
         const AutofocusRunChannel(),
+        const FlatWizardChannel(),
         const CurrentFrameChannel(),
         const FrameSolveChannel(),
         const EnvironmentChannel(),

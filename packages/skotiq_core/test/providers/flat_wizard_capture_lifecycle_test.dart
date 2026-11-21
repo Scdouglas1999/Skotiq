@@ -599,6 +599,11 @@ void main() {
 
       await notifier.runCapture();
 
+      // The host saved the frames. This process posts the draft and mirrors
+      // the output; it does not expose or write the files itself.
+      expect(backend.startBodies, hasLength(1));
+      expect(backend.exposureStarts, 0);
+      expect(backend.savedPaths, isEmpty);
       final output = container.read(flatRunOutputProvider);
       expect(output.remote, isTrue);
       expect(output.filters['L']!.paths, hasLength(2));
@@ -606,7 +611,7 @@ void main() {
     },
   );
 
-  test('remote backend routes history to the master via recordFlat', () async {
+  test('a linked client does not write flat history or expose', () async {
     final backend = _AutoNetworkBackend();
     addTearDown(backend.dispose);
 
@@ -617,11 +622,10 @@ void main() {
 
     await notifier.runCapture();
 
-    // Remote routing: the master's recordFlat is called once; the LOCAL slave
-    // DAO is never written (the master owns the flat library).
-    expect(backend.recordFlatCalls, hasLength(1));
-    expect(backend.recordFlatCalls.single.filter, 'L');
-    expect(backend.recordFlatCalls.single.adu, isPositive);
+    expect(backend.startBodies, hasLength(1));
+    expect(backend.exposureStarts, 0);
+    expect(backend.recordFlatCalls, isEmpty);
+    expect(backend.savedPaths, isEmpty);
     final local = await db.flatHistoryDao.getRecentCalibrations(
       filterName: 'L',
     );
@@ -630,12 +634,6 @@ void main() {
       isEmpty,
       reason: 'a remote session must not write to the local slave DB',
     );
-    expect(
-      container.read(flatWizardProvider).filterSettings[0].status,
-      FilterCalibrationStatus.complete,
-    );
-    // Path behaviour is preserved (frames were routed to the save path).
-    expect(backend.savedPaths, hasLength(2));
   });
 }
 
@@ -774,7 +772,31 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
       StreamController<SkotiqEvent>.broadcast();
   final List<String> savedPaths = [];
   final List<_RecordFlatCall> recordFlatCalls = [];
+  final List<Map<String, dynamic>> startBodies = [];
+  int exposureStarts = 0;
   int _seq = 0;
+
+  @override
+  Future<Map<String, dynamic>> startFlatWizardRun(
+    Map<String, dynamic> draft,
+  ) async {
+    startBodies.add(draft);
+    return {
+      'state': draft,
+      'busy': false,
+      'output': {
+        'L': {
+          'filter': 'L',
+          'exposureSeconds': 1.0,
+          'paths': ['C:/flats/1.fits', 'C:/flats/2.fits'],
+          'gain': 0,
+          'offset': 0,
+          'binX': 1,
+          'binY': 1,
+        },
+      },
+    };
+  }
 
   @override
   void dispose() {
@@ -830,6 +852,7 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
     int? width,
     int? height,
   }) async {
+    exposureStarts++;
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
