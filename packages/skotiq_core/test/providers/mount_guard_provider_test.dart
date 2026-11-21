@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -13,6 +14,23 @@ class _SwappableBackendNotifier extends BackendNotifier {
   }
 
   void switchTo(SkotiqBackend backend) => state = backend;
+}
+
+class _RecordingMountGuard extends MountGuardNotifier {
+  final appliedAfterDispose = <List<MountGuardEntry>>[];
+  var _disposed = false;
+
+  @override
+  List<MountGuardEntry> build() {
+    ref.onDispose(() => _disposed = true);
+    return super.build();
+  }
+
+  @override
+  set state(List<MountGuardEntry> value) {
+    if (_disposed) appliedAfterDispose.add(value);
+    super.state = value;
+  }
 }
 
 class _FakeMountGuardBackend extends DisconnectedBackend
@@ -112,25 +130,45 @@ void main() {
     );
 
     test(
-      'disposing container while mountGuardState is in flight does not throw',
+      'a guard read that finishes after dispose is not applied and is not logged as a failed read',
       () async {
+        final records = <LogRecord>[];
+        final subscription = Logger('MountGuard').onRecord.listen(records.add);
+        addTearDown(subscription.cancel);
+
         final gate = Completer<List<MountGuardEntry>>();
-        final host = _FakeMountGuardBackend(() => gate.future);
+        var reads = 0;
+        final host = _FakeMountGuardBackend(() {
+          reads++;
+          return gate.future;
+        });
         addTearDown(host.dispose);
+        final guard = _RecordingMountGuard();
 
         final container = ProviderContainer(
           overrides: [
             backendProvider.overrideWith(
               (ref) => _SwappableBackendNotifier(ref, host),
             ),
+            mountGuardProvider.overrideWith(() => guard),
           ],
         );
         container.read(mountGuardProvider);
         await Future<void>.delayed(Duration.zero);
+        expect(reads, 1);
 
         container.dispose();
-        gate.complete(const [MountGuardEntry(deviceId: 'mount-1')]);
+        gate.complete(const [
+          MountGuardEntry(deviceId: 'mount-late', blockReason: 'after-dispose'),
+        ]);
         await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(guard.appliedAfterDispose, isEmpty);
+        expect(reads, 1, reason: 'a disposed guard does not poll again');
+        expect(
+          records.where((r) => r.message.contains('Mount guard read failed')),
+          isEmpty,
+        );
       },
     );
   });

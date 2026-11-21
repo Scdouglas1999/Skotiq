@@ -189,13 +189,12 @@ final class RemoteHost {
   })();
 
   /// A new instance per call: the caller keeps it for as long as it wants
-  /// that [pollInterval].
-  ScienceProducts scienceProducts({
+  /// that [pollInterval] and disposes it. The host does not register a
+  /// callback, so a rebuilt provider does not leave the previous poll attached
+  /// until this backend itself is disposed.
+  RemoteScienceProducts scienceProducts({
     Duration pollInterval = HostPoll.defaultInterval,
-  }) {
-    final role = RemoteScienceProducts(_backend, pollInterval: pollInterval);
-    return _trackDisposable(role, role.dispose);
-  }
+  }) => RemoteScienceProducts(_backend, pollInterval: pollInterval);
 
   late final SettingRows scienceSettingRows = RemoteScienceSettingRows(
     _backend,

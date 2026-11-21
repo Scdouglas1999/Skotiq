@@ -193,9 +193,10 @@ class CalibrationService {
   /// will be found from the dark library based on the light frame's
   /// exposure parameters.
   ///
-  /// The calibrated image is saved to [outputPath]. If [outputPath] is null,
-  /// a sibling `*_cal` file is generated and the original light frame is
-  /// preserved (with a `.uncal` backup created once for recovery).
+  /// The calibrated image is saved to [outputPath]. When [outputPath] is
+  /// null, a sibling `*_cal` file is written and the original light is left
+  /// as it is. A `.uncal` copy is kept only when the calibrated file replaces
+  /// the light itself.
   Future<CalibrationResult> calibrateFile({
     required String lightPath,
     required CalibrationSettings settings,
