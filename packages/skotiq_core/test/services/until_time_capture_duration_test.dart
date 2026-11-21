@@ -112,7 +112,7 @@ void main() {
     // The walk refines a crossing to 15 seconds. The capture ends on that
     // crossing, which is the visibility set, and before the 08:00 clock.
     expect(
-      capture.estimatedEnd.difference(setTime!).inSeconds.abs(),
+      capture.estimatedEnd.difference(setTime).inSeconds.abs(),
       lessThanOrEqualTo(15),
     );
     expect(capture.estimatedEnd.isBefore(clockEnd), isTrue);
