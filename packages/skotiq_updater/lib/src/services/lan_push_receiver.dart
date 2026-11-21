@@ -28,6 +28,15 @@ class LanPushReceiver {
   /// Maximum time to wait for the authentication message before closing the connection
   static const Duration _authTimeout = Duration(seconds: 10);
 
+  /// How long a push may go without delivering any bytes before it is aborted.
+  ///
+  /// This is an idle deadline, re-armed on every chunk. A slow transfer that
+  /// keeps moving is not cut off (hashing and extraction are not on this
+  /// clock). [Future.timeout] is not used: it leaves the original read running,
+  /// so a timed-out push could still extract, write ready.json, and call
+  /// [onUpdateReceived] after the receive slot had been released.
+  static const Duration defaultIdleTimeout = Duration(seconds: 60);
+
   /// Hard cap on the total package bytes accepted over a single LAN push
   /// connection, independent of what the manifest claims. A malicious or
   /// mis-signed manifest can declare a giant `compressedSize` and fill the
@@ -44,6 +53,7 @@ class LanPushReceiver {
   final int _serverPort;
   final String _currentPlatform;
   final String _currentArch;
+  final Duration _idleTimeout;
 
   /// Pre-shared key required from push clients for authentication.
   /// Must be set before starting the server. Generate with [generatePushSecret].
@@ -68,6 +78,7 @@ class LanPushReceiver {
     int serverPort = pushPort,
     String? currentPlatform,
     String? currentArch,
+    Duration idleTimeout = defaultIdleTimeout,
   }) : _currentVersion = currentVersion,
        _currentBuildNumber = currentBuildNumber,
        _dataDirectory = dataDirectory,
@@ -79,6 +90,7 @@ class LanPushReceiver {
        _currentArch = normalizeUpdateArchitecture(
          currentArch ?? currentUpdateArchitecture(),
        ),
+       _idleTimeout = idleTimeout,
        _verifier = verifier ?? UpdateVerifier();
 
   /// Set the pre-shared push secret. Must be called before [startServer].
@@ -177,7 +189,7 @@ class LanPushReceiver {
       return;
     }
 
-    final reader = _SocketFrameReader(socket);
+    final reader = _SocketFrameReader(socket, idleTimeout: _idleTimeout);
     try {
       // Authentication phase
       final authenticated = await _authenticateClient(
@@ -192,12 +204,7 @@ class LanPushReceiver {
       _receiveState = _ReceiveState.receiving;
       onProgress?.call(0, 0, 0, 'Authenticated connection from $remoteAddress');
 
-      await _receiveUpdate(reader, socket).timeout(
-        const Duration(minutes: 10),
-        onTimeout: () => throw TimeoutException(
-          'LAN push update transfer timed out after 10 minutes',
-        ),
-      );
+      await _receiveUpdate(reader, socket);
     } catch (e) {
       developer.log(
         'Error receiving update: $e',
@@ -237,9 +244,7 @@ class LanPushReceiver {
     String remoteAddress,
   ) async {
     try {
-      final header = await reader
-          .readExactly(4)
-          .timeout(_authTimeout, onTimeout: () => null);
+      final header = await reader.readExactly(4, idleTimeout: _authTimeout);
       if (header == null) {
         socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
         return false;
@@ -252,9 +257,10 @@ class LanPushReceiver {
         return false;
       }
 
-      final payload = await reader
-          .readExactly(authLen)
-          .timeout(_authTimeout, onTimeout: () => null);
+      final payload = await reader.readExactly(
+        authLen,
+        idleTimeout: _authTimeout,
+      );
       if (payload == null) {
         socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
         return false;
@@ -282,6 +288,9 @@ class LanPushReceiver {
       socket.write(jsonEncode({'auth': 'ok'}));
       await socket.flush();
       return true;
+    } on TimeoutException {
+      socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
+      return false;
     } catch (e) {
       developer.log(
         'Failed to authenticate $remoteAddress: $e',
@@ -543,14 +552,18 @@ enum _ReceiveState { idle, authenticating, receiving }
 /// available when the authentication phase hands off to the manifest phase.
 class _SocketFrameReader {
   final StreamIterator<Uint8List> _chunks;
+  final Duration _idleTimeout;
   List<int> _buffer = const [];
+  var _cancelled = false;
 
-  _SocketFrameReader(Stream<Uint8List> stream)
-    : _chunks = StreamIterator<Uint8List>(stream);
+  _SocketFrameReader(Stream<Uint8List> stream, {required Duration idleTimeout})
+    : _chunks = StreamIterator<Uint8List>(stream),
+      _idleTimeout = idleTimeout;
 
-  Future<Uint8List?> readExactly(int length) async {
+  Future<Uint8List?> readExactly(int length, {Duration? idleTimeout}) async {
+    final limit = idleTimeout ?? _idleTimeout;
     while (_buffer.length < length) {
-      if (!await _chunks.moveNext()) return null;
+      if (!await _moveNext(limit)) return null;
       _buffer = [..._buffer, ..._chunks.current];
     }
     final result = Uint8List.fromList(_buffer.sublist(0, length));
@@ -558,9 +571,9 @@ class _SocketFrameReader {
     return result;
   }
 
-  Future<Uint8List?> readAtMost(int maxLength) async {
+  Future<Uint8List?> readAtMost(int maxLength, {Duration? idleTimeout}) async {
     if (_buffer.isEmpty) {
-      if (!await _chunks.moveNext()) return null;
+      if (!await _moveNext(idleTimeout ?? _idleTimeout)) return null;
       _buffer = _chunks.current;
     }
     final length = _buffer.length < maxLength ? _buffer.length : maxLength;
@@ -569,5 +582,45 @@ class _SocketFrameReader {
     return result;
   }
 
-  Future<void> cancel() => _chunks.cancel();
+  /// Await the next TCP chunk, or abort the subscription if nothing arrives.
+  ///
+  /// Cancelling the iterator completes the pending [StreamIterator.moveNext],
+  /// so the read that [LanPushReceiver] is awaiting is the one that fails.
+  /// The transfer then cannot continue into extract or `ready.json`.
+  Future<bool> _moveNext(Duration limit) async {
+    if (_cancelled) {
+      throw TimeoutException(
+        'LAN push stalled: no data for ${limit.inSeconds}s',
+      );
+    }
+    var timedOut = false;
+    final timer = Timer(limit, () {
+      timedOut = true;
+      unawaited(cancel());
+    });
+    try {
+      final moved = await _chunks.moveNext();
+      if (timedOut || _cancelled) {
+        throw TimeoutException(
+          'LAN push stalled: no data for ${limit.inSeconds}s',
+        );
+      }
+      return moved;
+    } catch (e) {
+      if (timedOut || _cancelled || e is TimeoutException) {
+        throw TimeoutException(
+          'LAN push stalled: no data for ${limit.inSeconds}s',
+        );
+      }
+      rethrow;
+    } finally {
+      timer.cancel();
+    }
+  }
+
+  Future<void> cancel() {
+    if (_cancelled) return Future<void>.value();
+    _cancelled = true;
+    return _chunks.cancel();
+  }
 }
