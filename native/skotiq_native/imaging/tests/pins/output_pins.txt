@@ -53,7 +53,7 @@ defocus_R06.fits/detect_stars_with_stats 9ea6bf7606198f7e
 defocus_R06.fits/display_histogram 0b2f560ecdf50fa3
 defocus_R06.fits/display_u8 9820745db0eb240d
 defocus_R06.fits/frame_quality 8d375ccfb5a5284b
-defocus_R06.fits/frame_shape dcdb71365dd7685e
+defocus_R06.fits/frame_shape b13eb33119fcb888
 defocus_R06.fits/frame_trail 6937497112e4c602
 defocus_R06.fits/histogram 3309a3c3ded31394
 defocus_R06.fits/median_hfr 01ce4f756ec79a07
@@ -69,7 +69,7 @@ defocus_R12.fits/detect_stars_with_stats 6f750235d36d4615
 defocus_R12.fits/display_histogram a1414b713864a7ed
 defocus_R12.fits/display_u8 1a7cf1d34e9ae0c7
 defocus_R12.fits/frame_quality 54c8dd5d91510d3a
-defocus_R12.fits/frame_shape c78811b3bb640151
+defocus_R12.fits/frame_shape 285c51daa0cd2d19
 defocus_R12.fits/frame_trail d19e6173a3309947
 defocus_R12.fits/histogram d75d0d3a5f15192d
 defocus_R12.fits/median_hfr 616591e32e5271ea
@@ -138,7 +138,7 @@ focused_L.fits/detect_stars_with_stats b962982b776ac2f7
 focused_L.fits/display_histogram 0f5149dc5716d908
 focused_L.fits/display_u8 a94b9d6c860cb656
 focused_L.fits/frame_quality 474463056b3b4f48
-focused_L.fits/frame_shape 11d52c78d1457a81
+focused_L.fits/frame_shape f61b67ba7c4b963c
 focused_L.fits/frame_trail 180bb3f838ab2986
 focused_L.fits/histogram 1c376cae5509411c
 focused_L.fits/median_hfr 239bdd5706b95375
@@ -154,7 +154,7 @@ focused_L_0005.fits/detect_stars_with_stats 21633fbd2c225eec
 focused_L_0005.fits/display_histogram 03ba059065f2f4bc
 focused_L_0005.fits/display_u8 c85a5f9ae669fb58
 focused_L_0005.fits/frame_quality fed169a61f07f6f4
-focused_L_0005.fits/frame_shape b23ecf817ae65374
+focused_L_0005.fits/frame_shape b1471dfbba708fe7
 focused_L_0005.fits/frame_trail aad4bacf3f680328
 focused_L_0005.fits/histogram 03a837ebce37f3ae
 focused_L_0005.fits/median_hfr 461cc7f8052c7582
@@ -170,7 +170,7 @@ focused_L_0006.fits/detect_stars_with_stats ab47123f20b67cbe
 focused_L_0006.fits/display_histogram b3f605461371b52c
 focused_L_0006.fits/display_u8 08506b6baf234f7f
 focused_L_0006.fits/frame_quality 3a41004f608b10fa
-focused_L_0006.fits/frame_shape a639ad50174b4427
+focused_L_0006.fits/frame_shape e2f9191512e98235
 focused_L_0006.fits/frame_trail 8c3f8e024b2537a5
 focused_L_0006.fits/histogram 0e197012bfc09d72
 focused_L_0006.fits/median_hfr b461be49916c4edb
@@ -234,7 +234,7 @@ landed_from_above_L_0003.fits/detect_stars_with_stats 74ddd1edc3dc1d10
 landed_from_above_L_0003.fits/display_histogram 05b12ede401a666a
 landed_from_above_L_0003.fits/display_u8 67e19dc124471c88
 landed_from_above_L_0003.fits/frame_quality c9e56d6bf46dba75
-landed_from_above_L_0003.fits/frame_shape f80023c39bfb464e
+landed_from_above_L_0003.fits/frame_shape 41d52a476e51ecce
 landed_from_above_L_0003.fits/frame_trail da9a3a2c91e6b132
 landed_from_above_L_0003.fits/histogram ccf059c9a647e4e1
 landed_from_above_L_0003.fits/median_hfr 777539ed96c14d6c
@@ -330,7 +330,7 @@ trailed_Ha_0001_001.fits/detect_stars_with_stats 7d8069fc03b65685
 trailed_Ha_0001_001.fits/display_histogram 3d67bbe4349ebd95
 trailed_Ha_0001_001.fits/display_u8 31f06e7c2124623b
 trailed_Ha_0001_001.fits/frame_quality 979fbfa6f17fd7a0
-trailed_Ha_0001_001.fits/frame_shape ec1625b6435306e0
+trailed_Ha_0001_001.fits/frame_shape 6a811d5db1de7326
 trailed_Ha_0001_001.fits/frame_trail 763cdf9397299ca0
 trailed_Ha_0001_001.fits/histogram d9e8ee1a15eedb1e
 trailed_Ha_0001_001.fits/median_hfr 287874db6f3901c6
@@ -346,7 +346,7 @@ trailed_OIII_0001.fits/detect_stars_with_stats 545a42ab55d976ba
 trailed_OIII_0001.fits/display_histogram b98163c9563083aa
 trailed_OIII_0001.fits/display_u8 d1b7ce9b42948eac
 trailed_OIII_0001.fits/frame_quality 43a66bc88bc14ca3
-trailed_OIII_0001.fits/frame_shape 623e81073221813d
+trailed_OIII_0001.fits/frame_shape 4a68c23a706328a4
 trailed_OIII_0001.fits/frame_trail 92eafe392101d52a
 trailed_OIII_0001.fits/histogram cd3a401393489803
 trailed_OIII_0001.fits/median_hfr 43a7ccd28037ce30
@@ -378,7 +378,7 @@ trailed_SII_0001_001.fits/detect_stars_with_stats 5c5b0edb207c5b31
 trailed_SII_0001_001.fits/display_histogram 68ab99bed97c5058
 trailed_SII_0001_001.fits/display_u8 c42512ef4a57c943
 trailed_SII_0001_001.fits/frame_quality 5b56c379ebbd9cc7
-trailed_SII_0001_001.fits/frame_shape 9f7f18a1ecf86b41
+trailed_SII_0001_001.fits/frame_shape b801c0045f118d8e
 trailed_SII_0001_001.fits/frame_trail 56760a6eb84b3a77
 trailed_SII_0001_001.fits/histogram 2c5ec7267cff1f9b
 trailed_SII_0001_001.fits/median_hfr beef545de4e0b658
@@ -394,7 +394,7 @@ trailed_round_G.fits/detect_stars_with_stats c30e4cb0b4c9a53d
 trailed_round_G.fits/display_histogram 8b58c95430652328
 trailed_round_G.fits/display_u8 12afa7bd06925a7f
 trailed_round_G.fits/frame_quality d4762fc279d5ca6c
-trailed_round_G.fits/frame_shape de3267aafb1c7323
+trailed_round_G.fits/frame_shape 92f4eab247f4289a
 trailed_round_G.fits/frame_trail a18aa93c2a7c4de8
 trailed_round_G.fits/histogram 692b1ce3e15c2269
 trailed_round_G.fits/median_hfr 8d31728dfeb624dc

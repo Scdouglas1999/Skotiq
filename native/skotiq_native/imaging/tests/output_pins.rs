@@ -273,6 +273,9 @@ fn pin_fixture_measurements(pins: &mut Pins) {
             &p("display_histogram"),
             &calculate_display_histogram(&image, true),
         );
+        // Adaptive Gaussian weights use libm::exp. Against 192-bit MPFR weights
+        // on these fixtures, eccentricity differs by at most 1.6e-14, axis angle
+        // by 4.3e-13 degrees and directional consistency by 7.2e-15.
         pins.add_debug(&p("frame_shape"), &measure_frame_shape(&image));
         pins.add_debug(&p("frame_trail"), &measure_frame_trail(&image));
         pins.add_debug(
