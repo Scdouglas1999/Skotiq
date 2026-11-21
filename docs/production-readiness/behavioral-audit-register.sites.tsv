@@ -603,7 +603,6 @@ native/skotiq_native/bridge/src/simulator/mod.rs	-	simulated_runtime_path	1	R9-0
 native/skotiq_native/bridge/src/simulator/sky.rs	astap_dir	unwrap_or_default	1	V0708	let home = std::env::var("HOME").unwrap_or_default();
 native/skotiq_native/bridge/src/simulator/sky.rs	choose_prefix	unwrap_or_literal	1	V0706	let bytes = path.metadata().map(|meta| meta.len()).unwrap_or(0);
 native/skotiq_native/bridge/src/simulator/sky.rs	synth_area	unwrap_or_literal	1	V0707	.unwrap_or(0);
-native/skotiq_native/bridge/src/solver/admission.rs	-	rust_let_underscore	1	V0674	let _ = tx.send(Arc::new(result.clone().map_err(|e| e.to_string())));
 native/skotiq_native/bridge/src/solver/admission.rs	a_finished_solve_releases_its_frame	rust_let_underscore	2	V0779	let _ = coalesced_solve(path, "near", SolvePreference::Hinted, || {
 native/skotiq_native/bridge/src/solver/admission.rs	two_frames_still_get_two_solves	rust_let_underscore	2	V0779	let _ = coalesced_solve(
 native/skotiq_native/bridge/src/solver/ladder.rs	a_follower_receives_the_escalated_result_not_the_first_rung	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
