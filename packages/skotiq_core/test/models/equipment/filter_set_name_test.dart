@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/models.dart';
+import 'package:skotiq_astro/filters.dart';
 
 void main() {
   test(
