@@ -132,51 +132,7 @@ impl std::fmt::Display for CameraState {
     }
 }
 
-/// The kind of frame being captured.
-///
-/// Drives shutter behavior on cameras with a MECHANICAL SHUTTER (Moravian G-series,
-/// FLI, some CCDs): dark/bias frames must be taken with the shutter CLOSED to exclude
-/// light, otherwise the "dark" is contaminated and ruins calibration. CMOS cameras
-/// without a shutter simply ignore it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum FrameType {
-    #[default]
-    Light,
-    Dark,
-    Flat,
-    Bias,
-    DarkFlat,
-}
-
-impl FrameType {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            FrameType::Light => "Light",
-            FrameType::Dark => "Dark",
-            FrameType::Flat => "Flat",
-            FrameType::Bias => "Bias",
-            FrameType::DarkFlat => "DarkFlat",
-        }
-    }
-
-    /// Whether the mechanical shutter should be OPEN during the exposure.
-    /// Light and Flat collect light; Dark/Bias/DarkFlat must exclude it.
-    pub fn opens_shutter(self) -> bool {
-        matches!(self, FrameType::Light | FrameType::Flat)
-    }
-
-    /// Parse the sequencer's string frame type (case-insensitive). Unknown values
-    /// map to `Light` — the safe default (shutter open, no missed frame).
-    pub fn from_str_lenient(s: &str) -> Self {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "dark" => FrameType::Dark,
-            "flat" => FrameType::Flat,
-            "bias" => FrameType::Bias,
-            "darkflat" | "dark_flat" | "dark flat" => FrameType::DarkFlat,
-            _ => FrameType::Light,
-        }
-    }
-}
+pub use skotiq_frame::FrameType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExposureParams {

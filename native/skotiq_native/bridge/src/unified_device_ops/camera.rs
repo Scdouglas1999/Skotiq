@@ -149,7 +149,7 @@ impl UnifiedDeviceOps {
         } = request;
         let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
-        let native_frame_type = skotiq_device::FrameType::from_str_lenient(frame_type);
+        let native_frame_type = frame_type.taken_as();
         let mgr = get_device_manager();
 
         // Gain, offset and read mode have one owner: what the frame names,
@@ -191,7 +191,9 @@ impl UnifiedDeviceOps {
                     skotiq_device::FrameType::Flat => crate::device::FrameType::Flat,
                     skotiq_device::FrameType::Bias => crate::device::FrameType::Bias,
                     skotiq_device::FrameType::DarkFlat => crate::device::FrameType::DarkFlat,
-                    skotiq_device::FrameType::Light => crate::device::FrameType::Light,
+                    skotiq_device::FrameType::Light | skotiq_device::FrameType::Snapshot => {
+                        crate::device::FrameType::Light
+                    }
                 },
             },
         );

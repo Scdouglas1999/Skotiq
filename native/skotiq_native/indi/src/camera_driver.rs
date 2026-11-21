@@ -131,7 +131,7 @@ impl IndiCamera {
     /// camera.
     fn frame_type(kind: FrameType) -> CcdFrameType {
         match kind {
-            FrameType::Light => CcdFrameType::Light,
+            FrameType::Light | FrameType::Snapshot => CcdFrameType::Light,
             FrameType::Dark | FrameType::DarkFlat => CcdFrameType::Dark,
             FrameType::Flat => CcdFrameType::Flat,
             FrameType::Bias => CcdFrameType::Bias,

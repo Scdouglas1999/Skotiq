@@ -28,10 +28,10 @@ pub struct ExposureRequest<'a> {
     pub bin_y: i32,
     /// `None` reads the full sensor.
     pub subframe: Option<CameraSubframe>,
-    /// The sequencer's frame-type string ("Light"/"Dark"/"Flat"/"Bias"/
-    /// "DarkFlat", case-insensitive). A camera with a mechanical shutter
-    /// (Moravian, FLI, some CCDs) keeps it closed for dark and bias frames.
-    pub frame_type: &'a str,
+    /// What the frame is. A camera with a mechanical shutter (Moravian, FLI,
+    /// some CCDs) keeps it closed for dark and bias frames; a snapshot is
+    /// taken as a light.
+    pub frame_type: crate::FrameType,
     /// The read mode this frame is to be taken in, by the name the camera
     /// lists. `None` takes the mode stated for the camera (its profile's
     /// default), or the mode it is in when none is stated.
@@ -50,7 +50,7 @@ impl<'a> ExposureRequest<'a> {
             bin_x: 1,
             bin_y: 1,
             subframe: None,
-            frame_type: "Light",
+            frame_type: crate::FrameType::Light,
             readout_mode: None,
         }
     }
@@ -76,7 +76,7 @@ impl<'a> ExposureRequest<'a> {
         self
     }
 
-    pub fn frame_type(mut self, frame_type: &'a str) -> Self {
+    pub fn frame_type(mut self, frame_type: crate::FrameType) -> Self {
         self.frame_type = frame_type;
         self
     }

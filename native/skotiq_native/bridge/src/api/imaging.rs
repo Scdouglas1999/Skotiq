@@ -757,7 +757,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
                 .offset(offset)
                 .binning(bin_x, bin_y)
                 .subframe(subframe)
-                .frame_type(frame_type.as_str()),
+                .frame_type(frame_type),
         )
         .await
         .map_err(|e| classify_exposure_failure(&device_id, e))?;
